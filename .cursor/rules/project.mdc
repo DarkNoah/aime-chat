@@ -1,0 +1,4 @@
+---
+alwaysApply: true
+---
+所有的npm安装必须使用npm install --save-dev <package_name> 来安装

@@ -1,0 +1,23 @@
+{
+  "name": "aime-chat",
+  "version": "0.3.0",
+  "description": "A foundation for scalable desktop apps",
+  "license": "MIT",
+  "author": {
+    "name": "Noah",
+    "email": "781172480@qq.com",
+    "url": "https://github.com/aime/aime-chat"
+  },
+  "main": "./dist/main/main.js",
+  "scripts": {
+    "rebuild": "node -r ts-node/register ../../.erb/scripts/electron-rebuild.js",
+    "postinstall": "npm run rebuild && npm run link-modules",
+    "link-modules": "node -r ts-node/register ../../.erb/scripts/link-modules.ts"
+  },
+  "dependencies": {
+    "@huggingface/transformers": "^3.7.6",
+    "@libsql/client": "^0.15.15",
+    "better-sqlite3": "^11.10.0",
+    "undici": "^7.10.0"
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "language": {
+    "en-US": "English",
+    "zh-CN": "中文"
+  },
+  "hello": "Hello2",
+  "settings": {
+    "about": "About",
+    "language": "Language",
+    "theme": "Theme",
+    "general": "General",
+    "proxy": "Proxy",
+    "use_system_proxy": "Use System Proxy",
+    "proxy_customize": "Customize",
+    "proxy_not_using": "Not Using Proxy",
+    "theme_system": "🖥️ System",
+    "theme_light": "☀️ 明亮模式",
+    "theme_dark": "🌑 Dark",
+    "providers": "Model Provider",
+    "runtime": "Runtime",
+    "settings": "Settings",
+    "local_model": "Local Model",
+    "model_location": "Model location",
+    "default_model": "Default Model",
+    "default_fast_model": "Default Fast Model"
+  },
+  "common": {
+    "edit": "Edit",
+    "delete": "Delete",
+    "cancel": "Cancel",
+    "share": "Share",
+    "tools": "Tools",
+    "save": "Save",
+    "model": "Model",
+    "delect_chat": "Delect Chat",
+    "no_more": "no more",
+    "no_data": "No Data",
+    "add": "Add",
+    "loading": "Loading...",
+    "active": "Active",
+    "name": "Name"
+  },
+  "sidebar": {
+    "new_chat": "New Chat",
+    "settings": "Settings",
+    "providers": "Providers",
+    "tools": "Tools",
+    "knowledge_base": "Knowledge Base"
+  },
+  "chat": {
+    "new_chat": "New Chat"
+  }
+}

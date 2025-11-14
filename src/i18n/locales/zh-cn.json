@@ -1,0 +1,53 @@
+{
+  "language": {
+    "en-US": "English",
+    "zh-CN": "中文"
+  },
+  "hello": "你好",
+  "settings": {
+    "about": "关于我们",
+    "language": "语言",
+    "theme": "主题",
+    "general": "通用",
+    "proxy": "网络代理",
+    "use_system_proxy": "使用系统代理",
+    "proxy_customize": "自定义代理",
+    "proxy_not_using": "不使用代理",
+    "theme_system": "🖥️ 跟随系统",
+    "theme_light": "☀️ Light",
+    "theme_dark": "🌑 黑夜模式",
+    "providers": "模型供应商",
+    "runtime": "运行环境",
+    "settings": "设置",
+    "local_model": "本地模型",
+    "model_location": "本地模型位置",
+    "default_model": "默认模型",
+    "default_fast_model": "默认快速模型"
+  },
+  "common": {
+    "edit": "编辑",
+    "delete": "删除",
+    "cancel": "取消",
+    "share": "分享",
+    "tools": "工具",
+    "save": "保存",
+    "model": "模型",
+    "delect_chat": "删除聊天",
+    "no_more": "没有更多",
+    "no_data": "暂无对话",
+    "add": "添加",
+    "loading": "加载中...",
+    "active": "启用",
+    "name": "名称"
+  },
+  "sidebar": {
+    "new_chat": "新聊天",
+    "settings": "设置",
+    "providers": "模型供应商",
+    "tools": "工具",
+    "knowledge_base": "知识库"
+  },
+  "chat": {
+    "new_chat": "新聊天"
+  }
+}
