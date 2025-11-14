@@ -12,6 +12,10 @@
     <img src="https://img.shields.io/badge/platform-macOS%20|%20Windows%20|%20Linux-lightgrey.svg" alt="Platform">
     <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License">
   </p>
+
+  <p>
+    <strong>中文</strong> | <a href="README_EN.md">English</a>
+  </p>
 </div>
 
 ---
