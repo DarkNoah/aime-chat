@@ -1,5 +1,5 @@
 /* eslint-disable react/require-default-props */
-import { BrainIcon, GlobeIcon, MicIcon } from 'lucide-react';
+import { BrainIcon, GlobeIcon, MicIcon, WrenchIcon } from 'lucide-react';
 import {
   PromptInput,
   PromptInputActionAddAttachments,
@@ -50,6 +50,10 @@ import {
   ContextTrigger,
 } from '../ai-elements/context';
 import { Suggestion, Suggestions } from '../ai-elements/suggestion';
+import {
+  ChatToolSelector,
+  ChatToolSelectorTrigger,
+} from './chat-tool-selector';
 
 export type ChatInputProps = Omit<PromptInputProps, 'onSubmit'> & {
   onSubmit?: (
@@ -66,6 +70,7 @@ export type ChatInputProps = Omit<PromptInputProps, 'onSubmit'> & {
   showWebSearch?: boolean;
   showThink?: boolean;
   showModelSelect?: boolean;
+  showToolSelector?: boolean;
   model?: string;
   onModelChange?: (model: string) => void;
   prompts?: string[];
@@ -88,6 +93,7 @@ export const ChatInput = React.forwardRef<ChatInputRef, ChatInputProps>(
       showMic = false,
       showWebSearch = false,
       showModelSelect = false,
+      showToolSelector = false,
       showThink = false,
       model,
       onModelChange,
@@ -99,6 +105,7 @@ export const ChatInput = React.forwardRef<ChatInputRef, ChatInputProps>(
     const [webSearch, setWebSearch] = useState(false);
     const [useMicrophone, setUseMicrophone] = useState<boolean>(false);
     const [think, setThink] = useState(false);
+    const [tools, setTools] = useState<string[]>([]);
     // useEffect(() => {
     //   setModelState(model);
     // }, [model]);
@@ -166,6 +173,17 @@ export const ChatInput = React.forwardRef<ChatInputRef, ChatInputProps>(
                 >
                   <GlobeIcon size={16} />
                 </PromptInputButton>
+              )}
+              {showToolSelector && (
+                <ChatToolSelector value={tools} onChange={setTools}>
+                  <ChatToolSelectorTrigger>
+                    <PromptInputButton
+                      variant={tools.length > 0 ? 'default' : 'ghost'}
+                    >
+                      <WrenchIcon size={16} />
+                    </PromptInputButton>
+                  </ChatToolSelectorTrigger>
+                </ChatToolSelector>
               )}
               {showModelSelect && (
                 <ChatModelSelect

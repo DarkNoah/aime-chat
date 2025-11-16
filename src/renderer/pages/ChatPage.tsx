@@ -528,6 +528,7 @@ function ChatPage() {
             <ChatInput
               showModelSelect
               showWebSearch
+              showToolSelector
               showThink
               model={modelId}
               onModelChange={setModelId}

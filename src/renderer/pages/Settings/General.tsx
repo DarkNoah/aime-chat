@@ -136,6 +136,10 @@ export default function General() {
           </Field>
         </div>
       )}
+
+      <Field>
+        <FieldLabel>{t('settings.apiServer')}</FieldLabel>
+      </Field>
     </FieldGroup>
   );
 }

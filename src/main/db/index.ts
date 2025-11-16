@@ -6,6 +6,7 @@ import { Settings } from '@/entities/settings';
 import { createClient, Client as LibSQLClient } from '@libsql/client';
 import { KnowledgeBase, KnowledgeBaseItem } from '@/entities/knowledge-base';
 import { Secrets } from '@/entities/secrets';
+import { Tools } from '@/entities/tools';
 
 class DBManager {
   // defaultDb: Database;
@@ -25,6 +26,7 @@ class DBManager {
         KnowledgeBase,
         KnowledgeBaseItem,
         Secrets,
+        Tools,
       ],
       // migrationsRun: true,
       // migrations: [],

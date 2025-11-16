@@ -199,11 +199,13 @@ export default function ThreadsList({ className }: ThreadsListProps) {
           className="truncate w-full flex flex-row justify-between h-full"
         >
           <Item
-            className="w-full flex flex-row justify-between"
+            className="truncate w-full flex flex-row justify-between  flex-nowrap"
             onClick={() => handleNavigation(`/chat/${item.id}`)}
           >
-            <ItemContent className="min-w-0 flex-1 truncate">
-              <ItemTitle className="">{item.title}</ItemTitle>
+            <ItemContent className="min-w-0">
+              <ItemTitle className="line-clamp-1 w-auto">
+                {item.title}
+              </ItemTitle>
             </ItemContent>
             <ItemActions>
               <div className="opacity-0 group-hover/item:opacity-100 transition-opacity duration-200">
@@ -257,8 +259,8 @@ export default function ThreadsList({ className }: ThreadsListProps) {
       ref={containerRef}
       className={cn('flex flex-col min-h-0 h-full', className)}
     >
-      <ScrollArea className="flex-1 h-full pr-1">
-        <div className="flex flex-col gap-1 p-2">
+      <ScrollArea className="flex-1 h-full pr-1 ">
+        <div className="flex flex-col gap-1 p-2 w-[calc(var(--sidebar-width)-var(--spacing)*4)]">
           {items.map((item) => row(item))}
           {loading && loader()}
           {isEmpty && (

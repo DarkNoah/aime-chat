@@ -22,6 +22,7 @@ import { getDbPath, getDefaultModelPath } from '../utils';
 import { platform } from 'os';
 import { Agent, ProxyAgent, setGlobalDispatcher } from 'undici';
 import { isUrl } from '@/utils/is';
+import fs from 'fs';
 import {
   getSystemProxySettings,
   SystemProxySettings,
@@ -29,6 +30,14 @@ import {
 import { Settings } from '@/entities/settings';
 import { getMainWindow } from '../main';
 import { HttpsProxyAgent } from 'https-proxy-agent';
+import {
+  getNodeRuntime,
+  getUVRuntime,
+  installUVRuntime,
+  unInstallUVRuntime,
+} from './runtime';
+import { fstat } from 'fs';
+import path from 'path';
 
 class AppManager extends BaseManager {
   repository: Repository<Providers>;
@@ -47,7 +56,7 @@ class AppManager extends BaseManager {
     const proxySetting = await this.settingsRepository.findOne({
       where: { id: 'proxy' },
     });
-    this.appProxy = proxySetting?.value as AppProxy;
+    this.appProxy = (proxySetting?.value || { mode: 'noproxy' }) as AppProxy;
     await this.setProxy(this.appProxy);
   }
 
@@ -90,7 +99,7 @@ class AppManager extends BaseManager {
   }
 
   @channel(AppChannel.Send)
-  public async send(title: string, message: string): Promise<void> {
+  public async send(title: string, message?: string): Promise<void> {
     this.getMainWindow()?.webContents.send(AppChannel.Send, title, message);
   }
 
@@ -100,7 +109,13 @@ class AppManager extends BaseManager {
 
   @channel(AppChannel.OpenPath)
   public async openPath(path: string): Promise<void> {
-    await shell.openPath(path);
+    if (fs.existsSync(path)) {
+      if (fs.statSync(path).isFile()) {
+        await shell.showItemInFolder(path);
+      } else {
+        await shell.openPath(path);
+      }
+    }
   }
   @channel(AppChannel.SetTheme)
   public async setTheme(theme: string): Promise<void> {
@@ -124,6 +139,12 @@ class AppManager extends BaseManager {
             })
           : new Agent(),
       );
+      const url = new URL(systemProxy.proxyServer);
+      this.appProxy = {
+        mode: 'system',
+        host: url.hostname,
+        port: parseInt(url.port),
+      };
       const settingData = new Settings('proxy', { mode: 'system' });
       await this.settingsRepository.upsert(settingData, ['id']);
     } else if (data.mode == 'custom') {
@@ -145,6 +166,11 @@ class AppManager extends BaseManager {
             uri: proxyConfig.proxyRules,
           }),
         );
+        this.appProxy = {
+          mode: 'custom',
+          host: url.hostname,
+          port: parseInt(url.port),
+        };
         settingData.value = {
           mode: 'custom',
           host: data.host,
@@ -155,6 +181,7 @@ class AppManager extends BaseManager {
     } else if (data.mode == 'noproxy') {
       proxyConfig = {};
       setGlobalDispatcher(new Agent());
+      this.appProxy = { mode: 'noproxy' };
       const settingData = new Settings('proxy', { mode: 'noproxy' });
       await this.settingsRepository.upsert(settingData, ['id']);
     }
@@ -180,18 +207,27 @@ class AppManager extends BaseManager {
   }): Promise<void> {
     await this.settingsRepository.upsert(settings, ['id']);
   }
-
+  @channel(AppChannel.InstasllRumtime)
   public async installRuntime(pkg: string) {
     if (pkg == 'uv') {
+      await installUVRuntime();
     }
   }
-  public async checkRuntime() {}
 
+  @channel(AppChannel.UninstallRumtime)
+  public async UninstallRumtime(pkg: string) {
+    if (pkg == 'uv') {
+      await unInstallUVRuntime();
+    }
+  }
 
-
-
-
-
-  
+  @channel(AppChannel.GetRuntimeInfo)
+  public async getRuntimeInfo(): Promise<any> {
+    const uv = await getUVRuntime();
+    return {
+      uv: uv,
+      node: await getNodeRuntime(),
+    };
+  }
 }
 export const appManager = new AppManager();

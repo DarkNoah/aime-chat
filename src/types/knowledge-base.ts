@@ -13,8 +13,8 @@ export enum KnowledgeBaseSourceType {
   Folder = 'folder',
   Text = 'text',
 }
-
-export interface CreateKnowledgeBase {
+export type KnowledgeBase = {
+  id: string;
   name: string;
   description?: string;
   tags?: string[];
@@ -22,14 +22,19 @@ export interface CreateKnowledgeBase {
   vectorStoreConfig?: any;
   embedding?: string;
   reranker?: string;
-  static?: boolean;
   returnChunkCount?: number;
-}
+};
 
-export interface UpdateKnowledgeBase {
+export type CreateKnowledgeBase = UpdateKnowledgeBase & {
+  vectorStoreType?: VectorStoreType;
+  vectorStoreConfig?: any;
+  embedding?: string;
+};
+
+export type UpdateKnowledgeBase = {
   name: string;
   description?: string;
   tags?: string[];
   reranker?: string;
   returnChunkCount?: number;
-}
+};

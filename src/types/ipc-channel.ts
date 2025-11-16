@@ -18,6 +18,9 @@ export enum AppChannel {
   SetLanguage = 'app:setlanguage',
   ShowOpenDialog = 'app:showOpenDialog',
   SaveSettings = 'app:saveSettings',
+  InstasllRumtime = 'app:installRumtime',
+  UninstallRumtime = 'app:uninstallRumtime',
+  GetRuntimeInfo = 'app:getRuntimeInfo',
 }
 
 export enum MastraChannel {
@@ -40,5 +43,14 @@ export enum KnowledgeBaseChannel {
 }
 
 export enum ToolChannel {
-  ImportMCP = 'tool:import-mcp',
+  ImportMCP = 'tool:importMcp',
+  GetAvailableTools = 'tool:getAvailableTools',
+  GetList = 'tool:getList',
+  GetTool = 'tool:getTool',
+  ToggleToolActive = 'tool:toggleToolActive',
+  ExecuteTool = 'tool:executeTool',
 }
+
+export type ImportMcp = {
+  mcpConfig: string;
+};

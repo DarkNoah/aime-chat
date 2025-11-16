@@ -2,15 +2,33 @@
   "embeddings": [
     {
       "id": "bge-m3",
-      "type": "huggingface",
+      "library": "transformers",
       "repo": "Xenova/bge-m3",
-      "download": "https://huggingface.co/Xenova/bge-m3"
+      "download": [
+        {
+          "source": "huggingface",
+          "url": "https://huggingface.co/Xenova/bge-m3"
+        },
+        {
+          "source": "modelspoce",
+          "url": "https://www.modelscope.cn/models/Xenova/bge-m3"
+        }
+      ]
     },
     {
       "id": "bge-large-zh-v1.5",
-      "type": "huggingface",
+      "library": "transformers",
       "repo": "Xenova/bge-large-zh-v1.5",
-      "download": "https://huggingface.co/Xenova/bge-large-zh-v1.5"
+      "download": [
+        {
+          "source": "huggingface",
+          "url": "https://huggingface.co/Xenova/bge-large-zh-v1.5"
+        },
+        {
+          "source": "modelspoce",
+          "url": "https://www.modelscope.cn/models/Xenova/bge-large-zh-v1.5"
+        }
+      ]
     },
     {
       "id": "nomic-embed-text-v1.5",
@@ -19,16 +37,49 @@
       "download": "https://huggingface.co/nomic-ai/nomic-embed-text-v1.5"
     },
     {
-      "id": "Qwen/Qwen3-Embedding-0.6B",
-      "type": "huggingface",
-      "repo": "nomic-ai/nomic-embed-text-v1.5",
-      "download": "https://huggingface.co/nomic-ai/nomic-embed-text-v1.5"
+      "id": "Qwen/Qwen3-Embedding-0.6B-fp16",
+      "library": "openvino",
+      "repo": "OpenVINO/Qwen3-Embedding-0.6B-fp16-ov",
+      "download": [
+        {
+          "source": "modelspoce",
+          "url": "https://www.modelscope.cn/models/OpenVINO/Qwen3-Embedding-0.6B-fp16-ov"
+        },
+        {
+          "source": "huggingface",
+          "url": "https://huggingface.co/OpenVINO/Qwen3-Embedding-0.6B-fp16-ov"
+        }
+      ]
+    },
+    {
+      "id": "Qwen/Qwen3-Embedding-0.6B-int8-ov",
+      "library": "openvino",
+      "repo": "OpenVINO/Qwen/Qwen3-Embedding-0.6B-int8-ov",
+      "download": [
+        {
+          "source": "modelspoce",
+          "url": "https://www.modelscope.cn/models/OpenVINO/Qwen3-Embedding-0.6B-int8-ov"
+        },
+        {
+          "source": "huggingface",
+          "url": "https://huggingface.co/OpenVINO/Qwen3-Embedding-0.6B-int8-ov"
+        }
+      ]
     },
     {
       "id": "Qwen/Qwen3-Embedding-0.6B",
-      "type": "modelspoce",
+      "library": "transformers",
       "repo": "Qwen/Qwen3-Embedding-0.6B",
-      "download": "https://huggingface.co/nomic-ai/nomic-embed-text-v1.5"
+      "download": [
+        {
+          "source": "modelspoce",
+          "url": "https://www.modelscope.cn/models/onnx-community/Qwen3-Embedding-0.6B-ONNX"
+        },
+        {
+          "source": "huggingface",
+          "url": "https://huggingface.co/onnx-community/Qwen3-Embedding-0.6B-ONNX"
+        }
+      ]
     }
   ],
   "reranker": [
@@ -146,15 +197,33 @@
   "other": [
     {
       "id": "rmbg-1.4",
+      "library": "transformers",
       "repo": "briaai/RMBG-1.4",
-      "type": "huggingface",
-      "download": "https://huggingface.co/briaai/RMBG-1.4"
+      "download": [
+        {
+          "source": "huggingface",
+          "url": "https://huggingface.co/briaai/RMBG-1.4"
+        },
+        {
+          "source": "modelscope",
+          "url": "https://www.modelscope.cn/models/briaai/RMBG-1.4"
+        }
+      ]
     },
     {
       "id": "rmbg-2.0",
+      "library": "transformers",
       "repo": "briaai/RMBG-2.0",
-      "type": "huggingface",
-      "download": "https://huggingface.co/briaai/RMBG-2.0"
+      "download": [
+        {
+          "source": "huggingface",
+          "url": "https://huggingface.co/briaai/RMBG-2.0"
+        },
+        {
+          "source": "modelscope",
+          "url": "https://www.modelscope.cn/models/briaai/RMBG-2.0"
+        }
+      ]
     },
     {
       "id": "doclayout_yolo",

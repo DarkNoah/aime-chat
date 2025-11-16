@@ -1,21 +1,32 @@
 import { Mastra } from '@mastra/core';
+
 import {
   MastraToolInvocationOptions,
   Tool,
+  ToolAction,
   ToolExecutionContext,
 } from '@mastra/core/tools';
+import z, { ZodSchema, ZodObject, ZodTypeAny } from 'zod';
 
-abstract class BaseTool implements Tool {
+abstract class BaseTool
+  implements
+    Tool<
+      ZodSchema,
+      ZodSchema,
+      any,
+      any,
+      ToolExecutionContext<ZodSchema, any, any>
+    >
+{
   abstract id: string;
   description: string;
-  inputSchema?: undefined;
-  outputSchema?: undefined;
+  abstract inputSchema: ZodSchema;
+  outputSchema?: ZodSchema;
   suspendSchema?: any;
   resumeSchema?: any;
-  abstract execute?: (
-    context: ToolExecutionContext<undefined, any, any>,
-    options?: MastraToolInvocationOptions,
-  ) => Promise<unknown>;
+
+  constructor() {}
+  execute?: ToolAction<ZodSchema>['execute'];
   mastra?: Mastra;
   requireApproval?: boolean;
 }

@@ -22,7 +22,8 @@
     "local_model": "本地模型",
     "model_location": "本地模型位置",
     "default_model": "默认模型",
-    "default_fast_model": "默认快速模型"
+    "default_fast_model": "默认快速模型",
+    "apiServer": "API服务"
   },
   "common": {
     "edit": "编辑",

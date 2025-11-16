@@ -55,7 +55,13 @@ export class KnowledgeBaseManager extends BaseManager {
   }
 
   @channel(KnowledgeBaseChannel.Update)
-  public async updateKnowledgeBase(id: string, data: UpdateKnowledgeBase) {}
+  public async updateKnowledgeBase(id: string, data: UpdateKnowledgeBase) {
+    const kb = await this.knowledgeBaseRepository.findOneBy({ id });
+    if (!kb) {
+      throw new Error('Knowledge base not found');
+    }
+    await this.knowledgeBaseRepository.update(id, data);
+  }
 
   @channel(KnowledgeBaseChannel.Delete)
   public async deleteKnowledgeBase(id: string) {

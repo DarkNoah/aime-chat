@@ -22,7 +22,8 @@
     "local_model": "Local Model",
     "model_location": "Model location",
     "default_model": "Default Model",
-    "default_fast_model": "Default Fast Model"
+    "default_fast_model": "Default Fast Model",
+    "apiServer": "API Server"
   },
   "common": {
     "edit": "Edit",

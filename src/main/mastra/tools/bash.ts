@@ -8,6 +8,7 @@ import path from 'path';
 import { spawn } from 'child_process';
 import { truncateText } from '@/utils/common';
 import stripAnsi from 'strip-ansi';
+import { createShell } from '@/main/utils/shell';
 
 const MAX_OUTPUT_LENGTH = 30000;
 
@@ -349,42 +350,3 @@ Output: Creates directory 'foo'`),
     return llmContent;
   },
 });
-
-const createShell = (input_command: string, cwd?: string, timeout?: number) => {
-  const isWindows = os.platform() === 'win32';
-  const tempFileName = `shell_pgrep_${crypto
-    .randomBytes(6)
-    .toString('hex')}.tmp`;
-  const tempFilePath = path.join(os.tmpdir(), tempFileName);
-
-  // pgrep is not available on Windows, so we can't get background PIDs
-  const _command = isWindows
-    ? input_command
-    : (() => {
-        // wrap command to append subprocess pids (via pgrep) to temporary file
-        let command = input_command.trim();
-        if (!command.endsWith('&')) command += ';';
-        return `{ ${command} }; __code=$?; pgrep -g 0 >${tempFilePath} 2>&1; exit $__code;`;
-      })();
-
-  const shell = isWindows
-    ? spawn('cmd.exe', ['/c', _command], {
-        stdio: ['ignore', 'pipe', 'pipe'],
-        // detached: true, // ensure subprocess starts its own process group (esp. in Linux)
-        cwd: cwd,
-        timeout: timeout,
-        env: {
-          ...process.env,
-        },
-      })
-    : spawn('bash', ['-c', _command], {
-        stdio: ['ignore', 'pipe', 'pipe'],
-        // detached: true, // ensure subprocess starts its own process group (esp. in Linux)
-        cwd: cwd,
-        timeout: timeout,
-        env: {
-          ...process.env,
-        },
-      });
-  return { shell, tempFilePath, command: _command };
-};

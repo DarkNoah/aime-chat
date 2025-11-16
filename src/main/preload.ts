@@ -8,6 +8,7 @@ import {
   KnowledgeBaseChannel,
   MastraChannel,
   ProviderChannel,
+  ToolChannel,
 } from '@/types/ipc-channel';
 import {
   CreateKnowledgeBase,
@@ -19,6 +20,7 @@ import {
   ProviderModel,
   UpdateProvider,
 } from '@/types/provider';
+import { ToolType } from '@/types/tool';
 import { StorageThreadType } from '@mastra/core/memory';
 import { UIMessage } from 'ai';
 import {
@@ -76,6 +78,11 @@ const electronHandler = {
       ipcRenderer.invoke(AppChannel.ShowOpenDialog, options),
     saveSettings: (settings: { id: string; value: any }) =>
       ipcRenderer.invoke(AppChannel.SaveSettings, settings),
+    installRuntime: (pkg: string) =>
+      ipcRenderer.invoke(AppChannel.InstasllRumtime, pkg),
+    uninstallRuntime: (pkg: string) =>
+      ipcRenderer.invoke(AppChannel.UninstallRumtime, pkg),
+    getRuntimeInfo: () => ipcRenderer.invoke(AppChannel.GetRuntimeInfo),
   },
   providers: {
     getList: () => ipcRenderer.invoke(ProviderChannel.GetList),
@@ -122,6 +129,18 @@ const electronHandler = {
     delete: (id: string) => ipcRenderer.invoke(KnowledgeBaseChannel.Delete, id),
     get: (id: string) => ipcRenderer.invoke(KnowledgeBaseChannel.Get, id),
     getList: () => ipcRenderer.invoke(KnowledgeBaseChannel.GetList),
+  },
+  tools: {
+    importMcp: (data: string) =>
+      ipcRenderer.invoke(ToolChannel.ImportMCP, data),
+    getAvailableTools: () => ipcRenderer.invoke(ToolChannel.GetAvailableTools),
+    getList: (filter?: { type: ToolType }) =>
+      ipcRenderer.invoke(ToolChannel.GetList, filter),
+    getTool: (id: string) => ipcRenderer.invoke(ToolChannel.GetTool, id),
+    executeTool: (id: string, toolName: string, input: any) =>
+      ipcRenderer.invoke(ToolChannel.ExecuteTool, id, toolName, input),
+    toggleToolActive: (id: string) =>
+      ipcRenderer.invoke(ToolChannel.ToggleToolActive, id),
   },
 };
 

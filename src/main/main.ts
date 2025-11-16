@@ -20,6 +20,7 @@ import { getAssetPath } from './utils';
 import { providersManager } from './providers';
 import { appManager } from './app';
 import { knowledgeBaseManager } from './knowledge-base';
+import { toolsManager } from './tools';
 async function init() {
   try {
     await dbManager.init();
@@ -27,6 +28,7 @@ async function init() {
     await appManager.init();
     await mastraManager.init();
     await knowledgeBaseManager.init();
+    await toolsManager.init();
   } catch (err) {
     dialog.showErrorBox('Mastra Init Error', String(err));
   }

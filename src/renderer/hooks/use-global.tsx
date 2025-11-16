@@ -9,6 +9,7 @@ import React, {
   useEffect,
 } from 'react';
 import { toast } from 'sonner';
+import { Spinner } from '../components/ui/spinner';
 
 type GlobalState = {
   appInfo?: AppInfo;
@@ -33,10 +34,10 @@ export function GlobalProvider({ children }: { children: ReactNode }) {
     const handleSend = (title, message) => {
       toast(title as string, {
         description: message,
-        action: {
-          label: 'Undo',
-          onClick: () => console.log('Undo'),
-        },
+        // action: {
+        //   label: 'Undo',
+        //   onClick: () => console.log('Undo'),
+        // },
         closeButton: true,
       });
     };
@@ -53,7 +54,13 @@ export function GlobalProvider({ children }: { children: ReactNode }) {
 
   return (
     <GlobalContext.Provider value={contextValue}>
-      {children}
+      {appInfo ? (
+        children
+      ) : (
+        <div className="w-full h-screen flex items-center justify-center">
+          <Spinner className="w-[64px] h-[64px]" />
+        </div>
+      )}
     </GlobalContext.Provider>
   );
 }
