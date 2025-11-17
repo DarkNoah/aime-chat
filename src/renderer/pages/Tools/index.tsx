@@ -67,7 +67,7 @@ import { ImportMcp } from '@/types/ipc-channel';
 import { Textarea } from '@/renderer/components/ui/textarea';
 import { toast } from 'sonner';
 import { Switch } from '@/renderer/components/ui/switch';
-import { Tool } from '@/types/tool';
+import { Tool, ToolType } from '@/types/tool';
 import ToolDetail from './detail';
 import { Skeleton } from '@/renderer/components/ui/skeleton';
 import { Badge } from '@/renderer/components/ui/badge';
@@ -103,7 +103,7 @@ function Tools() {
   const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const [view, setView] = useState<'mcp' | 'skills' | 'built-in'>('mcp');
+  const [view, setView] = useState<ToolType>(ToolType.MCP);
   const [search, setSearch] = useState('');
   useEffect(() => {
     setTitle(t('common.tools'));
@@ -131,10 +131,13 @@ function Tools() {
       setTools((_tools) => {
         const newTools = {
           ..._tools,
-          mcp: _tools.mcp.map((x) =>
+          [ToolType.MCP]: _tools[ToolType.MCP].map((x) =>
             x.id === data.id ? { ...x, ...data } : x,
           ),
-          skills: _tools.skills.map((x) =>
+          [ToolType.SKILL]: _tools[ToolType.SKILL].map((x) =>
+            x.id === data.id ? { ...x, ...data } : x,
+          ),
+          [ToolType.BUILD_IN]: _tools[ToolType.BUILD_IN].map((x) =>
             x.id === data.id ? { ...x, ...data } : x,
           ),
         };
@@ -255,23 +258,23 @@ function Tools() {
             if (value === '') {
               return;
             }
-            setView(value as 'mcp' | 'skills' | 'built-in');
+            setView(value as ToolType);
           }}
         >
           <ToggleGroupItem
-            value="built-in"
+            value={ToolType.BUILD_IN}
             className="data-[state=off]:bg-transparent bg-secondary "
           >
             Built-in
           </ToggleGroupItem>
           <ToggleGroupItem
-            value="mcp"
+            value={ToolType.MCP}
             className="data-[state=off]:bg-transparent bg-secondary "
           >
             MCP
           </ToggleGroupItem>
           <ToggleGroupItem
-            value="skills"
+            value={ToolType.SKILL}
             className="data-[state=off]:bg-transparent bg-secondary"
           >
             Skills
@@ -310,6 +313,12 @@ function Tools() {
                         )}
                         {kb.status === 'starting' && (
                           <IconLoader2 className="text-yellow-400/50 animate-spin"></IconLoader2>
+                        )}
+                        {kb.status === undefined && kb.isActive && (
+                          <IconToggleRightFilled className="text-green-500/50"></IconToggleRightFilled>
+                        )}
+                        {kb.status === undefined && !kb.isActive && (
+                          <IconToggleLeft className="text-red-500/50"></IconToggleLeft>
                         )}
                       </ItemContent>
                     </Item>

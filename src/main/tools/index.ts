@@ -18,6 +18,8 @@ import matter from 'gray-matter';
 import { Bash } from '../mastra/tools/bash';
 import { error } from 'console';
 import { zodToJsonSchema } from 'zod-to-json-schema';
+import { PythonExecute } from './code/python-execute';
+import BaseTool from './base-tool';
 class ToolsManager extends BaseManager {
   mcpClients: {
     mcp: MCPClient;
@@ -25,6 +27,8 @@ class ToolsManager extends BaseManager {
     error?: Error;
     id: string;
   }[];
+
+  builtInTools: BaseTool[] = [];
 
   toolsRepository: Repository<Tools>;
 
@@ -44,6 +48,26 @@ class ToolsManager extends BaseManager {
       status,
       error,
     });
+  }
+
+  async registerBuiltInTool(tool: BaseTool) {
+    let toolEntity = await this.toolsRepository.findOne({
+      where: { id: `${ToolType.BUILD_IN}:${tool.id}` },
+    });
+    if (!toolEntity) {
+      toolEntity = new Tools(
+        `${ToolType.BUILD_IN}:${tool.id}`,
+        tool.id,
+        ToolType.BUILD_IN,
+      );
+      toolEntity.isActive = true;
+      await this.toolsRepository.save(toolEntity);
+    }
+    this.builtInTools.push(tool);
+  }
+
+  async registerBuiltInTools() {
+    this.registerBuiltInTool(new PythonExecute());
   }
 
   async init(): Promise<void> {
@@ -77,6 +101,7 @@ class ToolsManager extends BaseManager {
         mcpClient.error,
       );
     });
+    this.registerBuiltInTools();
   }
 
   @channel(ToolChannel.ImportMCP)
@@ -193,7 +218,7 @@ class ToolsManager extends BaseManager {
     });
     const skills = await this.getClaudeSkills();
     return {
-      mcp: tools
+      [ToolType.MCP]: tools
         .filter((tool) => tool.type === ToolType.MCP)
         .map((tool) => ({
           id: tool.id,
@@ -202,13 +227,19 @@ class ToolsManager extends BaseManager {
           description: tool.description,
           isActive: tool.isActive,
         })),
-      skills: skills.map((tool) => ({
+      [ToolType.SKILL]: skills.map((tool) => ({
         ...tool,
         status:
           tools.find((x) => x.id === tool.id)?.isActive == true
             ? 'running'
             : 'stopped',
         isActive: tools.find((x) => x.id === tool.id)?.isActive,
+      })),
+      [ToolType.BUILD_IN]: this.builtInTools.map((tool) => ({
+        id: `${ToolType.BUILD_IN}:${tool.id}`,
+        name: tool.id,
+        description: tool.description,
+        isActive: tools.find((x) => x.id === tool.id)?.isActive || true,
       })),
     };
   }
@@ -260,6 +291,21 @@ class ToolsManager extends BaseManager {
           };
         }),
       };
+    } else if (tool.type === ToolType.BUILD_IN) {
+      const _tool = this.builtInTools.find((x) => x.id === tool.name);
+      return {
+        ...tool,
+        name: _tool.id,
+        description: _tool?.description,
+        tools: [
+          {
+            id: _tool.id,
+            name: _tool.id,
+            description: _tool.description,
+            inputSchema: zodToJsonSchema(_tool.inputSchema),
+          },
+        ],
+      };
     }
     return tool;
   }
@@ -285,7 +331,7 @@ class ToolsManager extends BaseManager {
       return tool;
     } else {
       const tool = await this.toolsRepository.findOne({ where: { id } });
-      if (tool.type == 'mcp') {
+      if (tool.type == ToolType.MCP) {
         const mcp = this.mcpClients.find((x) => x.id === `${tool.id}`);
 
         if (mcp) {
@@ -309,6 +355,7 @@ class ToolsManager extends BaseManager {
         } else {
           throw new Error('MCP client not found');
         }
+      } else if (tool.type == ToolType.BUILD_IN) {
       }
       tool.isActive = !tool.isActive;
       await this.toolsRepository.save(tool);

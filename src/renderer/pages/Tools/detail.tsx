@@ -23,7 +23,7 @@ import {
   TabsTrigger,
 } from '@/renderer/components/ui/tabs';
 import { useHeader } from '@/renderer/hooks/use-title';
-import { Tool } from '@/types/tool';
+import { Tool, ToolType } from '@/types/tool';
 import { ItemText } from '@radix-ui/react-select';
 import { useCallback, useEffect, useState } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
@@ -139,9 +139,11 @@ function ToolDetail() {
             </ItemActions>
           )}
 
-          <pre className="text-wrap">{tool?.description}</pre>
+          <pre className="text-wrap w-full text-muted-foreground">
+            {tool?.description}
+          </pre>
         </Item>
-        {tool?.type === 'mcp' && (
+        {(tool?.type === ToolType.MCP || tool?.type === ToolType.BUILD_IN) && (
           <Tabs className="mt-2" defaultValue="tools">
             <TabsList>
               <TabsTrigger value="tools">
@@ -175,7 +177,7 @@ function ToolDetail() {
             </TabsContent>
           </Tabs>
         )}
-        {tool?.type === 'skill' && (
+        {tool?.type === ToolType.SKILL && (
           <>
             <div className="mt-2 overflow-hidden">
               <Button
