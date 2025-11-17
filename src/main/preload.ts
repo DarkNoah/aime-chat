@@ -131,6 +131,7 @@ const electronHandler = {
     getList: () => ipcRenderer.invoke(KnowledgeBaseChannel.GetList),
   },
   tools: {
+    deleteTool: (id: string) => ipcRenderer.invoke(ToolChannel.DeleteTool, id),
     importMcp: (data: string) =>
       ipcRenderer.invoke(ToolChannel.ImportMCP, data),
     getAvailableTools: () => ipcRenderer.invoke(ToolChannel.GetAvailableTools),

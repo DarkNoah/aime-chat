@@ -44,6 +44,7 @@ export enum KnowledgeBaseChannel {
 
 export enum ToolChannel {
   ImportMCP = 'tool:importMcp',
+  DeleteTool = 'tool:deleteTool',
   GetAvailableTools = 'tool:getAvailableTools',
   GetList = 'tool:getList',
   GetTool = 'tool:getTool',

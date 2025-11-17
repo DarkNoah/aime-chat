@@ -91,152 +91,16 @@ class MastraManager extends BaseManager {
         //   },
         // },
       },
-      server: {
-        port: 8080,
-        host: '0.0.0.0',
-      },
+      // server: {
+      //   port: 8080,
+      //   host: '0.0.0.0',
+      // },
     });
   }
 
   async init() {
     this.app.get('/auth/callback', async (req, res) => {
       const { code } = req.query;
-    });
-
-    this.app.post('/api/chat', async (req: Request, res: Response) => {
-      const controller = new AbortController();
-      const signal = controller.signal;
-      req.on('aborted', () => {
-        debugger;
-        controller.abort();
-      });
-      req.on('close', () => {
-        // controller.abort();
-      });
-
-      const query = req.query;
-      const {
-        agentId,
-        messages: uiMessages,
-        model,
-        webSearch,
-        threadId,
-      }: {
-        agentId?: string;
-        messages: UIMessage[];
-        model: string;
-        webSearch: boolean;
-        threadId: string;
-      } = await req.body;
-      const agent = this.mastra.getAgentById(agentId || 'react-agent');
-      if (!agent) {
-        return res.status(404).json({ error: 'Agent not found' });
-      }
-
-      agent.model = await providersManager.getLanguageModel(model);
-      // const info = modelsData[provider.type]?.models[_modeId] || {};
-
-      const runtimeContext = new RuntimeContext();
-      runtimeContext.set('model' as never, model as never);
-
-      // const thread = await this.mastra.getStorage().getThreadById({ threadId });
-
-      const messages = convertToModelMessages(uiMessages);
-      const stream = await agent.stream(messages, {
-        format: 'aisdk',
-        runtimeContext: runtimeContext,
-        maxSteps: 60,
-        memory: {
-          thread: threadId, // Use actual user/session ID
-          resource: '123',
-
-          options: {
-            semanticRecall: true,
-          },
-        },
-        abortSignal: signal,
-
-        onAbort: ({ steps }) => {
-          // Handle cleanup when stream is aborted
-          console.log('Stream aborted after', steps.length, 'steps');
-          // Persist partial results to database
-        },
-        onFinish: ({ steps, usage }) => {
-          console.log('Stream finished after', steps.length, 'steps');
-          console.log('stream usage:', usage);
-          // Persist final results to database
-        },
-        onStepFinish: (event) => {
-          const { usage } = event;
-
-          const history = (runtimeContext.get('usage' as never) as {
-            // inputTokens: number;
-            // outputTokens: number;
-            totalTokens: number;
-          }) ?? { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
-          // history.inputTokens += usage?.inputTokens ?? 0;
-          // history.outputTokens += usage?.outputTokens ?? 0;
-          history.totalTokens += usage?.totalTokens ?? 0;
-          runtimeContext.set('usage' as never, history as never);
-          const usage_rate = (usage?.totalTokens / (128 * 1000)) * 100;
-          console.log('usage rate: ' + usage_rate.toFixed(2) + '%');
-
-          //console.log("Step finished after", event);
-        },
-        onError: (error) => {
-          console.log('Stream error:', error);
-        },
-        onChunk: (chunk) => {
-          // console.log("Stream chunk:", chunk);
-        },
-        prepareStep: (options) => {
-          console.log('Prepare step:', options);
-          options.messages;
-          return options;
-        },
-      });
-
-      let heartbeat;
-      const stream_2 = await createUIMessageStream({
-        execute: async (options) => {
-          const { writer } = options;
-          heartbeat = setInterval(() => {
-            writer.write({
-              type: 'data-heartbeat',
-              data: { datetime: new Date().toISOString() },
-              transient: true,
-            });
-          }, 1000 * 30);
-
-          writer.merge(stream.toUIMessageStream());
-        },
-        onFinish: (data) => {
-          clearInterval(heartbeat);
-        },
-        onError: (error: Error | undefined) => {
-          console.log('Stream error:', error);
-          clearInterval(heartbeat);
-          return error?.message ?? 'Unknown error';
-        },
-      });
-
-      const response = createUIMessageStreamResponse({ stream: stream_2 });
-      res.status(response.status);
-
-      // 设置头
-      for (const [key, value] of response.headers.entries()) {
-        res.setHeader(key, value);
-        console.log;
-      }
-      const ssebody = response.body; // ReadableStream<Uint8Array> | null
-      if (!ssebody) {
-        res.end(); // 无内容就结束
-        return;
-      }
-      const nodeReadable = Readable.fromWeb(ssebody);
-
-      // 把 body 读取出来再发送
-      nodeReadable.pipe(res);
     });
     await this.start();
   }

@@ -42,9 +42,13 @@ import {
 } from '@/renderer/components/ui/dropdown-menu';
 import {
   IconBox,
+  IconClock,
   IconDots,
   IconEdit,
+  IconLoader2,
   IconPlus,
+  IconToggleLeft,
+  IconToggleRightFilled,
   IconTool,
   IconTrashX,
 } from '@tabler/icons-react';
@@ -123,13 +127,20 @@ function Tools() {
     };
     getList();
     const handleMcpEvent = (data) => {
-      setTools((_tools) => ({
-        ..._tools,
-        mcp: _tools.mcp.map((x) => (x.id === data.id ? { ...x, ...data } : x)),
-        skills: _tools.skills.map((x) =>
-          x.id === data.id ? { ...x, ...data } : x,
-        ),
-      }));
+      console.log(data);
+      setTools((_tools) => {
+        const newTools = {
+          ..._tools,
+          mcp: _tools.mcp.map((x) =>
+            x.id === data.id ? { ...x, ...data } : x,
+          ),
+          skills: _tools.skills.map((x) =>
+            x.id === data.id ? { ...x, ...data } : x,
+          ),
+        };
+        console.log(newTools);
+        return newTools;
+      });
     };
     window.electron.ipcRenderer.on(McpEvent.McpClientUpdated, handleMcpEvent);
     return () => {
@@ -291,59 +302,16 @@ function Tools() {
                         <ItemTitle className="line-clamp-1 w-auto">
                           {kb.name}
                         </ItemTitle>
-
-                        <Badge
-                          variant="outline"
-                          className={
-                            kb.isActive ? 'bg-green-500/50' : 'bg-red-500/50'
-                          }
-                        >
-                          {kb.isActive ? 'on' : 'off'}
-                        </Badge>
+                        {kb.status === 'running' && (
+                          <IconToggleRightFilled className="text-green-500/50"></IconToggleRightFilled>
+                        )}
+                        {(kb.status === 'stopped' || kb.status === 'error') && (
+                          <IconToggleLeft className="text-red-500/50"></IconToggleLeft>
+                        )}
+                        {kb.status === 'starting' && (
+                          <IconLoader2 className="text-yellow-400/50 animate-spin"></IconLoader2>
+                        )}
                       </ItemContent>
-                      {/* <ItemDescription>
-                      <Badge variant="secondary">{kb.embedding}</Badge>
-                    </ItemDescription> */}
-
-                      <ItemActions>
-                        <div className="opacity-0 group-hover/item:opacity-100 transition-opacity duration-200">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="outline"
-                                size="icon"
-                                className="size-6 cursor-pointer border"
-                              >
-                                <IconDots></IconDots>
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent
-                              side="bottom"
-                              align="end"
-                              sideOffset={8}
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <DropdownMenuItem
-                                onSelect={(event) => {
-                                  event.preventDefault();
-                                  event.stopPropagation();
-                                }}
-                              >
-                                <IconEdit /> {t('common.edit')}
-                              </DropdownMenuItem>
-
-                              <DropdownMenuItem
-                                onSelect={(event) => {
-                                  handleDelete(kb.id);
-                                }}
-                                variant="destructive"
-                              >
-                                <IconTrashX /> {t('common.delete')}
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      </ItemActions>
                     </Item>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

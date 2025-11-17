@@ -34,6 +34,18 @@ class ToolsManager extends BaseManager {
 
   pushMcpClient(id: string) {}
 
+  async sendMcpClientUpdatedEvent(
+    id: string,
+    status: McpClientStatus,
+    error?: Error,
+  ) {
+    await appManager.sendEvent(McpEvent.McpClientUpdated, {
+      id,
+      status,
+      error,
+    });
+  }
+
   async init(): Promise<void> {
     this.mcpClients = [];
     this.toolsRepository = dbManager.dataSource.getRepository(Tools);
@@ -59,11 +71,11 @@ class ToolsManager extends BaseManager {
         mcpClient.status = 'error';
         mcpClient.error = error as Error;
       }
-      await appManager.sendEvent(McpEvent.McpClientUpdated, {
-        id: mcpClient.id,
-        status: mcpClient.status,
-        error: mcpClient.error,
-      });
+      await this.sendMcpClientUpdatedEvent(
+        mcpClient.id,
+        mcpClient.status,
+        mcpClient.error,
+      );
     });
   }
 
@@ -89,44 +101,58 @@ class ToolsManager extends BaseManager {
     } else {
       throw new Error('Invalid config');
     }
-    for (const [key, value] of Object.entries(mcpServers)) {
-      const id = nanoid();
-      const mcp = new MCPClient({
-        id: id,
-        servers: {
-          [key]: value,
-        },
-      });
-      const mcpClient = {
-        id: id,
-        mcp,
-        status: 'starting' as McpClientStatus,
-        error: undefined,
-      };
-      const mcpStatus = {
-        id: id,
-        status: 'starting' as McpClientStatus,
-        error: undefined,
-      };
+    const [key, value] = Object.entries(mcpServers)[0];
 
-      this.mcpClients.push(mcpClient);
-      await appManager.sendEvent(McpEvent.McpClientUpdated, mcpStatus);
-      try {
-        // const tools = await mcp.getTools();
-        // const toolsets = await mcp.getToolsets();
-        // mcpStatus.status = 'running';
-        await appManager.sendEvent(McpEvent.McpClientUpdated, mcpStatus);
-        const tool = new Tools(id, key, ToolType.MCP);
-        tool.mcpConfig = {
-          [key]: value,
-        };
-        await this.toolsRepository.save(tool);
-      } catch (error: any) {
-        mcpStatus.status = 'error';
-        mcpStatus.error = error as Error;
-        await appManager.sendEvent(McpEvent.McpClientUpdated, mcpStatus);
+    const id = nanoid();
+    const mcp = new MCPClient({
+      id: id,
+      servers: {
+        [key]: value,
+      },
+    });
+    const mcpClient = {
+      id: id,
+      mcp,
+      status: 'stopped' as McpClientStatus,
+      error: undefined,
+    };
+    const mcpStatus = {
+      id: id,
+      status: 'stopped' as McpClientStatus,
+      error: undefined,
+    };
+
+    this.mcpClients.push(mcpClient);
+    await this.sendMcpClientUpdatedEvent(id, mcpStatus.status);
+    try {
+      const tool = new Tools(id, key, ToolType.MCP);
+      tool.mcpConfig = {
+        [key]: value,
+      };
+      await this.toolsRepository.save(tool);
+    } catch (error: any) {
+      mcpStatus.status = 'error';
+      mcpStatus.error = error as Error;
+      await this.sendMcpClientUpdatedEvent(
+        id,
+        mcpStatus.status,
+        mcpStatus.error,
+      );
+    }
+  }
+
+  @channel(ToolChannel.DeleteTool)
+  public async deleteTool(id: string) {
+    const tool = await this.toolsRepository.findOne({ where: { id } });
+    if (!tool) throw new Error('Tool not found');
+    if (tool.type === ToolType.MCP) {
+      const mcp = this.mcpClients.find((x) => x.id === `${tool.id}`);
+      if (mcp) {
+        await mcp.mcp.disconnect();
       }
     }
+    this.mcpClients = this.mcpClients.filter((x) => x.id !== id);
+    await this.toolsRepository.delete(id);
   }
 
   @channel(ToolChannel.GetAvailableTools)
@@ -138,6 +164,13 @@ class ToolsManager extends BaseManager {
     return {
       mcp: tools
         .filter((tool) => tool.type === ToolType.MCP)
+        .map((tool) => ({
+          id: tool.id,
+          name: tool.name,
+          description: tool.description,
+        })),
+      buildIn: tools
+        .filter((tool) => tool.type === ToolType.BUILD_IN)
         .map((tool) => ({
           id: tool.id,
           name: tool.name,
@@ -165,11 +198,16 @@ class ToolsManager extends BaseManager {
         .map((tool) => ({
           id: tool.id,
           name: tool.name,
+          status: this.mcpClients.find((x) => x.id == tool.id).status,
           description: tool.description,
           isActive: tool.isActive,
         })),
       skills: skills.map((tool) => ({
         ...tool,
+        status:
+          tools.find((x) => x.id === tool.id)?.isActive == true
+            ? 'running'
+            : 'stopped',
         isActive: tools.find((x) => x.id === tool.id)?.isActive,
       })),
     };
@@ -197,11 +235,11 @@ class ToolsManager extends BaseManager {
       let tools = {} as Record<string, any>;
       let resources;
       let prompts;
-      if(tool.isActive){
+      if (tool.isActive) {
         tools = tool.isActive ? await mcp.mcp.getTools() : [];
         const elicitation = await mcp.mcp.elicitation;
-        version = mcp.mcp.mcpClientsById.get(tool.name)?.client
-          ?._serverVersion?.version;
+        version = mcp.mcp.mcpClientsById.get(tool.name)?.client?._serverVersion
+          ?.version;
         resources = await mcp.mcp.resources.list();
         prompts = await mcp.mcp.prompts.list();
       }
@@ -239,25 +277,47 @@ class ToolsManager extends BaseManager {
         tool.isActive = !tool.isActive;
       }
       await this.toolsRepository.save(tool);
-      // const toolRes = await this.getTool(id);
-      await appManager.sendEvent(McpEvent.McpClientUpdated, tool);
+      await this.sendMcpClientUpdatedEvent(
+        id,
+        tool.isActive ? 'running' : 'stopped',
+        undefined,
+      );
       return tool;
     } else {
       const tool = await this.toolsRepository.findOne({ where: { id } });
       if (tool.type == 'mcp') {
         const mcp = this.mcpClients.find((x) => x.id === `${tool.id}`);
+
         if (mcp) {
           if (tool.isActive) {
             await mcp.mcp.disconnect();
+            mcp.status = 'stopped';
+            mcp.error = undefined;
           } else {
-            const tools = await mcp.mcp.getTools();
+            await this.sendMcpClientUpdatedEvent(id, 'starting', undefined);
+            try {
+              const tools = await mcp.mcp.getTools();
+              mcp.status = 'running';
+              mcp.error = undefined;
+            } catch (err) {
+              mcp.status = 'error';
+              mcp.error = err.message;
+              await this.sendMcpClientUpdatedEvent(id, mcp.status, mcp.error);
+              throw new Error('MCP client start failed');
+            }
           }
+        } else {
+          throw new Error('MCP client not found');
         }
       }
       tool.isActive = !tool.isActive;
       await this.toolsRepository.save(tool);
       // const toolRes = await this.getTool(id);
-      await appManager.sendEvent(McpEvent.McpClientUpdated, tool);
+      await this.sendMcpClientUpdatedEvent(
+        id,
+        tool.isActive ? 'running' : 'stopped',
+        undefined,
+      );
       return tool;
     }
   }

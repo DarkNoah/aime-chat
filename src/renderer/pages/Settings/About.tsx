@@ -41,19 +41,43 @@ export default function About() {
           <FieldLabel htmlFor="checkout-7j9-card-name-43j">
             {t('dataPath')}
           </FieldLabel>
-          {appInfo?.dataPath}
+          <Button
+            variant="link"
+            className="flex-1 truncate justify-start bg-secondary"
+            onClick={() => {
+              window.electron.app.openPath(appInfo?.dataPath);
+            }}
+          >
+            <span className="truncate">{appInfo?.dataPath}</span>
+          </Button>
         </Field>
         <Field>
           <FieldLabel htmlFor="checkout-7j9-card-name-43j">
             {t('appData')}
           </FieldLabel>
-          {appInfo?.appData}
+          <Button
+            variant="link"
+            className="flex-1 truncate justify-start bg-secondary"
+            onClick={() => {
+              window.electron.app.openPath(appInfo?.appData);
+            }}
+          >
+            <span className="truncate">{appInfo?.appData}</span>
+          </Button>
         </Field>
         <Field>
           <FieldLabel htmlFor="checkout-7j9-card-name-43j">
             {t('appPath')}
           </FieldLabel>
-          {appInfo?.appPath}
+          <Button
+            variant="link"
+            className="flex-1 truncate justify-start bg-secondary"
+            onClick={() => {
+              window.electron.app.openPath(appInfo?.appPath);
+            }}
+          >
+            <span className="truncate">{appInfo?.appPath}</span>
+          </Button>
         </Field>
       </FieldGroup>
     </div>
