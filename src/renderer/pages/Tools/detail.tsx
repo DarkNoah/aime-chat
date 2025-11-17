@@ -54,8 +54,14 @@ function ToolDetail() {
   }, [getTool, id]);
 
   const handleToggleToolActive = async () => {
-    await window.electron.tools.toggleToolActive(id);
-    await getTool();
+    try{
+      
+      await window.electron.tools.toggleToolActive(id);
+      await getTool();
+    }catch{
+      toast.error('Failed to toggle tool active');
+    }
+
   };
 
   const handleSubmit = async (toolName: string, data: any) => {

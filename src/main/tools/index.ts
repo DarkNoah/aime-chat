@@ -192,12 +192,20 @@ class ToolsManager extends BaseManager {
     if (!tool) throw new Error('Tool not found');
     if (tool.type === ToolType.MCP) {
       const mcp = this.mcpClients.find((x) => x.id === `${tool.id}`);
-      const tools = await mcp.mcp.getTools();
-      const elicitation = await mcp.mcp.elicitation;
-      const version = mcp.mcp.mcpClientsById.get(tool.name)?.client
-        ?._serverVersion?.version;
-      const resources = await mcp.mcp.resources.list();
-      const prompts = await mcp.mcp.prompts.list();
+
+      let version;
+      let tools = {} as Record<string, any>;
+      let resources;
+      let prompts;
+      if(tool.isActive){
+        tools = tool.isActive ? await mcp.mcp.getTools() : [];
+        const elicitation = await mcp.mcp.elicitation;
+        version = mcp.mcp.mcpClientsById.get(tool.name)?.client
+          ?._serverVersion?.version;
+        resources = await mcp.mcp.resources.list();
+        prompts = await mcp.mcp.prompts.list();
+      }
+
       return {
         ...tool,
         status: mcp?.status,

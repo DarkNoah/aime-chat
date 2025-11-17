@@ -35,6 +35,12 @@ export async function installUVRuntime() {
     );
     if (result.code === 0) success = true;
   } else if (process.platform === 'win32') {
+    const result = await runCommand(
+      `powershell -ExecutionPolicy ByPass -Command "$env:UV_INSTALL_DIR='${path.dirname(uvPath)}'; $env:UV_NO_MODEIFY=1; irm https://astral.sh/uv/install.ps1 | iex"`,
+      undefined,
+      undefined,
+    );
+    if (result.code === 0) success = true;
   }
 
   if (success) {
@@ -86,7 +92,9 @@ export async function getUVRuntime(refresh = false) {
 
 export async function getNodeRuntime(refresh = false) {
   if (node.installed === undefined || refresh) {
-    const result = await runCommand(`which node`, undefined, 1000 * 5);
+
+    const command = process.platform == 'darwin' || process.platform == 'linux' ? 'which node' : 'where node';
+    const result = await runCommand(command, undefined, 1000 * 5);
     if (result.code === 0 && fs.existsSync(result.output.trim())) {
       const versionResult = await runCommand(
         `node --version`,

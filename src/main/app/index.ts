@@ -139,12 +139,19 @@ class AppManager extends BaseManager {
             })
           : new Agent(),
       );
-      const url = new URL(systemProxy.proxyServer);
+      if(systemProxy.proxyEnable){
+        const url = new URL(systemProxy.proxyServer);
       this.appProxy = {
         mode: 'system',
         host: url.hostname,
         port: parseInt(url.port),
       };
+      }else{
+        this.appProxy = {
+          mode: 'system'
+        };
+      }
+      
       const settingData = new Settings('proxy', { mode: 'system' });
       await this.settingsRepository.upsert(settingData, ['id']);
     } else if (data.mode == 'custom') {
@@ -158,6 +165,9 @@ class AppManager extends BaseManager {
 
       const settingData = new Settings('proxy', { mode: 'custom' });
       await this.settingsRepository.upsert(settingData, ['id']);
+      this.appProxy = {
+        mode: 'custom',
+      };
 
       try {
         const url = new URL(proxyConfig.proxyRules);
