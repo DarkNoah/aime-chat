@@ -8,6 +8,14 @@ import {
 } from '@mastra/core/tools';
 import z, { ZodSchema, ZodObject, ZodTypeAny } from 'zod';
 
+
+export interface BaseToolParams {
+  verbose?: boolean;
+  tags?: string[];
+  metadata?: Record<string, unknown>;
+}
+
+
 abstract class BaseTool
   implements
     Tool<
@@ -21,11 +29,16 @@ abstract class BaseTool
   abstract id: string;
   description: string;
   abstract inputSchema: ZodSchema;
+  isToolkit: boolean = false;
   outputSchema?: ZodSchema;
   suspendSchema?: any;
   resumeSchema?: any;
+  config?: BaseToolParams;
 
-  constructor() {}
+  constructor(config?: BaseToolParams) {
+    this.config = config;
+  }
+
   execute?: ToolAction<ZodSchema>['execute'];
   mastra?: Mastra;
   requireApproval?: boolean;

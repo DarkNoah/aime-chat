@@ -1,6 +1,6 @@
 import React, { ForwardedRef, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../ui/card';
-import { isArray } from '@/utils/is';
+import { isArray, isObject, isString } from '@/utils/is';
 import { Streamdown } from '../../ai-elements/streamdown';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../ui/tabs';
 import { cn } from '@/renderer/lib/utils';
@@ -27,7 +27,8 @@ export const ChatToolResultPreview = React.forwardRef<
           <CardTitle>{title}</CardTitle>
         </CardHeader>
         <CardContent>
-          {'content' in result && isArray(result.content)
+
+          {isObject(result) && 'content' in result && isArray(result.content)
             ? result.content.map((item: any, index: number) => {
                 if (item.type === 'text')
                   return (
@@ -53,7 +54,10 @@ export const ChatToolResultPreview = React.forwardRef<
                   );
                 return <div key={index}>{item.content}</div>;
               })
-            : JSON.stringify(result)}
+            : <pre className='text-warp break-all'>{result}</pre>}
+
+
+
         </CardContent>
       </Card>
     );

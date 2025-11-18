@@ -50,6 +50,7 @@ export enum ToolChannel {
   GetTool = 'tool:getTool',
   ToggleToolActive = 'tool:toggleToolActive',
   ExecuteTool = 'tool:executeTool',
+  AbortTool = 'tool:abortTool'
 }
 
 export type ImportMcp = {

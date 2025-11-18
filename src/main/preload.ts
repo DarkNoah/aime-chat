@@ -140,6 +140,8 @@ const electronHandler = {
     getTool: (id: string) => ipcRenderer.invoke(ToolChannel.GetTool, id),
     executeTool: (id: string, toolName: string, input: any) =>
       ipcRenderer.invoke(ToolChannel.ExecuteTool, id, toolName, input),
+    abortTool : (id: string, toolName) =>
+      ipcRenderer.invoke(ToolChannel.AbortTool, id, toolName),
     toggleToolActive: (id: string) =>
       ipcRenderer.invoke(ToolChannel.ToggleToolActive, id),
   },

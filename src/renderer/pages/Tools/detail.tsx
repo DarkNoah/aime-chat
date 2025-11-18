@@ -46,7 +46,7 @@ function ToolDetail() {
   const { setTitle } = useHeader();
   const [tool, setTool] = useState<Tool | null>(null);
   const [showPreview, setShowPreview] = useState<boolean>(false);
-  const [toolExecuting, setToolExecuting] = useState<boolean>(false);
+  const [toolExecuting, setToolExecuting] = useState<Record<string, boolean>>({});
   const [toolResultPreview, setToolResultPreview] = useState<{
     title?: string;
     result: any;
@@ -58,6 +58,11 @@ function ToolDetail() {
       setTool(data);
       setTitle(data?.name || '');
       console.log(data);
+      const toole = {};
+      for (const _tool of Object.values(data.tools)) {
+        toole[_tool.id] = false;
+      }
+      setToolExecuting(toole);
     } catch (err) {
       toast.error(err.message);
     }
@@ -78,20 +83,39 @@ function ToolDetail() {
   };
 
   const handleSubmit = async (toolName: string, data: any) => {
-    console.log(data);
-    setToolExecuting(true);
-    const res = await window.electron.tools.executeTool(
-      tool.id,
-      toolName,
-      data,
-    );
-    setToolExecuting(false);
-    setShowPreview(true);
-    setToolResultPreview({
-      title: toolName,
-      result: res,
-    });
-    console.log(res);
+
+    setToolExecuting((prve) => ({
+      ...prve,
+      [toolName]: true,
+    }));
+    try {
+      const res = await window.electron.tools.executeTool(
+        tool.id,
+        toolName,
+        data,
+      );
+      setToolResultPreview({
+        title: toolName,
+        result: res,
+      });
+
+      setShowPreview(true);
+
+      console.log(res);
+    } catch (err) {
+    } finally {
+      setToolExecuting((prve) => ({
+        ...prve,
+        [toolName]: false,
+      }));
+    }
+  };
+
+  const handleStop = async (toolName: string) => {
+    if (!toolExecuting[toolName]) return;
+    try {
+      await window.electron.tools.abortTool(tool.id, toolName);
+    } catch (err) {}
   };
 
   const handleDelete = async (toolId: string) => {
@@ -166,7 +190,14 @@ function ToolDetail() {
                           onSubmit={(e) => handleSubmit(t.id, e.formData)}
                         >
                           <div className="flex items-center gap-3 mt-2">
-                            <Button type="submit">Submit</Button>
+                            {toolExecuting[t.id] === false &&
+                              <Button type="submit">Start</Button>
+                            }
+                            {toolExecuting[t.id] === true &&
+                              <Button onClick={(e) => handleStop(t.id)}>
+                                Stop
+                              </Button>
+                            }
                           </div>
                         </Form>
                       )}
@@ -205,17 +236,11 @@ function ToolDetail() {
           >
             <div className="p-2 w-full h-full">
               <div className=" w-full h-full border rounded-2xl ">
-                {toolExecuting ? (
-                  <div className="flex items-center justify-center h-full">
-                    <Loader />
-                  </div>
-                ) : (
-                  <ChatToolResultPreview
+              <ChatToolResultPreview
                     className="overflow-y-auto"
-                    title={toolResultPreview?.title}
+                  title={toolResultPreview?.title}
                     result={toolResultPreview?.result}
-                  />
-                )}
+                />
               </div>
             </div>
           </ResizablePanel>
