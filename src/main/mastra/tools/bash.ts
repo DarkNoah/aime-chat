@@ -9,6 +9,7 @@ import { spawn } from 'child_process';
 import { truncateText } from '@/utils/common';
 import stripAnsi from 'strip-ansi';
 import { createShell } from '@/main/utils/shell';
+import { RequestContext } from '@mastra/core/request-context';
 
 const MAX_OUTPUT_LENGTH = 30000;
 
@@ -165,10 +166,16 @@ Output: Creates directory 'foo'`),
   outputSchema: z.string(),
   // requireApproval: true,
   execute: async (
-    { context, runtimeContext, writer, suspend, resumeData },
-    { abortSignal }: ToolCallOptions,
+    inputData: {
+      description?: string;
+      command?: string;
+      directory?: string;
+      timeout?: number;
+    },
+    context: { requestContext: RequestContext; abortSignal?: AbortSignal },
   ) => {
-    const { timeout, directory } = context;
+    const { timeout, directory } = inputData;
+    const abortSignal = context?.abortSignal;
     const isWindows = os.platform() === 'win32';
 
     if (directory && !fs.existsSync(directory)) {
@@ -195,7 +202,7 @@ Output: Creates directory 'foo'`),
     // }
 
     const { shell, tempFilePath, command } = createShell(
-      context.command,
+      inputData.command,
       cwd,
       timeout,
     );
@@ -235,7 +242,7 @@ Output: Creates directory 'foo'`),
     shell.on('error', (err: Error) => {
       error = err;
       // remove wrapper from user's command in error message
-      error.message = error.message.replace(command, context.command);
+      error.message = error.message.replace(command, inputData.command);
     });
 
     let code: number | null = null;

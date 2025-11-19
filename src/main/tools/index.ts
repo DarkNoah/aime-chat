@@ -22,10 +22,8 @@ import { PythonExecute } from './code/python-execute';
 import BaseTool from './base-tool';
 import { StreamTest } from './common/stream-test';
 import { TodoWrite } from './common/todo-write';
-import {FileSystem } from './file-system'
+import { FileSystem } from './file-system';
 import BaseToolkit from './base-toolkit';
-
-
 
 class ToolsManager extends BaseManager {
   mcpClients: {
@@ -71,14 +69,13 @@ class ToolsManager extends BaseManager {
       toolEntity.isActive = true;
       await this.toolsRepository.save(toolEntity);
     }
-    this.builtInTools.push({...tool,id: toolEntity.id} as BaseTool & BaseToolkit);
+    this.builtInTools.push({ ...tool, id: toolEntity.id } as BaseTool &
+      BaseToolkit);
     // if (!isToolkit) {
 
     // } else {
 
-
     // }
-
   }
 
   async registerBuiltInTools() {
@@ -105,10 +102,10 @@ class ToolsManager extends BaseManager {
         this.mcpClients.push({ id: tool.id, mcp, status: 'stopped' });
       }
     }
-    new Promise(async (resolve,reject) => {
+    new Promise(async (resolve, reject) => {
       this.mcpClients.forEach(async (mcpClient) => {
         try {
-          await mcpClient.mcp.getTools();
+          await mcpClient.mcp.listTools();
           mcpClient.status = 'running';
         } catch (error: any) {
           mcpClient.status = 'error';
@@ -121,7 +118,7 @@ class ToolsManager extends BaseManager {
         );
         resolve(null);
       });
-    })
+    });
 
     this.registerBuiltInTools();
   }
@@ -259,7 +256,7 @@ class ToolsManager extends BaseManager {
       })),
       [ToolType.BUILD_IN]: this.builtInTools.map((tool) => ({
         id: tool.id,
-        name: tool.id.substring(ToolType.BUILD_IN.length +1),
+        name: tool.id.substring(ToolType.BUILD_IN.length + 1),
         description: tool.description,
         isActive: tools.find((x) => x.id === tool.id)?.isActive,
       })),
@@ -289,7 +286,7 @@ class ToolsManager extends BaseManager {
       let resources;
       let prompts;
       if (tool.isActive) {
-        tools = tool.isActive ? await mcp.mcp.getTools() : [];
+        tools = tool.isActive ? await mcp.mcp.listTools() : [];
         const elicitation = await mcp.mcp.elicitation;
         version = mcp.mcp.mcpClientsById.get(tool.name)?.client?._serverVersion
           ?.version;
@@ -314,8 +311,8 @@ class ToolsManager extends BaseManager {
         }),
       };
     } else if (tool.type === ToolType.BUILD_IN) {
-      const _tool = this.builtInTools.find((x) => x.id === tool.id );
-      if(!_tool?.isToolkit) {
+      const _tool = this.builtInTools.find((x) => x.id === tool.id);
+      if (!_tool?.isToolkit) {
         const __tool = _tool as BaseTool;
         return {
           ...tool,
@@ -330,25 +327,22 @@ class ToolsManager extends BaseManager {
             },
           ],
         };
-      }else {
+      } else {
         const __tool = _tool as BaseToolkit;
         return {
           ...tool,
           name: __tool.id.substring(ToolType.BUILD_IN.length + 1),
           description: __tool?.description,
-          tools: __tool.tools.map(t => {
+          tools: __tool.tools.map((t) => {
             return {
               id: t.id,
               name: t.id,
               description: t.description,
-              inputSchema: zodToJsonSchema(t.inputSchema)
-            }
-          })
+              inputSchema: zodToJsonSchema(t.inputSchema),
+            };
+          }),
         };
-
-
       }
-
     }
     return tool;
   }
@@ -385,7 +379,7 @@ class ToolsManager extends BaseManager {
           } else {
             await this.sendMcpClientUpdatedEvent(id, 'starting', undefined);
             try {
-              const tools = await mcp.mcp.getTools();
+              const tools = await mcp.mcp.listTools();
               mcp.status = 'running';
               mcp.error = undefined;
             } catch (err) {
@@ -419,32 +413,30 @@ class ToolsManager extends BaseManager {
     if (tool.type === ToolType.MCP) {
       const mcp = this.mcpClients.find((x) => x.id === `${tool.id}`);
       if (mcp) {
-        const tools = await mcp.mcp.getTools();
+        const tools = await mcp.mcp.listTools();
         const tool = tools[toolName];
         if (tool) {
           const res = await tool.execute?.({ context: input });
           return res;
         }
       }
-    }
-    else if (tool.type === ToolType.BUILD_IN) {
+    } else if (tool.type === ToolType.BUILD_IN) {
       const buildInTool = this.builtInTools.find((x) => x.id === tool.id);
       if (buildInTool && buildInTool.isToolkit === false) {
-        const res = await (buildInTool as BaseTool).execute?.({ context: input,runtimeContext:undefined });
+        const res = await (buildInTool as BaseTool).execute?.({
+          context: input,
+        });
         return res;
-      }else if(buildInTool && buildInTool.isToolkit === true){
-        const res = await (buildInTool as BaseToolkit).tools.find(x=>x.id == toolName).execute?.({ context: input,runtimeContext:undefined });
+      } else if (buildInTool && buildInTool.isToolkit === true) {
+        const res = await (buildInTool as BaseToolkit).tools
+          .find((x) => x.id == toolName)
+          .execute?.({ context: input });
         return res;
       }
     }
   }
   @channel(ToolChannel.AbortTool)
-  public async abortTool(id: string, toolName:string) {
-
-  }
-
-
-
+  public async abortTool(id: string, toolName: string) {}
 
   async getClaudeSkills() {
     const marketplaces = path.join(

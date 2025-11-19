@@ -21,17 +21,14 @@ import { Glob } from './glob';
 
 const MAX_OUTPUT_LENGTH = 30000;
 
-export interface FileSystemParams extends BaseToolkitParams {
-
-}
+export interface FileSystemParams extends BaseToolkitParams {}
 
 export class FileSystem extends BaseToolkit {
   id: string = 'FileSystem';
   description = '测试工具';
 
-
-  constructor(params?:FileSystemParams) {
-    super([new Bash(), new Glob()],params);
+  constructor(params?: FileSystemParams) {
+    super([new Bash(), new Glob()], params);
   }
 
   getTools() {
@@ -39,10 +36,9 @@ export class FileSystem extends BaseToolkit {
   }
 }
 
-
-export class Bash extends BaseTool{
-  id:string = 'Bash';
-  description:string = `Executes a given bash command in a persistent shell session with optional timeout, ensuring proper handling and security measures.
+export class Bash extends BaseTool {
+  id: string = 'Bash';
+  description: string = `Executes a given bash command in a persistent shell session with optional timeout, ensuring proper handling and security measures.
 
 Before executing the command, please follow these steps:
 
@@ -161,7 +157,7 @@ Important:
 
 - View comments on a Github PR: gh api repos/foo/bar/pulls/123/comments`;
 
-  inputSchema= z.object({
+  inputSchema = z.object({
     description: z.string().optional()
       .describe(`Clear, concise description of what this command does in 5-10 words. Examples:
 Input: ls
@@ -188,17 +184,17 @@ Output: Creates directory 'foo'`),
       .boolean()
       .optional()
       .describe(
-        `Set to true to run this command in the background. Use BashOutput to read the output later.`
+        `Set to true to run this command in the background. Use BashOutput to read the output later.`,
       ),
   });
-  outputSchema= z.string();
+  outputSchema = z.string();
   // requireApproval: true,
   execute = async (
-    context: ToolExecutionContext<z.ZodSchema, any, any>,
-    options?: MastraToolInvocationOptions,
+    inputData: z.infer<typeof this.inputSchema>,
+    context: ToolExecutionContext<z.ZodSchema, any>,
   ) => {
-    const { timeout, directory,run_in_background  } = context.context;
-    const abortSignal = options?.abortSignal;
+    const { timeout, directory, run_in_background } = inputData;
+    const abortSignal = context?.abortSignal;
     const isWindows = os.platform() === 'win32';
 
     if (directory && !fs.existsSync(directory)) {
@@ -225,7 +221,7 @@ Output: Creates directory 'foo'`),
     // }
 
     const { shell, tempFilePath, command } = createShell(
-      context.context.command,
+      inputData.command,
       cwd,
       timeout,
     );
@@ -242,7 +238,6 @@ Output: Creates directory 'foo'`),
     };
 
     shell.stdout.on('data', (data: Buffer) => {
-
       // continue to consume post-exit for background processes
       // removing listeners can overflow OS buffer and block subprocesses
       // destroying (e.g. shell.stdout.destroy()) can terminate subprocesses via SIGPIPE
@@ -266,7 +261,7 @@ Output: Creates directory 'foo'`),
     shell.on('error', (err: Error) => {
       error = err;
       // remove wrapper from user's command in error message
-      error.message = error.message.replace(command, context.context.command);
+      error.message = error.message.replace(command, inputData.command);
     });
 
     let code: number | null = null;
@@ -379,9 +374,5 @@ Output: Creates directory 'foo'`),
     }
 
     return llmContent;
-  }
-
-
+  };
 }
-
-

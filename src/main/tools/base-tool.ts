@@ -1,13 +1,14 @@
 import { Mastra } from '@mastra/core';
 
 import {
+  createTool,
   MastraToolInvocationOptions,
   Tool,
   ToolAction,
   ToolExecutionContext,
 } from '@mastra/core/tools';
+import { tool } from 'ai';
 import z, { ZodSchema, ZodObject, ZodTypeAny } from 'zod';
-
 
 export interface BaseToolParams {
   verbose?: boolean;
@@ -15,16 +16,9 @@ export interface BaseToolParams {
   metadata?: Record<string, unknown>;
 }
 
-
 abstract class BaseTool
   implements
-    Tool<
-      ZodSchema,
-      ZodSchema,
-      any,
-      any,
-      ToolExecutionContext<ZodSchema, any, any>
-    >
+    Tool<ZodSchema, ZodSchema, any, any, ToolExecutionContext<ZodSchema, any>>
 {
   abstract id: string;
   description: string;

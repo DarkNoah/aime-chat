@@ -1,9 +1,10 @@
-import { UIMessage } from 'ai';
+import { UIMessage } from '@ai-sdk/react';
+import { UIMessageWithMetadata } from '@mastra/core/agent';
 
 export type ChatInput = {
   agentId?: string;
   messageId?: string;
-  messages: UIMessage[];
+  messages: Array<UIMessage | UIMessageWithMetadata>;
   model: string;
   webSearch: boolean;
   chatId: string;

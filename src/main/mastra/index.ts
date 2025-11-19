@@ -18,24 +18,26 @@ import type {
   LanguageModelV2,
   SharedV2ProviderOptions,
 } from '@ai-sdk/provider-v5';
-import { RuntimeContext } from '@mastra/core/runtime-context';
+import { toAISdkV5Messages } from '@mastra/ai-sdk/ui';
+// import { RuntimeContext } from '@mastra/core';
+import { RequestContext } from '@mastra/core/request-context';
 import { reactAgent } from './agents/react-agent';
 import { providersManager } from '../providers';
 import { Readable } from 'stream';
 import { channel } from '../ipc/IpcController';
 import { PaginationInfo } from '@/types/common';
-import { v4 as uuidv4 } from 'uuid';
 import { MastraChannel } from '@/types/ipc-channel';
 import {
   convertMessages,
+  MastraDBMessage,
   MastraLanguageModel,
+  MastraMessageContentV2,
   UIMessageWithMetadata,
 } from '@mastra/core/agent';
 import { ChatEvent, ChatInput, ChatThread } from '@/types/chat';
 import { nanoid } from '@/utils/nanoid';
 import { IpcMainEvent } from 'electron';
 import { isString } from '@/utils/is';
-import { titleAgent } from './agents/title-agent';
 const modelsData = require('@/../assets/models.json');
 class MastraManager extends BaseManager {
   app: express.Application;
@@ -62,7 +64,6 @@ class MastraManager extends BaseManager {
     this.mastra = new Mastra({
       agents: {
         reactAgent,
-        titleAgent,
       },
       // agents: {
       //   agent,
@@ -76,21 +77,21 @@ class MastraManager extends BaseManager {
       // workflows: { testWorkflow, headsUpWorkflow },
       storage: getStorage(),
 
-      telemetry: {
-        enabled: false,
-      },
-      observability: {
-        // configs: {
-        //   langsmith: {
-        //     serviceName: "my-service",
-        //     exporters: [
-        //       new LangSmithExporter({
-        //         apiKey: process.env.LANGSMITH_API_KEY,
-        //       }),
-        //     ],
-        //   },
-        // },
-      },
+      // telemetry: {
+      //   enabled: false,
+      // },
+      // observability: {
+      //   // configs: {
+      //   //   langsmith: {
+      //   //     serviceName: "my-service",
+      //   //     exporters: [
+      //   //       new LangSmithExporter({
+      //   //         apiKey: process.env.LANGSMITH_API_KEY,
+      //   //       }),
+      //   //     ],
+      //   //   },
+      //   // },
+      // },
       // server: {
       //   port: 8080,
       //   host: '0.0.0.0',
@@ -136,12 +137,11 @@ class MastraManager extends BaseManager {
     size: number;
   }): Promise<PaginationInfo<StorageThreadType>> {
     const storage = this.mastra.getStorage();
-    const threads = await storage?.getThreadsByResourceIdPaginated({
+    const threads = await storage?.listThreadsByResourceId({
       page: page,
       perPage: size,
       resourceId: '123',
-      orderBy: 'updatedAt',
-      sortDirection: 'DESC',
+      orderBy: { field: 'updatedAt', direction: 'DESC' },
     });
     return {
       total: threads.total,
@@ -159,15 +159,14 @@ class MastraManager extends BaseManager {
     const storage = this.mastra.getStorage();
     const thread = await storage?.getThreadById({ threadId: id });
 
-    const messages = await storage.getMessages({
+    const messages = await storage.listMessages({
       threadId: id,
       resourceId: '123',
-      format: 'v2',
+      // format: 'v2',
     });
+    // const _messages = convertMessages(messages.messages || []).to('AIV5.UI');
 
-    const _messages = convertMessages(messages || []).to('AIV5.UI');
-
-    return { ...thread, messages: _messages };
+    return { ...thread, messages: toAISdkV5Messages(messages.messages) };
   }
 
   @channel(MastraChannel.CreateThread)
@@ -226,6 +225,7 @@ class MastraManager extends BaseManager {
 
     const inputMessage = uiMessages[uiMessages.length - 1];
     const agent = this.mastra.getAgentById(agentId || 'react-agent');
+    agent.listTools();
     if (!agent) {
       throw new Error('Agent not found');
     }
@@ -244,26 +244,24 @@ class MastraManager extends BaseManager {
     try {
       // const info = modelsData[provider.type]?.models[_modeId] || {};
 
-      const runtimeContext = new RuntimeContext();
-      runtimeContext.set('model' as never, model as never);
+      const requestContext = new RequestContext();
+      requestContext.set('model' as never, model as never);
       if (modelInfo?.limit?.context)
-        runtimeContext.set(
+        requestContext.set(
           'limit_context' as never,
           modelInfo?.limit?.context as never,
         );
 
       // const thread = await this.mastra.getStorage().getThreadById({ threadId });
 
-      const messages = convertToModelMessages(uiMessages);
-      const recentMessage = agent.getMostRecentUserMessage(
-        uiMessages as Array<UIMessage>,
-      );
+      // const messages = convertToModelMessages(uiMessages);
+      const recentMessage = agent.getMostRecentUserMessage(uiMessages);
       const controller = new AbortController();
       const signal = controller.signal;
 
       const stream = await agent.stream(recentMessage, {
-        format: 'aisdk',
-        runtimeContext: runtimeContext,
+        // format: 'aisdk',
+        requestContext: requestContext,
         maxSteps: 60,
         memory: {
           thread: {
@@ -277,7 +275,8 @@ class MastraManager extends BaseManager {
           console.log('Stream aborted after', steps.length, 'steps');
           // Persist partial results to database
         },
-        onFinish: ({ steps, usage }) => {
+        onFinish: async (event) => {
+          const { steps, usage, response, reasoning, reasoningText } = event;
           console.log('Stream finished after', steps.length, 'steps');
           console.log('stream usage:', usage);
           // Persist final results to database
@@ -285,16 +284,29 @@ class MastraManager extends BaseManager {
             type: ChatEvent.ChatFinish,
             data,
           });
+
+          const uiMessages = response.uiMessages;
+          const msg = await storage.updateMessages({
+            messages: uiMessages.map((x) => {
+              return {
+                id: x.id,
+                content: {
+                  reasoning: reasoningText,
+                  metadata: { ...x.metadata, usage: usage },
+                },
+              };
+            }),
+          });
         },
         savePerStep: true,
         onStepFinish: async (event) => {
           //storage.saveMessages();
-          const { usage, response, text } = event;
+          const { usage, response, text, reasoningText, reasoning } = event;
           const limit_context =
-            (runtimeContext.get('limit_context' as never) as number) ||
+            (requestContext.get('limit_context' as never) as number) ||
             64 * 1000;
 
-          const history = (runtimeContext.get('usage' as never) as {
+          const history = (requestContext.get('usage' as never) as {
             // inputTokens: number;
             // outputTokens: number;
             totalTokens: number;
@@ -302,7 +314,7 @@ class MastraManager extends BaseManager {
           // history.inputTokens += usage?.inputTokens ?? 0;
           // history.outputTokens += usage?.outputTokens ?? 0;
           history.totalTokens += usage?.totalTokens ?? 0;
-          runtimeContext.set('usage' as never, history as never);
+          requestContext.set('usage' as never, history as never);
           const usageRate = (usage?.totalTokens / limit_context) * 100;
           console.log('usage rate: ' + usageRate.toFixed(2) + '%');
 
@@ -325,22 +337,7 @@ class MastraManager extends BaseManager {
               modelId: model,
             },
           });
-          const msgId = response.uiMessages[0].id;
-          const msg = await storage.updateMessages({
-            messages: [
-              {
-                id: msgId,
-                content: {
-                  content: text,
-                  metadata: {
-                    modelId: model,
-                    usage,
-                  },
-                },
-              },
-            ],
-          });
-          debugger;
+          // debugger;
 
           //console.log("Step finished after", event);
         },
@@ -390,7 +387,7 @@ class MastraManager extends BaseManager {
             });
           }, 1000 * 30);
 
-          writer.merge(stream.toUIMessageStream());
+          writer.merge(stream.aisdk.v5.toUIMessageStream());
         },
         onFinish: (data) => {
           clearInterval(heartbeat);

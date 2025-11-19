@@ -1,4 +1,3 @@
-
 import {
   createTool,
   MastraToolInvocationOptions,
@@ -13,7 +12,6 @@ import { app } from 'electron';
 import fs from 'fs';
 import path from 'path';
 import { nanoid } from '@/utils/nanoid';
-
 
 export class TodoWrite extends BaseTool {
   id: string = 'TodoWrite';
@@ -209,13 +207,13 @@ When in doubt, use this tool. Being proactive with task management demonstrates 
   }
 
   execute = async (
-    context: ToolExecutionContext<z.ZodSchema, any, any>,
-    options?: MastraToolInvocationOptions,
+    inputData: z.infer<typeof this.inputSchema>,
+    context: ToolExecutionContext<z.ZodSchema, any>,
   ) => {
     // options.w
-    const { todos } = context.context;
+    const { todos } = inputData;
 
-    const workspace = config?.configurable?.workspace;
+    const workspace = context.requestContext.get('workspace');
     let todoPath;
 
     if (workspace) {

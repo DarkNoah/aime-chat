@@ -1,4 +1,5 @@
 import { Agent } from '@mastra/core/agent';
+import { RequestContext } from '@mastra/core/request-context';
 import { createTool } from '@mastra/core/tools';
 import { generateText } from 'ai';
 import z from 'zod';
@@ -26,9 +27,12 @@ Usage notes:
       .describe('The prompt to run on the fetched content'),
   }),
   outputSchema: z.string(),
-  execute: async ({ context: { url, prompt }, runtimeContext }) => {
-    const model = runtimeContext.get('model');
-    const response = await fetch('https://r.jina.ai/' + url, {
+  execute: async (
+    inputData: { url; prompt },
+    context: { requestContext: RequestContext },
+  ) => {
+    const model = context.requestContext.get('model' as never);
+    const response = await fetch('https://r.jina.ai/' + inputData.url, {
       method: 'GET',
     });
     const data = await response.text();

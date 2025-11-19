@@ -1,13 +1,14 @@
 import { Agent } from '@mastra/core/agent';
 import { getStorage, getVectorStore } from '../storage';
 import { Memory } from '@mastra/memory';
-import { Bash } from '../tools/bash';
 import { LocalEmbeddingModel } from '@/main/providers/local-provider';
 import { WebFetch } from '../tools/web-fetch';
+import { PythonExecute } from '@/main/tools/code/python-execute';
+import { Bash } from '@/main/tools/file-system';
 
 export const reactAgent = new Agent({
   name: 'react-agent',
-  instructions: ({ runtimeContext }) => {
+  instructions: ({ requestContext }) => {
     return {
       role: 'system',
       content: 'You are a helpful assistant.',
@@ -25,7 +26,7 @@ export const reactAgent = new Agent({
       modelPath: '/Volumes/Data/models/Qwen/Qwen3-Embedding-0.6B',
     }),
     options: {
-      semanticRecall: true,
+      semanticRecall: false,
       workingMemory: {
         enabled: false,
       },
@@ -34,5 +35,5 @@ export const reactAgent = new Agent({
 
     // memory:{
   }),
-  tools: { Bash, WebFetch },
+  tools: { Bash, WebFetch, PythonExecute },
 });
