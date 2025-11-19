@@ -190,14 +190,14 @@ function ToolDetail() {
                           onSubmit={(e) => handleSubmit(t.id, e.formData)}
                         >
                           <div className="flex items-center gap-3 mt-2">
-                            {toolExecuting[t.id] === false &&
+                            {toolExecuting[t.id] === false && (
                               <Button type="submit">Start</Button>
-                            }
-                            {toolExecuting[t.id] === true &&
+                            )}
+                            {toolExecuting[t.id] === true && (
                               <Button onClick={(e) => handleStop(t.id)}>
                                 Stop
                               </Button>
-                            }
+                            )}
                           </div>
                         </Form>
                       )}
@@ -236,10 +236,10 @@ function ToolDetail() {
           >
             <div className="p-2 w-full h-full">
               <div className=" w-full h-full border rounded-2xl ">
-              <ChatToolResultPreview
-                    className="overflow-y-auto"
+                <ChatToolResultPreview
+                  className="overflow-y-auto"
                   title={toolResultPreview?.title}
-                    result={toolResultPreview?.result}
+                  result={toolResultPreview?.result}
                 />
               </div>
             </div>

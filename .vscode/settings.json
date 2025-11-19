@@ -4,18 +4,26 @@
     ".prettierrc": "jsonc",
     ".eslintignore": "ignore"
   },
-
   "eslint.validate": [
     "javascript",
     "javascriptreact",
     "html",
     "typescriptreact"
   ],
-
+  "editor.formatOnSave": true,
   "javascript.validate.enable": false,
-  "javascript.format.enable": false,
-  "typescript.format.enable": false,
-
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[javascriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
   "search.exclude": {
     ".git": true,
     ".eslintcache": true,
@@ -28,6 +36,9 @@
     "*.{css,sass,scss}.d.ts": true
   },
   "i18next.i18nPaths": "src/i18n/locales",
-  "i18n-ally.localesPaths": ["src/i18n", "src/i18n/locales"],
+  "i18n-ally.localesPaths": [
+    "src/i18n",
+    "src/i18n/locales"
+  ],
   "i18n-ally.keystyle": "nested"
 }

@@ -36,5 +36,6 @@ abstract class BaseTool
   execute?: ToolAction<ZodSchema>['execute'];
   mastra?: Mastra;
   requireApproval?: boolean;
+
 }
 export default BaseTool;

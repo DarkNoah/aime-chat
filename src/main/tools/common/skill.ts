@@ -22,8 +22,9 @@ export class Skill extends BaseTool {
       .describe(`The skill name (no arguments). E.g., "pdf" or "xlsx"`),
   });
 
-  constructor() {
+  constructor(description?:string) {
     super();
+    this.description = description || this.description;
   }
 
   execute = async (

@@ -114,6 +114,9 @@ function ChatPage() {
   const { t } = useTranslation();
   const chatInputRef = useRef<ChatInputRef>(null);
   const [showPreview, setShowPreview] = useState(false);
+  const [previewToolPart, setPreviewToolPart] = useState<
+    ToolUIPart | undefined
+  >();
   const [runId, setRunId] = useState<string | undefined>();
   const { setTitle, setTitleAction } = useHeader();
   const navigate = useNavigate();
@@ -198,6 +201,8 @@ function ChatPage() {
     clearError();
     setUsage(undefined);
     if (threadId) {
+      setPreviewToolPart(undefined);
+      setShowPreview(false);
       const getThread = async () => {
         const _thread = await window.electron.mastra.getThread(threadId);
         console.log(_thread);
@@ -424,7 +429,9 @@ function ChatPage() {
                                   >
                                     <CopyIcon className="size-3" />
                                   </MessageAction>
-                                  {message.metadata?.usage?.inputTokens &&
+                                  {message?.parts.length === i + 1 &&
+                                    message.role === 'assistant' &&
+                                    message.metadata?.usage?.inputTokens &&
                                     message.metadata?.usage?.outputTokens && (
                                       <small className="text-xs text-gray-500 flex flex-row gap-1 items-center">
                                         <Label>tokens: </Label>
@@ -455,6 +462,7 @@ function ChatPage() {
                                         )}
                                       </small>
                                     )}
+
                                 </MessageActions>
                               </Fragment>
                             );
@@ -465,7 +473,8 @@ function ChatPage() {
                                 key={`${message.id}-${i}`}
                                 part={_part}
                                 onClick={() => {
-                                  console.log(_part);
+                                  setShowPreview(true);
+                                  setPreviewToolPart(_part);
                                 }}
                               ></ToolMessage>
                             );
@@ -553,9 +562,7 @@ function ChatPage() {
             className={`h-full flex-1 `}
           >
             <div className="p-2 w-full h-full">
-              <div className=" w-full h-full border rounded-2xl">
-                <ChatPreview />
-              </div>
+              <ChatPreview part={previewToolPart} />
             </div>
           </ResizablePanel>
         </>

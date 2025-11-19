@@ -3,7 +3,7 @@
 const { execSync } = require('child_process');
 const os = require('os');
 
-const DEFAULT_PORT = 1212;
+const DEFAULT_PORT = process.env.PORT || 1212;
 
 const portArg = process.argv.find((arg) => /^\d+$/.test(arg));
 const port = Number(portArg ?? process.env.PORT ?? DEFAULT_PORT);

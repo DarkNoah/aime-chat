@@ -4,7 +4,7 @@ import { Memory } from '@mastra/memory';
 import { LocalEmbeddingModel } from '@/main/providers/local-provider';
 import { WebFetch } from '../tools/web-fetch';
 import { PythonExecute } from '@/main/tools/code/python-execute';
-import { Bash } from '@/main/tools/file-system';
+import { Bash } from '@/main/tools/file-system/bash';
 
 export const reactAgent = new Agent({
   name: 'react-agent',
@@ -35,5 +35,5 @@ export const reactAgent = new Agent({
 
     // memory:{
   }),
-  tools: { Bash, WebFetch, PythonExecute },
+  tools: { Bash: Bash.build(), WebFetch, PythonExecute },
 });

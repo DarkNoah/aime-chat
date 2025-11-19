@@ -416,21 +416,19 @@ class ToolsManager extends BaseManager {
         const tools = await mcp.mcp.listTools();
         const tool = tools[toolName];
         if (tool) {
-          const res = await tool.execute?.({ context: input });
+          const res = await tool.execute?.(input);
           return res;
         }
       }
     } else if (tool.type === ToolType.BUILD_IN) {
       const buildInTool = this.builtInTools.find((x) => x.id === tool.id);
       if (buildInTool && buildInTool.isToolkit === false) {
-        const res = await (buildInTool as BaseTool).execute?.({
-          context: input,
-        });
+        const res = await (buildInTool as BaseTool).execute?.(input);
         return res;
       } else if (buildInTool && buildInTool.isToolkit === true) {
         const res = await (buildInTool as BaseToolkit).tools
           .find((x) => x.id == toolName)
-          .execute?.({ context: input });
+          .execute?.(input);
         return res;
       }
     }

@@ -44,12 +44,35 @@ export class GoogleProvider extends BaseProvider {
     };
     const url = `${this.provider.apiBase || this.defaultApiBase}/models?key=${this.provider.apiKey}`;
     const res = await fetch(url, options);
-    const data = await res.json();
+    let data: {
+      nextPageToken?: string;
+      models: {
+        name: string;
+        displayName: string;
+        supportedGenerationMethods: string[];
+      }[];
+    } = await res.json();
+
+
+
+
+
     const models = data.models
       .filter((x) => x.supportedGenerationMethods.includes('generateContent'))
       .map((x) => {
         return { id: x.name.split('/')[1], name: x.displayName };
       });
+    while(true){
+      if(!data.nextPageToken) break;
+      const res = await fetch(`${url}&pageToken=${data.nextPageToken}`);
+      data = await res.json();
+      models.push(...data.models.filter((x) => x.supportedGenerationMethods.includes('generateContent')).map((x) => {
+        return { id: x.name.split('/')[1], name: x.displayName };
+      }));
+    }
+
+
+
     return models;
   }
   async getEmbeddingModelList(): Promise<{ name: string; id: string }[]> {
