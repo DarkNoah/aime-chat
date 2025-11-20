@@ -13,12 +13,11 @@ import fs from 'fs';
 import path from 'path';
 import { nanoid } from '@/utils/nanoid';
 
-
 export class StreamTest extends BaseTool {
   id: string = 'StreamTest';
   description = '测试工具';
   inputSchema = z.object({
-    code: z.string().describe('The Python code to execute'),
+    time: z.number().describe('结束时间(毫秒)'),
   });
 
   constructor() {
@@ -26,12 +25,25 @@ export class StreamTest extends BaseTool {
   }
 
   execute = async (
-    context: ToolExecutionContext<z.ZodSchema, any, any>,
+    inputData: z.infer<typeof this.inputSchema>,
     options?: MastraToolInvocationOptions,
   ) => {
-    // options.w
-    await new Promise((resolve)=>setTimeout(resolve,5000))
+    const abortSignal = options?.abortSignal as AbortSignal;
+    const { time } = inputData;
 
-    return context.context.code;
+    await new Promise<void>((resolve) => {
+      const timeoutId = setTimeout(resolve, time);
+      abortSignal?.addEventListener('abort', () => {
+        clearTimeout(timeoutId);
+        resolve();
+      });
+    });
+    throw new Error('error');
+
+    if (abortSignal?.aborted) {
+      return 'aborted';
+    }
+
+    return 'ok';
   };
 }

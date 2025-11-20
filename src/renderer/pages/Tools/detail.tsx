@@ -46,7 +46,9 @@ function ToolDetail() {
   const { setTitle } = useHeader();
   const [tool, setTool] = useState<Tool | null>(null);
   const [showPreview, setShowPreview] = useState<boolean>(false);
-  const [toolExecuting, setToolExecuting] = useState<Record<string, boolean>>({});
+  const [toolExecuting, setToolExecuting] = useState<Record<string, boolean>>(
+    {},
+  );
   const [toolResultPreview, setToolResultPreview] = useState<{
     title?: string;
     result: any;
@@ -83,7 +85,6 @@ function ToolDetail() {
   };
 
   const handleSubmit = async (toolName: string, data: any) => {
-
     setToolExecuting((prve) => ({
       ...prve,
       [toolName]: true,
@@ -103,6 +104,7 @@ function ToolDetail() {
 
       console.log(res);
     } catch (err) {
+      toast.error(err.message);
     } finally {
       setToolExecuting((prve) => ({
         ...prve,
@@ -194,7 +196,10 @@ function ToolDetail() {
                               <Button type="submit">Start</Button>
                             )}
                             {toolExecuting[t.id] === true && (
-                              <Button onClick={(e) => handleStop(t.id)}>
+                              <Button
+                                type="button"
+                                onClick={(e) => handleStop(t.id)}
+                              >
                                 Stop
                               </Button>
                             )}

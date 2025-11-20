@@ -14,13 +14,15 @@ import fs from 'fs';
 import path from 'path';
 import { nanoid } from '@/utils/nanoid';
 
-
 export class PythonExecute extends BaseTool {
   id: string = 'PythonExecute';
   description = 'Execute Python code';
   inputSchema = z.object({
     code: z.string().describe('The Python code to execute'),
-    packages: z.array(z.string()).optional().describe('Optional: install python packages (eg: pandas, numpy)')
+    packages: z
+      .array(z.string())
+      .optional()
+      .describe('Optional: install python packages (eg: pandas, numpy)'),
   });
 
   constructor() {
@@ -28,20 +30,17 @@ export class PythonExecute extends BaseTool {
   }
 
   execute = async (
-    context: ToolExecutionContext<z.ZodSchema, any, any>,
+    inputData: z.infer<typeof this.inputSchema>,
     options?: MastraToolInvocationOptions,
   ) => {
-    const { code, packages }:{
-      code:string,
-      packages: string[] | undefined
-    } = context.context;
-    const temp = app.getPath("temp");
-    const tempDir = path.join(temp, nanoid())
+    const { code, packages } = inputData;
+    const temp = app.getPath('temp');
+    const tempDir = path.join(temp, nanoid());
     await fs.promises.mkdir(tempDir, { recursive: true });
-    const tempFile = path.join(tempDir, temp,nanoid() + '.py');
+    const tempFile = path.join(tempDir, temp, nanoid() + '.py');
     const file = await fs.promises.writeFile(tempFile, code);
     const uvRuntime = await getUVRuntime();
-    if( packages && packages.length > 0){
+    if (packages && packages.length > 0) {
       const result = await runCommand(
         `uv add ${tempFile}`,
         uvRuntime?.dir,
@@ -53,7 +52,7 @@ export class PythonExecute extends BaseTool {
       uvRuntime?.dir,
       undefined,
     );
-    await fs.promises.rm(tempFile, {recursive: true});
+    await fs.promises.rm(tempFile, { recursive: true });
     return result;
   };
 }

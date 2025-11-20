@@ -1,5 +1,6 @@
 import { UIMessage } from '@ai-sdk/react';
 import { UIMessageWithMetadata } from '@mastra/core/agent';
+import { CallSettings } from 'ai';
 
 export type ChatInput = {
   agentId?: string;
@@ -11,6 +12,16 @@ export type ChatInput = {
   trigger?: string;
   think?: boolean;
   runId?: string;
+  tools: string[];
+  options?: {
+    modelSettings: Omit<CallSettings, 'abortSignal'>;
+    providerOptions: SharedV2ProviderOptions & {
+      anthropic?: AnthropicProviderOptions & Record<string, any>;
+      google?: GoogleProviderOptions & Record<string, any>;
+      openai?: OpenAIProviderOptions & Record<string, any>;
+      xai?: XaiProviderOptions & Record<string, any>;
+    };
+  };
 };
 
 export enum ChatEvent {

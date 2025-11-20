@@ -25,6 +25,11 @@ import { TodoWrite } from './common/todo-write';
 import { FileSystem } from './file-system';
 import BaseToolkit from './base-toolkit';
 
+interface BuiltInToolContext {
+  tool: BaseTool;
+  abortController: AbortController;
+}
+
 class ToolsManager extends BaseManager {
   mcpClients: {
     mcp: MCPClient;
@@ -34,6 +39,8 @@ class ToolsManager extends BaseManager {
   }[];
 
   builtInTools: BaseTool[] | BaseToolkit[] = [];
+
+  builtInToolContexts: BuiltInToolContext[] = [];
 
   toolsRepository: Repository<Tools>;
 
@@ -422,19 +429,43 @@ class ToolsManager extends BaseManager {
       }
     } else if (tool.type === ToolType.BUILD_IN) {
       const buildInTool = this.builtInTools.find((x) => x.id === tool.id);
-      if (buildInTool && buildInTool.isToolkit === false) {
-        const res = await (buildInTool as BaseTool).execute?.(input);
-        return res;
-      } else if (buildInTool && buildInTool.isToolkit === true) {
-        const res = await (buildInTool as BaseToolkit).tools
-          .find((x) => x.id == toolName)
-          .execute?.(input);
-        return res;
+
+      const context = {
+        tool: buildInTool as BaseTool,
+        abortController: new AbortController(),
+      };
+      this.builtInToolContexts.push(context);
+      let res;
+
+      try {
+        if (buildInTool && buildInTool.isToolkit === false) {
+          res = await (buildInTool as BaseTool).execute?.(input, {
+            abortSignal: context.abortController.signal,
+          });
+        } else if (buildInTool && buildInTool.isToolkit === true) {
+          res = await (buildInTool as BaseToolkit).tools
+            .find((x) => x.id == toolName)
+            .execute?.(input, {
+              abortSignal: context.abortController.signal,
+            });
+        }
+      } catch (err) {
+        throw err;
+      } finally {
+        this.builtInToolContexts = this.builtInToolContexts.filter(
+          (x) => x.tool.id !== buildInTool.id,
+        );
       }
+
+      return res;
     }
   }
   @channel(ToolChannel.AbortTool)
-  public async abortTool(id: string, toolName: string) {}
+  public async abortTool(id: string, toolName: string) {
+    this.builtInToolContexts
+      .find((x) => x.tool.id === id)
+      ?.abortController?.abort();
+  }
 
   async getClaudeSkills() {
     const marketplaces = path.join(

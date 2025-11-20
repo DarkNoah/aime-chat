@@ -208,7 +208,7 @@ class MastraManager extends BaseManager {
   }
 
   @channel(MastraChannel.Chat, { mode: 'on' })
-  public async chat(event: IpcMainEvent, data: any): Promise<void> {
+  public async chat(event: IpcMainEvent, data: ChatInput): Promise<void> {
     const {
       agentId,
       messageId,
@@ -219,7 +219,8 @@ class MastraManager extends BaseManager {
       think,
       runId,
       chatId,
-    }: ChatInput = data;
+      options,
+    } = data;
     const storage = this.mastra.getStorage();
     let currentThread = await storage.getThreadById({ threadId: chatId });
 
@@ -258,9 +259,12 @@ class MastraManager extends BaseManager {
       const recentMessage = agent.getMostRecentUserMessage(uiMessages);
       const controller = new AbortController();
       const signal = controller.signal;
+      let chunkPart;
 
       const stream = await agent.stream(recentMessage, {
         // format: 'aisdk',
+        providerOptions: options.providerOptions,
+        modelSettings: options.modelSettings,
         requestContext: requestContext,
         maxSteps: 60,
         memory: {
@@ -301,7 +305,7 @@ class MastraManager extends BaseManager {
         savePerStep: true,
         onStepFinish: async (event) => {
           //storage.saveMessages();
-          const { usage, response, text, reasoningText, reasoning } = event;
+          const { usage, response, text, reasoning } = event;
           const limit_context =
             (requestContext.get('limit_context' as never) as number) ||
             64 * 1000;
@@ -356,7 +360,7 @@ class MastraManager extends BaseManager {
           });
         },
         onChunk: (chunk) => {
-          // console.log("Stream chunk:", chunk);
+          console.log('Stream chunk:', chunk);
         },
         prepareStep: (options) => {
           console.log('Prepare step:', options);
@@ -404,7 +408,7 @@ class MastraManager extends BaseManager {
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        console.log(value);
+
         appManager.sendEvent(`chat:event:${chatId}`, {
           type: ChatEvent.ChatChunk,
           data: JSON.stringify(value),
