@@ -263,8 +263,8 @@ class MastraManager extends BaseManager {
 
       const stream = await agent.stream(recentMessage, {
         // format: 'aisdk',
-        providerOptions: options.providerOptions,
-        modelSettings: options.modelSettings,
+        providerOptions: options?.providerOptions,
+        modelSettings: options?.modelSettings,
         requestContext: requestContext,
         maxSteps: 60,
         memory: {

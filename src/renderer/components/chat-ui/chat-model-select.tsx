@@ -58,14 +58,12 @@ export const ChatModelSelect = React.forwardRef<
         providers.forEach((provider) => {
           models.push(...provider.models);
         });
-
         if (
           (!selectedModelData || selectedModelData?.id !== value) &&
           models.length > 0
         ) {
           if (value && models.find((m) => m.id === value)) {
             const model = models.find((m) => m.id === value);
-
             setSelectedModelData(model);
             onChange?.(model.id);
           }
@@ -76,7 +74,7 @@ export const ChatModelSelect = React.forwardRef<
       }
     };
     getAvailableModels();
-  }, [onChange, selectedModelData, type, value]);
+  }, [type, value]);
 
   return (
     <ModelSelector onOpenChange={setModelSelectorOpen} open={modelSelectorOpen}>

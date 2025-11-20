@@ -189,7 +189,7 @@ export const ChatInput = React.forwardRef<ChatInputRef, ChatInputProps>(
                 <ChatModelSelect
                   value={model}
                   onChange={onModelChange}
-                  className="max-w-[200px]"
+                  className="max-w-[200px] @lg:w-[200px] @md:w-[100px] @sm:w-[32px] w-[32px]"
                 ></ChatModelSelect>
               )}
             </PromptInputTools>
@@ -201,20 +201,20 @@ export const ChatInput = React.forwardRef<ChatInputRef, ChatInputProps>(
             />
           </PromptInputFooter>
         </PromptInput>
-        {/* <div className="flex flex-wrap gap-2 w-full ">
+        <div className="flex flex-wrap gap-2 w-full ">
           <Suggestions>
             {prompts?.map((prompt) => (
               <Suggestion
                 key={prompt}
                 suggestion={prompt}
-                onClick={() => {
-                  controller.textInput.setInput(prompt);
-                  // setInput(prompt);
-                }}
+                // onClick={() => {
+                //   controller.textInput.setInput(prompt);
+                //   // setInput(prompt);
+                // }}
               />
             ))}
           </Suggestions>
-        </div> */}
+        </div>
       </PromptInputProvider>
     );
   },

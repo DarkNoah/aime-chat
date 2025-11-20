@@ -346,7 +346,7 @@ function ChatPage() {
   };
 
   return (
-    <ResizablePanelGroup direction="horizontal" className="h-full w-full">
+    <ResizablePanelGroup direction="horizontal" className="h-full w-full @container">
       <ResizablePanel className={`h-full  w-full justify-between `}>
         <div className={`flex flex-col h-full`}>
           <Conversation className="h-full w-full flex-1 flex items-center justify-center overflow-y-hidden">

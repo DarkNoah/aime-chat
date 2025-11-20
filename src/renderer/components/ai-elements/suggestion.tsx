@@ -7,6 +7,7 @@ import {
 } from "@/renderer/components/ui/scroll-area";
 import { cn } from "@/renderer/lib/utils";
 import type { ComponentProps } from "react";
+import { usePromptInputController } from "./prompt-input";
 
 export type SuggestionsProps = ComponentProps<typeof ScrollArea>;
 
@@ -37,8 +38,10 @@ export const Suggestion = ({
   children,
   ...props
 }: SuggestionProps) => {
+  const controller = usePromptInputController();
   const handleClick = () => {
     onClick?.(suggestion);
+    controller.textInput.setInput(suggestion);
   };
 
   return (
