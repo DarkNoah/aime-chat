@@ -59,7 +59,7 @@ export type ChatInputProps = Omit<PromptInputProps, 'onSubmit'> & {
   onSubmit?: (
     e: PromptInputMessage,
     model?: string,
-    options?: { webSearch?: boolean },
+    options?: { webSearch?: boolean; think?: boolean; tools?: string[] },
   ) => void;
   status?: ChatStatus;
   className?: string;
@@ -128,7 +128,7 @@ export const ChatInput = React.forwardRef<ChatInputRef, ChatInputProps>(
     return (
       <PromptInputProvider>
         <PromptInput
-          onSubmit={(e) => onSubmit(e, model, { webSearch })}
+          onSubmit={(e) => onSubmit(e, model, { webSearch, think, tools })}
           className={cn('flex flex-col relative', className)}
           globalDrop
           multiple

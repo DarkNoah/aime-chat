@@ -43,7 +43,7 @@
     "start:renderer": "cross-env NODE_ENV=development TS_NODE_TRANSPILE_ONLY=true webpack serve --config ./.erb/configs/webpack.config.renderer.dev.ts",
     "test": "jest",
     "update-models-api": "ts-node .erb/scripts/update-models-api.ts",
-    "kill-port": "ts-node .erb/scripts/kill-1212.js"
+    "kill-port": "ts-node .erb/scripts/kill-port.js"
   },
   "browserslist": [
     "extends browserslist-config-erb"

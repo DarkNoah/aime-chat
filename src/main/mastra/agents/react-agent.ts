@@ -35,5 +35,5 @@ export const reactAgent = new Agent({
 
     // memory:{
   }),
-  tools: { Bash: Bash.build(), WebFetch, PythonExecute },
+  // tools: { Bash: Bash.build(), WebFetch, PythonExecute },
 });

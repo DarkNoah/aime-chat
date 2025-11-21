@@ -39,6 +39,7 @@ import {
 } from '@/renderer/components/ui/resizable';
 import { ChatToolResultPreview } from '@/renderer/components/chat-ui/chat-preview/chat-tool-result-preview';
 import { Loader } from '@/renderer/components/ai-elements/loader';
+import { Spinner } from '@/renderer/components/ui/spinner';
 
 function ToolDetail() {
   const location = useLocation();
@@ -200,6 +201,7 @@ function ToolDetail() {
                                 type="button"
                                 onClick={(e) => handleStop(t.id)}
                               >
+                                <Spinner></Spinner>
                                 Stop
                               </Button>
                             )}

@@ -260,7 +260,7 @@ export default function ThreadsList({ className }: ThreadsListProps) {
       className={cn('flex flex-col min-h-0 h-full', className)}
     >
       <ScrollArea className="flex-1 h-full pr-1 ">
-        <div className="flex flex-col gap-1 p-2 w-[calc(var(--sidebar-width)-var(--spacing)*4)]">
+        <div className="flex flex-col gap-1 p-2  w-[calc(var(--sidebar-width)-var(--spacing)*4)]">
           {items.map((item) => row(item))}
           {loading && loader()}
           {isEmpty && (

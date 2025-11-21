@@ -19,6 +19,8 @@ import stripAnsi from 'strip-ansi';
 import { spawn } from 'child_process';
 import { Glob } from './glob';
 import { Bash } from './bash';
+import { Edit } from './edit';
+import { MultiEdit } from './multi-edit';
 
 
 
@@ -29,7 +31,7 @@ export class FileSystem extends BaseToolkit {
   description = '测试工具';
 
   constructor(params?: FileSystemParams) {
-    super([new Bash(), new Glob()], params);
+    super([new Bash(), new Glob(), new Edit(), new MultiEdit()], params);
   }
 
   getTools() {

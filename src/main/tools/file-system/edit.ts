@@ -1,10 +1,13 @@
 import { createTool, ToolExecutionContext } from '@mastra/core/tools';
 import z from 'zod';
 import fs from 'fs';
+import BaseTool from '../base-tool';
 
-export const Edit = createTool({
-  id: 'Edit',
-  description: `Performs exact string replacements in files.
+
+
+export class Edit extends BaseTool {
+  id: string = 'Edit';
+  description: string = `Performs exact string replacements in files.
 
 Usage:
 
@@ -13,8 +16,9 @@ Usage:
 - ALWAYS prefer editing existing files in the codebase. NEVER write new files unless explicitly required.
 - Only use emojis if the user explicitly requests it. Avoid adding emojis to files unless asked.
 - The edit will FAIL if \`old_string\` is not unique in the file. Either provide a larger string with more surrounding context to make it unique or use \`replace_all\` to change every instance of \`old_string\`.
-- Use \`replace_all\` for replacing and renaming strings across the file. This parameter is useful if you want to rename a variable for instance.`,
-  inputSchema: z.object({
+- Use \`replace_all\` for replacing and renaming strings across the file. This parameter is useful if you want to rename a variable for instance.`;
+
+  inputSchema = z.object({
     file_path: z.string().describe('The absolute path to the file to modify'),
     old_string: z.string().describe('The text to replace'),
     new_string: z
@@ -26,9 +30,10 @@ Usage:
       .boolean()
       .default(false)
       .describe('Replace all occurences of old_string (default false)'),
-  }),
-  outputSchema: z.string(),
-  execute: async (
+    });
+  outputSchema = z.string();
+  // requireApproval: true,
+  execute = async (
     inputData: z.infer<typeof this.inputSchema>,
     context: ToolExecutionContext<z.ZodSchema, any>,
   ) => {
@@ -41,6 +46,8 @@ Usage:
     if (!fs.existsSync(file_path)) {
       throw new Error(`File ${file_path} does not exist.`);
     }
+
+    const { requestContext } = context
 
     if (fileSystemManager.needReadFile(file_path)) {
       throw new Error(
@@ -77,8 +84,10 @@ Usage:
     );
     return `The file ${file_path} has been updated. Here's the result of running \`cat -n\` on a snippet of the edited file:
 ${formatCodeWithLineNumbers({ content: snippet, startLine })}`;
-  },
-});
+  };
+}
+
+
 
 const replaceSnippetWithContext = (
   text,

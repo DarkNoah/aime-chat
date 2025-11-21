@@ -24,6 +24,7 @@ import { StreamTest } from './common/stream-test';
 import { TodoWrite } from './common/todo-write';
 import { FileSystem } from './file-system';
 import BaseToolkit from './base-toolkit';
+import { createTool } from '@mastra/core/tools';
 
 interface BuiltInToolContext {
   tool: BaseTool;
@@ -76,18 +77,26 @@ class ToolsManager extends BaseManager {
       toolEntity.isActive = true;
       await this.toolsRepository.save(toolEntity);
     }
-    this.builtInTools.push({ ...tool, id: toolEntity.id } as BaseTool &
-      BaseToolkit);
-    // if (!isToolkit) {
 
-    // } else {
-
-    // }
+    if(!isToolkit){
+      const t = createTool(tool);
+      this.builtInTools.push({ ...t,isToolkit, id: toolEntity.id } as BaseTool &
+        BaseToolkit);
+    } else {
+      const toolkit = tool as BaseToolkit;
+      const tools = []
+      for(const tool of toolkit?.tools){
+        const t = createTool(tool);
+        tools.push(t)
+      }
+      this.builtInTools.push({ ...tool, isToolkit, tools:tools, id: toolEntity.id } as BaseTool &
+        BaseToolkit);
+    }
   }
 
   async registerBuiltInTools() {
     this.registerBuiltInTool(new PythonExecute());
-    this.registerBuiltInTool(new StreamTest());
+    this.registerBuiltInTool(new StreamTest({description:'123123'}));
     this.registerBuiltInTool(new TodoWrite());
     this.registerBuiltInTool(new FileSystem());
   }
@@ -154,7 +163,7 @@ class ToolsManager extends BaseManager {
     }
     const [key, value] = Object.entries(mcpServers)[0];
 
-    const id = nanoid();
+    const id = `${ToolType.MCP}:${nanoid()}`;
     const mcp = new MCPClient({
       id: id,
       servers: {
@@ -273,7 +282,7 @@ class ToolsManager extends BaseManager {
   @channel(ToolChannel.GetTool)
   public async getTool(id: string) {
     const tool = await this.toolsRepository.findOne({ where: { id } });
-    if (id.startsWith('claude-skill:')) {
+    if (id.startsWith(`${ToolType.SKILL}:`)) {
       const marketplace = id.split(':')[1];
       const skill = id.split(':')[2];
       const sk = await this.getClaudeSkill(skill, marketplace);
@@ -356,7 +365,7 @@ class ToolsManager extends BaseManager {
 
   @channel(ToolChannel.ToggleToolActive)
   public async toggleToolActive(id: string) {
-    if (id.startsWith('claude-skill:')) {
+    if (id.startsWith(`${ToolType.SKILL}:`)) {
       const marketplace = id.split(':')[1];
       const skill = id.split(':')[2];
       let tool = await this.toolsRepository.findOne({ where: { id } });
@@ -492,7 +501,7 @@ class ToolsManager extends BaseManager {
           const skillMD = await fs.promises.readFile(md, { encoding: 'utf8' });
           const data = matter(skillMD);
           const skill = {
-            id: `claude-skill:${marketplace}:${data.data.name}`,
+            id: `${ToolType.SKILL}:${marketplace}:${data.data.name}`,
             name: data.data.name,
             description: data.data.description,
             isActive: false,
@@ -526,7 +535,7 @@ class ToolsManager extends BaseManager {
       const skillMD = await fs.promises.readFile(md, { encoding: 'utf8' });
       const data = matter(skillMD);
       return {
-        id: `claude-skill:${marketplace}:${data.data.name}`,
+        id: `${ToolType.SKILL}:${marketplace}:${data.data.name}`,
         name: data.data.name,
         description: data.data.description,
         content: data.content,

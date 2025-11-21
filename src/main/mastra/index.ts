@@ -28,6 +28,7 @@ import { channel } from '../ipc/IpcController';
 import { PaginationInfo } from '@/types/common';
 import { MastraChannel } from '@/types/ipc-channel';
 import {
+  Agent,
   convertMessages,
   MastraDBMessage,
   MastraLanguageModel,
@@ -217,6 +218,7 @@ class MastraManager extends BaseManager {
       model,
       webSearch,
       think,
+      tools,
       runId,
       chatId,
       options,
@@ -225,9 +227,13 @@ class MastraManager extends BaseManager {
     let currentThread = await storage.getThreadById({ threadId: chatId });
 
     const inputMessage = uiMessages[uiMessages.length - 1];
-    const agent = this.mastra.getAgentById(agentId || 'react-agent');
-    agent.listTools();
-    if (!agent) {
+
+    const mastraAgent = this.mastra.getAgentById(agentId || 'react-agent');
+
+
+
+    mastraAgent.listTools();
+    if (!mastraAgent) {
       throw new Error('Agent not found');
     }
 
@@ -239,7 +245,43 @@ class MastraManager extends BaseManager {
     const modeId = model.substring(model.split('/')[0].length + 1);
     const modelInfo = modelsData[provider.type]?.models[modeId];
 
-    agent.model = await providersManager.getLanguageModel(model);
+    mastraAgent.model = await providersManager.getLanguageModel(model);
+
+
+    const agent = new Agent({
+      name: 'react-agent',
+      instructions: ({ requestContext }) => {
+        return mastraAgent.getInstructions({requestContext})
+      },
+      model: await providersManager.getLanguageModel(model),
+      memory: new Memory({
+        storage: getStorage(),
+        options: {
+          semanticRecall: false,
+          workingMemory: {
+            enabled: false,
+          },
+          lastMessages: false,
+        },
+        // memory:{
+      }),
+      // tools: { Bash: Bash.build(), WebFetch, PythonExecute },
+    })
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     if (modelInfo?.tool_call === false) {
     }
     try {
@@ -452,7 +494,7 @@ class MastraManager extends BaseManager {
   @channel(MastraChannel.ChatAbort)
   public async chatAbort(chatId: string): Promise<void> {
     console.info('chatAbort', chatId);
-    this.threadChats.find((chat) => chat.id === chatId)?.controller.abort();
+    this.threadChats.find((chat) => chat.id === chatId)?.controller?.abort();
   }
 }
 

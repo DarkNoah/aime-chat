@@ -6,6 +6,7 @@ import { useHeader } from '@/renderer/hooks/use-title';
 import React, { useEffect, useState } from 'react';
 
 import {
+  IconBox,
   IconDots,
   IconEdit,
   IconPlus,
@@ -71,6 +72,11 @@ import KnowledgeBaseDetail from './detail';
 import { ModelType } from '@/types/provider';
 import { ChatModelSelect } from '@/renderer/components/chat-ui/chat-model-select';
 import { Skeleton } from '@/renderer/components/ui/skeleton';
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+} from '@/renderer/components/ui/empty';
 
 function KnowledgeBasePage() {
   const { setTitle } = useHeader();
@@ -79,6 +85,7 @@ function KnowledgeBasePage() {
   const navigate = useNavigate();
   const location = useLocation();
   const [submitting, setSubmitting] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [kbs, setKbs] = useState<KnowledgeBase[]>([]);
   const [currentKb, setCurrentKb] = useState<KnowledgeBase | null>(null);
 
@@ -92,12 +99,14 @@ function KnowledgeBasePage() {
     },
   });
   const getData = async () => {
+    setLoading(true);
     const list = await window.electron.knowledgeBase.getList();
     console.log(list);
+    setLoading(false);
     setKbs(list || []);
   };
   useEffect(() => {
-    setTitle('Knowledge Base');
+    setTitle(t('common.knowledge-base'));
 
     getData();
   }, [setTitle]);
@@ -367,12 +376,25 @@ function KnowledgeBasePage() {
                 </SidebarMenuButton>
               </SidebarMenuItem>
             ))}
-            {kbs.length === 0 && (
+            {loading && (
               <div className="flex items-center space-x-4 w-[calc(var(--sidebar-width))]">
                 <div className="space-y-2 w-full">
                   <Skeleton className="h-4 " />
                   <Skeleton className="h-4 w-[200px]" />
                 </div>
+              </div>
+            )}
+            {kbs.length === 0 && (
+              <div className="flex items-center space-x-4 w-[calc(var(--sidebar-width))]">
+                <Empty className="bg-secondary/50">
+                  <EmptyHeader>
+                    {/* <EmptyMedia variant="icon"></EmptyMedia> */}
+                    <EmptyDescription className="flex flex-col items-center gap-2">
+                      <IconBox />
+                      No Result
+                    </EmptyDescription>
+                  </EmptyHeader>
+                </Empty>
               </div>
             )}
           </SidebarMenu>

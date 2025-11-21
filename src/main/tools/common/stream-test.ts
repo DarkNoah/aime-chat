@@ -5,7 +5,7 @@ import {
 } from '@mastra/core/tools';
 import { generateText } from 'ai';
 import z from 'zod';
-import BaseTool from '../base-tool';
+import BaseTool, { BaseToolParams } from '../base-tool';
 import { runCommand } from '@/main/utils/shell';
 import { getUVRuntime } from '@/main/app/runtime';
 import { app } from 'electron';
@@ -17,11 +17,13 @@ export class StreamTest extends BaseTool {
   id: string = 'StreamTest';
   description = '测试工具';
   inputSchema = z.object({
-    time: z.number().describe('结束时间(毫秒)'),
+    time: z.number().describe('结束时间(毫秒)').default(5000),
   });
 
-  constructor() {
-    super();
+  constructor(config?: BaseToolParams) {
+    super(config);
+    if(config.description)
+      this.description =config.description
   }
 
   execute = async (
@@ -38,7 +40,7 @@ export class StreamTest extends BaseTool {
         resolve();
       });
     });
-    throw new Error('error');
+    // throw new Error('error');
 
     if (abortSignal?.aborted) {
       return 'aborted';

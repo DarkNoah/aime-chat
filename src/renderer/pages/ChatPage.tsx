@@ -273,7 +273,7 @@ function ChatPage() {
   const handleSubmit = async (
     message: PromptInputMessage,
     model?: string,
-    options?: { webSearch?: boolean; think?: boolean },
+    options?: { webSearch?: boolean; think?: boolean; tools?: string[] },
   ) => {
     const hasText = Boolean(message.text);
     const hasAttachments = Boolean(message.files?.length);
@@ -313,6 +313,7 @@ function ChatPage() {
             body: {
               model,
               webSearch: options?.webSearch,
+              tools: options?.tools,
               think: options?.think,
               runId,
               threadId: data.id,
@@ -332,6 +333,7 @@ function ChatPage() {
         body: {
           model,
           webSearch: options?.webSearch,
+          tools: options?.tools,
           runId,
           threadId: thread?.id,
         },
@@ -346,7 +348,10 @@ function ChatPage() {
   };
 
   return (
-    <ResizablePanelGroup direction="horizontal" className="h-full w-full @container">
+    <ResizablePanelGroup
+      direction="horizontal"
+      className="h-full w-full @container"
+    >
       <ResizablePanel className={`h-full  w-full justify-between `}>
         <div className={`flex flex-col h-full`}>
           <Conversation className="h-full w-full flex-1 flex items-center justify-center overflow-y-hidden">
@@ -512,7 +517,7 @@ function ChatPage() {
           </Conversation>
           <div className="w-full px-4 pb-4 flex flex-col gap-2 justify-start">
             <div className="flex flex-row gap-2 justify-between">
-              {usage?.usage && (
+              {usage?.usage?.totalTokens && (
                 <Context
                   maxTokens={usage?.maxTokens}
                   modelId={usage?.modelId}

@@ -5,7 +5,7 @@ import {
 } from '@mastra/core/tools';
 import { generateText } from 'ai';
 import z from 'zod';
-import BaseTool from '../base-tool';
+import BaseTool, { BaseToolParams } from '../base-tool';
 import { createShell, runCommand } from '@/main/utils/shell';
 import { getUVRuntime } from '@/main/app/runtime';
 import { app } from 'electron';
@@ -172,6 +172,10 @@ Output: Creates directory 'foo'`),
       ),
   });
   outputSchema = z.string();
+
+  constructor(config?: BaseToolParams){
+    super(config);
+  }
   // requireApproval: true,
   execute = async (
     inputData: z.infer<typeof this.inputSchema>,
@@ -365,11 +369,4 @@ Output: Creates directory 'foo'`),
 
     return llmContent;
   };
-
-
-  static build() {
-    const bash = new Bash();
-    const tool = createTool(bash);
-    return tool;
-  }
 }

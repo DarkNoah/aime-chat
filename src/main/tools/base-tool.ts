@@ -11,6 +11,7 @@ import { tool } from 'ai';
 import z, { ZodSchema, ZodObject, ZodTypeAny } from 'zod';
 
 export interface BaseToolParams {
+  description?: string;
   verbose?: boolean;
   tags?: string[];
   metadata?: Record<string, unknown>;
@@ -31,11 +32,14 @@ abstract class BaseTool
 
   constructor(config?: BaseToolParams) {
     this.config = config;
+
   }
 
   execute?: ToolAction<ZodSchema>['execute'];
   mastra?: Mastra;
   requireApproval?: boolean;
+
+  // static build
 
 }
 export default BaseTool;
