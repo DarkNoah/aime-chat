@@ -77,7 +77,10 @@ export class KnowledgeBaseManager extends BaseManager {
   }
 
   @channel(KnowledgeBaseChannel.Get)
-  public async getKnowledgeBase(id: string) {}
+  public async getKnowledgeBase(id: string) {
+    const kb = await this.knowledgeBaseRepository.findOneBy({ id });
+    return kb;
+  }
 
   @channel(KnowledgeBaseChannel.GetList)
   public async getKnowledgeBaseList() {
