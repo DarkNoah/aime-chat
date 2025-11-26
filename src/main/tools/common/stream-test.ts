@@ -22,8 +22,7 @@ export class StreamTest extends BaseTool {
 
   constructor(config?: BaseToolParams) {
     super(config);
-    if(config.description)
-      this.description =config.description
+    if (config?.description) this.description = config?.description;
   }
 
   execute = async (

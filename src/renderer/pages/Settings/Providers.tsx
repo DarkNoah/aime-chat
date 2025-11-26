@@ -5,7 +5,9 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from '@/renderer/components/ui/select';
@@ -64,6 +66,7 @@ import {
   IconBrain,
   IconMicrophone,
   IconPhoto,
+  IconSearch,
   IconTool,
   IconTrashX,
   IconVideo,
@@ -356,16 +359,32 @@ function Providers() {
                               <SelectValue placeholder="选择类型" />
                             </SelectTrigger>
                             <SelectContent>
-                              {Object.values(modelsData)
-                                .sort((x, y) => x.name.localeCompare(y.name))
-                                .map((m) => (
-                                  <SelectItem key={m.id} value={m.id}>
-                                    <ModelSelectorLogo
-                                      provider={m.id}
-                                    ></ModelSelectorLogo>
-                                    {m.name}
-                                  </SelectItem>
-                                ))}
+                              <SelectGroup>
+                                <SelectLabel>
+                                  {t('common.model_provider')}
+                                </SelectLabel>
+                                {Object.values(modelsData)
+                                  .sort((x, y) => x.name.localeCompare(y.name))
+                                  .map((m) => (
+                                    <SelectItem key={m.id} value={m.id}>
+                                      <ModelSelectorLogo
+                                        provider={m.id}
+                                      ></ModelSelectorLogo>
+                                      {m.name}
+                                    </SelectItem>
+                                  ))}
+                              </SelectGroup>
+                              <SelectGroup>
+                                <SelectLabel>
+                                  {t('common.other_provider')}
+                                </SelectLabel>
+                                <SelectItem
+                                  key="brave-search"
+                                  value="brave-search"
+                                >
+                                  <IconSearch /> Brave Search
+                                </SelectItem>
+                              </SelectGroup>
                             </SelectContent>
                           </Select>
                         </FormControl>

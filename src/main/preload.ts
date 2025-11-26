@@ -21,7 +21,7 @@ import {
   UpdateProvider,
 } from '@/types/provider';
 import { ToolType } from '@/types/tool';
-import { StorageThreadType } from '@mastra/core/memory';
+import { MastraDBMessage, StorageThreadType } from '@mastra/core/memory';
 import { UIMessage } from 'ai';
 import {
   contextBridge,
@@ -118,8 +118,13 @@ const electronHandler = {
     deleteThread: (id: string) =>
       ipcRenderer.invoke(MastraChannel.DeleteThread, id),
     chat: (data: any) => ipcRenderer.send(MastraChannel.Chat, data),
+    chatResume: () => ipcRenderer.send(MastraChannel.ChatResume),
+    chatWorkflow: (data: any) =>
+      ipcRenderer.send(MastraChannel.ChatWorkflow, data),
     chatAbort: (chatId: string) =>
       ipcRenderer.invoke(MastraChannel.ChatAbort, chatId),
+    saveMessages: (chatId: string, messages: MastraDBMessage[]) =>
+      ipcRenderer.invoke(MastraChannel.SaveMessages, chatId, messages),
   },
   knowledgeBase: {
     create: (data: CreateKnowledgeBase) =>
@@ -134,13 +139,14 @@ const electronHandler = {
     deleteTool: (id: string) => ipcRenderer.invoke(ToolChannel.DeleteTool, id),
     importMcp: (data: string) =>
       ipcRenderer.invoke(ToolChannel.ImportMCP, data),
+    getMcp: (id: string) => ipcRenderer.invoke(ToolChannel.GetMcp, id),
     getAvailableTools: () => ipcRenderer.invoke(ToolChannel.GetAvailableTools),
     getList: (filter?: { type: ToolType }) =>
       ipcRenderer.invoke(ToolChannel.GetList, filter),
     getTool: (id: string) => ipcRenderer.invoke(ToolChannel.GetTool, id),
     executeTool: (id: string, toolName: string, input: any) =>
       ipcRenderer.invoke(ToolChannel.ExecuteTool, id, toolName, input),
-    abortTool : (id: string, toolName) =>
+    abortTool: (id: string, toolName) =>
       ipcRenderer.invoke(ToolChannel.AbortTool, id, toolName),
     toggleToolActive: (id: string) =>
       ipcRenderer.invoke(ToolChannel.ToggleToolActive, id),

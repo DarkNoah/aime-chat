@@ -28,11 +28,18 @@ abstract class BaseTool
   outputSchema?: ZodSchema;
   suspendSchema?: any;
   resumeSchema?: any;
+
+  descriptionField?: string;
+
+  doc?: string;
+
+  tags?: string[];
+
+  configSchema?: ZodSchema;
   config?: BaseToolParams;
 
   constructor(config?: BaseToolParams) {
     this.config = config;
-
   }
 
   execute?: ToolAction<ZodSchema>['execute'];
@@ -40,6 +47,5 @@ abstract class BaseTool
   requireApproval?: boolean;
 
   // static build
-
 }
 export default BaseTool;

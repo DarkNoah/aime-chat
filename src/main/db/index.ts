@@ -7,6 +7,7 @@ import { createClient, Client as LibSQLClient } from '@libsql/client';
 import { KnowledgeBase, KnowledgeBaseItem } from '@/entities/knowledge-base';
 import { Secrets } from '@/entities/secrets';
 import { Tools } from '@/entities/tools';
+import { MastraHistoryMessages } from '@/entities/mastra-history-messages';
 
 class DBManager {
   // defaultDb: Database;
@@ -27,6 +28,7 @@ class DBManager {
         KnowledgeBaseItem,
         Secrets,
         Tools,
+        MastraHistoryMessages,
       ],
       // migrationsRun: true,
       // migrations: [],

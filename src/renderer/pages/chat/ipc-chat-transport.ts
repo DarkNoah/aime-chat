@@ -18,7 +18,7 @@ import {
 } from '@ai-sdk/provider-utils';
 
 import z from 'zod';
-import { ChatEvent } from '@/types/chat';
+import { ChatChangedType, ChatEvent } from '@/types/chat';
 
 export const jsonValueSchema: z.ZodType<JSONValue> = z.lazy(() =>
   z.union([
@@ -93,8 +93,9 @@ export const uiMessageChunkSchema = lazySchema(() =>
         title: z.string().optional(),
       }),
       z.strictObject({
-        type: z.literal('tool-approval-request'),
-        approvalId: z.string(),
+        type: z.literal('tool-approval-requested'),
+        runId: z.string(),
+        toolName: z.string(),
         toolCallId: z.string(),
       }),
       z.strictObject({
@@ -206,7 +207,11 @@ export const uiMessageChunkSchema = lazySchema(() =>
 );
 
 export class IpcChatTransport implements ChatTransport<UIMessage> {
-  constructor() {}
+  mode: 'agent' | 'workflow' = 'agent';
+
+  constructor(mode: 'agent' | 'workflow' = 'agent') {
+    this.mode = mode;
+  }
 
   async sendMessages(
     options: {
@@ -224,49 +229,82 @@ export class IpcChatTransport implements ChatTransport<UIMessage> {
     } & ChatRequestOptions,
   ): Promise<ReadableStream<UIMessageChunk> | null> {
     // 发送 IPC 消息，开始聊天
-    window.electron.mastra.chat({
-      messages: options.messages,
-      messageId: options.messageId,
-      trigger: options.trigger,
-      chatId: options.chatId,
-      ...options.body,
-    });
+    if (this.mode === 'agent') {
+      window.electron.mastra.chat({
+        messages: options.messages,
+        messageId: options.messageId,
+        trigger: options.trigger,
+        chatId: options.chatId,
+        ...options.body,
+      });
+    } else if (this.mode === 'workflow') {
+      window.electron.mastra.chatWorkflow({
+        messages: options.messages,
+        messageId: options.messageId,
+        trigger: options.trigger,
+        chatId: options.chatId,
+        ...options.body,
+      });
+    }
 
     const ts = new TransformStream<
       UIMessageChunk,
       Uint8Array<ArrayBufferLike>
     >();
-    const writer = ts.writable.getWriter();
+    // const writer = ts.writable.getWriter();
     const channel = `chat:event:${options.chatId}`;
     let isClosed = false;
     const encoder = new TextEncoder();
+    const mode = this.mode;
 
     // 创建流来接收 IPC 事件
     const stream = new ReadableStream<Uint8Array<ArrayBufferLike>>({
       async start(controller) {
-        const channel = `chat:event:${options.chatId}`;
-        let isClosed = false;
         const clearup = () => {
           window.electron.ipcRenderer.removeListener(channel, handleEvent);
         };
 
-        const handleEvent = (event: { type: ChatEvent; data: string }) => {
+        const handleEvent = (event: {
+          type: ChatEvent;
+          data: string | any;
+        }) => {
           if (isClosed) return;
           if (event.type === ChatEvent.ChatChunk) {
-            const chunk = JSON.parse(event.data) as UIMessageChunk;
-            const chunkUint8Array = encoder.encode(
-              `data: ${JSON.stringify(chunk)}\n\n`,
-            );
-            controller.enqueue(chunkUint8Array);
+            let chunk = JSON.parse(event.data);
+            let chunkUint8Array;
+
+            if (mode == 'workflow') {
+              if (
+                chunk.type === 'workflow-step-output' &&
+                chunk.from == 'USER'
+              ) {
+                chunkUint8Array = encoder.encode(
+                  `data: ${JSON.stringify(chunk.payload.output)}\n\n`,
+                );
+              }
+            } else {
+              console.log(chunk);
+              chunkUint8Array = encoder.encode(
+                `data: ${JSON.stringify(chunk)}\n\n`,
+              );
+            }
+            if (chunkUint8Array) {
+              controller.enqueue(chunkUint8Array);
+            }
             if (chunk.type == 'abort') {
               isClosed = true;
               controller.close();
               clearup();
             }
-          } else if (event.type === ChatEvent.ChatFinish) {
-            isClosed = true;
-            controller.close();
-            clearup();
+          } else if (event.type === ChatEvent.ChatChanged) {
+            const { type, chatId } = event.data;
+            if (type === ChatChangedType.Finish) {
+              isClosed = true;
+              controller.close();
+              clearup();
+            } else if (type === ChatChangedType.Start) {
+            }
+
             return;
           } else if (event.type === ChatEvent.ChatError) {
             clearup();
@@ -294,6 +332,7 @@ export class IpcChatTransport implements ChatTransport<UIMessage> {
       cancel() {
         // 流被取消时（例如组件卸载）
         console.log('Stream was canceled');
+        isClosed = true;
         // 注意：这里无法访问 start 中的变量，实际清理在 start 的 cleanup 中完成
       },
     });

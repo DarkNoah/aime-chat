@@ -9,6 +9,7 @@ export type Tool = {
   name: string;
   description: string;
   isActive: boolean;
+  isToolkit: boolean;
   type: ToolType;
   version?: string;
 };

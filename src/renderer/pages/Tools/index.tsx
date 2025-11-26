@@ -63,7 +63,7 @@ import {
 } from '@/renderer/components/ui/form';
 import { FieldGroup } from '@/renderer/components/ui/field';
 import { useForm } from 'react-hook-form';
-import { ImportMcp } from '@/types/ipc-channel';
+import { CreateMcp, ImportMcp } from '@/types/mcp';
 import { Textarea } from '@/renderer/components/ui/textarea';
 import { toast } from 'sonner';
 import { Switch } from '@/renderer/components/ui/switch';
@@ -90,6 +90,14 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from '@/renderer/components/ui/empty';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/renderer/components/ui/select';
+import { nanoid } from '@/utils/nanoid';
 
 function Tools() {
   const { setTitle } = useHeader();
@@ -103,8 +111,12 @@ function Tools() {
   const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const [view, setView] = useState<ToolType>(ToolType.MCP);
+  const [view, setView] = useState<ToolType>(ToolType.BUILD_IN);
   const [search, setSearch] = useState('');
+  const [createMCPMode, setCreateMCPMode] = useState<'general' | 'json'>(
+    'general',
+  );
+
   useEffect(() => {
     setTitle(t('common.tools'));
   }, [setTitle, t]);
@@ -115,6 +127,21 @@ function Tools() {
       mcpConfig: '',
     },
   });
+
+  const createMcpForm = useForm<CreateMcp>({
+    mode: 'onChange',
+    defaultValues: {
+      type: 'stdio',
+      url: '',
+      command: '',
+      args: '',
+      env: '',
+      headers: {},
+    },
+  });
+
+  const selectedType = createMcpForm.watch('type');
+
   useEffect(() => {
     const getList = async () => {
       try {
@@ -165,7 +192,34 @@ function Tools() {
       toast.error(err.message);
     }
   };
-  const openDialog = () => {
+
+  const handleCreateMcp = async (value: CreateMcp) => {
+    try {
+      const config = {
+        mcpServers: {},
+      };
+      if (value.type === 'stdio') {
+        config.mcpServers = {
+          [nanoid()]: {
+            command: value.command,
+            args: value.args.split('\n'),
+            env: value.env,
+          },
+        };
+      } else if (value.type === 'sse') {
+        config.mcpServers = {
+          url: value.url,
+          headers: value.headers,
+        };
+      }
+      await window.electron.tools.importMcp(JSON.stringify(config));
+      setOpen(false);
+      form.reset();
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+  const openMcpDialog = async () => {
     setOpen(true);
   };
   return (
@@ -178,18 +232,14 @@ function Tools() {
           ></Input>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => openDialog()}
-              >
+              <Button variant="outline" size="icon">
                 <IconPlus></IconPlus>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56" align="start">
               <DropdownMenuGroup>
-                <DropdownMenuItem onClick={() => openDialog()}>
-                  导入MCP
+                <DropdownMenuItem onClick={() => openMcpDialog()}>
+                  创建MCP
                 </DropdownMenuItem>
               </DropdownMenuGroup>
             </DropdownMenuContent>
@@ -208,43 +258,227 @@ function Tools() {
               <DialogHeader>
                 <DialogTitle>导入MCP</DialogTitle>
               </DialogHeader>
-              <Form {...form}>
-                <form
-                  className="flex flex-col gap-4"
-                  onSubmit={form.handleSubmit(handleImport)}
+              <ToggleGroup
+                type="single"
+                variant="outline"
+                spacing={2}
+                size="sm"
+                value={createMCPMode}
+                onValueChange={(value) => {
+                  setCreateMCPMode(value as 'general' | 'json');
+                }}
+              >
+                <ToggleGroupItem
+                  value="general"
+                  className="data-[state=off]:bg-transparent bg-secondary "
                 >
-                  <FieldGroup>
-                    <FormField
-                      name="mcpConfig"
-                      control={form.control}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel htmlFor="mcpConfig">
-                            {t('knowledge-base.name')}
-                          </FormLabel>
-                          <FormControl>
-                            <Textarea
-                              id="mcpConfig"
-                              placeholder="请输入知识库名称"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </FieldGroup>
+                  General
+                </ToggleGroupItem>
+                <ToggleGroupItem
+                  value="json"
+                  className="data-[state=off]:bg-transparent bg-secondary "
+                >
+                  Json
+                </ToggleGroupItem>
+              </ToggleGroup>
+              {createMCPMode === 'json' && (
+                <Form {...form}>
+                  <form
+                    className="flex flex-col gap-4"
+                    onSubmit={form.handleSubmit(handleImport)}
+                  >
+                    <FieldGroup>
+                      <FormField
+                        name="mcpConfig"
+                        control={form.control}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel htmlFor="mcpConfig">
+                              {t('knowledge-base.name')}
+                            </FormLabel>
+                            <FormControl>
+                              <Textarea
+                                id="mcpConfig"
+                                placeholder="请输入知识库名称"
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </FieldGroup>
 
-                  <DialogFooter>
-                    <Button
-                      type="submit"
-                      disabled={!form.formState.isValid || submitting}
-                    >
-                      {submitting ? '创建中…' : '创建'}
-                    </Button>
-                  </DialogFooter>
-                </form>
-              </Form>
+                    <DialogFooter>
+                      <Button
+                        type="submit"
+                        disabled={!form.formState.isValid || submitting}
+                      >
+                        {submitting ? '创建中…' : '创建'}
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </Form>
+              )}
+              {createMCPMode === 'general' && (
+                <Form {...createMcpForm}>
+                  <form
+                    className="flex flex-col gap-4"
+                    onSubmit={createMcpForm.handleSubmit(handleCreateMcp)}
+                  >
+                    <FieldGroup>
+                      <FormField
+                        name="type"
+                        control={createMcpForm.control}
+                        rules={{ required: t('common.required') as string }}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel htmlFor="type">
+                              {t('common.type')}
+                            </FormLabel>
+                            <FormControl>
+                              <Select
+                                value={field.value}
+                                onValueChange={field.onChange}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="请选择类型" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="stdio">stdio</SelectItem>
+                                  <SelectItem value="sse">sse</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      {selectedType === 'stdio' && (
+                        <>
+                          <FormField
+                            name="command"
+                            control={createMcpForm.control}
+                            rules={{ required: t('common.required') as string }}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel htmlFor="command">
+                                  {t('common.command')}
+                                </FormLabel>
+                                <FormControl>
+                                  <Input
+                                    id="command"
+                                    placeholder="请输入命令"
+                                    {...field}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            name="args"
+                            control={createMcpForm.control}
+                            rules={{ required: t('common.required') as string }}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel htmlFor="args">
+                                  {t('common.args')}
+                                </FormLabel>
+                                <FormControl>
+                                  <Textarea
+                                    id="args"
+                                    placeholder="请输入命令"
+                                    {...field}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            name="env"
+                            control={createMcpForm.control}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel htmlFor="env">
+                                  {t('common.env')}
+                                </FormLabel>
+                                <FormControl>
+                                  <Textarea
+                                    id="env"
+                                    placeholder="请输入命令"
+                                    {...field}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </>
+                      )}
+                      {selectedType === 'sse' && (
+                        <>
+                          <FormField
+                            name="url"
+                            control={createMcpForm.control}
+                            rules={{ required: t('common.required') as string }}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel htmlFor="url">
+                                  {t('common.url')}
+                                </FormLabel>
+                                <FormControl>
+                                  <Input
+                                    id="url"
+                                    placeholder="请输入命令"
+                                    {...field}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            name="headers"
+                            control={createMcpForm.control}
+                            rules={{ required: t('common.required') as string }}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel htmlFor="headers">
+                                  {t('common.headers')}
+                                </FormLabel>
+                                <FormControl>
+                                  <Textarea
+                                    id="headers"
+                                    placeholder="请输入headers"
+                                    value={JSON.stringify(field.value)}
+                                    onChange={(e) => {
+                                      field.onChange(
+                                        JSON.parse(e.target.value),
+                                      );
+                                    }}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </>
+                      )}
+                    </FieldGroup>
+
+                    <DialogFooter>
+                      <Button
+                        type="submit"
+                        disabled={!form.formState.isValid || submitting}
+                      >
+                        {submitting ? '创建中…' : '创建'}
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </Form>
+              )}
             </DialogContent>
           </Dialog>
         </div>
@@ -284,40 +518,43 @@ function Tools() {
         <ScrollArea className="h-full flex-1 min-h-0">
           <SidebarMenu className="pr-3">
             {tools[view]
-              ?.filter((kb) =>
-                kb.name.toLowerCase().includes(search.toLowerCase()),
+              ?.filter((tool) =>
+                tool.name.toLowerCase().includes(search.toLowerCase()),
               )
-              ?.map((kb) => (
+              ?.map((tool) => (
                 <SidebarMenuItem
-                  key={kb.id}
+                  key={tool.id}
                   className="group/item mb-1 cursor-pointer w-[calc(var(--sidebar-width))]"
                 >
                   <SidebarMenuButton
                     asChild
-                    isActive={location?.pathname?.startsWith(`/tools/${kb.id}`)}
+                    isActive={location?.pathname?.startsWith(
+                      `/tools/${tool.id}`,
+                    )}
                     className="truncate w-full flex flex-row justify-between h-full"
                   >
                     <Item
                       className=" w-full flex flex-row justify-between flex-nowrap"
-                      onClick={() => navigate(`/tools/${kb.id}`)}
+                      onClick={() => navigate(`/tools/${tool.id}`)}
                     >
                       <ItemContent className="min-w-0 ">
                         <ItemTitle className="line-clamp-1 w-auto">
-                          {kb.name}
+                          {tool.name}
                         </ItemTitle>
-                        {kb.status === 'running' && (
+                        {tool.status === 'running' && (
                           <IconToggleRightFilled className="text-green-500/50"></IconToggleRightFilled>
                         )}
-                        {(kb.status === 'stopped' || kb.status === 'error') && (
+                        {(tool.status === 'stopped' ||
+                          tool.status === 'error') && (
                           <IconToggleLeft className="text-red-500/50"></IconToggleLeft>
                         )}
-                        {kb.status === 'starting' && (
+                        {tool.status === 'starting' && (
                           <IconLoader2 className="text-yellow-400/50 animate-spin"></IconLoader2>
                         )}
-                        {kb.status === undefined && kb.isActive && (
+                        {tool.status === undefined && tool.isActive && (
                           <IconToggleRightFilled className="text-green-500/50"></IconToggleRightFilled>
                         )}
-                        {kb.status === undefined && !kb.isActive && (
+                        {tool.status === undefined && !tool.isActive && (
                           <IconToggleLeft className="text-red-500/50"></IconToggleLeft>
                         )}
                       </ItemContent>

@@ -26,7 +26,7 @@ import { useHeader } from '@/renderer/hooks/use-title';
 import { Tool, ToolType } from '@/types/tool';
 import { ItemText } from '@radix-ui/react-select';
 import { useCallback, useEffect, useState } from 'react';
-import { useLocation, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import Form from '@rjsf/shadcn';
 import validator from '@rjsf/validator-ajv8';
@@ -40,6 +40,8 @@ import {
 import { ChatToolResultPreview } from '@/renderer/components/chat-ui/chat-preview/chat-tool-result-preview';
 import { Loader } from '@/renderer/components/ai-elements/loader';
 import { Spinner } from '@/renderer/components/ui/spinner';
+import { ToolUIPart } from 'ai';
+import { nanoid } from '@/utils/nanoid';
 
 function ToolDetail() {
   const location = useLocation();
@@ -50,9 +52,10 @@ function ToolDetail() {
   const [toolExecuting, setToolExecuting] = useState<Record<string, boolean>>(
     {},
   );
+  const navigate = useNavigate();
   const [toolResultPreview, setToolResultPreview] = useState<{
     title?: string;
-    result: any;
+    part?: ToolUIPart;
   } | null>(null);
 
   const getTool = useCallback(async () => {
@@ -61,11 +64,13 @@ function ToolDetail() {
       setTool(data);
       setTitle(data?.name || '');
       console.log(data);
-      const toole = {};
-      for (const _tool of Object.values(data.tools)) {
-        toole[_tool.id] = false;
+      if ('tools' in data && data?.tools) {
+        const toole = {};
+        for (const _tool of Object.values(data.tools)) {
+          toole[_tool.id] = false;
+        }
+        setToolExecuting(toole);
       }
-      setToolExecuting(toole);
     } catch (err) {
       toast.error(err.message);
     }
@@ -97,8 +102,14 @@ function ToolDetail() {
         data,
       );
       setToolResultPreview({
-        title: toolName,
-        result: res,
+        title: toolName.split(':').slice(1).join(':'),
+        part: {
+          type: `tool-${toolName}`,
+          output: res,
+          toolCallId: nanoid(),
+          state: 'output-available',
+          input: undefined,
+        },
       });
 
       setShowPreview(true);
@@ -123,7 +134,12 @@ function ToolDetail() {
 
   const handleDelete = async (toolId: string) => {
     const res = await window.electron.tools.deleteTool(toolId);
-    await getTool();
+    navigate('/tools');
+  };
+
+  const handleEditMcp = async (toolId: string) => {
+    const mcpConfig = await window.electron.tools.getMcp(toolId);
+    console.log(mcpConfig);
   };
 
   return (
@@ -151,7 +167,11 @@ function ToolDetail() {
               ></Switch>
               {tool?.type === 'mcp' && (
                 <>
-                  <Button variant="outline" size="sm">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleEditMcp(tool.id)}
+                  >
                     Edit
                   </Button>
                   <Button
@@ -165,18 +185,22 @@ function ToolDetail() {
               )}
             </ItemActions>
           )}
-
-          <pre className="text-wrap w-full text-muted-foreground">
-            {tool?.description}
-          </pre>
+          {tool?.isToolkit && tool?.description && (
+            <pre className="text-wrap w-full text-muted-foreground">
+              {tool?.description}
+            </pre>
+          )}
         </Item>
         {(tool?.type === ToolType.MCP || tool?.type === ToolType.BUILD_IN) && (
           <Tabs className="mt-2" defaultValue="tools">
-            <TabsList>
-              <TabsTrigger value="tools">
-                Tools ({tool?.tools.length})
-              </TabsTrigger>
-            </TabsList>
+            {tool?.tools.length > 1 && (
+              <TabsList>
+                <TabsTrigger value="tools">
+                  Tools ({tool?.tools.length})
+                </TabsTrigger>
+              </TabsList>
+            )}
+
             <TabsContent value="tools">
               <Accordion type="multiple" defaultValue={[]} className="w-full">
                 {tool?.tools?.map((t) => (
@@ -246,7 +270,7 @@ function ToolDetail() {
                 <ChatToolResultPreview
                   className="overflow-y-auto"
                   title={toolResultPreview?.title}
-                  result={toolResultPreview?.result}
+                  part={toolResultPreview?.part}
                 />
               </div>
             </div>

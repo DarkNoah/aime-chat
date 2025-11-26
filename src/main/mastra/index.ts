@@ -1,4 +1,4 @@
-import { Mastra, MastraMessageV2, StorageThreadType } from '@mastra/core';
+import { Mastra, MastraMessageV2 } from '@mastra/core';
 import { Memory } from '@mastra/memory';
 import { LangSmithExporter } from '@mastra/langsmith';
 import { getStorage, getVectorStore } from './storage';
@@ -19,6 +19,7 @@ import type {
   SharedV2ProviderOptions,
 } from '@ai-sdk/provider-v5';
 import { toAISdkV5Messages } from '@mastra/ai-sdk/ui';
+import { toAISdkStream } from '@mastra/ai-sdk';
 // import { RuntimeContext } from '@mastra/core';
 import { RequestContext } from '@mastra/core/request-context';
 import { reactAgent } from './agents/react-agent';
@@ -35,10 +36,31 @@ import {
   MastraMessageContentV2,
   UIMessageWithMetadata,
 } from '@mastra/core/agent';
-import { ChatEvent, ChatInput, ChatThread } from '@/types/chat';
+import {
+  ChatChangedType,
+  ChatEvent,
+  ChatInput,
+  ChatThread,
+} from '@/types/chat';
 import { nanoid } from '@/utils/nanoid';
 import { IpcMainEvent } from 'electron';
-import { isString } from '@/utils/is';
+import { isObject, isString } from '@/utils/is';
+import { toolsManager } from '../tools';
+import { ToolType } from '@/types/tool';
+import {
+  convertMastraChunkToAISDKv5,
+  WorkflowRunOutput,
+} from '@mastra/core/stream';
+import { chatWorkflow, claudeCodeWorkflow } from './workflow';
+import { StorageThreadType } from '@mastra/core/memory';
+import tokenCounter from '@/main/utils/tokenCounter';
+import {
+  convertToCoreMessages,
+  convertToInstructionContent,
+} from '../utils/convertToCoreMessages';
+import { compressAgent } from './agents/compress-agent';
+import { skillManager } from '../tools/common/skill';
+
 const modelsData = require('@/../assets/models.json');
 class MastraManager extends BaseManager {
   app: express.Application;
@@ -66,6 +88,7 @@ class MastraManager extends BaseManager {
       agents: {
         reactAgent,
       },
+      workflows: { claudeCodeWorkflow, chatWorkflow },
       // agents: {
       //   agent,
       //   courseOutlineAgent,
@@ -198,7 +221,13 @@ class MastraManager extends BaseManager {
       title: data.title,
       metadata: data.metadata || {},
     });
-    await appManager.sendEvent('mastra:thread-updated', thread);
+    appManager.sendEvent(ChatEvent.ChatChanged, {
+      data: {
+        type: ChatChangedType.TitleUpdated,
+        chatId: id,
+        title: data.title,
+      },
+    });
     return thread;
   }
 
@@ -218,7 +247,7 @@ class MastraManager extends BaseManager {
       model,
       webSearch,
       think,
-      tools,
+      tools = [],
       runId,
       chatId,
       options,
@@ -226,13 +255,13 @@ class MastraManager extends BaseManager {
     const storage = this.mastra.getStorage();
     let currentThread = await storage.getThreadById({ threadId: chatId });
 
+    for (const uiMessage of uiMessages) {
+      delete uiMessage.id;
+    }
     const inputMessage = uiMessages[uiMessages.length - 1];
 
     const mastraAgent = this.mastra.getAgentById(agentId || 'react-agent');
 
-
-
-    mastraAgent.listTools();
     if (!mastraAgent) {
       throw new Error('Agent not found');
     }
@@ -242,16 +271,28 @@ class MastraManager extends BaseManager {
       throw new Error('Provider not found');
     }
 
-    const modeId = model.substring(model.split('/')[0].length + 1);
-    const modelInfo = modelsData[provider.type]?.models[modeId];
+    const { providerId, modeId, modelInfo } =
+      await providersManager.getModelInfo(model);
 
     mastraAgent.model = await providersManager.getLanguageModel(model);
 
+    let _skills = await skillManager.getClaudeSkills();
+    _skills = _skills.filter((x) => tools.includes(x.id));
+
+    const _tools = toolsManager.buildTools(tools, {
+      [`${ToolType.BUILD_IN}:Skill`]: {
+        skills: _skills,
+      },
+    });
+    const fastModel = (await appManager.getInfo())?.defaultModel?.fastModel;
+    const fastLanguageModel = (await providersManager.getLanguageModel(
+      fastModel || model,
+    )) as LanguageModelV2;
 
     const agent = new Agent({
-      name: 'react-agent',
+      name: mastraAgent.name,
       instructions: ({ requestContext }) => {
-        return mastraAgent.getInstructions({requestContext})
+        return mastraAgent.getInstructions({ requestContext });
       },
       model: await providersManager.getLanguageModel(model),
       memory: new Memory({
@@ -265,22 +306,12 @@ class MastraManager extends BaseManager {
         },
         // memory:{
       }),
+
+      tools: _tools,
+      mastra: this.mastra,
+      // workflows: { chatWorkflow },
       // tools: { Bash: Bash.build(), WebFetch, PythonExecute },
-    })
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    });
 
     if (modelInfo?.tool_call === false) {
     }
@@ -289,6 +320,7 @@ class MastraManager extends BaseManager {
 
       const requestContext = new RequestContext();
       requestContext.set('model' as never, model as never);
+      requestContext.set('threadId' as never, chatId as never);
       if (modelInfo?.limit?.context)
         requestContext.set(
           'limit_context' as never,
@@ -303,8 +335,25 @@ class MastraManager extends BaseManager {
       const signal = controller.signal;
       let chunkPart;
 
-      const stream = await agent.stream(recentMessage, {
+      // const snapshot = await storage?.loadWorkflowSnapshot({
+      //   runId: chatId,
+      //   workflowName: workflow.id,
+      // });
+
+      const historyMessages = await storage.listMessages({
+        threadId: chatId,
+        resourceId: '123',
+      });
+
+      const historyMessagesAISdkV5 = toAISdkV5Messages(
+        historyMessages.messages,
+      );
+      const input = [...historyMessagesAISdkV5, recentMessage];
+
+      const stream = await agent.stream(input, {
         // format: 'aisdk',
+        // runId: chatId,
+        // requireToolApproval: true,
         providerOptions: options?.providerOptions,
         modelSettings: options?.modelSettings,
         requestContext: requestContext,
@@ -316,20 +365,23 @@ class MastraManager extends BaseManager {
           resource: '123',
         },
         abortSignal: signal,
-        onAbort: ({ steps }) => {
+        savePerStep: true,
+        // stopWhen: (event) => {
+        //   const { steps } = event;
+        //   return true;
+        // },
+        onAbort: (event) => {
+          const { steps } = event;
           // Handle cleanup when stream is aborted
           console.log('Stream aborted after', steps.length, 'steps');
           // Persist partial results to database
         },
         onFinish: async (event) => {
-          const { steps, usage, response, reasoning, reasoningText } = event;
+          const { steps, usage, response, reasoning } = event;
+          const reasoningText = await stream.reasoningText;
           console.log('Stream finished after', steps.length, 'steps');
           console.log('stream usage:', usage);
           // Persist final results to database
-          appManager.sendEvent(`chat:event:${chatId}`, {
-            type: ChatEvent.ChatFinish,
-            data,
-          });
 
           const uiMessages = response.uiMessages;
           const msg = await storage.updateMessages({
@@ -344,7 +396,7 @@ class MastraManager extends BaseManager {
             }),
           });
         },
-        savePerStep: true,
+
         onStepFinish: async (event) => {
           //storage.saveMessages();
           const { usage, response, text, reasoning } = event;
@@ -402,60 +454,165 @@ class MastraManager extends BaseManager {
           });
         },
         onChunk: (chunk) => {
-          console.log('Stream chunk:', chunk);
+          // console.log('Stream chunk:', chunk);
         },
-        prepareStep: (options) => {
+        prepareStep: async (options) => {
           console.log('Prepare step:', options);
-          options.messages;
+          const instructions = await agent.getInstructions({ requestContext });
+          const messages = convertToCoreMessages(options.messages);
+          const instructionContent = convertToInstructionContent(instructions);
+
+          const token = await tokenCounter(messages, {
+            role: 'system',
+            content: instructionContent,
+          });
+          if (token > 100000) {
+            compressAgent.model = fastLanguageModel;
+
+            const compressResult = await compressAgent.generate(
+              options.messages,
+              {
+                modelSettings: {
+                  maxOutputTokens: 32 * 1000,
+                },
+              },
+            );
+            const text = compressResult.text;
+            const todos = requestContext.get('todos' as never);
+            if (todos) {
+            }
+          }
+
           return options;
         },
       });
 
-      let heartbeat;
-      const stream_2 = await createUIMessageStream({
-        execute: async (options) => {
-          appManager.sendEvent(`chat:event:${chatId}`, {
-            type: ChatEvent.ChatStart,
-            data: {},
-          });
-          this.threadChats.push({
-            id: chatId,
-            title: 'string',
-            status: 'streaming',
-            controller,
-          });
-          const { writer } = options;
-          heartbeat = setInterval(() => {
-            writer.write({
-              type: 'data-heartbeat',
-              data: { datetime: new Date().toISOString() },
-              transient: true,
-            });
-          }, 1000 * 30);
-
-          writer.merge(stream.aisdk.v5.toUIMessageStream());
-        },
-        onFinish: (data) => {
-          clearInterval(heartbeat);
-        },
-        onError: (error: Error | undefined) => {
-          console.log('Stream error:', error);
-          clearInterval(heartbeat);
-
-          return error?.message ?? 'Unknown error';
-        },
+      appManager.sendEvent(`chat:event:${chatId}`, {
+        type: ChatEvent.ChatChanged,
+        data: { type: ChatChangedType.Start, chatId },
+      });
+      appManager.sendEvent(ChatEvent.ChatChanged, {
+        data: { type: ChatChangedType.Start, chatId },
+      });
+      this.threadChats.push({
+        id: chatId,
+        title: 'string',
+        status: 'streaming',
+        controller,
       });
 
-      const reader = stream_2.getReader();
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+      // for await (const chunk of stream.fullStream) {
+      //   console.log(chunk);
+      //   const convertedChunk = convertMastraChunkToAISDKv5({ chunk });
+      //   appManager.sendEvent(`chat:event:${chatId}`, {
+      //     type: ChatEvent.ChatChunk,
+      //     data: JSON.stringify(convertedChunk),
+      //   });
+      // }
+      const uiStream = toAISdkStream(stream, {
+        from: 'agent',
+      });
 
+      const uiStreamReader = uiStream.getReader();
+      while (true) {
+        const { done, value } = await uiStreamReader.read();
+        if (done) {
+          break;
+        }
+        console.log(value);
         appManager.sendEvent(`chat:event:${chatId}`, {
           type: ChatEvent.ChatChunk,
           data: JSON.stringify(value),
         });
       }
+      if (stream.status == 'suspended') {
+        const suspendPayload = await stream.suspendPayload;
+
+        appManager.sendEvent(`chat:event:${chatId}`, {
+          type: ChatEvent.ChatChunk,
+          data: JSON.stringify({
+            type: 'tool-approval-requested',
+            runId: stream.runId,
+            toolName: suspendPayload.toolName,
+            toolCallId: suspendPayload.toolCallId,
+          }),
+        });
+
+        const snapshot = await storage?.loadWorkflowSnapshot({
+          runId: stream.runId,
+          workflowName: 'executionWorkflow',
+        });
+
+        const snapshot2 = await storage?.loadWorkflowSnapshot({
+          runId: stream.runId,
+          workflowName: 'agentic-loop',
+        });
+
+        debugger;
+      }
+
+      appManager.sendEvent(`chat:event:${chatId}`, {
+        type: ChatEvent.ChatChanged,
+        data: { type: ChatChangedType.Finish, chatId },
+      });
+      appManager.sendEvent(ChatEvent.ChatChanged, {
+        data: { type: ChatChangedType.Finish, chatId },
+      });
+
+      // let heartbeat;
+      // const stream_2 = await createUIMessageStream({
+      //   execute: async (options) => {
+      //     appManager.sendEvent(`chat:event:${chatId}`, {
+      //       type: ChatEvent.ChatChanged,
+      //       data: { type: ChatChangedType.Start, chatId },
+      //     });
+
+      //     appManager.sendEvent(ChatEvent.ChatChanged, {
+      //       data: { type: ChatChangedType.Start, chatId },
+      //     });
+      //     this.threadChats.push({
+      //       id: chatId,
+      //       title: 'string',
+      //       status: 'streaming',
+      //       controller,
+      //     });
+      //     const { writer } = options;
+      //     heartbeat = setInterval(() => {
+      //       writer.write({
+      //         type: 'data-heartbeat',
+      //         data: { datetime: new Date().toISOString() },
+      //         transient: true,
+      //       });
+      //     }, 1000 * 30);
+
+      //     writer.merge(stream.aisdk.v5.toUIMessageStream());
+      //   },
+      //   onFinish: (data) => {
+      //     clearInterval(heartbeat);
+      //     appManager.sendEvent(ChatEvent.ChatChanged, {
+      //       data: { type: ChatChangedType.Finish, chatId },
+      //     });
+      //   },
+      //   onError: (error: Error | undefined) => {
+      //     console.log('Stream error:', error);
+      //     clearInterval(heartbeat);
+
+      //     return error?.message ?? 'Unknown error';
+      //   },
+      // });
+
+      // const reader = stream_2.getReader();
+      // while (true) {
+      //   const { done, value } = await reader.read();
+      //   if (done) {
+      //     break;
+      //   }
+
+      //   appManager.sendEvent(`chat:event:${chatId}`, {
+      //     type: ChatEvent.ChatChunk,
+      //     data: JSON.stringify(value),
+      //   });
+      // }
     } catch (err) {
       console.error(err);
       appManager.sendEvent(`chat:event:${chatId}`, {
@@ -479,10 +636,14 @@ class MastraManager extends BaseManager {
           title: title.replaceAll('\n', '').trim(),
           metadata: currentThread.metadata,
         });
-        await appManager.sendEvent('mastra:thread-updated', currentThread);
+
+        appManager.sendEvent(ChatEvent.ChatChanged, {
+          data: { type: ChatChangedType.TitleUpdated, chatId, title },
+        });
+
         appManager.sendEvent(`chat:event:${chatId}`, {
-          type: ChatEvent.ChatTitleUpdated,
-          data: title,
+          type: ChatEvent.ChatChanged,
+          data: { type: ChatChangedType.TitleUpdated, chatId, title },
         });
       }
       this.threadChats = this.threadChats.filter((chat) => chat.id !== chatId);
@@ -491,10 +652,196 @@ class MastraManager extends BaseManager {
     // const response = createUIMessageStreamResponse({ stream: stream_2 });
   }
 
+  @channel(MastraChannel.ChatWorkflow, { mode: 'on' })
+  public async chatWorkflow(
+    event: IpcMainEvent,
+    data: ChatInput,
+  ): Promise<void> {
+    const {
+      agentId,
+      messageId,
+      trigger,
+      messages: uiMessages,
+      model,
+      webSearch,
+      think,
+      tools,
+      runId,
+      chatId,
+      options,
+    } = data;
+    const storage = this.mastra.getStorage();
+    let currentThread = await storage.getThreadById({ threadId: chatId });
+    const inputMessage = uiMessages[uiMessages.length - 1];
+    const mastraAgent = this.mastra.getAgentById(agentId || 'react-agent');
+    if (!mastraAgent) {
+      throw new Error('Agent not found');
+    }
+    const { providerId, modeId, modelInfo } =
+      await providersManager.getModelInfo(model);
+    mastraAgent.model = await providersManager.getLanguageModel(model);
+    const _tools = toolsManager.createTools(tools, {
+      Skill: {
+        skills: tools
+          .filter((x) => x.startsWith(ToolType.SKILL + ':'))
+          .map((x) => x.split(':').slice(2).join(':')),
+      },
+    });
+    const requestContext = new RequestContext();
+    requestContext.set('model' as never, model as never);
+
+    const workflow = this.mastra.getWorkflowById('claude-code');
+
+    let result: WorkflowRunOutput;
+
+    const run = await workflow.createRun({
+      runId: chatId,
+      resourceId: '123',
+      disableScorers: true,
+    });
+
+    const snapshot = await storage?.loadWorkflowSnapshot({
+      runId: chatId,
+      workflowName: workflow.id,
+    });
+
+    if (snapshot?.status == 'suspended') {
+      for (const [key, value] of Object.entries(snapshot.requestContext)) {
+        requestContext.set(key as never, value as never);
+      }
+      result = await run.resumeStream({
+        resumeData: { start: true },
+        requestContext: requestContext,
+      });
+    } else {
+      result = await run.stream({
+        inputData: {
+          messages: uiMessages,
+          // agentId: 'claude-code',
+          model: model,
+          tools: tools,
+        },
+        requestContext,
+      });
+    }
+
+    // let heartbeat;
+    // const stream_2 = await createUIMessageStream({
+    //   execute: async (options) => {
+    //     appManager.sendEvent(`chat:event:${chatId}`, {
+    //       type: ChatEvent.ChatStart,
+    //       data: {},
+    //     });
+
+    //     appManager.sendEvent(ChatEvent.ChatStart, {
+    //       data: { chatId },
+    //     });
+    //     this.threadChats.push({
+    //       id: chatId,
+    //       title: 'string',
+    //       status: 'streaming',
+    //       controller: run.abortController,
+    //     });
+    //     const { writer } = options;
+    //     heartbeat = setInterval(() => {
+    //       writer.write({
+    //         type: 'data-heartbeat',
+    //         data: { datetime: new Date().toISOString() },
+    //         transient: true,
+    //       });
+    //     }, 1000 * 30);
+
+    //     writer.merge(result.fullStream.);
+    //   },
+    //   onFinish: (data) => {
+    //     clearInterval(heartbeat);
+    //     appManager.sendEvent(ChatEvent.ChatFinish, {
+    //       data: { chatId },
+    //     });
+    //   },
+    //   onError: (error: Error | undefined) => {
+    //     console.log('Stream error:', error);
+    //     clearInterval(heartbeat);
+
+    //     return error?.message ?? 'Unknown error';
+    //   },
+    // });
+
+    appManager.sendEvent(`chat:event:${chatId}`, {
+      type: ChatEvent.ChatChanged,
+      data: { type: ChatChangedType.Start, chatId },
+    });
+    appManager.sendEvent(ChatEvent.ChatChanged, {
+      data: { type: ChatChangedType.Start, chatId },
+    });
+    this.threadChats.push({
+      id: chatId,
+      title: 'string',
+      status: 'streaming',
+      controller: run.abortController,
+    });
+
+    for await (const chunk of result.fullStream) {
+      console.log(chunk);
+      appManager.sendEvent(`chat:event:${chatId}`, {
+        type: ChatEvent.ChatChunk,
+        data: JSON.stringify(chunk),
+      });
+    }
+
+    appManager.sendEvent(ChatEvent.ChatChanged, {
+      data: { type: ChatChangedType.Finish, chatId },
+    });
+    appManager.sendEvent(`chat:event:${chatId}`, {
+      type: ChatEvent.ChatChanged,
+      data: { type: ChatChangedType.Finish, chatId },
+    });
+    this.threadChats = this.threadChats.filter((chat) => chat.id !== chatId);
+
+    // const reader = result.fullStream.getReader();
+    // while (true) {
+    //   const { done, value } = await reader.read();
+    //   if (done) {
+    //     break;
+    //   }
+    //   console.log(value);
+    //   appManager.sendEvent(`chat:event:${chatId}`, {
+    //     type: ChatEvent.ChatChunk,
+    //     data: JSON.stringify(value),
+    //   });
+    // }
+  }
+  @channel(MastraChannel.ChatResume, { mode: 'on' })
+  public async chatResume(event: IpcMainEvent, data: ChatInput) {
+    const {
+      agentId,
+      messageId,
+      trigger,
+      messages: uiMessages,
+      model,
+      webSearch,
+      think,
+      tools,
+      runId,
+      chatId,
+      options,
+    } = data;
+  }
+
   @channel(MastraChannel.ChatAbort)
   public async chatAbort(chatId: string): Promise<void> {
     console.info('chatAbort', chatId);
     this.threadChats.find((chat) => chat.id === chatId)?.controller?.abort();
+  }
+  @channel(MastraChannel.SaveMessages)
+  public async saveMessages(
+    chatId: string,
+    messages: MastraDBMessage[],
+  ): Promise<void> {
+    const storage = this.mastra.getStorage();
+    await storage.saveMessages({
+      messages: messages,
+    });
   }
 }
 

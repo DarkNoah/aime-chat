@@ -17,6 +17,7 @@
   "dependencies": {
     "@huggingface/transformers": "^3.7.6",
     "@libsql/client": "^0.15.15",
+    "@vscode/ripgrep": "^1.17.0",
     "better-sqlite3": "^11.10.0",
     "undici": "^7.10.0"
   }

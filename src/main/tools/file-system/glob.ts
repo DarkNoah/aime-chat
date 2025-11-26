@@ -54,23 +54,11 @@ export class Glob extends BaseTool {
       cwd: path,
       caseSensitiveMatch: false,
       dot: true,
-      ignore: ['**/node_modules/**', '**/.git/**'],
+      ignore: ['**/node_modules/**', '**/.git/**', '**/.DS_Store'],
     });
     if (entries.length === 0) {
       return `No files found`;
     }
     return entries.join('\n');
   };
-
-  static build() {
-    const glob = new Glob();
-    const tool = createTool({
-      id: glob.id,
-      description: glob.description,
-      inputSchema: glob.inputSchema,
-      outputSchema: glob.outputSchema,
-      execute: glob.execute,
-    });
-    return tool;
-  }
 }

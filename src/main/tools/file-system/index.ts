@@ -19,10 +19,11 @@ import stripAnsi from 'strip-ansi';
 import { spawn } from 'child_process';
 import { Glob } from './glob';
 import { Bash } from './bash';
-import { Edit } from './edit';
-import { MultiEdit } from './multi-edit';
-
-
+import { Edit, MultiEdit } from './edit';
+import { Grep } from './grep';
+import { Write } from './write';
+import { Read } from './read';
+import { RequestContext } from '@mastra/core/request-context';
 
 export interface FileSystemParams extends BaseToolkitParams {}
 
@@ -31,7 +32,10 @@ export class FileSystem extends BaseToolkit {
   description = '测试工具';
 
   constructor(params?: FileSystemParams) {
-    super([new Bash(), new Glob(), new Edit(), new MultiEdit()], params);
+    super(
+      [new Glob(), new Edit(), new Grep(), new Write(), new Read()],
+      params,
+    );
   }
 
   getTools() {
@@ -39,4 +43,64 @@ export class FileSystem extends BaseToolkit {
   }
 }
 
+export const needReadFile = async (
+  file_path: string,
+  requestContext: RequestContext,
+): Promise<boolean> => {
+  if (!requestContext) return false;
+  const fileLastReadTime = requestContext.get(
+    'file_last_read_time' as never,
+  ) as Record<string, number>;
+  if (!fileLastReadTime[file_path]) {
+    return true;
+  }
+  const lastReadTime = fileLastReadTime[file_path];
+  const state = await fs.promises.stat(file_path);
 
+  if (state.mtimeMs > lastReadTime) {
+    return true;
+  }
+  return false;
+};
+
+export const updateFileModTime = async (
+  file_path: string,
+  requestContext: RequestContext,
+): Promise<void> => {
+  if (!requestContext) return;
+  const fileLastReadTime =
+    (requestContext.get('file_last_read_time' as never) as Record<
+      string,
+      number
+    >) ?? {};
+  fileLastReadTime[file_path] = Date.now();
+  requestContext.set('file_last_read_time' as never, fileLastReadTime as never);
+};
+
+export const formatCodeWithLineNumbers = ({
+  content: codeContent,
+  startLine: startingLine,
+}) => {
+  if (!codeContent) return '';
+
+  const arr = codeContent.split(/\r?\n/).map((line, index) => {
+    const lineNumber = index + startingLine;
+    const lineNumberStr = String(lineNumber);
+    return lineNumberStr.length;
+  });
+  const max = Math.max(...arr) > 6 ? Math.max(...arr) : 6;
+
+  return codeContent
+    .split(/\r?\n/)
+    .map((line, index) => {
+      const lineNumber = index + startingLine;
+      const lineNumberStr = String(lineNumber);
+
+      // Format line number with padding if needed
+      // if (lineNumberStr.length >= 6) {
+      //   return `${lineNumberStr}→${line}`;
+      // }
+      return `${lineNumberStr.padStart(max, ' ')}→${line}`;
+    })
+    .join('\n');
+};

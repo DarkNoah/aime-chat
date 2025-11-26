@@ -1,0 +1,92 @@
+import { UIMessage } from 'ai';
+import { Tiktoken } from 'js-tiktoken/lite';
+import type { TiktokenBPE } from 'js-tiktoken/lite';
+import o200k_base from 'js-tiktoken/ranks/o200k_base';
+import type { CoreMessage, CoreSystemMessage } from '@mastra/core/llm';
+
+const TOKENS_PER_MESSAGE = 3.8; // tokens added for each message (start & end tokens)
+const TOKENS_PER_CONVERSATION = 24; // fixed overhead for the conversation
+const encoder = new Tiktoken(o200k_base);
+
+const tokenCounter = async (
+  messages?: CoreMessage[],
+  systemMessage?: CoreSystemMessage,
+): Promise<number> => {
+  let totalTokens = 0;
+
+  // Start with the conversation overhead
+  totalTokens += TOKENS_PER_CONVERSATION;
+
+  if (systemMessage) {
+    totalTokens += countTokens(systemMessage);
+    totalTokens += TOKENS_PER_MESSAGE; // Add message overhead for system message
+  }
+
+  for (const message of messages) {
+    totalTokens += countTokens(message);
+  }
+
+  return totalTokens;
+};
+
+const countTokens = (message: string | CoreMessage): number => {
+  if (typeof message === `string`) {
+    return encoder.encode(message).length;
+  }
+
+  let tokenString = message.role;
+  let overhead = 0;
+
+  if (typeof message.content === 'string' && message.content) {
+    tokenString += message.content;
+  } else if (Array.isArray(message.content)) {
+    // Calculate tokens for each content part
+    for (const part of message.content) {
+      if (part.type === 'text') {
+        tokenString += part.text;
+      } else if (part.type === 'tool-call' || part.type === `tool-result`) {
+        if (`args` in part && part.args && part.type === `tool-call`) {
+          tokenString += part.toolName as any;
+          if (typeof part.args === 'string') {
+            tokenString += part.args;
+          } else {
+            tokenString += JSON.stringify(part.args);
+            // minus some tokens for JSON
+            overhead -= 12;
+          }
+        }
+        // Token cost for result if present
+        if (
+          `result` in part &&
+          part.result !== undefined &&
+          part.type === `tool-result`
+        ) {
+          if (typeof part.result === 'string') {
+            tokenString += part.result;
+          } else {
+            tokenString += JSON.stringify(part.result);
+            // minus some tokens for JSON
+            overhead -= 12;
+          }
+        }
+      } else {
+        tokenString += JSON.stringify(part);
+      }
+    }
+  }
+
+  if (
+    typeof message.content === `string` ||
+    // if the message included non-tool parts, add our message overhead
+    message.content.some(
+      (p) => p.type !== `tool-call` && p.type !== `tool-result`,
+    )
+  ) {
+    // Ensure we account for message formatting tokens
+    // See: https://cookbook.openai.com/examples/how_to_count_tokens_with_tiktoken#6-counting-tokens-for-chat-completions-api-calls
+    overhead += TOKENS_PER_MESSAGE;
+  }
+
+  return encoder.encode(tokenString).length + overhead;
+};
+export default tokenCounter;

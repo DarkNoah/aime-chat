@@ -115,6 +115,8 @@ class AppManager extends BaseManager {
       } else {
         await shell.openPath(path);
       }
+    } else {
+      this.send('Path not found');
     }
   }
   @channel(AppChannel.SetTheme)
@@ -139,19 +141,19 @@ class AppManager extends BaseManager {
             })
           : new Agent(),
       );
-      if(systemProxy.proxyEnable){
+      if (systemProxy.proxyEnable) {
         const url = new URL(systemProxy.proxyServer);
-      this.appProxy = {
-        mode: 'system',
-        host: url.hostname,
-        port: parseInt(url.port),
-      };
-      }else{
         this.appProxy = {
-          mode: 'system'
+          mode: 'system',
+          host: url.hostname,
+          port: parseInt(url.port),
+        };
+      } else {
+        this.appProxy = {
+          mode: 'system',
         };
       }
-      
+
       const settingData = new Settings('proxy', { mode: 'system' });
       await this.settingsRepository.upsert(settingData, ['id']);
     } else if (data.mode == 'custom') {

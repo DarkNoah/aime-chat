@@ -2,8 +2,7 @@ import { createTool, ToolExecutionContext } from '@mastra/core/tools';
 import z from 'zod';
 import fs from 'fs';
 import BaseTool from '../base-tool';
-
-
+import { needReadFile, updateFileModTime, formatCodeWithLineNumbers } from '.';
 
 export class Edit extends BaseTool {
   id: string = 'Edit';
@@ -30,7 +29,7 @@ Usage:
       .boolean()
       .default(false)
       .describe('Replace all occurences of old_string (default false)'),
-    });
+  });
   outputSchema = z.string();
   // requireApproval: true,
   execute = async (
@@ -47,9 +46,13 @@ Usage:
       throw new Error(`File ${file_path} does not exist.`);
     }
 
-    const { requestContext } = context
+    if (!fs.statSync(file_path).isFile()) {
+      throw new Error(`File ${file_path} is not a file.`);
+    }
 
-    if (fileSystemManager.needReadFile(file_path)) {
+    const { requestContext } = context;
+
+    if (await needReadFile(file_path, context.requestContext)) {
       throw new Error(
         `File '${file_path}' has been modified since last read. Please use 'Read' tool to read the file first and then do this again.`,
       );
@@ -72,7 +75,7 @@ Usage:
     ]);
     await fs.promises.writeFile(file_path, new_content);
 
-    fileSystemManager.updateFileModTime(file_path);
+    await updateFileModTime(file_path, context.requestContext);
 
     if (replace_all)
       return `The file ${file_path} has been updated. All occurrences of '${old_string}' were successfully replaced with '${new_string}'.`;
@@ -87,7 +90,113 @@ ${formatCodeWithLineNumbers({ content: snippet, startLine })}`;
   };
 }
 
+// export class MultiEdit extends BaseTool {
+//   id: string = 'MultiEdit';
+//   description: string = `This is a tool for making multiple edits to a single file in one operation. It is built on top of the \`edit\` tool and allows you to perform multiple find-and-replace operations efficiently. Prefer this tool over the \`edit\` tool when you need to make multiple edits to the same file.
 
+// Before using this tool:
+
+// 1. Use the \`file_read\` tool to understand the file's contents and context
+// 2. Verify the directory path is correct
+
+// To make multiple file edits, provide the following:
+// 1. file_path: The absolute path to the file to modify (must be absolute, not relative)
+// 2. edits: An array of edit operations to perform, where each edit contains:
+//    - old_string: The text to replace (must match the file contents exactly, including all whitespace and indentation)
+//    - new_string: The edited text to replace the old_string
+//    - replace_all: Replace all occurences of old_string. This parameter is optional and defaults to false.
+
+// IMPORTANT:
+// - All edits are applied in sequence, in the order they are provided
+// - Each edit operates on the result of the previous edit
+// - All edits must be valid for the operation to succeed - if any edit fails, none will be applied
+// - This tool is ideal when you need to make several changes to different parts of the same file
+
+// CRITICAL REQUIREMENTS:
+// 1. All edits follow the same requirements as the single Edit tool
+// 2. The edits are atomic - either all succeed or none are applied
+// 3. Plan your edits carefully to avoid conflicts between sequential operations
+
+// WARNING:
+// - The tool will fail if edits.old_string doesn't match the file contents exactly (including whitespace)
+// - The tool will fail if edits.old_string and edits.new_string are the same
+// - Since edits are applied in sequence, ensure that earlier edits don't affect the text that later edits are trying to find
+
+// When making edits:
+// - Ensure all edits result in idiomatic, correct code
+// - Do not leave the code in a broken state
+// - Always use absolute file paths (starting with /)
+// - Only use emojis if the user explicitly requests it. Avoid adding emojis to files unless asked.
+// - Use replace_all for replacing and renaming strings across the file. This parameter is useful if you want to rename a variable for instance.
+
+// If you want to create a new file, use:
+// - A new file path, including dir name if needed
+// - First edit: empty old_string and the new file's contents as new_string
+// - Subsequent edits: normal edit operations on the created content`;
+
+//   inputSchema = z.strictObject({
+//     file_path: z.string().describe('The path to the file to modify.'),
+//     edits: z
+//       .array(
+//         z.object({
+//           old_string: z.string().describe('The text to replace'),
+//           new_string: z.string().describe('The text to replace it with'),
+//           replace_all: z
+//             .boolean()
+//             .default(false)
+//             .optional()
+//             .describe('Replace all occurences of old_string (default false).'),
+//         }),
+//       )
+//       .min(1, 'At least one edit is required')
+//       .describe('Array of edit operations to perform sequentially on the file'),
+//   });
+//   outputSchema = z.string();
+//   // requireApproval: true,
+//   execute = async (
+//     inputData: z.infer<typeof this.inputSchema>,
+//     context: ToolExecutionContext<z.ZodSchema, any>,
+//   ) => {
+//     const workspace = parentConfig?.configurable?.workspace;
+
+//     const { file_path, edits } = inputData;
+//     let _file_path = file_path;
+
+//     if (!path.isAbsolute(file_path)) {
+//       _file_path = path.join(workspace, file_path);
+//     }
+
+//     if (!fs.existsSync(_file_path)) {
+//       throw new Error(`File ${_file_path} does not exist.`);
+//     }
+
+//     if (fileSystemManager.needReadFile(_file_path)) {
+//       throw new Error(
+//         `File '${_file_path}' has been modified since last read. Please use 'Read' tool to read the file first and then do this again.`,
+//       );
+//     }
+
+//     let content = '';
+
+//     if (fs.existsSync(_file_path)) {
+//       content = fs.readFileSync(_file_path, 'utf-8').replaceAll(`\r\n`, `\n`);
+//     }
+//     const new_content = patchFile(_file_path, content, edits);
+
+//     fs.mkdirSync(path.dirname(_file_path), { recursive: true });
+
+//     await fs.promises.writeFile(_file_path, new_content);
+//     fileSystemManager.updateFileModTime(_file_path);
+
+//     return `Applied ${edits.length} edit${edits.length === 1 ? '' : 's'} to ${_file_path}:
+// ${edits
+//   .map(
+//     (Z, D) =>
+//       `${D + 1}. Replaced "${Z.old_string.substring(0, 50)}${Z.old_string.length > 50 ? '...' : ''}" with "${Z.new_string.substring(0, 50)}${Z.new_string.length > 50 ? '...' : ''}"`,
+//   )
+//   .join(`\n`)}`;
+//   };
+// }
 
 const replaceSnippetWithContext = (
   text,
@@ -112,26 +221,7 @@ const replaceSnippetWithContext = (
   };
 };
 
-const formatCodeWithLineNumbers = ({
-  content: codeContent,
-  startLine: startingLine,
-}) => {
-  if (!codeContent) return '';
 
-  return codeContent
-    .split(/\r?\n/)
-    .map((line, index) => {
-      const lineNumber = index + startingLine;
-      const lineNumberStr = String(lineNumber);
-
-      // Format line number with padding if needed
-      if (lineNumberStr.length >= 6) {
-        return `${lineNumberStr}\t${line}`;
-      }
-      return `${lineNumberStr.padStart(6, ' ')}\t${line}`;
-    })
-    .join('\n');
-};
 
 const safeReplace = (
   sourceString: string,

@@ -31,7 +31,10 @@ export enum MastraChannel {
   UpdateThread = 'mastra:updateThread',
   DeleteThread = 'mastra:deleteThread',
   Chat = 'mastra:chat',
+  ChatWorkflow = 'mastra:chatWorkflow',
+  ChatResume = 'mastra:chatResume',
   ChatAbort = 'mastra:chatAbort',
+  SaveMessages = 'mastra:saveMessages',
 }
 
 export enum KnowledgeBaseChannel {
@@ -44,15 +47,12 @@ export enum KnowledgeBaseChannel {
 
 export enum ToolChannel {
   ImportMCP = 'tool:importMcp',
+  GetMcp = 'tool:getMcp',
   DeleteTool = 'tool:deleteTool',
   GetAvailableTools = 'tool:getAvailableTools',
   GetList = 'tool:getList',
   GetTool = 'tool:getTool',
   ToggleToolActive = 'tool:toggleToolActive',
   ExecuteTool = 'tool:executeTool',
-  AbortTool = 'tool:abortTool'
+  AbortTool = 'tool:abortTool',
 }
-
-export type ImportMcp = {
-  mcpConfig: string;
-};

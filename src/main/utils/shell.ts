@@ -6,6 +6,13 @@ import crypto from 'crypto';
 import stripAnsi from 'strip-ansi';
 import fixPath from 'fix-path';
 import { appManager } from '../app';
+import iconv from 'iconv-lite';
+
+export const decodeBuffer = (data: Buffer) => {
+  return process.platform === 'win32'
+    ? iconv.decode(data, 'cp936')
+    : data.toString('utf8');
+};
 
 export const runCommand = async (
   command: string,
@@ -34,7 +41,8 @@ export const runCommand = async (
     // removing listeners can overflow OS buffer and block subprocesses
     // destroying (e.g. shell.stdout.destroy()) can terminate subprocesses via SIGPIPE
     if (!exited) {
-      const str = stripAnsi(data.toString());
+      const text = decodeBuffer(data);
+      const str = stripAnsi(text);
       stdout += str;
       appendOutput(str);
     }
@@ -43,7 +51,8 @@ export const runCommand = async (
   let stderr = '';
   shell.stderr.on('data', (data: Buffer) => {
     if (!exited) {
-      const str = stripAnsi(data.toString());
+      const text = decodeBuffer(data);
+      const str = stripAnsi(text);
       stderr += str;
       appendOutput(str);
     }
@@ -128,7 +137,17 @@ export const runCommand = async (
       }
     }
   }
-  return { output, stdout, stderr, error, code, processSignal, backgroundPIDs };
+  return {
+    output,
+    stdout,
+    stderr,
+    error,
+    code,
+    processSignal,
+    backgroundPIDs,
+    tempFilePath,
+    pid: shell.pid,
+  };
 };
 
 export const createShell = (

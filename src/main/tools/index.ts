@@ -2,9 +2,9 @@ import { ToolChannel } from '@/types/ipc-channel';
 import { BaseManager } from '../BaseManager';
 import { channel } from '../ipc/IpcController';
 import mastraManager from '../mastra';
-import { MCPClient } from '@mastra/mcp';
+import { MastraMCPServerDefinition, MCPClient } from '@mastra/mcp';
 import { appManager } from '../app';
-import { McpEvent, McpClientStatus } from '@/types/mcp';
+import { McpEvent, McpClientStatus, CreateMcp } from '@/types/mcp';
 import { nanoid } from '@/utils/nanoid';
 import fs from 'fs';
 import path from 'path';
@@ -25,11 +25,20 @@ import { TodoWrite } from './common/todo-write';
 import { FileSystem } from './file-system';
 import BaseToolkit from './base-toolkit';
 import { createTool } from '@mastra/core/tools';
+import { AskUserQuestion } from './common/ask-user-question';
+import { NodejsExecute } from './code/nodejs-execute';
+import { Skill, skillManager } from './common/skill';
+import { BashToolkit } from './file-system/bash';
 
 interface BuiltInToolContext {
   tool: BaseTool;
   abortController: AbortController;
 }
+
+type BuiltInTool = Omit<BaseTool & BaseToolkit, 'id'> & {
+  classType: any;
+  id: `${ToolType.BUILD_IN}:${string}`;
+};
 
 class ToolsManager extends BaseManager {
   mcpClients: {
@@ -39,7 +48,7 @@ class ToolsManager extends BaseManager {
     id: string;
   }[];
 
-  builtInTools: BaseTool[] | BaseToolkit[] = [];
+  builtInTools: BuiltInTool[] = [];
 
   builtInToolContexts: BuiltInToolContext[] = [];
 
@@ -63,11 +72,21 @@ class ToolsManager extends BaseManager {
     });
   }
 
-  async registerBuiltInTool(tool: BaseTool | BaseToolkit) {
+  async registerBuiltInTool(classType, params?: any) {
+    const parent = Object.getPrototypeOf(classType);
+    let tool: BaseTool | BaseToolkit;
+    let isToolkit;
+    if (parent.name == BaseTool.name) {
+      tool = new classType(params) as BaseTool;
+      isToolkit = false;
+    } else if (parent.name == BaseToolkit.name) {
+      tool = new classType(params) as BaseToolkit;
+      isToolkit = true;
+    }
     let toolEntity = await this.toolsRepository.findOne({
       where: { id: `${ToolType.BUILD_IN}:${tool.id}` },
     });
-    const isToolkit = tool?.tools?.length > 0;
+
     if (!toolEntity) {
       toolEntity = new Tools(
         `${ToolType.BUILD_IN}:${tool.id}`,
@@ -78,28 +97,79 @@ class ToolsManager extends BaseManager {
       await this.toolsRepository.save(toolEntity);
     }
 
-    if(!isToolkit){
+    if (!isToolkit) {
       const t = createTool(tool);
-      this.builtInTools.push({ ...t,isToolkit, id: toolEntity.id } as BaseTool &
-        BaseToolkit);
+      this.builtInTools.push({
+        ...t,
+        isToolkit,
+        classType,
+        id: toolEntity.id,
+      } as BuiltInTool);
     } else {
       const toolkit = tool as BaseToolkit;
-      const tools = []
-      for(const tool of toolkit?.tools){
+      const tools = [];
+      for (const tool of toolkit?.tools) {
         const t = createTool(tool);
-        tools.push(t)
+        tools.push(t);
       }
-      this.builtInTools.push({ ...tool, isToolkit, tools:tools, id: toolEntity.id } as BaseTool &
-        BaseToolkit);
+      this.builtInTools.push({
+        ...tool,
+        isToolkit,
+        classType,
+        tools: tools,
+        id: toolEntity.id,
+      } as BuiltInTool);
     }
   }
 
   async registerBuiltInTools() {
-    this.registerBuiltInTool(new PythonExecute());
-    this.registerBuiltInTool(new StreamTest({description:'123123'}));
-    this.registerBuiltInTool(new TodoWrite());
-    this.registerBuiltInTool(new FileSystem());
+    this.registerBuiltInTool(PythonExecute);
+    this.registerBuiltInTool(NodejsExecute);
+    this.registerBuiltInTool(StreamTest);
+    this.registerBuiltInTool(TodoWrite);
+    this.registerBuiltInTool(BashToolkit);
+    this.registerBuiltInTool(FileSystem);
+    this.registerBuiltInTool(AskUserQuestion);
+    const skills = await skillManager.getClaudeSkills();
+    this.registerBuiltInTool(Skill, {
+      skills: skills.map((skill) => ({
+        name: skill.name,
+        description: skill.description,
+        path: skill.path,
+      })),
+    });
+
+    // this.registerBuiltInTool(
+    //   new Skill({
+    //     skills: skills.map((skill) => ({
+    //       name: skill.name,
+    //       description: skill.description,
+    //       path: skill.path,
+    //     })),
+    //   }),
+    // );
   }
+
+  configToMastraMCPServerDefinition = (
+    mcpConfig: CreateMcp,
+  ): MastraMCPServerDefinition => {
+    let servers: MastraMCPServerDefinition;
+    if ('url' in mcpConfig) {
+      servers = {
+        url: new URL(mcpConfig.url),
+        requestInit: {
+          headers: mcpConfig.headers ?? {},
+        },
+      } as MastraMCPServerDefinition;
+    } else if ('command' in mcpConfig) {
+      servers = {
+        command: mcpConfig.command,
+        args: mcpConfig.args,
+        env: mcpConfig.env,
+      } as MastraMCPServerDefinition;
+    }
+    return servers;
+  };
 
   async init(): Promise<void> {
     this.mcpClients = [];
@@ -108,9 +178,13 @@ class ToolsManager extends BaseManager {
       where: { type: ToolType.MCP },
     });
     for (const tool of mcpTools) {
+      const [key, value] = Object.entries(tool.mcpConfig)[0];
+      const servers = this.configToMastraMCPServerDefinition(value);
       const mcp = new MCPClient({
         id: tool.id,
-        servers: tool.mcpConfig,
+        servers: {
+          [key]: servers,
+        },
       });
       if (tool.isActive) {
         this.mcpClients.push({ id: tool.id, mcp, status: 'starting' });
@@ -121,7 +195,7 @@ class ToolsManager extends BaseManager {
     new Promise(async (resolve, reject) => {
       this.mcpClients.forEach(async (mcpClient) => {
         try {
-          await mcpClient.mcp.listTools();
+          mcpClient.mcp.tools = await mcpClient.mcp.listTools();
           mcpClient.status = 'running';
         } catch (error: any) {
           mcpClient.status = 'error';
@@ -162,13 +236,12 @@ class ToolsManager extends BaseManager {
       throw new Error('Invalid config');
     }
     const [key, value] = Object.entries(mcpServers)[0];
+    let servers = this.configToMastraMCPServerDefinition(value);
 
     const id = `${ToolType.MCP}:${nanoid()}`;
     const mcp = new MCPClient({
       id: id,
-      servers: {
-        [key]: value,
-      },
+      servers: { [key]: servers as MastraMCPServerDefinition },
     });
     const mcpClient = {
       id: id,
@@ -199,6 +272,16 @@ class ToolsManager extends BaseManager {
         mcpStatus.error,
       );
     }
+  }
+
+  @channel(ToolChannel.GetMcp)
+  public async getMcp(id: string) {
+    const tool = await this.toolsRepository.findOne({ where: { id } });
+    if (!tool) throw new Error('Tool not found');
+    if (tool.type === ToolType.MCP) {
+      return tool.mcpConfig;
+    }
+    return null;
   }
 
   @channel(ToolChannel.DeleteTool)
@@ -251,7 +334,7 @@ class ToolsManager extends BaseManager {
     const tools = await this.toolsRepository.find({
       where: { type: filter?.type },
     });
-    const skills = await this.getClaudeSkills();
+    const skills = await skillManager.getClaudeSkills();
     return {
       [ToolType.MCP]: tools
         .filter((tool) => tool.type === ToolType.MCP)
@@ -284,8 +367,8 @@ class ToolsManager extends BaseManager {
     const tool = await this.toolsRepository.findOne({ where: { id } });
     if (id.startsWith(`${ToolType.SKILL}:`)) {
       const marketplace = id.split(':')[1];
-      const skill = id.split(':')[2];
-      const sk = await this.getClaudeSkill(skill, marketplace);
+      const skill = id.split(':').slice(2).join(':');
+      const sk = await skillManager.getClaudeSkill(skill, marketplace);
 
       return {
         ...sk,
@@ -302,20 +385,24 @@ class ToolsManager extends BaseManager {
       let resources;
       let prompts;
       if (tool.isActive) {
-        tools = tool.isActive ? await mcp.mcp.listTools() : [];
-        const elicitation = await mcp.mcp.elicitation;
+        if (!mcp.mcp.tools) {
+          mcp.mcp.tools = await mcp.mcp.listTools();
+        }
+        tools = mcp.mcp.tools;
+
         version = mcp.mcp.mcpClientsById.get(tool.name)?.client?._serverVersion
           ?.version;
-        resources = await mcp.mcp.resources.list();
-        prompts = await mcp.mcp.prompts.list();
+        // resources = await mcp.mcp.resources.list();
+        // prompts = await mcp.mcp.prompts.list();
       }
 
       return {
         ...tool,
         status: mcp?.status,
         error: mcp?.error,
-        prompts,
-        resources,
+        // prompts,
+        // resources,
+        isToolkit: true,
         version,
         tools: Object.values(tools).map((t) => {
           return {
@@ -334,6 +421,7 @@ class ToolsManager extends BaseManager {
           ...tool,
           name: __tool.id.substring(ToolType.BUILD_IN.length + 1),
           description: __tool?.description,
+          isToolkit: false,
           tools: [
             {
               id: __tool.id,
@@ -349,6 +437,7 @@ class ToolsManager extends BaseManager {
           ...tool,
           name: __tool.id.substring(ToolType.BUILD_IN.length + 1),
           description: __tool?.description,
+          isToolkit: true,
           tools: __tool.tools.map((t) => {
             return {
               id: t.id,
@@ -367,13 +456,14 @@ class ToolsManager extends BaseManager {
   public async toggleToolActive(id: string) {
     if (id.startsWith(`${ToolType.SKILL}:`)) {
       const marketplace = id.split(':')[1];
-      const skill = id.split(':')[2];
+      const skill = id.split(':').slice(2).join(':');
       let tool = await this.toolsRepository.findOne({ where: { id } });
       if (!tool) {
         tool = new Tools(id, skill, ToolType.SKILL);
         tool.isActive = true;
       } else {
         tool.isActive = !tool.isActive;
+        tool.name = skill;
       }
       await this.toolsRepository.save(tool);
       await this.sendMcpClientUpdatedEvent(
@@ -386,7 +476,6 @@ class ToolsManager extends BaseManager {
       const tool = await this.toolsRepository.findOne({ where: { id } });
       if (tool.type == ToolType.MCP) {
         const mcp = this.mcpClients.find((x) => x.id === `${tool.id}`);
-
         if (mcp) {
           if (tool.isActive) {
             await mcp.mcp.disconnect();
@@ -396,6 +485,7 @@ class ToolsManager extends BaseManager {
             await this.sendMcpClientUpdatedEvent(id, 'starting', undefined);
             try {
               const tools = await mcp.mcp.listTools();
+              mcp.mcp.tools = tools;
               mcp.status = 'running';
               mcp.error = undefined;
             } catch (err) {
@@ -476,76 +566,35 @@ class ToolsManager extends BaseManager {
       ?.abortController?.abort();
   }
 
-  async getClaudeSkills() {
-    const marketplaces = path.join(
-      app.getPath('home'),
-      '.claude',
-      'plugins',
-      'marketplaces',
-    );
-    if (
-      !(fs.existsSync(marketplaces) && fs.statSync(marketplaces).isDirectory())
-    ) {
-      return [];
-    }
-    const marketplaceDir = fs.readdirSync(marketplaces);
-    const skillList = [];
-    for (const marketplace of marketplaceDir) {
-      try {
-        const mds = await fg('**/SKILL.md', {
-          cwd: path.join(marketplaces, marketplace),
-          absolute: true,
+  buildTools(
+    toolNames?: string[],
+    config?: Record<`${ToolType.BUILD_IN}:${string}`, any>,
+  ): Record<string, BaseTool> {
+    if (!toolNames) return {};
+    const tools = {};
+    for (const toolName of toolNames) {
+      const tool = this.builtInTools.find((x) => x.id === toolName);
+      if (!tool) continue;
+      if (!tool.isToolkit) {
+        const newTool = new tool.classType(config?.[tool.id]) as BaseTool;
+        const t = createTool({
+          ...newTool,
+          id: tool.id.substring(ToolType.BUILD_IN.length + 1),
         });
-        for (const md of mds) {
-          const skillPath = path.dirname(md);
-          const skillMD = await fs.promises.readFile(md, { encoding: 'utf8' });
-          const data = matter(skillMD);
-          const skill = {
-            id: `${ToolType.SKILL}:${marketplace}:${data.data.name}`,
-            name: data.data.name,
-            description: data.data.description,
-            isActive: false,
-          };
-          skillList.push(skill);
+
+        tools[t.id] = t;
+      } else {
+        const newToolkit = new tool.classType(config?.[tool.id]) as BaseToolkit;
+        for (const _tool of newToolkit.tools) {
+          const t = createTool({
+            ..._tool,
+            id: _tool.id,
+          });
+          tools[t.id] = t;
         }
-      } catch {}
+      }
     }
-
-    return skillList;
-  }
-
-  async getClaudeSkill(id: string, marketplace: string) {
-    const marketplaces = path.join(
-      app.getPath('home'),
-      '.claude',
-      'plugins',
-      'marketplaces',
-    );
-    if (
-      !(fs.existsSync(marketplaces) && fs.statSync(marketplaces).isDirectory())
-    ) {
-      return undefined;
-    }
-    const mds = await fg(`${marketplace}/**/${id}/SKILL.md`, {
-      cwd: marketplaces,
-      absolute: true,
-    });
-    if (mds.length === 1) {
-      const md = mds[0];
-      const skillMD = await fs.promises.readFile(md, { encoding: 'utf8' });
-      const data = matter(skillMD);
-      return {
-        id: `${ToolType.SKILL}:${marketplace}:${data.data.name}`,
-        name: data.data.name,
-        description: data.data.description,
-        content: data.content,
-        path: path.dirname(md),
-        type: ToolType.SKILL,
-        isActive: false,
-      };
-    } else {
-      return undefined;
-    }
+    return tools;
   }
 }
 

@@ -23,18 +23,42 @@ import {
 } from '@/renderer/components/ui/alert-dialog';
 import { t } from 'i18next';
 
-import { SidebarMenuButton } from '@/renderer/components/ui/sidebar';
+import {
+  SidebarMenuButton,
+  useSidebar,
+} from '@/renderer/components/ui/sidebar';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/renderer/lib/utils';
-import { Item, ItemActions, ItemContent, ItemTitle } from './ui/item';
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemTitle,
+} from './ui/item';
 import { ScrollArea } from './ui/scroll-area';
+import { ChatChangedType, ChatEvent } from '@/types/chat';
+import ShinyText from './react-bits/ShinyText';
+import { Shimmer } from './ai-elements/shimmer';
+import { Label } from './ui/label';
 
 export type ThreadsListProps = {
   className?: string;
 };
 
 export default function ThreadsList({ className }: ThreadsListProps) {
-  const [items, setItems] = useState<StorageThreadType[]>([]);
+  const [items, setItems] = useState<
+    (StorageThreadType & { status?: 'idle' | 'streaming' })[]
+  >([]);
+  const {
+    state,
+    open,
+    setOpen,
+    openMobile,
+    setOpenMobile,
+    isMobile,
+    toggleSidebar,
+  } = useSidebar();
   const [total, setTotal] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -112,30 +136,56 @@ export default function ThreadsList({ className }: ThreadsListProps) {
       'mastra:thread-created',
       handleThreadCreated,
     );
-    const handleThreadUpdated = (data: StorageThreadType) => {
-      setItems((prev) =>
-        prev.map((item) => (item.id === data.id ? data : item)),
-      );
-    };
-
-    window.electron.ipcRenderer.on(
-      'mastra:thread-updated',
-      handleThreadUpdated,
-    );
     if (!initialLoadRef.current) {
       initialLoadRef.current = true;
       loadMore(true);
     }
+
+    const handleChatChanged = (event) => {
+      if (event.data.type === ChatChangedType.Start) {
+        setItems((prev) => {
+          const index = prev.findIndex((item) => item.id === event.data.chatId);
+          if (index === -1) {
+            return prev;
+          }
+          const next = [...prev];
+          next[index] = { ...next[index], status: 'streaming' };
+          return next;
+        });
+      } else if (event.data.type === ChatChangedType.Finish) {
+        setItems((prev) => {
+          const index = prev.findIndex((item) => item.id === event.data.chatId);
+          if (index === -1) {
+            return prev;
+          }
+          const next = [...prev];
+          next[index] = { ...next[index], status: 'idle' };
+          return next;
+        });
+      } else if (event.data.type === ChatChangedType.TitleUpdated) {
+        setItems((prev) =>
+          prev.map((item) =>
+            item.id === event.data.chatId
+              ? { ...item, title: event.data.title }
+              : item,
+          ),
+        );
+      }
+    };
+
+    window.electron.ipcRenderer.on(ChatEvent.ChatChanged, handleChatChanged);
+
+    // window.electron.ipcRenderer.on(ChatEvent.ChatFinish, handleChatFinish);
+
     return () => {
       window.electron.ipcRenderer.removeListener(
         'mastra:thread-created',
         handleThreadCreated,
       );
       window.electron.ipcRenderer.removeListener(
-        'mastra:thread-updated',
-        handleThreadUpdated,
+        ChatEvent.ChatChanged,
+        handleChatChanged,
       );
-      // emitter.off('threads:created', handleThreadCreated);
     };
   }, [loadMore]);
 
@@ -190,21 +240,32 @@ export default function ThreadsList({ className }: ThreadsListProps) {
     );
   };
 
-  const row = (item: StorageThreadType) => {
+  const row = (item: StorageThreadType & { status?: 'idle' | 'streaming' }) => {
+    const isActive = location.pathname.startsWith(`/chat/${item.id}`);
     return (
       <div key={item.id} className="group/item mb-1 cursor-pointer">
         <SidebarMenuButton
           asChild
-          isActive={location.pathname.startsWith(`/chat/${item.id}`)}
+          isActive={isActive}
           className="truncate w-full flex flex-row justify-between h-full"
         >
           <Item
-            className="truncate w-full flex flex-row justify-between  flex-nowrap"
+            className="truncate w-full flex flex-row justify-between items-center  flex-nowrap"
             onClick={() => handleNavigation(`/chat/${item.id}`)}
           >
+            <div
+              className={cn(
+                'w-1 h-[20px] rounded-full',
+                isActive ? 'bg-blue-500' : 'bg-transparent',
+                'transition-all duration-300 ease-in-out',
+              )}
+            ></div>
             <ItemContent className="min-w-0">
               <ItemTitle className="line-clamp-1 w-auto">
-                {item.title}
+                {item?.status === 'streaming' && (
+                  <Shimmer>{item.title}</Shimmer>
+                )}
+                {item?.status !== 'streaming' && item.title}
               </ItemTitle>
             </ItemContent>
             <ItemActions>
@@ -259,8 +320,16 @@ export default function ThreadsList({ className }: ThreadsListProps) {
       ref={containerRef}
       className={cn('flex flex-col min-h-0 h-full', className)}
     >
-      <ScrollArea className="flex-1 h-full pr-1 ">
-        <div className="flex flex-col gap-1 p-2  w-[calc(var(--sidebar-width)-var(--spacing)*4)]">
+      <Label className="text-muted-foreground text-xs p-2 ">
+        {t('common.chat')}
+      </Label>
+      <ScrollArea className="flex-1 h-full pr-1 min-h-0">
+        <div
+          className={`flex flex-col gap-1 p-2`}
+          style={{
+            width: `calc(var(--sidebar-width) - var(--spacing) * ${isMobile ? '3' : '6'})`,
+          }}
+        >
           {items.map((item) => row(item))}
           {loading && loader()}
           {isEmpty && (

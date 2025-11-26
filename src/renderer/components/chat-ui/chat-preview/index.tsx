@@ -12,9 +12,11 @@ import { Loader } from '../../ai-elements/loader';
 import { ToggleGroup, ToggleGroupItem } from '../../ui/toggle-group';
 import { ChatToolResultPreview } from './chat-tool-result-preview';
 import { ToolUIPart } from 'ai';
+import { Streamdown } from '../../ai-elements/streamdown';
 
 export type ChatPreviewProps = {
   part?: ToolUIPart;
+  messages?: any;
 };
 
 export interface ChatPreviewRef {}
@@ -23,13 +25,14 @@ export enum PreviewType {
   WEB_PREVIEW = 'webPreview',
   CANVAS = 'canvas',
   TOOL_RESULT = 'tool-result',
+  MESSAGES = 'messages',
 }
 
 // type PreviewType = 'webPreview' | 'canvas' | 'tool-result';
 
 export const ChatPreview = React.forwardRef<ChatPreviewRef, ChatPreviewProps>(
   (props: ChatPreviewProps, ref: ForwardedRef<ChatPreviewRef>) => {
-    const { part } = props;
+    const { part, messages } = props;
     const [isGenerating, setIsGenerating] = useState(false);
     const [previewUrl, setPreviewUrl] = useState<string | null>(
       'https://www.baidu.com',
@@ -49,27 +52,30 @@ export const ChatPreview = React.forwardRef<ChatPreviewRef, ChatPreviewProps>(
         >
           <ToggleGroupItem
             value={PreviewType.WEB_PREVIEW}
-            aria-label="Toggle star"
             className="data-[state=off]:bg-transparent bg-secondary "
           >
             Web Preview
           </ToggleGroupItem>
           <ToggleGroupItem
             value={PreviewType.CANVAS}
-            aria-label="Toggle heart"
             className="data-[state=off]:bg-transparent bg-secondary "
           >
             Canvas
           </ToggleGroupItem>
           <ToggleGroupItem
             value={PreviewType.TOOL_RESULT}
-            aria-label="Toggle bookmark"
             className="data-[state=off]:bg-transparent bg-secondary "
           >
             Tool Result
           </ToggleGroupItem>
+          <ToggleGroupItem
+            value={PreviewType.MESSAGES}
+            className="data-[state=off]:bg-transparent bg-secondary "
+          >
+            Messages
+          </ToggleGroupItem>
         </ToggleGroup>
-        <div className="flex-1 h-full">
+        <div className="flex-1 h-full min-h-0">
           <div
             className={`h-full ${previewType === PreviewType.WEB_PREVIEW ? '' : 'hidden'}`}
           >
@@ -101,9 +107,21 @@ export const ChatPreview = React.forwardRef<ChatPreviewRef, ChatPreviewProps>(
           </div>
 
           <div
-            className={`h-full ${previewType === PreviewType.TOOL_RESULT ? '' : 'hidden'}`}
+            className={`h-full overflow-y-auto ${previewType === PreviewType.TOOL_RESULT ? '' : 'hidden'}`}
           >
-            <ChatToolResultPreview result={part?.output} title="Tool Result" />
+            <ChatToolResultPreview
+              part={part}
+              title={part?.type?.split('-').slice(1).join('-')}
+            />
+          </div>
+          <div
+            className={`h-full ${previewType === PreviewType.MESSAGES ? '' : 'hidden'}`}
+          >
+            {messages && (
+              <pre className="whitespace-pre-wrap break-all p-4 bg-secondary rounded-2xl h-full overflow-y-auto text-xs">
+                {JSON.stringify(messages, null, 2)}
+              </pre>
+            )}
           </div>
         </div>
       </div>

@@ -6,7 +6,7 @@ import {
 import { generateText } from 'ai';
 import z from 'zod';
 import BaseTool, { BaseToolParams } from '../base-tool';
-import { createShell, runCommand } from '@/main/utils/shell';
+import { createShell, decodeBuffer, runCommand } from '@/main/utils/shell';
 import { getUVRuntime } from '@/main/app/runtime';
 import { app } from 'electron';
 import fs from 'fs';
@@ -16,8 +16,9 @@ import BaseToolkit, { BaseToolkitParams } from '../base-toolkit';
 import { truncateText } from '@/utils/common';
 import os from 'os';
 import stripAnsi from 'strip-ansi';
-import { spawn } from 'child_process';
+import { ChildProcessByStdio, spawn } from 'child_process';
 import iconv from 'iconv-lite';
+import Stream from 'stream';
 const MAX_OUTPUT_LENGTH = 30000;
 
 export class Bash extends BaseTool {
@@ -173,15 +174,16 @@ Output: Creates directory 'foo'`),
   });
   outputSchema = z.string();
 
-  constructor(config?: BaseToolParams){
+  constructor(config?: BaseToolParams) {
     super(config);
   }
-  // requireApproval: true,
   execute = async (
     inputData: z.infer<typeof this.inputSchema>,
     context: ToolExecutionContext<z.ZodSchema, any>,
   ) => {
     const { timeout, directory, run_in_background } = inputData;
+    const { requestContext } = context;
+    const threadId = requestContext.get('threadId' as never) as string;
     const abortSignal = context?.abortSignal;
     const isWindows = os.platform() === 'win32';
 
@@ -197,32 +199,324 @@ Output: Creates directory 'foo'`),
     }
     const cwd = directory;
 
-    // if (input.run_in_background) {
-    //   const bash_id = crypto.randomBytes(4).toString("hex");
-    //   bashManager.runInBackground(
-    //     { command: input.command },
-    //     bash_id,
-    //     cwd,
-    //     timeout
-    //   );
-    //   return `Command running in background with ID: ${bash_id}`;
-    // }
+    if (run_in_background) {
+      const shell_id = nanoid(8);
+      bashManager.runInBackground(
+        { command: inputData.command, description: inputData.description },
+        shell_id,
+        cwd,
+        timeout,
+        undefined,
+        threadId,
+      );
+      return `Command running in background with ID: ${shell_id}`;
+    }
 
+    let exited = false;
+
+    let {
+      output,
+      stdout,
+      stderr,
+      error,
+      code,
+      processSignal,
+      backgroundPIDs,
+      tempFilePath,
+      pid,
+    } = await runCommand(inputData.command, cwd, timeout, abortSignal);
+    console.log(tempFilePath, inputData.command);
+    let llmContent = '';
+    if (abortSignal?.aborted) {
+      llmContent = 'Command was cancelled by user before it could complete.';
+      if (output.trim()) {
+        output = output.trim();
+
+        if (output && output.length > MAX_OUTPUT_LENGTH) {
+          output = truncateText(output, MAX_OUTPUT_LENGTH / 2);
+        }
+        llmContent += ` Below is the output (on stdout and stderr) before it was cancelled:\n${output}`;
+      } else {
+        llmContent += ' There was no output before it was cancelled.';
+      }
+    } else {
+      if (stdout && stdout.length > MAX_OUTPUT_LENGTH) {
+        stdout = truncateText(stdout, 1000);
+      }
+      let errorMessage = error?.toString();
+      if (errorMessage && errorMessage.length > MAX_OUTPUT_LENGTH) {
+        errorMessage = truncateText(errorMessage, 1000);
+      }
+      llmContent = [
+        `Command: ${inputData.command}`,
+        `Directory: ${directory || '(root)'}`,
+        `Stdout: ${stdout || '(empty)'}`,
+        `Stderr: ${stderr || '(empty)'}`,
+        `Error: ${errorMessage ?? '(none)'}`,
+        `Exit Code: ${code ?? '(none)'}`,
+        `Signal: ${processSignal ?? '(none)'}`,
+        // `Background PIDs: ${
+        //   backgroundPIDs.length ? backgroundPIDs.join(', ') : '(none)'
+        // }`,
+        `Process Group PGID: ${pid ?? '(none)'}`,
+      ].join('\n');
+    }
+
+    return llmContent;
+  };
+}
+
+export class BashOutput extends BaseTool {
+  id: string = 'BashOutput';
+  description: string = `- Retrieves output from a running or completed background bash shell
+- Takes a shell_id parameter identifying the shell
+- Always returns only new output since the last check
+- Returns stdout and stderr output along with shell status
+- Supports optional regex filtering to show only lines matching a pattern
+- Use this tool when you need to monitor or check the output of a long-running shell
+- Shell IDs can be found using the ListBash tool`;
+
+  inputSchema = z.object({
+    shell_id: z
+      .string()
+      .describe('The ID of the background shell to retrieve output from'),
+    filter: z
+      .string()
+      .optional()
+      .describe(
+        'Optional regular expression to filter the output lines. Only lines matching this regex will be included in the result. Any lines that do not match will no longer be available to read.',
+      ),
+  });
+  outputSchema = z.string();
+
+  constructor(config?: BaseToolParams) {
+    super(config);
+  }
+
+  execute = async (
+    inputData: z.infer<typeof this.inputSchema>,
+    context: ToolExecutionContext<z.ZodSchema, any>,
+  ) => {
+    const { shell_id, filter } = inputData;
+
+    const bashSession = bashManager.getBackgroundBashSession(shell_id);
+
+    if (!bashSession) {
+      return `Bash session not found, shell_id: ${shell_id}`;
+    }
+    let stdouts = bashSession.stdout.map((item) => item.content);
+    let stderrs = bashSession.stderr.map((item) => item.content);
+    let stdout = stdouts.join('\n');
+    let stderr = stderrs.join('\n');
+
+    if (filter) {
+      stdout = stdouts
+        .filter((item) => item.match(new RegExp(filter)))
+        .join('\n');
+      stderr = stderrs
+        .filter((item) => item.match(new RegExp(filter)))
+        .join('\n');
+    }
+
+    if (stdout && stdout.length > MAX_OUTPUT_LENGTH) {
+      stdout = truncateText(stdout, 1000);
+    }
+    let errorMessage = bashSession.errorMessage;
+    if (errorMessage && errorMessage.length > MAX_OUTPUT_LENGTH) {
+      errorMessage = truncateText(errorMessage, 1000);
+    }
+
+    const llmContent = [
+      `Command: ${bashSession.command}`,
+      `Directory: ${bashSession.directory || '(root)'}`,
+      `Stdout: ${stdout || '(empty)'}`,
+      `Stderr: ${stderr || '(empty)'}`,
+      `Error: ${errorMessage ?? '(none)'}`,
+      `Exit Code: ${bashSession.exitCode ?? '(none)'}`,
+      `Signal: ${bashSession.processSignal ?? '(none)'}`,
+      `Duration: ${Math.floor(
+        (new Date().getTime() - bashSession.startTime.getTime()) / 1000,
+      )} s`,
+      `IsRunning: ${bashSession.isExited ? 'No' : 'Yes'}`,
+      `Process Group PGID: ${bashSession.pid ?? '(none)'}`,
+    ].join('\n');
+
+    return llmContent;
+  };
+}
+
+export class KillBash extends BaseTool {
+  id: string = 'KillBash';
+  description: string = `- Kills a running background bash shell by its ID
+- Takes a shell_id parameter identifying the shell to kill
+- Returns a success or failure status
+- Use this tool when you need to terminate a long-running shell
+- Shell IDs can be found using the ListBash tool`;
+
+  inputSchema = z.object({
+    shell_id: z.string().describe('The ID of the background shell to kill'),
+  });
+  outputSchema = z.string();
+
+  constructor(config?: BaseToolParams) {
+    super(config);
+  }
+
+  execute = async (
+    inputData: z.infer<typeof this.inputSchema>,
+    context: ToolExecutionContext<z.ZodSchema, any>,
+  ) => {
+    const { shell_id } = inputData;
+    const bashSession = await bashManager.remove(shell_id);
+    if (bashSession) {
+      let stdout = bashSession.stdout.map((item) => item.content).join('\n');
+      let stderr = bashSession.stderr.map((item) => item.content).join('\n');
+      const llmContent = [
+        `Command: ${bashSession.command}`,
+        `Directory: ${bashSession.directory || '(root)'}`,
+        `Stdout: ${stdout || '(empty)'}`,
+        `Stderr: ${stderr || '(empty)'}`,
+        `Error: ${bashSession.errorMessage ?? '(none)'}`,
+        `Exit Code: ${bashSession.exitCode ?? '(none)'}`,
+        `Signal: ${bashSession.processSignal ?? '(none)'}`,
+        `Duration: ${Math.floor(
+          (new Date().getTime() - bashSession.startTime.getTime()) / 1000,
+        )} s`,
+        `IsRunning: ${bashSession.isExited ? 'No' : 'Yes'}`,
+        `Process Group PGID: ${bashSession.pid ?? '(none)'}`,
+      ].join('\n');
+
+      return llmContent;
+    }
+    return `Bash session ${shell_id} not found`;
+  };
+}
+
+export class ListBash extends BaseTool {
+  id: string = 'ListBash';
+  description: string = `- Use this tool found all running background bash shells`;
+
+  inputSchema = z.strictObject({});
+  outputSchema = z.string();
+
+  execute = async (
+    inputData: z.infer<typeof this.inputSchema>,
+    context: ToolExecutionContext<z.ZodSchema, any>,
+  ) => {
+    const { requestContext } = context;
+    const threadId = requestContext.get('threadId' as never) as string;
+
+    const bashes = bashManager.getBashSessions(threadId).toArray();
+    return bashes.length == 0
+      ? `No running bash sessions found`
+      : bashes
+          .map(
+            (x) =>
+              `Shell ID: ${x.bashId}
+Command: ${x.command}
+Description: ${x.description ?? '(no description)'}
+IsRunning: ${x.isExited ? 'No' : 'Yes'}`,
+          )
+          .join('\n\n---\n\n');
+  };
+}
+
+export interface BashToolParams extends BaseToolkitParams {}
+
+export class BashToolkit extends BaseToolkit {
+  id: string = 'BashToolkit';
+
+  constructor(params?: BashToolParams) {
+    super(
+      [new Bash(), new KillBash(), new BashOutput(), new ListBash()],
+      params,
+    );
+  }
+
+  getTools() {
+    return this.tools;
+  }
+}
+
+export interface BashSession {
+  shell: ChildProcessByStdio<null, Stream.Readable, Stream.Readable>;
+  threadId?: string;
+  bashId: string;
+  command: string;
+  directory: string;
+  stdout: {
+    content: string;
+    timestamp: Date;
+  }[];
+  stderr: {
+    content: string;
+    timestamp: Date;
+  }[];
+  startTime: Date;
+  errorMessage?: string;
+  isExited: boolean;
+  exitCode?: number;
+  pid: number;
+  lastGetOutputTime?: Date;
+  abortController?: AbortController;
+  processSignal?: NodeJS.Signals;
+  description?: string;
+}
+
+export class BashManager {
+  private bashMap: Map<string, BashSession> = new Map();
+
+  async runInBackground(
+    input: {
+      command: string;
+      description?: string;
+    },
+    bashId?: string,
+    cwd?: string,
+    timeout?: number,
+    abortSignal?: AbortSignal,
+    threadId?: string,
+  ) {
+    let abortController: AbortController;
+    if (!abortSignal) {
+      abortController = new AbortController();
+      const signal = abortController.signal;
+      abortSignal = signal;
+    }
     const { shell, tempFilePath, command } = createShell(
-      inputData.command,
+      input.command,
       cwd,
       timeout,
     );
-    console.log(tempFilePath, command);
+    if (!bashId) {
+      bashId = nanoid(8);
+    }
+    const bashSession: BashSession = {
+      shell,
+      bashId,
+      command: input.command,
+      directory: cwd,
+      stdout: [],
+      stderr: [],
+      startTime: new Date(),
+      errorMessage: undefined,
+      isExited: false,
+      exitCode: undefined,
+      pid: shell.pid,
+      lastGetOutputTime: new Date(),
+      abortController,
+      threadId,
+      description: input.description,
+    };
+    this.bashMap.set(bashId, bashSession);
 
     let exited = false;
     let stdout = '';
     let output = '';
-    const lastUpdateTime = Date.now();
+    let lastUpdateTime = Date.now();
 
     const appendOutput = (str: string) => {
       output += str;
-      console.log(str);
     };
 
     shell.stdout.on('data', (data: Buffer) => {
@@ -230,11 +524,13 @@ Output: Creates directory 'foo'`),
       // removing listeners can overflow OS buffer and block subprocesses
       // destroying (e.g. shell.stdout.destroy()) can terminate subprocesses via SIGPIPE
       if (!exited) {
-        const text = process.platform === 'win32'
-        ? iconv.decode(data, 'cp936')
-        : data.toString('utf8');
+        const text = decodeBuffer(data);
         const str = stripAnsi(text);
         stdout += str;
+        bashSession.stdout.push({
+          content: str,
+          timestamp: new Date(),
+        });
         appendOutput(str);
       }
     });
@@ -242,11 +538,13 @@ Output: Creates directory 'foo'`),
     let stderr = '';
     shell.stderr.on('data', (data: Buffer) => {
       if (!exited) {
-        const text = process.platform === 'win32'
-        ? iconv.decode(data, 'cp936')
-        : data.toString('utf8');
+        const text = decodeBuffer(data);
         const str = stripAnsi(text);
         stderr += str;
+        bashSession.stderr.push({
+          content: str,
+          timestamp: new Date(),
+        });
         appendOutput(str);
       }
     });
@@ -255,7 +553,9 @@ Output: Creates directory 'foo'`),
     shell.on('error', (err: Error) => {
       error = err;
       // remove wrapper from user's command in error message
-      error.message = error.message.replace(command, inputData.command);
+
+      error.message = error.message.replace(command, input.command);
+      bashSession.errorMessage = error.message;
     });
 
     let code: number | null = null;
@@ -267,10 +567,15 @@ Output: Creates directory 'foo'`),
       exited = true;
       code = _code;
       processSignal = _signal;
+      bashSession.exitCode = _code;
+      bashSession.isExited = true;
+      bashSession.processSignal = _signal;
+      console.log('exit', `${bashSession.bashId}`);
     };
     shell.on('exit', exitHandler);
 
     const abortHandler = async () => {
+      console.log('abort', `${bashSession.bashId}`);
       if (shell.pid && !exited) {
         if (os.platform() === 'win32') {
           // For Windows, use taskkill to kill the process tree
@@ -299,74 +604,129 @@ Output: Creates directory 'foo'`),
     };
     abortSignal?.addEventListener('abort', abortHandler);
 
-    // wait for the shell to exit
     try {
       await new Promise((resolve) => shell.on('exit', resolve));
     } finally {
       abortSignal?.removeEventListener('abort', abortHandler);
     }
+  }
 
-    const backgroundPIDs: number[] = [];
-    if (os.platform() !== 'win32') {
-      if (fs.existsSync(tempFilePath)) {
-        const pgrepLines = fs
-          .readFileSync(tempFilePath, 'utf8')
-          .split('\n')
-          .filter(Boolean);
-        for (const line of pgrepLines) {
-          if (!/^\d+$/.test(line)) {
-            console.error(`pgrep: ${line}`);
-          }
-          const pid = Number(line);
-          // exclude the shell subprocess pid
-          if (pid !== shell.pid) {
-            backgroundPIDs.push(pid);
-          }
-        }
-        fs.unlinkSync(tempFilePath);
-      } else {
-        if (abortSignal?.aborted === false) {
-          console.error('missing pgrep output');
-        }
-      }
+  hasUpdate(bash_id: string) {
+    const bashSession = this.bashMap.get(bash_id);
+    if (!bashSession) {
+      console.error(`bash session ${bash_id} not found`);
+      return false;
     }
 
-    let llmContent = '';
-    if (abortSignal?.aborted) {
-      llmContent = 'Command was cancelled by user before it could complete.';
-      if (output.trim()) {
-        output = output.trim();
+    const stdout = bashSession.stdout.filter(
+      (item) => item.timestamp > bashSession.lastGetOutputTime,
+    );
+    const stderr = bashSession.stderr.filter(
+      (item) => item.timestamp > bashSession.lastGetOutputTime,
+    );
 
-        if (output && output.length > MAX_OUTPUT_LENGTH) {
-          output = truncateText(output, MAX_OUTPUT_LENGTH / 2);
-        }
-        llmContent += ` Below is the output (on stdout and stderr) before it was cancelled:\n${output}`;
-      } else {
-        llmContent += ' There was no output before it was cancelled.';
+    if (
+      bashSession.lastGetOutputTime < new Date() &&
+      (stdout.length > 0 || stderr.length > 0 || bashSession.isExited)
+    ) {
+      return true;
+    }
+    return false;
+  }
+
+  get(bash_id: string): BashSession | null {
+    const bashSession = this.bashMap.get(bash_id);
+    if (!bashSession) {
+      console.error(`bash session ${bash_id} not found`);
+      return null;
+    }
+    return bashSession;
+  }
+
+  getBackgroundBashSession(bash_id: string) {
+    const bashSession = this.bashMap.get(bash_id);
+    if (!bashSession) {
+      console.error(`bash session ${bash_id} not found`);
+      return null;
+    }
+    const lastGetOutputTime = bashSession.lastGetOutputTime;
+    if (lastGetOutputTime) {
+      bashSession.stdout = bashSession.stdout.filter(
+        (item) => item.timestamp > lastGetOutputTime,
+      );
+      bashSession.stderr = bashSession.stderr.filter(
+        (item) => item.timestamp > lastGetOutputTime,
+      );
+    }
+    if (bashSession.isExited) {
+      this.remove(bash_id);
+    }
+    bashSession.lastGetOutputTime = new Date();
+    return bashSession;
+  }
+
+  kill(bash_id: string) {
+    const bashSession = this.bashMap.get(bash_id);
+    if (!bashSession) {
+      console.error(`bash session ${bash_id} not found`);
+      return;
+    }
+    if (!bashSession.isExited) {
+      try {
+        bashSession.abortController?.abort();
+      } catch (error) {
+        console.error(`failed to kill shell process ${bash_id}: ${error}`);
       }
-    } else {
-      if (stdout && stdout.length > MAX_OUTPUT_LENGTH) {
-        stdout = truncateText(stdout, 1000);
-      }
-      let errorMessage = error?.toString();
-      if (errorMessage && errorMessage.length > MAX_OUTPUT_LENGTH) {
-        errorMessage = truncateText(errorMessage, 1000);
-      }
-      llmContent = [
-        `Command: ${command}`,
-        `Directory: ${directory || '(root)'}`,
-        `Stdout: ${stdout || '(empty)'}`,
-        `Stderr: ${stderr || '(empty)'}`,
-        `Error: ${errorMessage ?? '(none)'}`,
-        `Exit Code: ${code ?? '(none)'}`,
-        `Signal: ${processSignal ?? '(none)'}`,
-        // `Background PIDs: ${
-        //   backgroundPIDs.length ? backgroundPIDs.join(', ') : '(none)'
-        // }`,
-        `Process Group PGID: ${shell.pid ?? '(none)'}`,
-      ].join('\n');
+    }
+  }
+
+  async remove(bash_id: string) {
+    let bashSession = this.bashMap.get(bash_id);
+    if (!bashSession) {
+      console.error(`bash session ${bash_id} not found`);
+      return;
+    }
+    if (!bashSession.isExited) {
+      this.kill(bash_id);
     }
 
-    return llmContent;
-  };
+    while (!bashSession.isExited) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    bashSession = this.bashMap.get(bash_id);
+    if (bashSession.lastGetOutputTime) {
+      bashSession.stdout = bashSession.stdout.filter(
+        (item) => item.timestamp > bashSession.lastGetOutputTime,
+      );
+      bashSession.stderr = bashSession.stderr.filter(
+        (item) => item.timestamp > bashSession.lastGetOutputTime,
+      );
+    }
+    this.bashMap.delete(bash_id);
+    return bashSession;
+  }
+
+  removeNotExsited(bash_ids: string[]) {
+    const new_bash_ids: string[] = [];
+    for (const bash_id of bash_ids) {
+      if (this.bashMap.has(bash_id)) {
+        new_bash_ids.push(bash_id);
+      } else {
+        this.bashMap.delete(bash_id);
+      }
+    }
+    return new_bash_ids;
+  }
+
+  getBashSessions(threadId?: string) {
+    if (threadId)
+      return this.bashMap
+        .values()
+        .filter((session) => session.threadId === threadId);
+
+    return this.bashMap.values();
+  }
 }
+
+const bashManager = new BashManager();
+export default bashManager;

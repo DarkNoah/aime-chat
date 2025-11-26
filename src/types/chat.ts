@@ -26,12 +26,16 @@ export type ChatInput = {
 
 export enum ChatEvent {
   ChatChunk = 'chat:chat-chunk',
-  ChatStart = 'chat:chat-start',
-  ChatFinish = 'chat:chat-finish',
+  ChatChanged = 'chat:chat-changed',
   ChatUsage = 'chat:chat-usage',
   ChatError = 'chat:chat-error',
   ChatAbort = 'chat:chat-abort',
-  ChatTitleUpdated = 'chat:title-updated',
+}
+
+export enum ChatChangedType {
+  Start = 'start',
+  Finish = 'finish',
+  TitleUpdated = 'title-updated',
 }
 
 export type ChatThread = {

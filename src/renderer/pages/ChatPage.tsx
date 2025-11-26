@@ -103,10 +103,11 @@ import {
   ChatMessageAttachments,
 } from '../components/chat-ui/chat-message-attachment';
 import { ToolMessage } from '../components/chat-ui/tool-message';
-import { ChatEvent } from '@/types/chat';
+import { ChatChangedType, ChatEvent } from '@/types/chat';
 import { ChatPreview } from '../components/chat-ui/chat-preview';
 import { Label } from '../components/ui/label';
 import { IconArrowDown, IconArrowUp, IconInbox } from '@tabler/icons-react';
+import { v4 as uuidv4 } from 'uuid';
 
 function ChatPage() {
   const [input, setInput] = useState('');
@@ -139,7 +140,11 @@ function ChatPage() {
   );
   const [thread, setThread] = useState<StorageThreadType | undefined>();
 
-  const prompts = ['介绍日食,请创建课程', '讲述黑洞的形成过程,请创建课程'];
+  const prompts = [
+    '介绍日食,请创建课程',
+    '使用Bash查询当前时间',
+    '创建一个web项目',
+  ];
 
   const {
     messages,
@@ -152,9 +157,12 @@ function ChatPage() {
   } = useChat({
     id: threadId,
     transport: new IpcChatTransport(),
+    onFinish: (event) => {
+      if (event.isAbort) {
+        const _messages = event.messages;
+      }
 
-    onFinish: (message) => {
-      console.log(message);
+      console.log('onFinish', event);
       // debugger;
     },
     onData: (dataPart) => {
@@ -195,14 +203,81 @@ function ChatPage() {
       </div>
     );
   };
+  const handleSubmit = async (
+    message: PromptInputMessage,
+    // model?: string,
+    options?: {
+      model?: string;
+      webSearch?: boolean;
+      think?: boolean;
+      tools?: string[];
+    },
+  ) => {
+    const hasText = Boolean(message.text);
+    const hasAttachments = Boolean(message.files?.length);
+
+    if (!(hasText || hasAttachments)) {
+      return;
+    }
+    if (!options?.model) {
+      toast.error('Please select a model');
+      return;
+    }
+    function blobToBase64(blob) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result); // result 是 base64 编码字符串
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    }
+    clearError();
+
+    for (const file of message.files || []) {
+      const response = await fetch(file.url);
+      const blob = await response.blob();
+      file.url = (await blobToBase64(blob)) as string;
+    }
+
+    const body = {
+      model: options?.model,
+      webSearch: options?.webSearch,
+      tools: options?.tools,
+      think: options?.think,
+      runId,
+      threadId,
+    };
+    const inputMessage = {
+      text: message.text || 'Sent with attachments',
+      files: message.files,
+    };
+
+    if (!threadId) {
+      const data = await window.electron.mastra.createThread();
+      body.threadId = data.id;
+      navigate(`/chat/${data.id}`, {
+        state: {
+          message: inputMessage,
+          options: body,
+        },
+      });
+      return;
+    }
+    console.log(message, body);
+    sendMessage(inputMessage, {
+      body,
+    });
+    setInput('');
+    chatInputRef.current?.attachmentsClear();
+  };
 
   useEffect(() => {
     setMessages([]);
     clearError();
     setUsage(undefined);
+    setPreviewToolPart(undefined);
+    setShowPreview(false);
     if (threadId) {
-      setPreviewToolPart(undefined);
-      setShowPreview(false);
       const getThread = async () => {
         const _thread = await window.electron.mastra.getThread(threadId);
         console.log(_thread);
@@ -232,12 +307,15 @@ function ChatPage() {
       const { message, options } = location.state || {};
       if (message) {
         location.state = null;
-        sendMessage(message, options);
+        handleSubmit(message, options);
       }
 
       const handleEvent = (event: { type: ChatEvent; data: any }) => {
-        if (event.type === ChatEvent.ChatTitleUpdated) {
-          setThread({ ...thread, title: event.data as string });
+        if (
+          event.type === ChatEvent.ChatChanged &&
+          event.data.type === ChatChangedType.TitleUpdated
+        ) {
+          setThread({ ...thread, title: event.data.title as string });
           setTitle(renderTitle());
         }
       };
@@ -269,79 +347,6 @@ function ChatPage() {
       </div>,
     );
   }, [showPreview, setTitleAction, threadId]);
-
-  const handleSubmit = async (
-    message: PromptInputMessage,
-    model?: string,
-    options?: { webSearch?: boolean; think?: boolean; tools?: string[] },
-  ) => {
-    const hasText = Boolean(message.text);
-    const hasAttachments = Boolean(message.files?.length);
-
-    if (!(hasText || hasAttachments)) {
-      return;
-    }
-    if (!model) {
-      toast.error('Please select a model');
-      return;
-    }
-    function blobToBase64(blob) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result); // result 是 base64 编码字符串
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-      });
-    }
-    clearError();
-
-    for (const file of message.files || []) {
-      const response = await fetch(file.url);
-      const blob = await response.blob();
-      file.url = (await blobToBase64(blob)) as string;
-    }
-
-    if (!threadId) {
-      const data = await window.electron.mastra.createThread();
-      navigate(`/chat/${data.id}`, {
-        state: {
-          message: {
-            text: message.text || 'Sent with attachments',
-            files: message.files,
-          },
-          options: {
-            body: {
-              model,
-              webSearch: options?.webSearch,
-              tools: options?.tools,
-              think: options?.think,
-              runId,
-              threadId: data.id,
-            },
-          },
-        },
-      });
-      return;
-    }
-
-    sendMessage(
-      {
-        text: message.text || 'Sent with attachments',
-        files: message.files,
-      },
-      {
-        body: {
-          model,
-          webSearch: options?.webSearch,
-          tools: options?.tools,
-          runId,
-          threadId: thread?.id,
-        },
-      },
-    );
-    setInput('');
-    chatInputRef.current?.attachmentsClear();
-  };
 
   const handleAbort = () => {
     stop();
@@ -401,6 +406,7 @@ function ChatPage() {
                               <Reasoning
                                 key={`${message.id}-${i}`}
                                 className="w-fit"
+                                defaultOpen={false}
                                 isStreaming={part.state === 'streaming'}
                               >
                                 <ReasoningTrigger />
@@ -467,7 +473,6 @@ function ChatPage() {
                                         )}
                                       </small>
                                     )}
-
                                 </MessageActions>
                               </Fragment>
                             );
@@ -478,6 +483,7 @@ function ChatPage() {
                                 key={`${message.id}-${i}`}
                                 part={_part}
                                 onClick={() => {
+                                  console.log(_part);
                                   setShowPreview(true);
                                   setPreviewToolPart(_part);
                                 }}
@@ -567,7 +573,7 @@ function ChatPage() {
             className={`h-full flex-1 `}
           >
             <div className="p-2 w-full h-full">
-              <ChatPreview part={previewToolPart} />
+              <ChatPreview part={previewToolPart} messages={messages} />
             </div>
           </ResizablePanel>
         </>

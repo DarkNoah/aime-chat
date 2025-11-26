@@ -12,12 +12,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Tool, ToolType } from '@/types/tool';
 import { CheckIcon } from 'lucide-react';
 
-export type ChatToolSelectorTriggerProps = ComponentProps<typeof DialogTrigger>;
-
-export const ChatToolSelectorTrigger = (
-  props: ChatToolSelectorTriggerProps,
-) => <DialogTrigger {...props} />;
-
 export type ChatToolSelectorProps = ComponentProps<typeof Dialog> & {
   children: React.ReactNode;
   className?: string;
@@ -44,9 +38,9 @@ export const ChatToolSelector = ({
     const getAvailableTools = async () => {
       try {
         setLoading(true);
-        const _data = await window.electron.tools.getAvailableTools();
-        console.log(_data);
-        setData(_data);
+        const tools = await window.electron.tools.getAvailableTools();
+        console.log(tools);
+        setData(tools);
         setLoading(false);
       } catch (error) {
         console.error(error);
@@ -66,7 +60,7 @@ export const ChatToolSelector = ({
 
   return (
     <Dialog>
-      {children}
+      <DialogTrigger asChild>{children}</DialogTrigger>
 
       <DialogContent className={cn('p-0')}>
         <Command className="**:data-[slot=command-input-wrapper]:h-auto">

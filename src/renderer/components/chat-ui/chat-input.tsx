@@ -50,16 +50,17 @@ import {
   ContextTrigger,
 } from '../ai-elements/context';
 import { Suggestion, Suggestions } from '../ai-elements/suggestion';
-import {
-  ChatToolSelector,
-  ChatToolSelectorTrigger,
-} from './chat-tool-selector';
+import { ChatToolSelector } from './chat-tool-selector';
 
 export type ChatInputProps = Omit<PromptInputProps, 'onSubmit'> & {
   onSubmit?: (
     e: PromptInputMessage,
-    model?: string,
-    options?: { webSearch?: boolean; think?: boolean; tools?: string[] },
+    options?: {
+      model?: string;
+      webSearch?: boolean;
+      think?: boolean;
+      tools?: string[];
+    },
   ) => void;
   status?: ChatStatus;
   className?: string;
@@ -128,7 +129,7 @@ export const ChatInput = React.forwardRef<ChatInputRef, ChatInputProps>(
     return (
       <PromptInputProvider>
         <PromptInput
-          onSubmit={(e) => onSubmit(e, model, { webSearch, think, tools })}
+          onSubmit={(e) => onSubmit(e, { model, webSearch, think, tools })}
           className={cn('flex flex-col relative', className)}
           globalDrop
           multiple
@@ -176,13 +177,11 @@ export const ChatInput = React.forwardRef<ChatInputRef, ChatInputProps>(
               )}
               {showToolSelector && (
                 <ChatToolSelector value={tools} onChange={setTools}>
-                  <ChatToolSelectorTrigger>
-                    <PromptInputButton
-                      variant={tools.length > 0 ? 'default' : 'ghost'}
-                    >
-                      <WrenchIcon size={16} />
-                    </PromptInputButton>
-                  </ChatToolSelectorTrigger>
+                  <PromptInputButton
+                    variant={tools.length > 0 ? 'default' : 'ghost'}
+                  >
+                    <WrenchIcon size={16} />
+                  </PromptInputButton>
                 </ChatToolSelector>
               )}
               {showModelSelect && (

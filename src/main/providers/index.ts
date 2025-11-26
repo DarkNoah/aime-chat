@@ -429,5 +429,21 @@ class ProvidersManager extends BaseManager {
         return new OllamaProvider(provider);
     }
   }
+
+  public async getModelInfo(modelId: string) {
+    const providerId = modelId.split('/')[0];
+
+    const provider = await providersManager.get(modelId.split('/')[0]);
+    if (!provider) {
+      throw new Error('Provider not found');
+    }
+    const modeId = modelId.substring(modelId.split('/')[0].length + 1);
+    const modelInfo = modelsData[provider.type]?.models[modeId];
+    return {
+      providerId,
+      modeId,
+      modelInfo,
+    };
+  }
 }
 export const providersManager = new ProvidersManager();

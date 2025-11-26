@@ -39,7 +39,10 @@
     "add": "Add",
     "loading": "Loading...",
     "active": "Active",
-    "name": "Name"
+    "name": "Name",
+    "chat": "Chat",
+    "other": "Other",
+    "model_provider": "Model Provider"
   },
   "sidebar": {
     "new_chat": "New Chat",

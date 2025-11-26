@@ -39,7 +39,10 @@
     "add": "添加",
     "loading": "加载中...",
     "active": "启用",
-    "name": "名称"
+    "name": "名称",
+    "chat": "聊天",
+    "other": "其他",
+    "model_provider": "模型供应商"
   },
   "sidebar": {
     "new_chat": "新聊天",

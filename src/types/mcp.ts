@@ -3,3 +3,16 @@ export enum McpEvent {
 }
 
 export type McpClientStatus = 'starting' | 'running' | 'stopped' | 'error';
+
+export type ImportMcp = {
+  mcpConfig: string;
+};
+
+export type CreateMcp = {
+  type: 'stdio' | 'sse';
+  url?: string;
+  command?: string;
+  args?: string;
+  headers?: Record<string, string>;
+  env?: string;
+};
