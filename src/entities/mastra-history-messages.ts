@@ -1,4 +1,3 @@
-import { ProviderType } from '@/types/provider';
 import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
 
 @Entity('mastra_history_messages')

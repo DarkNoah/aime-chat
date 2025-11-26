@@ -18,6 +18,7 @@ import {
   CreateProvider,
   ModelType,
   ProviderModel,
+  ProviderTag,
   UpdateProvider,
 } from '@/types/provider';
 import { ToolType } from '@/types/tool';
@@ -85,7 +86,8 @@ const electronHandler = {
     getRuntimeInfo: () => ipcRenderer.invoke(AppChannel.GetRuntimeInfo),
   },
   providers: {
-    getList: () => ipcRenderer.invoke(ProviderChannel.GetList),
+    getList: (filter?: { tags?: ProviderTag[] }) =>
+      ipcRenderer.invoke(ProviderChannel.GetList, filter),
     get: (id: string) => ipcRenderer.invoke(ProviderChannel.Get, id),
     getAvailableModels: (type: ModelType) =>
       ipcRenderer.invoke(ProviderChannel.GetAvailableModels, type),
@@ -137,8 +139,8 @@ const electronHandler = {
   },
   tools: {
     deleteTool: (id: string) => ipcRenderer.invoke(ToolChannel.DeleteTool, id),
-    importMcp: (data: string) =>
-      ipcRenderer.invoke(ToolChannel.ImportMCP, data),
+    saveMCPServer: (id: string | undefined, data: string) =>
+      ipcRenderer.invoke(ToolChannel.SaveMCPServer, id, data),
     getMcp: (id: string) => ipcRenderer.invoke(ToolChannel.GetMcp, id),
     getAvailableTools: () => ipcRenderer.invoke(ToolChannel.GetAvailableTools),
     getList: (filter?: { type: ToolType }) =>
@@ -150,6 +152,8 @@ const electronHandler = {
       ipcRenderer.invoke(ToolChannel.AbortTool, id, toolName),
     toggleToolActive: (id: string) =>
       ipcRenderer.invoke(ToolChannel.ToggleToolActive, id),
+    updateToolConfig: (id: string, value: any) =>
+      ipcRenderer.invoke(ToolChannel.UpdateToolConfig, id, value),
   },
 };
 

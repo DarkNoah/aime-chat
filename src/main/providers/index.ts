@@ -1,4 +1,4 @@
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { BaseManager } from '../BaseManager';
 import { Providers } from '@/entities/providers';
 import { dialog, ipcMain } from 'electron';
@@ -9,6 +9,7 @@ import {
   ModelType,
   Provider,
   ProviderModel,
+  ProviderTag,
   ProviderType,
 } from '@/types/provider';
 import { v4 as uuidv4 } from 'uuid';
@@ -58,8 +59,12 @@ class ProvidersManager extends BaseManager {
   }
 
   @channel(ProviderChannel.GetList)
-  public async getList(): Promise<Provider[]> {
-    const providers = await this.repository.find();
+  public async getList(filter?: { tags?: ProviderTag[] }): Promise<Provider[]> {
+    const providers = await this.repository.find({
+      where: {
+        tags: filter?.tags ? In(filter.tags) : undefined,
+      },
+    });
     return providers;
   }
 

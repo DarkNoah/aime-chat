@@ -43,3 +43,21 @@ export type ChatThread = {
   title: string;
   status: 'idle' | 'streaming';
 };
+
+export enum ChatPreviewType {
+  WEB_PREVIEW = 'webPreview',
+  CANVAS = 'canvas',
+  TOOL_RESULT = 'tool-result',
+  MESSAGES = 'messages',
+  TODO = 'todo',
+}
+
+export type ChatPreviewData = {
+  previewPanel: ChatPreviewType;
+  webPreviewUrl?: string;
+  todos?: {
+    content: string;
+    status: 'pending' | 'in_progress' | 'completed';
+    activeForm: string;
+  }[];
+};

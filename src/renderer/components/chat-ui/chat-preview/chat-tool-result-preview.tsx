@@ -12,6 +12,8 @@ import { CodeBlock } from '../../ai-elements/code-block';
 import { Badge } from '../../ui/badge';
 import { Button } from '../../ui/button';
 import { IconFile } from '@tabler/icons-react';
+import { Source, Sources, SourcesContent } from '../../ai-elements/sources';
+import { Item, ItemContent, ItemDescription, ItemTitle } from '../../ui/item';
 
 export type ChatToolResultPreviewProps = {
   title?: string;
@@ -32,6 +34,28 @@ export const ChatToolResultPreview = React.forwardRef<
     const toolName = part?.type?.split('-').slice(1).join('-');
     const renderResult = () => {
       if (!part?.output) return null;
+      if (toolName === 'WebSearch') {
+        return (
+          <div className="flex flex-col gap-2">
+            {part.output?.map((source: any) => (
+              <Item
+                variant="outline"
+                key={source.href}
+                className="cursor-pointer"
+              >
+                <ItemContent
+                  onClick={() => {
+                    window.open(source.href, '_blank');
+                  }}
+                >
+                  <ItemTitle>{source.title}</ItemTitle>
+                  <ItemDescription>{source.snippet}</ItemDescription>
+                </ItemContent>
+              </Item>
+            ))}
+          </div>
+        );
+      }
       if (
         isObject(part?.output) &&
         'content' in part.output &&
@@ -101,7 +125,14 @@ export const ChatToolResultPreview = React.forwardRef<
           </Alert>
         );
       }
-      return null;
+      return (
+        <>
+          <Label>Output</Label>
+          <pre className="text-sm break-all text-wrap bg-secondary p-4 rounded-2xl">
+            {JSON.stringify(part.output, null, 2)}
+          </pre>
+        </>
+      );
     };
 
     const renderInput = useCallback(() => {
@@ -125,6 +156,8 @@ export const ChatToolResultPreview = React.forwardRef<
               )}
             </>
           );
+        case 'WebSearch':
+          return <Badge variant="secondary">{part?.input?.query}</Badge>;
         case 'Read':
         case 'Write':
           return (
@@ -171,12 +204,7 @@ export const ChatToolResultPreview = React.forwardRef<
         <CardContent>
           <div className="flex flex-col gap-2">
             {part?.input && <>{renderInput()}</>}
-            {part?.output && (
-              <>
-                <Label>Output</Label>
-                {renderResult()}
-              </>
-            )}
+            {part?.output && <>{renderResult()}</>}
           </div>
         </CardContent>
       </Card>

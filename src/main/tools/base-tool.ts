@@ -17,7 +17,7 @@ export interface BaseToolParams {
   metadata?: Record<string, unknown>;
 }
 
-abstract class BaseTool
+abstract class BaseTool<T extends BaseToolParams = BaseToolParams>
   implements
     Tool<ZodSchema, ZodSchema, any, any, ToolExecutionContext<ZodSchema, any>>
 {
@@ -36,9 +36,9 @@ abstract class BaseTool
   tags?: string[];
 
   configSchema?: ZodSchema;
-  config?: BaseToolParams;
+  config?: T;
 
-  constructor(config?: BaseToolParams) {
+  constructor(config?: T) {
     this.config = config;
   }
 

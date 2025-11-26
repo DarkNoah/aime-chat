@@ -65,10 +65,11 @@ export const ChatToolSelector = ({
       <DialogContent className={cn('p-0')}>
         <Command className="**:data-[slot=command-input-wrapper]:h-auto">
           <CommandInput className={cn('h-auto py-3.5')} />
-          <Tabs className="p-4" defaultValue={ToolType.MCP}>
+          <Tabs className="p-4" defaultValue={ToolType.BUILD_IN}>
             <TabsList>
-              <TabsTrigger value={ToolType.MCP}>MCP</TabsTrigger>
               <TabsTrigger value={ToolType.BUILD_IN}>Built-in</TabsTrigger>
+              <TabsTrigger value={ToolType.MCP}>MCP</TabsTrigger>
+
               <TabsTrigger value={ToolType.SKILL}>Skill</TabsTrigger>
             </TabsList>
             <TabsContent value={ToolType.MCP}>

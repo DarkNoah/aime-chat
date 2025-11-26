@@ -13,8 +13,24 @@ import { app } from 'electron';
 import fs from 'fs';
 import path from 'path';
 import { nanoid } from '@/utils/nanoid';
+import { ToolConfig } from '@/types/tool';
+import { appManager } from '@/main/app';
+import { providersManager } from '@/main/providers';
+import { ProviderType } from '@/types/provider';
 
-export class WebSearch extends BaseTool {
+export interface WebSearchParams extends BaseToolParams {
+  providerId?: string;
+  numResults?: number;
+}
+
+export const webSearchResultSchema = z.array(
+  z.object({
+    href: z.string(),
+    title: z.string().optional(),
+    snippet: z.string().optional(),
+  }),
+);
+export class WebSearch extends BaseTool<WebSearchParams> {
   id: string = 'WebSearch';
   description = `- Allows Claude to search the web and use the results to inform responses
 - Provides up-to-date information for current events and recent data
@@ -31,12 +47,12 @@ Usage notes:
     query: z.string().min(2).describe('The search query to use'),
   });
 
-  configSchema = z.strictObject({
-    providerId: z.string().describe('The search query to use'),
-  });
+  outputSchema = webSearchResultSchema;
 
-  constructor() {
-    super();
+  configSchema = ToolConfig.WebSearch.configSchema;
+
+  constructor(config?: WebSearchParams) {
+    super(config);
   }
 
   execute = async (
@@ -44,6 +60,60 @@ Usage notes:
     options?: MastraToolInvocationOptions,
   ) => {
     const { query } = inputData;
-    return '';
+    const config = this.config;
+    const numResults = config?.numResults ?? 20;
+    const results: z.infer<typeof webSearchResultSchema> = [];
+    if (config?.providerId) {
+      const provider = await providersManager.get(config?.providerId);
+      if (provider.type === ProviderType.BRAVE_SEARCH) {
+        const webSearchResults = await braveSearch({
+          query,
+          numResults,
+          apiKey: provider.apiKey,
+        });
+
+        results.push(...webSearchResults);
+      }
+    }
+
+    return results;
   };
 }
+
+const braveSearch = async (options: {
+  query: string;
+  numResults?: number;
+  apiKey: string;
+}): Promise<z.infer<typeof webSearchResultSchema>> => {
+  const results: z.infer<typeof webSearchResultSchema> = [];
+  const headers = {
+    'X-Subscription-Token': options.apiKey,
+    Accept: 'application/json',
+  };
+  const searchUrl = new URL(
+    `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(options.query)}&count=${options.numResults ?? 20}`,
+  );
+  const response = await fetch(searchUrl, {
+    headers,
+    //agent: proxy ? new HttpsProxyAgent(proxy) : false,
+  });
+  if (!response.ok) {
+    throw new Error(`HTTP error ${response.status}`);
+  }
+  const parsedResponse = await response.json();
+  if (!response.ok) {
+    throw new Error(
+      `Request failed with status code ${response.status}: ${parsedResponse.error || parsedResponse.detail}`,
+    );
+  }
+  const webSearchResults = parsedResponse.web?.results ?? [];
+
+  results.push(
+    ...webSearchResults.map((item) => ({
+      href: item.url,
+      title: item.title,
+      snippet: item.description,
+    })),
+  );
+  return results;
+};

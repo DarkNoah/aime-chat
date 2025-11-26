@@ -11,7 +11,9 @@ import {
   CircleStop,
   CopyIcon,
   HomeIcon,
+  MailCheckIcon,
   MessageSquareIcon,
+  MoreHorizontalIcon,
 } from 'lucide-react';
 import { Suggestion, Suggestions } from '../components/ai-elements/suggestion';
 import { Alert, AlertDescription, AlertTitle } from '../components/ui/alert';
@@ -103,15 +105,37 @@ import {
   ChatMessageAttachments,
 } from '../components/chat-ui/chat-message-attachment';
 import { ToolMessage } from '../components/chat-ui/tool-message';
-import { ChatChangedType, ChatEvent } from '@/types/chat';
+import {
+  ChatChangedType,
+  ChatEvent,
+  ChatPreviewData,
+  ChatPreviewType,
+} from '@/types/chat';
 import { ChatPreview } from '../components/chat-ui/chat-preview';
 import { Label } from '../components/ui/label';
-import { IconArrowDown, IconArrowUp, IconInbox } from '@tabler/icons-react';
-import { v4 as uuidv4 } from 'uuid';
+import {
+  IconArrowBarLeft,
+  IconArrowBarRight,
+  IconArrowDown,
+  IconArrowUp,
+  IconInbox,
+  IconSvg,
+} from '@tabler/icons-react';
+import domtoimage from 'dom-to-image';
+import { useTheme } from 'next-themes';
+import { ButtonGroup } from '../components/ui/button-group';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../components/ui/dropdown-menu';
 
 function ChatPage() {
   const [input, setInput] = useState('');
   const { appInfo } = useGlobal();
+  const { theme } = useTheme();
   const { t } = useTranslation();
   const chatInputRef = useRef<ChatInputRef>(null);
   const [showPreview, setShowPreview] = useState(false);
@@ -130,6 +154,9 @@ function ChatPage() {
     | undefined
   >();
   const [modelId, setModelId] = useState<string | undefined>();
+  const [previewData, setPreviewData] = useState<ChatPreviewData>({
+    previewPanel: ChatPreviewType.CANVAS,
+  });
   // const Excalidraw = lazy(() => import('@excalidraw/excalidraw'));
 
   // const [threadId, setThreadId] = useState<string | undefined>();
@@ -166,19 +193,35 @@ function ChatPage() {
       // debugger;
     },
     onData: (dataPart) => {
-      console.log(dataPart);
+      console.log('onData', dataPart);
 
       if (dataPart.type === 'data-workflow-step-suspended') {
-        const { _runId } = dataPart.data as { runId: string };
+        const { runId: _runId } = dataPart.data as { runId: string };
         setRunId(_runId);
       }
       if (dataPart.type === 'data-usage') {
         setUsage(dataPart.data);
       }
+      if (dataPart.type === 'data-send-event') {
+        const { target_panel, data } = dataPart.data as {
+          target_panel: string;
+          data: any;
+        };
+        if (target_panel === 'web_preview' && data?.url) {
+          setShowPreview(true);
+          setPreviewData((prev: ChatPreviewData) => {
+            return {
+              ...prev,
+              previewPanel: ChatPreviewType.WEB_PREVIEW,
+              webPreviewUrl: data?.url,
+            };
+          });
+        }
+      }
     },
-    onError: (error) => {
-      console.error(error);
-      toast.error(error.message);
+    onError: (err) => {
+      console.error(err);
+      toast.error(err.message);
       // clearError();
     },
   });
@@ -277,6 +320,8 @@ function ChatPage() {
     setUsage(undefined);
     setPreviewToolPart(undefined);
     setShowPreview(false);
+    setThread(undefined);
+    chatInputRef.current?.setTools([]);
     if (threadId) {
       const getThread = async () => {
         const _thread = await window.electron.mastra.getThread(threadId);
@@ -301,6 +346,17 @@ function ChatPage() {
             maxTokens: number;
           },
         );
+        chatInputRef.current?.setTools(
+          (_thread?.metadata?.tools as string[]) ?? [],
+        );
+        if (((_thread?.metadata?.todos as any[]) ?? []).length > 0) {
+          setPreviewData((prev: ChatPreviewData) => ({
+            ...prev,
+            todos: _thread?.metadata?.todos as any[],
+            previewPanel: ChatPreviewType.TODO,
+          }));
+        }
+
         setTitle(renderTitle());
       };
       getThread();
@@ -338,11 +394,100 @@ function ChatPage() {
     }
   }, [thread?.title]);
 
+  const handleExportConversation = async (mode: 'jpg' | 'svg') => {
+    try {
+      const bgcolor = appInfo.shouldUseDarkColors ? '#000000' : '#ffffff';
+      let dataUrl = '';
+      let blob;
+      if (mode === 'jpg') {
+        dataUrl = await domtoimage.toJpeg(
+          document.querySelector('#chat-conversation'),
+          {
+            bgcolor,
+          },
+        );
+        const byteCharacters = atob(
+          dataUrl.substring(dataUrl.indexOf(',') + 1),
+        ); // 解码 base64
+        const byteNumbers = Array.from(byteCharacters).map((ch) =>
+          ch.charCodeAt(0),
+        );
+        const byteArray = new Uint8Array(byteNumbers);
+        const mimeType = 'image/jpeg';
+        blob = new Blob([byteArray], { type: mimeType });
+      } else if (mode === 'svg') {
+        dataUrl = await domtoimage.toSvg(
+          document.querySelector('#chat-conversation'),
+          {
+            bgcolor,
+          },
+        );
+        blob = new Blob([dataUrl.substring(dataUrl.indexOf(',') + 1)], {
+          type: 'image/svg+xml',
+        });
+      }
+
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `${thread?.title.replaceAll(' ', '_')}_${new Date().getTime()}.${mode}`;
+      link.click();
+      URL.revokeObjectURL(link.href); // 释放 URL
+    } catch (err) {
+      toast.error('Export image failed');
+      console.error(err);
+    }
+  };
+
   useEffect(() => {
     setTitleAction(
-      <div>
-        <Button size="sm" onClick={() => setShowPreview(!showPreview)}>
-          open
+      <div className="flex flex-row gap-2">
+        {/* <Button
+          variant="outline"
+          onClick={() => {
+            setPreviewData((prev: ChatPreviewData) => {
+              return {
+                ...prev,
+                previewPanel: ChatPreviewType.WEB_PREVIEW,
+                webPreviewUrl: 'https://www.baidu.com',
+              };
+            });
+          }}
+        >
+          Open
+        </Button> */}
+
+        <ButtonGroup>
+          <Button
+            variant="outline"
+            onClick={() => handleExportConversation('jpg')}
+          >
+            Export
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="icon" aria-label="More Options">
+                <MoreHorizontalIcon />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuGroup>
+                <DropdownMenuItem
+                  onClick={() => handleExportConversation('svg')}
+                >
+                  <IconSvg />
+                  Export Svg
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </ButtonGroup>
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => setShowPreview(!showPreview)}
+        >
+          {!showPreview && <IconArrowBarLeft />}
+          {showPreview && <IconArrowBarRight />}
         </Button>
       </div>,
     );
@@ -358,9 +503,9 @@ function ChatPage() {
       className="h-full w-full @container"
     >
       <ResizablePanel className={`h-full  w-full justify-between `}>
-        <div className={`flex flex-col h-full`}>
+        <div className="flex flex-col h-full">
           <Conversation className="h-full w-full flex-1 flex items-center justify-center overflow-y-hidden">
-            <ConversationContent className="h-full">
+            <ConversationContent className="h-full" id="chat-conversation">
               {messages.length === 0 && (
                 <ConversationEmptyState
                   description="Messages will appear here as the conversation progresses."
@@ -567,13 +712,20 @@ function ChatPage() {
 
       {showPreview && (
         <>
-          <ResizableHandle />
+          <ResizableHandle withHandle />
           <ResizablePanel
             maxSize={showPreview ? 75 : 0}
             className={`h-full flex-1 `}
           >
             <div className="p-2 w-full h-full">
-              <ChatPreview part={previewToolPart} messages={messages} />
+              <ChatPreview
+                part={previewToolPart}
+                messages={messages}
+                previewData={previewData}
+                onPreviewDataChange={(value) => {
+                  setPreviewData(value);
+                }}
+              />
             </div>
           </ResizablePanel>
         </>

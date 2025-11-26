@@ -9,6 +9,7 @@ export type ImportMcp = {
 };
 
 export type CreateMcp = {
+  name: string;
   type: 'stdio' | 'sse';
   url?: string;
   command?: string;

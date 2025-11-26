@@ -2,7 +2,7 @@ export interface Provider {
   id: string;
   name: string;
   icon?: string;
-  type?: ProviderType | string;
+  type?: ProviderType | string | undefined;
   models?: ProviderModel[];
 }
 
@@ -66,12 +66,17 @@ export enum ProviderType {
   MODELSCOPE = 'modelscope',
   GATEWAY = 'gateway',
   LOCAL = 'local',
+  BRAVE_SEARCH = 'brave-search',
 }
 
 export enum ModelType {
   LLM = 'llm',
   EMBEDDING = 'embedding',
   RERANKER = 'reranker',
+}
+
+export enum ProviderTag {
+  WEB_SEARCH = 'web_search',
 }
 
 export interface ProviderCredits {

@@ -12,6 +12,7 @@ import { app } from 'electron';
 import fs from 'fs';
 import path from 'path';
 import { nanoid } from '@/utils/nanoid';
+import mastraManager from '@/main/mastra';
 
 export class TodoWrite extends BaseTool {
   id: string = 'TodoWrite';
@@ -222,15 +223,16 @@ When in doubt, use this tool. Being proactive with task management demonstrates 
     const { requestContext, mastra, agent } = context;
     requestContext.set('todos' as never, todos as never);
     const threadId = requestContext.get('threadId' as never);
-    let currentThread = await mastra.storage.getThreadById({
+    const storage = mastra.getStorage();
+    let currentThread = await storage.getThreadById({
       threadId: threadId,
     });
-    currentThread = await mastra.storage.updateThread({
+    currentThread = await storage.updateThread({
       id: threadId,
       title: currentThread.title,
       metadata: {
         ...(currentThread.metadata || {}),
-        todos,
+        todos: todos,
       },
     });
 
@@ -247,12 +249,6 @@ When in doubt, use this tool. Being proactive with task management demonstrates 
 
     // await fs.promises.writeFile(todoPath, JSON.stringify(todos, null, 2));
 
-    return `Todos have been modified successfully. Ensure that you continue to use the todo list to track your progress. Please proceed with the current tasks if applicable
-
-<system-reminder>
-Your todo list has changed. DO NOT mention this explicitly to the user. Here are the latest contents of your todo list:
-
-${JSON.stringify(todos)}. Continue on with the tasks at hand if applicable.
-</system-reminder>`;
+    return `Todos have been modified successfully. Ensure that you continue to use the todo list to track your progress. Please proceed with the current tasks if applicable.`;
   };
 }

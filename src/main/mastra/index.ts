@@ -279,7 +279,7 @@ class MastraManager extends BaseManager {
     let _skills = await skillManager.getClaudeSkills();
     _skills = _skills.filter((x) => tools.includes(x.id));
 
-    const _tools = toolsManager.buildTools(tools, {
+    const _tools = await toolsManager.buildTools(tools, {
       [`${ToolType.BUILD_IN}:Skill`]: {
         skills: _skills,
       },
@@ -318,9 +318,18 @@ class MastraManager extends BaseManager {
     try {
       // const info = modelsData[provider.type]?.models[_modeId] || {};
 
+      currentThread = await storage.updateThread({
+        id: chatId,
+        title: currentThread.title,
+        metadata: { ...(currentThread.metadata || {}), tools: tools },
+      });
+      const todos = currentThread.metadata?.todos || [];
+
       const requestContext = new RequestContext();
       requestContext.set('model' as never, model as never);
       requestContext.set('threadId' as never, chatId as never);
+      requestContext.set('tools' as never, tools as never);
+      requestContext.set('todos' as never, todos as never);
       if (modelInfo?.limit?.context)
         requestContext.set(
           'limit_context' as never,
@@ -414,7 +423,7 @@ class MastraManager extends BaseManager {
           history.totalTokens += usage?.totalTokens ?? 0;
           requestContext.set('usage' as never, history as never);
           const usageRate = (usage?.totalTokens / limit_context) * 100;
-          console.log('usage rate: ' + usageRate.toFixed(2) + '%');
+          console.log('usage rate: ' + usageRate.toFixed(2) + '%', usage);
 
           appManager.sendEvent(`chat:event:${chatId}`, {
             type: ChatEvent.ChatUsage,
@@ -425,6 +434,7 @@ class MastraManager extends BaseManager {
               maxTokens: limit_context,
             },
           });
+          currentThread = await storage.getThreadById({ threadId: chatId });
           currentThread = await storage.updateThread({
             id: chatId,
             title: currentThread.title,
@@ -519,7 +529,7 @@ class MastraManager extends BaseManager {
         if (done) {
           break;
         }
-        console.log(value);
+        // console.log(value);
         appManager.sendEvent(`chat:event:${chatId}`, {
           type: ChatEvent.ChatChunk,
           data: JSON.stringify(value),
@@ -620,6 +630,7 @@ class MastraManager extends BaseManager {
         data: err?.message || 'Unknown error',
       });
     } finally {
+      currentThread = await storage.getThreadById({ threadId: chatId });
       if (currentThread.title == 'New Thread') {
         const fastModel = (await appManager.getInfo())?.defaultModel?.fastModel;
         const fastLanguageModel = (await providersManager.getLanguageModel(

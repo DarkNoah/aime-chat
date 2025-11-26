@@ -63,11 +63,10 @@ import {
 } from '@/renderer/components/ui/form';
 import { FieldGroup } from '@/renderer/components/ui/field';
 import { useForm } from 'react-hook-form';
-import { CreateMcp, ImportMcp } from '@/types/mcp';
 import { Textarea } from '@/renderer/components/ui/textarea';
 import { toast } from 'sonner';
 import { Switch } from '@/renderer/components/ui/switch';
-import { Tool, ToolType } from '@/types/tool';
+import { Tool, ToolEvent, ToolType } from '@/types/tool';
 import ToolDetail from './detail';
 import { Skeleton } from '@/renderer/components/ui/skeleton';
 import { Badge } from '@/renderer/components/ui/badge';
@@ -98,6 +97,7 @@ import {
   SelectValue,
 } from '@/renderer/components/ui/select';
 import { nanoid } from '@/utils/nanoid';
+import { ToolEditDialog } from './tool-edit-dialog';
 
 function Tools() {
   const { setTitle } = useHeader();
@@ -108,7 +108,7 @@ function Tools() {
     skills: [],
   });
   const [open, setOpen] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+
   const navigate = useNavigate();
   const location = useLocation();
   const [view, setView] = useState<ToolType>(ToolType.BUILD_IN);
@@ -120,27 +120,6 @@ function Tools() {
   useEffect(() => {
     setTitle(t('common.tools'));
   }, [setTitle, t]);
-
-  const form = useForm<ImportMcp>({
-    mode: 'onChange',
-    defaultValues: {
-      mcpConfig: '',
-    },
-  });
-
-  const createMcpForm = useForm<CreateMcp>({
-    mode: 'onChange',
-    defaultValues: {
-      type: 'stdio',
-      url: '',
-      command: '',
-      args: '',
-      env: '',
-      headers: {},
-    },
-  });
-
-  const selectedType = createMcpForm.watch('type');
 
   useEffect(() => {
     const getList = async () => {
@@ -172,53 +151,29 @@ function Tools() {
         return newTools;
       });
     };
+    const handleToolListUpdatedEvent = () => {
+      getList();
+    };
     window.electron.ipcRenderer.on(McpEvent.McpClientUpdated, handleMcpEvent);
+    window.electron.ipcRenderer.on(
+      ToolEvent.ToolListUpdated,
+      handleToolListUpdatedEvent,
+    );
+
     return () => {
       window.electron.ipcRenderer.removeListener(
         McpEvent.McpClientUpdated,
         handleMcpEvent,
+      );
+      window.electron.ipcRenderer.removeListener(
+        ToolEvent.ToolListUpdated,
+        handleToolListUpdatedEvent,
       );
     };
   }, []);
 
   const handleDelete = (id: string) => {};
 
-  const handleImport = async (value: ImportMcp) => {
-    try {
-      await window.electron.tools.importMcp(value.mcpConfig);
-      setOpen(false);
-      form.reset();
-    } catch (err) {
-      toast.error(err.message);
-    }
-  };
-
-  const handleCreateMcp = async (value: CreateMcp) => {
-    try {
-      const config = {
-        mcpServers: {},
-      };
-      if (value.type === 'stdio') {
-        config.mcpServers = {
-          [nanoid()]: {
-            command: value.command,
-            args: value.args.split('\n'),
-            env: value.env,
-          },
-        };
-      } else if (value.type === 'sse') {
-        config.mcpServers = {
-          url: value.url,
-          headers: value.headers,
-        };
-      }
-      await window.electron.tools.importMcp(JSON.stringify(config));
-      setOpen(false);
-      form.reset();
-    } catch (err) {
-      toast.error(err.message);
-    }
-  };
   const openMcpDialog = async () => {
     setOpen(true);
   };
@@ -238,249 +193,12 @@ function Tools() {
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56" align="start">
               <DropdownMenuGroup>
-                <DropdownMenuItem onClick={() => openMcpDialog()}>
-                  创建MCP
+                <DropdownMenuItem onClick={() => setOpen(true)}>
+                  {t('common.create_mcp')}
                 </DropdownMenuItem>
               </DropdownMenuGroup>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Dialog open={open} onOpenChange={setOpen}>
-            {/* <DialogTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => openDialog()}
-              >
-                <IconPlus></IconPlus>
-              </Button>
-            </DialogTrigger> */}
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>导入MCP</DialogTitle>
-              </DialogHeader>
-              <ToggleGroup
-                type="single"
-                variant="outline"
-                spacing={2}
-                size="sm"
-                value={createMCPMode}
-                onValueChange={(value) => {
-                  setCreateMCPMode(value as 'general' | 'json');
-                }}
-              >
-                <ToggleGroupItem
-                  value="general"
-                  className="data-[state=off]:bg-transparent bg-secondary "
-                >
-                  General
-                </ToggleGroupItem>
-                <ToggleGroupItem
-                  value="json"
-                  className="data-[state=off]:bg-transparent bg-secondary "
-                >
-                  Json
-                </ToggleGroupItem>
-              </ToggleGroup>
-              {createMCPMode === 'json' && (
-                <Form {...form}>
-                  <form
-                    className="flex flex-col gap-4"
-                    onSubmit={form.handleSubmit(handleImport)}
-                  >
-                    <FieldGroup>
-                      <FormField
-                        name="mcpConfig"
-                        control={form.control}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel htmlFor="mcpConfig">
-                              {t('knowledge-base.name')}
-                            </FormLabel>
-                            <FormControl>
-                              <Textarea
-                                id="mcpConfig"
-                                placeholder="请输入知识库名称"
-                                {...field}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </FieldGroup>
-
-                    <DialogFooter>
-                      <Button
-                        type="submit"
-                        disabled={!form.formState.isValid || submitting}
-                      >
-                        {submitting ? '创建中…' : '创建'}
-                      </Button>
-                    </DialogFooter>
-                  </form>
-                </Form>
-              )}
-              {createMCPMode === 'general' && (
-                <Form {...createMcpForm}>
-                  <form
-                    className="flex flex-col gap-4"
-                    onSubmit={createMcpForm.handleSubmit(handleCreateMcp)}
-                  >
-                    <FieldGroup>
-                      <FormField
-                        name="type"
-                        control={createMcpForm.control}
-                        rules={{ required: t('common.required') as string }}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel htmlFor="type">
-                              {t('common.type')}
-                            </FormLabel>
-                            <FormControl>
-                              <Select
-                                value={field.value}
-                                onValueChange={field.onChange}
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="请选择类型" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="stdio">stdio</SelectItem>
-                                  <SelectItem value="sse">sse</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      {selectedType === 'stdio' && (
-                        <>
-                          <FormField
-                            name="command"
-                            control={createMcpForm.control}
-                            rules={{ required: t('common.required') as string }}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel htmlFor="command">
-                                  {t('common.command')}
-                                </FormLabel>
-                                <FormControl>
-                                  <Input
-                                    id="command"
-                                    placeholder="请输入命令"
-                                    {...field}
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          <FormField
-                            name="args"
-                            control={createMcpForm.control}
-                            rules={{ required: t('common.required') as string }}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel htmlFor="args">
-                                  {t('common.args')}
-                                </FormLabel>
-                                <FormControl>
-                                  <Textarea
-                                    id="args"
-                                    placeholder="请输入命令"
-                                    {...field}
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          <FormField
-                            name="env"
-                            control={createMcpForm.control}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel htmlFor="env">
-                                  {t('common.env')}
-                                </FormLabel>
-                                <FormControl>
-                                  <Textarea
-                                    id="env"
-                                    placeholder="请输入命令"
-                                    {...field}
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </>
-                      )}
-                      {selectedType === 'sse' && (
-                        <>
-                          <FormField
-                            name="url"
-                            control={createMcpForm.control}
-                            rules={{ required: t('common.required') as string }}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel htmlFor="url">
-                                  {t('common.url')}
-                                </FormLabel>
-                                <FormControl>
-                                  <Input
-                                    id="url"
-                                    placeholder="请输入命令"
-                                    {...field}
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          <FormField
-                            name="headers"
-                            control={createMcpForm.control}
-                            rules={{ required: t('common.required') as string }}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel htmlFor="headers">
-                                  {t('common.headers')}
-                                </FormLabel>
-                                <FormControl>
-                                  <Textarea
-                                    id="headers"
-                                    placeholder="请输入headers"
-                                    value={JSON.stringify(field.value)}
-                                    onChange={(e) => {
-                                      field.onChange(
-                                        JSON.parse(e.target.value),
-                                      );
-                                    }}
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </>
-                      )}
-                    </FieldGroup>
-
-                    <DialogFooter>
-                      <Button
-                        type="submit"
-                        disabled={!form.formState.isValid || submitting}
-                      >
-                        {submitting ? '创建中…' : '创建'}
-                      </Button>
-                    </DialogFooter>
-                  </form>
-                </Form>
-              )}
-            </DialogContent>
-          </Dialog>
         </div>
         <ToggleGroup
           type="single"
@@ -580,7 +298,7 @@ function Tools() {
           </SidebarMenu>
         </ScrollArea>
       </div>
-
+      <ToolEditDialog open={open} onOpenChange={setOpen}></ToolEditDialog>
       <div className="flex flex-col flex-1 w-full min-w-0">
         <Routes>
           <Route path=":id" element={<ToolDetail />} />

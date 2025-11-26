@@ -26,6 +26,7 @@ import React, {
   ForwardedRef,
   useEffect,
   useImperativeHandle,
+  useMemo,
   useRef,
   useState,
 } from 'react';
@@ -80,6 +81,7 @@ export type ChatInputProps = Omit<PromptInputProps, 'onSubmit'> & {
 export interface ChatInputRef {
   attachmentsClear: () => void;
   setModel: (model: string) => void;
+  setTools: (toolNames: string[]) => void;
 }
 
 export const ChatInput = React.forwardRef<ChatInputRef, ChatInputProps>(
@@ -107,9 +109,6 @@ export const ChatInput = React.forwardRef<ChatInputRef, ChatInputProps>(
     const [useMicrophone, setUseMicrophone] = useState<boolean>(false);
     const [think, setThink] = useState(false);
     const [tools, setTools] = useState<string[]>([]);
-    // useEffect(() => {
-    //   setModelState(model);
-    // }, [model]);
 
     useImperativeHandle(ref, () => ({
       attachmentsClear: () => {
@@ -117,6 +116,9 @@ export const ChatInput = React.forwardRef<ChatInputRef, ChatInputProps>(
       },
       setModel: (_model: string) => {
         onModelChange?.(_model);
+      },
+      setTools: (toolNames: string[]) => {
+        setTools(toolNames ?? []);
       },
     }));
 

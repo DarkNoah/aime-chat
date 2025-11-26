@@ -42,7 +42,9 @@
     "name": "Name",
     "chat": "Chat",
     "other": "Other",
-    "model_provider": "Model Provider"
+    "model_provider": "Model Provider",
+    "provider": "Provider",
+    "tool_config": "Tool Config"
   },
   "sidebar": {
     "new_chat": "New Chat",
@@ -53,5 +55,14 @@
   },
   "chat": {
     "new_chat": "New Chat"
+  },
+  "tools": {
+    "mcp_command": "Command",
+    "mcp_args": "Args",
+    "mcp_env": "Env",
+    "add_mcp": "Add Mcp Server",
+    "edit_mcp": "Edit Mcp Server",
+    "config": "Config",
+    "execute": "Execute"
   }
 }

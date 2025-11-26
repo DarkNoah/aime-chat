@@ -12,7 +12,7 @@ import { app } from 'electron';
 import { Tools } from '@/entities/tools';
 import { dbManager } from '../db';
 import { In, Repository } from 'typeorm';
-import { ToolType } from '@/types/tool';
+import { ToolEvent, ToolType } from '@/types/tool';
 import fg from 'fast-glob';
 import matter from 'gray-matter';
 import { Bash } from '../mastra/tools/bash';
@@ -29,6 +29,8 @@ import { AskUserQuestion } from './common/ask-user-question';
 import { NodejsExecute } from './code/nodejs-execute';
 import { Skill, skillManager } from './common/skill';
 import { BashToolkit } from './file-system/bash';
+import { SendEvent } from './common/send-event';
+import { WebSearch } from './web/web-search';
 
 interface BuiltInToolContext {
   tool: BaseTool;
@@ -130,6 +132,8 @@ class ToolsManager extends BaseManager {
     this.registerBuiltInTool(BashToolkit);
     this.registerBuiltInTool(FileSystem);
     this.registerBuiltInTool(AskUserQuestion);
+    this.registerBuiltInTool(SendEvent);
+    this.registerBuiltInTool(WebSearch);
     const skills = await skillManager.getClaudeSkills();
     this.registerBuiltInTool(Skill, {
       skills: skills.map((skill) => ({
@@ -213,8 +217,8 @@ class ToolsManager extends BaseManager {
     this.registerBuiltInTools();
   }
 
-  @channel(ToolChannel.ImportMCP)
-  public async importMcp(data: string) {
+  @channel(ToolChannel.SaveMCPServer)
+  public async saveMCPServer(id: string | undefined, data: string) {
     const config = JSON.parse(data);
     if (!('mcpServers' in config)) {
       throw new Error('Invalid config');
@@ -238,36 +242,40 @@ class ToolsManager extends BaseManager {
     const [key, value] = Object.entries(mcpServers)[0];
     let servers = this.configToMastraMCPServerDefinition(value);
 
-    const id = `${ToolType.MCP}:${nanoid()}`;
+    const _id = id || `${ToolType.MCP}:${nanoid()}`;
     const mcp = new MCPClient({
-      id: id,
+      id: _id,
       servers: { [key]: servers as MastraMCPServerDefinition },
     });
     const mcpClient = {
-      id: id,
+      id: _id,
       mcp,
       status: 'stopped' as McpClientStatus,
       error: undefined,
     };
     const mcpStatus = {
-      id: id,
+      id: _id,
       status: 'stopped' as McpClientStatus,
       error: undefined,
     };
 
     this.mcpClients.push(mcpClient);
-    await this.sendMcpClientUpdatedEvent(id, mcpStatus.status);
+    await this.sendMcpClientUpdatedEvent(_id, mcpStatus.status);
     try {
-      const tool = new Tools(id, key, ToolType.MCP);
+      const tool = new Tools(_id, key, ToolType.MCP);
       tool.mcpConfig = {
         [key]: value,
       };
       await this.toolsRepository.save(tool);
+      await appManager.sendEvent(ToolEvent.ToolListUpdated, {
+        id: _id,
+        status: 'created',
+      });
     } catch (error: any) {
       mcpStatus.status = 'error';
       mcpStatus.error = error as Error;
       await this.sendMcpClientUpdatedEvent(
-        id,
+        _id,
         mcpStatus.status,
         mcpStatus.error,
       );
@@ -296,6 +304,10 @@ class ToolsManager extends BaseManager {
     }
     this.mcpClients = this.mcpClients.filter((x) => x.id !== id);
     await this.toolsRepository.delete(id);
+    await appManager.sendEvent(ToolEvent.ToolListUpdated, {
+      id,
+      status: 'deleted',
+    });
   }
 
   @channel(ToolChannel.GetAvailableTools)
@@ -512,6 +524,17 @@ class ToolsManager extends BaseManager {
     }
   }
 
+  @channel(ToolChannel.UpdateToolConfig)
+  public async updateToolConfig(id: string, value: any) {
+    const tool = await this.toolsRepository.findOne({ where: { id } });
+    if (!tool) throw new Error('Tool not found');
+    if (tool.type === ToolType.MCP) {
+    } else if (tool.type === ToolType.BUILD_IN) {
+      tool.value = value;
+      await this.toolsRepository.save(tool);
+    }
+  }
+
   @channel(ToolChannel.ExecuteTool)
   public async executeTool(id: string, toolName: string, input: any) {
     const tool = await this.toolsRepository.findOne({ where: { id } });
@@ -527,7 +550,8 @@ class ToolsManager extends BaseManager {
         }
       }
     } else if (tool.type === ToolType.BUILD_IN) {
-      const buildInTool = this.builtInTools.find((x) => x.id === tool.id);
+      const buildedTools = await this.buildTools([tool.id]);
+      const buildInTool = buildedTools[toolName];
 
       const context = {
         tool: buildInTool as BaseTool,
@@ -537,17 +561,9 @@ class ToolsManager extends BaseManager {
       let res;
 
       try {
-        if (buildInTool && buildInTool.isToolkit === false) {
-          res = await (buildInTool as BaseTool).execute?.(input, {
-            abortSignal: context.abortController.signal,
-          });
-        } else if (buildInTool && buildInTool.isToolkit === true) {
-          res = await (buildInTool as BaseToolkit).tools
-            .find((x) => x.id == toolName)
-            .execute?.(input, {
-              abortSignal: context.abortController.signal,
-            });
-        }
+        res = await (buildInTool as BaseTool).execute?.(input, {
+          abortSignal: context.abortController.signal,
+        });
       } catch (err) {
         throw err;
       } finally {
@@ -566,17 +582,26 @@ class ToolsManager extends BaseManager {
       ?.abortController?.abort();
   }
 
-  buildTools(
+  async buildTools(
     toolNames?: string[],
     config?: Record<`${ToolType.BUILD_IN}:${string}`, any>,
-  ): Record<string, BaseTool> {
+  ): Promise<Record<string, BaseTool>> {
     if (!toolNames) return {};
     const tools = {};
+    const toolEntities = await this.toolsRepository.find({
+      where: { type: ToolType.BUILD_IN, id: In(toolNames) },
+    });
     for (const toolName of toolNames) {
       const tool = this.builtInTools.find((x) => x.id === toolName);
+
       if (!tool) continue;
+
+      let params = config?.[tool.id];
+      if (params === undefined) {
+        params = toolEntities.find((x) => x.id === toolName)?.value;
+      }
       if (!tool.isToolkit) {
-        const newTool = new tool.classType(config?.[tool.id]) as BaseTool;
+        const newTool = new tool.classType(params) as BaseTool;
         const t = createTool({
           ...newTool,
           id: tool.id.substring(ToolType.BUILD_IN.length + 1),
@@ -584,7 +609,7 @@ class ToolsManager extends BaseManager {
 
         tools[t.id] = t;
       } else {
-        const newToolkit = new tool.classType(config?.[tool.id]) as BaseToolkit;
+        const newToolkit = new tool.classType(params) as BaseToolkit;
         for (const _tool of newToolkit.tools) {
           const t = createTool({
             ..._tool,

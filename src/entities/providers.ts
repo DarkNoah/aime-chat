@@ -1,4 +1,3 @@
-import { ProviderType } from '@/types/provider';
 import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
 
 @Entity('providers')
@@ -30,4 +29,7 @@ export class Providers {
 
   @Column({ nullable: true })
   icon?: string;
+
+  @Column('json', { nullable: true })
+  tags?: string[];
 }

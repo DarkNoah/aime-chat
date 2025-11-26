@@ -46,7 +46,7 @@ export enum KnowledgeBaseChannel {
 }
 
 export enum ToolChannel {
-  ImportMCP = 'tool:importMcp',
+  SaveMCPServer = 'tool:saveMCPServer',
   GetMcp = 'tool:getMcp',
   DeleteTool = 'tool:deleteTool',
   GetAvailableTools = 'tool:getAvailableTools',
@@ -55,4 +55,5 @@ export enum ToolChannel {
   ToggleToolActive = 'tool:toggleToolActive',
   ExecuteTool = 'tool:executeTool',
   AbortTool = 'tool:abortTool',
+  UpdateToolConfig = 'tool:updateToolConfig',
 }

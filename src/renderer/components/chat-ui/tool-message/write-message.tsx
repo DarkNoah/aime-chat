@@ -48,7 +48,7 @@ export const WriteMessage = React.forwardRef<
   const { className, part, title, ...rest } = props;
 
   const file_path = part?.input?.file_path;
-  const file_name = file_path.split('/')[file_path.split('/').length - 1];
+  const file_name = file_path?.split('/')?.pop();
 
   return (
     <Item

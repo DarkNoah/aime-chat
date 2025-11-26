@@ -42,7 +42,9 @@
     "name": "名称",
     "chat": "聊天",
     "other": "其他",
-    "model_provider": "模型供应商"
+    "model_provider": "模型供应商",
+    "provider": "供应商",
+    "tool_config": "工具配置"
   },
   "sidebar": {
     "new_chat": "新聊天",
@@ -53,5 +55,14 @@
   },
   "chat": {
     "new_chat": "新聊天"
+  },
+  "tools": {
+    "mcp_command": "命令",
+    "mcp_args": "参数",
+    "mcp_env": "环境变量",
+    "add_mcp": "添加Mcp服务器",
+    "edit_mcp": "修改Mcp服务器",
+    "config": "配置",
+    "execute": "执行"
   }
 }

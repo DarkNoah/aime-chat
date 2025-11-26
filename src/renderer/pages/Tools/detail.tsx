@@ -23,7 +23,7 @@ import {
   TabsTrigger,
 } from '@/renderer/components/ui/tabs';
 import { useHeader } from '@/renderer/hooks/use-title';
-import { Tool, ToolType } from '@/types/tool';
+import { Tool, ToolConfig, ToolType } from '@/types/tool';
 import { ItemText } from '@radix-ui/react-select';
 import { useCallback, useEffect, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
@@ -42,9 +42,13 @@ import { Loader } from '@/renderer/components/ai-elements/loader';
 import { Spinner } from '@/renderer/components/ui/spinner';
 import { ToolUIPart } from 'ai';
 import { nanoid } from '@/utils/nanoid';
+import { ToolConfigDialog } from './tool-config-dialog';
+import { ToolEditDialog } from './tool-edit-dialog';
+import { useTranslation } from 'react-i18next';
 
 function ToolDetail() {
   const location = useLocation();
+  const { t } = useTranslation();
   const { id } = useParams();
   const { setTitle } = useHeader();
   const [tool, setTool] = useState<Tool | null>(null);
@@ -52,6 +56,7 @@ function ToolDetail() {
   const [toolExecuting, setToolExecuting] = useState<Record<string, boolean>>(
     {},
   );
+  const [openMcpDialog, setOpenMcpDialog] = useState<boolean>(false);
   const navigate = useNavigate();
   const [toolResultPreview, setToolResultPreview] = useState<{
     title?: string;
@@ -67,7 +72,7 @@ function ToolDetail() {
       if ('tools' in data && data?.tools) {
         const toole = {};
         for (const _tool of Object.values(data.tools)) {
-          toole[_tool.id] = false;
+          toole[_tool.name] = false;
         }
         setToolExecuting(toole);
       }
@@ -101,8 +106,9 @@ function ToolDetail() {
         toolName,
         data,
       );
+      console.log(res);
       setToolResultPreview({
-        title: toolName.split(':').slice(1).join(':'),
+        title: toolName,
         part: {
           type: `tool-${toolName}`,
           output: res,
@@ -113,8 +119,6 @@ function ToolDetail() {
       });
 
       setShowPreview(true);
-
-      console.log(res);
     } catch (err) {
       toast.error(err.message);
     } finally {
@@ -160,17 +164,29 @@ function ToolDetail() {
             </ItemDescription>
           </ItemContent>
           {tool && (
-            <ItemActions>
+            <ItemActions className="gap-2">
+              {ToolConfig[tool?.name]?.configSchema && (
+                <ToolConfigDialog
+                  toolId={tool.id}
+                  configSchema={ToolConfig[tool?.name].configSchema}
+                  uiSchema={ToolConfig[tool?.name].uiSchema}
+                />
+              )}
               <Switch
                 checked={tool?.isActive}
                 onCheckedChange={handleToggleToolActive}
               ></Switch>
-              {tool?.type === 'mcp' && (
+              {tool?.type === ToolType.MCP && (
                 <>
+                  <ToolEditDialog
+                    toolId={tool.id}
+                    open={openMcpDialog}
+                    onOpenChange={setOpenMcpDialog}
+                  ></ToolEditDialog>
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => handleEditMcp(tool.id)}
+                    onClick={() => setOpenMcpDialog(true)}
                   >
                     Edit
                   </Button>
@@ -203,35 +219,40 @@ function ToolDetail() {
 
             <TabsContent value="tools">
               <Accordion type="multiple" defaultValue={[]} className="w-full">
-                {tool?.tools?.map((t) => (
-                  <AccordionItem value={t.id} key={t.id}>
-                    <AccordionTrigger>{t.name}</AccordionTrigger>
+                {tool?.tools?.map((tool) => (
+                  <AccordionItem value={tool.id} key={tool.id}>
+                    <AccordionTrigger>{tool.name}</AccordionTrigger>
                     <AccordionContent className="flex flex-col gap-4 text-balance">
                       <pre className="text-xs break-all text-wrap bg-secondary p-4 rounded-2xl">
-                        {t?.description}
+                        {tool?.description}
                       </pre>
-                      {t.inputSchema && t.inputSchema.type === 'object' && (
-                        <Form
-                          schema={t.inputSchema}
-                          validator={validator}
-                          onSubmit={(e) => handleSubmit(t.id, e.formData)}
-                        >
-                          <div className="flex items-center gap-3 mt-2">
-                            {toolExecuting[t.id] === false && (
-                              <Button type="submit">Start</Button>
-                            )}
-                            {toolExecuting[t.id] === true && (
-                              <Button
-                                type="button"
-                                onClick={(e) => handleStop(t.id)}
-                              >
-                                <Spinner></Spinner>
-                                Stop
-                              </Button>
-                            )}
-                          </div>
-                        </Form>
-                      )}
+                      {tool.inputSchema &&
+                        tool.inputSchema.type === 'object' && (
+                          <Form
+                            schema={tool.inputSchema}
+                            validator={validator}
+                            onSubmit={(e) =>
+                              handleSubmit(tool.name, e.formData)
+                            }
+                          >
+                            <div className="flex items-center gap-3 mt-2">
+                              {toolExecuting[tool.name] === false && (
+                                <Button type="submit" variant="outline">
+                                  {t('tools.execute')}
+                                </Button>
+                              )}
+                              {toolExecuting[tool.name] === true && (
+                                <Button
+                                  type="button"
+                                  onClick={(e) => handleStop(tool.name)}
+                                >
+                                  <Spinner></Spinner>
+                                  Stop
+                                </Button>
+                              )}
+                            </div>
+                          </Form>
+                        )}
                     </AccordionContent>
                   </AccordionItem>
                 ))}
