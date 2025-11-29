@@ -8,13 +8,17 @@ import { KnowledgeBase, KnowledgeBaseItem } from '@/entities/knowledge-base';
 import { Secrets } from '@/entities/secrets';
 import { Tools } from '@/entities/tools';
 import { MastraHistoryMessages } from '@/entities/mastra-history-messages';
+import { BaseManager } from '../BaseManager';
 
-class DBManager {
+class DBManager extends BaseManager {
   // defaultDb: Database;
   public dataSource: DataSource;
   public localLibSQLClient: LibSQLClient;
 
-  constructor() {}
+  constructor() {
+    super();
+  }
+
   async init() {
     this.dataSource = new DataSource({
       type: 'better-sqlite3',

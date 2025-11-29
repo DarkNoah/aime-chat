@@ -224,7 +224,7 @@ Output: Creates directory 'foo'`),
       backgroundPIDs,
       tempFilePath,
       pid,
-    } = await runCommand(inputData.command, cwd, timeout, abortSignal);
+    } = await runCommand(inputData.command, { cwd, timeout, abortSignal });
     console.log(tempFilePath, inputData.command);
     let llmContent = '';
     if (abortSignal?.aborted) {
@@ -371,22 +371,16 @@ export class KillBash extends BaseTool {
     if (bashSession) {
       let stdout = bashSession.stdout.map((item) => item.content).join('\n');
       let stderr = bashSession.stderr.map((item) => item.content).join('\n');
-      const llmContent = [
-        `Command: ${bashSession.command}`,
-        `Directory: ${bashSession.directory || '(root)'}`,
+
+      return [
+        `Successfully killed shell: ${shell_id} (${bashSession.command}).`,
         `Stdout: ${stdout || '(empty)'}`,
         `Stderr: ${stderr || '(empty)'}`,
         `Error: ${bashSession.errorMessage ?? '(none)'}`,
-        `Exit Code: ${bashSession.exitCode ?? '(none)'}`,
-        `Signal: ${bashSession.processSignal ?? '(none)'}`,
         `Duration: ${Math.floor(
           (new Date().getTime() - bashSession.startTime.getTime()) / 1000,
         )} s`,
-        `IsRunning: ${bashSession.isExited ? 'No' : 'Yes'}`,
-        `Process Group PGID: ${bashSession.pid ?? '(none)'}`,
       ].join('\n');
-
-      return llmContent;
     }
     return `Bash session ${shell_id} not found`;
   };

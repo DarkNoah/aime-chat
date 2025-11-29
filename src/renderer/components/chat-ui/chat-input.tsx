@@ -52,6 +52,20 @@ import {
 } from '../ai-elements/context';
 import { Suggestion, Suggestions } from '../ai-elements/suggestion';
 import { ChatToolSelector } from './chat-tool-selector';
+import { IconAlertCircle, IconTrash } from '@tabler/icons-react';
+import { Separator } from '../ui/separator';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '../ui/alert-dialog';
+import { useTranslation } from 'react-i18next';
 
 export type ChatInputProps = Omit<PromptInputProps, 'onSubmit'> & {
   onSubmit?: (
@@ -76,6 +90,7 @@ export type ChatInputProps = Omit<PromptInputProps, 'onSubmit'> & {
   model?: string;
   onModelChange?: (model: string) => void;
   prompts?: string[];
+  onClearMessages?: () => void;
 };
 
 export interface ChatInputRef {
@@ -101,7 +116,9 @@ export const ChatInput = React.forwardRef<ChatInputRef, ChatInputProps>(
       model,
       onModelChange,
       prompts,
+      onClearMessages,
     } = props;
+    const { t } = useTranslation();
     const attachmentRef = useRef<ChatInputAttachmentRef>(null);
 
     // const [modelState, setModelState] = useState<string | undefined>(model);
@@ -192,6 +209,37 @@ export const ChatInput = React.forwardRef<ChatInputRef, ChatInputProps>(
                   onChange={onModelChange}
                   className="max-w-[200px] @lg:w-[200px] @md:w-[100px] @sm:w-[32px] w-[32px]"
                 ></ChatModelSelect>
+              )}
+              <Separator orientation="vertical" />
+              {onClearMessages && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <PromptInputButton onClick={onClearMessages}>
+                      <IconTrash size={16} />
+                    </PromptInputButton>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>
+                        <div className="flex flex-row gap-2 items-center">
+                          <IconAlertCircle />
+                          {t('chat.clear_messages_title')}
+                        </div>
+                      </AlertDialogTitle>
+                      <AlertDialogDescription>
+                        {t('chat.clear_messages_description')}
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>
+                        {t('common.cancel')}
+                      </AlertDialogCancel>
+                      <AlertDialogAction>
+                        {t('common.confirm')}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               )}
             </PromptInputTools>
 

@@ -12,6 +12,7 @@ import {
   ModelMessage,
   PrepareStepResult,
   StepResult,
+  SystemModelMessage,
   UIMessage,
 } from 'ai';
 import type {
@@ -60,17 +61,21 @@ import {
 } from '../utils/convertToCoreMessages';
 import { compressAgent } from './agents/compress-agent';
 import { skillManager } from '../tools/common/skill';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { v4 as uuidv4 } from 'uuid';
 
 const modelsData = require('@/../assets/models.json');
 class MastraManager extends BaseManager {
   app: express.Application;
-  private httpServer?: ReturnType<express.Application['listen']>;
+  public httpServer?: ReturnType<express.Application['listen']>;
   mastra: Mastra;
 
   threadChats: (ChatThread & { controller: AbortController })[] = [];
 
+  statefulTransport?: StreamableHTTPServerTransport;
   constructor() {
     super();
+
     this.app = express();
     this.app.use(express.json({ limit: '50mb' }));
     this.app.use(express.urlencoded({ limit: '50mb', extended: true }));
@@ -124,31 +129,56 @@ class MastraManager extends BaseManager {
   }
 
   async init() {
+    this.statefulTransport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: () => uuidv4(),
+    });
+
     this.app.get('/auth/callback', async (req, res) => {
       const { code } = req.query;
     });
-    await this.start();
-  }
-
-  public start() {
-    if (this.httpServer?.listening) return;
-    try {
-      this.httpServer = this.app.listen(4133, '127.0.0.1', () => {
-        console.log(`Mastra HTTP Server running on port 4133`);
+    this.app.post('/mcp', async (req, res) => {
+      const transport = new StreamableHTTPServerTransport({
+        sessionIdGenerator: undefined,
+        enableJsonResponse: true,
       });
-    } catch {
-      appManager.send('AIME HTTP Server start failed', 'error');
+
+      res.on('close', () => {
+        transport.close();
+      });
+
+      await toolsManager.mcpServer.connect(transport);
+
+      await transport?.handleRequest(req, res, req.body);
+    });
+    const { apiServer } = await appManager.getInfo();
+    if (apiServer?.enabled) {
+      await this.start(apiServer.port);
     }
   }
 
-  public restart() {
-    this.close();
-    this.start();
+  public async start(port: number) {
+    if (this.httpServer?.listening) return;
+    try {
+      this.httpServer = this.app.listen(port, '127.0.0.1', () => {
+        console.log(`Mastra HTTP Server running on port ${port}`);
+      });
+    } catch {
+      appManager.toast('AIME HTTP Server start failed', { type: 'error' });
+    }
   }
 
-  public close() {
+  public async restart() {
+    await this.close();
+    const { apiServer } = await appManager.getInfo();
+    if (apiServer?.enabled) {
+      await this.start(apiServer.port);
+    }
+  }
+
+  public async close() {
     if (this.httpServer?.listening) {
       this.httpServer?.close();
+      console.log('Mastra HTTP Server closed');
     }
   }
 
@@ -194,7 +224,10 @@ class MastraManager extends BaseManager {
   }
 
   @channel(MastraChannel.CreateThread)
-  public async createThread(): Promise<StorageThreadType> {
+  public async createThread(options?: {
+    tools?: string[];
+    model?: string;
+  }): Promise<StorageThreadType> {
     const storage = this.mastra.getStorage();
     const thread = await storage.saveThread({
       thread: {
@@ -203,7 +236,9 @@ class MastraManager extends BaseManager {
         resourceId: '123',
         createdAt: new Date(),
         updatedAt: new Date(),
-        metadata: {},
+        metadata: {
+          ...(options || {}),
+        },
       },
     });
     await appManager.sendEvent('mastra:thread-created', thread);
@@ -235,6 +270,13 @@ class MastraManager extends BaseManager {
   public async deleteThread(id: string): Promise<void> {
     const storage = this.mastra.getStorage();
     await storage.deleteThread({ threadId: id });
+  }
+
+  @channel(MastraChannel.ClearMessages)
+  public async clearMessages(id: string): Promise<void> {
+    const storage = this.mastra.getStorage();
+    const messages = await storage.listMessages({ threadId: id });
+    await storage.deleteMessages(messages.messages.map((x) => x.id));
   }
 
   @channel(MastraChannel.Chat, { mode: 'on' })
@@ -290,10 +332,9 @@ class MastraManager extends BaseManager {
     )) as LanguageModelV2;
 
     const agent = new Agent({
+      id: mastraAgent.id,
       name: mastraAgent.name,
-      instructions: ({ requestContext }) => {
-        return mastraAgent.getInstructions({ requestContext });
-      },
+      instructions: 'You are a helpful assistant.',
       model: await providersManager.getLanguageModel(model),
       memory: new Memory({
         storage: getStorage(),
@@ -357,7 +398,9 @@ class MastraManager extends BaseManager {
       const historyMessagesAISdkV5 = toAISdkV5Messages(
         historyMessages.messages,
       );
-      const input = [...historyMessagesAISdkV5, recentMessage];
+      const input = [...historyMessages.messages, inputMessage];
+
+      // const messages = convertToModelMessages(input);
 
       const stream = await agent.stream(input, {
         // format: 'aisdk',
@@ -393,17 +436,17 @@ class MastraManager extends BaseManager {
           // Persist final results to database
 
           const uiMessages = response.uiMessages;
-          const msg = await storage.updateMessages({
-            messages: uiMessages.map((x) => {
-              return {
-                id: x.id,
-                content: {
-                  reasoning: reasoningText,
-                  metadata: { ...x.metadata, usage: usage },
-                },
-              };
-            }),
-          });
+          // const msg = await storage.updateMessages({
+          //   messages: uiMessages.map((x) => {
+          //     return {
+          //       id: x.id,
+          //       content: {
+          //         reasoning: reasoningText,
+          //         metadata: { ...x.metadata, usage: usage },
+          //       },
+          //     };
+          //   }),
+          // });
         },
 
         onStepFinish: async (event) => {
@@ -442,7 +485,7 @@ class MastraManager extends BaseManager {
               ...(currentThread.metadata || {}),
               usage,
               maxTokens: limit_context,
-              modelId: model,
+              model,
             },
           });
           // debugger;
@@ -467,33 +510,40 @@ class MastraManager extends BaseManager {
           // console.log('Stream chunk:', chunk);
         },
         prepareStep: async (options) => {
-          console.log('Prepare step:', options);
+          // console.log('Prepare step:', options);
           const instructions = await agent.getInstructions({ requestContext });
-          const messages = convertToCoreMessages(options.messages);
-          const instructionContent = convertToInstructionContent(instructions);
+          const system = convertToInstructionContent(instructions);
+          //const messages = convertToCoreMessages([...options.messages]);
+          // const instructionContent = convertToInstructionContent(instructions);
 
-          const token = await tokenCounter(messages, {
-            role: 'system',
-            content: instructionContent,
-          });
-          if (token > 100000) {
-            compressAgent.model = fastLanguageModel;
+          // const token = await tokenCounter([], {
+          //   role: 'system',
+          //   content: instructionContent,
+          // });
+          // if (token > 100000) {
+          //   compressAgent.model = fastLanguageModel;
 
-            const compressResult = await compressAgent.generate(
-              options.messages,
-              {
-                modelSettings: {
-                  maxOutputTokens: 32 * 1000,
-                },
-              },
-            );
-            const text = compressResult.text;
-            const todos = requestContext.get('todos' as never);
-            if (todos) {
-            }
-          }
+          //   const compressResult = await compressAgent.generate(
+          //     options.messages,
+          //     {
+          //       modelSettings: {
+          //         maxOutputTokens: 32 * 1000,
+          //       },
+          //     },
+          //   );
+          //   const text = compressResult.text;
+          //   const todos = requestContext.get('todos' as never);
+          //   if (todos) {
+          //   }
+          // }
 
-          return options;
+          // options.messages = [{ role: 'user', content: 'Hello, how are you?' }];
+          const messages = [
+            { role: 'system', content: system } as SystemModelMessage,
+            ...options.messages,
+          ];
+
+          return { messages };
         },
       });
 
@@ -535,31 +585,31 @@ class MastraManager extends BaseManager {
           data: JSON.stringify(value),
         });
       }
-      if (stream.status == 'suspended') {
-        const suspendPayload = await stream.suspendPayload;
+      // if (stream.status == 'suspended') {
+      //   const suspendPayload = await stream.suspendPayload;
 
-        appManager.sendEvent(`chat:event:${chatId}`, {
-          type: ChatEvent.ChatChunk,
-          data: JSON.stringify({
-            type: 'tool-approval-requested',
-            runId: stream.runId,
-            toolName: suspendPayload.toolName,
-            toolCallId: suspendPayload.toolCallId,
-          }),
-        });
+      //   appManager.sendEvent(`chat:event:${chatId}`, {
+      //     type: ChatEvent.ChatChunk,
+      //     data: JSON.stringify({
+      //       type: 'tool-approval-requested',
+      //       runId: stream.runId,
+      //       toolName: suspendPayload.toolName,
+      //       toolCallId: suspendPayload.toolCallId,
+      //     }),
+      //   });
 
-        const snapshot = await storage?.loadWorkflowSnapshot({
-          runId: stream.runId,
-          workflowName: 'executionWorkflow',
-        });
+      //   const snapshot = await storage?.loadWorkflowSnapshot({
+      //     runId: stream.runId,
+      //     workflowName: 'executionWorkflow',
+      //   });
 
-        const snapshot2 = await storage?.loadWorkflowSnapshot({
-          runId: stream.runId,
-          workflowName: 'agentic-loop',
-        });
+      //   const snapshot2 = await storage?.loadWorkflowSnapshot({
+      //     runId: stream.runId,
+      //     workflowName: 'agentic-loop',
+      //   });
 
-        debugger;
-      }
+      //   debugger;
+      // }
 
       appManager.sendEvent(`chat:event:${chatId}`, {
         type: ChatEvent.ChatChanged,

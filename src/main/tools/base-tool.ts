@@ -9,7 +9,7 @@ import {
 } from '@mastra/core/tools';
 import { tool } from 'ai';
 import z, { ZodSchema, ZodObject, ZodTypeAny } from 'zod';
-
+import { LanguageModelV2ToolResultPart } from '@ai-sdk/provider';
 export interface BaseToolParams {
   description?: string;
   verbose?: boolean;
@@ -28,21 +28,23 @@ abstract class BaseTool<T extends BaseToolParams = BaseToolParams>
   outputSchema?: ZodSchema;
   suspendSchema?: any;
   resumeSchema?: any;
-
   descriptionField?: string;
-
   doc?: string;
-
   tags?: string[];
-
   configSchema?: ZodSchema;
   config?: T;
+
+  format?: 'mastra' | 'ai-sdk';
+
+  inputExample?: string | string[];
+  returnExample?: string | string[];
 
   constructor(config?: T) {
     this.config = config;
   }
 
   execute?: ToolAction<ZodSchema>['execute'];
+  toModelOutput?: (output: any) => LanguageModelV2ToolResultPart['output'];
   mastra?: Mastra;
   requireApproval?: boolean;
 

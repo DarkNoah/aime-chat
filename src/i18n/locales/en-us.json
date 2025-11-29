@@ -23,7 +23,10 @@
     "model_location": "Model location",
     "default_model": "Default Model",
     "default_fast_model": "Default Fast Model",
-    "apiServer": "API Server"
+    "apiServer": "API Server",
+    "apiServerStop": "Stop",
+    "apiServerPort": "Server Port",
+    "apiServerTRunningips": "Server is running on "
   },
   "common": {
     "edit": "Edit",
@@ -44,17 +47,24 @@
     "other": "Other",
     "model_provider": "Model Provider",
     "provider": "Provider",
-    "tool_config": "Tool Config"
+    "tool_config": "Tool Config",
+    "download": "Download",
+    "apiServerStart": "Start",
+    "confirm": "Confirm"
   },
   "sidebar": {
     "new_chat": "New Chat",
     "settings": "Settings",
     "providers": "Providers",
     "tools": "Tools",
-    "knowledge_base": "Knowledge Base"
+    "knowledge_base": "Knowledge Base",
+    "agents": "Agents",
+    "knowledge-base": "Knowledge Base"
   },
   "chat": {
-    "new_chat": "New Chat"
+    "new_chat": "New Chat",
+    "clear_messages_title": "Clear Messages",
+    "clear_messages_description": "Are you sure you want to clear all current messages?"
   },
   "tools": {
     "mcp_command": "Command",

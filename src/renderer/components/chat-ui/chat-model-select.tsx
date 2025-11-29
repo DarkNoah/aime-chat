@@ -32,6 +32,7 @@ export type ChatModelSelectProps = {
   value?: string;
   type?: ModelType;
   onChange?: (model: string) => void;
+  disabled?: boolean;
 };
 
 export interface ChatModelSelectRef {}
@@ -40,7 +41,13 @@ export const ChatModelSelect = React.forwardRef<
   ChatModelSelectRef,
   ChatModelSelectProps
 >((props, ref) => {
-  const { className, value, onChange, type = ModelType.LLM } = props;
+  const {
+    className,
+    value,
+    onChange,
+    type = ModelType.LLM,
+    disabled = false,
+  } = props;
   const [data, setData] = useState<Provider[]>([]);
   const [modelSelectorOpen, setModelSelectorOpen] = useState(false);
   const [selectedModelData, setSelectedModelData] =
@@ -78,13 +85,19 @@ export const ChatModelSelect = React.forwardRef<
 
   return (
     <ModelSelector onOpenChange={setModelSelectorOpen} open={modelSelectorOpen}>
-      <ModelSelectorTrigger asChild className={cn('w-full ', className)}>
-        <PromptInputButton className="justify-start" disabled={loading}>
+      <ModelSelectorTrigger asChild className={cn('border', className)}>
+        <PromptInputButton
+          className="justify-start "
+          disabled={disabled === true || loading}
+        >
           {selectedModelData?.providerType && (
             <ModelSelectorLogo provider={selectedModelData.providerType} />
           )}
           {selectedModelData?.name && (
             <ModelSelectorName>{selectedModelData.name}</ModelSelectorName>
+          )}
+          {selectedModelData?.name === undefined && (
+            <span className="text-muted-foreground">Select a model</span>
           )}
           {/* {loading ? (
             <div className="flex flex-row gap-2 items-center">

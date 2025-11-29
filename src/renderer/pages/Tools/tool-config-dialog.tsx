@@ -15,8 +15,9 @@ import { zodToJsonSchema } from 'zod-to-json-schema';
 import { ProviderSelector } from '@/renderer/components/provider-selector';
 import { ProviderTag } from '@/types/provider';
 import { useEffect, useState } from 'react';
-import { toast } from 'sonner';
+import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
+import { ChatModelSelect } from '@/renderer/components/chat-ui/chat-model-select';
 
 const ProviderSelectorWidget: Widget<any, RJSFSchema, any> = ({
   value,
@@ -35,6 +36,22 @@ const ProviderSelectorWidget: Widget<any, RJSFSchema, any> = ({
       onValueChange={(val) => onChange(val)}
       disabled={disabled || readonly}
       type={providerType}
+    />
+  );
+};
+
+const ModelSelectorWidget: Widget<any, RJSFSchema, any> = ({
+  value,
+  onChange,
+  disabled,
+  readonly,
+  options,
+}: WidgetProps<any, RJSFSchema, any>) => {
+  return (
+    <ChatModelSelect
+      value={typeof value === 'string' ? value : undefined}
+      onChange={(val) => onChange(val)}
+      disabled={disabled || readonly}
     />
   );
 };
@@ -94,6 +111,7 @@ export function ToolConfigDialog({
           uiSchema={uiSchema}
           widgets={{
             providerSelector: ProviderSelectorWidget,
+            modelSelector: ModelSelectorWidget,
           }}
         >
           <div className="flex justify-end mt-2">

@@ -7,8 +7,9 @@ import React, {
   ReactNode,
   useMemo,
   useEffect,
+  useCallback,
 } from 'react';
-import { toast } from 'sonner';
+import { Toaster, toast } from 'react-hot-toast';
 import { Spinner } from '../components/ui/spinner';
 
 type GlobalState = {
@@ -26,31 +27,41 @@ export function GlobalProvider({ children }: { children: ReactNode }) {
 
   const getAppInfo = async () => {
     const data = await window.electron.app.getInfo();
+    console.log('appInfo', appInfo);
     setAppInfo(data);
   };
-
-  useEffect(() => {
-    getAppInfo();
-    const handleSend = (title, message) => {
-      toast(title as string, {
-        description: message,
-        // action: {
-        //   label: 'Undo',
-        //   onClick: () => console.log('Undo'),
-        // },
-        closeButton: true,
-      });
-    };
-    window.electron.ipcRenderer.on(AppChannel.Send, handleSend);
-    return () => {
-      window.electron.ipcRenderer.removeListener(AppChannel.Send, handleSend);
-    };
-  }, []);
 
   const contextValue = useMemo(
     () => ({ user, setUser, appInfo, getAppInfo }),
     [user, appInfo],
   );
+
+  const handleToast = useCallback(
+    (title, options) => {
+      console.log('Toast', title, options);
+      console.log('appInfo', contextValue.appInfo);
+      const isDark = appInfo?.shouldUseDarkColors;
+      toast(title as string, {
+        ...options,
+        style: isDark
+          ? {
+              background: '#333',
+              color: '#fff',
+            }
+          : undefined,
+      });
+    },
+    [contextValue],
+  );
+
+  useEffect(() => {
+    getAppInfo();
+    window.electron.ipcRenderer.removeAllListeners(AppChannel.Toast);
+    window.electron.ipcRenderer.on(AppChannel.Toast, handleToast);
+    return () => {
+      window.electron.ipcRenderer.removeListener(AppChannel.Toast, handleToast);
+    };
+  }, []);
 
   return (
     <GlobalContext.Provider value={contextValue}>

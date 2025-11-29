@@ -50,7 +50,6 @@ import {
 import { ScrollArea } from '@/renderer/components/ui/scroll-area';
 import ProviderIcon from '@/renderer/components/provider-icon';
 import { AlertCircleIcon, Edit, Package, Search, Trash } from 'lucide-react';
-import { toast } from 'sonner';
 import { Spinner } from '@/renderer/components/ui/spinner';
 import {
   Alert,
@@ -91,6 +90,7 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from '@/renderer/components/ui/input-group';
+import toast from 'react-hot-toast';
 
 function Providers() {
   const { setTitle } = useHeader();
@@ -221,8 +221,12 @@ function Providers() {
 
   const saveModels = async () => {
     if (!editProvider) return;
-    await window.electron.providers.updateModels(editProvider.id, models);
-    setModelsOpen(false);
+    try {
+      await window.electron.providers.updateModels(editProvider.id, models);
+      setModelsOpen(false);
+    } catch (err) {
+      toast.error(err.message);
+    }
   };
   const renderApi = useCallback(() => {
     const doc = modelsData[editProvider?.type ?? selectedType]?.doc;

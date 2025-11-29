@@ -23,7 +23,10 @@
     "model_location": "本地模型位置",
     "default_model": "默认模型",
     "default_fast_model": "默认快速模型",
-    "apiServer": "API服务"
+    "apiServer": "API服务",
+    "apiServerStop": "停止",
+    "apiServerPort": "服务端口",
+    "apiServerTRunningips": "服务端口正在运行中"
   },
   "common": {
     "edit": "编辑",
@@ -44,17 +47,24 @@
     "other": "其他",
     "model_provider": "模型供应商",
     "provider": "供应商",
-    "tool_config": "工具配置"
+    "tool_config": "工具配置",
+    "download": "下载",
+    "apiServerStart": "启动",
+    "confirm": "确认"
   },
   "sidebar": {
     "new_chat": "新聊天",
     "settings": "设置",
     "providers": "模型供应商",
     "tools": "工具",
-    "knowledge_base": "知识库"
+    "knowledge_base": "知识库",
+    "agents": "智能体",
+    "knowledge-base": "知识库"
   },
   "chat": {
-    "new_chat": "新聊天"
+    "new_chat": "新聊天",
+    "clear_messages_title": "清空消息",
+    "clear_messages_description": "确定要清楚当前所有消息吗?"
   },
   "tools": {
     "mcp_command": "命令",

@@ -45,6 +45,7 @@ import {
   IconClock,
   IconDots,
   IconEdit,
+  IconFilter,
   IconLoader2,
   IconPlus,
   IconToggleLeft,
@@ -64,9 +65,9 @@ import {
 import { FieldGroup } from '@/renderer/components/ui/field';
 import { useForm } from 'react-hook-form';
 import { Textarea } from '@/renderer/components/ui/textarea';
-import { toast } from 'sonner';
+import toast from 'react-hot-toast';
 import { Switch } from '@/renderer/components/ui/switch';
-import { Tool, ToolEvent, ToolType } from '@/types/tool';
+import { Tool, ToolEvent, ToolTags, ToolType } from '@/types/tool';
 import ToolDetail from './detail';
 import { Skeleton } from '@/renderer/components/ui/skeleton';
 import { Badge } from '@/renderer/components/ui/badge';
@@ -232,6 +233,24 @@ function Tools() {
             Skills
           </ToggleGroupItem>
         </ToggleGroup>
+        {view === ToolType.BUILD_IN && (
+          <div className="flex flex-row items-center gap-2">
+            {' '}
+            <IconFilter size="10"></IconFilter>
+            <ToggleGroup type="single" variant="outline" spacing={2} size="sm">
+              {Object.entries(ToolTags).map(([key, value]) => (
+                <ToggleGroupItem
+                  key={value}
+                  value={value}
+                  size="sm"
+                  className="data-[state=off]:bg-transparent bg-secondary px-1 text-xs h-5"
+                >
+                  {value}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+          </div>
+        )}
 
         <ScrollArea className="h-full flex-1 min-h-0">
           <SidebarMenu className="pr-3">

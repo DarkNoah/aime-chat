@@ -37,7 +37,7 @@ import {
 import { Response } from '../components/ai-elements/response';
 import { useChat } from '@ai-sdk/react';
 import { ChatOnErrorCallback, DefaultChatTransport } from 'ai';
-import { toast } from 'sonner';
+import toast from 'react-hot-toast';
 import { PromptInputMessage } from '../components/ai-elements/prompt-input';
 import { Streamdown } from '../components/ai-elements/streamdown';
 import {

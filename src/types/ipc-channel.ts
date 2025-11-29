@@ -11,7 +11,7 @@ export enum ProviderChannel {
 
 export enum AppChannel {
   GetInfo = 'app:getInfo',
-  Send = 'app:send',
+  Toast = 'app:toast',
   SetTheme = 'app:setTheme',
   OpenPath = 'app:openPath',
   SetProxy = 'app:setProxy',
@@ -21,6 +21,8 @@ export enum AppChannel {
   InstasllRumtime = 'app:installRumtime',
   UninstallRumtime = 'app:uninstallRumtime',
   GetRuntimeInfo = 'app:getRuntimeInfo',
+  SetApiServerPort = 'app:setApiServerPort',
+  ToggleApiServerEnable = 'app:toggleApiServerEnable',
 }
 
 export enum MastraChannel {
@@ -35,6 +37,7 @@ export enum MastraChannel {
   ChatResume = 'mastra:chatResume',
   ChatAbort = 'mastra:chatAbort',
   SaveMessages = 'mastra:saveMessages',
+  ClearMessages = 'mastra:clearMessages',
 }
 
 export enum KnowledgeBaseChannel {
@@ -56,4 +59,11 @@ export enum ToolChannel {
   ExecuteTool = 'tool:executeTool',
   AbortTool = 'tool:abortTool',
   UpdateToolConfig = 'tool:updateToolConfig',
+}
+
+export enum LocalModelChannel {
+  GetList = 'local-model:getList',
+  DownloadModel = 'local-model:downloadModel',
+  DeleteModel = 'local-model:deleteModel',
+  SetDefaultModel = 'local-model:setDefaultModel',
 }

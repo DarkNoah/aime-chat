@@ -16,15 +16,20 @@ export const decodeBuffer = (data: Buffer) => {
 
 export const runCommand = async (
   command: string,
-  cwd?: string,
-  timeout?: number,
-  abortSignal?: AbortSignal,
+  options?: {
+    cwd?: string;
+    timeout?: number;
+    env?: Record<string, string>;
+    abortSignal?: AbortSignal;
+    onStdOut?: (str: string) => void;
+    onStdErr?: (str: string) => void;
+  },
 ) => {
   const {
     shell,
     tempFilePath,
     command: realCommand,
-  } = createShell(command, cwd, timeout);
+  } = createShell(command, options.cwd, options.timeout, options.env);
   let exited = false;
   let stdout = '';
   let output = '';
@@ -44,6 +49,7 @@ export const runCommand = async (
       const text = decodeBuffer(data);
       const str = stripAnsi(text);
       stdout += str;
+      options?.onStdOut?.(str);
       appendOutput(str);
     }
   });
@@ -54,6 +60,7 @@ export const runCommand = async (
       const text = decodeBuffer(data);
       const str = stripAnsi(text);
       stderr += str;
+      options?.onStdErr?.(str);
       appendOutput(str);
     }
   });
@@ -104,13 +111,13 @@ export const runCommand = async (
       }
     }
   };
-  abortSignal?.addEventListener('abort', abortHandler);
+  options?.abortSignal?.addEventListener('abort', abortHandler);
 
   // wait for the shell to exit
   try {
     await new Promise((resolve) => shell.on('exit', resolve));
   } finally {
-    abortSignal?.removeEventListener('abort', abortHandler);
+    options?.abortSignal?.removeEventListener('abort', abortHandler);
   }
 
   const backgroundPIDs: number[] = [];
@@ -132,7 +139,7 @@ export const runCommand = async (
       }
       fs.unlinkSync(tempFilePath);
     } else {
-      if (abortSignal?.aborted === false) {
+      if (options?.abortSignal?.aborted === false) {
         console.error('missing pgrep output');
       }
     }
@@ -154,6 +161,7 @@ export const createShell = (
   input_command: string,
   cwd?: string,
   timeout?: number,
+  env?: Record<string, string>,
 ) => {
   const isWindows = os.platform() === 'win32';
   const tempFileName = `shell_pgrep_${crypto
@@ -162,17 +170,24 @@ export const createShell = (
   const tempFilePath = path.join(os.tmpdir(), tempFileName);
 
   fixPath();
-  const env = {
+  let _env = {
     ...process.env,
     PATH: process.env.PATH,
     HOME: os.homedir(),
   };
 
   if (appManager.appProxy?.host && appManager.appProxy?.port) {
-    env['HTTP_PROXY'] =
+    _env['HTTP_PROXY'] =
       `http://${appManager.appProxy.host}:${appManager.appProxy.port}`;
-    env['HTTPS_PROXY'] =
+    _env['HTTPS_PROXY'] =
       `http://${appManager.appProxy.host}:${appManager.appProxy.port}`;
+  }
+
+  if (env) {
+    _env = {
+      ..._env,
+      ...env,
+    };
   }
 
   // pgrep is not available on Windows, so we can't get background PIDs
@@ -191,18 +206,14 @@ export const createShell = (
         // detached: true, // ensure subprocess starts its own process group (esp. in Linux)
         cwd: cwd,
         timeout: timeout,
-        env: {
-          ...env,
-        },
+        env: _env,
       })
     : spawn('bash', ['-c', _command], {
         stdio: ['ignore', 'pipe', 'pipe'],
-        // detached: true, // ensure subprocess starts its own process group (esp. in Linux)
+        detached: true, // ensure subprocess starts its own process group (esp. in Linux)
         cwd: cwd,
         timeout: timeout,
-        env: {
-          ...env,
-        },
+        env: _env,
       });
   return { shell, tempFilePath, command: _command };
 };

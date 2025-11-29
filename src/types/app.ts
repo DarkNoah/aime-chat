@@ -22,6 +22,11 @@ export class AppInfo {
     visionModel: string;
   };
   proxy: AppProxy;
+  apiServer: {
+    status: 'running' | 'stopped';
+    enabled: boolean;
+    port: number;
+  };
 }
 
 export class AppProxy {

@@ -1,5 +1,5 @@
 {
-  "embeddings": [
+  "embedding": [
     {
       "id": "bge-m3",
       "library": "transformers",
@@ -10,7 +10,7 @@
           "url": "https://huggingface.co/Xenova/bge-m3"
         },
         {
-          "source": "modelspoce",
+          "source": "modelscope",
           "url": "https://www.modelscope.cn/models/Xenova/bge-m3"
         }
       ]
@@ -25,7 +25,7 @@
           "url": "https://huggingface.co/Xenova/bge-large-zh-v1.5"
         },
         {
-          "source": "modelspoce",
+          "source": "modelscope",
           "url": "https://www.modelscope.cn/models/Xenova/bge-large-zh-v1.5"
         }
       ]
@@ -42,7 +42,7 @@
       "repo": "OpenVINO/Qwen3-Embedding-0.6B-fp16-ov",
       "download": [
         {
-          "source": "modelspoce",
+          "source": "modelscope",
           "url": "https://www.modelscope.cn/models/OpenVINO/Qwen3-Embedding-0.6B-fp16-ov"
         },
         {
@@ -54,10 +54,10 @@
     {
       "id": "Qwen/Qwen3-Embedding-0.6B-int8-ov",
       "library": "openvino",
-      "repo": "OpenVINO/Qwen/Qwen3-Embedding-0.6B-int8-ov",
+      "repo": "OpenVINO/Qwen3-Embedding-0.6B-int8-ov",
       "download": [
         {
-          "source": "modelspoce",
+          "source": "modelscope",
           "url": "https://www.modelscope.cn/models/OpenVINO/Qwen3-Embedding-0.6B-int8-ov"
         },
         {
@@ -69,10 +69,10 @@
     {
       "id": "Qwen/Qwen3-Embedding-0.6B",
       "library": "transformers",
-      "repo": "Qwen/Qwen3-Embedding-0.6B",
+      "repo": "onnx-community/Qwen3-Embedding-0.6B-ONNX",
       "download": [
         {
-          "source": "modelspoce",
+          "source": "modelscope",
           "url": "https://www.modelscope.cn/models/onnx-community/Qwen3-Embedding-0.6B-ONNX"
         },
         {

@@ -27,7 +27,6 @@ import { Tool, ToolConfig, ToolType } from '@/types/tool';
 import { ItemText } from '@radix-ui/react-select';
 import { useCallback, useEffect, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { toast } from 'sonner';
 import Form from '@rjsf/shadcn';
 import validator from '@rjsf/validator-ajv8';
 import { IconFolder } from '@tabler/icons-react';
@@ -45,6 +44,7 @@ import { nanoid } from '@/utils/nanoid';
 import { ToolConfigDialog } from './tool-config-dialog';
 import { ToolEditDialog } from './tool-edit-dialog';
 import { useTranslation } from 'react-i18next';
+import toast from 'react-hot-toast';
 
 function ToolDetail() {
   const location = useLocation();

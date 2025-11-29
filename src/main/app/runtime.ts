@@ -30,24 +30,20 @@ export async function installUVRuntime() {
   if (process.platform === 'darwin') {
     const result = await runCommand(
       `curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR="${path.dirname(uvPath)}" UV_NO_MODIFY_PATH=1 sh`,
-      undefined,
-      undefined,
     );
     if (result.code === 0) success = true;
   } else if (process.platform === 'win32') {
     const result = await runCommand(
       `powershell -ExecutionPolicy ByPass -Command "$env:UV_INSTALL_DIR='${path.dirname(uvPath)}'; $env:UV_NO_MODEIFY=1; irm https://astral.sh/uv/install.ps1 | iex"`,
-      undefined,
-      undefined,
     );
     if (result.code === 0) success = true;
   }
 
   if (success) {
-    appManager.send('UV Runtime installed successfully');
+    appManager.toast('UV Runtime installed successfully', { type: 'success' });
     return await getUVRuntime(true);
   } else {
-    appManager.send('Failed to install UV Runtime');
+    appManager.toast('Failed to install UV Runtime', { type: 'error' });
     uv.status = 'not_installed';
   }
 }
@@ -79,7 +75,9 @@ export async function getUVRuntime(refresh = false) {
   if (uv.status === 'installed' && refresh == false) {
     return uv;
   }
-  const result = await runCommand(`"${uvPath}" --version`, undefined, 1000 * 5);
+  const result = await runCommand(`"${uvPath}" --version`, {
+    timeout: 1000 * 5,
+  });
   if (result.code === 0 && result.stdout.startsWith('uv ')) {
     uv.status = 'installed';
     uv.installed = true;
@@ -92,15 +90,15 @@ export async function getUVRuntime(refresh = false) {
 
 export async function getNodeRuntime(refresh = false) {
   if (node.installed === undefined || refresh) {
-
-    const command = process.platform == 'darwin' || process.platform == 'linux' ? 'which node' : 'where node';
-    const result = await runCommand(command, undefined, 1000 * 5);
+    const command =
+      process.platform == 'darwin' || process.platform == 'linux'
+        ? 'which node'
+        : 'where node';
+    const result = await runCommand(command, { timeout: 1000 * 5 });
     if (result.code === 0 && fs.existsSync(result.output.trim())) {
-      const versionResult = await runCommand(
-        `node --version`,
-        undefined,
-        1000 * 5,
-      );
+      const versionResult = await runCommand(`node --version`, {
+        timeout: 1000 * 5,
+      });
       if (versionResult.code === 0 && versionResult.stdout.startsWith('v')) {
         node.version = versionResult.stdout.trim();
       }

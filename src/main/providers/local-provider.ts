@@ -1,4 +1,3 @@
-import { ModelRouterEmbeddingModel } from '@mastra/core';
 import { customProvider, EmbeddingModel, embedMany } from 'ai';
 import { openai } from '@ai-sdk/openai';
 import {
@@ -17,12 +16,28 @@ import { ProviderCredits, ProviderType } from '@/types/provider';
 import fs from 'fs';
 import path from 'path';
 import { appManager } from '../app';
+import { localModelManager } from '../local-model';
+import { LocalModelTypes } from '@/types/local-model';
+import {
+  AutoProcessor,
+  AutoTokenizer,
+  AutoModelForSequenceClassification,
+  RawImage,
+  AutoModel,
+  env,
+  pipeline,
+  ChineseCLIPModel,
+  cos_sim,
+  FeatureExtractionPipeline,
+} from '@huggingface/transformers';
 
 export type LocalEmbeddingModelId = 'Qwen/Qwen3-Embedding-0.6B' | (string & {});
 
 export type LocalConfig = {
   modelPath: string;
 };
+
+const localEmbeddings = {};
 
 export class LocalEmbeddingModel implements EmbeddingModelV2<string> {
   readonly specificationVersion = 'v2';
@@ -49,12 +64,42 @@ export class LocalEmbeddingModel implements EmbeddingModelV2<string> {
     Awaited<ReturnType<EmbeddingModelV2<string>['doEmbed']>>
   > {
     //const device = 'CPU'; // GPU can be used as well
+    const appInfo = await appManager.getInfo();
+    const modelName = this.modelId.split('/').pop();
+    const localModels = await localModelManager.getList('embedding');
+    const localModel = localModels.embedding.find((x) => x.id === this.modelId);
+    const { library, isDownloaded } = localModel;
+    if (!isDownloaded)
+      throw new Error(`Model ${this.modelId} is not downloaded`);
+    const modelPath = path.join(appInfo.modelPath, 'embedding', modelName);
 
-    const pipeline = await TextEmbeddingPipeline(this.config.modelPath);
+    let embeddings: Float32Array[] = [];
+    if (library == 'openvino') {
+      const pipeline = await TextEmbeddingPipeline(modelPath);
+      embeddings = (await pipeline.embedDocuments(values)) as Float32Array[];
+    } else if (library == 'transformers') {
+      if (localModels[this.modelId] == null) {
+        // const { pipeline, env } = await this.TransformersApi;
+        env.localModelPath = path.dirname(modelPath);
+        env.allowRemoteModels = false;
+        env.allowLocalModels = true;
+        localModels[this.modelId] = await pipeline(
+          'feature-extraction',
+          path.basename(modelPath),
+        );
+      }
 
-    const embeddings = (await pipeline.embedDocuments(
-      values,
-    )) as Float32Array[];
+      const featureExtractionPipeline = localModels[
+        this.modelId
+      ] as FeatureExtractionPipeline;
+      const output = await featureExtractionPipeline(values, {
+        pooling: 'cls',
+        normalize: true,
+      });
+      const res = output.tolist();
+      embeddings = res.map((x) => new Float32Array(x));
+    }
+
     const array = [];
     for (const embedding of embeddings) {
       const data = Array.from(embedding);
@@ -69,22 +114,39 @@ export class LocalEmbeddingModel implements EmbeddingModelV2<string> {
     };
   }
 }
+export class LocalRerankModel {
+  modelId: string;
 
-export const localProvider = customProvider({
-  textEmbeddingModels: {
-    embedding: new LocalEmbeddingModel('Qwen/Qwen3-Embedding-0.6B'),
-  },
-  // no fallback provider
-});
+  constructor(modelId: string) {
+    this.modelId = modelId;
+  }
+
+  async rerank({
+    query,
+    documents,
+  }: {
+    query: string;
+    documents: string[];
+  }): Promise<number[]> {
+    throw new Error('Method not implemented.');
+  }
+}
+// export const localProvider = customProvider({
+//   textEmbeddingModels: {
+//     embedding: new LocalEmbeddingModel('Qwen/Qwen3-Embedding-0.6B'),
+//   },
+//   // no fallback provider
+// });
 
 export class LocalProvider extends BaseProvider {
+  id: string = ProviderType.LOCAL;
   type: ProviderType = ProviderType.LOCAL;
-  name: string = 'local';
+  name: string = 'Local';
   description: string;
   defaultApiBase?: string;
 
-  constructor(provider: Providers) {
-    super({ provider });
+  constructor() {
+    super();
   }
 
   async getLanguageModelList(): Promise<{ name: string; id: string }[]> {
@@ -93,12 +155,15 @@ export class LocalProvider extends BaseProvider {
   async getEmbeddingModelList(): Promise<{ name: string; id: string }[]> {
     const models = [];
     const appInfo = await appManager.getInfo();
-    if (fs.existsSync(path.join(appInfo.modelPath, 'Qwen3-Embedding-0.6B'))) {
-      models.push({
-        name: 'Qwen3-Embedding-0.6B',
-        id: 'Qwen/Qwen3-Embedding-0.6B',
+    const embeddingModels = await localModelManager.getList();
+    embeddingModels.embedding
+      .filter((x) => x.isDownloaded)
+      .map((x) => {
+        models.push({
+          name: x.id,
+          id: x.id,
+        });
       });
-    }
     return models;
   }
 
@@ -107,6 +172,12 @@ export class LocalProvider extends BaseProvider {
   }
   textEmbeddingModel(modelId: string): EmbeddingModelV2<string> {
     return new LocalEmbeddingModel(modelId);
+  }
+  rerankModel(modelId: string) {
+    return new LocalRerankModel(modelId);
+  }
+  clipModel(modelId: string) {
+    throw new Error('Method not implemented.');
   }
   imageModel(modelId: string): ImageModelV2 {
     throw new Error('Method not implemented.');

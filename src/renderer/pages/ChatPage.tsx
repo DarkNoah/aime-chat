@@ -54,7 +54,7 @@ import {
   LanguageModelUsage,
   ToolUIPart,
 } from 'ai';
-import { toast } from 'sonner';
+import toast from 'react-hot-toast';
 import { PromptInputMessage } from '../components/ai-elements/prompt-input';
 import { Streamdown } from '../components/ai-elements/streamdown';
 import {
@@ -148,7 +148,7 @@ function ChatPage() {
   const [usage, setUsage] = useState<
     | {
         usage: LanguageModelUsage;
-        modelId: string;
+        model: string;
         maxTokens: number;
       }
     | undefined
@@ -296,7 +296,7 @@ function ChatPage() {
     };
 
     if (!threadId) {
-      const data = await window.electron.mastra.createThread();
+      const data = await window.electron.mastra.createThread(options);
       body.threadId = data.id;
       navigate(`/chat/${data.id}`, {
         state: {
@@ -312,6 +312,13 @@ function ChatPage() {
     });
     setInput('');
     chatInputRef.current?.attachmentsClear();
+  };
+
+  const handleClearMessages = async () => {
+    if (threadId) {
+      await window.electron.mastra.clearMessages(threadId);
+      setMessages([]);
+    }
   };
 
   useEffect(() => {
@@ -336,13 +343,12 @@ function ChatPage() {
         );
 
         setModelId(
-          (_thread?.metadata?.modelId as string) ??
-            appInfo?.defaultModel?.model,
+          (_thread?.metadata?.model as string) ?? appInfo?.defaultModel?.model,
         );
         setUsage(
           _thread?.metadata as {
             usage: LanguageModelUsage;
-            modelId: string;
+            model: string;
             maxTokens: number;
           },
         );
@@ -386,6 +392,7 @@ function ChatPage() {
       setTitle(t('chat.new_chat'));
       setModelId(appInfo?.defaultModel?.model);
     }
+    return () => {};
   }, [threadId]);
 
   useEffect(() => {
@@ -631,6 +638,12 @@ function ChatPage() {
                                   console.log(_part);
                                   setShowPreview(true);
                                   setPreviewToolPart(_part);
+                                  setPreviewData((data) => {
+                                    return {
+                                      ...data,
+                                      previewPanel: ChatPreviewType.TOOL_RESULT,
+                                    };
+                                  });
                                 }}
                               ></ToolMessage>
                             );
@@ -691,6 +704,7 @@ function ChatPage() {
             </div>
 
             <ChatInput
+              onClearMessages={handleClearMessages}
               showModelSelect
               showWebSearch
               showToolSelector

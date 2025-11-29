@@ -17,6 +17,7 @@ import { toolsManager } from '..';
 import matter from 'gray-matter';
 import { ToolType } from '@/types/tool';
 import fg from 'fast-glob';
+import { isString } from '@/utils/is';
 
 export interface SkillToolParams extends BaseToolParams {
   skills: SkillInfo[] | string[];
@@ -65,7 +66,7 @@ Important:
 
   getDescription = (skills: SkillInfo[] | string[]) => {
     let _skills: SkillInfo[] = [];
-    if (skills.every((skill) => typeof skill === 'string')) {
+    if (skills.length > 0 && isString(skills[0])) {
       throw new Error('Skills must be an array of SkillInfo');
     } else {
       _skills = skills as SkillInfo[];

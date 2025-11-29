@@ -36,7 +36,7 @@ import { Separator } from './components/ui/separator';
 import LanguageToggle from './components/language-toggle';
 import { I18nProvider } from './components/provider/i18n-provider';
 import { ModeToggle } from './components/mode-toggle';
-import { Toaster } from './components/ui/sonner';
+// import { Toaster } from './components/ui/sonner';
 import { HeaderProvider } from './contexts/header-provider';
 import { useHeader } from './hooks/use-title';
 // import { t } from 'i18next';
@@ -47,6 +47,8 @@ import Settings from './pages/Settings';
 import Tools from './pages/Tools';
 import ChatPage from './pages/ChatPage';
 import KnowledgeBasePage from './pages/KnowledgeBase';
+import AgentPage from './pages/agents';
+import { Toaster } from 'react-hot-toast';
 
 function Hello() {
   const { setTitle } = useHeader();
@@ -120,8 +122,9 @@ function LayoutPage(props: { children: ReactNode }) {
                 </div>
               </SidebarInset>
             </HeaderProvider>
-
             <Toaster />
+
+            {/* <Toaster /> */}
           </SidebarProvider>
         </I18nProvider>
       </ThemeProvider>
@@ -140,6 +143,7 @@ export default function App() {
           <Route path="/settings/*" element={<Settings />} />
           <Route path="/tools/*" element={<Tools />} />
           <Route path="/knowledge-base/*" element={<KnowledgeBasePage />} />
+          <Route path="/agents/*" element={<AgentPage />} />
         </Routes>
       </LayoutPage>
     </Router>

@@ -6,6 +6,7 @@ import { PaginationInfo } from '@/types/common';
 import {
   AppChannel,
   KnowledgeBaseChannel,
+  LocalModelChannel,
   MastraChannel,
   ProviderChannel,
   ToolChannel,
@@ -14,6 +15,7 @@ import {
   CreateKnowledgeBase,
   UpdateKnowledgeBase,
 } from '@/types/knowledge-base';
+import { LocalModelItem, LocalModelType } from '@/types/local-model';
 import {
   CreateProvider,
   ModelType,
@@ -66,10 +68,12 @@ const electronHandler = {
   },
   app: {
     getInfo: () => ipcRenderer.invoke(AppChannel.GetInfo),
+    toast: (
+      title: string,
+      options?: { type?: 'success' | 'error'; icon?: string },
+    ) => ipcRenderer.invoke(AppChannel.Toast, title, options),
     setTheme: (theme: string) => ipcRenderer.invoke(AppChannel.SetTheme, theme),
     openPath: (path: string) => ipcRenderer.invoke(AppChannel.OpenPath, path),
-    send: (title: string, message: string) =>
-      ipcRenderer.invoke(AppChannel.Send, title, message),
     setProxy: (data: AppProxy) => ipcRenderer.invoke(AppChannel.SetProxy, data),
     setLanguage: (language: string) =>
       ipcRenderer.invoke(AppChannel.SetLanguage, language),
@@ -84,6 +88,10 @@ const electronHandler = {
     uninstallRuntime: (pkg: string) =>
       ipcRenderer.invoke(AppChannel.UninstallRumtime, pkg),
     getRuntimeInfo: () => ipcRenderer.invoke(AppChannel.GetRuntimeInfo),
+    setApiServerPort: (port: number) =>
+      ipcRenderer.invoke(AppChannel.SetApiServerPort, port),
+    toggleApiServerEnable: (enabled: boolean) =>
+      ipcRenderer.invoke(AppChannel.ToggleApiServerEnable, enabled),
   },
   providers: {
     getList: (filter?: { tags?: ProviderTag[] }) =>
@@ -116,7 +124,8 @@ const electronHandler = {
       ipcRenderer.invoke(MastraChannel.GetThread, id),
     updateThread: (id: string, data: any) =>
       ipcRenderer.invoke(MastraChannel.UpdateThread, id, data),
-    createThread: () => ipcRenderer.invoke(MastraChannel.CreateThread),
+    createThread: (options?: any) =>
+      ipcRenderer.invoke(MastraChannel.CreateThread, options),
     deleteThread: (id: string) =>
       ipcRenderer.invoke(MastraChannel.DeleteThread, id),
     chat: (data: any) => ipcRenderer.send(MastraChannel.Chat, data),
@@ -127,6 +136,8 @@ const electronHandler = {
       ipcRenderer.invoke(MastraChannel.ChatAbort, chatId),
     saveMessages: (chatId: string, messages: MastraDBMessage[]) =>
       ipcRenderer.invoke(MastraChannel.SaveMessages, chatId, messages),
+    clearMessages: (chatId: string) =>
+      ipcRenderer.invoke(MastraChannel.ClearMessages, chatId),
   },
   knowledgeBase: {
     create: (data: CreateKnowledgeBase) =>
@@ -154,6 +165,16 @@ const electronHandler = {
       ipcRenderer.invoke(ToolChannel.ToggleToolActive, id),
     updateToolConfig: (id: string, value: any) =>
       ipcRenderer.invoke(ToolChannel.UpdateToolConfig, id, value),
+  },
+  localModel: {
+    getList: (): Promise<Record<LocalModelType, LocalModelItem[]>> =>
+      ipcRenderer.invoke(LocalModelChannel.GetList),
+    downloadModel: (data: { modelId: string; type: string; source: string }) =>
+      ipcRenderer.invoke(LocalModelChannel.DownloadModel, data),
+    deleteModel: (modelId: string, type: string) =>
+      ipcRenderer.invoke(LocalModelChannel.DeleteModel, modelId, type),
+    setDefaultModel: (modelId: string) =>
+      ipcRenderer.invoke(LocalModelChannel.SetDefaultModel, modelId),
   },
 };
 

@@ -7,15 +7,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/renderer/components/ui/dialog';
-import type { RJSFSchema, Widget, WidgetProps } from '@rjsf/utils';
-import { IconSettings } from '@tabler/icons-react';
-import { ZodSchema } from 'zod';
-import validator from '@rjsf/validator-ajv8';
-import { zodToJsonSchema } from 'zod-to-json-schema';
-import { ProviderSelector } from '@/renderer/components/provider-selector';
-import { ProviderTag } from '@/types/provider';
 import React, { useEffect, useState } from 'react';
-import { toast } from 'sonner';
+import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import {
   ToggleGroup,

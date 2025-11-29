@@ -96,10 +96,10 @@ export const ChatToolResultPreview = React.forwardRef<
         );
       } else if (isString(part.output)) {
         return (
-          <Tabs defaultValue="text">
+          <Tabs defaultValue="code">
             <TabsList>
-              <TabsTrigger value="text">Text</TabsTrigger>
               <TabsTrigger value="code">Code</TabsTrigger>
+              <TabsTrigger value="text">Text</TabsTrigger>
             </TabsList>
             <TabsContent value="text">
               <Streamdown className="bg-secondary p-4 rounded-2xl  text-wrap break-all">
@@ -139,6 +139,7 @@ export const ChatToolResultPreview = React.forwardRef<
       if (!part?.input) return null;
       switch (toolName) {
         case 'PythonExecute':
+        case 'CodeExecution':
           return (
             <>
               {part?.input?.packages && (
@@ -179,12 +180,6 @@ export const ChatToolResultPreview = React.forwardRef<
               )}
             </div>
           );
-        case 'Bash':
-          return (
-            <Streamdown>
-              {`\`\`\`bash\n${part?.input?.command}\n\`\`\``}
-            </Streamdown>
-          );
         default:
           return (
             <>
@@ -199,7 +194,12 @@ export const ChatToolResultPreview = React.forwardRef<
     return (
       <Card className={cn('h-full w-full', className)}>
         <CardHeader>
-          <CardTitle>{toolName}</CardTitle>
+          <CardTitle>
+            {toolName}{' '}
+            <small className="text-xs text-muted-foreground">
+              {part?.toolCallId}
+            </small>
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col gap-2">

@@ -38,11 +38,13 @@ import {
 } from './runtime';
 import { fstat } from 'fs';
 import path from 'path';
+import mastraManager from '../mastra';
 
 class AppManager extends BaseManager {
   repository: Repository<Providers>;
   settingsRepository: Repository<Settings>;
   appProxy: AppProxy;
+  defaultApiServerPort = 41100;
 
   constructor() {
     super();
@@ -71,6 +73,7 @@ class AppManager extends BaseManager {
     const modelPath =
       settings.find((x) => x.id === 'modelPath')?.value ??
       getDefaultModelPath();
+    const apiServer = settings.find((x) => x.id === 'apiServer')?.value;
     return {
       name: app.getName(),
       appPath: app.getAppPath(),
@@ -95,12 +98,20 @@ class AppManager extends BaseManager {
         ({
           mode: 'noproxy',
         } as AppProxy),
+      apiServer: {
+        status: mastraManager.httpServer?.listening ? 'running' : 'stopped',
+        enabled: apiServer?.enabled ?? false,
+        port: apiServer?.port ?? this.defaultApiServerPort,
+      },
     };
   }
 
-  @channel(AppChannel.Send)
-  public async send(title: string, message?: string): Promise<void> {
-    this.getMainWindow()?.webContents.send(AppChannel.Send, title, message);
+  @channel(AppChannel.Toast)
+  public async toast(
+    title: string,
+    options?: { type?: 'success' | 'error'; icon?: string },
+  ): Promise<void> {
+    this.getMainWindow()?.webContents.send(AppChannel.Toast, title, options);
   }
 
   public async sendEvent(channel: string, data: any): Promise<void> {
@@ -240,6 +251,41 @@ class AppManager extends BaseManager {
       uv: uv,
       node: await getNodeRuntime(),
     };
+  }
+
+  @channel(AppChannel.SetApiServerPort)
+  public async setApiServerPort(port: number) {
+    let settings = await this.settingsRepository.findOne({
+      where: { id: 'apiServer' },
+    });
+    if (!settings?.value) {
+      settings = new Settings('apiServer', {
+        port: port,
+        enabled: false,
+      });
+    }
+    settings.value.port = port;
+    await this.settingsRepository.upsert(settings, ['id']);
+  }
+
+  @channel(AppChannel.ToggleApiServerEnable)
+  public async toggleApiServerEnable(enabled: boolean) {
+    let settings = await this.settingsRepository.findOne({
+      where: { id: 'apiServer' },
+    });
+    if (!settings?.value) {
+      settings = new Settings('apiServer', {
+        port: this.defaultApiServerPort,
+        enabled: enabled,
+      });
+    }
+    settings.value.enabled = enabled;
+    if (enabled) {
+      await mastraManager.start(settings.value.port);
+    } else {
+      await mastraManager.close();
+    }
+    await this.settingsRepository.upsert(settings, ['id']);
   }
 }
 export const appManager = new AppManager();

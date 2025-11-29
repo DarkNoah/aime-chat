@@ -22,6 +22,24 @@ import { useTranslation } from 'react-i18next';
 import { Controller, useForm } from 'react-hook-form';
 import { useState } from 'react';
 import { useTheme } from 'next-themes';
+import {
+  InputGroup,
+  InputGroupAddon,
+} from '@/renderer/components/ui/input-group';
+import { Switch } from '@/renderer/components/ui/switch';
+import {
+  IconPlayerPauseFilled,
+  IconPlayerPlay,
+  IconPlayerPlayFilled,
+  IconPlayerStop,
+  IconRun,
+} from '@tabler/icons-react';
+import { Button } from '@/renderer/components/ui/button';
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from '@/renderer/components/ui/alert';
 
 export default function General() {
   const { t } = useTranslation();
@@ -32,6 +50,9 @@ export default function General() {
 
   const [proxy, setProxy] = useState<AppProxy>(
     appInfo?.proxy || { mode: 'noproxy' },
+  );
+  const [apiServerPort, setApiServerPort] = useState<number>(
+    appInfo?.apiServer?.port || 0,
   );
 
   const onChangeTheme = async (value: string) => {
@@ -45,6 +66,17 @@ export default function General() {
     await window.electron.app.setProxy(data);
     await getAppInfo();
   };
+
+  const onChangeApiServerPort = async (port: number) => {
+    await window.electron.app.setApiServerPort(port);
+    await getAppInfo();
+  };
+
+  const onChangeApiServerEnable = async (enabled: boolean) => {
+    await window.electron.app.toggleApiServerEnable(enabled);
+    await getAppInfo();
+  };
+
   return (
     <FieldGroup className="p-4">
       <Field className="max-w-[200px]">
@@ -139,6 +171,51 @@ export default function General() {
 
       <Field>
         <FieldLabel>{t('settings.apiServer')}</FieldLabel>
+        <div className="flex flex-row items-center gap-2">
+          <Label>{t('settings.apiServerPort')}</Label>
+          <Input
+            type="number"
+            className="w-[100px]"
+            min={1}
+            max={65535}
+            placeholder="Port: 1-65535"
+            disabled={appInfo?.apiServer?.enabled}
+            value={apiServerPort}
+            onChange={(e) => {
+              setApiServerPort(parseInt(e.target.value, 10));
+            }}
+            onBlur={() => {
+              onChangeApiServerPort(apiServerPort);
+            }}
+          />
+
+          {appInfo?.apiServer?.enabled && (
+            <Button
+              variant="outline"
+              onClick={() => onChangeApiServerEnable(false)}
+            >
+              <IconPlayerStop></IconPlayerStop>
+              {t('settings.apiServerStop')}
+            </Button>
+          )}
+          {!appInfo?.apiServer?.enabled && (
+            <Button
+              variant="outline"
+              onClick={() => onChangeApiServerEnable(true)}
+            >
+              <IconPlayerPlay></IconPlayerPlay>
+              {t('common.apiServerStart')}
+            </Button>
+          )}
+        </div>
+        {appInfo?.apiServer?.status === 'running' && (
+          <Alert>
+            <AlertTitle>{t('settings.apiServerTRunningips')}</AlertTitle>
+            <AlertDescription>
+              http://localhost:{appInfo?.apiServer?.port}
+            </AlertDescription>
+          </Alert>
+        )}
       </Field>
     </FieldGroup>
   );

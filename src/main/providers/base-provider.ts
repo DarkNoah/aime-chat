@@ -11,8 +11,6 @@ import {
 import OpenAI from 'openai';
 import { ZodSchema } from 'zod';
 import { ProviderCredits, ProviderType } from '@/types/provider';
-import { MastraModelConfig } from '@mastra/core/llm';
-import { MastraLanguageModel } from '@mastra/core';
 
 export interface BaseProviderParams {
   provider: Providers;

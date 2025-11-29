@@ -20,6 +20,7 @@ import {
   IconEdit,
   IconTools,
   IconBook,
+  IconRobot,
 } from '@tabler/icons-react';
 // import { NavMain } from '@/app/(pages)/nav-main';
 // import { NavSecondary } from '@/app/dashboard/nav-secondary';
@@ -65,6 +66,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       title: t('sidebar.knowledge_base'),
       url: '/knowledge-base',
       icon: IconBook,
+    },
+    {
+      title: t('sidebar.agents'),
+      url: '/agents',
+      icon: IconRobot,
     },
   ];
   return (

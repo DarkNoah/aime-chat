@@ -13,6 +13,7 @@ import { app } from 'electron';
 import fs from 'fs';
 import path from 'path';
 import { nanoid } from '@/utils/nanoid';
+import { ToolTags } from '@/types/tool';
 
 export class PythonExecute extends BaseTool {
   id: string = 'PythonExecute';
@@ -28,6 +29,8 @@ Usage:
       .optional()
       .describe('Optional: install python packages (eg: pandas, numpy)'),
   });
+
+  tags = [ToolTags.CODE];
 
   constructor() {
     super();
@@ -52,36 +55,36 @@ Usage:
       const tempFile = path.join(tempDir, nanoid() + '.py');
       const file = await fs.promises.writeFile(tempFile, code);
       const resultInit = await runCommand(
-        `uv init ${tempDir}`,
-        uvRuntime?.dir,
-        undefined,
+        `./uv init "${tempDir}" && ./uv venv "${path.join(tempDir, '.venv')}"`,
+        {
+          cwd: uvRuntime?.dir,
+        },
       );
-      console.log(resultInit);
       if (resultInit.code !== 0) {
         throw new Error(
           `Failed to initialize UV project: ${resultInit.stderr}`,
         );
       }
+
       if (packages && packages.length > 0) {
         const result = await runCommand(
-          `uv add ${packages.join(' ')} --project ${tempDir}`,
-          uvRuntime?.dir,
-          undefined,
+          `./uv add ${packages.join(' ')} --project "${tempDir}"`,
+          {
+            cwd: uvRuntime?.dir,
+          },
         );
         console.log(result);
         if (result.code !== 0) {
           throw new Error(`Failed to add packages: ${result.stderr}`);
         }
       }
-      const result = await runCommand(
-        `uv run ${tempFile}`,
-        uvRuntime?.dir,
-        undefined,
-      );
+      const result = await runCommand(`./uv run "${tempFile}"`, {
+        cwd: uvRuntime?.dir,
+      });
       return [
         `Directory: ${tempDir || '(root)'}`,
-        `Stdout: ${result.stdout || '(empty)'}`,
-        `Stderr: ${result.stderr || '(empty)'}`,
+        `Stdout: \n${result.stdout || '(empty)'}`,
+        `Stderr: \n${result.stderr || '(empty)'}`,
         `Error: ${result.error ?? '(none)'}`,
         `Exit Code: ${result.code ?? '(none)'}`,
         `Signal: ${result.processSignal ?? '(none)'}`,

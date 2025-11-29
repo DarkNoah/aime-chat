@@ -20,7 +20,7 @@ import { error } from 'console';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { PythonExecute } from './code/python-execute';
 import BaseTool from './base-tool';
-import { StreamTest } from './common/stream-test';
+import { StreamTest } from './test/stream-test';
 import { TodoWrite } from './common/todo-write';
 import { FileSystem } from './file-system';
 import BaseToolkit from './base-toolkit';
@@ -31,6 +31,17 @@ import { Skill, skillManager } from './common/skill';
 import { BashToolkit } from './file-system/bash';
 import { SendEvent } from './common/send-event';
 import { WebSearch } from './web/web-search';
+import { RemoveBackground } from './image/rmbg';
+import {
+  McpServer,
+  ResourceTemplate,
+} from '@modelcontextprotocol/sdk/server/mcp.js';
+import { z, ZodSchema } from 'zod';
+import { isArray, isObject } from '@/utils/is';
+import { CodeExecution } from './code/code-execution';
+import ExpenseManagementToolkit from './test/expense_management';
+import ToolToolkit from './common/tool';
+import { Vision } from './vision/vision';
 
 interface BuiltInToolContext {
   tool: BaseTool;
@@ -55,6 +66,8 @@ class ToolsManager extends BaseManager {
   builtInToolContexts: BuiltInToolContext[] = [];
 
   toolsRepository: Repository<Tools>;
+
+  mcpServer: McpServer;
 
   constructor() {
     super();
@@ -125,15 +138,23 @@ class ToolsManager extends BaseManager {
   }
 
   async registerBuiltInTools() {
-    this.registerBuiltInTool(PythonExecute);
+    // this.registerBuiltInTool(PythonExecute);
     this.registerBuiltInTool(NodejsExecute);
-    this.registerBuiltInTool(StreamTest);
+    this.registerBuiltInTool(CodeExecution);
     this.registerBuiltInTool(TodoWrite);
     this.registerBuiltInTool(BashToolkit);
     this.registerBuiltInTool(FileSystem);
     this.registerBuiltInTool(AskUserQuestion);
     this.registerBuiltInTool(SendEvent);
     this.registerBuiltInTool(WebSearch);
+    this.registerBuiltInTool(RemoveBackground);
+    this.registerBuiltInTool(Vision);
+    this.registerBuiltInTool(ToolToolkit);
+    if (!app.isPackaged) {
+      this.registerBuiltInTool(ExpenseManagementToolkit);
+      this.registerBuiltInTool(StreamTest);
+    }
+
     const skills = await skillManager.getClaudeSkills();
     this.registerBuiltInTool(Skill, {
       skills: skills.map((skill) => ({
@@ -142,6 +163,7 @@ class ToolsManager extends BaseManager {
         path: skill.path,
       })),
     });
+    await this.refreshMcpServer();
 
     // this.registerBuiltInTool(
     //   new Skill({
@@ -174,6 +196,91 @@ class ToolsManager extends BaseManager {
     }
     return servers;
   };
+
+  async refreshMcpServer() {
+    await this.mcpServer?.close();
+    this.mcpServer = new McpServer({
+      name: 'aime-server',
+      version: '1.0.0',
+    });
+    const tools = await this.getList();
+    for (const tool of tools[ToolType.BUILD_IN]) {
+      const builtInTool = this.builtInTools.find((x) => x.id === tool.id);
+
+      if (builtInTool.isToolkit) {
+        for (const _tool of builtInTool.tools) {
+          const inputSchema = _tool.inputSchema?.shape;
+          const outputSchema = _tool.outputSchema?.shape ?? undefined;
+
+          this.mcpServer.registerTool(
+            _tool.id,
+            {
+              description: _tool.description,
+              inputSchema,
+              outputSchema,
+              // outputSchema: zodToJsonSchema(builtInTool.outputSchema),
+            },
+            async (args) => {
+              const toolEntity = await this.toolsRepository.findOne({
+                where: { id: builtInTool.id },
+              });
+              if (!toolEntity?.isActive) throw new Error('Tool is not active');
+              const buildedTools = (await this.buildTool(
+                builtInTool.id,
+              )) as BaseTool[];
+              const result = await buildedTools
+                .find((x) => x.id === _tool.id)
+                ?.execute?.(args);
+              return {
+                content: [
+                  {
+                    type: 'text',
+                    text: isObject(result) ? JSON.stringify(result) : result,
+                  },
+                ],
+                // structuredContent: result,
+              };
+            },
+          );
+        }
+      } else {
+        // this.server.server.
+        const inputSchema = builtInTool.inputSchema.shape;
+        // const outputSchema = builtInTool.outputSchema?.shape ?? undefined;
+        this.mcpServer.registerTool(
+          tool.name,
+          {
+            description: builtInTool.description,
+            inputSchema,
+            // outputSchema,
+            // outputSchema: zodToJsonSchema(builtInTool.outputSchema),
+          },
+          async (args) => {
+            const toolEntity = await this.toolsRepository.findOne({
+              where: { id: builtInTool.id },
+            });
+            if (!toolEntity.isActive) throw new Error('Tool is not active');
+            const buildedTool = (await this.buildTool(
+              builtInTool.id,
+            )) as BaseTool;
+            const result = await buildedTool.execute?.(args);
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text:
+                    isObject(result) || isArray(result)
+                      ? JSON.stringify(result)
+                      : result,
+                },
+              ],
+              // structuredContent: result,
+            };
+          },
+        );
+      }
+    }
+  }
 
   async init(): Promise<void> {
     this.mcpClients = [];
@@ -550,25 +657,30 @@ class ToolsManager extends BaseManager {
         }
       }
     } else if (tool.type === ToolType.BUILD_IN) {
-      const buildedTools = await this.buildTools([tool.id]);
-      const buildInTool = buildedTools[toolName];
+      let buildedTool = await this.buildTool(
+        tool.id as `${ToolType.BUILD_IN}:${string}`,
+      );
+
+      if (Array.isArray(buildedTool)) {
+        buildedTool = buildedTool.find((x) => x.id === toolName);
+      }
 
       const context = {
-        tool: buildInTool as BaseTool,
+        tool: buildedTool as BaseTool,
         abortController: new AbortController(),
       };
       this.builtInToolContexts.push(context);
       let res;
 
       try {
-        res = await (buildInTool as BaseTool).execute?.(input, {
+        res = await (buildedTool as BaseTool).execute?.(input, {
           abortSignal: context.abortController.signal,
         });
       } catch (err) {
         throw err;
       } finally {
         this.builtInToolContexts = this.builtInToolContexts.filter(
-          (x) => x.tool.id !== buildInTool.id,
+          (x) => x.tool.id !== buildedTool.id,
         );
       }
 
@@ -582,16 +694,28 @@ class ToolsManager extends BaseManager {
       ?.abortController?.abort();
   }
 
+  async buildTool(
+    toolId?: `${ToolType.BUILD_IN}:${string}`,
+    config?: any,
+  ): Promise<BaseTool | BaseTool[]> {
+    const tools = await this.buildTools([toolId], { [toolId]: config });
+
+    return (
+      tools[toolId.substring(ToolType.BUILD_IN.length + 1)] ??
+      Object.values(tools)
+    );
+  }
+
   async buildTools(
-    toolNames?: string[],
+    toolIds?: `${ToolType.BUILD_IN}:${string}`[],
     config?: Record<`${ToolType.BUILD_IN}:${string}`, any>,
   ): Promise<Record<string, BaseTool>> {
-    if (!toolNames) return {};
+    if (!toolIds) return {};
     const tools = {};
     const toolEntities = await this.toolsRepository.find({
-      where: { type: ToolType.BUILD_IN, id: In(toolNames) },
+      where: { type: ToolType.BUILD_IN, id: In(toolIds) },
     });
-    for (const toolName of toolNames) {
+    for (const toolName of toolIds) {
       const tool = this.builtInTools.find((x) => x.id === toolName);
 
       if (!tool) continue;

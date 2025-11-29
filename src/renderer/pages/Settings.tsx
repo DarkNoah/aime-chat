@@ -20,10 +20,10 @@ import {
   useLocation,
   useNavigate,
 } from 'react-router-dom';
-import About from './Settings/About';
-import General from './Settings/General';
-import Providers from './Settings/Providers';
-import Runtime from './Settings/Runtime';
+import About from './Settings/about';
+import General from './Settings/general';
+import Providers from './Settings/providers';
+import Runtime from './Settings/runtime';
 import { Item } from '../components/ui/item';
 import LocalModel from './Settings/local-model';
 import DefaultModel from './Settings/default-model';

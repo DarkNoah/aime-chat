@@ -37,4 +37,42 @@ export const ToolConfig = {
       },
     },
   },
+  Extract: {
+    configSchema: z.strictObject({
+      modelId: z.string(),
+    }),
+    uiSchema: {
+      modelId: {
+        'ui:widget': 'modelSelector',
+        'ui:title': t('common.model'),
+      },
+    },
+  },
+  Vision: {
+    configSchema: z.strictObject({
+      modelId: z.string(),
+    }),
+    uiSchema: {
+      modelId: {
+        'ui:widget': 'modelSelector',
+        'ui:title': t('common.model'),
+      },
+    },
+  },
+  RemoveBackground: {
+    configSchema: z.strictObject({
+      modelName: z.enum(['rmbg-1.4', 'rmbg-2.0']),
+    }),
+    uiSchema: {
+      modelName: {
+        'ui:title': t('common.model_name'),
+      },
+    },
+  },
 };
+
+export enum ToolTags {
+  CODE = 'code',
+  WORK = 'work',
+  VISION = 'vision',
+}

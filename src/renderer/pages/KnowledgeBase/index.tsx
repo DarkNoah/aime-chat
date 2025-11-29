@@ -106,10 +106,10 @@ function KnowledgeBasePage() {
     setKbs(list || []);
   };
   useEffect(() => {
-    setTitle(t('common.knowledge-base'));
+    setTitle(t('sidebar.knowledge-base'));
 
     getData();
-  }, [setTitle]);
+  }, [setTitle, t]);
 
   const handleSubmit = async (values: {
     name: string;

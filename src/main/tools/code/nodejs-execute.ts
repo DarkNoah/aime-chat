@@ -1,4 +1,3 @@
-import { Agent } from '@mastra/core/agent';
 import {
   createTool,
   MastraToolInvocationOptions,
@@ -13,6 +12,7 @@ import { app } from 'electron';
 import fs from 'fs';
 import path from 'path';
 import { nanoid } from '@/utils/nanoid';
+import { ToolTags } from '@/types/tool';
 
 export class NodejsExecute extends BaseTool {
   id: string = 'NodejsExecute';
@@ -28,6 +28,8 @@ Usage:
       .optional()
       .describe('Optional: install npm dependencies (eg: express, axios)'),
   });
+
+  tags = [ToolTags.CODE];
 
   constructor() {
     super();
@@ -50,30 +52,31 @@ Usage:
       tempFile = path.join(tempDir, 'src', nanoid() + '.ts');
       result = await runCommand(
         `npm init -y && npm install typescript --save-dev && npx tsc --init && mkdir src`,
-        tempDir,
-        undefined,
+        {
+          cwd: tempDir,
+        },
       );
       await fs.promises.writeFile(tempFile, code);
       if (dependencies && dependencies.length > 0) {
-        result = await runCommand(
-          `npm install ${dependencies.join(' ')}`,
-          tempDir,
-          undefined,
-        );
+        result = await runCommand(`npm install ${dependencies.join(' ')}`, {
+          cwd: tempDir,
+        });
       }
 
-      result = await runCommand(`npx ts-node ${tempFile}`, tempDir, undefined);
+      result = await runCommand(`npx ts-node "${tempFile}"`, {
+        cwd: tempDir,
+      });
     } else {
       tempFile = path.join(tempDir, nanoid() + '.js');
       await fs.promises.writeFile(tempFile, code);
       if (dependencies && dependencies.length > 0) {
-        result = await runCommand(
-          `npm install ${dependencies.join(' ')}`,
-          tempDir,
-          undefined,
-        );
+        result = await runCommand(`npm install ${dependencies.join(' ')}`, {
+          cwd: tempDir,
+        });
       }
-      result = await runCommand(`node ${tempFile}`, tempDir, undefined);
+      result = await runCommand(`node "${tempFile}"`, {
+        cwd: tempDir,
+      });
     }
 
     await fs.promises.rm(tempDir, { recursive: true });
