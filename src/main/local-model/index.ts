@@ -8,8 +8,28 @@ import path from 'path';
 import fs from 'fs';
 import { runCommand } from '../utils/shell';
 import { getUVRuntime } from '../app/runtime';
+import {
+  AutoModel,
+  AutoModelForSequenceClassification,
+  AutoProcessor,
+  AutoTokenizer,
+  PreTrainedModel,
+} from '@huggingface/transformers';
+
+const MODEL_RELEASE_DELAY_MS = 5 * 60 * 1000;
+
+type CachedModel = {
+  model: Awaited<ReturnType<typeof AutoModel.from_pretrained>>;
+  processor?: Awaited<ReturnType<typeof AutoProcessor.from_pretrained>>;
+  tokenizer?: Awaited<ReturnType<typeof AutoTokenizer.from_pretrained>>;
+  lastUsed?: number;
+  releaseTimer?: ReturnType<typeof setTimeout>;
+};
 
 class LocalModelManager extends BaseManager {
+  models: Record<string, CachedModel> = {};
+  modelLoadPromises: Record<string, Promise<CachedModel>> = {};
+
   constructor() {
     super();
   }
@@ -95,6 +115,140 @@ class LocalModelManager extends BaseManager {
     const modelPath = path.join(appInfo.modelPath, type, modelName);
     if (fs.existsSync(modelPath)) {
       await fs.promises.rm(modelPath, { recursive: true });
+    }
+  }
+
+  public async ensureModelLoaded(
+    task:
+      | 'background-removal'
+      | 'feature-extraction'
+      | 'text-classification'
+      | 'image-feature-extraction'
+      | string,
+    modelName: string,
+    modelPath: string,
+    options?: {
+      dtype?:
+        | 'auto'
+        | 'fp16'
+        | 'q8'
+        | 'q4'
+        | 'fp32'
+        | 'int8'
+        | 'uint8'
+        | 'bnb4'
+        | 'q4f16'
+        | Record<
+            string,
+            | 'auto'
+            | 'fp16'
+            | 'q8'
+            | 'q4'
+            | 'fp32'
+            | 'int8'
+            | 'uint8'
+            | 'bnb4'
+            | 'q4f16'
+          >;
+    },
+  ): Promise<CachedModel> {
+    // 如果模型已缓存，更新 lastUsed 并重置计时器
+    if (this.models[modelName]) {
+      const entry = this.models[modelName];
+      entry.lastUsed = Date.now();
+      this.scheduleModelRelease(modelName);
+      return entry;
+    }
+
+    // 如果正在加载中，等待加载完成
+    if (this.modelLoadPromises[modelName]) {
+      const entry = await this.modelLoadPromises[modelName];
+      entry.lastUsed = Date.now();
+      this.scheduleModelRelease(modelName);
+      return entry;
+    }
+
+    // 开始加载模型
+    this.modelLoadPromises[modelName] = (async () => {
+      let entry: CachedModel;
+      if (task == 'background-removal' || 'image-feature-extraction') {
+        const [model, processor] = await Promise.all([
+          AutoModel.from_pretrained(modelPath, {
+            local_files_only: true,
+          }),
+          AutoProcessor.from_pretrained(modelPath, {}),
+        ]);
+        entry = {
+          model,
+          processor,
+        };
+      } else if (task == 'text-classification') {
+        const [model, tokenizer] = await Promise.all([
+          AutoModelForSequenceClassification.from_pretrained(modelPath, {
+            local_files_only: true,
+            dtype: options?.dtype,
+          }),
+          AutoTokenizer.from_pretrained(modelPath),
+        ]);
+        entry = {
+          model,
+          tokenizer,
+        };
+      }
+      entry.lastUsed = Date.now();
+      this.models[modelName] = entry;
+      return entry;
+    })();
+
+    try {
+      const entry = await this.modelLoadPromises[modelName];
+      // 加载完成后启动释放计时器
+      this.scheduleModelRelease(modelName);
+      return entry;
+    } finally {
+      delete this.modelLoadPromises[modelName];
+    }
+  }
+
+  scheduleModelRelease(modelName: string) {
+    const entry = this.models[modelName];
+    if (!entry) {
+      return;
+    }
+
+    // 清除已有的计时器
+    if (entry.releaseTimer) {
+      clearTimeout(entry.releaseTimer);
+    }
+
+    // 设置新的释放计时器
+    entry.releaseTimer = setTimeout(() => {
+      entry.releaseTimer = undefined;
+      void this.releaseModelIfIdle(modelName);
+    }, MODEL_RELEASE_DELAY_MS);
+  }
+
+  async releaseModelIfIdle(modelName: string): Promise<void> {
+    const entry = this.models[modelName];
+    if (!entry) {
+      return;
+    }
+
+    const idleTime = Date.now() - entry.lastUsed;
+    // 如果空闲时间不足，重新调度释放
+    if (idleTime < MODEL_RELEASE_DELAY_MS) {
+      this.scheduleModelRelease(modelName);
+      return;
+    }
+
+    // 释放模型资源
+    try {
+      await entry.model?.dispose?.();
+      console.warn(`release model ${modelName} success`);
+    } catch (error) {
+      console.warn(`release model ${modelName} failed`, error);
+    } finally {
+      delete this.models[modelName];
     }
   }
 }

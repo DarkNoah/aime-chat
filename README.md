@@ -4,7 +4,7 @@
   <img src="assets/icon.png" alt="AIME Chat Logo" width="120" />
   
   <p>
-    <strong>一个功能强大的 AI 桌面聊天应用</strong>
+    <strong>A Powerful AI Desktop Chat Application</strong>
   </p>
 
   <p>
@@ -14,215 +14,226 @@
   </p>
 
   <p>
-    <strong>中文</strong> | <a href="README_EN.md">English</a>
+    <a href="README_CN.md">中文</a> | <strong>English</strong>
   </p>
 </div>
 
 ---
 
-## ✨ 功能特性
+## ✨ Features
 
-- 🤖 **多 AI 提供商支持** - 集成 OpenAI、DeepSeek、Google、智谱 AI、Ollama、LMStudio、ModelScope 等多个主流 AI 提供商
-- 💬 **智能对话** - 基于 Mastra 框架的强大 AI Agent 系统，支持流式响应和工具调用
-- 📚 **知识库管理** - 内置向量数据库，支持文档检索和知识问答
-- 🛠️ **工具集成** - 支持 MCP（Model Context Protocol）客户端，可扩展各类工具能力
-- 🎨 **现代化 UI** - 使用 shadcn/ui 组件库，支持亮色/暗色主题切换
-- 🌍 **国际化支持** - 内置中文和英文界面
-- 🔒 **本地优先** - 数据存储在本地，保护隐私安全
-- ⚡ **高性能** - 基于 Electron 构建，跨平台原生体验
+- 🤖 **Multiple AI Provider Support** - Integrated with mainstream AI providers including OpenAI, DeepSeek, Google, Zhipu AI, Ollama, LMStudio, ModelScope, and more
+- 💬 **Intelligent Conversations** - Powerful AI Agent system based on Mastra framework, supporting streaming responses and tool calling
+- 📚 **Knowledge Base Management** - Built-in vector database with support for document retrieval and knowledge Q&A
+- 🛠️ **Tool Integration** - Support for MCP (Model Context Protocol) client with extensible tool capabilities
+- 🎨 **Modern UI** - Built with shadcn/ui component library, supports light/dark theme switching
+- 🌍 **Internationalization** - Built-in Chinese and English interfaces
+- 🔒 **Local First** - Data stored locally for privacy protection
+- ⚡ **High Performance** - Built on Electron for cross-platform native experience
 
-## 🚀 快速开始
+## 🚀 Quick Start
 
-### 前置要求
+### Prerequisites
 
 - Node.js >= 14.x
 - npm >= 7.x
 
-### 安装依赖
+### Install Dependencies
 
 ```bash
 npm install
 ```
 
-### 开发模式
+### Development Mode
 
-启动开发服务器：
+Start the development server:
 
 ```bash
 npm start
 ```
 
-应用将在开发模式下启动，支持热重载。
+The application will start in development mode with hot reload support.
 
-### 打包应用
+### Build Application
 
-构建生产版本：
+Build production version:
 
 ```bash
 npm run build
 ```
 
-打包桌面应用：
+Package desktop application:
 
 ```bash
 npm run package
 ```
 
-打包后的应用将生成在 `release/build` 目录中。
+Packaged applications will be generated in the `release/build` directory.
 
-## 📦 项目结构
+## 📦 Project Structure
 
 ```
 aime-chat/
-├── assets/              # 静态资源文件
-│   ├── icon.png        # 应用图标
-│   ├── models.json     # AI 模型配置
-│   └── model-logos/    # 提供商 Logo
+├── assets/              # Static assets
+│   ├── icon.png        # Application icon
+│   ├── models.json     # AI model configurations
+│   └── model-logos/    # Provider logos
 ├── src/
-│   ├── main/           # Electron 主进程
-│   │   ├── providers/  # AI 提供商实现
-│   │   ├── mastra/     # Mastra Agent 和工具
-│   │   ├── knowledge-base/ # 知识库管理
-│   │   ├── tools/      # 工具系统
-│   │   └── db/         # 数据库
-│   ├── renderer/       # React 渲染进程
-│   │   ├── components/ # UI 组件
-│   │   ├── pages/      # 页面组件
+│   ├── main/           # Electron main process
+│   │   ├── providers/  # AI provider implementations
+│   │   ├── mastra/     # Mastra Agent and tools
+│   │   ├── knowledge-base/ # Knowledge base management
+│   │   ├── tools/      # Tool system
+│   │   └── db/         # Database
+│   ├── renderer/       # React renderer process
+│   │   ├── components/ # UI components
+│   │   ├── pages/      # Page components
 │   │   ├── hooks/      # React Hooks
-│   │   └── styles/     # 样式文件
-│   ├── types/          # TypeScript 类型定义
-│   ├── entities/       # 数据实体
-│   └── i18n/           # 国际化配置
-└── release/            # 构建产物
+│   │   └── styles/     # Style files
+│   ├── types/          # TypeScript type definitions
+│   ├── entities/       # Data entities
+│   └── i18n/           # Internationalization config
+└── release/            # Build artifacts
 ```
 
-## 🎯 核心功能
+## 🎯 Core Features
 
-### AI 提供商配置
+### AI Provider Configuration
 
-支持配置多个 AI 提供商，每个提供商可以独立设置：
+Support for configuring multiple AI providers, each with independent settings:
 
-- API 密钥
-- API 端点
-- 可用模型列表
-- 启用/禁用状态
+- API Key
+- API Endpoint
+- Available model list
+- Enable/Disable status
 
-支持的提供商包括：
+Supported providers include:
 
-| 提供商 | 类型 | 说明 |
-|--------|------|------|
-| OpenAI | 云端 | GPT 系列模型 |
-| DeepSeek | 云端 | DeepSeek 系列模型 |
-| Google | 云端 | Gemini 系列模型 |
-| 智谱 AI | 云端 | GLM 系列模型 |
-| Ollama | 本地 | 本地运行开源模型 |
-| LMStudio | 本地 | 本地模型管理工具 |
-| ModelScope | 云端 | 魔搭社区模型 |
+| Provider | Type | Description |
+|----------|------|-------------|
+| OpenAI | Cloud | GPT series models |
+| DeepSeek | Cloud | DeepSeek series models |
+| Google | Cloud | Gemini series models |
+| Zhipu AI | Cloud | GLM series models |
+| Ollama | Local | Run open-source models locally |
+| LMStudio | Local | Local model management tool |
+| ModelScope | Cloud | ModelScope community models |
 
-### 知识库功能
+### Knowledge Base Features
 
-- 📄 文档上传和解析
-- 🔍 向量化存储和检索
-- 💡 基于知识库的智能问答
-- 📊 知识库管理界面
+- 📄 Document upload and parsing
+- 🔍 Vector storage and retrieval
+- 💡 Intelligent Q&A based on knowledge base
+- 📊 Knowledge base management interface
 
-### 工具系统
+### Tool System
 
-- 🔧 内置工具：Bash 执行、网页抓取等
-- 🔌 MCP 协议支持，可扩展第三方工具
-- ⚙️ 工具配置和管理界面
+Rich built-in tools that AI Agents can call autonomously:
 
-## 🛠️ 技术栈
+| Category | Tools | Description |
+|----------|-------|-------------|
+| File System | Bash, Read, Write, Edit, Grep, Glob | File read/write, search, edit operations |
+| Code Execution | Python, Node.js | Execute Python and Node.js code |
+| Web Tools | Web Fetch, Web Search | Web scraping and search |
+| Image Processing | RMBG | Image background removal |
+| Vision Analysis | Vision | Image recognition and analysis |
+| Database | LibSQL | Database operations |
+| Task Management | Todo, Task | Task creation and management |
 
-### 前端
-- **框架**: React 19 + TypeScript
-- **UI 库**: shadcn/ui (基于 Radix UI)
-- **样式**: Tailwind CSS
-- **路由**: React Router
-- **状态管理**: React Context + Hooks
-- **国际化**: i18next
+- 🔌 **MCP Protocol Support** - Extensible third-party tools
+- ⚙️ **Tool Configuration UI** - Visual tool management and configuration
+
+## 🛠️ Tech Stack
+
+### Frontend
+- **Framework**: React 19 + TypeScript
+- **UI Library**: shadcn/ui (based on Radix UI)
+- **Styling**: Tailwind CSS
+- **Routing**: React Router
+- **State Management**: React Context + Hooks
+- **Internationalization**: i18next
 - **Markdown**: react-markdown + remark-gfm
-- **代码高亮**: shiki
+- **Code Highlighting**: shiki
 
-### 后端（主进程）
-- **运行时**: Electron
-- **AI 框架**: Mastra
-- **数据库**: TypeORM + better-sqlite3
-- **向量存储**: @mastra/fastembed
+### Backend (Main Process)
+- **Runtime**: Electron
+- **AI Framework**: Mastra
+- **Database**: TypeORM + better-sqlite3
+- **Vector Storage**: @mastra/fastembed
 - **AI SDK**: Vercel AI SDK
 
-### 构建工具
-- **打包**: Webpack 5
-- **编译**: TypeScript + ts-loader
-- **热重载**: webpack-dev-server
-- **应用打包**: electron-builder
+### Build Tools
+- **Bundler**: Webpack 5
+- **Compiler**: TypeScript + ts-loader
+- **Hot Reload**: webpack-dev-server
+- **App Packaging**: electron-builder
 
-## 📝 可用脚本
+## 📝 Available Scripts
 
 ```bash
-# 开发
-npm start              # 启动开发服务器
-npm run start:main     # 仅启动主进程（带监控）
-npm run start:renderer # 仅启动渲染进程
+# Development
+npm start              # Start development server
+npm run start:main     # Start main process only (with monitoring)
+npm run start:renderer # Start renderer process only
 
-# 构建
-npm run build          # 构建生产版本
-npm run build:main     # 构建主进程
-npm run build:renderer # 构建渲染进程
+# Build
+npm run build          # Build production version
+npm run build:main     # Build main process
+npm run build:renderer # Build renderer process
 
-# 打包
-npm run package        # 打包桌面应用
+# Package
+npm run package        # Package desktop application
 
-# 代码质量
-npm run lint           # 检查代码
-npm run lint:fix       # 修复代码问题
-npm test              # 运行测试
+# Code Quality
+npm run lint           # Check code
+npm run lint:fix       # Fix code issues
+npm test              # Run tests
 
-# 其他
-npm run postinstall    # 安装依赖后的初始化
-npm run rebuild        # 重新构建原生模块
+# Others
+npm run postinstall    # Initialize after installing dependencies
+npm run rebuild        # Rebuild native modules
 ```
 
-## ⚙️ 配置
+## ⚙️ Configuration
 
-### 环境变量
+### Environment Variables
 
-应用支持通过界面配置各项设置，无需手动设置环境变量。
+The application supports configuration through the interface without manually setting environment variables.
 
-### 数据存储
+### Data Storage
 
-应用数据默认存储在系统用户目录：
+Application data is stored by default in the system user directory:
 
 - **macOS**: `~/Library/Application Support/aime-chat`
 - **Windows**: `%APPDATA%/aime-chat`
 - **Linux**: `~/.config/aime-chat`
 
-## 🤝 贡献指南
+## 🤝 Contributing
 
-欢迎提交 Issue 和 Pull Request！
+Issues and Pull Requests are welcome!
 
-1. Fork 本仓库
-2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 开启 Pull Request
+1. Fork this repository
+2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
-### 代码规范
+### Code Standards
 
-- 使用 ESLint 和 Prettier 保持代码风格一致
-- 提交前运行 `npm run lint:fix` 修复格式问题
-- 遵循 TypeScript 类型规范
+- Use ESLint and Prettier to maintain consistent code style
+- Run `npm run lint:fix` before committing to fix format issues
+- Follow TypeScript type specifications
 
-## 📄 许可证
+## 📄 License
 
-本项目采用 [MIT](LICENSE) 许可证。
+This project is licensed under the [MIT](LICENSE) License.
 
-## 👨‍💻 作者
+## 👨‍💻 Author
 
 **Noah**
 - Email: 781172480@qq.com
 
-## 🙏 致谢
+## 🙏 Acknowledgments
 
 - [Electron](https://www.electronjs.org/)
 - [React](https://react.dev/)
@@ -231,11 +242,10 @@ npm run rebuild        # 重新构建原生模块
 - [shadcn/ui](https://ui.shadcn.com/)
 - [Radix UI](https://www.radix-ui.com/)
 
-## 🔗 相关链接
+## 🔗 Related Links
 
-- [问题反馈](https://github.com/electron-react-boilerplate/electron-react-boilerplate/issues)
-- [更新日志](CHANGELOG.md)
-- [文档](docs/)
+- [Issue Tracker](https://github.com/aime/aime-chat/issues)
+- [Changelog](CHANGELOG.md)
 
 ---
 

@@ -38,7 +38,7 @@ export type LocalConfig = {
 };
 
 const localEmbeddings = {};
-
+const localRerankers = {};
 export class LocalEmbeddingModel implements EmbeddingModelV2<string> {
   readonly specificationVersion = 'v2';
   readonly modelId: LocalEmbeddingModelId;
@@ -92,6 +92,7 @@ export class LocalEmbeddingModel implements EmbeddingModelV2<string> {
       const featureExtractionPipeline = localModels[
         this.modelId
       ] as FeatureExtractionPipeline;
+
       const output = await featureExtractionPipeline(values, {
         pooling: 'cls',
         normalize: true,
@@ -121,16 +122,102 @@ export class LocalRerankModel {
     this.modelId = modelId;
   }
 
-  async rerank({
+  async doRerank({
     query,
     documents,
+    options,
   }: {
     query: string;
     documents: string[];
+    options?: {
+      top_k?: number;
+      return_documents?: boolean;
+    };
   }): Promise<number[]> {
-    throw new Error('Method not implemented.');
+    const appInfo = await appManager.getInfo();
+    const modelPath = path.join(appInfo.modelPath, 'reranker', this.modelId);
+
+    const cachedModel = await localModelManager.ensureModelLoaded(
+      'text-classification',
+      this.modelId,
+      modelPath,
+      { dtype: 'q8' },
+    );
+    const { model, tokenizer } = cachedModel;
+
+    const inputs = tokenizer(new Array(documents.length).fill(query), {
+      text_pair: documents,
+      padding: true,
+      truncation: true,
+    });
+    const { logits } = await model(inputs);
+    return logits
+      .sigmoid()
+      .tolist()
+      .map(([score], i) => ({
+        index: i,
+        score,
+        document: options?.return_documents ? documents[i] : undefined,
+      }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, options?.top_k || 10);
   }
 }
+
+export class LocalClipModel {
+  modelId: string;
+
+  constructor(modelId: string) {
+    this.modelId = modelId;
+  }
+
+  async doClip({
+    query,
+    documents,
+    images,
+    options,
+  }: {
+    query: string;
+    images: string;
+    documents: string[];
+    options?: {
+      top_k?: number;
+      return_documents?: boolean;
+    };
+  }): Promise<number[]> {
+    const appInfo = await appManager.getInfo();
+    const modelPath = path.join(appInfo.modelPath, 'clip', this.modelId);
+
+    const cachedModel = await localModelManager.ensureModelLoaded(
+      'image-feature-extraction',
+      this.modelId,
+      modelPath,
+      { dtype: 'q8' },
+    );
+    const { model, processor } = cachedModel;
+
+    const inputs = await processor(query, images, {
+      padding: true,
+      truncation: true,
+    });
+
+    const { l2norm_text_embeddings, l2norm_image_embeddings } =
+      await model(inputs);
+
+    const { logits } = await model(inputs);
+    return logits
+      .sigmoid()
+      .tolist()
+      .map(([score], i) => ({
+        index: i,
+        score,
+        document: options?.return_documents ? documents[i] : undefined,
+      }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, options?.top_k || 10);
+  }
+}
+
 // export const localProvider = customProvider({
 //   textEmbeddingModels: {
 //     embedding: new LocalEmbeddingModel('Qwen/Qwen3-Embedding-0.6B'),

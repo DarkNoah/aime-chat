@@ -23,92 +23,83 @@ import { isUrl } from '@/utils/is';
 import { PNG } from 'pngjs';
 import { saveFile, downloadFile } from '@/main/utils/file';
 import { ToolConfig } from '@/types/tool';
+import { localModelManager } from '@/main/local-model';
 // import { Blob } from 'node:buffer';
 
 export interface RemoveBackgroundParams extends BaseToolParams {
   modelName: string;
 }
 
-const MODEL_RELEASE_DELAY_MS = 5 * 60 * 1000;
+// const models: Record<string, CachedModel> = {};
+// const modelLoadPromises: Record<string, Promise<CachedModel>> = {};
 
-type CachedModel = {
-  model: Awaited<ReturnType<typeof AutoModel.from_pretrained>>;
-  processor: Awaited<ReturnType<typeof AutoProcessor.from_pretrained>>;
-  lastUsed: number;
-  releaseTimer?: ReturnType<typeof setTimeout>;
-  activeCount: number;
-};
+// async function ensureModelLoaded(modelName: string, modelPath: string) {
+//   if (models[modelName]) {
+//     return models[modelName];
+//   }
 
-const models: Record<string, CachedModel> = {};
-const modelLoadPromises: Record<string, Promise<CachedModel>> = {};
+//   if (!modelLoadPromises[modelName]) {
+//     modelLoadPromises[modelName] = (async () => {
+//       const [model, processor] = await Promise.all([
+//         AutoModel.from_pretrained(modelPath, {
+//           local_files_only: true,
+//         }),
+//         AutoProcessor.from_pretrained(modelPath, {}),
+//       ]);
 
-async function ensureModelLoaded(modelName: string, modelPath: string) {
-  if (models[modelName]) {
-    return models[modelName];
-  }
+//       const entry: CachedModel = {
+//         model,
+//         processor,
+//         lastUsed: Date.now(),
+//         activeCount: 0,
+//       };
 
-  if (!modelLoadPromises[modelName]) {
-    modelLoadPromises[modelName] = (async () => {
-      const [model, processor] = await Promise.all([
-        AutoModel.from_pretrained(modelPath, {
-          local_files_only: true,
-        }),
-        AutoProcessor.from_pretrained(modelPath, {}),
-      ]);
+//       models[modelName] = entry;
+//       return entry;
+//     })();
+//   }
 
-      const entry: CachedModel = {
-        model,
-        processor,
-        lastUsed: Date.now(),
-        activeCount: 0,
-      };
+//   const entry = await modelLoadPromises[modelName];
+//   delete modelLoadPromises[modelName];
+//   return entry;
+// }
 
-      models[modelName] = entry;
-      return entry;
-    })();
-  }
+// function scheduleModelRelease(modelName: string) {
+//   const entry = models[modelName];
+//   if (!entry) {
+//     return;
+//   }
 
-  const entry = await modelLoadPromises[modelName];
-  delete modelLoadPromises[modelName];
-  return entry;
-}
+//   if (entry.releaseTimer) {
+//     clearTimeout(entry.releaseTimer);
+//   }
 
-function scheduleModelRelease(modelName: string) {
-  const entry = models[modelName];
-  if (!entry) {
-    return;
-  }
+//   entry.releaseTimer = setTimeout(() => {
+//     entry.releaseTimer = undefined;
+//     void releaseModelIfIdle(modelName);
+//   }, MODEL_RELEASE_DELAY_MS);
+// }
 
-  if (entry.releaseTimer) {
-    clearTimeout(entry.releaseTimer);
-  }
+// async function releaseModelIfIdle(modelName: string) {
+//   const entry = models[modelName];
+//   if (!entry) {
+//     return;
+//   }
 
-  entry.releaseTimer = setTimeout(() => {
-    entry.releaseTimer = undefined;
-    void releaseModelIfIdle(modelName);
-  }, MODEL_RELEASE_DELAY_MS);
-}
+//   const idleTime = Date.now() - entry.lastUsed;
+//   if (idleTime < MODEL_RELEASE_DELAY_MS || entry.activeCount > 0) {
+//     scheduleModelRelease(modelName);
+//     return;
+//   }
 
-async function releaseModelIfIdle(modelName: string) {
-  const entry = models[modelName];
-  if (!entry) {
-    return;
-  }
-
-  const idleTime = Date.now() - entry.lastUsed;
-  if (idleTime < MODEL_RELEASE_DELAY_MS || entry.activeCount > 0) {
-    scheduleModelRelease(modelName);
-    return;
-  }
-
-  try {
-    await entry.model?.dispose?.();
-  } catch (error) {
-    console.warn(`[RemoveBackground] 释放模型 ${modelName} 失败`, error);
-  } finally {
-    delete models[modelName];
-  }
-}
+//   try {
+//     await entry.model?.dispose?.();
+//   } catch (error) {
+//     console.warn(`[RemoveBackground] 释放模型 ${modelName} 失败`, error);
+//   } finally {
+//     delete models[modelName];
+//   }
+// }
 
 export class RemoveBackground extends BaseTool {
   id: string = 'RemoveBackground';
@@ -140,18 +131,15 @@ export class RemoveBackground extends BaseTool {
     const appInfo = await appManager.getInfo();
 
     // env.localModelPath = path.dirname(modelPath);
-    env.allowRemoteModels = false;
-    env.allowLocalModels = true;
+    // env.allowRemoteModels = false;
+    // env.allowLocalModels = true;
 
     const modelPath = path.join(appInfo.modelPath, 'other', this.modelName);
-    const cacheEntry = await ensureModelLoaded(this.modelName, modelPath);
-    cacheEntry.activeCount += 1;
-    cacheEntry.lastUsed = Date.now();
-    if (cacheEntry.releaseTimer) {
-      clearTimeout(cacheEntry.releaseTimer);
-      cacheEntry.releaseTimer = undefined;
-    }
-
+    const cacheEntry = await localModelManager.ensureModelLoaded(
+      'background-removal',
+      this.modelName,
+      modelPath,
+    );
     const { model, processor } = cacheEntry;
 
     try {
@@ -210,9 +198,6 @@ export class RemoveBackground extends BaseTool {
 
       return `<file>${savePath}</file>`;
     } finally {
-      cacheEntry.activeCount = Math.max(0, cacheEntry.activeCount - 1);
-      cacheEntry.lastUsed = Date.now();
-      scheduleModelRelease(this.modelName);
     }
   };
 }

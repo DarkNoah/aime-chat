@@ -94,7 +94,7 @@ export function ToolEditDialog({
       };
       if (value.type === 'stdio') {
         config.mcpServers = {
-          [nanoid()]: {
+          [value.name]: {
             command: value.command,
             args: value.args.split('\n'),
             env: value.env,
@@ -102,8 +102,10 @@ export function ToolEditDialog({
         };
       } else if (value.type === 'sse') {
         config.mcpServers = {
-          url: value.url,
-          headers: value.headers,
+          [value.name]: {
+            url: value.url,
+            headers: value.headers,
+          },
         };
       }
       await window.electron.tools.saveMCPServer(toolId, JSON.stringify(config));
@@ -129,7 +131,7 @@ export function ToolEditDialog({
           if ('command' in mcpConfig[key]) {
             createMcpForm.setValue('type', 'stdio');
             createMcpForm.setValue('command', mcpConfig[key].command);
-            createMcpForm.setValue('args', mcpConfig[key].args.join('\n'));
+            createMcpForm.setValue('args', mcpConfig[key].args?.join('\n'));
             createMcpForm.setValue('env', mcpConfig[key].env);
           } else if ('url' in mcpConfig[key]) {
             createMcpForm.setValue('type', 'sse');
@@ -141,6 +143,9 @@ export function ToolEditDialog({
       }
     };
     getTool();
+    if (open) {
+      createMcpForm.reset();
+    }
   }, [toolId, open]);
 
   return (
@@ -191,7 +196,7 @@ export function ToolEditDialog({
                       <FormControl>
                         <Textarea
                           id="mcpConfig"
-                          placeholder={`{\n"mcpservers":{}\n}`}
+                          placeholder={`{\n"mcpservers":{\n\t"mcp-name":{\n\t\t"command": "command",\n\t\t"args": ["arg1", "arg2"],\n\t\t"env": "env"\n\t\t}\n\t}\n}`}
                           {...field}
                         />
                       </FormControl>
@@ -283,7 +288,6 @@ export function ToolEditDialog({
                     <FormField
                       name="args"
                       control={createMcpForm.control}
-                      rules={{ required: t('common.required') as string }}
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel htmlFor="args">

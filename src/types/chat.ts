@@ -13,6 +13,7 @@ export type ChatInput = {
   think?: boolean;
   runId?: string;
   tools: string[];
+  requireToolApproval: boolean;
   options?: {
     modelSettings: Omit<CallSettings, 'abortSignal'>;
     providerOptions: SharedV2ProviderOptions & {

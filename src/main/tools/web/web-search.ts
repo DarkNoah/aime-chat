@@ -42,7 +42,13 @@ Usage notes:
   - Domain filtering is supported to include or block specific websites
   - Web search is only available in the US
   - Account for "Today's date" in <env>. For example, if <env> says "Today's date: 2025-07-01", and the user wants the latest docs, do not use 2024 in the search query. Use 2025.
-`;
+
+Returns:
+  List of search results with the following fields:
+    - href: The URL of the search result
+    - title: The title of the search result
+    - snippet: The snippet of the search result
+  `;
   inputSchema = z.strictObject({
     query: z.string().min(2).describe('The search query to use'),
   });
@@ -71,7 +77,6 @@ Usage notes:
           numResults,
           apiKey: provider.apiKey,
         });
-
         results.push(...webSearchResults);
       }
     }

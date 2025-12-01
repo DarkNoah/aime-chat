@@ -11,7 +11,7 @@ import path from 'path';
 import { app } from 'electron';
 import { Tools } from '@/entities/tools';
 import { dbManager } from '../db';
-import { In, Repository } from 'typeorm';
+import { In, Not, Repository } from 'typeorm';
 import { ToolEvent, ToolType } from '@/types/tool';
 import fg from 'fast-glob';
 import matter from 'gray-matter';
@@ -331,12 +331,13 @@ class ToolsManager extends BaseManager {
       throw new Error('Invalid config');
     }
     const mcpServers = config.mcpServers as [];
-
+    let toolEntity;
     if (Object.keys(mcpServers).length > 0) {
       const keys = Object.keys(mcpServers);
       const existingTools = await this.toolsRepository.find({
-        where: { name: In(keys) },
+        where: { name: In(keys), id: Not(id) },
       });
+
       if (existingTools.length > 0) {
         throw new Error(
           'Tools already exist: ' +
@@ -418,7 +419,9 @@ class ToolsManager extends BaseManager {
   }
 
   @channel(ToolChannel.GetAvailableTools)
-  public async getAvailableTools() {
+  public async getAvailableTools(): Promise<
+    Record<ToolType, { id: string; name: string; description: string }[]>
+  > {
     const tools = await this.toolsRepository.find({
       where: { isActive: true },
     });
@@ -524,9 +527,10 @@ class ToolsManager extends BaseManager {
         isToolkit: true,
         version,
         tools: Object.values(tools).map((t) => {
+          const key = Object.keys(tool.mcpConfig)[0];
           return {
             id: t.id,
-            name: t.id.substring(t.id.indexOf('_') + 1),
+            name: t.id.substring(key.length + 1),
             description: t.description,
             inputSchema: zodToJsonSchema(t.inputSchema),
           };
@@ -644,21 +648,24 @@ class ToolsManager extends BaseManager {
 
   @channel(ToolChannel.ExecuteTool)
   public async executeTool(id: string, toolName: string, input: any) {
-    const tool = await this.toolsRepository.findOne({ where: { id } });
-    if (!tool) throw new Error('Tool not found');
-    if (tool.type === ToolType.MCP) {
-      const mcp = this.mcpClients.find((x) => x.id === `${tool.id}`);
+    const toolEntity = await this.toolsRepository.findOne({ where: { id } });
+    if (!toolEntity) throw new Error('Tool not found');
+    if (toolEntity.type === ToolType.MCP) {
+      const mcp = this.mcpClients.find((x) => x.id === `${toolEntity.id}`);
       if (mcp) {
         const tools = await mcp.mcp.listTools();
-        const tool = tools[toolName];
+        const mcpToolKey = Object.keys(toolEntity.mcpConfig)[0];
+        const tool = tools[`${mcpToolKey}_${toolName}`];
         if (tool) {
           const res = await tool.execute?.(input);
           return res;
+        } else {
+          throw new Error(`Tool ${toolName} not found`);
         }
       }
-    } else if (tool.type === ToolType.BUILD_IN) {
+    } else if (toolEntity.type === ToolType.BUILD_IN) {
       let buildedTool = await this.buildTool(
-        tool.id as `${ToolType.BUILD_IN}:${string}`,
+        toolEntity.id as `${ToolType.BUILD_IN}:${string}`,
       );
 
       if (Array.isArray(buildedTool)) {

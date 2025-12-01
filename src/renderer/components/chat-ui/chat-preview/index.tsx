@@ -162,9 +162,6 @@ export const ChatPreview = React.forwardRef<ChatPreviewRef, ChatPreviewProps>(
           <div
             className={`h-full ${previewData.previewPanel === ChatPreviewType.MESSAGES ? '' : 'hidden'}`}
           >
-            <pre className="text-wrap">
-              {JSON.stringify(previewData, null, 2)}
-            </pre>
             {messages && (
               <pre className="whitespace-pre-wrap break-all p-4 bg-secondary rounded-2xl h-full overflow-y-auto text-xs">
                 {JSON.stringify(messages, null, 2)}

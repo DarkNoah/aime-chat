@@ -1,5 +1,11 @@
 /* eslint-disable react/require-default-props */
-import { BrainIcon, GlobeIcon, MicIcon, WrenchIcon } from 'lucide-react';
+import {
+  BrainIcon,
+  CheckIcon,
+  GlobeIcon,
+  MicIcon,
+  WrenchIcon,
+} from 'lucide-react';
 import {
   PromptInput,
   PromptInputActionAddAttachments,
@@ -75,6 +81,7 @@ export type ChatInputProps = Omit<PromptInputProps, 'onSubmit'> & {
       webSearch?: boolean;
       think?: boolean;
       tools?: string[];
+      requireToolApproval?: boolean;
     },
   ) => void;
   status?: ChatStatus;
@@ -126,6 +133,7 @@ export const ChatInput = React.forwardRef<ChatInputRef, ChatInputProps>(
     const [useMicrophone, setUseMicrophone] = useState<boolean>(false);
     const [think, setThink] = useState(false);
     const [tools, setTools] = useState<string[]>([]);
+    const [requireToolApproval, setRequireToolApproval] = useState(false);
 
     useImperativeHandle(ref, () => ({
       attachmentsClear: () => {
@@ -148,7 +156,9 @@ export const ChatInput = React.forwardRef<ChatInputRef, ChatInputProps>(
     return (
       <PromptInputProvider>
         <PromptInput
-          onSubmit={(e) => onSubmit(e, { model, webSearch, think, tools })}
+          onSubmit={(e) =>
+            onSubmit(e, { model, webSearch, think, tools, requireToolApproval })
+          }
           className={cn('flex flex-col relative', className)}
           globalDrop
           multiple
@@ -203,6 +213,13 @@ export const ChatInput = React.forwardRef<ChatInputRef, ChatInputProps>(
                   </PromptInputButton>
                 </ChatToolSelector>
               )}
+              <PromptInputButton
+                variant={requireToolApproval ? 'default' : 'ghost'}
+                onClick={() => setRequireToolApproval(!requireToolApproval)}
+              >
+                <CheckIcon size={16} />
+              </PromptInputButton>
+
               {showModelSelect && (
                 <ChatModelSelect
                   value={model}

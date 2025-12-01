@@ -12,6 +12,8 @@ import { getStorage } from '../mastra/storage';
 import { Client as LibSQLClient } from '@libsql/client';
 import { nanoid } from '@/utils/nanoid';
 import { providersManager } from '../providers';
+import { isUrl } from '@/utils/is';
+import fs from 'fs';
 
 export class KnowledgeBaseManager extends BaseManager {
   knowledgeBaseRepository: Repository<KnowledgeBase>;
@@ -87,6 +89,19 @@ export class KnowledgeBaseManager extends BaseManager {
     const kbs = await this.knowledgeBaseRepository.find();
     return kbs;
   }
+
+  public async importSource(kbId: string, source: string) {
+    const kb = await this.knowledgeBaseRepository.findOneBy({ id: kbId });
+    if (!kb) {
+      throw new Error('Knowledge base not found');
+    }
+    if (isUrl(source)) {
+    } else if (fs.existsSync(source) && fs.statSync(source).isFile()) {
+    } else if (fs.existsSync(source) && fs.statSync(source).isDirectory()) {
+    }
+  }
+
+  public async delectSource(kbId: string, source: string) {}
 }
 
 export const knowledgeBaseManager = new KnowledgeBaseManager();

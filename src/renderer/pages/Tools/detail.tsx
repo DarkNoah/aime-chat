@@ -65,7 +65,7 @@ function ToolDetail() {
 
   const getTool = useCallback(async () => {
     try {
-      const data = await window.electron.tools.getTool(id);
+      const data: Tool = await window.electron.tools.getTool(id);
       setTool(data);
       setTitle(data?.name || '');
       console.log(data);
@@ -146,6 +146,30 @@ function ToolDetail() {
     console.log(mcpConfig);
   };
 
+  const renderForm = (_tool: Tool['tools'][number]) => {
+    return (
+      <Form
+        schema={_tool?.inputSchema}
+        validator={validator}
+        onSubmit={(e) => handleSubmit(_tool.name, e.formData)}
+      >
+        <div className="flex items-center gap-3 mt-2">
+          {toolExecuting[_tool.name] === false && (
+            <Button type="submit" variant="outline">
+              {t('tools.execute')}
+            </Button>
+          )}
+          {toolExecuting[_tool.name] === true && (
+            <Button type="button" onClick={(e) => handleStop(_tool.name)}>
+              <Spinner></Spinner>
+              Stop
+            </Button>
+          )}
+        </div>
+      </Form>
+    );
+  };
+
   return (
     <ResizablePanelGroup direction="horizontal" className="h-full w-full">
       <ResizablePanel className="w-full flex-1 p-4 overflow-y-auto!">
@@ -217,47 +241,35 @@ function ToolDetail() {
               </TabsList>
             )}
 
-            <TabsContent value="tools">
-              <Accordion type="multiple" defaultValue={[]} className="w-full">
-                {tool?.tools?.map((tool) => (
-                  <AccordionItem value={tool.id} key={tool.id}>
-                    <AccordionTrigger>{tool.name}</AccordionTrigger>
-                    <AccordionContent className="flex flex-col gap-4 text-balance">
-                      <pre className="text-xs break-all text-wrap bg-secondary p-4 rounded-2xl">
-                        {tool?.description}
-                      </pre>
-                      {tool.inputSchema &&
-                        tool.inputSchema.type === 'object' && (
-                          <Form
-                            schema={tool.inputSchema}
-                            validator={validator}
-                            onSubmit={(e) =>
-                              handleSubmit(tool.name, e.formData)
-                            }
-                          >
-                            <div className="flex items-center gap-3 mt-2">
-                              {toolExecuting[tool.name] === false && (
-                                <Button type="submit" variant="outline">
-                                  {t('tools.execute')}
-                                </Button>
-                              )}
-                              {toolExecuting[tool.name] === true && (
-                                <Button
-                                  type="button"
-                                  onClick={(e) => handleStop(tool.name)}
-                                >
-                                  <Spinner></Spinner>
-                                  Stop
-                                </Button>
-                              )}
-                            </div>
-                          </Form>
-                        )}
-                    </AccordionContent>
-                  </AccordionItem>
-                ))}
-              </Accordion>
-            </TabsContent>
+            {tool?.tools.length > 1 && (
+              <TabsContent value="tools">
+                <Accordion type="multiple" defaultValue={[]} className="w-full">
+                  {tool?.tools?.map((_tool) => (
+                    <AccordionItem value={_tool.id} key={_tool.id}>
+                      <AccordionTrigger>{_tool.name}</AccordionTrigger>
+                      <AccordionContent className="flex flex-col gap-4 text-balance">
+                        <pre className="text-xs break-all text-wrap bg-secondary p-4 rounded-2xl">
+                          {_tool?.description}
+                        </pre>
+                        {_tool.inputSchema &&
+                          _tool.inputSchema.type === 'object' &&
+                          renderForm(_tool)}
+                      </AccordionContent>
+                    </AccordionItem>
+                  ))}
+                </Accordion>
+              </TabsContent>
+            )}
+            {tool?.tools.length === 1 && (
+              <>
+                <pre className="text-xs break-all text-wrap bg-secondary p-4 rounded-2xl">
+                  {tool?.tools[0]?.description}
+                </pre>
+                {tool?.tools[0]?.inputSchema &&
+                  tool?.tools[0]?.inputSchema.type === 'object' &&
+                  renderForm(tool?.tools[0])}
+              </>
+            )}
           </Tabs>
         )}
         {tool?.type === ToolType.SKILL && (

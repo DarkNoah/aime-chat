@@ -19,7 +19,7 @@ import type {
   LanguageModelV2,
   SharedV2ProviderOptions,
 } from '@ai-sdk/provider-v5';
-import { toAISdkV5Messages } from '@mastra/ai-sdk/ui';
+import { toAISdkV5Messages, toAISdkV4Messages } from '@mastra/ai-sdk/ui';
 import { toAISdkStream } from '@mastra/ai-sdk';
 // import { RuntimeContext } from '@mastra/core';
 import { RequestContext } from '@mastra/core/request-context';
@@ -64,7 +64,6 @@ import { skillManager } from '../tools/common/skill';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { v4 as uuidv4 } from 'uuid';
 
-const modelsData = require('@/../assets/models.json');
 class MastraManager extends BaseManager {
   app: express.Application;
   public httpServer?: ReturnType<express.Application['listen']>;
@@ -293,6 +292,7 @@ class MastraManager extends BaseManager {
       runId,
       chatId,
       options,
+      requireToolApproval,
     } = data;
     const storage = this.mastra.getStorage();
     let currentThread = await storage.getThreadById({ threadId: chatId });
@@ -398,17 +398,23 @@ class MastraManager extends BaseManager {
       const historyMessagesAISdkV5 = toAISdkV5Messages(
         historyMessages.messages,
       );
-      const input = [...historyMessages.messages, inputMessage];
 
-      // const messages = convertToModelMessages(input);
+      historyMessages.messages;
+      const input = [...historyMessagesAISdkV5, inputMessage];
 
-      const stream = await agent.stream(input, {
+      const messages = convertToModelMessages(historyMessagesAISdkV5);
+
+      inputMessage.metadata = {
+        createdAt: new Date(),
+      };
+      const stream = await agent.stream(inputMessage, {
         // format: 'aisdk',
         // runId: chatId,
         // requireToolApproval: true,
         providerOptions: options?.providerOptions,
         modelSettings: options?.modelSettings,
         requestContext: requestContext,
+        context: convertToModelMessages(historyMessagesAISdkV5),
         maxSteps: 60,
         memory: {
           thread: {
@@ -418,6 +424,7 @@ class MastraManager extends BaseManager {
         },
         abortSignal: signal,
         savePerStep: true,
+
         // stopWhen: (event) => {
         //   const { steps } = event;
         //   return true;
@@ -509,11 +516,13 @@ class MastraManager extends BaseManager {
         onChunk: (chunk) => {
           // console.log('Stream chunk:', chunk);
         },
+        requireToolApproval: requireToolApproval,
         prepareStep: async (options) => {
           // console.log('Prepare step:', options);
           const instructions = await agent.getInstructions({ requestContext });
           const system = convertToInstructionContent(instructions);
-          //const messages = convertToCoreMessages([...options.messages]);
+
+          // const messagesCore = convertToCoreMessages([...options.messages]);
           // const instructionContent = convertToInstructionContent(instructions);
 
           // const token = await tokenCounter([], {
@@ -538,12 +547,25 @@ class MastraManager extends BaseManager {
           // }
 
           // options.messages = [{ role: 'user', content: 'Hello, how are you?' }];
+          let d = new Date();
           const messages = [
             { role: 'system', content: system } as SystemModelMessage,
             ...options.messages,
           ];
 
-          return { messages };
+          // const messagesHistory = await storage.listMessages({
+          //   threadId: chatId,
+          //   resourceId: '123',
+          // });
+          // const hh = messagesHistory.messages;
+          console.log(JSON.stringify(messages, null, 2));
+
+          const messagesV5 = toAISdkV5Messages(
+            JSON.parse(JSON.stringify(messages)),
+          );
+          console.log(JSON.stringify(messagesV5, null, 2));
+
+          return {};
         },
       });
 

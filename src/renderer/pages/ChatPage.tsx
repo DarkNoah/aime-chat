@@ -254,6 +254,7 @@ function ChatPage() {
       webSearch?: boolean;
       think?: boolean;
       tools?: string[];
+      requireToolApproval?: boolean;
     },
   ) => {
     const hasText = Boolean(message.text);
@@ -287,6 +288,7 @@ function ChatPage() {
       webSearch: options?.webSearch,
       tools: options?.tools,
       think: options?.think,
+      requireToolApproval: options?.requireToolApproval,
       runId,
       threadId,
     };
@@ -313,15 +315,7 @@ function ChatPage() {
     setInput('');
     chatInputRef.current?.attachmentsClear();
   };
-
-  const handleClearMessages = async () => {
-    if (threadId) {
-      await window.electron.mastra.clearMessages(threadId);
-      setMessages([]);
-    }
-  };
-
-  useEffect(() => {
+  const resetChat = () => {
     setMessages([]);
     clearError();
     setUsage(undefined);
@@ -329,6 +323,21 @@ function ChatPage() {
     setShowPreview(false);
     setThread(undefined);
     chatInputRef.current?.setTools([]);
+  };
+
+  const handleClearMessages = async () => {
+    if (threadId) {
+      await window.electron.mastra.clearMessages(threadId);
+      setMessages([]);
+      clearError();
+      setUsage(undefined);
+      setPreviewToolPart(undefined);
+      setShowPreview(false);
+    }
+  };
+
+  useEffect(() => {
+    resetChat();
     if (threadId) {
       const getThread = async () => {
         const _thread = await window.electron.mastra.getThread(threadId);

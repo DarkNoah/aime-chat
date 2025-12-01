@@ -17,6 +17,9 @@ import { ChatEvent } from '@/types/chat';
 import { isString } from '@/utils/is';
 import { toolsManager } from '..';
 import BaseToolkit, { BaseToolkitParams } from '../base-toolkit';
+import { ToolType } from '@/types/tool';
+import { localModelManager } from '@/main/local-model';
+import { LocalRerankModel } from '@/main/providers/local-provider';
 
 export class ToolSearch extends BaseTool {
   id: string = 'ToolSearch';
@@ -47,11 +50,27 @@ export class ToolSearch extends BaseTool {
     const { query, top_k } = inputData;
     const { writer } = options;
 
-    const tools = await toolsManager.getAvailableTools();
+    const tools = await toolsManager.getList();
+    const model = new LocalRerankModel('bge-reranker-base');
+    const results = await model.doRerank({
+      query,
+      documents: tools[ToolType.BUILD_IN].map(
+        (tool) => `${tool.name}: ${tool.description}`,
+      ),
+      options: {
+        top_k: top_k,
+        return_documents: true,
+      },
+    });
+
     // const matchingTools = tools.filter((tool) => tool.description.includes(query));
     // const topKTools = matchingTools.slice(0, top_k);
     // return topKTools.map((tool) => tool.id).join(', ');
-    return 'done';
+    return `<tools>
+    <tool>
+
+    </tool>
+</tools>`;
   };
 }
 
@@ -80,10 +99,11 @@ export class ToolExecution extends BaseTool {
     const { writer } = options;
 
     const tools = await toolsManager.getAvailableTools();
-    // const matchingTools = tools.filter((tool) => tool.description.includes(query));
-    // const topKTools = matchingTools.slice(0, top_k);
-    // return topKTools.map((tool) => tool.id).join(', ');
-    return 'done';
+    const tool = (await toolsManager.buildTool(
+      `${ToolType.BUILD_IN}:${tool_name}` as `${ToolType.BUILD_IN}:${string}`,
+    )) as BaseTool;
+    const result = await tool.execute?.(JSON.parse(tool_input), options);
+    return result;
   };
 }
 

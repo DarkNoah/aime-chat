@@ -15,6 +15,12 @@ export type Tool = {
   isToolkit: boolean;
   type: ToolType;
   version?: string;
+  tools?: {
+    id: string;
+    name: string;
+    description: string;
+    inputSchema: any;
+  }[];
 };
 
 export enum ToolEvent {

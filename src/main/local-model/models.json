@@ -85,21 +85,48 @@
   "reranker": [
     {
       "id": "bge-reranker-large",
-      "type": "huggingface",
+      "library": "transformers",
       "repo": "Xenova/bge-reranker-large",
-      "download": "https://huggingface.co/Xenova/bge-reranker-large"
+      "download": [
+        {
+          "source": "modelscope",
+          "url": "https://www.modelscope.cn/models/Xenova/bge-reranker-large"
+        },
+        {
+          "source": "huggingface",
+          "url": "https://huggingface.co/Xenova/bge-reranker-large"
+        }
+      ]
     },
     {
       "id": "bge-reranker-base",
-      "type": "huggingface",
+      "library": "transformers",
       "repo": "Xenova/bge-reranker-base",
-      "download": "https://huggingface.co/Xenova/bge-reranker-base"
+      "download": [
+        {
+          "source": "modelscope",
+          "url": "https://www.modelscope.cn/models/Xenova/bge-reranker-base"
+        },
+        {
+          "source": "huggingface",
+          "url": "https://huggingface.co/Xenova/bge-reranker-base"
+        }
+      ]
     },
     {
       "id": "jina-reranker-v2-base-multilingual",
-      "type": "huggingface",
+      "library": "transformers",
       "repo": "jinaai/jina-reranker-v2-base-multilingual",
-      "download": "https://huggingface.co/jinaai/jina-reranker-v2-base-multilingual"
+      "download": [
+        {
+          "source": "modelscope",
+          "url": "https://www.modelscope.cn/models/jinaai/jina-reranker-v2-base-multilingual"
+        },
+        {
+          "source": "huggingface",
+          "url": "https://huggingface.co/jinaai/jina-reranker-v2-base-multilingual"
+        }
+      ]
     }
   ],
   "ocr": [
@@ -189,9 +216,18 @@
     },
     {
       "id": "jina-clip-v2",
+      "library": "transformers",
       "repo": "jinaai/jina-clip-v2",
-      "type": "huggingface",
-      "download": "https://huggingface.co/jinaai/jina-clip-v2"
+      "download": [
+        {
+          "source": "modelscope",
+          "url": "https://www.modelscope.cn/models/jinaai/jina-clip-v2"
+        },
+        {
+          "source": "huggingface",
+          "url": "https://huggingface.co/jinaai/jina-clip-v2"
+        }
+      ]
     }
   ],
   "other": [

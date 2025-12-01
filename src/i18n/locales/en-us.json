@@ -50,7 +50,8 @@
     "tool_config": "Tool Config",
     "download": "Download",
     "apiServerStart": "Start",
-    "confirm": "Confirm"
+    "confirm": "Confirm",
+    "search": "Search"
   },
   "sidebar": {
     "new_chat": "New Chat",
