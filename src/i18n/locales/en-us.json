@@ -53,7 +53,10 @@
     "confirm": "Confirm",
     "search": "Search",
     "accept": "Accept",
-    "reject": "Reject"
+    "reject": "Reject",
+    "add_mcp_server": "Add MCP Server",
+    "add_skill": "Add Skill",
+    "built_in": "Built-In"
   },
   "sidebar": {
     "new_chat": "New Chat",

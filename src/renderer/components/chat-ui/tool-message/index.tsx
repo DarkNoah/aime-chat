@@ -40,7 +40,7 @@ export type ToolMessageProps = ComponentProps<typeof Badge> & {
   isApprovalRequested?: boolean;
 };
 
-type ToolApproval = {
+export type ToolApproval = {
   toolName: string;
   args: Record<string, any>;
   type: 'approval';

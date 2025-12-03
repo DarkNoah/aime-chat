@@ -116,6 +116,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '../components/ui/dropdown-menu';
+import { ChatUsage } from '../components/chat-ui/chat-usage';
+import type { ToolApproval } from '../components/chat-ui/tool-message/index';
 
 function ChatPage() {
   const [input, setInput] = useState('');
@@ -657,10 +659,20 @@ function ChatPage() {
                             );
                           } else if (part.type.startsWith('tool-')) {
                             const _part = part as ToolUIPart;
-                            const approval =
+                            const approvalData: ToolApproval =
+                              message.parts.find(
+                                (p) =>
+                                  p.type === 'data-tool-call-approval' &&
+                                  p.id === _part?.toolCallId,
+                              )?.data;
+
+                            if (approvalData) {
+                              approvalData.type = 'approval';
+                            }
+                            const approval: ToolApproval =
                               message?.metadata?.pendingToolApprovals?.[
                                 _part?.toolCallId
-                              ];
+                              ] || approvalData;
                             return (
                               <div className="flex flex-col">
                                 <ToolMessage
@@ -740,24 +752,31 @@ function ChatPage() {
           <div className="w-full px-4 pb-4 flex flex-col gap-2 justify-start">
             <div className="flex flex-row gap-2 justify-between">
               {usage?.usage?.totalTokens && (
-                <Context
-                  maxTokens={usage?.maxTokens}
-                  modelId={usage?.modelId}
-                  usage={usage?.usage}
-                  usedTokens={usage?.usage?.totalTokens}
-                >
-                  <ContextTrigger size="sm" />
-                  <ContextContent>
-                    <ContextContentHeader />
-                    <ContextContentBody>
-                      <ContextInputUsage />
-                      <ContextOutputUsage />
-                      <ContextReasoningUsage />
-                      <ContextCacheUsage />
-                    </ContextContentBody>
-                    <ContextContentFooter />
-                  </ContextContent>
-                </Context>
+                <ChatUsage
+                  value={{
+                    usage: usage?.usage,
+                    maxTokens: usage?.maxTokens,
+                    modelId: usage?.modelId,
+                  }}
+                />
+                // <Context
+                //   maxTokens={usage?.maxTokens}
+                //   modelId={usage?.modelId}
+                //   usage={usage?.usage}
+                //   usedTokens={usage?.usage?.totalTokens}
+                // >
+                //   <ContextTrigger size="sm" />
+                //   <ContextContent>
+                //     <ContextContentHeader />
+                //     <ContextContentBody>
+                //       <ContextInputUsage />
+                //       <ContextOutputUsage />
+                //       <ContextReasoningUsage />
+                //       <ContextCacheUsage />
+                //     </ContextContentBody>
+                //     <ContextContentFooter />
+                //   </ContextContent>
+                // </Context>
               )}
             </div>
 

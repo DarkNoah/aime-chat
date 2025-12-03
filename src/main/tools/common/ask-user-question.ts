@@ -80,7 +80,12 @@ Usage notes:
     .strict();
 
   resumeSchema = z.object({
-    approved: z.boolean(),
+    answers: z.array(
+      z.object({
+        question: z.string(),
+        answer: z.string(),
+      }),
+    ),
   });
   suspendSchema = z.object({
     reason: z.string(),
