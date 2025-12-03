@@ -1,0 +1,3 @@
+[submodule "packages/mastra"]
+	path = packages/mastra
+	url = https://github.com/DarkNoah/mastra.git
