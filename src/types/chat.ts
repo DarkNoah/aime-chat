@@ -23,6 +23,8 @@ export type ChatInput = {
       xai?: XaiProviderOptions & Record<string, any>;
     };
   };
+  approved?: boolean;
+  toolCallId?: string;
 };
 
 export enum ChatEvent {

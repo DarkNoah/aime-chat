@@ -51,7 +51,9 @@
     "download": "Download",
     "apiServerStart": "Start",
     "confirm": "Confirm",
-    "search": "Search"
+    "search": "Search",
+    "accept": "Accept",
+    "reject": "Reject"
   },
   "sidebar": {
     "new_chat": "New Chat",

@@ -1,6 +1,5 @@
 import { Mastra, MastraMessageV2 } from '@mastra/core';
 import { Memory } from '@mastra/memory';
-import { LangSmithExporter } from '@mastra/langsmith';
 import { getStorage, getVectorStore } from './storage';
 import { BaseManager } from '../BaseManager';
 import express, { Response, Request } from 'express';
@@ -25,12 +24,12 @@ import { toAISdkStream } from '@mastra/ai-sdk';
 import { RequestContext } from '@mastra/core/request-context';
 import { reactAgent } from './agents/react-agent';
 import { providersManager } from '../providers';
-import { Readable } from 'stream';
 import { channel } from '../ipc/IpcController';
 import { PaginationInfo } from '@/types/common';
 import { MastraChannel } from '@/types/ipc-channel';
 import {
   Agent,
+  AgentExecutionOptions,
   convertMessages,
   MastraDBMessage,
   MastraLanguageModel,
@@ -50,6 +49,7 @@ import { toolsManager } from '../tools';
 import { ToolType } from '@/types/tool';
 import {
   convertMastraChunkToAISDKv5,
+  MastraModelOutput,
   WorkflowRunOutput,
 } from '@mastra/core/stream';
 import { chatWorkflow, claudeCodeWorkflow } from './workflow';
@@ -62,7 +62,7 @@ import {
 import { compressAgent } from './agents/compress-agent';
 import { skillManager } from '../tools/common/skill';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import { v4 as uuidv4 } from 'uuid';
+import { agentManager } from '../agents';
 
 class MastraManager extends BaseManager {
   app: express.Application;
@@ -129,7 +129,7 @@ class MastraManager extends BaseManager {
 
   async init() {
     this.statefulTransport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: () => uuidv4(),
+      sessionIdGenerator: () => nanoid(),
     });
 
     this.app.get('/auth/callback', async (req, res) => {
@@ -206,9 +206,12 @@ class MastraManager extends BaseManager {
   }
 
   @channel(MastraChannel.GetThread)
-  public async getThread(
-    id: string,
-  ): Promise<StorageThreadType & { messages: UIMessage[] }> {
+  public async getThread(id: string): Promise<
+    StorageThreadType & {
+      messages: UIMessage[];
+      mastraDBMessages: MastraDBMessage[];
+    }
+  > {
     const storage = this.mastra.getStorage();
     const thread = await storage?.getThreadById({ threadId: id });
 
@@ -219,7 +222,11 @@ class MastraManager extends BaseManager {
     });
     // const _messages = convertMessages(messages.messages || []).to('AIV5.UI');
 
-    return { ...thread, messages: toAISdkV5Messages(messages.messages) };
+    return {
+      ...thread,
+      messages: toAISdkV5Messages(messages.messages),
+      mastraDBMessages: messages.messages,
+    };
   }
 
   @channel(MastraChannel.CreateThread)
@@ -293,20 +300,32 @@ class MastraManager extends BaseManager {
       chatId,
       options,
       requireToolApproval,
+      approved,
+      toolCallId,
     } = data;
     const storage = this.mastra.getStorage();
     let currentThread = await storage.getThreadById({ threadId: chatId });
 
-    for (const uiMessage of uiMessages) {
-      delete uiMessage.id;
-    }
+    // for (const uiMessage of uiMessages) {
+    //   delete uiMessage.id;
+    // }
+    const fastModel = (await appManager.getInfo())?.defaultModel?.fastModel;
+    const fastLanguageModel = (await providersManager.getLanguageModel(
+      fastModel || model,
+    )) as LanguageModelV2;
+
     const inputMessage = uiMessages[uiMessages.length - 1];
 
-    const mastraAgent = this.mastra.getAgentById(agentId || 'react-agent');
+    const agent = await agentManager.buildAgent(agentId || 'react-agent', {
+      modelId: model,
+      tools: tools,
+    });
 
-    if (!mastraAgent) {
-      throw new Error('Agent not found');
-    }
+    // const mastraAgent = this.mastra.getAgentById(agentId || 'react-agent');
+
+    // if (!mastraAgent) {
+    //   throw new Error('Agent not found');
+    // }
 
     const provider = await providersManager.get(model.split('/')[0]);
     if (!provider) {
@@ -316,46 +335,41 @@ class MastraManager extends BaseManager {
     const { providerId, modeId, modelInfo } =
       await providersManager.getModelInfo(model);
 
-    mastraAgent.model = await providersManager.getLanguageModel(model);
+    // mastraAgent.model = await providersManager.getLanguageModel(model);
 
-    let _skills = await skillManager.getClaudeSkills();
-    _skills = _skills.filter((x) => tools.includes(x.id));
+    // let _skills = await skillManager.getClaudeSkills();
+    // _skills = _skills.filter((x) => tools.includes(x.id));
 
-    const _tools = await toolsManager.buildTools(tools, {
-      [`${ToolType.BUILD_IN}:Skill`]: {
-        skills: _skills,
-      },
-    });
-    const fastModel = (await appManager.getInfo())?.defaultModel?.fastModel;
-    const fastLanguageModel = (await providersManager.getLanguageModel(
-      fastModel || model,
-    )) as LanguageModelV2;
+    // const _tools = await toolsManager.buildTools(tools, {
+    //   [`${ToolType.BUILD_IN}:Skill`]: {
+    //     skills: _skills,
+    //   },
+    // });
 
-    const agent = new Agent({
-      id: mastraAgent.id,
-      name: mastraAgent.name,
-      instructions: 'You are a helpful assistant.',
-      model: await providersManager.getLanguageModel(model),
-      memory: new Memory({
-        storage: getStorage(),
-        options: {
-          semanticRecall: false,
-          workingMemory: {
-            enabled: false,
-          },
-          lastMessages: false,
-        },
-        // memory:{
-      }),
+    // const agent = new Agent({
+    //   id: mastraAgent.id,
+    //   name: mastraAgent.name,
+    //   instructions: 'You are a helpful assistant.',
+    //   model: await providersManager.getLanguageModel(model),
+    //   memory: new Memory({
+    //     storage: getStorage(),
+    //     options: {
+    //       semanticRecall: false,
+    //       workingMemory: {
+    //         enabled: false,
+    //       },
+    //       lastMessages: false,
+    //     },
+    //     // memory:{
+    //   }),
 
-      tools: _tools,
-      mastra: this.mastra,
-      // workflows: { chatWorkflow },
-      // tools: { Bash: Bash.build(), WebFetch, PythonExecute },
-    });
+    //   tools: _tools,
+    //   mastra: this.mastra,
+    //   // workflows: { chatWorkflow },
+    //   // tools: { Bash: Bash.build(), WebFetch, PythonExecute },
+    // });
 
-    if (modelInfo?.tool_call === false) {
-    }
+    let stream: MastraModelOutput;
     try {
       // const info = modelsData[provider.type]?.models[_modeId] || {};
 
@@ -407,10 +421,9 @@ class MastraManager extends BaseManager {
       inputMessage.metadata = {
         createdAt: new Date(),
       };
-      const stream = await agent.stream(inputMessage, {
-        // format: 'aisdk',
-        // runId: chatId,
-        // requireToolApproval: true,
+
+      let streamOptions: AgentExecutionOptions<any, 'aisdk'> = {
+        runId: runId,
         providerOptions: options?.providerOptions,
         modelSettings: options?.modelSettings,
         requestContext: requestContext,
@@ -421,6 +434,11 @@ class MastraManager extends BaseManager {
             id: chatId,
           },
           resource: '123',
+          options: {
+            readOnly: false,
+            lastMessages: false,
+          },
+          readOnly: false,
         },
         abortSignal: signal,
         savePerStep: true,
@@ -519,7 +537,9 @@ class MastraManager extends BaseManager {
         requireToolApproval: requireToolApproval,
         prepareStep: async (options) => {
           // console.log('Prepare step:', options);
-          const instructions = await agent.getInstructions({ requestContext });
+          const instructions = await agent.getInstructions({
+            requestContext,
+          });
           const system = convertToInstructionContent(instructions);
 
           // const messagesCore = convertToCoreMessages([...options.messages]);
@@ -558,16 +578,33 @@ class MastraManager extends BaseManager {
           //   resourceId: '123',
           // });
           // const hh = messagesHistory.messages;
-          console.log(JSON.stringify(messages, null, 2));
+          // console.log(JSON.stringify(messages, null, 2));
 
-          const messagesV5 = toAISdkV5Messages(
-            JSON.parse(JSON.stringify(messages)),
-          );
-          console.log(JSON.stringify(messagesV5, null, 2));
+          // const messagesV5 = toAISdkV5Messages(
+          //   JSON.parse(JSON.stringify(messages)),
+          // );
+          // console.log(JSON.stringify(messagesV5, null, 2));
 
-          return {};
+          return { messages: messages };
         },
-      });
+      };
+      if (runId && approved !== undefined) {
+        if (approved) {
+          stream = await agent.approveToolCall({
+            ...streamOptions,
+            runId: runId,
+            toolCallId: toolCallId,
+          });
+        } else {
+          stream = await agent.declineToolCall({
+            ...streamOptions,
+            runId: runId,
+            toolCallId: toolCallId,
+          });
+        }
+      } else {
+        stream = await agent.stream(inputMessage, streamOptions);
+      }
 
       appManager.sendEvent(`chat:event:${chatId}`, {
         type: ChatEvent.ChatChanged,
@@ -904,11 +941,62 @@ class MastraManager extends BaseManager {
       model,
       webSearch,
       think,
-      tools,
+      tools = [],
       runId,
       chatId,
       options,
+      requireToolApproval,
+      approved,
     } = data;
+    const storage = this.mastra.getStorage();
+    let currentThread = await storage.getThreadById({ threadId: chatId });
+    const agent = await agentManager.buildAgent(agentId || 'react-agent', {
+      modelId: model,
+      tools: (currentThread.metadata?.tools as string[]) || [],
+    });
+    const controller = new AbortController();
+    const signal = controller.signal;
+
+    const stream = await agent.resumeStream(
+      { approved: approved },
+      { runId: runId, abortSignal: signal },
+    );
+    appManager.sendEvent(`chat:event:${chatId}`, {
+      type: ChatEvent.ChatChanged,
+      data: { type: ChatChangedType.Start, chatId },
+    });
+    appManager.sendEvent(ChatEvent.ChatChanged, {
+      data: { type: ChatChangedType.Start, chatId },
+    });
+    this.threadChats.push({
+      id: chatId,
+      title: 'string',
+      status: 'streaming',
+      controller,
+    });
+    const uiStream = toAISdkStream(stream, {
+      from: 'agent',
+    });
+
+    const uiStreamReader = uiStream.getReader();
+    while (true) {
+      const { done, value } = await uiStreamReader.read();
+      if (done) {
+        break;
+      }
+      appManager.sendEvent(`chat:event:${chatId}`, {
+        type: ChatEvent.ChatChunk,
+        data: JSON.stringify(value),
+      });
+    }
+
+    appManager.sendEvent(`chat:event:${chatId}`, {
+      type: ChatEvent.ChatChanged,
+      data: { type: ChatChangedType.Finish, chatId },
+    });
+    appManager.sendEvent(ChatEvent.ChatChanged, {
+      data: { type: ChatChangedType.Finish, chatId },
+    });
   }
 
   @channel(MastraChannel.ChatAbort)

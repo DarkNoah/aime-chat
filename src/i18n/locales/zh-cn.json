@@ -51,7 +51,9 @@
     "download": "下载",
     "apiServerStart": "启动",
     "confirm": "确认",
-    "search": " 搜索"
+    "search": " 搜索",
+    "accept": "接受",
+    "reject": "拒绝"
   },
   "sidebar": {
     "new_chat": "新聊天",

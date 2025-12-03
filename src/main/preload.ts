@@ -129,7 +129,7 @@ const electronHandler = {
     deleteThread: (id: string) =>
       ipcRenderer.invoke(MastraChannel.DeleteThread, id),
     chat: (data: any) => ipcRenderer.send(MastraChannel.Chat, data),
-    chatResume: () => ipcRenderer.send(MastraChannel.ChatResume),
+    chatResume: (data: any) => ipcRenderer.send(MastraChannel.ChatResume, data),
     chatWorkflow: (data: any) =>
       ipcRenderer.send(MastraChannel.ChatWorkflow, data),
     chatAbort: (chatId: string) =>

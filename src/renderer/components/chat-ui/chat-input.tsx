@@ -98,12 +98,14 @@ export type ChatInputProps = Omit<PromptInputProps, 'onSubmit'> & {
   onModelChange?: (model: string) => void;
   prompts?: string[];
   onClearMessages?: () => void;
+  // value?: ChatInput;
 };
 
 export interface ChatInputRef {
   attachmentsClear: () => void;
   setModel: (model: string) => void;
   setTools: (toolNames: string[]) => void;
+  getTools: () => string[];
 }
 
 export const ChatInput = React.forwardRef<ChatInputRef, ChatInputProps>(
@@ -124,6 +126,7 @@ export const ChatInput = React.forwardRef<ChatInputRef, ChatInputProps>(
       onModelChange,
       prompts,
       onClearMessages,
+      value,
     } = props;
     const { t } = useTranslation();
     const attachmentRef = useRef<ChatInputAttachmentRef>(null);
@@ -144,6 +147,9 @@ export const ChatInput = React.forwardRef<ChatInputRef, ChatInputProps>(
       },
       setTools: (toolNames: string[]) => {
         setTools(toolNames ?? []);
+      },
+      getTools: () => {
+        return tools;
       },
     }));
 

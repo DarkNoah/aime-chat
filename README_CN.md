@@ -168,6 +168,11 @@ aime-chat/
 - **热重载**: webpack-dev-server
 - **应用打包**: electron-builder
 
+## 项目初始化
+```bash
+git clone https://github.com/aime/aime-chat.git
+pnpm install
+```
 ## 📝 可用脚本
 
 ```bash

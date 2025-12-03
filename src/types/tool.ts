@@ -28,6 +28,21 @@ export enum ToolEvent {
   ToolListUpdated = 'tool:tool-list-updated',
 }
 export const ToolConfig = {
+  ToolToolkit: {
+    configSchema: z.strictObject({
+      modelId: z.string(),
+      numResults: z.number().optional().default(5),
+    }),
+    uiSchema: {
+      modelId: {
+        'ui:widget': 'modelSelector',
+        'ui:title': t('common.provider'),
+      },
+      numResults: {
+        'ui:title': t('common.num_results'),
+      },
+    },
+  },
   WebSearch: {
     configSchema: z.strictObject({
       providerId: z.string(),

@@ -67,24 +67,6 @@ import { StorageThreadType } from '@mastra/core/memory';
 import { useHeader } from '../hooks/use-title';
 import { useTranslation } from 'react-i18next';
 import { Input } from '../components/ui/input';
-import {
-  Sheet,
-  SheetContent,
-  SheetTrigger,
-  SheetHeader,
-  SheetDescription,
-  SheetTitle,
-  SheetFooter,
-  SheetClose,
-} from '../components/ui/sheet';
-import {
-  Tool,
-  ToolContent,
-  ToolHeader,
-  ToolInput,
-  ToolOutput,
-} from '../components/ai-elements/tool';
-import { Excalidraw } from '@excalidraw/excalidraw';
 import '@excalidraw/excalidraw/index.css';
 import { IpcChatTransport } from './chat/ipc-chat-transport';
 import {
@@ -104,7 +86,10 @@ import {
   ChatMessageAttachment,
   ChatMessageAttachments,
 } from '../components/chat-ui/chat-message-attachment';
-import { ToolMessage } from '../components/chat-ui/tool-message';
+import {
+  ToolMessage,
+  ToolMessageApproval,
+} from '../components/chat-ui/tool-message';
 import {
   ChatChangedType,
   ChatEvent,
@@ -454,6 +439,39 @@ function ChatPage() {
     }
   };
 
+  const handleResumeChat = async (
+    approved: boolean,
+    _runId: string,
+    toolCallId: string,
+  ) => {
+    const body = {
+      model: modelId,
+      chatId: threadId,
+      runId: _runId,
+      threadId,
+      approved,
+      tools: chatInputRef.current?.getTools(),
+      toolCallId,
+    };
+
+    sendMessage(
+      {
+        text: '',
+      },
+      {
+        body,
+      },
+    );
+
+    // const result = await window.electron.mastra.chatResume({
+    //   approved,
+    //   runId: _runId,
+    //   chatId: threadId,
+    //   model: modelId,
+    // });
+    // debugger;
+  };
+
   useEffect(() => {
     setTitleAction(
       <div className="flex flex-row gap-2">
@@ -639,22 +657,53 @@ function ChatPage() {
                             );
                           } else if (part.type.startsWith('tool-')) {
                             const _part = part as ToolUIPart;
+                            const approval =
+                              message?.metadata?.pendingToolApprovals?.[
+                                _part?.toolCallId
+                              ];
                             return (
-                              <ToolMessage
-                                key={`${message.id}-${i}`}
-                                part={_part}
-                                onClick={() => {
-                                  console.log(_part);
-                                  setShowPreview(true);
-                                  setPreviewToolPart(_part);
-                                  setPreviewData((data) => {
-                                    return {
-                                      ...data,
-                                      previewPanel: ChatPreviewType.TOOL_RESULT,
-                                    };
-                                  });
-                                }}
-                              ></ToolMessage>
+                              <div className="flex flex-col">
+                                <ToolMessage
+                                  key={`${message.id}-${i}`}
+                                  part={_part}
+                                  isApprovalRequested={
+                                    approval && approval.type === 'approval'
+                                  }
+                                  onClick={() => {
+                                    console.log(_part);
+                                    setShowPreview(true);
+                                    setPreviewToolPart(_part);
+                                    setPreviewData((data) => {
+                                      return {
+                                        ...data,
+                                        previewPanel:
+                                          ChatPreviewType.TOOL_RESULT,
+                                      };
+                                    });
+                                  }}
+                                ></ToolMessage>
+                                {approval && (
+                                  <ToolMessageApproval
+                                    approval={approval}
+                                    onReject={() => {
+                                      console.log('reject', approval);
+                                      handleResumeChat(
+                                        false,
+                                        approval.runId,
+                                        _part?.toolCallId,
+                                      );
+                                    }}
+                                    onAccept={() => {
+                                      console.log('accept', approval);
+                                      handleResumeChat(
+                                        true,
+                                        approval.runId,
+                                        _part?.toolCallId,
+                                      );
+                                    }}
+                                  />
+                                )}
+                              </div>
                             );
                           }
                           return null;
