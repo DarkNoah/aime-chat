@@ -657,20 +657,24 @@ function ChatPage() {
                             );
                           } else if (part.type.startsWith('tool-')) {
                             const _part = part as ToolUIPart;
-                            const approvalData: ToolApproval =
-                              message.parts.find(
+                            let approval: ToolApproval;
+                            if (_part.state === 'input-available') {
+                              const approvalData = message.parts.find(
                                 (p) =>
                                   p.type === 'data-tool-call-approval' &&
                                   p.id === _part?.toolCallId,
                               )?.data;
 
-                            if (approvalData) {
-                              approvalData.type = 'approval';
+                              if (approvalData) {
+                                approvalData.type = 'approval';
+                              }
+                              approval =
+                                message?.metadata?.pendingToolApprovals?.[
+                                  _part?.toolCallId
+                                ] || approvalData;
                             }
-                            const approval: ToolApproval =
-                              message?.metadata?.pendingToolApprovals?.[
-                                _part?.toolCallId
-                              ] || approvalData;
+
+
                             return (
                               <div className="flex flex-col">
                                 <ToolMessage

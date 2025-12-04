@@ -237,7 +237,7 @@ export const ChatInput = React.forwardRef<ChatInputRef, ChatInputProps>(
               {onClearMessages && (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <PromptInputButton onClick={onClearMessages}>
+                    <PromptInputButton >
                       <IconTrash size={16} />
                     </PromptInputButton>
                   </AlertDialogTrigger>
@@ -257,7 +257,7 @@ export const ChatInput = React.forwardRef<ChatInputRef, ChatInputProps>(
                       <AlertDialogCancel>
                         {t('common.cancel')}
                       </AlertDialogCancel>
-                      <AlertDialogAction>
+                      <AlertDialogAction onClick={onClearMessages}>
                         {t('common.confirm')}
                       </AlertDialogAction>
                     </AlertDialogFooter>
