@@ -164,6 +164,8 @@ function ChatPage() {
     messages,
     setMessages,
     sendMessage,
+    resumeStream,
+    regenerate,
     status,
     error,
     stop,
@@ -455,15 +457,11 @@ function ChatPage() {
       tools: chatInputRef.current?.getTools(),
       toolCallId,
     };
-
-    sendMessage(
-      {
-        text: '',
-      },
-      {
-        body,
-      },
-    );
+    // await regenerate({ body });
+    // await resumeStream({
+    //   body,
+    // });
+    await sendMessage(undefined, { body });
 
     // const result = await window.electron.mastra.chatResume({
     //   approved,

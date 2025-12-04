@@ -596,6 +596,23 @@ class MastraManager extends BaseManager {
             toolCallId: toolCallId,
           });
         } else {
+          const toolCall = historyMessagesAISdkV5.find(
+            (x) =>
+              x.role == 'assistant' &&
+              x.metadata.pendingToolApprovals[toolCallId],
+          );
+          const toolCallData =
+            toolCall?.metadata?.pendingToolApprovals?.[toolCallId];
+          const value = {
+            type: 'tool-input-available',
+            toolCallId: toolCallId,
+            toolName: toolCallData?.toolName,
+            input: toolCallData?.args,
+          };
+          // appManager.sendEvent(`chat:event:${chatId}`, {
+          //   type: ChatEvent.ChatChunk,
+          //   data: JSON.stringify(value),
+          // });
           stream = await agent.declineToolCall({
             ...streamOptions,
             runId: runId,

@@ -60,13 +60,16 @@ export const AskUserQuestionMessage = React.forwardRef<
                     {question?.options?.map((option) => {
                       return (
                         <div
-                          className={`flex items-center gap-3 border p-2 rounded-md w-fit ${selectedOptions[question.question] === option.label ? 'bg-secondary' : ''}`}
+                          className={`cursor-pointer flex items-center gap-3 border p-2 rounded-md w-fit ${selectedOptions[question.question] === option.label ? 'bg-secondary' : ''}`}
                         >
                           <RadioGroupItem
                             value={option.label}
                             id={option.label}
                           />
-                          <Label htmlFor={option.label}>
+                          <Label
+                            htmlFor={option.label}
+                            className="cursor-pointer"
+                          >
                             {option.label}
                             <small className="text-xs text-muted-foreground">
                               {option?.description}
