@@ -48,11 +48,15 @@ export type ToolApproval = {
 };
 
 const getStatusBadge = (
-  status: ToolUIPart['state'],
+  part: ToolUIPart,
+  // status: ToolUIPart['state'],
   isApprovalRequested: boolean,
 ) => {
   const icons: Record<
-    ToolUIPart['state'] | 'approval-requested' | 'approval-responded',
+    | ToolUIPart['state']
+    | 'approval-requested'
+    | 'approval-responded'
+    | 'output-denied',
     ReactNode
   > = {
     'input-streaming': <CircleIcon className="size-4" />,
@@ -63,13 +67,21 @@ const getStatusBadge = (
     'output-error': <XCircleIcon className="size-4 text-red-600" />,
     'output-denied': <XCircleIcon className="size-4 text-orange-600" />,
   };
-
+  if (
+    part?.state === 'output-available' &&
+    part?.output?.code === 'TOOL_EXECUTION_FAILED'
+  ) {
+    return icons['output-error'];
+  }
+  if (part.output === 'Tool call was not approved by the user') {
+    return icons['output-denied'];
+  }
   if (isApprovalRequested === true) {
     return icons['approval-requested'];
   }
   return (
     <>
-      {icons[status]}
+      {icons[part?.state]}
       {/* {labels[status]} */}
     </>
   );
@@ -82,13 +94,13 @@ export const ToolMessage = React.forwardRef<ToolMessageRef, ToolMessageProps>(
     const [toolName, setToolName] = useState<string>(
       title ?? part?.type?.split('-').slice(1).join('-'),
     );
-    const state = useMemo(() => {
-      setToolName(part?.type?.split('-').slice(1).join('-'));
-      return part?.state === 'output-available' &&
-        part?.output?.code === 'TOOL_EXECUTION_FAILED'
-        ? 'output-error'
-        : part?.state;
-    }, [part?.state, part?.output?.code, part?.type]);
+    // const state = useMemo(() => {
+    //   setToolName(part?.type?.split('-').slice(1).join('-'));
+    //   return part?.state === 'output-available' &&
+    //     part?.output?.code === 'TOOL_EXECUTION_FAILED'
+    //     ? 'output-error'
+    //     : part?.state;
+    // }, [part?.state, part?.output?.code, part?.type]);
 
     const renderExtendContent = () => {
       if (toolName === 'AskUserQuestion') {
@@ -133,7 +145,7 @@ export const ToolMessage = React.forwardRef<ToolMessageRef, ToolMessageProps>(
           )}
           {...rest}
         >
-          {getStatusBadge(state, isApprovalRequested)}
+          {getStatusBadge(part, isApprovalRequested)}
           <span className="font-medium text-sm">{toolName}</span>
           {part?.input && (
             <span className=" ml-1 text-xs text-muted-foreground truncate max-w-[300px] block">
@@ -166,16 +178,8 @@ export const ToolMessageApproval = ({
     >
       <ConfirmationTitle>
         <ConfirmationRequest>
-          This tool will execute a query on the production database.
+          {t('tools.approval_description')}
         </ConfirmationRequest>
-        <ConfirmationAccepted>
-          <CheckIcon className="size-4 text-green-600 dark:text-green-400" />
-          <span>Accepted</span>
-        </ConfirmationAccepted>
-        <ConfirmationRejected>
-          <XIcon className="size-4 text-destructive" />
-          <span>Rejected</span>
-        </ConfirmationRejected>
       </ConfirmationTitle>
       <ConfirmationActions>
         <ConfirmationAction

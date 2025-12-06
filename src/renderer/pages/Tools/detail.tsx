@@ -241,7 +241,7 @@ function ToolDetail() {
               </TabsList>
             )}
 
-            {tool?.tools.length > 1 && (
+            {tool?.tools.length > 0 && (
               <TabsContent value="tools">
                 <Accordion type="multiple" defaultValue={[]} className="w-full">
                   {tool?.tools?.map((_tool) => (
@@ -259,16 +259,6 @@ function ToolDetail() {
                   ))}
                 </Accordion>
               </TabsContent>
-            )}
-            {tool?.tools.length === 1 && (
-              <>
-                <pre className="text-xs break-all text-wrap bg-secondary p-4 rounded-2xl">
-                  {tool?.tools[0]?.description}
-                </pre>
-                {tool?.tools[0]?.inputSchema &&
-                  tool?.tools[0]?.inputSchema.type === 'object' &&
-                  renderForm(tool?.tools[0])}
-              </>
             )}
           </Tabs>
         )}

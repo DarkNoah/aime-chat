@@ -171,7 +171,17 @@ aime-chat/
 ## 项目初始化
 ```bash
 git clone https://github.com/aime/aime-chat.git
+cd ./aime-chat
 pnpm install
+
+# 构建mastra
+cd ./packages/mastra
+pnpm install
+npm run build
+
+# 由于pnpm默认禁止运行postinstall脚本, 如果遇到缺失下载二进制包或之类的,请运行
+pnpm approve-builds
+
 ```
 ## 📝 可用脚本
 

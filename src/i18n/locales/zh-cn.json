@@ -57,7 +57,8 @@
     "add_mcp": "添加Mcp服务",
     "add_mcp_server": "添加MCP服务",
     "add_skill": "添加Skill",
-    "built_in": "内置"
+    "built_in": "内置",
+    "category": "分类"
   },
   "sidebar": {
     "new_chat": "新聊天",
@@ -80,6 +81,7 @@
     "add_mcp": "添加Mcp服务器",
     "edit_mcp": "修改Mcp服务器",
     "config": "配置",
-    "execute": "执行"
+    "execute": "执行",
+    "approval_description": "是否执行该工具?"
   }
 }

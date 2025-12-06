@@ -611,14 +611,14 @@ function ChatPage() {
                                       : 'justify-start'
                                   }
                                 >
-                                  <MessageAction
+                                  {/* <MessageAction
                                     onClick={() =>
                                       navigator.clipboard.writeText(part.text)
                                     }
                                     label="Copy"
                                   >
                                     <CopyIcon className="size-3" />
-                                  </MessageAction>
+                                  </MessageAction> */}
                                   {message?.parts.length === i + 1 &&
                                     message.role === 'assistant' &&
                                     message.metadata?.usage?.inputTokens &&
@@ -673,7 +673,6 @@ function ChatPage() {
                                   _part?.toolCallId
                                 ] || approvalData;
                             }
-
 
                             return (
                               <div className="flex flex-col">

@@ -56,7 +56,8 @@
     "reject": "Reject",
     "add_mcp_server": "Add MCP Server",
     "add_skill": "Add Skill",
-    "built_in": "Built-In"
+    "built_in": "Built-In",
+    "category": "Category"
   },
   "sidebar": {
     "new_chat": "New Chat",
@@ -79,6 +80,7 @@
     "add_mcp": "Add Mcp Server",
     "edit_mcp": "Edit Mcp Server",
     "config": "Config",
-    "execute": "Execute"
+    "execute": "Execute",
+    "approval_description": "Can this tool be executed?"
   }
 }

@@ -19,8 +19,15 @@ export type Tool = {
     id: string;
     name: string;
     description: string;
-    inputSchema: any;
+    inputSchema?: any;
   }[];
+};
+
+export type AvailableTool = {
+  id: string;
+  name: string;
+  description: string;
+  tools?: AvailableTool[];
 };
 
 export enum ToolEvent {

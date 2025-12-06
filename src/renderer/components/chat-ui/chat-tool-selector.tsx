@@ -11,6 +11,12 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Tool, ToolType } from '@/types/tool';
 import { CheckIcon } from 'lucide-react';
+import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group';
+import {
+  IconSquare,
+  IconSquareAsterisk,
+  IconSquareCheck,
+} from '@tabler/icons-react';
 
 export type ChatToolSelectorProps = ComponentProps<typeof Dialog> & {
   children: React.ReactNode;
@@ -50,13 +56,57 @@ export const ChatToolSelector = ({
     getAvailableTools();
   }, []);
 
-  const handleSelect = (id: string) => {
-    if (value?.includes(id)) {
-      onChange?.(value?.filter((x) => x !== id));
+  function intersection<T>(a: T[], b: T[]): T[] {
+    const setB = new Set(b);
+    return a.filter((item) => setB.has(item));
+  }
+
+  const handleSelect = (tool: Tool) => {
+    if (tool.isToolkit) {
+      const selected = intersection(
+        value,
+        tool.tools.map((x) => x.id),
+      );
+
+      const v = value.filter((x) => !tool.tools.map((t) => t.id).includes(x));
+      if (selected.length === tool.tools.length) {
+        onChange?.(v);
+      } else {
+        v.push(...tool.tools.map((t) => t.id));
+        onChange?.(v);
+      }
     } else {
-      onChange?.(value?.concat(id));
+      if (value?.includes(tool.id)) {
+        onChange?.(value?.filter((x) => x !== tool.id));
+      } else {
+        onChange?.(value?.concat(tool.id));
+      }
     }
   };
+
+  function renderCheckIcon(
+    tool: Tool,
+  ): React.ReactNode & (React.ReactNode | Iterable<React.ReactNode>) {
+    if (tool.isToolkit) {
+      const selectedCount = intersection(
+        tool.tools?.map((x) => x.id) ?? [],
+        value,
+      ).length;
+      if (selectedCount === tool.tools.length) {
+        return <IconSquareCheck className="ml-auto size-4" />;
+      } else if (selectedCount > 0) {
+        return <IconSquareAsterisk className="ml-auto size-4" />;
+      } else {
+        return <IconSquare className="ml-auto size-4" />;
+      }
+    } else {
+      return value?.includes(tool.id) ? (
+        <IconSquareCheck className="ml-auto size-4" />
+      ) : (
+        <IconSquare className="ml-auto size-4" />
+      );
+    }
+  }
 
   return (
     <Dialog>
@@ -75,38 +125,111 @@ export const ChatToolSelector = ({
             <TabsContent value={ToolType.MCP}>
               <CommandList>
                 <CommandEmpty>No tools found.</CommandEmpty>
-                {data?.mcp.map((tool) => (
-                  <CommandItem
-                    key={tool.id}
-                    value={tool.id}
-                    onSelect={() => handleSelect(tool.id)}
-                  >
-                    {tool.name}{' '}
-                    {value?.includes(tool.id) ? (
-                      <CheckIcon className="ml-auto size-4" />
-                    ) : (
-                      <div className="ml-auto size-4" />
+                {data[ToolType.MCP]?.map((tool) => (
+                  <>
+                    <CommandItem
+                      key={tool.id}
+                      value={tool.id}
+                      onSelect={() => handleSelect(tool)}
+                    >
+                      {tool.name} {renderCheckIcon(tool)}
+                    </CommandItem>
+                    {tool.isToolkit && (
+                      <div className="my-2">
+                        <ToggleGroup
+                          type="multiple"
+                          variant="outline"
+                          spacing={2}
+                          size="sm"
+                          className="flex-wrap"
+                          value={
+                            value.includes(tool.id)
+                              ? tool.tools.map((x) => x.id)
+                              : value
+                          }
+                          onValueChange={(_value) => {
+                            const selected = intersection(
+                              _value,
+                              tool.tools.map((x) => x.id),
+                            );
+                            const v = value.filter(
+                              (x) => !tool.tools.map((t) => t.id).includes(x),
+                            );
+                            v.push(...selected);
+                            onChange?.(v);
+                          }}
+                        >
+                          {tool.tools.map((subtool) => {
+                            return (
+                              <ToggleGroupItem
+                                value={subtool.id}
+                                aria-label={subtool.name}
+                                className=""
+                              >
+                                {subtool.name}
+                              </ToggleGroupItem>
+                            );
+                          })}
+                        </ToggleGroup>
+                      </div>
                     )}
-                  </CommandItem>
+                  </>
                 ))}
               </CommandList>
             </TabsContent>
             <TabsContent value={ToolType.BUILD_IN}>
               <CommandList>
                 <CommandEmpty>No tools found.</CommandEmpty>
+
                 {data[ToolType.BUILD_IN]?.map((tool) => (
-                  <CommandItem
-                    key={tool.id}
-                    value={tool.id}
-                    onSelect={() => handleSelect(tool.id)}
-                  >
-                    {tool.name}{' '}
-                    {value?.includes(tool.id) ? (
-                      <CheckIcon className="ml-auto size-4" />
-                    ) : (
-                      <div className="ml-auto size-4" />
+                  <>
+                    <CommandItem
+                      key={tool.id}
+                      value={tool.id}
+                      onSelect={() => handleSelect(tool)}
+                    >
+                      {tool.name} {renderCheckIcon(tool)}
+                    </CommandItem>
+                    {tool.isToolkit && (
+                      <div className="my-2">
+                        <ToggleGroup
+                          type="multiple"
+                          variant="outline"
+                          spacing={2}
+                          size="sm"
+                          className="flex-wrap"
+                          value={
+                            value.includes(tool.id)
+                              ? tool.tools.map((x) => x.id)
+                              : value
+                          }
+                          onValueChange={(_value) => {
+                            const selected = intersection(
+                              _value,
+                              tool.tools.map((x) => x.id),
+                            );
+                            const v = value.filter(
+                              (x) => !tool.tools.map((t) => t.id).includes(x),
+                            );
+                            v.push(...selected);
+                            onChange?.(v);
+                          }}
+                        >
+                          {tool.tools.map((subtool) => {
+                            return (
+                              <ToggleGroupItem
+                                value={subtool.id}
+                                aria-label={subtool.name}
+                                className=""
+                              >
+                                {subtool.name}
+                              </ToggleGroupItem>
+                            );
+                          })}
+                        </ToggleGroup>
+                      </div>
                     )}
-                  </CommandItem>
+                  </>
                 ))}
               </CommandList>
             </TabsContent>
@@ -117,7 +240,7 @@ export const ChatToolSelector = ({
                   <CommandItem
                     key={tool.id}
                     value={tool.id}
-                    onSelect={() => handleSelect(tool.id)}
+                    onSelect={() => handleSelect(tool)}
                   >
                     {tool.name}{' '}
                     {value?.includes(tool.id) ? (

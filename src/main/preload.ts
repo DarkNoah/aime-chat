@@ -23,7 +23,7 @@ import {
   ProviderTag,
   UpdateProvider,
 } from '@/types/provider';
-import { ToolType } from '@/types/tool';
+import { AvailableTool, ToolType } from '@/types/tool';
 import { MastraDBMessage, StorageThreadType } from '@mastra/core/memory';
 import { UIMessage } from 'ai';
 import {
@@ -153,7 +153,8 @@ const electronHandler = {
     saveMCPServer: (id: string | undefined, data: string) =>
       ipcRenderer.invoke(ToolChannel.SaveMCPServer, id, data),
     getMcp: (id: string) => ipcRenderer.invoke(ToolChannel.GetMcp, id),
-    getAvailableTools: () => ipcRenderer.invoke(ToolChannel.GetAvailableTools),
+    getAvailableTools: (): Promise<Record<ToolType, Tool[]>> =>
+      ipcRenderer.invoke(ToolChannel.GetAvailableTools),
     getList: (filter?: { type: ToolType }) =>
       ipcRenderer.invoke(ToolChannel.GetList, filter),
     getTool: (id: string) => ipcRenderer.invoke(ToolChannel.GetTool, id),

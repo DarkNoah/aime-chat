@@ -29,4 +29,7 @@ export class Tools {
 
   @Column('json', { nullable: true })
   value?: any;
+
+  @Column({ nullable: true })
+  toolkitId?: string;
 }

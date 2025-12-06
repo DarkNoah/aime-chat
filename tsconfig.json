@@ -22,5 +22,6 @@
     "allowImportingTsExtensions": true,
     "noEmit": true
   },
+  "include": ["src/**/*", "src/**/*.d.ts"],
   "exclude": ["test", "release/build", "release/app/dist", ".erb/dll"]
 }

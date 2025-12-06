@@ -53,7 +53,7 @@ Important:
 </available_skills>
 
 `;
-  inputSchema = z.object({
+  inputSchema = z.strictObject({
     skill: z
       .string()
       .describe(`The skill name (no arguments). E.g., "pdf" or "xlsx"`),
