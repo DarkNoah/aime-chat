@@ -37,6 +37,7 @@ export enum ToolEvent {
 export const ToolConfig = {
   ToolToolkit: {
     configSchema: z.strictObject({
+      method: z.enum(['auto', 'bm25', 'regex', 'embeddings', 'hybrid']),
       modelId: z.string(),
       numResults: z.number().optional().default(5),
     }),
@@ -44,6 +45,9 @@ export const ToolConfig = {
       modelId: {
         'ui:widget': 'modelSelector',
         'ui:title': t('common.provider'),
+      },
+      method: {
+        'ui:title': t('common.method'),
       },
       numResults: {
         'ui:title': t('common.num_results'),

@@ -18,8 +18,8 @@ import {
 import { IconPlus, IconSearch } from '@tabler/icons-react';
 import { ScrollArea } from '@/renderer/components/ui/scroll-area';
 import { SidebarMenu } from '@/renderer/components/ui/sidebar';
-import { Route, Routes } from 'react-router-dom';
-import { Agent } from '@/types/agent';
+import { Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { Agent, AgentTags } from '@/types/agent';
 import { Label } from '@/renderer/components/ui/label';
 import {
   ToggleGroup,
@@ -30,19 +30,40 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from '@/renderer/components/ui/input-group';
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/renderer/components/ui/card';
+import { Switch } from '@/renderer/components/ui/switch';
 
 function AgentPage() {
   const { setTitle } = useHeader();
   const [isRunning, setIsRunning] = useState(false);
   const { t } = useTranslation();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [agents, setAgents] = useState<Agent[]>([]);
   useEffect(() => {
     setTitle(t('sidebar.agents'));
   }, [setTitle, t]);
 
-  const handleStart = () => {
-    // window.electron.app.toast('开始同步', { type: 'success' });
+  const getList = async () => {
+    const data = await window.electron.agents.getList();
+    console.log(data);
+    setAgents(data);
+  };
+  useEffect(() => {
+    getList();
+  }, []);
+
+  const handleClickAgent = (agent: Agent) => {
+    navigate(`/agents/${agent.id}`);
   };
 
   return (
@@ -75,37 +96,45 @@ function AgentPage() {
                 size="sm"
                 className="flex-wrap"
               >
-                <ToggleGroupItem
-                  value="star"
-                  aria-label="Toggle star"
-                  className="data-[state=on]:bg-transparent data-[state=on]:*:[svg]:fill-yellow-500 data-[state=on]:*:[svg]:stroke-yellow-500"
-                >
-                  <StarIcon />
-                  Star
-                </ToggleGroupItem>
-                <ToggleGroupItem
-                  value="star"
-                  aria-label="Toggle star"
-                  className="data-[state=on]:bg-transparent data-[state=on]:*:[svg]:fill-yellow-500 data-[state=on]:*:[svg]:stroke-yellow-500"
-                >
-                  <StarIcon />
-                  Star
-                </ToggleGroupItem>
-                <ToggleGroupItem
-                  value="star"
-                  aria-label="Toggle star"
-                  className="data-[state=on]:bg-transparent data-[state=on]:*:[svg]:fill-yellow-500 data-[state=on]:*:[svg]:stroke-yellow-500"
-                >
-                  <StarIcon />
-                  StarS
-                </ToggleGroupItem>
+                {Object.entries(AgentTags).map(([key, value]) => {
+                  return (
+                    <ToggleGroupItem value={value}>{value}</ToggleGroupItem>
+                  );
+                })}
               </ToggleGroup>
             </div>
           </div>
         </div>
       </div>
       <ScrollArea className="flex-1 min-h-0">
-        <div className="h-[2000px]"></div>
+        <div className="w-full flex flex-row flex-wrap gap-2">
+          {agents.map((agent) => (
+            <Card className="w-full max-w-sm" key={agent.id}>
+              <CardHeader>
+                <CardTitle
+                  className="cursor-pointer hover:underline"
+                  onClick={() => handleClickAgent(agent)}
+                >
+                  {agent.name}
+                </CardTitle>
+                <CardDescription>{agent.description}</CardDescription>
+                <CardAction>
+                  <Switch
+                    checked={agent.isActive}
+                    onCheckedChange={async (v) => {
+                      await window.electron.agents.update({
+                        id: agent.id,
+                        isActive: v,
+                      });
+                      await getList();
+                    }}
+                  />
+                </CardAction>
+              </CardHeader>
+              <CardContent></CardContent>
+            </Card>
+          ))}
+        </div>
       </ScrollArea>
     </div>
   );

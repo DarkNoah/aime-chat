@@ -40,19 +40,19 @@ export const ChatToolSelector = ({
     [ToolType.SKILL]: [],
     [ToolType.BUILD_IN]: [],
   });
+  const getAvailableTools = async () => {
+    try {
+      setLoading(true);
+      const tools = await window.electron.tools.getAvailableTools();
+      console.log(tools);
+      setData(tools);
+      setLoading(false);
+    } catch (error) {
+      console.error(error);
+      setLoading(false);
+    }
+  };
   useEffect(() => {
-    const getAvailableTools = async () => {
-      try {
-        setLoading(true);
-        const tools = await window.electron.tools.getAvailableTools();
-        console.log(tools);
-        setData(tools);
-        setLoading(false);
-      } catch (error) {
-        console.error(error);
-        setLoading(false);
-      }
-    };
     getAvailableTools();
   }, []);
 
@@ -109,7 +109,13 @@ export const ChatToolSelector = ({
   }
 
   return (
-    <Dialog>
+    <Dialog
+      onOpenChange={(open) => {
+        if (open) {
+          getAvailableTools();
+        }
+      }}
+    >
       <DialogTrigger asChild>{children}</DialogTrigger>
 
       <DialogContent className={cn('p-0')}>

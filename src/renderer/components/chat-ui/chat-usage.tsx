@@ -50,7 +50,7 @@ import { ToolMessage, ToolMessageApproval } from './tool-message';
 import { IconArrowDown } from '@tabler/icons-react';
 import { ChatPreviewData, ChatPreviewType } from '../../../types/chat';
 
-export type ChatUsageProps = ContextProps & {
+export type ChatUsageProps = {
   value?: {
     usage?: LanguageModelUsage;
     maxTokens?: number;

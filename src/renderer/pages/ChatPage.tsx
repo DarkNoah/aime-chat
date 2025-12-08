@@ -117,7 +117,12 @@ import {
   DropdownMenuTrigger,
 } from '../components/ui/dropdown-menu';
 import { ChatUsage } from '../components/chat-ui/chat-usage';
-import type { ToolApproval } from '../components/chat-ui/tool-message/index';
+import type {
+  ToolApproval,
+  ToolSuspended,
+} from '../components/chat-ui/tool-message/index';
+import { ChatAgentSelector } from '../components/chat-ui/chat-agent-selector';
+import { Agent } from '@/types/agent';
 
 function ChatPage() {
   const [input, setInput] = useState('');
@@ -141,6 +146,7 @@ function ChatPage() {
     | undefined
   >();
   const [modelId, setModelId] = useState<string | undefined>();
+  const [agent, setAgent] = useState<Agent | undefined>();
   const [previewData, setPreviewData] = useState<ChatPreviewData>({
     previewPanel: ChatPreviewType.CANVAS,
   });
@@ -280,6 +286,7 @@ function ChatPage() {
       requireToolApproval: options?.requireToolApproval,
       runId,
       threadId,
+      agentId: agent?.id,
     };
     const inputMessage = {
       text: message.text || 'Sent with attachments',
@@ -444,9 +451,10 @@ function ChatPage() {
   };
 
   const handleResumeChat = async (
-    approved: boolean,
     _runId: string,
     toolCallId: string,
+    approved?: boolean,
+    resumeData?: Record<string, any>,
   ) => {
     const body = {
       model: modelId,
@@ -454,6 +462,7 @@ function ChatPage() {
       runId: _runId,
       threadId,
       approved,
+      resumeData,
       tools: chatInputRef.current?.getTools(),
       toolCallId,
     };
@@ -657,21 +666,39 @@ function ChatPage() {
                             );
                           } else if (part.type.startsWith('tool-')) {
                             const _part = part as ToolUIPart;
-                            let approval: ToolApproval;
+                            let approvalData: ToolApproval;
+                            let suspendedData: ToolSuspended;
+                            let isSuspended = false;
                             if (_part.state === 'input-available') {
-                              const approvalData = message.parts.find(
-                                (p) =>
-                                  p.type === 'data-tool-call-approval' &&
-                                  p.id === _part?.toolCallId,
-                              )?.data;
+                              approvalData =
+                                message.parts.find(
+                                  (p) =>
+                                    p.type === 'data-tool-call-approval' &&
+                                    p.id === _part?.toolCallId,
+                                )?.data ||
+                                message?.metadata?.pendingToolApprovals?.[
+                                  _part?.toolCallId
+                                ];
+
+                              suspendedData =
+                                message.parts.find(
+                                  (p) =>
+                                    p.type === 'data-tool-call-suspended' &&
+                                    p.id === _part?.toolCallId,
+                                )?.data ||
+                                message?.metadata?.suspendPayload?.[
+                                  _part?.toolCallId
+                                ];
 
                               if (approvalData) {
                                 approvalData.type = 'approval';
+                                isSuspended = true;
                               }
-                              approval =
-                                message?.metadata?.pendingToolApprovals?.[
-                                  _part?.toolCallId
-                                ] || approvalData;
+
+                              if (suspendedData) {
+                                suspendedData.type = 'suspended';
+                                isSuspended = true;
+                              }
                             }
 
                             return (
@@ -679,9 +706,17 @@ function ChatPage() {
                                 <ToolMessage
                                   key={`${message.id}-${i}`}
                                   part={_part}
-                                  isApprovalRequested={
-                                    approval && approval.type === 'approval'
-                                  }
+                                  isSuspended={isSuspended}
+                                  onResume={(value) => {
+                                    console.log(value);
+                                    handleResumeChat(
+                                      suspendedData.runId,
+                                      _part?.toolCallId,
+                                      undefined,
+                                      value,
+                                    );
+                                  }}
+                                  suspendedData={suspendedData}
                                   onClick={() => {
                                     console.log(_part);
                                     setShowPreview(true);
@@ -695,23 +730,23 @@ function ChatPage() {
                                     });
                                   }}
                                 ></ToolMessage>
-                                {approval && (
+                                {approvalData && (
                                   <ToolMessageApproval
-                                    approval={approval}
+                                    approval={approvalData}
                                     onReject={() => {
-                                      console.log('reject', approval);
+                                      console.log('reject', approvalData);
                                       handleResumeChat(
-                                        false,
-                                        approval.runId,
+                                        approvalData.runId,
                                         _part?.toolCallId,
+                                        false,
                                       );
                                     }}
                                     onAccept={() => {
-                                      console.log('accept', approval);
+                                      console.log('accept', approvalData);
                                       handleResumeChat(
-                                        true,
-                                        approval.runId,
+                                        approvalData.runId,
                                         _part?.toolCallId,
+                                        true,
                                       );
                                     }}
                                   />
@@ -752,12 +787,16 @@ function ChatPage() {
           </Conversation>
           <div className="w-full px-4 pb-4 flex flex-col gap-2 justify-start">
             <div className="flex flex-row gap-2 justify-between">
+              <ChatAgentSelector
+                value={agent}
+                onChange={setAgent}
+              ></ChatAgentSelector>
               {usage?.usage?.totalTokens && (
                 <ChatUsage
                   value={{
                     usage: usage?.usage,
                     maxTokens: usage?.maxTokens,
-                    modelId: usage?.modelId,
+                    modelId: usage?.model,
                   }}
                 />
                 // <Context

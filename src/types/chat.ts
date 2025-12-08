@@ -25,6 +25,7 @@ export type ChatInput = {
   };
   approved?: boolean;
   toolCallId?: string;
+  resumeData?: Record<string, any>;
 };
 
 export enum ChatEvent {

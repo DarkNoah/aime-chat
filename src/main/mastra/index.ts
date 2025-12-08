@@ -62,7 +62,7 @@ import {
 import { compressAgent } from './agents/compress-agent';
 import { skillManager } from '../tools/common/skill';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import { agentManager } from '../agents';
+import { agentManager } from './agents';
 
 class MastraManager extends BaseManager {
   app: express.Application;
@@ -215,6 +215,20 @@ class MastraManager extends BaseManager {
     const storage = this.mastra.getStorage();
     const thread = await storage?.getThreadById({ threadId: id });
 
+    const memory = new Memory({
+      storage: storage,
+      options: {
+        generateTitle: false,
+        semanticRecall: false,
+        workingMemory: {
+          enabled: false,
+        },
+        lastMessages: false,
+      },
+      vector: getVectorStore(),
+    });
+    // const messagesDb = await memory.recall({ threadId: id, resourceId: '123' });
+
     const messages = await storage.listMessages({
       threadId: id,
       resourceId: '123',
@@ -302,6 +316,7 @@ class MastraManager extends BaseManager {
       requireToolApproval,
       approved,
       toolCallId,
+      resumeData,
     } = data;
     const storage = this.mastra.getStorage();
     let currentThread = await storage.getThreadById({ threadId: chatId });
@@ -394,7 +409,7 @@ class MastraManager extends BaseManager {
       // const thread = await this.mastra.getStorage().getThreadById({ threadId });
 
       // const messages = convertToModelMessages(uiMessages);
-      const recentMessage = agent.getMostRecentUserMessage(uiMessages);
+      // const recentMessage = agent.getMostRecentUserMessage(uiMessages);
       const controller = new AbortController();
       const signal = controller.signal;
       let chunkPart;
@@ -588,19 +603,28 @@ class MastraManager extends BaseManager {
           return { messages: messages };
         },
       };
-      if (runId && approved !== undefined) {
-        if (approved) {
+      if (runId && (approved !== undefined || resumeData !== undefined)) {
+        if (approved === true) {
           stream = await agent.approveToolCall({
             ...streamOptions,
             runId: runId,
             toolCallId: toolCallId,
           });
-        } else {
+        } else if (approved === false) {
           stream = await agent.declineToolCall({
             ...streamOptions,
             runId: runId,
             toolCallId: toolCallId,
           });
+        } else {
+          stream = await agent.resumeStream(
+            { ...resumeData },
+            {
+              ...streamOptions,
+              runId: runId,
+              toolCallId: toolCallId,
+            },
+          );
         }
       } else {
         stream = await agent.stream(inputMessage, streamOptions);
@@ -644,7 +668,44 @@ class MastraManager extends BaseManager {
           data: JSON.stringify(value),
         });
       }
-      // if (stream.status == 'suspended') {
+      if (stream.status == 'suspended') {
+        const suspendPayload = await stream.suspendPayload;
+        const toolCallId = suspendPayload.toolCallId;
+        suspendPayload.runId = stream.runId;
+        const messages = stream.messageList.get.all.db();
+        const message = messages.find(
+          (x) =>
+            x.role == 'assistant' &&
+            x.content.parts.find(
+              (x) =>
+                x.type == 'tool-invocation' &&
+                x.toolInvocation.toolCallId == toolCallId,
+            ),
+        );
+        await storage.updateMessages({
+          messages: [
+            {
+              id: message.id,
+              content: {
+                ...message.content,
+                metadata: {
+                  ...message.content.metadata,
+                  suspendPayload: {
+                    ...((message.content.metadata?.suspendPayload as Record<
+                      string,
+                      any
+                    >) ?? {}),
+                    [toolCallId]: suspendPayload,
+                  },
+                },
+              },
+            },
+          ],
+        });
+        // storage.listMessages({});
+        // debugger;
+      }
+
       //   const suspendPayload = await stream.suspendPayload;
 
       //   appManager.sendEvent(`chat:event:${chatId}`, {
@@ -930,73 +991,6 @@ class MastraManager extends BaseManager {
     //     data: JSON.stringify(value),
     //   });
     // }
-  }
-  @channel(MastraChannel.ChatResume, { mode: 'on' })
-  public async chatResume(event: IpcMainEvent, data: ChatInput) {
-    const {
-      agentId,
-      messageId,
-      trigger,
-      messages: uiMessages,
-      model,
-      webSearch,
-      think,
-      tools = [],
-      runId,
-      chatId,
-      options,
-      requireToolApproval,
-      approved,
-    } = data;
-    const storage = this.mastra.getStorage();
-    let currentThread = await storage.getThreadById({ threadId: chatId });
-    const agent = await agentManager.buildAgent(agentId || 'react-agent', {
-      modelId: model,
-      tools: (currentThread.metadata?.tools as string[]) || [],
-    });
-    const controller = new AbortController();
-    const signal = controller.signal;
-
-    const stream = await agent.resumeStream(
-      { approved: approved },
-      { runId: runId, abortSignal: signal },
-    );
-    appManager.sendEvent(`chat:event:${chatId}`, {
-      type: ChatEvent.ChatChanged,
-      data: { type: ChatChangedType.Start, chatId },
-    });
-    appManager.sendEvent(ChatEvent.ChatChanged, {
-      data: { type: ChatChangedType.Start, chatId },
-    });
-    this.threadChats.push({
-      id: chatId,
-      title: 'string',
-      status: 'streaming',
-      controller,
-    });
-    const uiStream = toAISdkStream(stream, {
-      from: 'agent',
-    });
-
-    const uiStreamReader = uiStream.getReader();
-    while (true) {
-      const { done, value } = await uiStreamReader.read();
-      if (done) {
-        break;
-      }
-      appManager.sendEvent(`chat:event:${chatId}`, {
-        type: ChatEvent.ChatChunk,
-        data: JSON.stringify(value),
-      });
-    }
-
-    appManager.sendEvent(`chat:event:${chatId}`, {
-      type: ChatEvent.ChatChanged,
-      data: { type: ChatChangedType.Finish, chatId },
-    });
-    appManager.sendEvent(ChatEvent.ChatChanged, {
-      data: { type: ChatChangedType.Finish, chatId },
-    });
   }
 
   @channel(MastraChannel.ChatAbort)

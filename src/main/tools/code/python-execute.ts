@@ -1,9 +1,5 @@
 import { Agent } from '@mastra/core/agent';
-import {
-  createTool,
-  MastraToolInvocationOptions,
-  ToolExecutionContext,
-} from '@mastra/core/tools';
+import { createTool, ToolExecutionContext } from '@mastra/core/tools';
 import { generateText } from 'ai';
 import z from 'zod';
 import BaseTool from '../base-tool';
@@ -38,7 +34,7 @@ Usage:
 
   execute = async (
     inputData: z.infer<typeof this.inputSchema>,
-    options?: MastraToolInvocationOptions,
+    options?: ToolExecutionContext,
   ) => {
     const { code, packages } = inputData;
     const temp = app.getPath('temp');

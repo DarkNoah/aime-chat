@@ -1,6 +1,5 @@
 import {
   createTool,
-  MastraToolInvocationOptions,
   ToolExecutionContext,
 } from '@mastra/core/tools';
 import { generateText } from 'ai';

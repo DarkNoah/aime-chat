@@ -57,7 +57,9 @@
     "add_mcp_server": "Add MCP Server",
     "add_skill": "Add Skill",
     "built_in": "Built-In",
-    "category": "Category"
+    "category": "Category",
+    "method": "Method",
+    "agents": "Agents"
   },
   "sidebar": {
     "new_chat": "New Chat",

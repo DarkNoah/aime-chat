@@ -1,9 +1,11 @@
 // Disable no-unused-vars, broken for spread args
 /* eslint no-unused-vars: off */
+import { Agent } from '@/types/agent';
 import { AppProxy } from '@/types/app';
 import { ChatInput } from '@/types/chat';
 import { PaginationInfo } from '@/types/common';
 import {
+  AgentChannel,
   AppChannel,
   KnowledgeBaseChannel,
   LocalModelChannel,
@@ -129,7 +131,6 @@ const electronHandler = {
     deleteThread: (id: string) =>
       ipcRenderer.invoke(MastraChannel.DeleteThread, id),
     chat: (data: any) => ipcRenderer.send(MastraChannel.Chat, data),
-    chatResume: (data: any) => ipcRenderer.send(MastraChannel.ChatResume, data),
     chatWorkflow: (data: any) =>
       ipcRenderer.send(MastraChannel.ChatWorkflow, data),
     chatAbort: (chatId: string) =>
@@ -176,6 +177,14 @@ const electronHandler = {
       ipcRenderer.invoke(LocalModelChannel.DeleteModel, modelId, type),
     setDefaultModel: (modelId: string) =>
       ipcRenderer.invoke(LocalModelChannel.SetDefaultModel, modelId),
+  },
+  agents: {
+    getAgent: (id: string) => ipcRenderer.invoke(AgentChannel.GetAgent, id),
+    getList: (): Promise<Agent[]> => ipcRenderer.invoke(AgentChannel.GetList),
+    getAvailableAgents: (): Promise<Agent[]> =>
+      ipcRenderer.invoke(AgentChannel.GetAvailableAgents),
+    update: (agent: Agent) =>
+      ipcRenderer.invoke(AgentChannel.UpdateAgent, agent),
   },
 };
 

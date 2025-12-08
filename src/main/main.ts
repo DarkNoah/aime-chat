@@ -22,7 +22,7 @@ import { appManager } from './app';
 import { knowledgeBaseManager } from './knowledge-base';
 import { toolsManager } from './tools';
 import { localModelManager } from './local-model';
-import { agentManager } from './agents';
+import { agentManager } from './mastra/agents';
 
 async function init() {
   try {

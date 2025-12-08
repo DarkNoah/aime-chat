@@ -58,7 +58,9 @@
     "add_mcp_server": "添加MCP服务",
     "add_skill": "添加Skill",
     "built_in": "内置",
-    "category": "分类"
+    "category": "分类",
+    "method": "模式",
+    "agents": "智能体"
   },
   "sidebar": {
     "new_chat": "新聊天",

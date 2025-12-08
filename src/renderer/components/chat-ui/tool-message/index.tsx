@@ -12,6 +12,7 @@ import {
   CheckCircleIcon,
   CheckIcon,
   CircleIcon,
+  CircleQuestionMark,
   ClockIcon,
   WrenchIcon,
   XCircleIcon,
@@ -32,12 +33,22 @@ import { WriteMessage } from './write-message';
 import { Button } from '../../ui/button';
 import { useTranslation } from 'react-i18next';
 
+export type ToolSuspended = {
+  toolName: string;
+  toolCallId: string;
+  suspendPayload: Record<string, any>;
+  type: 'suspended';
+  runId: string;
+};
+
 export interface ToolMessageRef {}
 
 export type ToolMessageProps = ComponentProps<typeof Badge> & {
   part?: ToolUIPart;
   title?: string;
-  isApprovalRequested?: boolean;
+  isSuspended?: boolean;
+  suspendedData?: ToolSuspended;
+  onResume?: (resumeData: Record<string, any>) => void;
 };
 
 export type ToolApproval = {
@@ -47,11 +58,7 @@ export type ToolApproval = {
   runId: string;
 };
 
-const getStatusBadge = (
-  part: ToolUIPart,
-  // status: ToolUIPart['state'],
-  isApprovalRequested: boolean,
-) => {
+const getStatusBadge = (part: ToolUIPart, isSuspended: boolean) => {
   const icons: Record<
     | ToolUIPart['state']
     | 'approval-requested'
@@ -61,7 +68,9 @@ const getStatusBadge = (
   > = {
     'input-streaming': <CircleIcon className="size-4" />,
     'input-available': <ClockIcon className="size-4 animate-pulse" />,
-    'approval-requested': <ClockIcon className="size-4 text-yellow-600" />,
+    'approval-requested': (
+      <CircleQuestionMark className="size-4 text-yellow-600 animate-pulse" />
+    ),
     'approval-responded': <CheckCircleIcon className="size-4 text-blue-600" />,
     'output-available': <CheckCircleIcon className="size-4 text-green-600" />,
     'output-error': <XCircleIcon className="size-4 text-red-600" />,
@@ -76,9 +85,10 @@ const getStatusBadge = (
   if (part.output === 'Tool call was not approved by the user') {
     return icons['output-denied'];
   }
-  if (isApprovalRequested === true) {
+  if (isSuspended === true) {
     return icons['approval-requested'];
   }
+
   return (
     <>
       {icons[part?.state]}
@@ -89,7 +99,15 @@ const getStatusBadge = (
 
 export const ToolMessage = React.forwardRef<ToolMessageRef, ToolMessageProps>(
   (props: ToolMessageProps, ref: ForwardedRef<ToolMessageRef>) => {
-    const { className, part, title, isApprovalRequested, ...rest } = props;
+    const {
+      className,
+      part,
+      title,
+      isSuspended,
+      suspendedData,
+      onResume,
+      ...rest
+    } = props;
 
     const [toolName, setToolName] = useState<string>(
       title ?? part?.type?.split('-').slice(1).join('-'),
@@ -103,8 +121,14 @@ export const ToolMessage = React.forwardRef<ToolMessageRef, ToolMessageProps>(
     // }, [part?.state, part?.output?.code, part?.type]);
 
     const renderExtendContent = () => {
-      if (toolName === 'AskUserQuestion') {
-        return <AskUserQuestionMessage part={part} />;
+      if (toolName === 'AskUserQuestion' && part?.state === 'input-available') {
+        return (
+          <AskUserQuestionMessage
+            part={part}
+            suspendedData={suspendedData}
+            onResume={onResume}
+          />
+        );
       } else if (toolName === 'TodoWrite') {
         return <TodoWriteMessage part={part}></TodoWriteMessage>;
       } else if (toolName === 'Write') {
@@ -145,7 +169,7 @@ export const ToolMessage = React.forwardRef<ToolMessageRef, ToolMessageProps>(
           )}
           {...rest}
         >
-          {getStatusBadge(part, isApprovalRequested)}
+          {getStatusBadge(part, isSuspended)}
           <span className="font-medium text-sm">{toolName}</span>
           {part?.input && (
             <span className=" ml-1 text-xs text-muted-foreground truncate max-w-[300px] block">

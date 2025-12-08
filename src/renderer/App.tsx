@@ -49,6 +49,7 @@ import ChatPage from './pages/ChatPage';
 import KnowledgeBasePage from './pages/KnowledgeBase';
 import AgentPage from './pages/agents';
 import { Toaster } from 'react-hot-toast';
+import AgentDetail from './pages/agents/detail';
 
 function Hello() {
   const { setTitle } = useHeader();
@@ -143,7 +144,8 @@ export default function App() {
           <Route path="/settings/*" element={<Settings />} />
           <Route path="/tools/*" element={<Tools />} />
           <Route path="/knowledge-base/*" element={<KnowledgeBasePage />} />
-          <Route path="/agents/*" element={<AgentPage />} />
+          <Route path="/agents" element={<AgentPage />} />
+          <Route path="/agents/:id" element={<AgentDetail />} />
         </Routes>
       </LayoutPage>
     </Router>

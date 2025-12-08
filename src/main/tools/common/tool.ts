@@ -1,8 +1,4 @@
-import {
-  createTool,
-  MastraToolInvocationOptions,
-  ToolExecutionContext,
-} from '@mastra/core/tools';
+import { createTool, ToolExecutionContext } from '@mastra/core/tools';
 import { generateText } from 'ai';
 import z from 'zod';
 import BaseTool, { BaseToolParams } from '../base-tool';
@@ -50,7 +46,7 @@ export class ToolSearch extends BaseTool<ToolToolkitParams> {
 
   execute = async (
     inputData: z.infer<typeof this.inputSchema>,
-    options?: MastraToolInvocationOptions,
+    options?: ToolExecutionContext,
   ) => {
     const { query, top_k } = inputData;
     const { writer } = options;
@@ -96,7 +92,7 @@ export class ToolExecution extends BaseTool<ToolToolkitParams> {
 
   execute = async (
     inputData: z.infer<typeof this.inputSchema>,
-    options?: MastraToolInvocationOptions,
+    options?: ToolExecutionContext,
   ) => {
     const { tool_name, tool_input } = inputData;
     const { writer } = options;

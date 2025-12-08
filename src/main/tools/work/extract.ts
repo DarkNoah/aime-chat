@@ -1,9 +1,5 @@
 import { Agent } from '@mastra/core/agent';
-import {
-  createTool,
-  MastraToolInvocationOptions,
-  ToolExecutionContext,
-} from '@mastra/core/tools';
+import { createTool, ToolExecutionContext } from '@mastra/core/tools';
 import { generateText, tool } from 'ai-v5';
 import z from 'zod';
 import BaseTool, { BaseToolParams } from '../base-tool';
@@ -39,7 +35,7 @@ export class Extract extends BaseTool<ExtractParams> {
 
   execute = async (
     inputData: z.infer<typeof this.inputSchema>,
-    options?: MastraToolInvocationOptions,
+    options?: ToolExecutionContext,
   ) => {
     const { query } = inputData;
     const config = this.config;

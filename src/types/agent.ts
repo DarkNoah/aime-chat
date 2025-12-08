@@ -5,8 +5,20 @@ export type BuildAgentParams = {
 
 export type Agent = {
   id: string;
-  name: string;
-  description: string;
-  tools: string[];
-  modelId: string;
+  name?: string;
+  description?: string;
+  tools?: string[];
+  isActive?: boolean;
+  tags?: string[];
 };
+
+export enum AgentTags {
+  CODE = 'code',
+  WORK = 'work',
+}
+
+export enum AgentType {
+  BUILD_IN = 'build_in',
+  CUSTOM = 'custom',
+  A2A = 'a2a',
+}

@@ -7,7 +7,9 @@ import { PythonExecute } from '@/main/tools/code/python-execute';
 import { Bash } from '@/main/tools/file-system/bash';
 
 export const compressAgent = new Agent({
-  name: 'compress-agent',
+  id: 'compress-agent',
+  name: 'Compress Agent',
   instructions: `You are a helpful AI assistant tasked with summarizing conversations.`,
+  description: 'hee',
   model: 'openai/gpt-4o-mini',
 });

@@ -463,10 +463,14 @@ class ToolsManager extends BaseManager {
 
     return {
       [ToolType.MCP]: tools
-        .filter((tool) => tool.type === ToolType.MCP)
+        .filter(
+          (tool) =>
+            tool.type === ToolType.MCP &&
+            this.mcpClients.find((x) => x.id === tool.id)?.status === 'running',
+        )
         .map((tool) => {
-          const mcpTools = this.mcpClients.find((x) => x.id === tool.id)?.mcp
-            ?.tools;
+          const mcpClient = this.mcpClients.find((x) => x.id === tool.id);
+          const mcpTools = mcpClient?.mcp?.tools ?? {};
           return {
             id: tool.id,
             name: tool.name,
