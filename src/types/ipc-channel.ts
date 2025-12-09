@@ -73,3 +73,11 @@ export enum AgentChannel {
   UpdateAgent = 'agent:updateAgent',
   GetAvailableAgents = 'agent:getAvailableAgents',
 }
+
+
+export enum ProjectChannel {
+  GetProject = 'project:getProject',
+  GetList = 'project:getList',
+  SaveProject = 'project:saveProject',
+  DeleteProject = 'project:deleteProject',
+}

@@ -1013,6 +1013,26 @@ class MastraManager extends BaseManager {
       messages: messages,
     });
   }
+
+
+  public async compressMessages(messages: ModelMessage[], options:{
+    thresholdTokenCount?: number;
+    force?: boolean;
+    model?: string;
+  }) {
+    const tokenCount = await tokenCounter(messages)
+    if (options.thresholdTokenCount && tokenCount > options.thresholdTokenCount && !options.force) {
+      return messages;
+    }
+    const model = await providersManager.getLanguageModel(options.model || 'openai/gpt-4o-mini');
+    const compressAgent = new Agent({
+      id: 'compress-agent',
+      name: 'Compress Agent',
+      instructions: 'You are a helpful assistant that compresses messages.',
+      model: model,
+    });
+    const response = await compressAgent.generate(messages);
+  }
 }
 
 const mastraManager = new MastraManager();

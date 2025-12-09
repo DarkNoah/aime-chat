@@ -69,7 +69,8 @@
     "tools": "Tools",
     "knowledge_base": "Knowledge Base",
     "agents": "Agents",
-    "knowledge-base": "Knowledge Base"
+    "knowledge-base": "Knowledge Base",
+    "new_project": "New Project"
   },
   "chat": {
     "new_chat": "New Chat",

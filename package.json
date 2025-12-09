@@ -232,6 +232,7 @@
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0",
     "js-cookie": "^3.0.5",
+    "json-schema-to-zod": "^2.7.0",
     "katex": "^0.16.22",
     "lucide-react": "^0.552.0",
     "marked": "^16.2.1",

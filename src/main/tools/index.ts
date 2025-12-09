@@ -102,6 +102,7 @@ class ToolsManager extends BaseManager {
       where: { id: `${ToolType.BUILD_IN}:${tool.id}` },
     });
 
+
     if (!toolEntity) {
       toolEntity = new Tools(
         `${ToolType.BUILD_IN}:${tool.id}`,
@@ -154,24 +155,25 @@ class ToolsManager extends BaseManager {
 
   async registerBuiltInTools() {
     // this.registerBuiltInTool(PythonExecute);
-    this.registerBuiltInTool(NodejsExecute);
-    this.registerBuiltInTool(CodeExecution);
-    this.registerBuiltInTool(TodoWrite);
-    this.registerBuiltInTool(BashToolkit);
-    this.registerBuiltInTool(FileSystem);
-    this.registerBuiltInTool(AskUserQuestion);
-    this.registerBuiltInTool(SendEvent);
-    this.registerBuiltInTool(WebSearch);
-    this.registerBuiltInTool(RemoveBackground);
-    this.registerBuiltInTool(Vision);
-    this.registerBuiltInTool(ToolToolkit);
+    await this.registerBuiltInTool(NodejsExecute);
+    await this.registerBuiltInTool(CodeExecution);
+    await this.registerBuiltInTool(TodoWrite);
+    await this.registerBuiltInTool(BashToolkit);
+    await this.registerBuiltInTool(FileSystem);
+    await this.registerBuiltInTool(AskUserQuestion);
+    await this.registerBuiltInTool(SendEvent);
+    await this.registerBuiltInTool(WebSearch);
+    await this.registerBuiltInTool(RemoveBackground);
+    await this.registerBuiltInTool(Vision);
+    await this.registerBuiltInTool(ToolToolkit);
+
     if (!app.isPackaged) {
-      this.registerBuiltInTool(ExpenseManagementToolkit);
-      this.registerBuiltInTool(StreamTest);
+      await this.registerBuiltInTool(ExpenseManagementToolkit);
+      await this.registerBuiltInTool(StreamTest);
     }
 
     const skills = await skillManager.getClaudeSkills();
-    this.registerBuiltInTool(Skill, {
+    await this.registerBuiltInTool(Skill, {
       skills: skills.map((skill) => ({
         name: skill.name,
         description: skill.description,

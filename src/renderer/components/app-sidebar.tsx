@@ -21,6 +21,7 @@ import {
   IconTools,
   IconBook,
   IconRobot,
+  IconFolderPlus,
 } from '@tabler/icons-react';
 // import { NavMain } from '@/app/(pages)/nav-main';
 // import { NavSecondary } from '@/app/dashboard/nav-secondary';
@@ -39,23 +40,37 @@ import {
 } from './ui/sidebar';
 import { Badge } from './ui/badge';
 import { useGlobal } from '../hooks/use-global';
-import React from 'react';
+import React, { useState } from 'react';
 import { NavItems } from './nav-items';
 import { useTranslation } from 'react-i18next';
 import ThreadsList from './threads-list';
 import { Button } from './ui/button';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { ChatProjectDialog } from './chat-project/chat-project-dialog';
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { appInfo } = useGlobal();
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
+
+  const [openProjectDialog, setOpenProjectDialog] = useState(false);
+  const handleSubmitProject = async (data: any) => {
+    console.log(data);
+  };
   const navItems = [
     {
       title: t('sidebar.new_chat'),
       url: '/chat',
       icon: IconEdit,
+    },
+    {
+      title: t('sidebar.new_project'),
+      icon: IconFolderPlus,
+      onClick: () => {
+        console.log('new project');
+        setOpenProjectDialog(true);
+      },
     },
     {
       title: t('sidebar.tools'),
@@ -82,7 +97,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             {appInfo?.isPackaged === false && (
               <Badge
                 variant="outline"
-                className="text-muted-foreground  text-xs"
+                className="text-muted-foreground text-xs"
               >
                 Dev
               </Badge>
@@ -92,7 +107,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavItems items={navItems}></NavItems>
         <SidebarSeparator className="ml-0"></SidebarSeparator>
       </SidebarHeader>
-
+      <ChatProjectDialog
+        open={openProjectDialog}
+        onOpenChange={setOpenProjectDialog}
+        onSubmit={handleSubmitProject}
+      ></ChatProjectDialog>
       <ThreadsList></ThreadsList>
       {/* <SidebarContent>
         <SidebarGroup>

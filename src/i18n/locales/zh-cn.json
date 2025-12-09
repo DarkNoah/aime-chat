@@ -70,7 +70,8 @@
     "tools": "工具",
     "knowledge_base": "知识库",
     "agents": "智能体",
-    "knowledge-base": "知识库"
+    "knowledge-base": "知识库",
+    "new_project": "新项目"
   },
   "chat": {
     "new_chat": "新聊天",

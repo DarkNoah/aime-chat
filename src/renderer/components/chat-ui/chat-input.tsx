@@ -4,6 +4,7 @@ import {
   CheckIcon,
   GlobeIcon,
   MicIcon,
+  SirenIcon,
   WrenchIcon,
 } from 'lucide-react';
 import {
@@ -72,6 +73,7 @@ import {
   AlertDialogTrigger,
 } from '../ui/alert-dialog';
 import { useTranslation } from 'react-i18next';
+import { Tooltip, TooltipTrigger, TooltipContent } from '../ui/tooltip';
 
 export type ChatInputProps = Omit<PromptInputProps, 'onSubmit'> & {
   onSubmit?: (
@@ -212,19 +214,36 @@ export const ChatInput = React.forwardRef<ChatInputRef, ChatInputProps>(
               )}
               {showToolSelector && (
                 <ChatToolSelector value={tools} onChange={setTools}>
-                  <PromptInputButton
-                    variant={tools.length > 0 ? 'default' : 'ghost'}
-                  >
-                    <WrenchIcon size={16} />
-                  </PromptInputButton>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <PromptInputButton
+                        variant={tools.length > 0 ? 'default' : 'ghost'}
+                      >
+                        <WrenchIcon size={16} />
+                      </PromptInputButton>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Tool Selector</p>
+                    </TooltipContent>
+                  </Tooltip>
+
+
+
                 </ChatToolSelector>
               )}
-              <PromptInputButton
-                variant={requireToolApproval ? 'default' : 'ghost'}
-                onClick={() => setRequireToolApproval(!requireToolApproval)}
-              >
-                <CheckIcon size={16} />
-              </PromptInputButton>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <PromptInputButton
+                    variant={requireToolApproval ? 'default' : 'ghost'}
+                    onClick={() => setRequireToolApproval(!requireToolApproval)}
+                  >
+                    <SirenIcon size={16} />
+                  </PromptInputButton>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Require tool approval</p>
+                </TooltipContent>
+              </Tooltip>
 
               {showModelSelect && (
                 <ChatModelSelect
@@ -237,7 +256,7 @@ export const ChatInput = React.forwardRef<ChatInputRef, ChatInputProps>(
               {onClearMessages && (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <PromptInputButton >
+                    <PromptInputButton>
                       <IconTrash size={16} />
                     </PromptInputButton>
                   </AlertDialogTrigger>
