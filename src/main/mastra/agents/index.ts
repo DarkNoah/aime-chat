@@ -82,19 +82,21 @@ class AgentManager extends BaseManager {
     let _skills = await skillManager.getClaudeSkills();
     _skills = _skills.filter((x) => tools.includes(x.id));
 
-    const _tools = await toolsManager.buildTools(tools, {
+    const builtInAgent = this.builtInAgents.find((x) => x.id == agentId);
+    const _tools = await toolsManager.buildTools(builtInAgent.tools, {
       [`${ToolType.BUILD_IN}:Skill`]: {
         skills: _skills,
       },
     });
 
     const storage = getStorage();
-    const builtInAgent = this.builtInAgents.find((x) => x.id == agentId);
 
     const agent = new MastraAgent({
       id: builtInAgent.id,
       name: builtInAgent.name,
       instructions: builtInAgent.instructions,
+      description: builtInAgent.description,
+
       model: await providersManager.getLanguageModel(params.modelId),
       memory: new Memory({
         storage: storage,
@@ -130,12 +132,17 @@ class AgentManager extends BaseManager {
     if (!agentEntity) {
       throw new Error('Agent not found');
     }
+    const builtInAgent = this.builtInAgents.find((x) => x.id == agentEntity.id);
     return {
       id: agentEntity.id,
       name: agentEntity.name,
       description: agentEntity.description,
+      instructions: await convertToInstructionContent(
+        builtInAgent.instructions,
+      ),
       tags: agentEntity.tags,
       isActive: agentEntity.isActive,
+      tools: builtInAgent.tools,
     };
   }
   @channel(AgentChannel.GetList)
@@ -147,6 +154,7 @@ class AgentManager extends BaseManager {
       description: agentEntity.description,
       tags: agentEntity.tags,
       isActive: agentEntity.isActive,
+      tools: this.builtInAgents.find((x) => x.id == agentEntity.id)?.tools,
     }));
   }
 
@@ -173,6 +181,7 @@ class AgentManager extends BaseManager {
       description: agentEntity.description,
       tags: agentEntity.tags,
       isActive: agentEntity.isActive,
+      tools: this.builtInAgents.find((x) => x.id == agentEntity.id)?.tools,
     }));
   }
 }

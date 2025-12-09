@@ -29,7 +29,7 @@ export const ChatToolSelector = ({
   children,
   ...props
 }: ChatToolSelectorProps) => {
-  const { value, onChange } = props;
+  const { value = [], onChange } = props;
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<{
     [ToolType.MCP]: Tool[];

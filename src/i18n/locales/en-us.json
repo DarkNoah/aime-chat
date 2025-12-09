@@ -59,7 +59,8 @@
     "built_in": "Built-In",
     "category": "Category",
     "method": "Method",
-    "agents": "Agents"
+    "agents": "Agents",
+    "select_agent": "Select a agent"
   },
   "sidebar": {
     "new_chat": "New Chat",
@@ -84,5 +85,10 @@
     "config": "Config",
     "execute": "Execute",
     "approval_description": "Can this tool be executed?"
+  },
+  "agents": {
+    "instructions": "System Prompt",
+    "tools": "Tools",
+    "add_defalut_tool": "Add Defalut Tool"
   }
 }

@@ -40,6 +40,7 @@ import {
   CardTitle,
 } from '@/renderer/components/ui/card';
 import { Switch } from '@/renderer/components/ui/switch';
+import { Badge } from '@/renderer/components/ui/badge';
 
 function AgentPage() {
   const { setTitle } = useHeader();
@@ -131,7 +132,11 @@ function AgentPage() {
                   />
                 </CardAction>
               </CardHeader>
-              <CardContent></CardContent>
+              <CardContent>
+                {agent.tools?.length > 0 && (
+                  <Badge variant="outline">{agent.tools?.length} tools</Badge>
+                )}
+              </CardContent>
             </Card>
           ))}
         </div>

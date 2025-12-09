@@ -146,7 +146,7 @@ function ChatPage() {
     | undefined
   >();
   const [modelId, setModelId] = useState<string | undefined>();
-  const [agent, setAgent] = useState<Agent | undefined>();
+  const [agentId, setAgentId] = useState<string | undefined>();
   const [previewData, setPreviewData] = useState<ChatPreviewData>({
     previewPanel: ChatPreviewType.CANVAS,
   });
@@ -286,7 +286,7 @@ function ChatPage() {
       requireToolApproval: options?.requireToolApproval,
       runId,
       threadId,
-      agentId: agent?.id,
+      agentId,
     };
     const inputMessage = {
       text: message.text || 'Sent with attachments',
@@ -318,6 +318,7 @@ function ChatPage() {
     setPreviewToolPart(undefined);
     setShowPreview(false);
     setThread(undefined);
+    setAgentId(undefined);
     chatInputRef.current?.setTools([]);
   };
 
@@ -367,7 +368,7 @@ function ChatPage() {
             previewPanel: ChatPreviewType.TODO,
           }));
         }
-
+        setAgentId(_thread?.metadata?.agentId as string);
         setTitle(renderTitle());
       };
       getThread();
@@ -457,6 +458,7 @@ function ChatPage() {
     resumeData?: Record<string, any>,
   ) => {
     const body = {
+      agentId,
       model: modelId,
       chatId: threadId,
       runId: _runId,
@@ -538,6 +540,11 @@ function ChatPage() {
 
   const handleAbort = () => {
     stop();
+  };
+
+  const handleAgentChange = (_agent: Agent) => {
+    chatInputRef.current?.setTools(_agent.tools || []);
+    setAgentId(_agent?.id);
   };
 
   return (
@@ -788,8 +795,8 @@ function ChatPage() {
           <div className="w-full px-4 pb-4 flex flex-col gap-2 justify-start">
             <div className="flex flex-row gap-2 justify-between">
               <ChatAgentSelector
-                value={agent}
-                onChange={setAgent}
+                value={agentId}
+                onSelectedAgent={handleAgentChange}
               ></ChatAgentSelector>
               {usage?.usage?.totalTokens && (
                 <ChatUsage

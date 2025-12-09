@@ -7,6 +7,7 @@ export type Agent = {
   id: string;
   name?: string;
   description?: string;
+  instructions?: string;
   tools?: string[];
   isActive?: boolean;
   tags?: string[];

@@ -60,7 +60,8 @@
     "built_in": "内置",
     "category": "分类",
     "method": "模式",
-    "agents": "智能体"
+    "agents": "智能体",
+    "select_agent": "选择一个助手"
   },
   "sidebar": {
     "new_chat": "新聊天",
@@ -85,5 +86,10 @@
     "config": "配置",
     "execute": "执行",
     "approval_description": "是否执行该工具?"
+  },
+  "agents": {
+    "instructions": "系统提示词",
+    "tools": "工具",
+    "add_defalut_tool": "添加默认工具"
   }
 }

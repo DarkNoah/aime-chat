@@ -1,7 +1,4 @@
-import {
-  createTool,
-  ToolExecutionContext,
-} from '@mastra/core/tools';
+import { createTool, ToolExecutionContext } from '@mastra/core/tools';
 import { generateText } from 'ai';
 import z from 'zod';
 import BaseTool, { BaseToolParams } from '../base-tool';
@@ -185,5 +182,6 @@ assistant: "I'm going to use the Task tool to launch the greeting-responder agen
     context: ToolExecutionContext<z.ZodSchema, any>,
   ) => {
     const { description, prompt, subagent_type } = inputData;
-    return ''
+    return '';
+  };
 }

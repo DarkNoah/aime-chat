@@ -3,8 +3,22 @@ import {
   AgentConfig,
   DynamicAgentInstructions,
 } from '@mastra/core/agent';
-import { BaseAgent } from './base-agent';
+import { BaseAgent, BaseAgentParams } from './base-agent';
 import os from 'os';
+import { ToolType } from '@/types/tool';
+import { TodoWrite } from '@/main/tools/common/todo-write';
+import { AskUserQuestion } from '@/main/tools/common/ask-user-question';
+import { Task } from '@/main/tools/common/task';
+import { Read } from '@/main/tools/file-system/read';
+import { Write } from '@/main/tools/file-system/write';
+import { Edit } from '@/main/tools/file-system/edit';
+import { Glob } from '@/main/tools/file-system/glob';
+import { Grep } from '@/main/tools/file-system/grep';
+import { WebFetch } from '@/main/tools/web/web-fetch';
+import { WebSearch } from '@/main/tools/web/web-search';
+import { CodeExecution } from '@/main/tools/code/code-execution';
+import { Bash } from '@/main/tools/file-system/bash';
+import { Skill } from '@/main/tools/common/skill';
 
 export class CodeAgent extends BaseAgent {
   id: string = 'CodeAgent';
@@ -130,8 +144,22 @@ assistant: Clients are marked as failed in the \`connectToServer\` function in s
     };
   };
   // model: string = 'openai/gpt-4o-mini';
-  tools: string[] = [];
-  constructor() {
-    super();
+  tools: string[] = [
+    `${ToolType.BUILD_IN}:${TodoWrite.name}`,
+    `${ToolType.BUILD_IN}:${AskUserQuestion.name}`,
+    // `${ToolType.BUILD_IN}:${Task.name}`,
+    `${ToolType.BUILD_IN}:${Bash.name}`,
+    `${ToolType.BUILD_IN}:${Read.name}`,
+    `${ToolType.BUILD_IN}:${Write.name}`,
+    `${ToolType.BUILD_IN}:${Edit.name}`,
+    `${ToolType.BUILD_IN}:${Glob.name}`,
+    `${ToolType.BUILD_IN}:${Grep.name}`,
+    `${ToolType.BUILD_IN}:${WebFetch.name}`,
+    `${ToolType.BUILD_IN}:${WebSearch.name}`,
+    `${ToolType.BUILD_IN}:${CodeExecution.name}`,
+    `${ToolType.BUILD_IN}:${Skill.name}`,
+  ];
+  constructor(params: BaseAgentParams) {
+    super(params);
   }
 }

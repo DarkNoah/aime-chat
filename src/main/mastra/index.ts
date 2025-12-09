@@ -391,7 +391,11 @@ class MastraManager extends BaseManager {
       currentThread = await storage.updateThread({
         id: chatId,
         title: currentThread.title,
-        metadata: { ...(currentThread.metadata || {}), tools: tools },
+        metadata: {
+          ...(currentThread.metadata || {}),
+          tools: tools,
+          agentId: agentId,
+        },
       });
       const todos = currentThread.metadata?.todos || [];
 
@@ -399,6 +403,7 @@ class MastraManager extends BaseManager {
       requestContext.set('model' as never, model as never);
       requestContext.set('threadId' as never, chatId as never);
       requestContext.set('tools' as never, tools as never);
+      requestContext.set('agentId' as never, agentId as never);
       requestContext.set('todos' as never, todos as never);
       if (modelInfo?.limit?.context)
         requestContext.set(
@@ -555,7 +560,7 @@ class MastraManager extends BaseManager {
           const instructions = await agent.getInstructions({
             requestContext,
           });
-          const system = convertToInstructionContent(instructions);
+          const system = await convertToInstructionContent(instructions);
 
           // const messagesCore = convertToCoreMessages([...options.messages]);
           // const instructionContent = convertToInstructionContent(instructions);

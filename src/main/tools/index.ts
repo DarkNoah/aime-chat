@@ -777,7 +777,7 @@ class ToolsManager extends BaseManager {
   }
 
   async buildTool(
-    toolId?: `${ToolType.BUILD_IN}:${string}`,
+    toolId?: string,
     config?: any,
   ): Promise<BaseTool | BaseTool[]> {
     const tools = await this.buildTools([toolId], { [toolId]: config });
@@ -788,9 +788,15 @@ class ToolsManager extends BaseManager {
     );
   }
 
+  /**
+   * Build tools
+   * @param toolIds - Tool ids (eg: ['${ToolType.BUILD_IN}:Skill', '${ToolType.BUILD_IN}:Read])
+   * @param config - Tool config
+   * @returns Tools
+   */
   async buildTools(
-    toolIds?: `${ToolType.BUILD_IN}:${string}`[],
-    config?: Record<`${ToolType.BUILD_IN}:${string}`, any>,
+    toolIds?: string[],
+    config?: Record<string, any>,
   ): Promise<Record<string, BaseTool>> {
     if (!toolIds) return {};
     const tools = {};

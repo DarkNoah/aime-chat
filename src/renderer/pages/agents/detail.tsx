@@ -54,13 +54,28 @@ import {
   BreadcrumbList,
   BreadcrumbSeparator,
 } from '@/renderer/components/ui/breadcrumb';
+import { Streamdown } from '@/renderer/components/ai-elements/streamdown';
+import { Badge } from '@/renderer/components/ui/badge';
+import {
+  Item,
+  ItemContent,
+  ItemDescription,
+  ItemTitle,
+} from '@/renderer/components/ui/item';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/renderer/components/ui/tabs';
+import { ChatToolSelector } from '@/renderer/components/chat-ui/chat-tool-selector';
 
 function AgentDetail() {
   const { setTitle } = useHeader();
   const [isRunning, setIsRunning] = useState(false);
   const { t } = useTranslation();
   const [search, setSearch] = useState('');
-  const [agent, setAgent] = useState<Agent>();
+  const [agent, setAgent] = useState<Agent | null>(null);
   // useEffect(() => {
   //   setTitle(t('sidebar.agents'));
   // }, [setTitle, t]);
@@ -72,24 +87,17 @@ function AgentDetail() {
   const getAgent = async () => {
     const data = await window.electron.agents.getAgent(id);
     console.log(data);
-
-    setTitle(
-      <Breadcrumb>
-        <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink asChild>
-              <Link to="/agents">{t('common.agents')}</Link>
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbLink asChild>
-              <Link to="/agents">{data?.name}</Link>
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-        </BreadcrumbList>
-      </Breadcrumb>,
-    );
+    setAgent(data);
+    setTitle([
+      {
+        title: t('common.agents'),
+        path: '/agents',
+      },
+      {
+        title: data?.name,
+        path: `/agents/${data?.id}`,
+      },
+    ]);
     setAgent(data);
   };
   useEffect(() => {
@@ -98,7 +106,74 @@ function AgentDetail() {
 
   const handleStart = () => {};
 
-  return <div className="h-full w-full flex flex-col gap-2 p-4"></div>;
+  const handleAddDefaultTool = (tools: string[]) => {
+    console.log(tools);
+  };
+
+  return (
+    <div className="h-full w-full flex flex-row gap-2 p-4 min-h-0 overflow-y-auto">
+      <div className="w-[500px]">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex flex-col ">
+              {agent?.name}{' '}
+              <small className="text-xs text-gray-500 flex flex-row items-center">
+                <Label>ID: </Label> {agent?.id}
+              </small>
+            </CardTitle>
+            <CardDescription>{agent?.description}</CardDescription>
+          </CardHeader>
+          <CardContent></CardContent>
+        </Card>
+      </div>
+      <Tabs className="flex-1" defaultValue="instructions">
+        <TabsList>
+          <TabsTrigger value="instructions">
+            {t('agents.instructions')}
+          </TabsTrigger>
+          <TabsTrigger value="tools">
+            {`${t('agents.tools')} (${agent?.tools.length ?? 0})`}
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent
+          value="instructions"
+          className="overflow-y-auto min-h-0 flex-1"
+        >
+          <Card>
+            <CardContent>
+              <pre className="text-sm text-wrap whitespace-pre-wrap">
+                {agent?.instructions}
+              </pre>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        <TabsContent value="tools" className="overflow-y-auto min-h-0 flex-1">
+          <Card>
+            <CardContent className="flex flex-col gap-2">
+              <ChatToolSelector onChange={handleAddDefaultTool}>
+                <Button variant="outline">
+                  <IconPlus></IconPlus>
+                  {t('agents.add_defalut_tool')}
+                </Button>
+              </ChatToolSelector>
+
+              {agent?.tools.map((toolId) => {
+                return (
+                  <Item key={toolId} variant="outline">
+                    <ItemContent>
+                      <ItemTitle>
+                        {toolId.split(':').slice(1).join(':')}
+                      </ItemTitle>
+                    </ItemContent>
+                  </Item>
+                );
+              })}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
 }
 
 export default AgentDetail;
