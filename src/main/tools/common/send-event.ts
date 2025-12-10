@@ -1,8 +1,4 @@
-import {
-  createTool,
-  MastraToolInvocationOptions,
-  ToolExecutionContext,
-} from '@mastra/core/tools';
+import { createTool, ToolExecutionContext } from '@mastra/core/tools';
 import { generateText } from 'ai';
 import z from 'zod';
 import BaseTool, { BaseToolParams } from '../base-tool';
@@ -36,13 +32,13 @@ Usage notes:
 
   execute = async (
     inputData: z.infer<typeof this.inputSchema>,
-    options?: MastraToolInvocationOptions,
+    options?: ToolExecutionContext,
   ) => {
     const { target_panel, data } = inputData;
     const { writer } = options;
     const value = JSON.parse(data);
 
-    const threadId = options?.requestContext.get('threadId') as string;
+    const threadId = options?.requestContext.get('threadId' as never) as string;
 
     if (target_panel === 'canvas') {
     } else if (target_panel === 'web_preview') {

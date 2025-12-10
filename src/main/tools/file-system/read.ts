@@ -1,8 +1,4 @@
-import {
-  createTool,
-  MastraToolInvocationOptions,
-  ToolExecutionContext,
-} from '@mastra/core/tools';
+import { createTool, ToolExecutionContext } from '@mastra/core/tools';
 import { generateText } from 'ai';
 import z from 'zod';
 import BaseTool from '../base-tool';
@@ -20,7 +16,7 @@ import { spawn } from 'child_process';
 import { glob } from 'fast-glob';
 import { formatCodeWithLineNumbers, updateFileModTime } from '.';
 import { isBinaryFile } from 'isbinaryfile';
-import {filesize} from 'filesize';
+import { filesize } from 'filesize';
 
 const DEFAULT_MAX_LINES_TEXT_FILE = 2000;
 const MAX_LINE_LENGTH_TEXT_FILE = 2000;
@@ -73,7 +69,8 @@ Usage:
 
     if (!stats.isFile()) throw new Error(`File '${file_path}' is not a file.`);
 
-    if (stats.size === 0) return `<system-reminder>The file '${file_path}' is empty.</system-reminder>`;
+    if (stats.size === 0)
+      return `<system-reminder>The file '${file_path}' is empty.</system-reminder>`;
 
     if (offset !== undefined && offset < 0) {
       throw new Error('Offset must be a non-negative number');
@@ -172,15 +169,14 @@ Usage:
       throw new Error(`File '${file_path}' does not exist.`);
     const stats = await fs.promises.stat(file_path);
     if (!stats.isFile()) throw new Error(`File '${file_path}' is not a file.`);
-    if (stats.size === 0) return `<system-reminder>The file '${file_path}' is empty.</system-reminder>`;
+    if (stats.size === 0)
+      return `<system-reminder>The file '${file_path}' is empty.</system-reminder>`;
 
     const ext = path.extname(file_path).toLowerCase();
-
 
     let llmTextContent = `<system-reminder>
 File size: ${filesize(stats.size)}
 </system-reminder>\n`;
-    
 
     llmTextContent += formattedLines;
     await updateFileModTime(file_path, context.requestContext);

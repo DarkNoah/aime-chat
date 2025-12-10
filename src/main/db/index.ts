@@ -9,6 +9,8 @@ import { Secrets } from '@/entities/secrets';
 import { Tools } from '@/entities/tools';
 import { MastraHistoryMessages } from '@/entities/mastra-history-messages';
 import { BaseManager } from '../BaseManager';
+import { Agents } from '@/entities/agents';
+import { Projects } from '@/entities/projects';
 
 class DBManager extends BaseManager {
   // defaultDb: Database;
@@ -33,6 +35,8 @@ class DBManager extends BaseManager {
         Secrets,
         Tools,
         MastraHistoryMessages,
+        Agents,
+        Projects,
       ],
       // migrationsRun: true,
       // migrations: [],

@@ -1,12 +1,17 @@
-import { isObject, isString } from '@/utils/is';
-import { AgentInstructions } from '@mastra/core/agent';
+import { isFunction, isObject, isString } from '@/utils/is';
+import {
+  AgentInstructions,
+  DynamicAgentInstructions,
+} from '@mastra/core/agent';
 import {
   CoreMessage,
   CoreUserMessage,
   CoreAssistantMessage,
   CoreSystemMessage,
+  SystemMessage,
 } from '@mastra/core/llm';
 import { ModelMessage, UIMessage } from 'ai';
+import { RequestContext } from '@mastra/core/request-context';
 
 export const convertToCoreMessages = (
   messages: Array<UIMessage | ModelMessage>,
@@ -23,20 +28,29 @@ export const convertToCoreMessages = (
   return coreMessages;
 };
 
-export const convertToInstructionContent = (
-  instructions: AgentInstructions,
-): string => {
+export const convertToInstructionContent = async (
+  instructions: DynamicAgentInstructions | AgentInstructions,
+): Promise<string> => {
+  let _instructions;
   let instructionContent;
-  if (isString(instructions)) {
-    instructionContent = instructions;
-  } else if (Array.isArray(instructions) && instructions.length > 0) {
-    if (isString(instructions[0])) {
-      instructionContent = instructions.join('\n');
-    } else if (isObject(instructions[0]) && 'content' in instructions[0]) {
-      instructionContent = instructions.map((x) => x.content).join('\n');
+
+  if (isFunction(instructions)) {
+    _instructions = await instructions({
+      requestContext: new RequestContext(),
+    });
+  } else {
+    _instructions = instructions;
+  }
+  if (isString(_instructions)) {
+    instructionContent = _instructions;
+  } else if (Array.isArray(_instructions) && _instructions.length > 0) {
+    if (isString(_instructions[0])) {
+      instructionContent = _instructions.join('\n');
+    } else if (isObject(_instructions[0]) && 'content' in _instructions[0]) {
+      instructionContent = _instructions.map((x) => x.content).join('\n');
     }
-  } else if (isObject(instructions) && 'content' in instructions) {
-    instructionContent = instructions.content;
+  } else if (isObject(_instructions) && 'content' in _instructions) {
+    instructionContent = _instructions.content;
   }
   return instructionContent;
 };

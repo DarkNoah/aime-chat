@@ -19,8 +19,9 @@ export function NavItems({
 }: {
   items: {
     title: string;
-    url: string;
+    url?: string;
     icon: Icon;
+    onClick?: () => void;
   }[];
 } & React.ComponentPropsWithoutRef<typeof SidebarGroup>) {
   const navigate = useNavigate();
@@ -31,7 +32,11 @@ export function NavItems({
           <SidebarMenuButton
             asChild
             onClick={() => {
-              navigate(item.url);
+              if (item.url) {
+                navigate(item.url);
+              } else {
+                item.onClick?.();
+              }
             }}
           >
             <div className="cursor-pointer">

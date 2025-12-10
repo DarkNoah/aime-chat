@@ -34,7 +34,6 @@ export enum MastraChannel {
   DeleteThread = 'mastra:deleteThread',
   Chat = 'mastra:chat',
   ChatWorkflow = 'mastra:chatWorkflow',
-  ChatResume = 'mastra:chatResume',
   ChatAbort = 'mastra:chatAbort',
   SaveMessages = 'mastra:saveMessages',
   ClearMessages = 'mastra:clearMessages',
@@ -66,4 +65,19 @@ export enum LocalModelChannel {
   DownloadModel = 'local-model:downloadModel',
   DeleteModel = 'local-model:deleteModel',
   SetDefaultModel = 'local-model:setDefaultModel',
+}
+
+export enum AgentChannel {
+  GetAgent = 'agent:getAgent',
+  GetList = 'agent:getList',
+  UpdateAgent = 'agent:updateAgent',
+  GetAvailableAgents = 'agent:getAvailableAgents',
+}
+
+
+export enum ProjectChannel {
+  GetProject = 'project:getProject',
+  GetList = 'project:getList',
+  SaveProject = 'project:saveProject',
+  DeleteProject = 'project:deleteProject',
 }

@@ -1,8 +1,4 @@
-import {
-  createTool,
-  MastraToolInvocationOptions,
-  ToolExecutionContext,
-} from '@mastra/core/tools';
+import { createTool, ToolExecutionContext } from '@mastra/core/tools';
 import { generateText } from 'ai';
 import z from 'zod';
 import BaseTool, { BaseToolParams } from '../base-tool';
@@ -123,7 +119,7 @@ export class RemoveBackground extends BaseTool {
 
   execute = async (
     inputData: z.infer<typeof this.inputSchema>,
-    options?: MastraToolInvocationOptions,
+    options?: ToolExecutionContext,
   ) => {
     const { url_or_file_path, save_path } = inputData;
     const { requestContext } = options;

@@ -22,6 +22,8 @@ import { appManager } from './app';
 import { knowledgeBaseManager } from './knowledge-base';
 import { toolsManager } from './tools';
 import { localModelManager } from './local-model';
+import { agentManager } from './mastra/agents';
+import { projectManager } from './project';
 
 async function init() {
   try {
@@ -32,6 +34,8 @@ async function init() {
     await knowledgeBaseManager.init();
     await toolsManager.init();
     await localModelManager.init();
+    await agentManager.init();
+    await projectManager.init()
   } catch (err) {
     dialog.showErrorBox('Mastra Init Error', String(err));
   }

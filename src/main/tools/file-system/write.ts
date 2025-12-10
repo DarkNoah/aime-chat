@@ -1,8 +1,4 @@
-import {
-  createTool,
-  MastraToolInvocationOptions,
-  ToolExecutionContext,
-} from '@mastra/core/tools';
+import { createTool, ToolExecutionContext } from '@mastra/core/tools';
 import { generateText } from 'ai';
 import z from 'zod';
 import BaseTool from '../base-tool';
@@ -84,5 +80,3 @@ Usage:
     return `The file was successfully written and saved in:\n<filepaths>${file_path.replaceAll('\\', '/')}</filepaths>`;
   };
 }
-
-

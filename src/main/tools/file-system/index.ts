@@ -1,8 +1,4 @@
-import {
-  createTool,
-  MastraToolInvocationOptions,
-  ToolExecutionContext,
-} from '@mastra/core/tools';
+import { createTool, ToolExecutionContext } from '@mastra/core/tools';
 import { generateText } from 'ai';
 import z from 'zod';
 import BaseTool from '../base-tool';
@@ -15,11 +11,10 @@ import { nanoid } from '@/utils/nanoid';
 import BaseToolkit, { BaseToolkitParams } from '../base-toolkit';
 import { truncateText } from '@/utils/common';
 import os from 'os';
-import stripAnsi from 'strip-ansi';
 import { spawn } from 'child_process';
 import { Glob } from './glob';
 import { Bash } from './bash';
-import { Edit, MultiEdit } from './edit';
+import { Edit } from './edit';
 import { Grep } from './grep';
 import { Write } from './write';
 import { Read } from './read';

@@ -1,9 +1,5 @@
-import {
-  createTool,
-  MastraToolInvocationOptions,
-  ToolExecutionContext,
-} from '@mastra/core/tools';
-import { generateText } from 'ai';
+import { createTool, ToolExecutionContext } from '@mastra/core/tools';
+import { generateText, ToolCallOptions } from 'ai';
 import z from 'zod';
 import BaseTool, { BaseToolParams } from '../base-tool';
 import { runCommand } from '@/main/utils/shell';
@@ -80,11 +76,25 @@ Usage notes:
     .strict();
 
   resumeSchema = z.object({
-    approved: z.boolean(),
+    answers: z.array(
+      z.object({
+        question: z.string(),
+        answer: z.string(),
+      }),
+    ),
   });
   suspendSchema = z.object({
     reason: z.string(),
   });
+
+  // outputSchema = z.object({
+  //   answers: z.array(
+  //     z.object({
+  //       question: z.string(),
+  //       answer: z.string(),
+  //     }),
+  //   ),
+  // });
 
   constructor(config?: AskUserQuestionParams) {
     super(config);
@@ -98,16 +108,62 @@ Usage notes:
     >,
   ) => {
     const { questions } = inputData;
-    const { abortSignal, workflow, agent } = context;
+    const { abortSignal, workflow, agent, mastra } = context;
 
     if (!agent.resumeData) {
+      // mastra.memory?.sa
       return agent.suspend?.({ reason: 'Human approval required.' });
     }
 
-    const answers = workflow?.resumeData?.answers;
-    const answerString = Object.entries(answers)
-      .map(([question, answer]) => `"${question}" = "${answer}"`)
+    const storage = mastra.getStorage();
+
+    const messages = (
+      await storage.listMessages({
+        threadId: agent.threadId,
+        resourceId: agent.resourceId,
+      })
+    ).messages;
+    const message = messages.find(
+      (x) =>
+        x.role == 'assistant' &&
+        x.content.parts.find(
+          (x) =>
+            x.type == 'tool-invocation' &&
+            x.toolInvocation.toolCallId == agent.toolCallId,
+        ),
+    );
+
+    const toolCallId = agent.toolCallId;
+
+    delete message.content.metadata?.suspendPayload[toolCallId];
+    await storage.updateMessages({
+      messages: [
+        {
+          id: message.id,
+          content: {
+            ...message.content,
+            metadata: {
+              ...message.content.metadata,
+              suspendPayload: {
+                ...((message.content.metadata?.suspendPayload as Record<
+                  string,
+                  any
+                >) ?? {}),
+              },
+            },
+          },
+        },
+      ],
+    });
+
+    const answers = agent?.resumeData?.answers;
+    const answerString = answers
+      .map((x) => `"${x.question}" = "${x.answer}"`)
       .join(', ');
     return `User has answered your questions: ${answerString}. You can now continue with the user's answers in mind.`;
+  };
+
+  onInputAvailable = async ({ input, toolCallId }) => {
+    console.log(`Weather requested for: ${input.city}`);
   };
 }

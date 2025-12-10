@@ -5,9 +5,13 @@ import { downloadFile } from '@/main/utils/file';
 import fs from 'fs';
 import BaseTool, { BaseToolParams } from '../base-tool';
 import { ToolConfig } from '@/types/tool';
-import { MastraToolInvocationOptions } from '@mastra/core/tools';
 import { LanguageModelV2ToolResultPart } from '@ai-sdk/provider';
 import { nanoid } from '@/utils/nanoid';
+import {
+  createTool,
+  MastraToolInvocationOptions,
+  ToolExecutionContext,
+} from '@mastra/core/tools';
 
 const inputSchema = z.strictObject({
   url_or_file_path: z.string(),
@@ -58,7 +62,7 @@ export class Vision extends BaseTool<VisionParams> {
 
   execute = async (
     inputData: z.infer<typeof this.inputSchema>,
-    options?: MastraToolInvocationOptions,
+    options?: ToolExecutionContext,
   ) => {
     const { file_path } = inputData;
     const config = this.config;

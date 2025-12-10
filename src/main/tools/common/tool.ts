@@ -1,8 +1,4 @@
-import {
-  createTool,
-  MastraToolInvocationOptions,
-  ToolExecutionContext,
-} from '@mastra/core/tools';
+import { createTool, ToolExecutionContext } from '@mastra/core/tools';
 import { generateText } from 'ai';
 import z from 'zod';
 import BaseTool, { BaseToolParams } from '../base-tool';
@@ -17,11 +13,16 @@ import { ChatEvent } from '@/types/chat';
 import { isString } from '@/utils/is';
 import { toolsManager } from '..';
 import BaseToolkit, { BaseToolkitParams } from '../base-toolkit';
-import { ToolType } from '@/types/tool';
+import { ToolConfig, ToolType } from '@/types/tool';
 import { localModelManager } from '@/main/local-model';
 import { LocalRerankModel } from '@/main/providers/local-provider';
 
-export class ToolSearch extends BaseTool {
+export interface ToolToolkitParams extends BaseToolParams {
+  modelId?: string;
+  numResults?: number;
+}
+
+export class ToolSearch extends BaseTool<ToolToolkitParams> {
   id: string = 'ToolSearch';
   description = `Search for available tools that can help with a task. Returns tool definitions for matching tools. Use this when you need a tool but don't have it available yet.`;
   inputSchema = z.object({
@@ -39,13 +40,13 @@ export class ToolSearch extends BaseTool {
 
   outputSchema = z.string();
 
-  constructor(config?: BaseToolParams) {
+  constructor(config?: ToolToolkitParams) {
     super(config);
   }
 
   execute = async (
     inputData: z.infer<typeof this.inputSchema>,
-    options?: MastraToolInvocationOptions,
+    options?: ToolExecutionContext,
   ) => {
     const { query, top_k } = inputData;
     const { writer } = options;
@@ -67,14 +68,12 @@ export class ToolSearch extends BaseTool {
     // const topKTools = matchingTools.slice(0, top_k);
     // return topKTools.map((tool) => tool.id).join(', ');
     return `<tools>
-    <tool>
-
-    </tool>
+    ${results.map((result) => `<tool>${result.document}</tool>`).join('\n')}
 </tools>`;
   };
 }
 
-export class ToolExecution extends BaseTool {
+export class ToolExecution extends BaseTool<ToolToolkitParams> {
   id: string = 'ToolExecution';
   description = `tool execution`;
   inputSchema = z.object({
@@ -93,7 +92,7 @@ export class ToolExecution extends BaseTool {
 
   execute = async (
     inputData: z.infer<typeof this.inputSchema>,
-    options?: MastraToolInvocationOptions,
+    options?: ToolExecutionContext,
   ) => {
     const { tool_name, tool_input } = inputData;
     const { writer } = options;
@@ -109,8 +108,11 @@ export class ToolExecution extends BaseTool {
 
 class ToolToolkit extends BaseToolkit {
   id = 'ToolToolkit';
-  constructor(params?: BaseToolkitParams) {
-    super([new ToolSearch(), new ToolExecution()], params);
+
+  configSchema = ToolConfig.ToolToolkit.configSchema;
+
+  constructor(params?: ToolToolkitParams) {
+    super([new ToolSearch(params), new ToolExecution()], params);
   }
 
   getTools() {

@@ -1,9 +1,11 @@
 // Disable no-unused-vars, broken for spread args
 /* eslint no-unused-vars: off */
+import { Agent } from '@/types/agent';
 import { AppProxy } from '@/types/app';
 import { ChatInput } from '@/types/chat';
 import { PaginationInfo } from '@/types/common';
 import {
+  AgentChannel,
   AppChannel,
   KnowledgeBaseChannel,
   LocalModelChannel,
@@ -23,7 +25,7 @@ import {
   ProviderTag,
   UpdateProvider,
 } from '@/types/provider';
-import { ToolType } from '@/types/tool';
+import { AvailableTool, ToolType } from '@/types/tool';
 import { MastraDBMessage, StorageThreadType } from '@mastra/core/memory';
 import { UIMessage } from 'ai';
 import {
@@ -129,7 +131,6 @@ const electronHandler = {
     deleteThread: (id: string) =>
       ipcRenderer.invoke(MastraChannel.DeleteThread, id),
     chat: (data: any) => ipcRenderer.send(MastraChannel.Chat, data),
-    chatResume: () => ipcRenderer.send(MastraChannel.ChatResume),
     chatWorkflow: (data: any) =>
       ipcRenderer.send(MastraChannel.ChatWorkflow, data),
     chatAbort: (chatId: string) =>
@@ -153,7 +154,8 @@ const electronHandler = {
     saveMCPServer: (id: string | undefined, data: string) =>
       ipcRenderer.invoke(ToolChannel.SaveMCPServer, id, data),
     getMcp: (id: string) => ipcRenderer.invoke(ToolChannel.GetMcp, id),
-    getAvailableTools: () => ipcRenderer.invoke(ToolChannel.GetAvailableTools),
+    getAvailableTools: (): Promise<Record<ToolType, Tool[]>> =>
+      ipcRenderer.invoke(ToolChannel.GetAvailableTools),
     getList: (filter?: { type: ToolType }) =>
       ipcRenderer.invoke(ToolChannel.GetList, filter),
     getTool: (id: string) => ipcRenderer.invoke(ToolChannel.GetTool, id),
@@ -175,6 +177,14 @@ const electronHandler = {
       ipcRenderer.invoke(LocalModelChannel.DeleteModel, modelId, type),
     setDefaultModel: (modelId: string) =>
       ipcRenderer.invoke(LocalModelChannel.SetDefaultModel, modelId),
+  },
+  agents: {
+    getAgent: (id: string) => ipcRenderer.invoke(AgentChannel.GetAgent, id),
+    getList: (): Promise<Agent[]> => ipcRenderer.invoke(AgentChannel.GetList),
+    getAvailableAgents: (): Promise<Agent[]> =>
+      ipcRenderer.invoke(AgentChannel.GetAvailableAgents),
+    update: (agent: Agent) =>
+      ipcRenderer.invoke(AgentChannel.UpdateAgent, agent),
   },
 };
 

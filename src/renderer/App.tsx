@@ -6,6 +6,7 @@ import {
   Route,
   Navigate,
   useLocation,
+  Link,
 } from 'react-router-dom';
 import icon from '../../assets/icon.svg';
 import './styles/globals.css';
@@ -49,6 +50,15 @@ import ChatPage from './pages/ChatPage';
 import KnowledgeBasePage from './pages/KnowledgeBase';
 import AgentPage from './pages/agents';
 import { Toaster } from 'react-hot-toast';
+import AgentDetail from './pages/agents/detail';
+import { isArray, isString } from '@/utils/is';
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbSeparator,
+} from './components/ui/breadcrumb';
 
 function Hello() {
   const { setTitle } = useHeader();
@@ -75,6 +85,48 @@ export function SiteHeader() {
     setTitleAction('');
   }, [location.pathname]);
 
+  const renderTitle = () => {
+    if (isString(title)) {
+      return (
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild>
+                <Link to={location.pathname}>{title}</Link>
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+      );
+    } else if (
+      isArray(title) &&
+      title.length > 0 &&
+      'title' in title[0] &&
+      'path' in title[0]
+    ) {
+      return (
+        <Breadcrumb>
+          <BreadcrumbList>
+            {title.map((item, index) => {
+              return (
+                <>
+                  <BreadcrumbItem key={item.path}>
+                    <BreadcrumbLink asChild>
+                      <Link to={item.path}>{item.title}</Link>
+                    </BreadcrumbLink>
+                  </BreadcrumbItem>
+                  {title.length > index + 1 && <BreadcrumbSeparator />}
+                </>
+              );
+            })}
+          </BreadcrumbList>
+        </Breadcrumb>
+      );
+    } else {
+      return title as ReactNode;
+    }
+  };
+
   return (
     <header className="flex h-(--header-height) shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height)">
       <div className="flex w-full items-center gap-1 px-4 lg:gap-2 lg:px-6">
@@ -83,7 +135,7 @@ export function SiteHeader() {
           orientation="vertical"
           className="mx-2 data-[orientation=vertical]:h-4"
         />
-        <h1 className="text-base font-medium flex-1">{title}</h1>
+        <h1 className="text-base font-medium flex-1">{renderTitle()}</h1>
         <div className="ml-auto flex items-center gap-2">{titleAction}</div>
       </div>
     </header>
@@ -143,7 +195,8 @@ export default function App() {
           <Route path="/settings/*" element={<Settings />} />
           <Route path="/tools/*" element={<Tools />} />
           <Route path="/knowledge-base/*" element={<KnowledgeBasePage />} />
-          <Route path="/agents/*" element={<AgentPage />} />
+          <Route path="/agents" element={<AgentPage />} />
+          <Route path="/agents/:id" element={<AgentDetail />} />
         </Routes>
       </LayoutPage>
     </Router>

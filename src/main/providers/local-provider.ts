@@ -133,7 +133,7 @@ export class LocalRerankModel {
       top_k?: number;
       return_documents?: boolean;
     };
-  }): Promise<number[]> {
+  }): Promise<{ index: number; score: number; document: string }[]> {
     const appInfo = await appManager.getInfo();
     const modelPath = path.join(appInfo.modelPath, 'reranker', this.modelId);
 

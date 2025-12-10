@@ -67,24 +67,6 @@ import { StorageThreadType } from '@mastra/core/memory';
 import { useHeader } from '../hooks/use-title';
 import { useTranslation } from 'react-i18next';
 import { Input } from '../components/ui/input';
-import {
-  Sheet,
-  SheetContent,
-  SheetTrigger,
-  SheetHeader,
-  SheetDescription,
-  SheetTitle,
-  SheetFooter,
-  SheetClose,
-} from '../components/ui/sheet';
-import {
-  Tool,
-  ToolContent,
-  ToolHeader,
-  ToolInput,
-  ToolOutput,
-} from '../components/ai-elements/tool';
-import { Excalidraw } from '@excalidraw/excalidraw';
 import '@excalidraw/excalidraw/index.css';
 import { IpcChatTransport } from './chat/ipc-chat-transport';
 import {
@@ -104,7 +86,10 @@ import {
   ChatMessageAttachment,
   ChatMessageAttachments,
 } from '../components/chat-ui/chat-message-attachment';
-import { ToolMessage } from '../components/chat-ui/tool-message';
+import {
+  ToolMessage,
+  ToolMessageApproval,
+} from '../components/chat-ui/tool-message';
 import {
   ChatChangedType,
   ChatEvent,
@@ -131,6 +116,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '../components/ui/dropdown-menu';
+import { ChatUsage } from '../components/chat-ui/chat-usage';
+import type {
+  ToolApproval,
+  ToolSuspended,
+} from '../components/chat-ui/tool-message/index';
+import { ChatAgentSelector } from '../components/chat-ui/chat-agent-selector';
+import { Agent } from '@/types/agent';
 
 function ChatPage() {
   const [input, setInput] = useState('');
@@ -154,6 +146,7 @@ function ChatPage() {
     | undefined
   >();
   const [modelId, setModelId] = useState<string | undefined>();
+  const [agentId, setAgentId] = useState<string | undefined>();
   const [previewData, setPreviewData] = useState<ChatPreviewData>({
     previewPanel: ChatPreviewType.CANVAS,
   });
@@ -177,6 +170,8 @@ function ChatPage() {
     messages,
     setMessages,
     sendMessage,
+    resumeStream,
+    regenerate,
     status,
     error,
     stop,
@@ -291,6 +286,7 @@ function ChatPage() {
       requireToolApproval: options?.requireToolApproval,
       runId,
       threadId,
+      agentId,
     };
     const inputMessage = {
       text: message.text || 'Sent with attachments',
@@ -322,6 +318,7 @@ function ChatPage() {
     setPreviewToolPart(undefined);
     setShowPreview(false);
     setThread(undefined);
+    setAgentId(undefined);
     chatInputRef.current?.setTools([]);
   };
 
@@ -371,7 +368,7 @@ function ChatPage() {
             previewPanel: ChatPreviewType.TODO,
           }));
         }
-
+        setAgentId(_thread?.metadata?.agentId as string);
         setTitle(renderTitle());
       };
       getThread();
@@ -454,6 +451,38 @@ function ChatPage() {
     }
   };
 
+  const handleResumeChat = async (
+    _runId: string,
+    toolCallId: string,
+    approved?: boolean,
+    resumeData?: Record<string, any>,
+  ) => {
+    const body = {
+      agentId,
+      model: modelId,
+      chatId: threadId,
+      runId: _runId,
+      threadId,
+      approved,
+      resumeData,
+      tools: chatInputRef.current?.getTools(),
+      toolCallId,
+    };
+    // await regenerate({ body });
+    // await resumeStream({
+    //   body,
+    // });
+    await sendMessage(undefined, { body });
+
+    // const result = await window.electron.mastra.chatResume({
+    //   approved,
+    //   runId: _runId,
+    //   chatId: threadId,
+    //   model: modelId,
+    // });
+    // debugger;
+  };
+
   useEffect(() => {
     setTitleAction(
       <div className="flex flex-row gap-2">
@@ -511,6 +540,11 @@ function ChatPage() {
 
   const handleAbort = () => {
     stop();
+  };
+
+  const handleAgentChange = (_agent: Agent) => {
+    chatInputRef.current?.setTools(_agent.tools || []);
+    setAgentId(_agent?.id);
   };
 
   return (
@@ -593,14 +627,14 @@ function ChatPage() {
                                       : 'justify-start'
                                   }
                                 >
-                                  <MessageAction
+                                  {/* <MessageAction
                                     onClick={() =>
                                       navigator.clipboard.writeText(part.text)
                                     }
                                     label="Copy"
                                   >
                                     <CopyIcon className="size-3" />
-                                  </MessageAction>
+                                  </MessageAction> */}
                                   {message?.parts.length === i + 1 &&
                                     message.role === 'assistant' &&
                                     message.metadata?.usage?.inputTokens &&
@@ -639,22 +673,92 @@ function ChatPage() {
                             );
                           } else if (part.type.startsWith('tool-')) {
                             const _part = part as ToolUIPart;
+                            let approvalData: ToolApproval;
+                            let suspendedData: ToolSuspended;
+                            let isSuspended = false;
+                            if (_part.state === 'input-available') {
+                              approvalData =
+                                message.parts.find(
+                                  (p) =>
+                                    p.type === 'data-tool-call-approval' &&
+                                    p.id === _part?.toolCallId,
+                                )?.data ||
+                                message?.metadata?.pendingToolApprovals?.[
+                                  _part?.toolCallId
+                                ];
+
+                              suspendedData =
+                                message.parts.find(
+                                  (p) =>
+                                    p.type === 'data-tool-call-suspended' &&
+                                    p.id === _part?.toolCallId,
+                                )?.data ||
+                                message?.metadata?.suspendPayload?.[
+                                  _part?.toolCallId
+                                ];
+
+                              if (approvalData) {
+                                approvalData.type = 'approval';
+                                isSuspended = true;
+                              }
+
+                              if (suspendedData) {
+                                suspendedData.type = 'suspended';
+                                isSuspended = true;
+                              }
+                            }
+
                             return (
-                              <ToolMessage
-                                key={`${message.id}-${i}`}
-                                part={_part}
-                                onClick={() => {
-                                  console.log(_part);
-                                  setShowPreview(true);
-                                  setPreviewToolPart(_part);
-                                  setPreviewData((data) => {
-                                    return {
-                                      ...data,
-                                      previewPanel: ChatPreviewType.TOOL_RESULT,
-                                    };
-                                  });
-                                }}
-                              ></ToolMessage>
+                              <div className="flex flex-col">
+                                <ToolMessage
+                                  key={`${message.id}-${i}`}
+                                  part={_part}
+                                  isSuspended={isSuspended}
+                                  onResume={(value) => {
+                                    console.log(value);
+                                    handleResumeChat(
+                                      suspendedData.runId,
+                                      _part?.toolCallId,
+                                      undefined,
+                                      value,
+                                    );
+                                  }}
+                                  suspendedData={suspendedData}
+                                  onClick={() => {
+                                    console.log(_part);
+                                    setShowPreview(true);
+                                    setPreviewToolPart(_part);
+                                    setPreviewData((data) => {
+                                      return {
+                                        ...data,
+                                        previewPanel:
+                                          ChatPreviewType.TOOL_RESULT,
+                                      };
+                                    });
+                                  }}
+                                ></ToolMessage>
+                                {approvalData && (
+                                  <ToolMessageApproval
+                                    approval={approvalData}
+                                    onReject={() => {
+                                      console.log('reject', approvalData);
+                                      handleResumeChat(
+                                        approvalData.runId,
+                                        _part?.toolCallId,
+                                        false,
+                                      );
+                                    }}
+                                    onAccept={() => {
+                                      console.log('accept', approvalData);
+                                      handleResumeChat(
+                                        approvalData.runId,
+                                        _part?.toolCallId,
+                                        true,
+                                      );
+                                    }}
+                                  />
+                                )}
+                              </div>
                             );
                           }
                           return null;
@@ -690,25 +794,36 @@ function ChatPage() {
           </Conversation>
           <div className="w-full px-4 pb-4 flex flex-col gap-2 justify-start">
             <div className="flex flex-row gap-2 justify-between">
+              <ChatAgentSelector
+                value={agentId}
+                onSelectedAgent={handleAgentChange}
+              ></ChatAgentSelector>
               {usage?.usage?.totalTokens && (
-                <Context
-                  maxTokens={usage?.maxTokens}
-                  modelId={usage?.modelId}
-                  usage={usage?.usage}
-                  usedTokens={usage?.usage?.totalTokens}
-                >
-                  <ContextTrigger size="sm" />
-                  <ContextContent>
-                    <ContextContentHeader />
-                    <ContextContentBody>
-                      <ContextInputUsage />
-                      <ContextOutputUsage />
-                      <ContextReasoningUsage />
-                      <ContextCacheUsage />
-                    </ContextContentBody>
-                    <ContextContentFooter />
-                  </ContextContent>
-                </Context>
+                <ChatUsage
+                  value={{
+                    usage: usage?.usage,
+                    maxTokens: usage?.maxTokens,
+                    modelId: usage?.model,
+                  }}
+                />
+                // <Context
+                //   maxTokens={usage?.maxTokens}
+                //   modelId={usage?.modelId}
+                //   usage={usage?.usage}
+                //   usedTokens={usage?.usage?.totalTokens}
+                // >
+                //   <ContextTrigger size="sm" />
+                //   <ContextContent>
+                //     <ContextContentHeader />
+                //     <ContextContentBody>
+                //       <ContextInputUsage />
+                //       <ContextOutputUsage />
+                //       <ContextReasoningUsage />
+                //       <ContextCacheUsage />
+                //     </ContextContentBody>
+                //     <ContextContentFooter />
+                //   </ContextContent>
+                // </Context>
               )}
             </div>
 

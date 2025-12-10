@@ -353,6 +353,7 @@ export class IpcChatTransport implements ChatTransport<UIMessage> {
     options: { chatId: string } & ChatRequestOptions,
   ): Promise<ReadableStream<UIMessageChunk> | null> {
     // IPC 方案不支持重连
+    debugger;
     return null;
   }
 

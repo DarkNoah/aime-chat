@@ -2,12 +2,11 @@ import { Mastra } from '@mastra/core';
 
 import {
   createTool,
-  MastraToolInvocationOptions,
   Tool,
   ToolAction,
   ToolExecutionContext,
 } from '@mastra/core/tools';
-import { tool } from 'ai';
+import { tool, ToolCallOptions } from 'ai';
 import z, { ZodSchema, ZodObject, ZodTypeAny } from 'zod';
 import { LanguageModelV2ToolResultPart } from '@ai-sdk/provider';
 export interface BaseToolParams {
@@ -17,10 +16,15 @@ export interface BaseToolParams {
   metadata?: Record<string, unknown>;
 }
 
-abstract class BaseTool<T extends BaseToolParams = BaseToolParams>
-  implements
-    Tool<ZodSchema, ZodSchema, any, any, ToolExecutionContext<ZodSchema, any>>
-{
+abstract class BaseTool<
+  T extends BaseToolParams = BaseToolParams,
+> implements Tool<
+  ZodSchema,
+  ZodSchema,
+  any,
+  any,
+  ToolExecutionContext<ZodSchema, any>
+> {
   abstract id: string;
   description: string;
   abstract inputSchema: ZodSchema;
@@ -48,6 +52,11 @@ abstract class BaseTool<T extends BaseToolParams = BaseToolParams>
   mastra?: Mastra;
   requireApproval?: boolean;
 
-  // static build
+  onOutput?: (
+    options: {
+      output: any;
+      toolName: string;
+    } & Omit<ToolCallOptions, 'messages'>,
+  ) => void | PromiseLike<void>;
 }
 export default BaseTool;

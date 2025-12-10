@@ -1,8 +1,4 @@
-import {
-  createTool,
-  MastraToolInvocationOptions,
-  ToolExecutionContext,
-} from '@mastra/core/tools';
+import { createTool, ToolExecutionContext } from '@mastra/core/tools';
 import { generateText } from 'ai';
 import z from 'zod';
 import BaseTool, { BaseToolParams } from '../base-tool';
@@ -53,7 +49,7 @@ Important:
 </available_skills>
 
 `;
-  inputSchema = z.object({
+  inputSchema = z.strictObject({
     skill: z
       .string()
       .describe(`The skill name (no arguments). E.g., "pdf" or "xlsx"`),

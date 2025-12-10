@@ -51,7 +51,16 @@
     "download": "Download",
     "apiServerStart": "Start",
     "confirm": "Confirm",
-    "search": "Search"
+    "search": "Search",
+    "accept": "Accept",
+    "reject": "Reject",
+    "add_mcp_server": "Add MCP Server",
+    "add_skill": "Add Skill",
+    "built_in": "Built-In",
+    "category": "Category",
+    "method": "Method",
+    "agents": "Agents",
+    "select_agent": "Select a agent"
   },
   "sidebar": {
     "new_chat": "New Chat",
@@ -60,7 +69,8 @@
     "tools": "Tools",
     "knowledge_base": "Knowledge Base",
     "agents": "Agents",
-    "knowledge-base": "Knowledge Base"
+    "knowledge-base": "Knowledge Base",
+    "new_project": "New Project"
   },
   "chat": {
     "new_chat": "New Chat",
@@ -74,6 +84,12 @@
     "add_mcp": "Add Mcp Server",
     "edit_mcp": "Edit Mcp Server",
     "config": "Config",
-    "execute": "Execute"
+    "execute": "Execute",
+    "approval_description": "Can this tool be executed?"
+  },
+  "agents": {
+    "instructions": "System Prompt",
+    "tools": "Tools",
+    "add_defalut_tool": "Add Defalut Tool"
   }
 }

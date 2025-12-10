@@ -1,0 +1,18 @@
+packages:
+  - .
+
+onlyBuiltDependencies:
+  - '@clerk/shared'
+  - '@parcel/watcher'
+  - '@vscode/ripgrep'
+  - better-sqlite3
+  - core-js
+  - core-js-pure
+  - electron
+  - electron-winstaller
+  - onnxruntime-node
+  - openvino-genai-node
+  - openvino-node
+  - protobufjs
+  - sharp
+  - unrs-resolver

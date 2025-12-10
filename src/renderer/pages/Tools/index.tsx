@@ -192,11 +192,12 @@ function Tools() {
                 <IconPlus></IconPlus>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56" align="start">
+            <DropdownMenuContent align="start">
               <DropdownMenuGroup>
                 <DropdownMenuItem onClick={() => setOpen(true)}>
-                  {t('common.create_mcp')}
+                  {t('common.add_mcp_server')}
                 </DropdownMenuItem>
+                <DropdownMenuItem>{t('common.add_skill')}</DropdownMenuItem>
               </DropdownMenuGroup>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -218,7 +219,7 @@ function Tools() {
             value={ToolType.BUILD_IN}
             className="data-[state=off]:bg-transparent bg-secondary "
           >
-            Built-in
+            {t('common.built_in')}
           </ToggleGroupItem>
           <ToggleGroupItem
             value={ToolType.MCP}
