@@ -180,6 +180,25 @@ export const ChatToolResultPreview = React.forwardRef<
               )}
             </div>
           );
+        case 'Task': {
+          const { description, prompt, subagent_type } = part?.input as {
+            description: string;
+            prompt: string;
+            subagent_type: string;
+          };
+          return (
+            <div className="flex flex-col gap-2">
+              <Badge>@{subagent_type}</Badge>
+              <small className="text-wrap text-muted-foreground">
+                {description}
+              </small>
+              <pre className="text-wrap text-sm break-all bg-secondary p-4 rounded-2xl">
+                {prompt}
+              </pre>
+            </div>
+          );
+        }
+
         default:
           return (
             <>

@@ -4,6 +4,7 @@ import { CallSettings } from 'ai';
 
 export type ChatInput = {
   agentId?: string;
+  projectId?: string;
   messageId?: string;
   messages: Array<UIMessage | UIMessageWithMetadata>;
   model: string;
@@ -12,7 +13,8 @@ export type ChatInput = {
   trigger?: string;
   think?: boolean;
   runId?: string;
-  tools: string[];
+  tools?: string[];
+  subAgents?: string[];
   requireToolApproval: boolean;
   options?: {
     modelSettings: Omit<CallSettings, 'abortSignal'>;
@@ -34,6 +36,10 @@ export enum ChatEvent {
   ChatUsage = 'chat:chat-usage',
   ChatError = 'chat:chat-error',
   ChatAbort = 'chat:chat-abort',
+}
+
+export enum ThreadEvent {
+  ThreadCreated = 'thread:thread-created',
 }
 
 export enum ChatChangedType {
@@ -64,4 +70,21 @@ export type ChatPreviewData = {
     status: 'pending' | 'in_progress' | 'completed';
     activeForm: string;
   }[];
+};
+
+export type ChatTodo = {
+  content: string;
+  status: 'pending' | 'in_progress' | 'completed';
+  activeForm: string;
+};
+
+export type ChatRequestContext = {
+  model?: string;
+  threadId?: string;
+  tools?: string[];
+  subAgents?: string[];
+  agentId?: string;
+  todos?: ChatTodo[];
+  maxContextSize?: number;
+  workspace?: string;
 };

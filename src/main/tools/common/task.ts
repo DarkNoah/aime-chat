@@ -14,6 +14,8 @@ import matter from 'gray-matter';
 import { ToolType } from '@/types/tool';
 import fg from 'fast-glob';
 import { SubAgentInfo } from '@/types/task';
+import { agentManager } from '@/main/mastra/agents';
+import { providersManager } from '@/main/providers';
 
 export interface TaskToolParams extends BaseToolParams {
   subAgents: SubAgentInfo[] | string[];
@@ -103,7 +105,10 @@ assistant: "I'm going to use the Task tool to launch the greeting-responder agen
 
   getDescription = (subAgents: SubAgentInfo[] | string[]) => {
     let _subAgents: SubAgentInfo[] = [];
-    if (subAgents.every((subAgent) => typeof subAgent === 'string')) {
+    if (
+      subAgents.length > 0 &&
+      subAgents.every((subAgent) => typeof subAgent === 'string')
+    ) {
       throw new Error('SubAgents must be an array of SubAgentInfo');
     } else {
       _subAgents = subAgents as SubAgentInfo[];
@@ -114,11 +119,9 @@ assistant: "I'm going to use the Task tool to launch the greeting-responder agen
 The Task tool launches specialized agents (subprocesses) that autonomously handle complex tasks. Each agent type has specific capabilities and tools available to it.
 
 Available agent types and the tools they have access to:
-${_subAgents.map((subAgent) => `- ${subAgent.name}: ${subAgent.description} (Tools: ${subAgent.tools.join(', ')})`).join('\n')}
 - general-purpose: General-purpose agent for researching complex questions, searching for code, and executing multi-step tasks. When you are searching for a keyword or file and are not confident that you will find the right match in the first few tries use this agent to perform the search for you. (Tools: *)
 - statusline-setup: Use this agent to configure the user's Claude Code status line setting. (Tools: Read, Edit)
-- Explore: Fast agent specialized for exploring codebases. Use this when you need to quickly find files by patterns (eg. "src/components/**/*.tsx"), search code for keywords (eg. "API endpoints"), or answer questions about the codebase (eg. "how do API endpoints work?"). When calling this agent, specify the desired thoroughness level: "quick" for basic searches, "medium" for moderate exploration, or "very thorough" for comprehensive analysis across multiple locations and naming conventions. (Tools: All tools)
-- Plan: Fast agent specialized for exploring codebases. Use this when you need to quickly find files by patterns (eg. "src/components/**/*.tsx"), search code for keywords (eg. "API endpoints"), or answer questions about the codebase (eg. "how do API endpoints work?"). When calling this agent, specify the desired thoroughness level: "quick" for basic searches, "medium" for moderate exploration, or "very thorough" for comprehensive analysis across multiple locations and naming conventions. (Tools: All tools)
+${_subAgents.map((subAgent) => `- ${subAgent.name}: ${subAgent.description} (Tools: ${subAgent.tools.join(', ')})`).join('\n')}
 
 When using the Task tool, you must specify a subagent_type parameter to select which agent type to use.
 
@@ -182,6 +185,56 @@ assistant: "I'm going to use the Task tool to launch the greeting-responder agen
     context: ToolExecutionContext<z.ZodSchema, any>,
   ) => {
     const { description, prompt, subagent_type } = inputData;
-    return '';
+    const {
+      writer,
+      abortSignal,
+      requestContext,
+      agent: agentContext,
+    } = context;
+    const toolCallId = agentContext.toolCallId;
+    const agent = await agentManager.buildAgent(subagent_type);
+    // const model = await providersManager.getLanguageModel(model);
+    const stream = await agent.stream(prompt, {
+      abortSignal: abortSignal,
+      requestContext: requestContext,
+      maxSteps: 100,
+    });
+
+    for await (const chunk of stream.fullStream) {
+      if (chunk.type == 'tool-result') {
+      }
+      if (chunk.type === 'step-finish') {
+        const { payload } = chunk;
+        const { messages, output } = payload;
+        const { text, toolCalls, usage } = output;
+        if (text.trim()) {
+          await writer.write({
+            type: `data-task-${toolCallId}`,
+            data: { value: text, type: 'text' },
+          });
+        }
+        if (toolCalls.length > 0) {
+          for (const toolCall of toolCalls) {
+            await writer.write({
+              type: `data-task-${toolCallId}`,
+              data: { value: toolCall, type: 'tool-call' },
+            });
+          }
+        }
+      }
+
+      // await writer.write(chunk);
+      console.log(chunk.type);
+    }
+    if (abortSignal.aborted) {
+      return `Task was aborted by the user.`;
+    }
+    // await stream.textStream.pipeTo(writer);
+    // await stream.fullStream.pipeTo(writer);
+
+    return (await stream.content)
+      .filter((x) => x.type === 'text')
+      .map((x) => x.text)
+      .join('\n');
   };
 }

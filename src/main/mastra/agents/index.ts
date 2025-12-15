@@ -4,7 +4,7 @@ import { Agent as MastraAgent, AgentConfig } from '@mastra/core/agent';
 import { Memory, MessageHistory } from '@mastra/memory';
 import mastraManager from '../../mastra';
 import { toolsManager } from '../../tools';
-import { skillManager } from '../../tools/common/skill';
+import { Skill, skillManager } from '../../tools/common/skill';
 import { ToolType } from '@/types/tool';
 import { Agent, AgentType, BuildAgentParams } from '@/types/agent';
 import { providersManager } from '../../providers';
@@ -17,6 +17,10 @@ import { Repository } from 'typeorm';
 import { BaseAgent } from './base-agent';
 import { convertToInstructionContent } from '@/main/utils/convertToCoreMessages';
 import { dbManager } from '@/main/db';
+import { DefaultAgent } from './default-agent';
+import { Task } from '@/main/tools/common/task';
+import { SubAgentInfo } from '@/types/task';
+import { Explore } from './explore-agent';
 
 type BuiltInAgent = BaseAgent & {
   classType: any;
@@ -48,6 +52,7 @@ class AgentManager extends BaseManager {
       agentEntity = new Agents(agent.id, AgentType.BUILD_IN);
     }
     agentEntity.name = agent.name;
+    agentEntity.isHidden = agent.isHidden;
     agentEntity.description = await agent.description;
 
     await this.agentsRepository.save(agentEntity);
@@ -60,44 +65,75 @@ class AgentManager extends BaseManager {
   }
 
   async registerAgents() {
+    await this.registerAgent(DefaultAgent);
     await this.registerAgent(CodeAgent);
+    await this.registerAgent(Explore);
   }
 
   async buildAgent(agentId?: string, params?: BuildAgentParams) {
     const agentEntity = await this.agentsRepository.findOne({
-      where: { id: agentId },
+      where: { id: agentId ?? DefaultAgent.name },
     });
 
     if (!agentEntity) {
       throw new Error('Agent not found');
     }
-
-    // const mastraAgent = this.mastra.getAgentById(agentId || 'react-agent');
-
-    const { tools } = params || {};
-    // if (!mastraAgent) {
-    //   throw new Error('Agent not found');
-    // }
+    const { tools = [], subAgents = [] } = params || {};
 
     let _skills = await skillManager.getClaudeSkills();
     _skills = _skills.filter((x) => tools.includes(x.id));
 
+    let _subAgents = await agentManager.getList();
+    const subAgentsInfo = _subAgents
+      .filter((x) => subAgents.includes(x.id))
+      .map((x) => {
+        return {
+          id: x.id,
+          name: x.name,
+          description: x.description,
+          tools: x.tools,
+        } as SubAgentInfo;
+      });
+
     const builtInAgent = this.builtInAgents.find((x) => x.id == agentId);
-    const _tools = await toolsManager.buildTools(builtInAgent.tools, {
-      [`${ToolType.BUILD_IN}:Skill`]: {
+    const toolIds = [
+      ...new Set([
+        ...(builtInAgent?.tools ?? []),
+        ...(agentEntity.tools ?? []),
+      ]),
+    ];
+    if (
+      subAgentsInfo.length > 0 &&
+      !toolIds.includes(`${ToolType.BUILD_IN}:${Task.name}`)
+    ) {
+      toolIds.push(`${ToolType.BUILD_IN}:${Task.name}`);
+    }
+    if (
+      _skills.length > 0 &&
+      !toolIds.includes(`${ToolType.BUILD_IN}:${Skill.name}`)
+    ) {
+      toolIds.push(`${ToolType.BUILD_IN}:${Skill.name}`);
+    }
+    const _tools = await toolsManager.buildTools(toolIds, {
+      [`${ToolType.BUILD_IN}:${Skill.name}`]: {
         skills: _skills,
+      },
+      [`${ToolType.BUILD_IN}:${Task.name}`]: {
+        subAgents: subAgentsInfo,
       },
     });
 
     const storage = getStorage();
 
     const agent = new MastraAgent({
-      id: builtInAgent.id,
-      name: builtInAgent.name,
-      instructions: builtInAgent.instructions,
-      description: builtInAgent.description,
+      id: builtInAgent?.id ?? agentEntity.id,
+      name: builtInAgent?.name ?? agentEntity.name,
+      instructions: builtInAgent?.instructions ?? agentEntity.instructions,
+      description: builtInAgent?.description ?? agentEntity.description,
 
-      model: await providersManager.getLanguageModel(params.modelId),
+      model: await providersManager.getLanguageModel(
+        params?.modelId ?? agentEntity.defaultModelId,
+      ),
       memory: new Memory({
         storage: storage,
         options: {
@@ -138,51 +174,110 @@ class AgentManager extends BaseManager {
       name: agentEntity.name,
       description: agentEntity.description,
       instructions: await convertToInstructionContent(
-        builtInAgent.instructions,
+        builtInAgent?.instructions ?? agentEntity.instructions,
       ),
+      type: agentEntity.type,
       tags: agentEntity.tags,
       isActive: agentEntity.isActive,
-      tools: builtInAgent.tools,
+      tools: [
+        ...new Set([
+          ...(builtInAgent?.tools ?? []),
+          ...(agentEntity.tools ?? []),
+        ]),
+      ],
+      subAgents: [
+        ...new Set([
+          ...(builtInAgent?.subAgents ?? []),
+          ...(agentEntity.subAgents ?? []),
+        ]),
+      ],
+      defaultModelId: agentEntity.defaultModelId,
     };
   }
   @channel(AgentChannel.GetList)
   public async getList(): Promise<Agent[]> {
     const agentEntities = await this.agentsRepository.find();
-    return agentEntities.map((agentEntity) => ({
-      id: agentEntity.id,
-      name: agentEntity.name,
-      description: agentEntity.description,
-      tags: agentEntity.tags,
-      isActive: agentEntity.isActive,
-      tools: this.builtInAgents.find((x) => x.id == agentEntity.id)?.tools,
-    }));
+    return agentEntities.map((agentEntity) => {
+      const builtInAgent = this.builtInAgents.find(
+        (x) => x.id == agentEntity.id,
+      );
+      return {
+        id: agentEntity.id,
+        name: agentEntity.name,
+        description: agentEntity.description,
+        tags: agentEntity.tags,
+        isActive: agentEntity.isActive,
+        tools: [
+          ...new Set([
+            ...(builtInAgent?.tools ?? []),
+            ...(agentEntity.tools ?? []),
+          ]),
+        ],
+        isHidden: agentEntity.isHidden,
+      };
+    });
   }
 
-  @channel(AgentChannel.UpdateAgent)
-  public async update(agent: Agent): Promise<Agent> {
+  @channel(AgentChannel.SaveAgent)
+  public async saveAgent(agent: Agent): Promise<Agent> {
+    let agentEntity;
+    if (agent.id) {
+      agentEntity = await this.agentsRepository.findOne({
+        where: { id: agent.id },
+      });
+      if (!agentEntity) {
+        agentEntity = new Agents(agent.id, AgentType.CUSTOM);
+      }
+    } else {
+      agentEntity = new Agents(agent.id, AgentType.CUSTOM);
+    }
+    return await this.agentsRepository.save({ ...agentEntity, ...agent });
+  }
+
+  @channel(AgentChannel.GetAvailableAgents)
+  public async getAvailableAgents(): Promise<Agent[]> {
+    const agentEntities = await this.agentsRepository.find({
+      where: { isActive: true, isHidden: false },
+    });
+    return agentEntities.map((agentEntity) => {
+      const builtInAgent = this.builtInAgents.find(
+        (x) => x.id == agentEntity.id,
+      );
+      return {
+        id: agentEntity.id,
+        name: agentEntity.name,
+        description: agentEntity.description,
+        tags: agentEntity.tags,
+        isActive: agentEntity.isActive,
+        tools: [
+          ...new Set([
+            ...(builtInAgent?.tools ?? []),
+            ...(agentEntity.tools ?? []),
+          ]),
+        ],
+        subAgents: [
+          ...new Set([
+            ...(builtInAgent?.subAgents ?? []),
+            ...(agentEntity.subAgents ?? []),
+          ]),
+        ],
+        defaultModelId: agentEntity.defaultModelId,
+      };
+    });
+  }
+
+  @channel(AgentChannel.DeleteAgent)
+  public async deleteAgent(id: string): Promise<void> {
     const agentEntity = await this.agentsRepository.findOne({
-      where: { id: agent.id },
+      where: { id: id },
     });
     if (!agentEntity) {
       throw new Error('Agent not found');
     }
-
-    await this.agentsRepository.save({ ...agentEntity, ...agent });
-    return agent;
-  }
-  @channel(AgentChannel.GetAvailableAgents)
-  public async getAvailableAgents(): Promise<Agent[]> {
-    const agentEntities = await this.agentsRepository.find({
-      where: { isActive: true },
-    });
-    return agentEntities.map((agentEntity) => ({
-      id: agentEntity.id,
-      name: agentEntity.name,
-      description: agentEntity.description,
-      tags: agentEntity.tags,
-      isActive: agentEntity.isActive,
-      tools: this.builtInAgents.find((x) => x.id == agentEntity.id)?.tools,
-    }));
+    if (agentEntity.type !== AgentType.CUSTOM) {
+      throw new Error('Only custom agents can be deleted');
+    }
+    await this.agentsRepository.delete(id);
   }
 }
 

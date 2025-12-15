@@ -1,16 +1,21 @@
 export type BuildAgentParams = {
   tools?: string[];
+  subAgents?: string[];
   modelId: string;
 };
 
 export type Agent = {
-  id: string;
+  id?: string;
   name?: string;
   description?: string;
   instructions?: string;
   tools?: string[];
+  subAgents?: string[];
   isActive?: boolean;
   tags?: string[];
+  isHidden?: boolean;
+  type?: string;
+  defaultModelId?: string;
 };
 
 export enum AgentTags {

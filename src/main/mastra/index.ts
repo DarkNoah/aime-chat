@@ -13,11 +13,12 @@ import {
   StepResult,
   SystemModelMessage,
   UIMessage,
+  UserModelMessage,
 } from 'ai';
 import type {
   LanguageModelV2,
   SharedV2ProviderOptions,
-} from '@ai-sdk/provider-v5';
+} from '@ai-sdk/provider';
 import { toAISdkV5Messages, toAISdkV4Messages } from '@mastra/ai-sdk/ui';
 import { toAISdkStream } from '@mastra/ai-sdk';
 // import { RuntimeContext } from '@mastra/core';
@@ -40,7 +41,10 @@ import {
   ChatChangedType,
   ChatEvent,
   ChatInput,
+  ChatRequestContext,
   ChatThread,
+  ChatTodo,
+  ThreadEvent,
 } from '@/types/chat';
 import { nanoid } from '@/utils/nanoid';
 import { IpcMainEvent } from 'electron';
@@ -59,7 +63,7 @@ import {
   convertToCoreMessages,
   convertToInstructionContent,
 } from '../utils/convertToCoreMessages';
-import { compressAgent } from './agents/compress-agent';
+import compressAgent from './agents/compress-agent';
 import { skillManager } from '../tools/common/skill';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { agentManager } from './agents';
@@ -261,7 +265,7 @@ class MastraManager extends BaseManager {
         },
       },
     });
-    await appManager.sendEvent('mastra:thread-created', thread);
+    await appManager.sendEvent(ThreadEvent.ThreadCreated, thread);
     return thread;
   }
 
@@ -310,6 +314,7 @@ class MastraManager extends BaseManager {
       webSearch,
       think,
       tools = [],
+      subAgents = [],
       runId,
       chatId,
       options,
@@ -331,9 +336,10 @@ class MastraManager extends BaseManager {
 
     const inputMessage = uiMessages[uiMessages.length - 1];
 
-    const agent = await agentManager.buildAgent(agentId || 'react-agent', {
+    const agent = await agentManager.buildAgent(agentId, {
       modelId: model,
       tools: tools,
+      subAgents: subAgents,
     });
 
     // const mastraAgent = this.mastra.getAgentById(agentId || 'react-agent');
@@ -394,35 +400,30 @@ class MastraManager extends BaseManager {
         metadata: {
           ...(currentThread.metadata || {}),
           tools: tools,
+          subAgents,
           agentId: agentId,
         },
       });
-      const todos = currentThread.metadata?.todos || [];
+      const todos: ChatTodo[] =
+        (currentThread.metadata?.todos as ChatTodo[]) || [];
 
-      const requestContext = new RequestContext();
-      requestContext.set('model' as never, model as never);
-      requestContext.set('threadId' as never, chatId as never);
-      requestContext.set('tools' as never, tools as never);
-      requestContext.set('agentId' as never, agentId as never);
-      requestContext.set('todos' as never, todos as never);
-      if (modelInfo?.limit?.context)
-        requestContext.set(
-          'limit_context' as never,
-          modelInfo?.limit?.context as never,
-        );
-
+      const requestContext = new RequestContext<ChatRequestContext>();
+      requestContext.set('model', model);
+      requestContext.set('threadId', chatId);
+      requestContext.set('tools', tools);
+      requestContext.set('subAgents', subAgents);
+      requestContext.set('agentId', agentId);
+      requestContext.set('todos', todos);
+      requestContext.set(
+        'maxContextSize',
+        modelInfo?.limit?.context ?? 64 * 1000,
+      );
       // const thread = await this.mastra.getStorage().getThreadById({ threadId });
 
       // const messages = convertToModelMessages(uiMessages);
       // const recentMessage = agent.getMostRecentUserMessage(uiMessages);
       const controller = new AbortController();
       const signal = controller.signal;
-      let chunkPart;
-
-      // const snapshot = await storage?.loadWorkflowSnapshot({
-      //   runId: chatId,
-      //   workflowName: workflow.id,
-      // });
 
       const historyMessages = await storage.listMessages({
         threadId: chatId,
@@ -497,9 +498,7 @@ class MastraManager extends BaseManager {
         onStepFinish: async (event) => {
           //storage.saveMessages();
           const { usage, response, text, reasoning } = event;
-          const limit_context =
-            (requestContext.get('limit_context' as never) as number) ||
-            64 * 1000;
+          const maxContextSize = requestContext.get('maxContextSize');
 
           const history = (requestContext.get('usage' as never) as {
             // inputTokens: number;
@@ -510,7 +509,7 @@ class MastraManager extends BaseManager {
           // history.outputTokens += usage?.outputTokens ?? 0;
           history.totalTokens += usage?.totalTokens ?? 0;
           requestContext.set('usage' as never, history as never);
-          const usageRate = (usage?.totalTokens / limit_context) * 100;
+          const usageRate = (usage?.totalTokens / maxContextSize) * 100;
           console.log('usage rate: ' + usageRate.toFixed(2) + '%', usage);
 
           appManager.sendEvent(`chat:event:${chatId}`, {
@@ -519,7 +518,7 @@ class MastraManager extends BaseManager {
               usage,
               usageRate: Math.round(usageRate * 100) / 100,
               modelId: model,
-              maxTokens: limit_context,
+              maxTokens: maxContextSize,
             },
           });
           currentThread = await storage.getThreadById({ threadId: chatId });
@@ -529,7 +528,7 @@ class MastraManager extends BaseManager {
             metadata: {
               ...(currentThread.metadata || {}),
               usage,
-              maxTokens: limit_context,
+              maxTokens: maxContextSize,
               model,
             },
           });
@@ -561,50 +560,17 @@ class MastraManager extends BaseManager {
             requestContext,
           });
           const system = await convertToInstructionContent(instructions);
-
-          // const messagesCore = convertToCoreMessages([...options.messages]);
-          // const instructionContent = convertToInstructionContent(instructions);
-
-          // const token = await tokenCounter([], {
-          //   role: 'system',
-          //   content: instructionContent,
-          // });
-          // if (token > 100000) {
-          //   compressAgent.model = fastLanguageModel;
-
-          //   const compressResult = await compressAgent.generate(
-          //     options.messages,
-          //     {
-          //       modelSettings: {
-          //         maxOutputTokens: 32 * 1000,
-          //       },
-          //     },
-          //   );
-          //   const text = compressResult.text;
-          //   const todos = requestContext.get('todos' as never);
-          //   if (todos) {
-          //   }
-          // }
-
-          // options.messages = [{ role: 'user', content: 'Hello, how are you?' }];
           let d = new Date();
           const messages = [
             { role: 'system', content: system } as SystemModelMessage,
             ...options.messages,
           ];
+          const maxContextSize = requestContext.get('maxContextSize');
 
-          // const messagesHistory = await storage.listMessages({
-          //   threadId: chatId,
-          //   resourceId: '123',
-          // });
-          // const hh = messagesHistory.messages;
-          // console.log(JSON.stringify(messages, null, 2));
-
-          // const messagesV5 = toAISdkV5Messages(
-          //   JSON.parse(JSON.stringify(messages)),
-          // );
-          // console.log(JSON.stringify(messagesV5, null, 2));
-
+          const { messages: compressedMessages, hasCompressed } =
+            await this.compressMessages(messages, {
+              model: fastLanguageModel,
+            });
           return { messages: messages };
         },
       };
@@ -807,10 +773,6 @@ class MastraManager extends BaseManager {
     } finally {
       currentThread = await storage.getThreadById({ threadId: chatId });
       if (currentThread.title == 'New Thread') {
-        const fastModel = (await appManager.getInfo())?.defaultModel?.fastModel;
-        const fastLanguageModel = (await providersManager.getLanguageModel(
-          fastModel || model,
-        )) as LanguageModelV2;
         const title = await agent.genTitle(
           inputMessage,
           undefined,
@@ -1014,24 +976,135 @@ class MastraManager extends BaseManager {
     });
   }
 
+  public async compressMessages(
+    messages: ModelMessage[],
 
-  public async compressMessages(messages: ModelMessage[], options:{
-    thresholdTokenCount?: number;
-    force?: boolean;
-    model?: string;
-  }) {
-    const tokenCount = await tokenCounter(messages)
-    if (options.thresholdTokenCount && tokenCount > options.thresholdTokenCount && !options.force) {
-      return messages;
+    options: {
+      thresholdTokenCount?: number;
+      force?: boolean;
+      model: LanguageModelV2;
+    },
+  ): Promise<{ messages: ModelMessage[]; hasCompressed: boolean }> {
+    const tokenCount = await tokenCounter(messages);
+    if (
+      options.thresholdTokenCount &&
+      tokenCount > options.thresholdTokenCount &&
+      !options.force
+    ) {
+      return { messages: messages, hasCompressed: false };
     }
-    const model = await providersManager.getLanguageModel(options.model || 'openai/gpt-4o-mini');
-    const compressAgent = new Agent({
-      id: 'compress-agent',
-      name: 'Compress Agent',
-      instructions: 'You are a helpful assistant that compresses messages.',
-      model: model,
-    });
-    const response = await compressAgent.generate(messages);
+    const systemMessage = messages.find((x) => x.role === 'system');
+
+    const inputMessages = messages.filter((x) => x.role !== 'system');
+    compressAgent.model = options.model;
+    const response = await compressAgent.generate([
+      ...inputMessages,
+      {
+        role: 'user',
+        content: `Your task is to create a detailed summary of the conversation so far, paying close attention to the user's explicit requests and your previous actions.
+This summary should be thorough in capturing technical details, code patterns, and architectural decisions that would be essential for continuing development work without losing context.
+
+Before providing your final summary, wrap your analysis in <analysis> tags to organize your thoughts and ensure you've covered all necessary points. In your analysis process:
+
+1. Chronologically analyze each message and section of the conversation. For each section thoroughly identify:
+   - The user's explicit requests and intents
+   - Your approach to addressing the user's requests
+   - Key decisions, technical concepts and code patterns
+   - Specific details like:
+     - file names
+     - full code snippets
+     - function signatures
+     - file edits
+  - Errors that you ran into and how you fixed them
+  - Pay special attention to specific user feedback that you received, especially if the user told you to do something differently.
+2. Double-check for technical accuracy and completeness, addressing each required element thoroughly.
+
+Your summary should include the following sections:
+
+1. Primary Request and Intent: Capture all of the user's explicit requests and intents in detail
+2. Key Technical Concepts: List all important technical concepts, technologies, and frameworks discussed.
+3. Files and Code Sections: Enumerate specific files and code sections examined, modified, or created. Pay special attention to the most recent messages and include full code snippets where applicable and include a summary of why this file read or edit is important.
+4. Errors and fixes: List all errors that you ran into, and how you fixed them. Pay special attention to specific user feedback that you received, especially if the user told you to do something differently.
+5. Problem Solving: Document problems solved and any ongoing troubleshooting efforts.
+6. All user messages: List ALL user messages that are not tool results. These are critical for understanding the users' feedback and changing intent.
+6. Pending Tasks: Outline any pending tasks that you have explicitly been asked to work on.
+7. Current Work: Describe in detail precisely what was being worked on immediately before this summary request, paying special attention to the most recent messages from both user and assistant. Include file names and code snippets where applicable.
+8. Optional Next Step: List the next step that you will take that is related to the most recent work you were doing. IMPORTANT: ensure that this step is DIRECTLY in line with the user's most recent explicit requests, and the task you were working on immediately before this summary request. If your last task was concluded, then only list next steps if they are explicitly in line with the users request. Do not start on tangential requests or really old requests that were already completed without confirming with the user first.
+                       If there is a next step, include direct quotes from the most recent conversation showing exactly what task you were working on and where you left off. This should be verbatim to ensure there's no drift in task interpretation.
+
+Here's an example of how your output should be structured:
+
+<example>
+<analysis>
+[Your thought process, ensuring all points are covered thoroughly and accurately]
+</analysis>
+
+<summary>
+1. Primary Request and Intent:
+   [Detailed description]
+
+2. Key Technical Concepts:
+   - [Concept 1]
+   - [Concept 2]
+   - [...]
+
+3. Files and Code Sections:
+   - [File Name 1]
+      - [Summary of why this file is important]
+      - [Summary of the changes made to this file, if any]
+      - [Important Code Snippet]
+   - [File Name 2]
+      - [Important Code Snippet]
+   - [...]
+
+4. Errors and fixes:
+    - [Detailed description of error 1]:
+      - [How you fixed the error]
+      - [User feedback on the error if any]
+    - [...]
+
+5. Problem Solving:
+   [Description of solved problems and ongoing troubleshooting]
+
+6. All user messages:
+    - [Detailed non tool use user message]
+    - [...]
+
+7. Pending Tasks:
+   - [Task 1]
+   - [Task 2]
+   - [...]
+
+8. Current Work:
+   [Precise description of current work]
+
+9. Optional Next Step:
+   [Optional Next step to take]
+
+</summary>
+</example>
+
+Please provide your summary based on the conversation so far, following this structure and ensuring precision and thoroughness in your response.
+
+There may be additional summarization instructions provided in the included context. If so, remember to follow these instructions when creating the above summary. Examples of instructions include:
+<example>
+## Compact Instructions
+When summarizing the conversation focus on typescript code changes and also remember the mistakes you made and how you fixed them.
+</example>
+
+<example>
+# Summary instructions
+When you are using compact - please focus on test output and code changes. Include file reads verbatim.
+</example>`,
+      } as UserModelMessage,
+    ]);
+    return {
+      messages: [
+        systemMessage,
+        { role: 'user', content: response.text } as UserModelMessage,
+      ],
+      hasCompressed: true,
+    };
   }
 }
 

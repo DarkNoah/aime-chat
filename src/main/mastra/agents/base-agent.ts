@@ -13,9 +13,11 @@ export interface BaseAgentParams {
 export abstract class BaseAgent {
   abstract id: string;
   abstract name: string;
-  abstract description?: string;
+  description?: string;
   abstract instructions?: DynamicAgentInstructions;
   abstract tools?: string[];
+  subAgents?: string[];
+  isHidden: boolean = false;
 
   tags: string[] = [];
   constructor(params: BaseAgentParams) {

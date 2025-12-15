@@ -11,7 +11,6 @@ import { nanoid } from '@/utils/nanoid';
 import BaseToolkit, { BaseToolkitParams } from '../base-toolkit';
 import { truncateText } from '@/utils/common';
 import os from 'os';
-import stripAnsi from 'strip-ansi';
 import { spawn } from 'child_process';
 import { glob } from 'fast-glob';
 
@@ -54,6 +53,12 @@ export class Glob extends BaseTool {
     });
     if (entries.length === 0) {
       return `No files found`;
+    }
+    if (entries.length > 140) {
+      return (
+        entries.slice(0, 140).join('\n') +
+        `\n(Results are truncated. Consider using a more specific path or pattern.)`
+      );
     }
     return entries.join('\n');
   };

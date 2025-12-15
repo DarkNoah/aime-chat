@@ -103,7 +103,11 @@ import {
   IconArrowBarRight,
   IconArrowDown,
   IconArrowUp,
+  IconFolder,
+  IconFolderOpen,
+  IconImageInPicture,
   IconInbox,
+  IconPictureInPicture,
   IconSvg,
 } from '@tabler/icons-react';
 import domtoimage from 'dom-to-image';
@@ -114,6 +118,7 @@ import {
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '../components/ui/dropdown-menu';
 import { ChatUsage } from '../components/chat-ui/chat-usage';
@@ -249,6 +254,7 @@ function ChatPage() {
       webSearch?: boolean;
       think?: boolean;
       tools?: string[];
+      subAgents?: string[];
       requireToolApproval?: boolean;
     },
   ) => {
@@ -282,6 +288,7 @@ function ChatPage() {
       model: options?.model,
       webSearch: options?.webSearch,
       tools: options?.tools,
+      subAgents: options?.subAgents,
       think: options?.think,
       requireToolApproval: options?.requireToolApproval,
       runId,
@@ -320,8 +327,8 @@ function ChatPage() {
     setThread(undefined);
     setAgentId(undefined);
     chatInputRef.current?.setTools([]);
+    chatInputRef.current?.setSubAgents([]);
   };
-
   const handleClearMessages = async () => {
     if (threadId) {
       await window.electron.mastra.clearMessages(threadId);
@@ -360,6 +367,9 @@ function ChatPage() {
         );
         chatInputRef.current?.setTools(
           (_thread?.metadata?.tools as string[]) ?? [],
+        );
+        chatInputRef.current?.setSubAgents(
+          (_thread?.metadata?.subAgents as string[]) ?? [],
         );
         if (((_thread?.metadata?.todos as any[]) ?? []).length > 0) {
           setPreviewData((prev: ChatPreviewData) => ({
@@ -486,36 +496,40 @@ function ChatPage() {
   useEffect(() => {
     setTitleAction(
       <div className="flex flex-row gap-2">
-        {/* <Button
-          variant="outline"
-          onClick={() => {
-            setPreviewData((prev: ChatPreviewData) => {
-              return {
-                ...prev,
-                previewPanel: ChatPreviewType.WEB_PREVIEW,
-                webPreviewUrl: 'https://www.baidu.com',
-              };
-            });
-          }}
-        >
-          Open
-        </Button> */}
-
-        <ButtonGroup>
-          <Button
-            variant="outline"
-            onClick={() => handleExportConversation('jpg')}
-          >
-            Export
-          </Button>
+        {threadId && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="icon" aria-label="More Options">
+              <Button
+                variant="outline"
+                size="icon-sm"
+                aria-label="More Options"
+              >
                 <MoreHorizontalIcon />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-52">
+            <DropdownMenuContent align="end">
               <DropdownMenuGroup>
+                <DropdownMenuItem
+                  onClick={() => {
+                    if (thread?.metadata?.workspace) {
+                      window.electron.app.openPath(
+                        thread?.metadata?.workspace as string,
+                      );
+                    }
+                  }}
+                >
+                  <IconFolderOpen />
+                  Open Dictionary
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+              <DropdownMenuSeparator></DropdownMenuSeparator>
+              <DropdownMenuGroup>
+                <DropdownMenuItem
+                  onClick={() => handleExportConversation('jpg')}
+                >
+                  <IconImageInPicture />
+                  Export Jpg
+                </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => handleExportConversation('svg')}
                 >
@@ -525,10 +539,10 @@ function ChatPage() {
               </DropdownMenuGroup>
             </DropdownMenuContent>
           </DropdownMenu>
-        </ButtonGroup>
+        )}
         <Button
           variant="outline"
-          size="icon"
+          size="icon-sm"
           onClick={() => setShowPreview(!showPreview)}
         >
           {!showPreview && <IconArrowBarLeft />}
@@ -545,6 +559,12 @@ function ChatPage() {
   const handleAgentChange = (_agent: Agent) => {
     chatInputRef.current?.setTools(_agent.tools || []);
     setAgentId(_agent?.id);
+    if (_agent?.defaultModelId) {
+      setModelId(_agent?.defaultModelId);
+    }
+    if (_agent?.subAgents) {
+      chatInputRef.current?.setSubAgents(_agent?.subAgents || []);
+    }
   };
 
   return (
@@ -796,6 +816,7 @@ function ChatPage() {
             <div className="flex flex-row gap-2 justify-between">
               <ChatAgentSelector
                 value={agentId}
+                mode="single"
                 onSelectedAgent={handleAgentChange}
               ></ChatAgentSelector>
               {usage?.usage?.totalTokens && (
@@ -806,24 +827,6 @@ function ChatPage() {
                     modelId: usage?.model,
                   }}
                 />
-                // <Context
-                //   maxTokens={usage?.maxTokens}
-                //   modelId={usage?.modelId}
-                //   usage={usage?.usage}
-                //   usedTokens={usage?.usage?.totalTokens}
-                // >
-                //   <ContextTrigger size="sm" />
-                //   <ContextContent>
-                //     <ContextContentHeader />
-                //     <ContextContentBody>
-                //       <ContextInputUsage />
-                //       <ContextOutputUsage />
-                //       <ContextReasoningUsage />
-                //       <ContextCacheUsage />
-                //     </ContextContentBody>
-                //     <ContextContentFooter />
-                //   </ContextContent>
-                // </Context>
               )}
             </div>
 
@@ -832,6 +835,7 @@ function ChatPage() {
               showModelSelect
               showWebSearch
               showToolSelector
+              showAgentSelector
               showThink
               model={modelId}
               onModelChange={setModelId}

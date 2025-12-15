@@ -1,5 +1,6 @@
 /* eslint-disable react/require-default-props */
 import {
+  BotIcon,
   BrainIcon,
   CheckIcon,
   GlobeIcon,
@@ -74,6 +75,11 @@ import {
 } from '../ui/alert-dialog';
 import { useTranslation } from 'react-i18next';
 import { Tooltip, TooltipTrigger, TooltipContent } from '../ui/tooltip';
+import { ChatAgentSelector } from './chat-agent-selector';
+import {
+  ModelSelectorLogo,
+  ModelSelectorName,
+} from '../ai-elements/model-selector';
 
 export type ChatInputProps = Omit<PromptInputProps, 'onSubmit'> & {
   onSubmit?: (
@@ -83,6 +89,7 @@ export type ChatInputProps = Omit<PromptInputProps, 'onSubmit'> & {
       webSearch?: boolean;
       think?: boolean;
       tools?: string[];
+      subAgents?: string[];
       requireToolApproval?: boolean;
     },
   ) => void;
@@ -96,6 +103,7 @@ export type ChatInputProps = Omit<PromptInputProps, 'onSubmit'> & {
   showThink?: boolean;
   showModelSelect?: boolean;
   showToolSelector?: boolean;
+  showAgentSelector?: boolean;
   model?: string;
   onModelChange?: (model: string) => void;
   prompts?: string[];
@@ -107,6 +115,7 @@ export interface ChatInputRef {
   attachmentsClear: () => void;
   setModel: (model: string) => void;
   setTools: (toolNames: string[]) => void;
+  setSubAgents: (subAgentIds: string[]) => void;
   getTools: () => string[];
 }
 
@@ -123,12 +132,12 @@ export const ChatInput = React.forwardRef<ChatInputRef, ChatInputProps>(
       showWebSearch = false,
       showModelSelect = false,
       showToolSelector = false,
+      showAgentSelector = false,
       showThink = false,
       model,
       onModelChange,
       prompts,
       onClearMessages,
-      value,
     } = props;
     const { t } = useTranslation();
     const attachmentRef = useRef<ChatInputAttachmentRef>(null);
@@ -138,6 +147,7 @@ export const ChatInput = React.forwardRef<ChatInputRef, ChatInputProps>(
     const [useMicrophone, setUseMicrophone] = useState<boolean>(false);
     const [think, setThink] = useState(false);
     const [tools, setTools] = useState<string[]>([]);
+    const [subAgents, setSubAgents] = useState<string[]>([]);
     const [requireToolApproval, setRequireToolApproval] = useState(false);
 
     useImperativeHandle(ref, () => ({
@@ -153,6 +163,9 @@ export const ChatInput = React.forwardRef<ChatInputRef, ChatInputProps>(
       getTools: () => {
         return tools;
       },
+      setSubAgents: (subAgentIds: string[]) => {
+        setSubAgents(subAgentIds ?? []);
+      },
     }));
 
     const handleSubmit = () => {
@@ -165,7 +178,14 @@ export const ChatInput = React.forwardRef<ChatInputRef, ChatInputProps>(
       <PromptInputProvider>
         <PromptInput
           onSubmit={(e) =>
-            onSubmit(e, { model, webSearch, think, tools, requireToolApproval })
+            onSubmit(e, {
+              model,
+              webSearch,
+              think,
+              tools,
+              subAgents,
+              requireToolApproval,
+            })
           }
           className={cn('flex flex-col relative', className)}
           globalDrop
@@ -214,22 +234,25 @@ export const ChatInput = React.forwardRef<ChatInputRef, ChatInputProps>(
               )}
               {showToolSelector && (
                 <ChatToolSelector value={tools} onChange={setTools}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <PromptInputButton
-                        variant={tools.length > 0 ? 'default' : 'ghost'}
-                      >
-                        <WrenchIcon size={16} />
-                      </PromptInputButton>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Tool Selector</p>
-                    </TooltipContent>
-                  </Tooltip>
-
-
-
+                  <PromptInputButton
+                    variant={tools.length > 0 ? 'default' : 'ghost'}
+                  >
+                    <WrenchIcon size={16} />
+                  </PromptInputButton>
                 </ChatToolSelector>
+              )}
+              {showAgentSelector && (
+                <ChatAgentSelector
+                  value={subAgents ?? []}
+                  onChange={setSubAgents}
+                  mode="multiple"
+                >
+                  <PromptInputButton
+                    variant={subAgents.length > 0 ? 'default' : 'ghost'}
+                  >
+                    <BotIcon size={16} />
+                  </PromptInputButton>
+                </ChatAgentSelector>
               )}
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -249,7 +272,7 @@ export const ChatInput = React.forwardRef<ChatInputRef, ChatInputProps>(
                 <ChatModelSelect
                   value={model}
                   onChange={onModelChange}
-                  className="max-w-[200px] @lg:w-[200px] @md:w-[100px] @sm:w-[32px] w-[32px]"
+                  className="max-w-[200px] @lg:w-[150px] @md:w-[100px] @sm:w-[32px] w-[32px]"
                 ></ChatModelSelect>
               )}
               <Separator orientation="vertical" />
@@ -295,14 +318,7 @@ export const ChatInput = React.forwardRef<ChatInputRef, ChatInputProps>(
         <div className="flex flex-wrap gap-2 w-full ">
           <Suggestions>
             {prompts?.map((prompt) => (
-              <Suggestion
-                key={prompt}
-                suggestion={prompt}
-                // onClick={() => {
-                //   controller.textInput.setInput(prompt);
-                //   // setInput(prompt);
-                // }}
-              />
+              <Suggestion key={prompt} suggestion={prompt} />
             ))}
           </Suggestions>
         </div>

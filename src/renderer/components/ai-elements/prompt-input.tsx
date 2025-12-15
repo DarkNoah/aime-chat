@@ -72,6 +72,7 @@ import {
 // ============================================================================
 // Provider Context & Types
 // ============================================================================
+import { MentionsInput, Mention } from 'react-mentions';
 
 export type AttachmentsContext = {
   files: (FileUIPart & { id: string })[];
@@ -862,19 +863,125 @@ export const PromptInputTextarea = ({
         onChange,
       };
 
+  const [text, setText] = useState<string>('');
+  const addTag = () => {
+    const newTag = `@[新标签](new_id_${Date.now()}) `;
+    // controller.textInput.setInput((props?.value || '') + newTag);
+
+    setText((text) => text + newTag);
+  };
+  const mentionStyle = {
+    backgroundColor: '#cee4e5', // 底色
+    borderRadius: '20px', // 圆角 (实现圆形/胶囊效果)
+    // padding: '2px 8px', // 内边距
+    // color: '#00555f', // 文字颜色
+    fontWeight: 'bold',
+  };
+
+  const style = {
+    control: {
+      // backgroundColor: '#fff',
+      fontSize: 14,
+      fontWeight: 'normal',
+    },
+
+    '&multiLine': {
+      control: {
+        fontFamily: 'monospace',
+        minHeight: 63,
+      },
+      highlighter: {
+        padding: 9,
+        border: '1px solid transparent',
+      },
+      input: {
+        padding: 9,
+        border: '1px solid silver',
+      },
+    },
+
+    '&singleLine': {
+      display: 'inline-block',
+      width: 180,
+
+      highlighter: {
+        padding: 1,
+        border: '2px inset transparent',
+      },
+      input: {
+        padding: 1,
+        border: '2px inset',
+      },
+    },
+
+    suggestions: {
+      list: {
+        backgroundColor: 'white',
+        border: '1px solid rgba(0,0,0,0.15)',
+        fontSize: 14,
+      },
+      item: {
+        padding: '5px 15px',
+        borderBottom: '1px solid rgba(0,0,0,0.15)',
+        '&focused': {
+          backgroundColor: '#cee4e5',
+        },
+      },
+    },
+  };
+
   return (
-    <InputGroupTextarea
-      className={cn('field-sizing-content max-h-48 min-h-16', className)}
-      name="message"
-      onCompositionEnd={() => setIsComposing(false)}
-      onCompositionStart={() => setIsComposing(true)}
-      onKeyDown={handleKeyDown}
-      onPaste={handlePaste}
-      placeholder={placeholder}
-      {...props}
-      {...controlledProps}
-    />
+    <>
+      <Button
+        onClick={addTag}
+        style={{ marginBottom: '10px', padding: '8px 16px', cursor: 'pointer' }}
+      >
+        + 插入标签
+      </Button>
+      <div
+        className={cn(
+          'field-sizing-content max-h-48 min-h-16 w-full overflow-y-auto',
+          className,
+        )}
+      >
+        <MentionsInput
+          style={style}
+          value={text}
+          onChange={(e) => {
+            console.log(e);
+            setText(e.target.value);
+          }}
+        >
+          <Mention
+            trigger="@"
+            data={[{ id: '1', display: '建议项' }]}
+            markup="@[__display__](__id__)"
+            style={mentionStyle}
+            displayTransform={(id, display) => display}
+          />
+        </MentionsInput>
+      </div>
+
+      <div style={{ marginTop: '20px', color: '#666' }}>
+        <strong>实际保存的值 (Raw Value):</strong>
+        <pre>{text}</pre>
+      </div>
+    </>
   );
+
+  // return (
+  //   <InputGroupTextarea
+  //     className={cn('field-sizing-content max-h-48 min-h-16', className)}
+  //     name="message"
+  //     onCompositionEnd={() => setIsComposing(false)}
+  //     onCompositionStart={() => setIsComposing(true)}
+  //     onKeyDown={handleKeyDown}
+  //     onPaste={handlePaste}
+  //     placeholder={placeholder}
+  //     {...props}
+  //     {...controlledProps}
+  //   />
+  // );
 };
 
 export type PromptInputHeaderProps = Omit<

@@ -40,24 +40,46 @@ import {
 } from './ui/sidebar';
 import { Badge } from './ui/badge';
 import { useGlobal } from '../hooks/use-global';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { NavItems } from './nav-items';
 import { useTranslation } from 'react-i18next';
 import ThreadsList from './threads-list';
 import { Button } from './ui/button';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ChatProjectDialog } from './chat-project/chat-project-dialog';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from './ui/accordion';
+import ProjectsList from './project-list';
+import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
+import { cn } from '../lib/utils';
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { appInfo } = useGlobal();
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
+  const [activeTab, setActiveTab] = useState(
+    window.localStorage.getItem('activeTab') || 'chat',
+  );
+  useEffect(() => {
+    window.localStorage.setItem('activeTab', activeTab);
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (
+      location.pathname.startsWith('/projects/') &&
+      activeTab !== 'projects'
+    ) {
+      setActiveTab('projects');
+    }
+  }, [location.pathname]);
 
   const [openProjectDialog, setOpenProjectDialog] = useState(false);
-  const handleSubmitProject = async (data: any) => {
-    console.log(data);
-  };
+
   const navItems = [
     {
       title: t('sidebar.new_chat'),
@@ -110,16 +132,50 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <ChatProjectDialog
         open={openProjectDialog}
         onOpenChange={setOpenProjectDialog}
-        onSubmit={handleSubmitProject}
       ></ChatProjectDialog>
-      <ThreadsList></ThreadsList>
+      <div className="flex flex-row ">
+        <Button
+          variant="link"
+          size="sm"
+          onClick={() => setActiveTab('chat')}
+          className={cn(
+            'text-xs ',
+            activeTab === 'chat'
+              ? 'text-foreground underline'
+              : 'text-muted-foreground',
+            'transition-all duration-300 ease-in-out',
+          )}
+        >
+          {t('common.chat')}
+        </Button>
+        <Button
+          variant="link"
+          size="sm"
+          onClick={() => setActiveTab('projects')}
+          className={cn(
+            'text-xs ',
+            activeTab === 'projects'
+              ? 'text-foreground underline'
+              : 'text-muted-foreground',
+            'transition-all duration-300 ease-in-out',
+          )}
+        >
+          {t('common.project')}
+        </Button>
+      </div>
+
+      <ThreadsList
+        className={`${activeTab === 'chat' ? 'block' : 'hidden'}`}
+      ></ThreadsList>
+      <ProjectsList
+        className={`${activeTab === 'projects' ? 'block' : 'hidden'}`}
+      ></ProjectsList>
       {/* <SidebarContent>
         <SidebarGroup>
           <SidebarGroupContent className="flex flex-col gap-2"></SidebarGroupContent>
         </SidebarGroup>
 
       </SidebarContent> */}
-
       <SidebarFooter>
         <SidebarSeparator className="ml-0"></SidebarSeparator>
         <SidebarMenu>

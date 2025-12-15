@@ -1,35 +1,36 @@
-import { UIMessage } from 'ai';
+import { ModelMessage, UIMessage } from 'ai';
 import { Tiktoken } from 'js-tiktoken/lite';
-import type { TiktokenBPE } from 'js-tiktoken/lite';
 import o200k_base from 'js-tiktoken/ranks/o200k_base';
-import type { CoreMessage, CoreSystemMessage } from '@mastra/core/llm';
+// import type { CoreMessage, CoreSystemMessage } from '@mastra/core/llm';
 
 const TOKENS_PER_MESSAGE = 3.8; // tokens added for each message (start & end tokens)
 const TOKENS_PER_CONVERSATION = 24; // fixed overhead for the conversation
 const encoder = new Tiktoken(o200k_base);
 
 const tokenCounter = async (
-  messages?: CoreMessage[],
-  systemMessage?: CoreSystemMessage,
+  messages?: ModelMessage[],
+  // systemMessage?: CoreSystemMessage,
 ): Promise<number> => {
   let totalTokens = 0;
 
   // Start with the conversation overhead
   totalTokens += TOKENS_PER_CONVERSATION;
 
+  const systemMessage = messages.find((x) => x.role === 'system');
+
   if (systemMessage) {
     totalTokens += countTokens(systemMessage);
     totalTokens += TOKENS_PER_MESSAGE; // Add message overhead for system message
   }
 
-  for (const message of messages) {
+  for (const message of messages.filter((x) => x.role !== 'system')) {
     totalTokens += countTokens(message);
   }
 
   return totalTokens;
 };
 
-const countTokens = (message: string | CoreMessage): number => {
+const countTokens = (message: string | ModelMessage): number => {
   if (typeof message === `string`) {
     return encoder.encode(message).length;
   }

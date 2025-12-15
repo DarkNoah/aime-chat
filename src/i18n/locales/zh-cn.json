@@ -61,7 +61,12 @@
     "category": "分类",
     "method": "模式",
     "agents": "智能体",
-    "select_agent": "选择一个助手"
+    "select_agent": "选择一个助手",
+    "project": "项目",
+    "submit": "提交",
+    "delect_project": "删除项目",
+    "type_something": "输入内容",
+    "description": "描述"
   },
   "sidebar": {
     "new_chat": "新聊天",
@@ -91,6 +96,23 @@
   "agents": {
     "instructions": "系统提示词",
     "tools": "工具",
-    "add_defalut_tool": "添加默认工具"
+    "add_defalut_tool": "添加默认工具",
+    "add_agent": "创建智能体",
+    "config_defalut_tool": "配置默认工具",
+    "sub_agents": "子代理",
+    "prompt_placeholder": "输入系统提示词",
+    "import_agent": "导入配置",
+    "config_subagent": "配置子代理",
+    "local_agents": "本地助手"
+  },
+  "project": {
+    "new_project": "创建项目",
+    "project_path": "项目目录",
+    "edit_project": "修改项目"
+  },
+  "knowledge-base": {
+    "add_url": "添加网址",
+    "add_files": "添加文件",
+    "add_text": "添加文本"
   }
 }

@@ -70,10 +70,11 @@ export enum LocalModelChannel {
 export enum AgentChannel {
   GetAgent = 'agent:getAgent',
   GetList = 'agent:getList',
-  UpdateAgent = 'agent:updateAgent',
+  SaveAgent = 'agent:saveAgent',
+  ImportAgent = 'agent:importAgent',
   GetAvailableAgents = 'agent:getAvailableAgents',
+  DeleteAgent = 'agent:deleteAgent',
 }
-
 
 export enum ProjectChannel {
   GetProject = 'project:getProject',

@@ -10,6 +10,7 @@ import {
   KnowledgeBaseChannel,
   LocalModelChannel,
   MastraChannel,
+  ProjectChannel,
   ProviderChannel,
   ToolChannel,
 } from '@/types/ipc-channel';
@@ -179,12 +180,26 @@ const electronHandler = {
       ipcRenderer.invoke(LocalModelChannel.SetDefaultModel, modelId),
   },
   agents: {
+    importAgent: (content: string) =>
+      ipcRenderer.invoke(AgentChannel.ImportAgent, content),
     getAgent: (id: string) => ipcRenderer.invoke(AgentChannel.GetAgent, id),
     getList: (): Promise<Agent[]> => ipcRenderer.invoke(AgentChannel.GetList),
     getAvailableAgents: (): Promise<Agent[]> =>
       ipcRenderer.invoke(AgentChannel.GetAvailableAgents),
-    update: (agent: Agent) =>
-      ipcRenderer.invoke(AgentChannel.UpdateAgent, agent),
+    saveAgent: (agent: Agent) =>
+      ipcRenderer.invoke(AgentChannel.SaveAgent, agent),
+    deleteAgent: (id: string) =>
+      ipcRenderer.invoke(AgentChannel.DeleteAgent, id),
+  },
+  projects: {
+    saveProject: (data: any) =>
+      ipcRenderer.invoke(ProjectChannel.SaveProject, data),
+    getProject: (id: string) =>
+      ipcRenderer.invoke(ProjectChannel.GetProject, id),
+    getList: ({ page, size }: { page: number; size: number }) =>
+      ipcRenderer.invoke(ProjectChannel.GetList, { page, size }),
+    deleteProject: (id: string) =>
+      ipcRenderer.invoke(ProjectChannel.DeleteProject, id),
   },
 };
 

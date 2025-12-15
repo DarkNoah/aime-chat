@@ -42,6 +42,8 @@ import { CodeExecution } from './code/code-execution';
 import ExpenseManagementToolkit from './test/expense_management';
 import ToolToolkit from './common/tool';
 import { Vision } from './vision/vision';
+import MemoryToolkit from './memory/memory';
+import { Task } from './common/task';
 
 interface BuiltInToolContext {
   tool: BaseTool;
@@ -101,7 +103,6 @@ class ToolsManager extends BaseManager {
     let toolEntity = await this.toolsRepository.findOne({
       where: { id: `${ToolType.BUILD_IN}:${tool.id}` },
     });
-
 
     if (!toolEntity) {
       toolEntity = new Tools(
@@ -166,6 +167,9 @@ class ToolsManager extends BaseManager {
     await this.registerBuiltInTool(RemoveBackground);
     await this.registerBuiltInTool(Vision);
     await this.registerBuiltInTool(ToolToolkit);
+
+    await this.registerBuiltInTool(Task);
+    await this.registerBuiltInTool(MemoryToolkit);
 
     if (!app.isPackaged) {
       await this.registerBuiltInTool(ExpenseManagementToolkit);

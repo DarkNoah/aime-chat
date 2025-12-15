@@ -59,6 +59,7 @@ import {
   BreadcrumbList,
   BreadcrumbSeparator,
 } from './components/ui/breadcrumb';
+import ProjectsPage from './pages/projects';
 
 function Hello() {
   const { setTitle } = useHeader();
@@ -197,6 +198,7 @@ export default function App() {
           <Route path="/knowledge-base/*" element={<KnowledgeBasePage />} />
           <Route path="/agents" element={<AgentPage />} />
           <Route path="/agents/:id" element={<AgentDetail />} />
+          <Route path="/projects/:id" element={<ProjectsPage />} />
         </Routes>
       </LayoutPage>
     </Router>

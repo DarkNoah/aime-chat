@@ -60,7 +60,13 @@
     "category": "Category",
     "method": "Method",
     "agents": "Agents",
-    "select_agent": "Select a agent"
+    "select_agent": "Select a agent",
+    "tag": "Tag",
+    "project": "Project",
+    "submit": "Submit",
+    "delect_project": "Delect Project",
+    "type_something": "Type something",
+    "description": "Description"
   },
   "sidebar": {
     "new_chat": "New Chat",
@@ -90,6 +96,23 @@
   "agents": {
     "instructions": "System Prompt",
     "tools": "Tools",
-    "add_defalut_tool": "Add Defalut Tool"
+    "add_defalut_tool": "Add Defalut Tool",
+    "add_agent": "Add Agent",
+    "config_defalut_tool": "Config Defalut Tool",
+    "sub_agents": "Sub Agents",
+    "prompt_placeholder": "Type somthing prompt",
+    "import_agent": "Import Config",
+    "config_subagent": "Config Sub Agent",
+    "local_agents": "Local Agent"
+  },
+  "project": {
+    "new_project": "New Project",
+    "project_path": "Project Path",
+    "edit_project": "Edit Project"
+  },
+  "knowledge-base": {
+    "add_url": "Add Url",
+    "add_files": "Add Files",
+    "add_text": "Add Text"
   }
 }

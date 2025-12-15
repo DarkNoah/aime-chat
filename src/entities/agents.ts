@@ -20,17 +20,29 @@ export class Agents {
   description?: string;
 
   @Column({ nullable: true })
-  systemPrompt?: string;
+  instructions?: string;
 
   @Column()
   isActive!: boolean;
 
   @Column('json', { nullable: true })
+  suggestions?: string[];
+
+  @Column('json', { nullable: true })
   tools?: string[];
+
+  @Column('json', { nullable: true })
+  subAgents?: string[];
 
   @Column('json', { nullable: true })
   tags?: string[];
 
   @Column({ enum: AgentType })
   type!: string;
+
+  @Column({ default: false })
+  isHidden!: boolean;
+
+  @Column({ nullable: true })
+  defaultModelId?: string;
 }

@@ -15,6 +15,7 @@ import { Card } from '../../ui/card';
 import { ToolSuspended } from '.';
 import { isArray } from '@/utils/is';
 import { Input } from '../../ui/input';
+import { useTranslation } from 'react-i18next';
 
 export interface AskUserQuestionMessageRef {}
 
@@ -34,7 +35,12 @@ export const AskUserQuestionMessage = React.forwardRef<
     ref: ForwardedRef<AskUserQuestionMessageRef>,
   ) => {
     const { className, part, title, onResume, suspendedData, ...rest } = props;
+    const { t } = useTranslation();
     const [selectedOptions, setSelectedOptions] = useState<
+      Record<string, string[] | string>
+    >({});
+
+    const [inputValues, setInputValues] = useState<
       Record<string, string[] | string>
     >({});
 
@@ -42,7 +48,7 @@ export const AskUserQuestionMessage = React.forwardRef<
       setSelectedOptions((prev) => {
         return {
           ...prev,
-          [question]: option,
+          [question]: isArray(option) ? option.filter((x) => x) : option,
         };
       });
     };
@@ -86,8 +92,35 @@ export const AskUserQuestionMessage = React.forwardRef<
                           </div>
                         );
                       })}
+                      <div
+                        className={`cursor-pointer flex items-center gap-3 border p-2 rounded-md w-full ${selectedOptions[question.question] === inputValues[question.question] && inputValues[question.question] ? 'bg-secondary' : ''}`}
+                      >
+                        <RadioGroupItem
+                          value={inputValues[question.question] as string}
+                          id={`${question.question}_extra`}
+                        ></RadioGroupItem>
+                        <Input
+                          value={
+                            (inputValues[question.question] as string) || ''
+                          }
+                          className="border-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                          placeholder={t('common.type_something')}
+                          onChange={(e) => {
+                            setInputValues({
+                              ...inputValues,
+                              [question.question]: e.target.value,
+                            });
+                            handleSelect(question.question, e.target.value);
+                          }}
+                          onFocus={() => {
+                            handleSelect(
+                              question.question,
+                              inputValues[question.question],
+                            );
+                          }}
+                        />
+                      </div>
                     </RadioGroup>
-                    <Input />
                   </div>
                 )}
                 {question.multiSelect && (
@@ -97,7 +130,7 @@ export const AskUserQuestionMessage = React.forwardRef<
                       variant="outline"
                       spacing={2}
                       size="sm"
-                      className="flex flex-col items-start"
+                      className="flex flex-col items-start w-full"
                       value={selectedOptions[question.question] as string[]}
                       onValueChange={(value) => {
                         handleSelect(question.question, value);
@@ -128,8 +161,51 @@ export const AskUserQuestionMessage = React.forwardRef<
                           </ToggleGroupItem>
                         );
                       })}
+                      <div className="flex flex-row items-center gap-2 w-full">
+                        <ToggleGroupItem
+                          value={
+                            (inputValues[question.question] as string) ??
+                            undefined
+                          }
+                          id={`${question.question}_extra`}
+                          className="w-fit border-none justify-start"
+                        >
+                          {selectedOptions[question.question]?.includes(
+                            inputValues[question.question] as string,
+                          ) && <IconSquareCheckFilled></IconSquareCheckFilled>}
+                          {!selectedOptions[question.question]?.includes(
+                            inputValues[question.question] as string,
+                          ) && <IconSquare></IconSquare>}
+                        </ToggleGroupItem>
+                        <Input
+                          value={
+                            (inputValues[question.question] as string) ||
+                            undefined
+                          }
+                          className="flex-1 w-full border-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                          placeholder={t('common.type_something')}
+                          onChange={(e) => {
+                            setInputValues({
+                              ...inputValues,
+                              [question.question]: e.target.value,
+                            });
+
+                            const v = (
+                              (selectedOptions[
+                                question.question
+                              ] as string[]) ?? []
+                            ).filter((x) =>
+                              question?.options.map((z) => z.label).includes(x),
+                            );
+
+                            handleSelect(question.question, [
+                              ...v,
+                              e.target.value,
+                            ]);
+                          }}
+                        />
+                      </div>
                     </ToggleGroup>
-                    <Input />
                   </div>
                 )}
               </ItemContent>
@@ -150,7 +226,7 @@ export const AskUserQuestionMessage = React.forwardRef<
                 });
               }}
             >
-              Submit
+              {t('common.submit')}
             </Button>
           </div>
         )}
