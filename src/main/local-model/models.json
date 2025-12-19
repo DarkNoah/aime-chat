@@ -31,12 +31,6 @@
       ]
     },
     {
-      "id": "nomic-embed-text-v1.5",
-      "type": "huggingface",
-      "repo": "nomic-ai/nomic-embed-text-v1.5",
-      "download": "https://huggingface.co/nomic-ai/nomic-embed-text-v1.5"
-    },
-    {
       "id": "Qwen/Qwen3-Embedding-0.6B-fp16",
       "library": "openvino",
       "repo": "OpenVINO/Qwen3-Embedding-0.6B-fp16-ov",
@@ -260,12 +254,6 @@
           "url": "https://www.modelscope.cn/models/briaai/RMBG-2.0"
         }
       ]
-    },
-    {
-      "id": "doclayout_yolo",
-      "repo": "darknoah99/DocLayout-YOLO-DocStructBench-onnx",
-      "type": "huggingface",
-      "download": "https://huggingface.co/darknoah99/DocLayout-YOLO-DocStructBench-onnx"
     }
   ]
 }

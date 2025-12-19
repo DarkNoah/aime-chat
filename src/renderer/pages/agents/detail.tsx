@@ -19,6 +19,8 @@ import {
   IconArrowBigRightLinesFilled,
   IconBox,
   IconEdit,
+  IconFileExport,
+  IconLogout,
   IconNavigation,
   IconPlus,
   IconSearch,
@@ -124,6 +126,11 @@ function AgentDetail() {
     navigate('/agents');
   };
 
+  const handleExportAgentConfig = async () => {
+    const res = await window.electron.agents.getAgentConfig(id);
+    console.log(res);
+  };
+
   const getAgent = async () => {
     const data = await window.electron.agents.getAgent(id);
     console.log(data);
@@ -139,29 +146,37 @@ function AgentDetail() {
       },
     ]);
 
-    if (data.type === AgentType.CUSTOM) {
-      setTitleAction(
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button variant="destructive">
-              <IconTrash></IconTrash>
-              {t('common.delete')}
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>{t('common.delete_agent')}</AlertDialogTitle>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDelete}>
+    setTitleAction(
+      <div className="flex flex-row gap-2">
+        {data.type === AgentType.CUSTOM && (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive">
+                <IconTrash></IconTrash>
                 {t('common.delete')}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>,
-      );
-    }
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>{t('common.delete_agent')}</AlertDialogTitle>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDelete}>
+                  {t('common.delete')}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
+        {data.type === AgentType.CUSTOM && (
+          <Button onClick={handleExportAgentConfig}>
+            <IconLogout></IconLogout>
+            {t('agents.export_agent_config')}
+          </Button>
+        )}
+      </div>,
+    );
 
     setAgent(data);
   };
@@ -254,6 +269,25 @@ function AgentDetail() {
                         handleAgentChanged({ ...agent, defaultModelId: model });
                       }}
                     />
+                  </FieldContent>
+                </Field>
+                <Field>
+                  <FieldLabel>{t('common.suggestions')}:</FieldLabel>
+                  <FieldContent>
+                    <Textarea
+                      className="border-none focus-visible:ring-0 shadow-none focus-visible:bg-secondary w-full bg-secondary"
+                      value={agent?.suggestions?.join('\n')}
+                      onChange={(e) =>
+                        setAgent({
+                          ...agent,
+                          suggestions: e.target.value
+                            .split('\n')
+                            .map((item) => item.trim())
+                            .filter((x) => x !== ''),
+                        })
+                      }
+                      onBlur={() => handleAgentChanged(agent)}
+                    ></Textarea>
                   </FieldContent>
                 </Field>
               </FieldGroup>

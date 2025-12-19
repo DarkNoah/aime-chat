@@ -81,10 +81,31 @@ export type ChatTodo = {
 export type ChatRequestContext = {
   model?: string;
   threadId?: string;
+  projectId?: string;
+  resourceId?: string;
   tools?: string[];
   subAgents?: string[];
   agentId?: string;
   todos?: ChatTodo[];
   maxContextSize?: number;
   workspace?: string;
+  chunks?: Record<string, string>;
+};
+
+export const DEFAULT_RESOURCE_ID = 'default';
+
+export type ChatSubmitOptions = {
+  model?: string;
+  webSearch?: boolean;
+  think?: boolean;
+  tools?: string[];
+  subAgents?: string[];
+  approved?: boolean;
+  toolCallId?: string;
+  resumeData?: Record<string, any>;
+  requireToolApproval?: boolean;
+  runId?: string;
+  threadId?: string;
+  agentId?: string;
+  projectId?: string;
 };

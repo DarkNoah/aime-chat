@@ -10,6 +10,7 @@ export enum ProviderChannel {
 }
 
 export enum AppChannel {
+  GetFileInfo = 'app:GetFileInfo',
   GetInfo = 'app:getInfo',
   Toast = 'app:toast',
   SetTheme = 'app:setTheme',
@@ -74,6 +75,7 @@ export enum AgentChannel {
   ImportAgent = 'agent:importAgent',
   GetAvailableAgents = 'agent:getAvailableAgents',
   DeleteAgent = 'agent:deleteAgent',
+  GetAgentConfig = 'agent:getAgentConfig',
 }
 
 export enum ProjectChannel {
@@ -81,4 +83,5 @@ export enum ProjectChannel {
   GetList = 'project:getList',
   SaveProject = 'project:saveProject',
   DeleteProject = 'project:deleteProject',
+  CreateThread = 'project:createThread',
 }

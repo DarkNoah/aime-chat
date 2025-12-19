@@ -21,6 +21,7 @@ import { DefaultAgent } from './default-agent';
 import { Task } from '@/main/tools/common/task';
 import { SubAgentInfo } from '@/types/task';
 import { Explore } from './explore-agent';
+import { Plan } from './plan-agent';
 
 type BuiltInAgent = BaseAgent & {
   classType: any;
@@ -68,6 +69,7 @@ class AgentManager extends BaseManager {
     await this.registerAgent(DefaultAgent);
     await this.registerAgent(CodeAgent);
     await this.registerAgent(Explore);
+    await this.registerAgent(Plan);
   }
 
   async buildAgent(agentId?: string, params?: BuildAgentParams) {
@@ -78,14 +80,20 @@ class AgentManager extends BaseManager {
     if (!agentEntity) {
       throw new Error('Agent not found');
     }
-    const { tools = [], subAgents = [] } = params || {};
+    let { tools = [], subAgents = [] } = params || {};
 
     let _skills = await skillManager.getClaudeSkills();
     _skills = _skills.filter((x) => tools.includes(x.id));
 
+    const builtInAgent = this.builtInAgents.find((x) => x.id == agentId);
+
+    subAgents = [
+      ...new Set([...subAgents, ...(builtInAgent?.subAgents ?? [])]),
+    ];
+
     let _subAgents = await agentManager.getList();
     const subAgentsInfo = _subAgents
-      .filter((x) => subAgents.includes(x.id))
+      .filter((x) => x.isActive && subAgents.includes(x.id))
       .map((x) => {
         return {
           id: x.id,
@@ -95,11 +103,11 @@ class AgentManager extends BaseManager {
         } as SubAgentInfo;
       });
 
-    const builtInAgent = this.builtInAgents.find((x) => x.id == agentId);
     const toolIds = [
       ...new Set([
         ...(builtInAgent?.tools ?? []),
         ...(agentEntity.tools ?? []),
+        ...tools,
       ]),
     ];
     if (
@@ -192,6 +200,7 @@ class AgentManager extends BaseManager {
         ]),
       ],
       defaultModelId: agentEntity.defaultModelId,
+      suggestions: agentEntity.suggestions,
     };
   }
   @channel(AgentChannel.GetList)
@@ -262,6 +271,7 @@ class AgentManager extends BaseManager {
           ]),
         ],
         defaultModelId: agentEntity.defaultModelId,
+        suggestions: agentEntity.suggestions,
       };
     });
   }
@@ -278,6 +288,23 @@ class AgentManager extends BaseManager {
       throw new Error('Only custom agents can be deleted');
     }
     await this.agentsRepository.delete(id);
+  }
+
+  @channel(AgentChannel.GetAgentConfig)
+  public async getAgentConfig(id: string): Promise<string> {
+    const agent = await this.getAgent(id);
+    return `
+id: ${agent.id}
+name: ${agent.name}
+description: ${agent.description}
+instructions: ${agent.instructions}
+tools:
+  ${agent.tools?.map((x) => `- ${x}`).join('\n')}
+subAgents:
+  ${agent.subAgents?.map((x) => `- ${x}`).join('\n')}
+suggestions:
+  ${agent.suggestions?.map((x) => `- ${x}`).join('\n')}
+`;
   }
 }
 

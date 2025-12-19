@@ -10,6 +10,7 @@ import {
   OpenDialogReturnValue,
   ProxyConfig,
   shell,
+  webUtils,
   type NativeTheme,
 } from 'electron';
 import { dbManager } from '../db';
@@ -39,6 +40,8 @@ import {
 import { fstat } from 'fs';
 import path from 'path';
 import mastraManager from '../mastra';
+import { FileInfo } from '@/types/common';
+import { filesize } from 'filesize';
 
 class AppManager extends BaseManager {
   repository: Repository<Providers>;
@@ -130,6 +133,36 @@ class AppManager extends BaseManager {
       this.send('Path not found');
     }
   }
+
+  @channel(AppChannel.GetFileInfo)
+  public async getFileInfo(_path: string): Promise<FileInfo> {
+    const isExist = fs.existsSync(_path);
+    let isFile;
+    let name;
+    let ext;
+    let size;
+    let sizeStr;
+    if (isExist) {
+      isFile = fs.statSync(_path).isFile();
+      name = path.basename(_path);
+      ext = path.extname(_path).toLowerCase();
+      if (isFile) {
+        size = fs.statSync(_path).size;
+        sizeStr = filesize(size);
+      }
+    }
+
+    return {
+      path: _path,
+      isExist,
+      isFile,
+      name,
+      ext,
+      size,
+      sizeStr,
+    };
+  }
+
   @channel(AppChannel.SetTheme)
   public async setTheme(theme: string): Promise<void> {
     if (['light', 'dark', 'system'].includes(theme)) {

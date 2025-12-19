@@ -133,6 +133,7 @@
     "@mastra/react": "link:./packages/mastra/client-sdks/react",
     "@mastra/schema-compat": "link:./packages/mastra/packages/schema-compat",
     "@modelcontextprotocol/sdk": "^1.23.0",
+    "@platejs/mention": "^52.0.15",
     "@pmmmwh/react-refresh-webpack-plugin": "^0.5.15",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-alert-dialog": "^1.1.15",

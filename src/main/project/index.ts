@@ -9,7 +9,8 @@ import { Projects } from '@/entities/projects';
 import { nanoid } from '@/utils/nanoid';
 import { appManager } from '../app';
 import { ProjectEvent } from '@/types/project';
-
+import { StorageThreadType } from '@mastra/core/memory';
+import mastraManager from '../mastra';
 class ProjectManager extends BaseManager {
   projectsRepository: Repository<Projects>;
 
@@ -18,7 +19,7 @@ class ProjectManager extends BaseManager {
   }
 
   @channel(ProjectChannel.GetProject)
-  async getProject(id: string) {
+  async getProject(id: string): Promise<Projects> {
     return await this.projectsRepository.findOne({ where: { id } });
   }
 
@@ -42,6 +43,7 @@ class ProjectManager extends BaseManager {
 
   @channel(ProjectChannel.SaveProject)
   async saveProject(project: Projects) {
+    let isNew = !project.id;
     if (!project.id) {
       project.id = nanoid();
     }
@@ -50,7 +52,12 @@ class ProjectManager extends BaseManager {
     const resultProject = await this.projectsRepository.findOne({
       where: { id: resultId },
     });
-    await appManager.sendEvent(ProjectEvent.ProjectCreated, resultProject);
+    if (isNew) {
+      await appManager.sendEvent(ProjectEvent.ProjectCreated, resultProject);
+    } else {
+      await appManager.sendEvent(ProjectEvent.ProjectUpdated, resultProject);
+    }
+
     return resultProject;
   }
 
@@ -59,6 +66,29 @@ class ProjectManager extends BaseManager {
     const result = await this.projectsRepository.delete(id);
     await appManager.sendEvent(ProjectEvent.ProjectDeleted, id);
     return result;
+  }
+
+  @channel(ProjectChannel.CreateThread)
+  public async createThread(options?: {
+    projectId: string;
+    tools?: string[];
+    model?: string;
+  }): Promise<StorageThreadType> {
+    const storage = mastraManager.mastra.getStorage();
+    const thread = await storage.saveThread({
+      thread: {
+        id: nanoid(),
+        title: 'New Thread',
+        resourceId: `project:${options?.projectId}`,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        metadata: {
+          ...(options || {}),
+        },
+      },
+    });
+    await appManager.sendEvent(ProjectEvent.ThreadCreated, thread);
+    return thread;
   }
 }
 

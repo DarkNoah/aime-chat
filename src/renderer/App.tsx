@@ -60,6 +60,7 @@ import {
   BreadcrumbSeparator,
 } from './components/ui/breadcrumb';
 import ProjectsPage from './pages/projects';
+import { ChatProvider } from './hooks/use-chat';
 
 function Hello() {
   const { setTitle } = useHeader();
@@ -156,29 +157,31 @@ function LayoutPage(props: { children: ReactNode }) {
       >
         <I18nProvider>
           {/* <AppHeader></AppHeader> */}
-          <SidebarProvider
-            style={
-              {
-                '--sidebar-width': 'calc(var(--spacing) * 64)',
-                '--header-height': 'calc(var(--spacing) * 12)',
-              } as React.CSSProperties
-            }
-            className="group/layout"
-          >
-            <HeaderProvider>
-              <AppSidebar variant="inset" className="" />
+          <ChatProvider>
+            <SidebarProvider
+              style={
+                {
+                  '--sidebar-width': 'calc(var(--spacing) * 64)',
+                  '--header-height': 'calc(var(--spacing) * 12)',
+                } as React.CSSProperties
+              }
+              className="group/layout"
+            >
+              <HeaderProvider>
+                <AppSidebar variant="inset" className="" />
 
-              <SidebarInset>
-                <SiteHeader></SiteHeader>
-                <div className="@container/main flex-1 min-h-0 flex flex-col max-h-[calc(100vh-var(--header-height)-var(--spacing)*4)]">
-                  {children}
-                </div>
-              </SidebarInset>
-            </HeaderProvider>
-            <Toaster />
+                <SidebarInset>
+                  <SiteHeader></SiteHeader>
+                  <div className="@container/main flex-1 min-h-0 flex flex-col max-h-[calc(100vh-var(--header-height)-var(--spacing)*4)]">
+                    {children}
+                  </div>
+                </SidebarInset>
+              </HeaderProvider>
+              <Toaster />
 
-            {/* <Toaster /> */}
-          </SidebarProvider>
+              {/* <Toaster /> */}
+            </SidebarProvider>
+          </ChatProvider>
         </I18nProvider>
       </ThemeProvider>
     </GlobalProvider>

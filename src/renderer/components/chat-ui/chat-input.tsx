@@ -91,6 +91,7 @@ export type ChatInputProps = Omit<PromptInputProps, 'onSubmit'> & {
       tools?: string[];
       subAgents?: string[];
       requireToolApproval?: boolean;
+      agentId?: string;
     },
   ) => void;
   status?: ChatStatus;
@@ -106,6 +107,8 @@ export type ChatInputProps = Omit<PromptInputProps, 'onSubmit'> & {
   showAgentSelector?: boolean;
   model?: string;
   onModelChange?: (model: string) => void;
+  requireToolApproval?: boolean;
+  onRequireToolApprovalChange?: (requireToolApproval: boolean) => void;
   prompts?: string[];
   onClearMessages?: () => void;
   // value?: ChatInput;
@@ -136,6 +139,8 @@ export const ChatInput = React.forwardRef<ChatInputRef, ChatInputProps>(
       showThink = false,
       model,
       onModelChange,
+      requireToolApproval: requireToolApprovalProp,
+      onRequireToolApprovalChange,
       prompts,
       onClearMessages,
     } = props;
@@ -148,7 +153,15 @@ export const ChatInput = React.forwardRef<ChatInputRef, ChatInputProps>(
     const [think, setThink] = useState(false);
     const [tools, setTools] = useState<string[]>([]);
     const [subAgents, setSubAgents] = useState<string[]>([]);
-    const [requireToolApproval, setRequireToolApproval] = useState(false);
+    const [requireToolApproval, setRequireToolApproval] = useState<boolean>(
+      requireToolApprovalProp ?? false,
+    );
+
+    useEffect(() => {
+      if (typeof requireToolApprovalProp === 'boolean') {
+        setRequireToolApproval(requireToolApprovalProp);
+      }
+    }, [requireToolApprovalProp]);
 
     useImperativeHandle(ref, () => ({
       attachmentsClear: () => {
@@ -209,6 +222,7 @@ export const ChatInput = React.forwardRef<ChatInputRef, ChatInputProps>(
               </PromptInputActionMenu>
               {showMic && (
                 <PromptInputButton
+                  size="icon-xs"
                   onClick={() => setUseMicrophone(!useMicrophone)}
                   variant={useMicrophone ? 'default' : 'ghost'}
                 >
@@ -218,6 +232,7 @@ export const ChatInput = React.forwardRef<ChatInputRef, ChatInputProps>(
               )}
               {showThink && (
                 <PromptInputButton
+                  size="icon-xs"
                   variant={think ? 'default' : 'ghost'}
                   onClick={() => setThink(!think)}
                 >
@@ -226,6 +241,7 @@ export const ChatInput = React.forwardRef<ChatInputRef, ChatInputProps>(
               )}
               {showWebSearch && (
                 <PromptInputButton
+                  size="icon-xs"
                   variant={webSearch ? 'default' : 'ghost'}
                   onClick={() => setWebSearch(!webSearch)}
                 >
@@ -235,6 +251,7 @@ export const ChatInput = React.forwardRef<ChatInputRef, ChatInputProps>(
               {showToolSelector && (
                 <ChatToolSelector value={tools} onChange={setTools}>
                   <PromptInputButton
+                    size="icon-xs"
                     variant={tools.length > 0 ? 'default' : 'ghost'}
                   >
                     <WrenchIcon size={16} />
@@ -248,6 +265,7 @@ export const ChatInput = React.forwardRef<ChatInputRef, ChatInputProps>(
                   mode="multiple"
                 >
                   <PromptInputButton
+                    size="icon-xs"
                     variant={subAgents.length > 0 ? 'default' : 'ghost'}
                   >
                     <BotIcon size={16} />
@@ -257,8 +275,13 @@ export const ChatInput = React.forwardRef<ChatInputRef, ChatInputProps>(
               <Tooltip>
                 <TooltipTrigger asChild>
                   <PromptInputButton
+                    size="icon-xs"
                     variant={requireToolApproval ? 'default' : 'ghost'}
-                    onClick={() => setRequireToolApproval(!requireToolApproval)}
+                    onClick={() => {
+                      const next = !requireToolApproval;
+                      setRequireToolApproval(next);
+                      onRequireToolApprovalChange?.(next);
+                    }}
                   >
                     <SirenIcon size={16} />
                   </PromptInputButton>
@@ -315,13 +338,17 @@ export const ChatInput = React.forwardRef<ChatInputRef, ChatInputProps>(
             />
           </PromptInputFooter>
         </PromptInput>
-        <div className="flex flex-wrap gap-2 w-full ">
-          <Suggestions>
-            {prompts?.map((prompt) => (
-              <Suggestion key={prompt} suggestion={prompt} />
-            ))}
-          </Suggestions>
-        </div>
+        {prompts && prompts.filter((x) => x).length > 0 && (
+          <div className="flex flex-wrap gap-2 w-full ">
+            <Suggestions>
+              {prompts
+                ?.filter((x) => x)
+                .map((prompt) => (
+                  <Suggestion key={prompt} suggestion={prompt} />
+                ))}
+            </Suggestions>
+          </div>
+        )}
       </PromptInputProvider>
     );
   },

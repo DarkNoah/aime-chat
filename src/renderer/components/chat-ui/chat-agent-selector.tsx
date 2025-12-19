@@ -96,9 +96,12 @@ export const ChatAgentSelector = ({
         setOpen(_open);
       }}
     >
-      <DialogTrigger>
+      <DialogTrigger asChild>
         {children || (
-          <Badge variant="outline" className="w-fit cursor-pointer">
+          <Badge
+            variant="outline"
+            className="w-fit cursor-pointer backdrop-blur shadow"
+          >
             <small className="text-xs text-muted-foreground">
               {selectedAgent
                 ? `@${selectedAgent?.name}`

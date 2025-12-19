@@ -49,6 +49,7 @@ import {
 import { ToolMessage, ToolMessageApproval } from './tool-message';
 import { IconArrowDown } from '@tabler/icons-react';
 import { ChatPreviewData, ChatPreviewType } from '../../../types/chat';
+import { getUsage } from 'tokenlens';
 
 export type ChatUsageProps = {
   value?: {

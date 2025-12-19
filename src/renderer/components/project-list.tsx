@@ -140,6 +140,15 @@ export default function ProjectsList({ className }: ProjectsListProps) {
       ProjectEvent.ProjectCreated,
       handleProjectCreated,
     );
+    const handleProjectUpdated = (_data: Project) => {
+      setItems((prev) =>
+        prev.map((item) => (item.id === _data.id ? _data : item)),
+      );
+    };
+    window.electron.ipcRenderer.on(
+      ProjectEvent.ProjectUpdated,
+      handleProjectUpdated,
+    );
     if (!initialLoadRef.current) {
       initialLoadRef.current = true;
       loadMore(true);
@@ -149,6 +158,10 @@ export default function ProjectsList({ className }: ProjectsListProps) {
       window.electron.ipcRenderer.removeListener(
         ProjectEvent.ProjectCreated,
         handleProjectCreated,
+      );
+      window.electron.ipcRenderer.removeListener(
+        ProjectEvent.ProjectUpdated,
+        handleProjectUpdated,
       );
     };
   }, [loadMore]);

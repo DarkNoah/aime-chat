@@ -79,7 +79,7 @@ export class ListMemory extends BaseTool {
   id: string = 'ListMemory';
   description = 'List memories with pagination and optional filtering.';
   inputSchema = z.object({
-    page: z.number().min(1).describe('Page number (1-based)'),
+    page: z.number().min(1).default(1).describe('Page number (1-based)'),
     pageSize: z
       .number()
       .optional()

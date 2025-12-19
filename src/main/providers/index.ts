@@ -456,19 +456,20 @@ class ProvidersManager extends BaseManager {
     }
   }
 
-  public async getModelInfo(modelId: string) {
-    const providerId = modelId.split('/')[0];
+  public async getModelInfo(_modelId: string) {
+    const providerId = _modelId.split('/')[0];
 
-    const provider = await providersManager.get(modelId.split('/')[0]);
+    const provider = await providersManager.get(_modelId.split('/')[0]);
     if (!provider) {
       throw new Error('Provider not found');
     }
-    const modeId = modelId.substring(modelId.split('/')[0].length + 1);
-    const modelInfo = modelsData[provider.type]?.models[modeId];
+    const modelId = _modelId.substring(_modelId.split('/')[0].length + 1);
+    const modelInfo = modelsData[provider.type]?.models[modelId];
     return {
       providerId,
-      modeId,
+      modelId,
       modelInfo,
+      providerType: provider.type,
     };
   }
 }

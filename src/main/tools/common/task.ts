@@ -120,8 +120,7 @@ The Task tool launches specialized agents (subprocesses) that autonomously handl
 
 Available agent types and the tools they have access to:
 - general-purpose: General-purpose agent for researching complex questions, searching for code, and executing multi-step tasks. When you are searching for a keyword or file and are not confident that you will find the right match in the first few tries use this agent to perform the search for you. (Tools: *)
-- statusline-setup: Use this agent to configure the user's Claude Code status line setting. (Tools: Read, Edit)
-${_subAgents.map((subAgent) => `- ${subAgent.name}: ${subAgent.description} (Tools: ${subAgent.tools.join(', ')})`).join('\n')}
+${_subAgents.map((subAgent) => `- ${subAgent.name}: ${subAgent.description} (Tools: ${subAgent.tools.map((tool) => (tool.startsWith(`${ToolType.BUILD_IN}:`) || tool.startsWith(`${ToolType.MCP}:`) ? tool.split(':').splice(1).join(':') : tool)).join(', ')})`).join('\n')}
 
 When using the Task tool, you must specify a subagent_type parameter to select which agent type to use.
 

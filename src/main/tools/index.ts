@@ -344,18 +344,21 @@ class ToolsManager extends BaseManager {
     }
     new Promise(async (resolve, reject) => {
       this.mcpClients.forEach(async (mcpClient) => {
-        try {
-          mcpClient.mcp.tools = await mcpClient.mcp.listTools();
-          mcpClient.status = 'running';
-        } catch (error: any) {
-          mcpClient.status = 'error';
-          mcpClient.error = error as Error;
+        if (mcpClient.status === 'starting') {
+          try {
+            mcpClient.mcp.tools = await mcpClient.mcp.listTools();
+            mcpClient.status = 'running';
+          } catch (error: any) {
+            mcpClient.status = 'error';
+            mcpClient.error = error as Error;
+          }
+          await this.sendMcpClientUpdatedEvent(
+            mcpClient.id,
+            mcpClient.status,
+            mcpClient.error,
+          );
         }
-        await this.sendMcpClientUpdatedEvent(
-          mcpClient.id,
-          mcpClient.status,
-          mcpClient.error,
-        );
+
         resolve(null);
       });
     });
@@ -810,39 +813,53 @@ class ToolsManager extends BaseManager {
       where: { type: ToolType.BUILD_IN, id: In(toolIds) },
     });
     for (const toolName of toolIds) {
-      let tool = this.builtInTools.find((x) => x.id === toolName);
-      if (!tool) {
-        tool = this.builtInTools.find(
-          (x) =>
-            x.isToolkit &&
-            x.tools.find(
-              (x) => x.id == toolName.substring(ToolType.BUILD_IN.length + 1),
-            ),
-        );
-      }
+      if (toolName.startsWith(`${ToolType.BUILD_IN}:`)) {
+        let tool = this.builtInTools.find((x) => x.id === toolName);
+        if (!tool) {
+          tool = this.builtInTools.find(
+            (x) =>
+              x.isToolkit &&
+              x.tools.find(
+                (x) => x.id == toolName.substring(ToolType.BUILD_IN.length + 1),
+              ),
+          );
+        }
 
-      if (!tool) continue;
+        if (!tool) continue;
 
-      let params = config?.[tool.id];
-      if (params === undefined) {
-        params = toolEntities.find((x) => x.id === toolName)?.value;
-      }
-      if (!tool.isToolkit) {
-        const newTool = new tool.classType(params) as BaseTool;
-        const t = createTool({
-          ...newTool,
-          id: tool.id.substring(ToolType.BUILD_IN.length + 1),
-        });
+        let params = config?.[tool.id];
+        if (params === undefined) {
+          params = toolEntities.find((x) => x.id === toolName)?.value;
+        }
+        if (!tool.isToolkit) {
+          const newTool = new tool.classType(params) as BaseTool;
+          const t = createTool({
+            ...newTool,
+            id: tool.id.substring(ToolType.BUILD_IN.length + 1),
+          });
 
-        tools[t.id] = t;
-      } else {
-        const newToolkit = new tool.classType(params) as BaseToolkit;
-        for (const _tool of newToolkit.tools) {
-          if (_tool.id == toolName.substring(ToolType.BUILD_IN.length + 1)) {
-            const t = createTool({
-              ..._tool,
-              id: _tool.id,
-            });
+          tools[t.id] = t;
+        } else {
+          const newToolkit = new tool.classType(params) as BaseToolkit;
+          for (const _tool of newToolkit.tools) {
+            if (_tool.id == toolName.substring(ToolType.BUILD_IN.length + 1)) {
+              const t = createTool({
+                ..._tool,
+                id: _tool.id,
+              });
+              tools[t.id] = t;
+            }
+          }
+        }
+      } else if (toolName.startsWith(`${ToolType.MCP}:`)) {
+        const mcpClients = this.mcpClients.filter((x) => x.status == 'running');
+        for (const mcpClient of mcpClients) {
+          const mcpTools = await mcpClient.mcp.listTools();
+          const keys = Object.keys(mcpTools).filter(
+            (x) => `${ToolType.MCP}:${x}` == toolName,
+          );
+          for (const key of keys) {
+            const t = mcpTools[key];
             tools[t.id] = t;
           }
         }

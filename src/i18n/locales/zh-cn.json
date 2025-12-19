@@ -66,7 +66,8 @@
     "submit": "提交",
     "delect_project": "删除项目",
     "type_something": "输入内容",
-    "description": "描述"
+    "description": "描述",
+    "default_model": "默认模型"
   },
   "sidebar": {
     "new_chat": "新聊天",

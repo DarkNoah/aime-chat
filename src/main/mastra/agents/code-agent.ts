@@ -26,11 +26,11 @@ import { ChatRequestContext } from '@/types/chat';
 import { Mastra } from '@mastra/core';
 import { Explore } from './explore-agent';
 import { codeAgentInstructions } from './prompts/code-agent-prompt';
+import { Plan } from './plan-agent';
 export class CodeAgent extends BaseAgent {
   id: string = 'CodeAgent';
   name: string = 'Code Agent';
-  description: string =
-    'You are a code agent that can help with code related tasks.';
+  description: string = 'A code agent that can help with code related tasks.';
   instructions: DynamicAgentInstructions = codeAgentInstructions;
   // model: string = 'openai/gpt-4o-mini';
   tools: string[] = [
@@ -47,9 +47,9 @@ export class CodeAgent extends BaseAgent {
     `${ToolType.BUILD_IN}:${WebSearch.name}`,
     `${ToolType.BUILD_IN}:${CodeExecution.name}`,
     `${ToolType.BUILD_IN}:${Skill.name}`,
-    // `${ToolType.BUILD_IN}:${Task.name}`,
+    `${ToolType.BUILD_IN}:${Task.name}`,
   ];
-  subAgents: string[] = [`${Explore.name}`];
+  subAgents: string[] = [`${Explore.name}`, `${Plan.name}`];
   constructor(params: BaseAgentParams) {
     super(params);
   }

@@ -1,3 +1,4 @@
+/* eslint-disable no-await-in-loop */
 'use client';
 
 import { Button } from '@/renderer/components/ui/button';
@@ -72,7 +73,11 @@ import {
 // ============================================================================
 // Provider Context & Types
 // ============================================================================
-import { MentionsInput, Mention } from 'react-mentions';
+import { Plate, usePlateEditor, createPlateEditor } from 'platejs/react';
+// import { EditorKit } from '@/renderer/components/editor/editor-kit';
+import { Editor, EditorContainer } from '@/renderer/components/ui/editor';
+import { MentionPlugin, MentionInputPlugin } from '@platejs/mention/react';
+import { FileInfo } from '@/types/common';
 
 export type AttachmentsContext = {
   files: (FileUIPart & { id: string })[];
@@ -790,7 +795,7 @@ export const PromptInputTextarea = ({
   const controller = useOptionalPromptInputController();
   const attachments = usePromptInputAttachments();
   const [isComposing, setIsComposing] = useState(false);
-
+  const textareaRef = useRef(null);
   const handleKeyDown: KeyboardEventHandler<HTMLTextAreaElement> = (e) => {
     if (e.key === 'Enter') {
       if (isComposing || e.nativeEvent.isComposing) {
@@ -827,27 +832,50 @@ export const PromptInputTextarea = ({
     }
   };
 
-  const handlePaste: ClipboardEventHandler<HTMLTextAreaElement> = (event) => {
+  const handlePaste: ClipboardEventHandler<HTMLTextAreaElement> = async (
+    event,
+  ) => {
     const items = event.clipboardData?.items;
 
     if (!items) {
       return;
     }
 
-    const files: File[] = [];
+    const files: FileInfo[] = [];
 
     for (const item of items) {
       if (item.kind === 'file') {
         const file = item.getAsFile();
         if (file) {
-          files.push(file);
+          const path = window.electron.app.getPathForFile(file);
+          const info = await window.electron.app.getFileInfo(path);
+          files.push(info);
         }
       }
     }
 
     if (files.length > 0) {
       event.preventDefault();
-      attachments.add(files);
+      const textarea = textareaRef.current;
+      if (!textarea) return;
+
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const text = files.map((x) => `'${x.path}'`).join(' ');
+
+      const newValue =
+        controller.textInput.value.slice(0, start) +
+        text +
+        controller.textInput.value.slice(end);
+
+      // setValue(newValue);
+      // attachments.add(files);
+      console.log(
+        controller.textInput.value,
+        textarea.selectionStart,
+        textarea.selectionEnd,
+      );
+      controller.textInput.setInput(newValue);
     }
   };
 
@@ -862,112 +890,31 @@ export const PromptInputTextarea = ({
     : {
         onChange,
       };
+  // const editor = usePlateEditor({
+  //   // plugins: EditorKit,
+  //   // value: '',
+  // });
 
-  const [text, setText] = useState<string>('');
-  const addTag = () => {
-    const newTag = `@[新标签](new_id_${Date.now()}) `;
-    // controller.textInput.setInput((props?.value || '') + newTag);
-
-    setText((text) => text + newTag);
-  };
-  const mentionStyle = {
-    backgroundColor: '#cee4e5', // 底色
-    borderRadius: '20px', // 圆角 (实现圆形/胶囊效果)
-    // padding: '2px 8px', // 内边距
-    // color: '#00555f', // 文字颜色
-    fontWeight: 'bold',
-  };
-
-  const style = {
-    control: {
-      // backgroundColor: '#fff',
-      fontSize: 14,
-      fontWeight: 'normal',
-    },
-
-    '&multiLine': {
-      control: {
-        fontFamily: 'monospace',
-        minHeight: 63,
-      },
-      highlighter: {
-        padding: 9,
-        border: '1px solid transparent',
-      },
-      input: {
-        padding: 9,
-        border: '1px solid silver',
-      },
-    },
-
-    '&singleLine': {
-      display: 'inline-block',
-      width: 180,
-
-      highlighter: {
-        padding: 1,
-        border: '2px inset transparent',
-      },
-      input: {
-        padding: 1,
-        border: '2px inset',
-      },
-    },
-
-    suggestions: {
-      list: {
-        backgroundColor: 'white',
-        border: '1px solid rgba(0,0,0,0.15)',
-        fontSize: 14,
-      },
-      item: {
-        padding: '5px 15px',
-        borderBottom: '1px solid rgba(0,0,0,0.15)',
-        '&focused': {
-          backgroundColor: '#cee4e5',
-        },
-      },
-    },
-  };
-
-  return (
-    <>
-      <Button
-        onClick={addTag}
-        style={{ marginBottom: '10px', padding: '8px 16px', cursor: 'pointer' }}
-      >
-        + 插入标签
-      </Button>
-      <div
-        className={cn(
-          'field-sizing-content max-h-48 min-h-16 w-full overflow-y-auto',
-          className,
-        )}
-      >
-        <MentionsInput
-          style={style}
-          value={text}
-          onChange={(e) => {
-            console.log(e);
-            setText(e.target.value);
-          }}
-        >
-          <Mention
-            trigger="@"
-            data={[{ id: '1', display: '建议项' }]}
-            markup="@[__display__](__id__)"
-            style={mentionStyle}
-            displayTransform={(id, display) => display}
-          />
-        </MentionsInput>
-      </div>
-
-      <div style={{ marginTop: '20px', color: '#666' }}>
-        <strong>实际保存的值 (Raw Value):</strong>
-        <pre>{text}</pre>
-      </div>
-    </>
-  );
+  // const editor = createPlateEditor({
+  //   plugins: [
+  //     // ...其他插件
+  //     // MentionPlugin.configure({
+  //     //   options: {
+  //     //     trigger: '@',
+  //     //     triggerPreviousCharPattern: /^$|^[\s"']$/,
+  //     //     insertSpaceAfterMention: false,
+  //     //   },
+  //     // }).withComponent(MentionElement),
+  //     // MentionInputPlugin.withComponent(MentionInputElement),
+  //   ],
+  // });
+  // return (
+  //   <Plate editor={editor}>
+  //     <EditorContainer variant="default" className="px-2">
+  //       <Editor className="px-2 text-sm" />
+  //     </EditorContainer>
+  //   </Plate>
+  // );
 
   // return (
   //   <InputGroupTextarea
@@ -982,6 +929,21 @@ export const PromptInputTextarea = ({
   //     {...controlledProps}
   //   />
   // );
+
+  return (
+    <InputGroupTextarea
+      ref={textareaRef}
+      className={cn('field-sizing-content max-h-48 min-h-16', className)}
+      name="message"
+      onCompositionEnd={() => setIsComposing(false)}
+      onCompositionStart={() => setIsComposing(true)}
+      onKeyDown={handleKeyDown}
+      onPaste={handlePaste}
+      placeholder={placeholder}
+      {...props}
+      {...controlledProps}
+    />
+  );
 };
 
 export type PromptInputHeaderProps = Omit<

@@ -3,7 +3,7 @@
 import { Agent } from '@/types/agent';
 import { AppProxy } from '@/types/app';
 import { ChatInput } from '@/types/chat';
-import { PaginationInfo } from '@/types/common';
+import { FileInfo, PaginationInfo } from '@/types/common';
 import {
   AgentChannel,
   AppChannel,
@@ -35,8 +35,8 @@ import {
   IpcRendererEvent,
   OpenDialogOptions,
   OpenDialogReturnValue,
+  webUtils,
 } from 'electron';
-import { get } from 'http';
 
 // export type Channels = 'ipc-example';
 
@@ -70,6 +70,11 @@ const electronHandler = {
     },
   },
   app: {
+    getPathForFile: (file: File): string => {
+      return webUtils.getPathForFile(file);
+    },
+    getFileInfo: (path: string): Promise<FileInfo> =>
+      ipcRenderer.invoke(AppChannel.GetFileInfo, path),
     getInfo: () => ipcRenderer.invoke(AppChannel.GetInfo),
     toast: (
       title: string,
@@ -116,11 +121,13 @@ const electronHandler = {
     getThreads: ({
       page,
       size,
+      resourceId,
     }: {
       page: number;
       size: number;
+      resourceId?: string;
     }): Promise<PaginationInfo<StorageThreadType>> =>
-      ipcRenderer.invoke(MastraChannel.GetThreads, { page, size }),
+      ipcRenderer.invoke(MastraChannel.GetThreads, { page, size, resourceId }),
     getThread: (
       id: string,
     ): Promise<StorageThreadType & { messages: UIMessage[] }> =>
@@ -140,6 +147,23 @@ const electronHandler = {
       ipcRenderer.invoke(MastraChannel.SaveMessages, chatId, messages),
     clearMessages: (chatId: string) =>
       ipcRenderer.invoke(MastraChannel.ClearMessages, chatId),
+    getThreadMessages: ({
+      threadId,
+      resourceId,
+      perPage,
+      page,
+    }: {
+      threadId: string;
+      resourceId?: string;
+      perPage?: number | false;
+      page?: number;
+    }) =>
+      ipcRenderer.invoke(MastraChannel.GetThreadMessages, {
+        threadId,
+        resourceId,
+        perPage,
+        page,
+      }),
   },
   knowledgeBase: {
     create: (data: CreateKnowledgeBase) =>
@@ -190,6 +214,8 @@ const electronHandler = {
       ipcRenderer.invoke(AgentChannel.SaveAgent, agent),
     deleteAgent: (id: string) =>
       ipcRenderer.invoke(AgentChannel.DeleteAgent, id),
+    getAgentConfig: (id: string) =>
+      ipcRenderer.invoke(AgentChannel.GetAgentConfig, id),
   },
   projects: {
     saveProject: (data: any) =>
@@ -200,6 +226,8 @@ const electronHandler = {
       ipcRenderer.invoke(ProjectChannel.GetList, { page, size }),
     deleteProject: (id: string) =>
       ipcRenderer.invoke(ProjectChannel.DeleteProject, id),
+    createThread: (options?: any) =>
+      ipcRenderer.invoke(ProjectChannel.CreateThread, options),
   },
 };
 

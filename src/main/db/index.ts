@@ -10,7 +10,7 @@ import { Tools } from '@/entities/tools';
 import { MastraHistoryMessages } from '@/entities/mastra-history-messages';
 import { BaseManager } from '../BaseManager';
 import { Agents } from '@/entities/agents';
-import { Projects } from '@/entities/projects';
+import { Projects, ProjectThreads } from '@/entities/projects';
 
 class DBManager extends BaseManager {
   // defaultDb: Database;
@@ -37,12 +37,15 @@ class DBManager extends BaseManager {
         MastraHistoryMessages,
         Agents,
         Projects,
+        ProjectThreads,
       ],
       // migrationsRun: true,
       // migrations: [],
       // subscribers: [],
     });
     await this.dataSource.initialize();
+    // SQLite 外键约束默认可能未开启，显式打开以确保 FK / CASCADE 生效
+    await this.dataSource.query('PRAGMA foreign_keys = ON');
     console.log('DB initialized');
   }
 

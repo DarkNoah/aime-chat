@@ -1,11 +1,29 @@
+/* eslint-disable no-await-in-loop */
+/* eslint-disable no-underscore-dangle */
 import { useGlobal } from '@/renderer/hooks/use-global';
 import { useTheme } from 'next-themes';
-import React, { Fragment, ReactNode, useMemo, useRef, useState } from 'react';
+import React, {
+  ForwardedRef,
+  Fragment,
+  ReactNode,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChatInput, ChatInputRef } from './chat-input';
-import { LanguageModelUsage, ToolUIPart } from 'ai';
+import { LanguageModelUsage, ToolUIPart, UIMessage } from 'ai';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ChatPreviewData, ChatPreviewType } from '@/types/chat';
+import {
+  ChatChangedType,
+  ChatEvent,
+  ChatPreviewData,
+  ChatPreviewType,
+  ChatSubmitOptions,
+  ChatSubmitOptions,
+} from '@/types/chat';
 import { ChatPreview } from './chat-preview';
 import { ChatUsage } from './chat-usage';
 import { ChatAgentSelector } from './chat-agent-selector';
@@ -18,7 +36,7 @@ import {
 import { MessageSquareIcon } from 'lucide-react';
 import { Agent } from '@/types/agent';
 import toast from 'react-hot-toast';
-import { useChat } from '@ai-sdk/react';
+import { useChat as useAiSdkChat } from '@ai-sdk/react';
 import { IpcChatTransport } from '@/renderer/pages/chat/ipc-chat-transport';
 import { PromptInputMessage } from '../ai-elements/prompt-input';
 import {
@@ -54,288 +72,435 @@ import { Loader } from '../ai-elements/loader';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import { StorageThreadType } from '@mastra/core/memory';
 import { cn } from '@/renderer/lib/utils';
-
-function ChatPanelHeader() {
-  return <div>ChatPanelHeader</div>;
-}
+import { useChat } from '@/renderer/hooks/use-chat';
 
 export type ChatPanelProps = {
   children?: React.ReactNode;
   projectId?: string;
   threadId?: string;
   className?: string;
+  onToolMessageClick?: (toolMessage: ToolUIPart) => void;
+  onSubmit?: (message: PromptInputMessage, options?: ChatSubmitOptions) => void;
 };
+export interface ChatPanelRef {
+  sendMessage: (
+    message: PromptInputMessage,
+    options?: ChatSubmitOptions,
+  ) => void;
+}
 
-function ChatPanel(props: ChatPanelProps) {
-  const { children, projectId, threadId, className } = props;
-
-  const [input, setInput] = useState('');
-  const { appInfo } = useGlobal();
-  const { theme } = useTheme();
-  const { t } = useTranslation();
-  const chatInputRef = useRef<ChatInputRef>(null);
-  const [showPreview, setShowPreview] = useState(false);
-  const [previewToolPart, setPreviewToolPart] = useState<
-    ToolUIPart | undefined
-  >();
-  const [runId, setRunId] = useState<string | undefined>();
-  const navigate = useNavigate();
-  const [usage, setUsage] = useState<
-    | {
-        usage: LanguageModelUsage;
-        model: string;
-        maxTokens: number;
-      }
-    | undefined
-  >();
-  const [modelId, setModelId] = useState<string | undefined>();
-  const [agentId, setAgentId] = useState<string | undefined>();
-  const [previewData, setPreviewData] = useState<ChatPreviewData>({
-    previewPanel: ChatPreviewType.CANVAS,
-  });
-  const location = useLocation();
-  const [thread, setThread] = useState<StorageThreadType | undefined>();
-
-  const {
-    messages,
-    setMessages,
-    sendMessage,
-    resumeStream,
-    regenerate,
-    status,
-    error,
-    stop,
-    clearError,
-  } = useChat({
-    id: threadId,
-    transport: new IpcChatTransport(),
-    onFinish: (event) => {
-      if (event.isAbort) {
-        const _messages = event.messages;
-      }
-
-      console.log('onFinish', event);
-    },
-    onData: (dataPart) => {
-      console.log('onData', dataPart);
-
-      if (dataPart.type === 'data-workflow-step-suspended') {
-        const { runId: _runId } = dataPart.data as { runId: string };
-        setRunId(_runId);
-      }
-      if (dataPart.type === 'data-usage') {
-        setUsage(dataPart.data);
-      }
-      if (dataPart.type === 'data-send-event') {
-        const { target_panel, data } = dataPart.data as {
-          target_panel: string;
-          data: any;
-        };
-        if (target_panel === 'web_preview' && data?.url) {
-          setShowPreview(true);
-          setPreviewData((prev: ChatPreviewData) => {
-            return {
-              ...prev,
-              previewPanel: ChatPreviewType.WEB_PREVIEW,
-              webPreviewUrl: data?.url,
-            };
-          });
-        }
-      }
-    },
-    onError: (err) => {
-      console.error(err);
-      toast.error(err.message);
-      // clearError();
-    },
-  });
-
-  const handleResumeChat = async (
-    _runId: string,
-    toolCallId: string,
-    approved?: boolean,
-    resumeData?: Record<string, any>,
-  ) => {
-    const body = {
-      agentId,
-      model: modelId,
-      chatId: threadId,
-      runId: _runId,
+export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
+  (props: ChatPanelProps, ref: ForwardedRef<ChatPanelRef>) => {
+    const {
+      children,
+      projectId,
       threadId,
-      approved,
-      resumeData,
-      tools: chatInputRef.current?.getTools(),
-      toolCallId,
+      className,
+      onToolMessageClick,
+      onSubmit,
+    } = props;
+
+    const { ensureThread, unregisterThread, threads } = useChat();
+    const [input, setInput] = useState('');
+    const { appInfo } = useGlobal();
+    const { theme } = useTheme();
+    const { t } = useTranslation();
+    const chatInputRef = useRef<ChatInputRef>(null);
+    const [runId, setRunId] = useState<string | undefined>();
+    const [usage, setUsage] = useState<
+      | {
+          usage: LanguageModelUsage;
+          model: string;
+          modelId?: string;
+          maxTokens: number;
+        }
+      | undefined
+    >();
+    const [modelId, setModelId] = useState<string | undefined>();
+    const [agentId, setAgentId] = useState<string | undefined>();
+    const [requireToolApproval, setRequireToolApproval] = useState(false);
+    const [thread, setThread] = useState<StorageThreadType | undefined>();
+    const [suggestions, setSuggestions] = useState<string[] | undefined>();
+
+    const {
+      messages,
+      setMessages,
+      sendMessage: aiSkdSendMessage,
+      resumeStream,
+      regenerate,
+      status,
+      error,
+      stop,
+      clearError,
+    } = useAiSdkChat({
+      id: threadId,
+      transport: new IpcChatTransport(),
+      onFinish: (event) => {
+        if (event.isAbort) {
+          const _messages = event.messages;
+        }
+
+        console.log('onFinish', event);
+      },
+      onData: (dataPart) => {
+        console.log('onData', dataPart);
+
+        if (dataPart.type === 'data-workflow-step-suspended') {
+          const { runId: _runId } = dataPart.data as { runId: string };
+          setRunId(_runId);
+        }
+        if (dataPart.type === 'data-usage') {
+          setUsage(dataPart.data);
+        }
+        if (dataPart.type === 'data-send-event') {
+          const { target_panel, data } = dataPart.data as {
+            target_panel: string;
+            data: any;
+          };
+          if (target_panel === 'web_preview' && data?.url) {
+            setShowPreview(true);
+            setPreviewData((prev: ChatPreviewData) => {
+              return {
+                ...prev,
+                previewPanel: ChatPreviewType.WEB_PREVIEW,
+                webPreviewUrl: data?.url,
+              };
+            });
+          }
+        }
+      },
+      onError: (err) => {
+        console.error(err);
+        toast.error(err.message);
+        // clearError();
+      },
+    });
+
+    useImperativeHandle(ref, () => ({
+      sendMessage: (
+        message: PromptInputMessage,
+        options?: ChatSubmitOptions,
+      ) => {
+        const inputMessage = {
+          text: message.text || 'Sent with attachments',
+          files: message.files,
+        };
+        const body = {
+          model: options?.model,
+          webSearch: options?.webSearch,
+          tools: options?.tools,
+          subAgents: options?.subAgents,
+          think: options?.think,
+          requireToolApproval: options?.requireToolApproval,
+          runId,
+          threadId,
+          agentId,
+          projectId,
+        };
+        aiSkdSendMessage(inputMessage, { body, headers: {}, metadata: {} });
+        setInput('');
+        chatInputRef.current?.attachmentsClear();
+      },
+    }));
+
+    const handleResumeChat = async (
+      _runId: string,
+      toolCallId: string,
+      approved?: boolean,
+      resumeData?: Record<string, any>,
+    ) => {
+      const options: ChatSubmitOptions = {
+        agentId,
+        model: modelId,
+        runId: _runId,
+        threadId,
+        approved,
+        resumeData,
+        tools: chatInputRef.current?.getTools(),
+        toolCallId,
+        requireToolApproval,
+      };
+      await threads[threadId]?.sendMessage(undefined, options);
     };
-    await sendMessage(undefined, { body });
-  };
 
-  const handleAbort = () => {
-    stop();
-  };
+    const handleAbort = () => {
+      threads[threadId]?.stop();
+      // stop();
+    };
 
-  const handleAgentChange = (_agent: Agent) => {
-    chatInputRef.current?.setTools(_agent.tools || []);
-    setAgentId(_agent?.id);
-  };
+    const handleAgentChange = (_agent: Agent) => {
+      chatInputRef.current?.setTools(_agent.tools || []);
+      setAgentId(_agent?.id);
+      if (_agent?.defaultModelId) {
+        setModelId(_agent?.defaultModelId);
+      }
+      if (_agent?.subAgents) {
+        chatInputRef.current?.setSubAgents(_agent?.subAgents || []);
+      }
+      if (_agent?.suggestions) {
+        setSuggestions(_agent?.suggestions || []);
+      }
+    };
 
-  const handleClearMessages = async () => {
-    if (threadId) {
-      await window.electron.mastra.clearMessages(threadId);
+    const handleClearMessages = async () => {
+      if (threadId) {
+        await window.electron.mastra.clearMessages(threadId);
+        setMessages([]);
+        clearError();
+        setUsage(undefined);
+        setPreviewToolPart(undefined);
+        setShowPreview(false);
+      }
+    };
+
+    const handleSubmit = async (
+      message: PromptInputMessage,
+      // model?: string,
+      options?: {
+        model?: string;
+        webSearch?: boolean;
+        think?: boolean;
+        tools?: string[];
+        subAgents?: string[];
+        requireToolApproval?: boolean;
+      },
+    ) => {
+      const hasText = Boolean(message.text);
+      const hasAttachments = Boolean(message.files?.length);
+
+      if (!(hasText || hasAttachments)) {
+        return;
+      }
+      if (!options?.model) {
+        toast.error('Please select a model');
+        return;
+      }
+      function blobToBase64(blob) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result); // result 是 base64 编码字符串
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+      }
+      clearError();
+
+      for (const file of message.files || []) {
+        const response = await fetch(file.url);
+        const blob = await response.blob();
+        file.url = (await blobToBase64(blob)) as string;
+      }
+
+      const body: ChatSubmitOptions = {
+        model: options?.model,
+        webSearch: options?.webSearch,
+        tools: options?.tools,
+        subAgents: options?.subAgents,
+        think: options?.think,
+        requireToolApproval: options?.requireToolApproval,
+        runId,
+        threadId,
+        agentId,
+        projectId,
+      };
+      const inputMessage = {
+        text: message.text || 'Sent with attachments',
+        files: message.files,
+      };
+      if (threadId) {
+        threads[threadId].sendMessage(inputMessage, body);
+      } else {
+        onSubmit?.(inputMessage, body);
+      }
+
+      // if (!threadId) {
+      //   return;
+      // }
+      // console.log(message, body);
+      // sendMessage(inputMessage, {
+      //   body,
+      // });
+      // setInput('');
+      // chatInputRef.current?.attachmentsClear();
+    };
+
+    const resetChat = () => {
       setMessages([]);
       clearError();
       setUsage(undefined);
-      setPreviewToolPart(undefined);
-      setShowPreview(false);
-    }
-  };
-
-  const handleSubmit = async (
-    message: PromptInputMessage,
-    // model?: string,
-    options?: {
-      model?: string;
-      webSearch?: boolean;
-      think?: boolean;
-      tools?: string[];
-      subAgents?: string[];
-      requireToolApproval?: boolean;
-    },
-  ) => {
-    const hasText = Boolean(message.text);
-    const hasAttachments = Boolean(message.files?.length);
-
-    if (!(hasText || hasAttachments)) {
-      return;
-    }
-    if (!options?.model) {
-      toast.error('Please select a model');
-      return;
-    }
-    function blobToBase64(blob) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result); // result 是 base64 编码字符串
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-      });
-    }
-    clearError();
-
-    for (const file of message.files || []) {
-      const response = await fetch(file.url);
-      const blob = await response.blob();
-      file.url = (await blobToBase64(blob)) as string;
-    }
-
-    const body = {
-      model: options?.model,
-      webSearch: options?.webSearch,
-      tools: options?.tools,
-      subAgents: options?.subAgents,
-      think: options?.think,
-      requireToolApproval: options?.requireToolApproval,
-      runId,
-      threadId,
-      agentId,
-    };
-    const inputMessage = {
-      text: message.text || 'Sent with attachments',
-      files: message.files,
+      setThread(undefined);
+      setAgentId(undefined);
+      chatInputRef.current?.setTools([]);
+      chatInputRef.current?.setSubAgents([]);
+      setSuggestions(undefined);
+      setRequireToolApproval(false);
     };
 
-    if (!threadId) {
-      const data = await window.electron.mastra.createThread(options);
-      body.threadId = data.id;
-      navigate(`/chat/${data.id}`, {
-        state: {
-          message: inputMessage,
-          options: body,
-        },
-      });
-      return;
-    }
-    console.log(message, body);
-    sendMessage(inputMessage, {
-      body,
-    });
-    setInput('');
-    chatInputRef.current?.attachmentsClear();
-  };
+    useEffect(() => {
+      resetChat();
 
-  return (
-    <div className={cn('flex flex-col h-full', className)}>
-      <Conversation className="h-full w-full flex-1 flex items-center justify-center overflow-y-hidden">
-        <ConversationContent className="h-full" id="chat-conversation">
-          {messages.length === 0 && (
-            <ConversationEmptyState
-              description="Messages will appear here as the conversation progresses."
-              icon={<MessageSquareIcon className="size-6" />}
-              title="Start a conversation"
-              className="h-full"
-            />
-          )}
+      if (threadId) {
+        console.log('registerThread', threadId);
 
-          {messages.length > 0 && (
-            <div>
-              {messages.map((message) => {
-                return (
-                  <div key={message.id} className="flex flex-col gap-2">
-                    {message.role === 'assistant' &&
-                      message.parts.filter((part) => part.type === 'source-url')
-                        .length > 0 && (
-                        <Sources key={message.id}>
-                          <SourcesTrigger
-                            count={
-                              message.parts.filter(
-                                (part) => part.type === 'source-url',
-                              ).length
-                            }
-                          />
-                          {message.parts
-                            .filter((part) => part.type === 'source-url')
-                            .map((part, i) => (
-                              <SourcesContent key={`${message.id}-${i}`}>
-                                <Source
-                                  key={`${message.id}-${i}`}
-                                  href={part.url}
-                                  title={part.url}
-                                />
-                              </SourcesContent>
-                            ))}
-                        </Sources>
-                      )}
-                    {message?.parts?.map((part, i) => {
-                      if (part.type === 'reasoning' && part.text.trim())
-                        return (
-                          <Reasoning
-                            key={`${message.id}-${i}`}
-                            className="w-fit"
-                            defaultOpen={false}
-                            isStreaming={part.state === 'streaming'}
-                          >
-                            <ReasoningTrigger />
-                            <ReasoningContent className="whitespace-pre-wrap">
-                              {part.text}
-                            </ReasoningContent>
-                          </Reasoning>
-                        );
-                      else if (part.type === 'text' && part.text.trim()) {
-                        return (
-                          <Fragment key={`${message.id}-${i}`}>
-                            <Message from={message.role}>
-                              <MessageContent>
-                                <MessageResponse>{part.text}</MessageResponse>
-                              </MessageContent>
-                            </Message>
-                            <MessageActions
-                              className={
-                                message.role === 'user'
-                                  ? 'justify-end'
-                                  : 'justify-start'
+        const getThread = async () => {
+          const _thread = await ensureThread(threadId);
+          console.log(_thread);
+          setThread(_thread);
+          if (_thread?.messages?.length > 0) {
+            setMessages(_thread?.messages);
+          }
+          console.log(
+            (_thread?.metadata?.modelId as string) ??
+              appInfo?.defaultModel?.model,
+          );
+
+          setModelId(
+            (_thread?.metadata?.model as string) ??
+              appInfo?.defaultModel?.model,
+          );
+          setUsage(
+            _thread?.metadata as {
+              usage: LanguageModelUsage;
+              model: string;
+              modelId?: string;
+              maxTokens: number;
+            },
+          );
+          chatInputRef.current?.setTools(
+            (_thread?.metadata?.tools as string[]) ?? [],
+          );
+          chatInputRef.current?.setSubAgents(
+            (_thread?.metadata?.subAgents as string[]) ?? [],
+          );
+          setRequireToolApproval(
+            (_thread?.metadata?.requireToolApproval as boolean) ?? false,
+          );
+          // if (((_thread?.metadata?.todos as any[]) ?? []).length > 0) {
+          //   setPreviewData((prev: ChatPreviewData) => ({
+          //     ...prev,
+          //     todos: _thread?.metadata?.todos as any[],
+          //     previewPanel: ChatPreviewType.TODO,
+          //   }));
+          // }
+          setAgentId(_thread?.metadata?.agentId as string);
+        };
+        getThread();
+        const handleEvent = (event: { type: ChatEvent; data: any }) => {
+          if (
+            event.type === ChatEvent.ChatChanged &&
+            event.data.type === ChatChangedType.TitleUpdated
+          ) {
+            setThread({ ...thread, title: event.data.title as string });
+          }
+        };
+        window.electron.ipcRenderer.on(`chat:event:${threadId}`, handleEvent);
+        return () => {
+          console.log('unregisterThread', threadId);
+          if (threadId) {
+            unregisterThread(threadId);
+          }
+          window.electron.ipcRenderer.removeListener(
+            `chat:event:${threadId}`,
+            handleEvent,
+          );
+        };
+      }
+      return () => {};
+    }, [threadId]);
+
+    return (
+      <div className={cn('flex flex-col h-full', className)}>
+        <Conversation className="h-full w-full flex-1 flex items-center justify-center overflow-y-hidden">
+          <ConversationContent className="h-full" id="chat-conversation">
+            {threads[threadId]?.messages.length === 0 && (
+              <ConversationEmptyState
+                description="Messages will appear here as the conversation progresses."
+                icon={<MessageSquareIcon className="size-6" />}
+                title="Start a conversation"
+                className="h-full"
+              />
+            )}
+
+            {threads[threadId] && threads[threadId].messages.length > 0 && (
+              <div className="pb-10">
+                {threads[threadId].messages.map((message) => {
+                  return (
+                    <div key={message.id} className="flex flex-col gap-2">
+                      {message.role === 'assistant' &&
+                        message.parts.filter(
+                          (part) => part.type === 'source-url',
+                        ).length > 0 && (
+                          <Sources key={message.id}>
+                            <SourcesTrigger
+                              count={
+                                message.parts.filter(
+                                  (part) => part.type === 'source-url',
+                                ).length
                               }
+                            />
+                            {message.parts
+                              .filter((part) => part.type === 'source-url')
+                              .map((part, i) => (
+                                <SourcesContent key={`${message.id}-${i}`}>
+                                  <Source
+                                    key={`${message.id}-${i}`}
+                                    href={part.url}
+                                    title={part.url}
+                                  />
+                                </SourcesContent>
+                              ))}
+                          </Sources>
+                        )}
+                      {message?.parts?.map((part, i) => {
+                        if (part.type === 'reasoning' && part.text.trim())
+                          return (
+                            <Reasoning
+                              key={`${message.id}-${i}`}
+                              className="w-fit"
+                              defaultOpen={false}
+                              isStreaming={part.state === 'streaming'}
                             >
-                              {/* <MessageAction
+                              <ReasoningTrigger />
+                              <ReasoningContent className="whitespace-pre-wrap">
+                                {part.text}
+                              </ReasoningContent>
+                            </Reasoning>
+                          );
+                        else if (part.type === 'text' && part.text.trim()) {
+                          if (
+                            part.text.trim() === '[Request interrupted by user]'
+                          ) {
+                            return (
+                              <Alert className="w-fit bg-muted p-2">
+                                <AlertTitle className="text-xs">
+                                  Request interrupted by user
+                                </AlertTitle>
+                              </Alert>
+                            );
+                          } else {
+                            return (
+                              <Fragment key={`${message.id}-${i}`}>
+                                <Message from={message.role}>
+                                  <MessageContent>
+                                    <MessageResponse
+                                      className="text-xs"
+                                      mermaidConfig={{
+                                        theme:
+                                          theme === 'dark' ? 'dark' : 'forest',
+                                      }}
+                                    >
+                                      {part.text}
+                                    </MessageResponse>
+                                  </MessageContent>
+                                </Message>
+                                <MessageActions
+                                  className={
+                                    message.role === 'user'
+                                      ? 'justify-end'
+                                      : 'justify-start'
+                                  }
+                                >
+                                  {/* <MessageAction
                                     onClick={() =>
                                       navigator.clipboard.writeText(part.text)
                                     }
@@ -343,191 +508,198 @@ function ChatPanel(props: ChatPanelProps) {
                                   >
                                     <CopyIcon className="size-3" />
                                   </MessageAction> */}
-                              {message?.parts.length === i + 1 &&
-                                message.role === 'assistant' &&
-                                message.metadata?.usage?.inputTokens &&
-                                message.metadata?.usage?.outputTokens && (
-                                  <small className="text-xs text-gray-500 flex flex-row gap-1 items-center">
-                                    <Label>tokens: </Label>
-                                    {message.metadata?.usage?.inputTokens && (
-                                      <span className="flex flex-row gap-1 items-center">
-                                        <IconArrowUp size={10}></IconArrowUp>
-                                        {message.metadata?.usage?.inputTokens}
-                                      </span>
+                                  {message?.parts.length === i + 1 &&
+                                    message.role === 'assistant' &&
+                                    message.metadata?.usage?.inputTokens &&
+                                    message.metadata?.usage?.outputTokens && (
+                                      <small className="text-xs text-gray-500 flex flex-row gap-1 items-center">
+                                        <Label>tokens: </Label>
+                                        {message.metadata?.usage
+                                          ?.inputTokens && (
+                                          <span className="flex flex-row gap-1 items-center">
+                                            <IconArrowUp
+                                              size={10}
+                                            ></IconArrowUp>
+                                            {
+                                              message.metadata?.usage
+                                                ?.inputTokens
+                                            }
+                                          </span>
+                                        )}
+
+                                        {message.metadata?.usage
+                                          ?.outputTokens && (
+                                          <span className="flex flex-row gap-1 items-center">
+                                            <IconArrowDown
+                                              size={10}
+                                            ></IconArrowDown>
+                                            {
+                                              message.metadata?.usage
+                                                ?.outputTokens
+                                            }
+                                          </span>
+                                        )}
+                                      </small>
                                     )}
+                                </MessageActions>
+                              </Fragment>
+                            );
+                          }
+                        } else if (part.type.startsWith('tool-')) {
+                          // eslint-disable-next-line no-underscore-dangle
+                          const _part = part as ToolUIPart;
+                          let approvalData: ToolApproval;
+                          let suspendedData: ToolSuspended;
+                          let isSuspended = false;
+                          if (_part.state === 'input-available') {
+                            approvalData =
+                              message.parts.find(
+                                (p) =>
+                                  p.type === 'data-tool-call-approval' &&
+                                  p.id === _part?.toolCallId,
+                              )?.data ||
+                              message?.metadata?.pendingToolApprovals?.[
+                                _part?.toolCallId
+                              ];
 
-                                    {message.metadata?.usage?.outputTokens && (
-                                      <span className="flex flex-row gap-1 items-center">
-                                        <IconArrowDown
-                                          size={10}
-                                        ></IconArrowDown>
-                                        {message.metadata?.usage?.outputTokens}
-                                      </span>
-                                    )}
-                                  </small>
-                                )}
-                            </MessageActions>
-                          </Fragment>
-                        );
-                      } else if (part.type.startsWith('tool-')) {
-                        // eslint-disable-next-line no-underscore-dangle
-                        const _part = part as ToolUIPart;
-                        let approvalData: ToolApproval;
-                        let suspendedData: ToolSuspended;
-                        let isSuspended = false;
-                        if (_part.state === 'input-available') {
-                          approvalData =
-                            message.parts.find(
-                              (p) =>
-                                p.type === 'data-tool-call-approval' &&
-                                p.id === _part?.toolCallId,
-                            )?.data ||
-                            message?.metadata?.pendingToolApprovals?.[
-                              _part?.toolCallId
-                            ];
+                            suspendedData =
+                              message.parts.find(
+                                (p) =>
+                                  p.type === 'data-tool-call-suspended' &&
+                                  p.id === _part?.toolCallId,
+                              )?.data ||
+                              message?.metadata?.suspendPayload?.[
+                                _part?.toolCallId
+                              ];
 
-                          suspendedData =
-                            message.parts.find(
-                              (p) =>
-                                p.type === 'data-tool-call-suspended' &&
-                                p.id === _part?.toolCallId,
-                            )?.data ||
-                            message?.metadata?.suspendPayload?.[
-                              _part?.toolCallId
-                            ];
+                            if (approvalData) {
+                              approvalData.type = 'approval';
+                              isSuspended = true;
+                            }
 
-                          if (approvalData) {
-                            approvalData.type = 'approval';
-                            isSuspended = true;
+                            if (suspendedData) {
+                              suspendedData.type = 'suspended';
+                              isSuspended = true;
+                            }
                           }
 
-                          if (suspendedData) {
-                            suspendedData.type = 'suspended';
-                            isSuspended = true;
-                          }
-                        }
-
-                        return (
-                          <div className="flex flex-col">
-                            <ToolMessage
-                              key={`${message.id}-${i}`}
-                              part={_part}
-                              isSuspended={isSuspended}
-                              onResume={(value) => {
-                                console.log(value);
-                                handleResumeChat(
-                                  suspendedData.runId,
-                                  _part?.toolCallId,
-                                  undefined,
-                                  value,
-                                );
-                              }}
-                              suspendedData={suspendedData}
-                              onClick={() => {
-                                console.log(_part);
-                                setShowPreview(true);
-                                setPreviewToolPart(_part);
-                                setPreviewData((data) => {
-                                  return {
-                                    ...data,
-                                    previewPanel: ChatPreviewType.TOOL_RESULT,
-                                  };
-                                });
-                              }}
-                            ></ToolMessage>
-                            {approvalData && (
-                              <ToolMessageApproval
-                                approval={approvalData}
-                                onReject={() => {
-                                  console.log('reject', approvalData);
-                                  handleResumeChat(
-                                    approvalData.runId,
-                                    _part?.toolCallId,
-                                    false,
-                                  );
-                                }}
-                                onAccept={() => {
-                                  console.log('accept', approvalData);
-                                  handleResumeChat(
-                                    approvalData.runId,
-                                    _part?.toolCallId,
-                                    true,
-                                  );
-                                }}
-                              />
-                            )}
-                          </div>
-                        );
-                      }
-                      return null;
-                    })}
-                    <ChatMessageAttachments
-                      className={`mb-2 ${message.role === 'user' ? 'ml-auto' : 'ml-0'}`}
-                    >
-                      {message?.parts
-                        ?.filter((p) => p.type === 'file')
-                        .map((part, i) => {
                           return (
-                            <ChatMessageAttachment
-                              data={part}
-                              key={`${message.id}-${i}`}
-                            />
+                            <div className="flex flex-col">
+                              <ToolMessage
+                                key={`${message.id}-${i}`}
+                                part={_part}
+                                isSuspended={isSuspended}
+                                onResume={(value) => {
+                                  console.log(value);
+                                  handleResumeChat(
+                                    suspendedData.runId,
+                                    _part?.toolCallId,
+                                    undefined,
+                                    value,
+                                  );
+                                }}
+                                suspendedData={suspendedData}
+                                onClick={() => {
+                                  console.log(_part);
+                                  onToolMessageClick?.(_part);
+                                }}
+                              ></ToolMessage>
+
+                              {approvalData && (
+                                <ToolMessageApproval
+                                  approval={approvalData}
+                                  onReject={() => {
+                                    console.log('reject', approvalData);
+                                    handleResumeChat(
+                                      approvalData.runId,
+                                      _part?.toolCallId,
+                                      false,
+                                    );
+                                  }}
+                                  onAccept={() => {
+                                    console.log('accept', approvalData);
+                                    handleResumeChat(
+                                      approvalData.runId,
+                                      _part?.toolCallId,
+                                      true,
+                                    );
+                                  }}
+                                />
+                              )}
+                            </div>
                           );
-                        })}
-                    </ChatMessageAttachments>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-          {status === 'submitted' && <Loader className="animate-spin" />}
-          {error && (
-            <Alert variant="destructive" className="bg-red-200 w-fit">
-              <AlertTitle className="font-extrabold">Error</AlertTitle>
-              <AlertDescription>{error.message}</AlertDescription>
-            </Alert>
-          )}
-        </ConversationContent>
-        <ConversationScrollButton />
-      </Conversation>
-      <div className="w-full px-4 pb-4 flex flex-col gap-2 justify-start">
-        <div className="flex flex-row gap-2 justify-between">
-          <ChatAgentSelector
-            value={agentId}
-            mode="single"
-            onSelectedAgent={handleAgentChange}
-          ></ChatAgentSelector>
-          {usage?.usage?.totalTokens && (
-            <ChatUsage
-              value={{
-                usage: usage?.usage,
-                maxTokens: usage?.maxTokens,
-                modelId: usage?.model,
-              }}
-            />
-          )}
+                        }
+                        return null;
+                      })}
+                      <ChatMessageAttachments
+                        className={`mb-2 ${message.role === 'user' ? 'ml-auto' : 'ml-0'}`}
+                      >
+                        {message?.parts
+                          ?.filter((p) => p.type === 'file')
+                          .map((part, i) => {
+                            return (
+                              <ChatMessageAttachment
+                                data={part}
+                                key={`${message.id}-${i}`}
+                              />
+                            );
+                          })}
+                      </ChatMessageAttachments>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {threads[threadId]?.status === 'submitted' && (
+              <Loader className="animate-spin" />
+            )}
+            {threads[threadId]?.error && (
+              <Alert variant="destructive" className="bg-red-200 w-fit">
+                <AlertTitle className="font-extrabold">Error</AlertTitle>
+                <AlertDescription>{error.message}</AlertDescription>
+              </Alert>
+            )}
+          </ConversationContent>
+          <ConversationScrollButton />
+        </Conversation>
+        <div className="w-full px-4 pb-4 flex flex-col gap-2 justify-start relative">
+          <div className="flex flex-row gap-2 justify-between absolute w-full left-0 -top-10 px-4 h-8">
+            <ChatAgentSelector
+              value={agentId}
+              mode="single"
+              onSelectedAgent={handleAgentChange}
+            ></ChatAgentSelector>
+            {usage?.usage?.totalTokens && (
+              <ChatUsage
+                value={{
+                  usage: usage?.usage,
+                  maxTokens: usage?.maxTokens,
+                  modelId: usage?.modelId ?? usage?.model,
+                }}
+              />
+            )}
+          </div>
+          <ChatInput
+            onClearMessages={handleClearMessages}
+            showModelSelect
+            showWebSearch
+            showToolSelector
+            showAgentSelector
+            showThink
+            model={modelId}
+            onModelChange={setModelId}
+            requireToolApproval={requireToolApproval}
+            onRequireToolApprovalChange={setRequireToolApproval}
+            ref={chatInputRef}
+            input={input}
+            setInput={setInput}
+            onSubmit={handleSubmit}
+            onAbort={handleAbort}
+            status={threads[threadId]?.status}
+            className="flex-1 h-full"
+          ></ChatInput>
         </div>
-
-        <ChatInput
-          onClearMessages={handleClearMessages}
-          showModelSelect
-          showWebSearch
-          showToolSelector
-          showAgentSelector
-          showThink
-          model={modelId}
-          onModelChange={setModelId}
-          ref={chatInputRef}
-          input={input}
-          setInput={setInput}
-          onSubmit={handleSubmit}
-          onAbort={handleAbort}
-          status={status}
-          className="flex-1 h-full"
-        ></ChatInput>
       </div>
-    </div>
-  );
-}
-
-export default ChatPanel;
+    );
+  },
+);

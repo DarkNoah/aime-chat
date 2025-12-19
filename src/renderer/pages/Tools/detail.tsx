@@ -27,7 +27,7 @@ import { Tool, ToolConfig, ToolType } from '@/types/tool';
 import { ItemText } from '@radix-ui/react-select';
 import { useCallback, useEffect, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import Form from '@rjsf/shadcn';
+import Form, { Widgets } from '@rjsf/shadcn';
 import validator from '@rjsf/validator-ajv8';
 import { IconFolder } from '@tabler/icons-react';
 import { ChatPreview } from '@/renderer/components/chat-ui/chat-preview';
@@ -151,6 +151,9 @@ function ToolDetail() {
       <Form
         schema={_tool?.inputSchema}
         validator={validator}
+        widgets={{
+          TextWidget: Widgets.TextareaWidget,
+        }}
         onSubmit={(e) => handleSubmit(_tool.name, e.formData)}
       >
         <div className="flex items-center gap-3 mt-2">
