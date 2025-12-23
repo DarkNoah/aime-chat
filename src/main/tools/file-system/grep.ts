@@ -4,6 +4,8 @@ import z from 'zod';
 import { spawn } from 'child_process';
 import { rgPath } from '@vscode/ripgrep';
 import readline from 'readline';
+import pathUtil from 'path';
+import fs from 'fs';
 export class Grep extends BaseTool {
   id: string = 'Grep';
   description: string = `A powerful search tool built on ripgrep
@@ -123,7 +125,25 @@ export class Grep extends BaseTool {
       offset,
       multiline,
     } = inputData;
-    const { abortSignal } = context;
+    const { abortSignal, requestContext } = context;
+
+    let cwd;
+    if (path) {
+      if (pathUtil.isAbsolute(path)) {
+        cwd = path;
+      } else {
+        cwd = pathUtil.join(
+          requestContext.get('workspace' as never) as string,
+          path,
+        );
+      }
+    } else {
+      cwd = requestContext.get('workspace' as never) as string;
+    }
+
+    if (cwd && fs.existsSync(cwd) && !fs.statSync(cwd).isDirectory()) {
+      throw new Error(`Directory ${cwd} is not a directory`);
+    }
 
     const args: string[] = [];
 
@@ -159,8 +179,8 @@ export class Grep extends BaseTool {
 
     args.push('-e', pattern);
 
-    if (path) {
-      args.push(path);
+    if (cwd) {
+      args.push(cwd);
     }
 
     const child = spawn(rgPath, args, { stdio: ['ignore', 'pipe', 'pipe'] });

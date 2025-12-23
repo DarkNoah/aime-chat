@@ -10,7 +10,7 @@ import {
 } from '@ai-sdk/provider';
 import OpenAI from 'openai';
 import { ZodSchema } from 'zod';
-import { ProviderCredits, ProviderType } from '@/types/provider';
+import { ProviderCredits, ProviderTag, ProviderType } from '@/types/provider';
 
 export interface BaseProviderParams {
   provider: Providers;
@@ -25,6 +25,8 @@ export abstract class BaseProvider implements ProviderV2 {
   abstract defaultApiBase?: string;
 
   provider: Providers;
+
+  tags: ProviderTag[] = [];
 
   constructor(params?: BaseProviderParams) {
     this.provider = params?.provider;
@@ -50,6 +52,8 @@ export abstract class BaseProvider implements ProviderV2 {
   abstract getLanguageModelList(): Promise<{ name: string; id: string }[]>;
 
   abstract getEmbeddingModelList(): Promise<{ name: string; id: string }[]>;
+
+  abstract getRerankModelList(): Promise<{ name: string; id: string }[]>;
 
   abstract getCredits(): Promise<ProviderCredits | undefined>;
 }

@@ -322,7 +322,7 @@ export default function ThreadsList({ className }: ThreadsListProps) {
     >
       <ScrollArea className="flex-1 h-full pr-1 min-h-0">
         <div
-          className={`flex flex-col gap-1 p-2`}
+          className="flex flex-col gap-1 p-2"
           style={{
             width: `calc(var(--sidebar-width) - var(--spacing) * ${isMobile ? '3' : '6'})`,
           }}

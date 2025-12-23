@@ -2,7 +2,7 @@
 /* eslint no-unused-vars: off */
 import { Agent } from '@/types/agent';
 import { AppProxy } from '@/types/app';
-import { ChatInput } from '@/types/chat';
+import { ChatInput, ThreadState } from '@/types/chat';
 import { FileInfo, PaginationInfo } from '@/types/common';
 import {
   AgentChannel,
@@ -128,9 +128,7 @@ const electronHandler = {
       resourceId?: string;
     }): Promise<PaginationInfo<StorageThreadType>> =>
       ipcRenderer.invoke(MastraChannel.GetThreads, { page, size, resourceId }),
-    getThread: (
-      id: string,
-    ): Promise<StorageThreadType & { messages: UIMessage[] }> =>
+    getThread: (id: string): Promise<ThreadState> =>
       ipcRenderer.invoke(MastraChannel.GetThread, id),
     updateThread: (id: string, data: any) =>
       ipcRenderer.invoke(MastraChannel.UpdateThread, id, data),

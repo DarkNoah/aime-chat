@@ -1,102 +1,89 @@
 /* eslint-disable no-underscore-dangle */
 /* eslint-disable camelcase */
-import { Spinner } from '../components/ui/spinner';
 import { PromptInputMessage } from '../components/ai-elements/prompt-input';
-import { StorageThreadType } from '@mastra/core/memory';
 import { useChat as useAiSdkChat } from '@ai-sdk/react';
+import mitt, { Emitter, EventType } from 'mitt';
+
 import { IpcChatTransport } from '../pages/chat/ipc-chat-transport';
 import toast from 'react-hot-toast';
-import { ChatStatus, LanguageModelUsage, UIMessage } from 'ai';
+import { ChatOnFinishCallback, UIDataTypes, UIMessage, UITools } from 'ai';
 import React, {
   createContext,
   ForwardedRef,
   ReactNode,
-  RefObject,
   useCallback,
   useContext,
   useEffect,
+  useImperativeHandle,
   useMemo,
   useRef,
   useState,
 } from 'react';
-import { ChatSubmitOptions } from '@/types/chat';
+import {
+  ChatChangedType,
+  ChatEvent,
+  ChatSubmitOptions,
+  ThreadState,
+} from '@/types/chat';
+import { useThreadStore } from '../store/use-thread-store';
+import { useShallow } from 'zustand/react/shallow';
 
-type ChatInstanceApi = {
-  sendMessage: (
-    input: PromptInputMessage | undefined,
-    options?: ChatSubmitOptions,
-  ) => Promise<void>;
-  messages: UIMessage[];
-  stop: () => void;
-  status?: ChatStatus;
-  error?: Error;
-};
 export type ChatSessionProps = {
   threadId: string;
-  // onFinish: (event: { type: ChatEvent; data: any }) => void;
-  // onData: (dataPart: any) => void;
   onData?: (dataPart: any) => void;
   onUsageChange?: (usage: any) => void;
   onError?: (err: Error) => void;
-  register: (id: string, api: ChatInstanceApi) => void;
-  unregister: (id: string) => void;
-  // onMessages?: (threadId: string, msgs: UIMessage[]) => void;
+  onFinish?: (event: any) => void;
 };
 
-export interface ChatSessionRef {}
+export type ChatSessionRef = {
+  stop: () => void;
+  sendMessage: (
+    message: PromptInputMessage | undefined,
+    options?: ChatSubmitOptions,
+  ) => void;
+  clearError: () => void;
+  clearMessages: () => Promise<void>;
+};
 
 export const ChatSession = React.forwardRef<ChatSessionRef, ChatSessionProps>(
   (props: ChatSessionProps, ref: ForwardedRef<ChatSessionRef>) => {
+    const { threadId, onError, onUsageChange, onData, onFinish } = props;
+
+    const threadState = useThreadStore(
+      useShallow((s) => s.threadStates[threadId]),
+    );
     const {
-      threadId,
-      onError,
-      onUsageChange,
-      onData,
-      register,
-      unregister,
-      // onMessages,
-    } = props;
+      updateMessages,
+      updateStatus,
+      updateError,
+      updateThreadState,
+      registerThread,
+    } = useThreadStore();
+
+    // 使用 useRef 保持 transport 实例稳定，避免每次渲染创建新实例
+    const transportRef = useRef(new IpcChatTransport());
+
     const {
       messages: aiSdkMessages,
       setMessages,
       sendMessage: aiSdkSendMessage,
-      resumeStream,
-      regenerate,
       status,
       error,
       stop,
       clearError,
     } = useAiSdkChat({
       id: threadId,
-      transport: new IpcChatTransport(),
+      transport: transportRef.current,
       onFinish: (event) => {
         console.log('onFinish', event);
+        onFinish?.(event);
       },
       onData: (dataPart) => {
         console.log('onData', dataPart);
         onData?.(dataPart);
-        if (dataPart.type === 'data-workflow-step-suspended') {
-          const { runId: _runId } = dataPart.data as { runId: string };
-          setRunId(_runId);
-        }
         if (dataPart.type === 'data-usage') {
           onUsageChange?.(dataPart.data);
-        }
-        if (dataPart.type === 'data-send-event') {
-          const { target_panel, data } = dataPart.data as {
-            target_panel: string;
-            data: any;
-          };
-          if (target_panel === 'web_preview' && data?.url) {
-            setShowPreview(true);
-            setPreviewData((prev: ChatPreviewData) => {
-              return {
-                ...prev,
-                previewPanel: ChatPreviewType.WEB_PREVIEW,
-                webPreviewUrl: data?.url,
-              };
-            });
-          }
         }
       },
       onError: (err) => {
@@ -104,54 +91,59 @@ export const ChatSession = React.forwardRef<ChatSessionRef, ChatSessionProps>(
         toast.error(err.message);
       },
     });
-    useEffect(() => {
-      const getThread = async () => {
-        const _thread = await window.electron.mastra.getThread(threadId);
-        console.log(_thread);
-        setMessages(_thread?.messages);
-      };
-      getThread();
-      return () => {};
-    }, [threadId, setMessages]);
 
     useEffect(() => {
-      register(threadId, {
-        sendMessage: async (message, options) => {
-          const inputMessage = message
+      const thread = useThreadStore.getState().threadStates[threadId];
+      if (thread) {
+        setMessages(thread.messages);
+      }
+    }, [setMessages, threadId]);
+
+    const clearMessages = async () => {
+      await window.electron.mastra.clearMessages(threadId);
+      updateMessages(threadId, []);
+      updateError(threadId, undefined);
+      setMessages([]);
+      clearError();
+    };
+
+    useImperativeHandle(ref, () => ({
+      sendMessage: (message, options) => {
+        aiSdkSendMessage(
+          message
             ? {
                 text: message.text || 'Sent with attachments',
                 files: message.files,
               }
-            : undefined;
-          await aiSdkSendMessage(inputMessage, {
+            : undefined,
+          {
             body: options,
             headers: {},
             metadata: {},
-          });
-        },
-        stop,
-        status,
-        messages: aiSdkMessages,
-      });
-      return () => unregister(threadId);
-    }, [
-      threadId,
-      register,
-      unregister,
+          },
+        );
+      },
       stop,
-      aiSdkSendMessage,
-      status,
-      aiSdkMessages,
-    ]);
+      clearError,
+      clearMessages,
+    }));
 
-    // useEffect(() => {
-    //   onMessages?.(threadId, aiSdkMessages);
-    // }, [aiSdkMessages, onMessages, threadId]);
+    useEffect(() => {
+      updateMessages(threadId, aiSdkMessages);
+    }, [threadId, aiSdkMessages, updateMessages]);
+
+    useEffect(() => {
+      updateStatus(threadId, status);
+    }, [threadId, status, updateStatus]);
+
+    useEffect(() => {
+      updateError(threadId, error);
+    }, [threadId, error, updateError]);
 
     return (
-      <div className="p-2 h-10 bg-primary text-black flex items-center justify-center flex-row gap-2">
-        {threadId.substring(0, 2)} {status}
-        <div>{aiSdkMessages.length}</div>
+      <div className="p-2 h-10 bg-muted-foreground/20 backdrop-blur text-muted-foreground flex items-center justify-center flex-row gap-2 rounded-xl">
+        {threadId.substring(0, 2)} {threadState.status}
+        <div>{threadState.messages?.length}</div>
       </div>
     );
   },
@@ -160,20 +152,16 @@ export const ChatSession = React.forwardRef<ChatSessionRef, ChatSessionProps>(
 export type ChatState = {
   sendMessage: (
     threadId: string,
-    message: PromptInputMessage,
+    message: PromptInputMessage | undefined,
     options?: ChatSubmitOptions,
   ) => void;
-  // messages: Record<string, UIMessage[]>;
-  ensureThread: (threadId: string) => Promise<
-    StorageThreadType & {
-      messages: UIMessage[];
-    }
-  >;
+  stop: (threadId: string) => void;
+  clearMessages: (threadId: string) => Promise<void>;
+  clearError: (threadId: string) => void;
+  ensureThread: (threadId: string) => Promise<ThreadState>;
   unregisterThread: (threadId: string) => void;
-  threads: Record<string, ChatInstanceApi>;
-  // threads
-  // getMessages: (threadId: string) => UIMessage[];
-  // getChatInstance: (threadId: string) => void;
+  getThread: (threadId: string) => Promise<ThreadState>;
+  emitter: Emitter<Record<EventType, unknown>>;
 };
 
 export const ChatContext = createContext<ChatState | null>(null);
@@ -187,54 +175,106 @@ export function useChat() {
 }
 
 export function ChatProvider({ children }: { children: ReactNode }) {
-  const [threadIds, setThreadIds] = useState<string[]>([]);
-  // const [messages, setMessages] = useState<Record<string, UIMessage[]>>({});
-  const [threads, setThreads] = useState<Record<string, ChatInstanceApi>>({});
-  // const instancesRef = useRef<Record<string, ChatInstanceApi>>({});
+  const { threadStates } = useThreadStore();
+  const emitter = mitt();
+  const { registerThread, removeThread, updateMessages, updateThreadState } =
+    useThreadStore();
 
-  const register = useCallback((threadId: string, api: ChatInstanceApi) => {
-    setThreads((prev) => ({ ...prev, [threadId]: api }));
-  }, []);
-  const unregister = useCallback((threadId: string) => {
-    setThreads((prev) => {
-      delete prev[threadId];
-      return prev;
-    });
-  }, []);
-
-  const ensureThread = useCallback(async (threadId: string) => {
-    setThreadIds((prev) =>
-      prev.includes(threadId) ? prev : [...prev, threadId],
-    );
+  const chatSessionRefs = useRef(new Map<string, ChatSessionRef>());
+  const getThread = useCallback(async (threadId: string) => {
     const _thread = await window.electron.mastra.getThread(threadId);
     return _thread;
   }, []);
 
-  const unregisterThread = useCallback((threadId: string) => {
-    setThreads((prev) => {
-      const inst = prev[threadId];
-      console.log(threadId, inst);
-      if (inst && (inst.status === 'ready' || inst.status === 'error')) {
-        setThreadIds((_prev) => _prev.filter((id) => id !== threadId));
+  const ensureThread = useCallback(
+    async (threadId: string) => {
+      if (threadStates[threadId]) {
+        return threadStates[threadId];
+      } else {
+        const _thread = await window.electron.mastra.getThread(threadId);
+        console.log('registerThread', threadId, _thread);
+        registerThread(threadId, _thread);
+        return _thread;
       }
-      return prev;
-    });
-  }, []);
+    },
+    [threadStates, registerThread],
+  );
+
+  const unregisterThread = useCallback(
+    (threadId: string) => {
+      const threadState = useThreadStore.getState().threadStates[threadId];
+      if (
+        threadState &&
+        (threadState.status === 'ready' || threadState.status === 'error')
+      ) {
+        console.log('removeThread', threadId);
+        chatSessionRefs.current.delete(threadId);
+        removeThread(threadId);
+      }
+    },
+    [removeThread],
+  );
 
   const sendMessage = useCallback(
     (
       threadId: string,
-      message: PromptInputMessage,
+      message: PromptInputMessage | undefined,
       options?: ChatSubmitOptions,
     ) => {
-      const inst = threads[threadId];
-      if (inst) {
-        inst.sendMessage(message, options);
+      const chatSessionRef = chatSessionRefs.current.get(threadId);
+      if (chatSessionRef) {
+        chatSessionRef.sendMessage(message, options);
       } else {
         toast.error(`线程 ${threadId} 未初始化`);
       }
     },
-    [],
+    [chatSessionRefs],
+  );
+
+  const stop = useCallback(
+    (threadId: string) => {
+      const chatSessionRef = chatSessionRefs.current.get(threadId);
+      if (chatSessionRef) {
+        chatSessionRef.stop();
+      } else {
+        toast.error(`线程 ${threadId} 未初始化`);
+      }
+    },
+    [chatSessionRefs],
+  );
+
+  const clearMessages = useCallback(async (threadId: string) => {
+    const chatSessionRef = chatSessionRefs.current.get(threadId);
+    if (chatSessionRef) {
+      chatSessionRef.clearMessages();
+    } else {
+      toast.error(`线程 ${threadId} 未初始化`);
+    }
+    // await window.electron.mastra.clearMessages(threadId);
+    // updateMessages(threadId, []);
+  }, []);
+
+  const clearError = useCallback((threadId: string) => {
+    const chatSessionRef = chatSessionRefs.current.get(threadId);
+    if (chatSessionRef) {
+      chatSessionRef.stop();
+    } else {
+      toast.error(`线程 ${threadId} 未初始化`);
+    }
+  }, []);
+
+  const onFinish = useCallback(
+    (threadId, event) => {
+      emitter.emit('onFinish', event);
+    },
+    [emitter],
+  );
+
+  const onData = useCallback(
+    (threadId, event) => {
+      emitter.emit('onData', event);
+    },
+    [emitter],
   );
 
   const value = useMemo(
@@ -242,32 +282,70 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       ensureThread,
       unregisterThread,
       sendMessage,
-      threadIds,
-      threads,
+      getThread,
+      stop,
+      clearMessages,
+      clearError,
+      emitter,
     }),
-    [ensureThread, unregisterThread, sendMessage, threadIds, threads],
+    [
+      ensureThread,
+      unregisterThread,
+      sendMessage,
+      getThread,
+      stop,
+      clearMessages,
+      clearError,
+      emitter,
+    ],
   );
 
   useEffect(() => {
-    return () => {};
+    const handleChatChangedEvent = (event: {
+      data: {
+        type: ChatChangedType;
+        chatId?: string;
+        title?: string;
+      };
+    }) => {
+      console.log('handleChatChangedEvent', event.data);
+      if (event.data.type === ChatChangedType.TitleUpdated) {
+        updateThreadState(event.data.chatId, {
+          title: event.data.title,
+        });
+      }
+    };
+    window.electron.ipcRenderer.on(
+      ChatEvent.ChatChanged,
+      handleChatChangedEvent,
+    );
+    return () => {
+      window.electron.ipcRenderer.removeListener(
+        ChatEvent.ChatChanged,
+        handleChatChangedEvent,
+      );
+    };
   }, []);
 
-  // const handleMessages = useCallback((id: string, msgs: UIMessage[]) => {
-  //   setMessages((prev) => ({ ...prev, [id]: msgs }));
-  // }, []);
   return (
     <ChatContext.Provider value={value}>
       <div className="fixed top-0 left-0 p-4 flex flex-row gap-2 z-20">
-        {threadIds.map((threadId) => (
+        {Object.keys(threadStates).map((threadId) => (
           <ChatSession
             key={threadId}
             threadId={threadId}
-            register={register}
-            unregister={unregister}
+            ref={(node) => {
+              if (node) {
+                chatSessionRefs.current.set(threadId, node);
+              } else {
+                chatSessionRefs.current.delete(threadId);
+              }
+            }}
+            onFinish={(event) => onFinish(threadId, event)}
+            onData={(event) => onData(threadId, event)}
           />
         ))}
       </div>
-
       {children}
     </ChatContext.Provider>
   );

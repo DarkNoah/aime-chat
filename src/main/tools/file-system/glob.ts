@@ -6,7 +6,7 @@ import { createShell, runCommand } from '@/main/utils/shell';
 import { getUVRuntime } from '@/main/app/runtime';
 import { app } from 'electron';
 import fs from 'fs';
-import path from 'path';
+import pathUtil from 'path';
 import { nanoid } from '@/utils/nanoid';
 import BaseToolkit, { BaseToolkitParams } from '../base-toolkit';
 import { truncateText } from '@/utils/common';
@@ -42,8 +42,26 @@ export class Glob extends BaseTool {
     context: ToolExecutionContext<z.ZodSchema, any>,
   ) => {
     const { pattern, path } = inputData;
+    const { requestContext } = context;
     const abortSignal = context?.abortSignal;
     const isWindows = os.platform() === 'win32';
+    let cwd;
+    if (path) {
+      if (pathUtil.isAbsolute(path)) {
+        cwd = path;
+      } else {
+        cwd = pathUtil.join(
+          requestContext.get('workspace' as never) as string,
+          path,
+        );
+      }
+    } else {
+      cwd = requestContext.get('workspace' as never) as string;
+    }
+
+    if (cwd && fs.existsSync(cwd) && !fs.statSync(cwd).isDirectory()) {
+      throw new Error(`Directory ${cwd} is not a directory`);
+    }
 
     const entries = await glob.async(pattern, {
       cwd: path,

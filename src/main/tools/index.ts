@@ -44,6 +44,7 @@ import ToolToolkit from './common/tool';
 import { Vision } from './vision/vision';
 import MemoryToolkit from './memory/memory';
 import { Task } from './common/task';
+import { WebFetch } from './web/web-fetch';
 
 interface BuiltInToolContext {
   tool: BaseTool;
@@ -164,6 +165,7 @@ class ToolsManager extends BaseManager {
     await this.registerBuiltInTool(AskUserQuestion);
     await this.registerBuiltInTool(SendEvent);
     await this.registerBuiltInTool(WebSearch);
+    await this.registerBuiltInTool(WebFetch);
     await this.registerBuiltInTool(RemoveBackground);
     await this.registerBuiltInTool(Vision);
     await this.registerBuiltInTool(ToolToolkit);
@@ -222,8 +224,17 @@ class ToolsManager extends BaseManager {
     if ('url' in mcpConfig) {
       servers = {
         url: new URL(mcpConfig.url),
-        requestInit: {
-          headers: mcpConfig.headers ?? {},
+        // requestInit: {
+        //   headers: mcpConfig.headers ?? {},
+        // },
+        fetch: async (url, init) => {
+          return fetch(url, {
+            ...init,
+            headers: {
+              ...init?.headers,
+              ...(mcpConfig.headers ?? {}),
+            },
+          });
         },
       } as MastraMCPServerDefinition;
     } else if ('command' in mcpConfig) {

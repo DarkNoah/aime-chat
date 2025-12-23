@@ -104,7 +104,8 @@
     "prompt_placeholder": "输入系统提示词",
     "import_agent": "导入配置",
     "config_subagent": "配置子代理",
-    "local_agents": "本地助手"
+    "local_agents": "本地助手",
+    "export_agent_config": "导出配置"
   },
   "project": {
     "new_project": "创建项目",

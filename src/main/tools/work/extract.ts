@@ -13,7 +13,7 @@ import { ToolConfig } from '@/types/tool';
 import { appManager } from '@/main/app';
 import { providersManager } from '@/main/providers';
 import { ProviderType } from '@/types/provider';
-import { jsonSchemaToZod } from "json-schema-to-zod";
+import { jsonSchemaToZod } from 'json-schema-to-zod';
 
 export interface ExtractParams extends BaseToolParams {
   modelId?: string;
@@ -23,6 +23,10 @@ export interface ExtractParams extends BaseToolParams {
 export class Extract extends BaseTool<ExtractParams> {
   id: string = 'Extract';
   description = `
+a specialized in extracting key extractions from text.
+
+Returns:
+ a json object from input fields
 `;
   inputSchema = z.strictObject({
     fields: z.string().describe('Extract JsonSchema'),
@@ -39,33 +43,32 @@ export class Extract extends BaseTool<ExtractParams> {
     inputData: z.infer<typeof this.inputSchema>,
     options?: ToolExecutionContext,
   ) => {
-
     const { fields, file_path } = inputData;
-    const zodSchema = jsonSchemaToZod(JSON.parse(fields))
+
     const model = await providersManager.getLanguageModel(this.config.modelId);
     const config = this.config;
 
-
     const extractAgent = new Agent({
-      id: "extract-agent",
-      name: "ExtractAgent",
-      instructions: "You are a helpful assistant that extracts data from a file.",
+      id: 'extract-agent',
+      name: 'ExtractAgent',
+      instructions:
+        'You are a helpful assistant that extracts data from a file.',
       model: model,
     });
     const response = await extractAgent.generate(
       [
         {
-          role: "system",
-          content: "Provide a summary and keywords for the following text:",
+          role: 'system',
+          content: 'Provide a summary and keywords for the following text:',
         },
         {
-          role: "user",
-          content: "Monkey, Ice Cream, Boat",
+          role: 'user',
+          content: 'Monkey, Ice Cream, Boat',
         },
       ],
       {
         structuredOutput: {
-          schema: zodSchema,
+          schema: JSON.parse(fields),
           jsonPromptInjection: true,
         },
       },

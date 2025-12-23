@@ -55,7 +55,7 @@ import {
 } from '../components/ai-elements/reasoning';
 
 import { Response } from '../components/ai-elements/response';
-import { useChat } from '@ai-sdk/react';
+// import { useChat } from '@ai-sdk/react';
 import {
   ChatOnErrorCallback,
   DefaultChatTransport,
@@ -103,6 +103,7 @@ import {
   ChatEvent,
   ChatPreviewData,
   ChatPreviewType,
+  ChatSubmitOptions,
 } from '@/types/chat';
 import { ChatPreview } from '../components/chat-ui/chat-preview';
 import { Label } from '../components/ui/label';
@@ -136,11 +137,10 @@ import type {
 } from '../components/chat-ui/tool-message/index';
 import { ChatAgentSelector } from '../components/chat-ui/chat-agent-selector';
 import { Agent } from '@/types/agent';
-import {
-  ChatPanel,
-  ChatPanelRef,
-  ChatPanelSubmitOptions,
-} from '../components/chat-ui/chat-panel';
+import { ChatPanel, ChatPanelRef } from '../components/chat-ui/chat-panel';
+import { useChat, useThread } from '../hooks/use-chat';
+import { useThreadStore } from '../store/use-thread-store';
+import { useShallow } from 'zustand/react/shallow';
 
 function ChatPage() {
   const { appInfo } = useGlobal();
@@ -151,6 +151,7 @@ function ChatPage() {
   const [previewToolPart, setPreviewToolPart] = useState<
     ToolUIPart | undefined
   >();
+
   const { setTitle, setTitleAction } = useHeader();
   const navigate = useNavigate();
   const [previewData, setPreviewData] = useState<ChatPreviewData>({
@@ -161,7 +162,11 @@ function ChatPage() {
     () => location.pathname.split('/')[2],
     [location.pathname],
   );
-  const [thread, setThread] = useState<StorageThreadType | undefined>();
+  const { updateThreadState } = useThreadStore();
+  const { ensureThread } = useChat();
+  const threadState = useThreadStore(
+    useShallow((s) => s.threadStates[threadId]),
+  );
 
   const renderTitle = useCallback(() => {
     return (
@@ -170,27 +175,30 @@ function ChatPage() {
           className="border-none focus-visible:ring-0 shadow-none focus-visible:bg-secondary max-w-[200px]"
           size={12}
           maxLength={64}
-          value={thread?.title || ''}
-          onChange={async (e) => {
-            setThread({ ...thread, title: e.target.value });
+          value={threadState?.title}
+          onChange={(e) => {
+            updateThreadState(threadId, {
+              title: e.target.value,
+            });
           }}
           onBlur={async () => {
-            await window.electron.mastra.updateThread(thread?.id, {
-              title: thread?.title || '',
+            await window.electron.mastra.updateThread(threadState?.id, {
+              title: threadState?.title || '',
             });
           }}
         />
       </div>
     );
-  }, [thread]);
+  }, [threadState?.title]);
 
   const handleSubmit = async (
     message: PromptInputMessage,
-    options?: ChatPanelSubmitOptions,
+    options?: ChatSubmitOptions,
   ) => {
     if (!options?.threadId) {
       const data = await window.electron.mastra.createThread(options);
       options.threadId = data.id;
+      await ensureThread(data.id);
       navigate(`/chat/${data.id}`, {
         state: {
           message,
@@ -209,22 +217,6 @@ function ChatPage() {
         location.state = null;
         chatPanelRef?.current?.sendMessage(message, options);
       }
-      const handleEvent = (event: { type: ChatEvent; data: any }) => {
-        if (
-          event.type === ChatEvent.ChatChanged &&
-          event.data.type === ChatChangedType.TitleUpdated
-        ) {
-          setThread({ ...thread, title: event.data.title as string });
-          setTitle(renderTitle());
-        }
-      };
-      window.electron.ipcRenderer.on(`chat:event:${threadId}`, handleEvent);
-      return () => {
-        window.electron.ipcRenderer.removeListener(
-          `chat:event:${threadId}`,
-          handleEvent,
-        );
-      };
     } else if (location.pathname === '/chat') {
       setTitle(t('chat.new_chat'));
     }
@@ -232,10 +224,10 @@ function ChatPage() {
   }, [threadId]);
 
   useEffect(() => {
-    if (thread) {
+    if (threadState?.title) {
       setTitle(renderTitle());
     }
-  }, [thread?.title]);
+  }, [renderTitle, setTitle, threadState?.title]);
 
   useEffect(() => {
     const handleExportConversation = async (mode: 'jpg' | 'svg') => {
@@ -273,7 +265,7 @@ function ChatPage() {
 
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
-        link.download = `${thread?.title.replaceAll(' ', '_')}_${new Date().getTime()}.${mode}`;
+        link.download = `${threadState?.title.replaceAll(' ', '_')}_${new Date().getTime()}.${mode}`;
         link.click();
         URL.revokeObjectURL(link.href); // 释放 URL
       } catch (err) {
@@ -299,9 +291,9 @@ function ChatPage() {
               <DropdownMenuGroup>
                 <DropdownMenuItem
                   onClick={() => {
-                    if (thread?.metadata?.workspace) {
+                    if (threadState?.metadata?.workspace) {
                       window.electron.app.openPath(
-                        thread?.metadata?.workspace as string,
+                        threadState?.metadata?.workspace as string,
                       );
                     }
                   }}
@@ -338,7 +330,14 @@ function ChatPage() {
         </Button>
       </div>,
     );
-  }, [showPreview, setTitleAction, threadId]);
+  }, [
+    showPreview,
+    setTitleAction,
+    threadId,
+    appInfo.shouldUseDarkColors,
+    threadState?.title,
+    threadState?.metadata?.workspace,
+  ]);
 
   return (
     <ResizablePanelGroup
@@ -372,6 +371,7 @@ function ChatPage() {
           >
             <div className="p-2 w-full h-full">
               <ChatPreview
+                threadId={threadId}
                 part={previewToolPart}
                 previewData={previewData}
                 onPreviewDataChange={(value) => {

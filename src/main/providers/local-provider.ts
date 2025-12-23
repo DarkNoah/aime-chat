@@ -241,9 +241,22 @@ export class LocalProvider extends BaseProvider {
   }
   async getEmbeddingModelList(): Promise<{ name: string; id: string }[]> {
     const models = [];
-    const appInfo = await appManager.getInfo();
-    const embeddingModels = await localModelManager.getList();
-    embeddingModels.embedding
+    const localModels = await localModelManager.getList();
+    localModels.embedding
+      .filter((x) => x.isDownloaded)
+      .map((x) => {
+        models.push({
+          name: x.id,
+          id: x.id,
+        });
+      });
+    return models;
+  }
+
+  async getRerankModelList(): Promise<{ name: string; id: string }[]> {
+    const models = [];
+    const localModels = await localModelManager.getList();
+    localModels.reranker
       .filter((x) => x.isDownloaded)
       .map((x) => {
         models.push({

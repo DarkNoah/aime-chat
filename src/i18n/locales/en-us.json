@@ -104,7 +104,8 @@
     "prompt_placeholder": "Type somthing prompt",
     "import_agent": "Import Config",
     "config_subagent": "Config Sub Agent",
-    "local_agents": "Local Agent"
+    "local_agents": "Local Agent",
+    "export_agent_config": "Export"
   },
   "project": {
     "new_project": "New Project",

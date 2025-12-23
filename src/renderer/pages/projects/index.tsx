@@ -36,6 +36,7 @@ import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ButtonGroup } from '@/renderer/components/ui/button-group';
 import { PromptInputMessage } from '@/renderer/components/ai-elements/prompt-input';
+import { useChat } from '@/renderer/hooks/use-chat';
 
 function ProjectsPage() {
   const { id } = useParams();
@@ -44,6 +45,7 @@ function ProjectsPage() {
   const [project, setProject] = useState<string | undefined>();
   const [threadId, setThreadId] = useState<any | undefined>();
   const chatPanelRef = useRef<ChatPanelRef>(null);
+  const { ensureThread } = useChat();
   const getProject = useCallback(async () => {
     const data = await window.electron.projects.getProject(id);
     console.log(data);
@@ -140,6 +142,7 @@ function ProjectsPage() {
     if (!options?.threadId) {
       const thread = await handleCreateThread();
       options.threadId = thread.id;
+      await ensureThread(thread.id);
     }
     chatPanelRef?.current?.sendMessage(message, options);
   };

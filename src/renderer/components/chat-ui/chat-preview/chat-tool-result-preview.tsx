@@ -37,15 +37,15 @@ export const ChatToolResultPreview = React.forwardRef<
       if (toolName === 'WebSearch') {
         return (
           <div className="flex flex-col gap-2">
-            {part.output?.map((source: any) => (
+            {part.output?.map((source: any, index: number) => (
               <Item
                 variant="outline"
-                key={source.href}
+                key={`${source.href}-${index}`}
                 className="cursor-pointer"
               >
                 <ItemContent
                   onClick={() => {
-                    window.open(source.href, '_blank');
+                    if (source.href) window.open(source.href, '_blank');
                   }}
                 >
                   <ItemTitle>{source.title}</ItemTitle>

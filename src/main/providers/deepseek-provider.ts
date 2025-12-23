@@ -50,6 +50,9 @@ export class DeepSeekProvider extends BaseProvider {
   async getEmbeddingModelList(): Promise<{ name: string; id: string }[]> {
     return [];
   }
+  async getRerankModelList(): Promise<{ name: string; id: string }[]> {
+    return [];
+  }
 
   getCredits(): Promise<ProviderCredits | undefined> {
     return undefined;

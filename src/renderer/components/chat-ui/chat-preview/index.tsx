@@ -11,7 +11,7 @@ import {
 import { Loader } from '../../ai-elements/loader';
 import { ToggleGroup, ToggleGroupItem } from '../../ui/toggle-group';
 import { ChatToolResultPreview } from './chat-tool-result-preview';
-import { ToolUIPart } from 'ai';
+import { ToolUIPart, UIMessage } from 'ai';
 import { Streamdown } from '../../ai-elements/streamdown';
 import { ChatTodoList } from './chat-todo-list';
 import { Button } from '../../ui/button';
@@ -19,8 +19,8 @@ import { ChatPreviewType, ChatPreviewData } from '@/types/chat';
 import { IconCheckbox, IconListCheck, IconWorldWww } from '@tabler/icons-react';
 
 export type ChatPreviewProps = {
+  threadId?: string;
   part?: ToolUIPart;
-  messages?: any;
   previewData?: ChatPreviewData;
   onPreviewDataChange?: (previewData: ChatPreviewData) => void;
 };
@@ -31,8 +31,9 @@ export interface ChatPreviewRef {}
 
 export const ChatPreview = React.forwardRef<ChatPreviewRef, ChatPreviewProps>(
   (props: ChatPreviewProps, ref: ForwardedRef<ChatPreviewRef>) => {
-    const { part, messages, previewData, onPreviewDataChange } = props;
+    const { part, previewData, onPreviewDataChange, threadId } = props;
     const [isGenerating, setIsGenerating] = useState(false);
+    const [messages, setMessages] = useState<UIMessage[]>([]);
     // const [previewUrl, setPreviewUrl] = useState<string | null>(
     //   previewData?.webPreviewUrl ?? 'about:blank',
     // );
@@ -45,6 +46,18 @@ export const ChatPreview = React.forwardRef<ChatPreviewRef, ChatPreviewProps>(
       setUrlInputValue(previewData?.webPreviewUrl ?? 'about:blank');
     }, [previewData?.webPreviewUrl]);
 
+    useEffect(() => {
+      if (previewData.previewPanel === ChatPreviewType.MESSAGES) {
+        const getMessages = async () => {
+          const res = await window.electron.mastra.getThreadMessages({
+            threadId,
+          });
+          setMessages(res.messages);
+          console.log(res);
+        };
+        getMessages();
+      }
+    }, [previewData.previewPanel, threadId]);
     // const [previewType, setPreviewType] = useState<ChatPreviewType>(
     //   ChatPreviewType.TOOL_RESULT,
     // );

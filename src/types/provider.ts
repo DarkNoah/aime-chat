@@ -67,6 +67,7 @@ export enum ProviderType {
   GATEWAY = 'gateway',
   LOCAL = 'local',
   BRAVE_SEARCH = 'brave-search',
+  JINA_AI = 'jina-ai',
 }
 
 export enum ModelType {
@@ -76,7 +77,10 @@ export enum ModelType {
 }
 
 export enum ProviderTag {
+  EMBEDDING = 'embedding',
+  RERANKER = 'reranker',
   WEB_SEARCH = 'web_search',
+  WEB_READER = 'web_reader',
 }
 
 export interface ProviderCredits {

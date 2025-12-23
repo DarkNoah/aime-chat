@@ -22,7 +22,6 @@ import {
   ChatPreviewData,
   ChatPreviewType,
   ChatSubmitOptions,
-  ChatSubmitOptions,
 } from '@/types/chat';
 import { ChatPreview } from './chat-preview';
 import { ChatUsage } from './chat-usage';
@@ -70,9 +69,12 @@ import {
 } from './chat-message-attachment';
 import { Loader } from '../ai-elements/loader';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
-import { StorageThreadType } from '@mastra/core/memory';
 import { cn } from '@/renderer/lib/utils';
-import { useChat } from '@/renderer/hooks/use-chat';
+// import { useThread } from '@/renderer/hooks/useChatStore';
+import { nanoid } from '@/utils/nanoid';
+import { useChat, useThread } from '@/renderer/hooks/use-chat';
+import { useShallow } from 'zustand/react/shallow';
+import { useThreadStore } from '@/renderer/store/use-thread-store';
 
 export type ChatPanelProps = {
   children?: React.ReactNode;
@@ -100,7 +102,32 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
       onSubmit,
     } = props;
 
-    const { ensureThread, unregisterThread, threads } = useChat();
+    // const {
+    //   messages: threadMessages,
+    //   status: threadStatus,
+    //   error: threadError,
+    //   // sendMessage: threadSendMessage,
+    //   // stop: threadStop,
+    // } = useThread(threadId);
+    // const threadStates = useChatStore((state) => state.threadStates);
+    // const { messages: threadMessages, status: threadStatus } =
+    //   useThread(threadId);
+    // const threadMessages = useChatStore(
+    //   (state) => (threadId ? state.threadStates[threadId]?.messages : []) ?? [],
+    // );
+    // const threadMessages = [];
+    const threadState = useThreadStore(
+      useShallow((s) => s.threadStates[threadId]),
+    );
+
+    const {
+      ensureThread,
+      unregisterThread,
+      sendMessage,
+      stop,
+      clearMessages,
+      clearError,
+    } = useChat();
     const [input, setInput] = useState('');
     const { appInfo } = useGlobal();
     const { theme } = useTheme();
@@ -119,72 +146,77 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
     const [modelId, setModelId] = useState<string | undefined>();
     const [agentId, setAgentId] = useState<string | undefined>();
     const [requireToolApproval, setRequireToolApproval] = useState(false);
-    const [thread, setThread] = useState<StorageThreadType | undefined>();
+    // const [thread, setThread] = useState<StorageThreadType | undefined>();
     const [suggestions, setSuggestions] = useState<string[] | undefined>();
 
-    const {
-      messages,
-      setMessages,
-      sendMessage: aiSkdSendMessage,
-      resumeStream,
-      regenerate,
-      status,
-      error,
-      stop,
-      clearError,
-    } = useAiSdkChat({
-      id: threadId,
-      transport: new IpcChatTransport(),
-      onFinish: (event) => {
-        if (event.isAbort) {
-          const _messages = event.messages;
-        }
+    // 使用 useRef 保持 transport 实例稳定，避免每次渲染创建新实例
+    // const transportRef = useRef(new IpcChatTransport());
 
-        console.log('onFinish', event);
-      },
-      onData: (dataPart) => {
-        console.log('onData', dataPart);
+    // const {
+    //   messages,
+    //   setMessages,
+    //   sendMessage: aiSkdSendMessage,
+    //   resumeStream,
+    //   regenerate,
+    //   status,
+    //   error,
+    //   stop,
+    //   clearError,
+    // } = useAiSdkChat({
+    //   id: threadId,
+    //   transport: transportRef.current,
+    //   onFinish: (event) => {
+    //     if (event.isAbort) {
+    //       const _messages = event.messages;
+    //     }
 
-        if (dataPart.type === 'data-workflow-step-suspended') {
-          const { runId: _runId } = dataPart.data as { runId: string };
-          setRunId(_runId);
-        }
-        if (dataPart.type === 'data-usage') {
-          setUsage(dataPart.data);
-        }
-        if (dataPart.type === 'data-send-event') {
-          const { target_panel, data } = dataPart.data as {
-            target_panel: string;
-            data: any;
-          };
-          if (target_panel === 'web_preview' && data?.url) {
-            setShowPreview(true);
-            setPreviewData((prev: ChatPreviewData) => {
-              return {
-                ...prev,
-                previewPanel: ChatPreviewType.WEB_PREVIEW,
-                webPreviewUrl: data?.url,
-              };
-            });
-          }
-        }
-      },
-      onError: (err) => {
-        console.error(err);
-        toast.error(err.message);
-        // clearError();
-      },
-    });
+    //     console.log('onFinish', event);
+    //   },
+    //   onData: (dataPart) => {
+    //     console.log('onData', dataPart);
+
+    //     if (dataPart.type === 'data-workflow-step-suspended') {
+    //       const { runId: _runId } = dataPart.data as { runId: string };
+    //       setRunId(_runId);
+    //     }
+    //     if (dataPart.type === 'data-usage') {
+    //       setUsage(dataPart.data);
+    //     }
+    //     if (dataPart.type === 'data-send-event') {
+    //       const { target_panel, data } = dataPart.data as {
+    //         target_panel: string;
+    //         data: any;
+    //       };
+    //       if (target_panel === 'web_preview' && data?.url) {
+    //         setShowPreview(true);
+    //         setPreviewData((prev: ChatPreviewData) => {
+    //           return {
+    //             ...prev,
+    //             previewPanel: ChatPreviewType.WEB_PREVIEW,
+    //             webPreviewUrl: data?.url,
+    //           };
+    //         });
+    //       }
+    //     }
+    //   },
+    //   onError: (err) => {
+    //     console.error(err);
+    //     toast.error(err.message);
+    //     // clearError();
+    //   },
+    // });
 
     useImperativeHandle(ref, () => ({
       sendMessage: (
-        message: PromptInputMessage,
+        message: PromptInputMessage | undefined,
         options?: ChatSubmitOptions,
       ) => {
-        const inputMessage = {
-          text: message.text || 'Sent with attachments',
-          files: message.files,
-        };
+        const inputMessage = message
+          ? {
+              text: message.text || 'Sent with attachments',
+              files: message.files,
+            }
+          : undefined;
         const body = {
           model: options?.model,
           webSearch: options?.webSearch,
@@ -197,7 +229,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
           agentId,
           projectId,
         };
-        aiSkdSendMessage(inputMessage, { body, headers: {}, metadata: {} });
+        sendMessage(threadId, inputMessage, body);
         setInput('');
         chatInputRef.current?.attachmentsClear();
       },
@@ -220,12 +252,11 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
         toolCallId,
         requireToolApproval,
       };
-      await threads[threadId]?.sendMessage(undefined, options);
+      sendMessage(threadId, undefined, options);
     };
 
     const handleAbort = () => {
-      threads[threadId]?.stop();
-      // stop();
+      stop(threadId);
     };
 
     const handleAgentChange = (_agent: Agent) => {
@@ -244,12 +275,11 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
 
     const handleClearMessages = async () => {
       if (threadId) {
-        await window.electron.mastra.clearMessages(threadId);
-        setMessages([]);
-        clearError();
+        await clearMessages(threadId);
+        // clearError(threadId);
         setUsage(undefined);
-        setPreviewToolPart(undefined);
-        setShowPreview(false);
+        // setPreviewToolPart(undefined);
+        // setShowPreview(false);
       }
     };
 
@@ -283,7 +313,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
           reader.readAsDataURL(blob);
         });
       }
-      clearError();
+      // clearError();
 
       for (const file of message.files || []) {
         const response = await fetch(file.url);
@@ -308,7 +338,9 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
         files: message.files,
       };
       if (threadId) {
-        threads[threadId].sendMessage(inputMessage, body);
+        sendMessage(threadId, inputMessage, body);
+        setInput('');
+        chatInputRef.current?.attachmentsClear();
       } else {
         onSubmit?.(inputMessage, body);
       }
@@ -325,10 +357,10 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
     };
 
     const resetChat = () => {
-      setMessages([]);
-      clearError();
+      // setMessages([]);
+      // clearError(threadId);
       setUsage(undefined);
-      setThread(undefined);
+      // setThread(undefined);
       setAgentId(undefined);
       chatInputRef.current?.setTools([]);
       chatInputRef.current?.setSubAgents([]);
@@ -340,15 +372,16 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
       resetChat();
 
       if (threadId) {
-        console.log('registerThread', threadId);
-
         const getThread = async () => {
+          // unregisterThread(threadId);
           const _thread = await ensureThread(threadId);
+          // const _thread = await getThreadFn(threadId);
           console.log(_thread);
-          setThread(_thread);
-          if (_thread?.messages?.length > 0) {
-            setMessages(_thread?.messages);
-          }
+
+          // setThread(_thread);
+          // if (_thread?.messages?.length > 0) {
+          //   setMessages(_thread?.messages);
+          // }
           console.log(
             (_thread?.metadata?.modelId as string) ??
               appInfo?.defaultModel?.model,
@@ -385,25 +418,24 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
           setAgentId(_thread?.metadata?.agentId as string);
         };
         getThread();
-        const handleEvent = (event: { type: ChatEvent; data: any }) => {
-          if (
-            event.type === ChatEvent.ChatChanged &&
-            event.data.type === ChatChangedType.TitleUpdated
-          ) {
-            setThread({ ...thread, title: event.data.title as string });
-          }
-        };
-        window.electron.ipcRenderer.on(`chat:event:${threadId}`, handleEvent);
+        // const handleEvent = (event: { type: ChatEvent; data: any }) => {
+        //   if (
+        //     event.type === ChatEvent.ChatChanged &&
+        //     event.data.type === ChatChangedType.TitleUpdated
+        //   ) {
+        //     setThread({ ...thread, title: event.data.title as string });
+        //   }
+        // };
+        // window.electron.ipcRenderer.on(`chat:event:${threadId}`, handleEvent);
         return () => {
-          console.log('unregisterThread', threadId);
-          if (threadId) {
-            unregisterThread(threadId);
-          }
-          window.electron.ipcRenderer.removeListener(
-            `chat:event:${threadId}`,
-            handleEvent,
-          );
+          unregisterThread(threadId);
+          // window.electron.ipcRenderer.removeListener(
+          //   `chat:event:${threadId}`,
+          //   handleEvent,
+          // );
         };
+      } else {
+        setModelId(appInfo?.defaultModel?.model);
       }
       return () => {};
     }, [threadId]);
@@ -412,7 +444,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
       <div className={cn('flex flex-col h-full', className)}>
         <Conversation className="h-full w-full flex-1 flex items-center justify-center overflow-y-hidden">
           <ConversationContent className="h-full" id="chat-conversation">
-            {threads[threadId]?.messages.length === 0 && (
+            {threadState?.messages.length === 0 && (
               <ConversationEmptyState
                 description="Messages will appear here as the conversation progresses."
                 icon={<MessageSquareIcon className="size-6" />}
@@ -420,10 +452,9 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
                 className="h-full"
               />
             )}
-
-            {threads[threadId] && threads[threadId].messages.length > 0 && (
+            {threadState?.messages.length > 0 && (
               <div className="pb-10">
-                {threads[threadId].messages.map((message) => {
+                {threadState?.messages?.map((message) => {
                   return (
                     <div key={message.id} className="flex flex-col gap-2">
                       {message.role === 'assistant' &&
@@ -650,17 +681,20 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
                 })}
               </div>
             )}
-            {threads[threadId]?.status === 'submitted' && (
+            {threadState?.status === 'submitted' && (
               <Loader className="animate-spin" />
             )}
-            {threads[threadId]?.error && (
+            {threadState?.error && (
               <Alert variant="destructive" className="bg-red-200 w-fit">
                 <AlertTitle className="font-extrabold">Error</AlertTitle>
-                <AlertDescription>{error.message}</AlertDescription>
+                <AlertDescription>
+                  {threadState?.error.message}
+                </AlertDescription>
               </Alert>
             )}
+            <div className="pb-10"></div>
           </ConversationContent>
-          <ConversationScrollButton />
+          <ConversationScrollButton className="z-10 backdrop-blur" />
         </Conversation>
         <div className="w-full px-4 pb-4 flex flex-col gap-2 justify-start relative">
           <div className="flex flex-row gap-2 justify-between absolute w-full left-0 -top-10 px-4 h-8">
@@ -695,7 +729,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
             setInput={setInput}
             onSubmit={handleSubmit}
             onAbort={handleAbort}
-            status={threads[threadId]?.status}
+            status={threadState?.status}
             className="flex-1 h-full"
           ></ChatInput>
         </div>

@@ -11,10 +11,8 @@ import {
   SpeechModelV2,
   TranscriptionModelV2,
 } from '@ai-sdk/provider';
-import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
-import { createZhipu } from 'zhipu-ai-provider';
 
-export class ZhipuAIRerankModel {
+export class JinaAIRerankModel {
   modelId: string;
   provider: Providers;
 
@@ -35,20 +33,21 @@ export class ZhipuAIRerankModel {
       return_documents?: boolean;
     };
   }): Promise<{ index: number; score: number; document: string }[]> {
-    const res = await fetch('https://open.bigmodel.cn/api/paas/v4/rerank', {
+    const headers = { 'Content-Type': 'application/json' };
+    if (this.provider.apiKey) {
+      headers['Authorization'] = `Bearer ${this.provider.apiKey}`;
+    }
+    const res = await fetch('https://api.jina.ai/v1/rerank', {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${this.provider.apiKey}`,
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify({
-        model: this.modelId || 'rerank',
-        query: query,
+        model: this.modelId || 'jina-reranker-v3',
+        query,
         top_n: options?.top_k || 10,
-        documents: documents,
+        documents,
+        return_documents: options?.return_documents || false,
       }),
     });
-
     const data = await res.json();
 
     return data.results
@@ -62,74 +61,34 @@ export class ZhipuAIRerankModel {
   }
 }
 
-export class ZhipuAIProvider extends BaseProvider {
-  name: string = 'zhipuai';
-  type: ProviderType = ProviderType.ZHIPUAI;
+export class JinaAIProvider extends BaseProvider {
+  name: string = 'jinaai';
+  type: ProviderType = ProviderType.JINA_AI;
   description: string;
-  defaultApiBase?: string = 'https://open.bigmodel.cn/api/paas/v4';
-
-  openaiClient?: OpenAI;
-
-  tags: ProviderTag[] = [ProviderTag.WEB_SEARCH, ProviderTag.WEB_READER];
-
+  defaultApiBase?: string = 'https://api.jina.ai/v1';
+  tags: ProviderTag[] = [
+    ProviderTag.WEB_SEARCH,
+    ProviderTag.WEB_READER,
+    ProviderTag.EMBEDDING,
+    ProviderTag.RERANKER,
+  ];
   constructor(provider: Providers) {
     super({ provider });
-    //this.provider = provider;
-    this.openaiClient = new OpenAI({
-      baseURL: this.provider.apiBase || this.defaultApiBase,
-      apiKey: this.provider.apiKey,
-    });
   }
 
   languageModel(modelId: string): LanguageModelV2 {
-    return {
-      url: this.provider.apiBase || this.defaultApiBase,
-      id: `zhipuai/${modelId}` as `${string}/${string}`,
-      apiKey: this.provider.apiKey,
-    };
+    return undefined;
   }
 
   async getLanguageModelList(): Promise<{ name: string; id: string }[]> {
-    return [
-      { id: 'glm-4.7', name: 'GLM-4.7' },
-      { id: 'glm-4.6v', name: 'GLM-4.6V' },
-      { id: 'glm-4.6v-flash', name: 'GLM-4.6V-Flash' },
-      { id: 'glm-4.6', name: 'GLM-4.6' },
-      {
-        id: 'glm-4.5',
-        name: 'GLM-4.5',
-      },
-      {
-        id: 'glm-4.5-air',
-        name: 'GLM-4.5-Air',
-      },
-      {
-        id: 'glm-4.5-x',
-        name: 'GLM-4.5-X',
-      },
-      {
-        id: 'glm-4.5-airx',
-        name: 'GLM-4.5-AirX',
-      },
-      {
-        id: 'glm-4.5-flash',
-        name: 'GLM-4.5-Flash',
-      },
-      {
-        id: 'glm-4.5v',
-        name: 'GLM-4.5V',
-      },
-    ];
+    return [];
   }
   async getEmbeddingModelList(): Promise<{ name: string; id: string }[]> {
-    return [
-      { id: 'embedding-2', name: 'Embedding-2' },
-      { id: 'embedding-3', name: 'Embedding-3' },
-    ];
+    return [{ id: 'jina-embeddings-v3', name: 'Jina Embeddings V3' }];
   }
 
   async getRerankModelList(): Promise<{ name: string; id: string }[]> {
-    return [{ id: 'rerank', name: 'Rerank' }];
+    return [{ id: 'jina-reranker-v3', name: 'Jina Reranker V3' }];
   }
 
   getCredits(): Promise<ProviderCredits | undefined> {
@@ -148,6 +107,6 @@ export class ZhipuAIProvider extends BaseProvider {
     return undefined;
   }
   rerankModel(modelId: string) {
-    return new ZhipuAIRerankModel({ modelId, provider: this.provider });
+    return new JinaAIRerankModel({ modelId, provider: this.provider });
   }
 }

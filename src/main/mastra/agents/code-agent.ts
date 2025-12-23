@@ -17,7 +17,12 @@ import { Grep } from '@/main/tools/file-system/grep';
 import { WebFetch } from '@/main/tools/web/web-fetch';
 import { WebSearch } from '@/main/tools/web/web-search';
 import { CodeExecution } from '@/main/tools/code/code-execution';
-import { Bash } from '@/main/tools/file-system/bash';
+import {
+  Bash,
+  BashOutput,
+  KillBash,
+  ListBash,
+} from '@/main/tools/file-system/bash';
 import { Skill } from '@/main/tools/common/skill';
 import fs from 'fs';
 import path from 'path';
@@ -38,6 +43,8 @@ export class CodeAgent extends BaseAgent {
     `${ToolType.BUILD_IN}:${AskUserQuestion.name}`,
     // `${ToolType.BUILD_IN}:${Task.name}`,
     `${ToolType.BUILD_IN}:${Bash.name}`,
+    `${ToolType.BUILD_IN}:${BashOutput.name}`,
+    `${ToolType.BUILD_IN}:${KillBash.name}`,
     `${ToolType.BUILD_IN}:${Read.name}`,
     `${ToolType.BUILD_IN}:${Write.name}`,
     `${ToolType.BUILD_IN}:${Edit.name}`,

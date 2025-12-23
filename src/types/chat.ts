@@ -1,6 +1,12 @@
 import { UIMessage } from '@ai-sdk/react';
 import { UIMessageWithMetadata } from '@mastra/core/agent';
-import { CallSettings } from 'ai';
+import { CallSettings, ChatStatus } from 'ai';
+import { StorageThreadType } from '@mastra/core/memory';
+import type { SharedV2ProviderOptions } from '@ai-sdk/provider';
+import type { AnthropicProviderOptions } from '@ai-sdk/anthropic';
+import type { GoogleGenerativeAIProviderOptions } from '@ai-sdk/google';
+import type { OpenAIResponsesProviderOptions } from '@ai-sdk/openai';
+import type { XaiProviderOptions } from '@ai-sdk/xai';
 
 export type ChatInput = {
   agentId?: string;
@@ -20,8 +26,8 @@ export type ChatInput = {
     modelSettings: Omit<CallSettings, 'abortSignal'>;
     providerOptions: SharedV2ProviderOptions & {
       anthropic?: AnthropicProviderOptions & Record<string, any>;
-      google?: GoogleProviderOptions & Record<string, any>;
-      openai?: OpenAIProviderOptions & Record<string, any>;
+      google?: GoogleGenerativeAIProviderOptions & Record<string, any>;
+      openai?: OpenAIResponsesProviderOptions & Record<string, any>;
       xai?: XaiProviderOptions & Record<string, any>;
     };
   };
@@ -41,6 +47,13 @@ export enum ChatEvent {
 export enum ThreadEvent {
   ThreadCreated = 'thread:thread-created',
 }
+
+export type ThreadState = StorageThreadType & {
+  messages: UIMessage[];
+  //mastraDBMessages: MastraDBMessage[];
+  status: ChatStatus;
+  error?: Error;
+};
 
 export enum ChatChangedType {
   Start = 'start',

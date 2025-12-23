@@ -1,4 +1,4 @@
-import { In, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { BaseManager } from '../BaseManager';
 import { Providers } from '@/entities/providers';
 import { dialog, ipcMain } from 'electron';
@@ -37,7 +37,7 @@ import { ModelScopeProvider } from './modelscope-provider';
 import { OllamaProvider } from './ollama-provider';
 import fs from 'fs';
 import path from 'path';
-import { LocalProvider, localProvider } from './local-provider';
+import { LocalProvider } from './local-provider';
 const modelsData = require('../../../assets/models.json');
 class ProvidersManager extends BaseManager {
   repository: Repository<Providers>;
@@ -61,12 +61,20 @@ class ProvidersManager extends BaseManager {
 
   @channel(ProviderChannel.GetList)
   public async getList(filter?: { tags?: ProviderTag[] }): Promise<Provider[]> {
-    const providers = await this.repository.find({
-      where: {
-        tags: filter?.tags ? In(filter.tags) : undefined,
-      },
-    });
-    return providers;
+    if (!filter?.tags?.length) {
+      return this.repository.find();
+    }
+    return this.repository
+      .createQueryBuilder('p')
+      .where(
+        `EXISTS (
+          SELECT 1
+          FROM json_each(COALESCE(p.tags, '[]')) AS je
+          WHERE je.value IN (:...tags)
+        )`,
+        { tags: filter.tags },
+      )
+      .getMany();
   }
 
   @channel(ProviderChannel.GetAvailableModels)
@@ -75,9 +83,10 @@ class ProvidersManager extends BaseManager {
   ): Promise<Provider[]> {
     if (type == ModelType.LLM) {
       return this.getAvailableLanguageModels();
-    }
-    if (type == ModelType.EMBEDDING) {
+    } else if (type == ModelType.EMBEDDING) {
       return this.getAvailableEmbeddingModels();
+    } else if (type == ModelType.RERANKER) {
+      return this.getAvailableRerankModels();
     }
   }
 
@@ -93,8 +102,13 @@ class ProvidersManager extends BaseManager {
       isActive: data.isActive,
       models: [],
       config: data.config,
+      tags: [],
     });
     await this.repository.save(provider);
+    const providerData = await this.getProvider(provider.id);
+    if (providerData && providerData.tags && providerData.tags.length > 0) {
+      await this.repository.update(provider.id, { tags: providerData.tags });
+    }
     return provider;
   }
 
@@ -104,6 +118,11 @@ class ProvidersManager extends BaseManager {
   }
   @channel(ProviderChannel.Update)
   public async updateProviders(id: string, data: any): Promise<void> {
+    // const providerData = await this.repository.findOne({ where: { id } });
+    const provider = await this.getProvider(id);
+    if (provider && provider.tags && provider.tags.length > 0) {
+      data['tags'] = provider.tags;
+    }
     await this.repository.update(id, data);
   }
 
@@ -414,6 +433,56 @@ class ProvidersManager extends BaseManager {
               name: providerData.name,
               type: providerData.type,
               models: embeddingModels
+                .map((x) => ({
+                  id: `${providerData.id}/${x.id}`,
+                  name: x.name,
+                  providerType: providerData.type,
+                  isActive: true,
+                }))
+                .sort((a, b) => b.name.localeCompare(a.name)),
+            });
+          }
+        } catch {}
+      }
+    }
+
+    return data;
+  }
+
+  public async getAvailableRerankModels(): Promise<Provider[]> {
+    const providers = await this.repository.find({
+      where: {
+        isActive: true,
+      },
+    });
+    const data: Provider[] = [];
+    const localProvider = new LocalProvider();
+    const models = await localProvider.getRerankModelList();
+    if (models.length > 0) {
+      data.push({
+        id: localProvider.id,
+        name: localProvider.name,
+        type: ProviderType.LOCAL,
+        models: models.map((x) => ({
+          id: `${localProvider.id}/${x.id}`,
+          name: x.name,
+          providerType: ProviderType.LOCAL,
+          isActive: true,
+        })),
+      });
+    }
+
+    for (const providerData of providers) {
+      const provider = await this.getProvider(providerData.id);
+      if (provider) {
+        try {
+          const rerankModels = await provider.getRerankModelList();
+          if (rerankModels.length > 0) {
+            data.push({
+              id: providerData.id,
+              name: providerData.name,
+              type: providerData.type,
+              models: rerankModels
                 .map((x) => ({
                   id: `${providerData.id}/${x.id}`,
                   name: x.name,

@@ -75,6 +75,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       activeTab !== 'projects'
     ) {
       setActiveTab('projects');
+    } else if (location.pathname.startsWith('/chat/') && activeTab !== 'chat') {
+      setActiveTab('chat');
     }
   }, [location.pathname]);
 
