@@ -82,6 +82,7 @@ import { FileInfo } from '@/types/common';
 export type AttachmentsContext = {
   files: (FileUIPart & { id: string })[];
   add: (files: File[] | FileList) => void;
+  addInline?: (files: File[] | FileList) => void;
   remove: (id: string) => void;
   clear: () => void;
   openFileDialog: () => void;
@@ -161,6 +162,44 @@ export function PromptInputProvider({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const openRef = useRef<() => void>(() => {});
 
+  const addInline = useCallback(
+    (files: File[] | FileList) => {
+      const incoming = Array.from(files);
+      if (incoming.length === 0) {
+        return;
+      }
+
+      const fileInfos = [];
+
+      const handleFiles = async () => {
+        for (const file of incoming) {
+          const path = window.electron.app.getPathForFile(file);
+          const info = await window.electron.app.getFileInfo(path);
+          fileInfos.push(info);
+        }
+
+        const text = fileInfos.map((x) => `'${x.path}'`).join(' ');
+
+        const newValue = textInput + text;
+        setTextInput((prev) => prev + text);
+      };
+      handleFiles();
+
+      // setAttachements((prev) =>
+      //   prev.concat(
+      //     incoming.map((file) => ({
+      //       id: nanoid(),
+      //       type: 'file' as const,
+      //       url: URL.createObjectURL(file),
+      //       mediaType: file.type,
+      //       filename: file.name,
+      //     })),
+      //   ),
+      // );
+    },
+    [textInput],
+  );
+
   const add = useCallback((files: File[] | FileList) => {
     const incoming = Array.from(files);
     if (incoming.length === 0) {
@@ -209,6 +248,7 @@ export function PromptInputProvider({
     () => ({
       files: attachements,
       add,
+      addInline,
       remove,
       clear,
       openFileDialog,
@@ -549,7 +589,13 @@ export const PromptInput = ({
   );
 
   const add = usingProvider
-    ? (files: File[] | FileList) => controller.attachments.add(files)
+    ? (files: File[] | FileList, inline: boolean = false) => {
+        if (inline) {
+          controller.attachments.addInline(files);
+        } else {
+          controller.attachments.add(files);
+        }
+      }
     : addLocal;
 
   const remove = usingProvider
@@ -608,7 +654,7 @@ export const PromptInput = ({
         e.preventDefault();
       }
       if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
-        add(e.dataTransfer.files);
+        add(e.dataTransfer.files, true);
       }
     };
     form.addEventListener('dragover', onDragOver);
@@ -632,7 +678,7 @@ export const PromptInput = ({
         e.preventDefault();
       }
       if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
-        add(e.dataTransfer.files);
+        add(e.dataTransfer.files, true);
       }
     };
     document.addEventListener('dragover', onDragOver);
@@ -656,7 +702,7 @@ export const PromptInput = ({
 
   const handleChange: ChangeEventHandler<HTMLInputElement> = (event) => {
     if (event.currentTarget.files) {
-      add(event.currentTarget.files);
+      add(event.currentTarget.files, false);
     }
   };
 

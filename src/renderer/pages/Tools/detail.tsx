@@ -141,6 +141,11 @@ function ToolDetail() {
     navigate('/tools');
   };
 
+  const handleReconnectMCP = async (toolId: string) => {
+    await window.electron.tools.reconnectMCP(toolId);
+    await getTool();
+  };
+
   const handleEditMcp = async (toolId: string) => {
     const mcpConfig = await window.electron.tools.getMcp(toolId);
     console.log(mcpConfig);
@@ -210,6 +215,16 @@ function ToolDetail() {
                     open={openMcpDialog}
                     onOpenChange={setOpenMcpDialog}
                   ></ToolEditDialog>
+                  {tool.isActive && tool.status === 'running' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleReconnectMCP(tool.id)}
+                    >
+                      Reconnect
+                    </Button>
+                  )}
+
                   <Button
                     variant="outline"
                     size="sm"
@@ -276,7 +291,9 @@ function ToolDetail() {
                 {tool?.path}
               </Button>
             </div>
-
+            <div className="flex text-sm text-muted-foreground mt-2">
+              {tool?.description}
+            </div>
             <div className="p-4 bg-secondary rounded-xl mt-2">
               {' '}
               <Streamdown>{tool?.content}</Streamdown>

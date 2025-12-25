@@ -67,7 +67,9 @@
     "delect_project": "删除项目",
     "type_something": "输入内容",
     "description": "描述",
-    "default_model": "默认模型"
+    "default_model": "默认模型",
+    "compressing": "正在压缩提示词...",
+    "type": "类型"
   },
   "sidebar": {
     "new_chat": "新聊天",
@@ -92,7 +94,9 @@
     "edit_mcp": "修改Mcp服务器",
     "config": "配置",
     "execute": "执行",
-    "approval_description": "是否执行该工具?"
+    "approval_description": "是否执行该工具?",
+    "mcp_url": "URL",
+    "mcp_headers": "请求头"
   },
   "agents": {
     "instructions": "系统提示词",

@@ -49,7 +49,9 @@ export enum KnowledgeBaseChannel {
 }
 
 export enum ToolChannel {
+  SaveSkill = 'tool:saveSkill',
   SaveMCPServer = 'tool:saveMCPServer',
+  ReconnectMCP = 'tool:reconnectMCP',
   GetMcp = 'tool:getMcp',
   DeleteTool = 'tool:deleteTool',
   GetAvailableTools = 'tool:getAvailableTools',

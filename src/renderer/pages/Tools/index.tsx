@@ -99,6 +99,7 @@ import {
 } from '@/renderer/components/ui/select';
 import { nanoid } from '@/utils/nanoid';
 import { ToolEditDialog } from './tool-edit-dialog';
+import { SkillCreateDialog } from './skill-create-dialog';
 
 function Tools() {
   const { setTitle } = useHeader();
@@ -109,6 +110,7 @@ function Tools() {
     skills: [],
   });
   const [open, setOpen] = useState(false);
+  const [openSkillCreateDialog, setOpenSkillCreateDialog] = useState(false);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -197,7 +199,11 @@ function Tools() {
                 <DropdownMenuItem onClick={() => setOpen(true)}>
                   {t('common.add_mcp_server')}
                 </DropdownMenuItem>
-                <DropdownMenuItem>{t('common.add_skill')}</DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setOpenSkillCreateDialog(true)}
+                >
+                  {t('common.add_skill')}
+                </DropdownMenuItem>
               </DropdownMenuGroup>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -319,6 +325,10 @@ function Tools() {
         </ScrollArea>
       </div>
       <ToolEditDialog open={open} onOpenChange={setOpen}></ToolEditDialog>
+      <SkillCreateDialog
+        open={openSkillCreateDialog}
+        onOpenChange={setOpenSkillCreateDialog}
+      ></SkillCreateDialog>
       <div className="flex flex-col flex-1 w-full min-w-0">
         <Routes>
           <Route path=":id" element={<ToolDetail />} />

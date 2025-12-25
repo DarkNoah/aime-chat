@@ -9,6 +9,7 @@ import {
   convertToModelMessages,
   createUIMessageStream,
   createUIMessageStreamResponse,
+  LanguageModelUsage,
   ModelMessage,
   PrepareStepResult,
   StepResult,
@@ -21,6 +22,7 @@ import {
 } from 'ai';
 import type {
   LanguageModelV2,
+  LanguageModelV2Usage,
   SharedV2ProviderOptions,
 } from '@ai-sdk/provider';
 import { toAISdkV5Messages, toAISdkV4Messages } from '@mastra/ai-sdk/ui';
@@ -80,12 +82,15 @@ import fs from 'fs';
 import BaseTool, { BaseToolParams } from '../tools/base-tool';
 import zodToJsonSchema from 'zod-to-json-schema';
 import { getLastMessageIndex } from '../utils/messageUtils';
+import { MastraThreadsUsage } from '@/entities/mastra-threads-usage';
+import { Repository } from 'typeorm';
+import { dbManager } from '../db';
 
 class MastraManager extends BaseManager {
   app: express.Application;
   public httpServer?: ReturnType<express.Application['listen']>;
   mastra: Mastra;
-
+  mastraThreadsUsageRepository: Repository<MastraThreadsUsage>;
   threadChats: (ChatThread & { controller: AbortController })[] = [];
 
   statefulTransport?: StreamableHTTPServerTransport;
@@ -145,6 +150,8 @@ class MastraManager extends BaseManager {
   }
 
   async init() {
+    this.mastraThreadsUsageRepository =
+      dbManager.dataSource.getRepository(MastraThreadsUsage);
     this.statefulTransport = new StreamableHTTPServerTransport({
       sessionIdGenerator: () => nanoid(),
     });
@@ -625,10 +632,17 @@ class MastraManager extends BaseManager {
           // console.log('Stream chunk:', chunk);
           if (chunk.type == 'text-delta') {
             const textDelta = chunk.payload.text;
-            const chunks =
-              (requestContext.get('chunks') as Record<string, string>) ?? {};
-            chunks[chunk.runId] = (chunks[chunk.runId] ?? '') + textDelta;
-            requestContext.set('chunks', chunks);
+            const _chunks = requestContext.get('chunks') ?? {
+              runId: chunk.runId,
+              text: textDelta,
+            };
+            if (chunk.runId == _chunks.runId) {
+              _chunks.text += textDelta;
+            } else {
+              _chunks.runId = chunk.runId;
+              _chunks.text = textDelta;
+            }
+            requestContext.set('chunks', _chunks);
           }
           //if()
           //const maxContextSize = requestContext.get('maxContextSize');
@@ -791,13 +805,75 @@ class MastraManager extends BaseManager {
         const historyMessagesAISdkV5 = toAISdkV5Messages(
           historyMessages.messages,
         );
-        const input = [...historyMessagesAISdkV5];
+        let input = [...historyMessagesAISdkV5];
         if (_inputMessage) input.push(_inputMessage);
+
         const messages = convertToModelMessages(historyMessagesAISdkV5);
+        const maxContextSize = requestContext.get('maxContextSize');
+        const thresholdTokenCount = Math.floor(maxContextSize * 0.7);
+        const _tools = await agent.listTools({ requestContext });
+        const instructions = await agent.getInstructions({
+          requestContext,
+        });
+        const system = await convertToInstructionContent(instructions);
+
+        const { compressedMessage, keepMessages, hasCompressed } =
+          await this.compressMessages(
+            [
+              { role: 'system', content: system } as SystemModelMessage,
+              ...messages,
+            ],
+            _tools,
+            {
+              thresholdTokenCount,
+              requestContext,
+              model: fastLanguageModel,
+            },
+          );
+        if (hasCompressed) {
+          await storage.updateMessages({
+            messages: historyMessages.messages.map((x) => {
+              return {
+                id: x.id,
+                resourceId: x.resourceId + '.history',
+              };
+            }),
+          });
+          const compressedDBMessage = {
+            id: nanoid(),
+            threadId: chatId,
+            resourceId: resourceId,
+            role: 'user',
+            content: {
+              format: 2,
+              parts: compressedMessage.content,
+              metadata: {
+                compressed: true,
+              },
+            },
+            type: 'v2',
+            createdAt: new Date(),
+          } as MastraDBMessage;
+          const todos = requestContext.get('todos');
+          if (todos) {
+            compressedDBMessage.content.parts.push({
+              type: 'text',
+              text: `<system-reminder>\nYour todo list has changed. DO NOT mention this explicitly to the user. Here are the latest contents of your todo list:\n\n${JSON.stringify(todos)}. Continue on with the tasks at hand if applicable.\n</system-reminder>`,
+            });
+          } else {
+            compressedDBMessage.content.parts.push({
+              type: 'text',
+              text: `<system-reminder>\nThis is a reminder that your todo list is currently empty. DO NOT mention this to the user explicitly because they are already aware. If you are working on tasks that would benefit from a todo list please use the TodoWrite tool to create one. If not, please feel free to ignore. Again do not mention this message to the user.\n</system-reminder>`,
+            });
+          }
+          input = [compressedDBMessage, ...keepMessages];
+          if (_inputMessage) input.push(_inputMessage);
+        }
 
         delete streamOptions.context;
 
         stream = await this.nextStep(agent, input, streamOptions, resume);
+        await this.saveThreadUsage(chatId, resourceId, stream.usage);
         const core = stream.messageList.get.all.core();
         const db = stream.messageList.get.all.db();
         const ui = stream.messageList.get.all.ui();
@@ -871,32 +947,30 @@ class MastraManager extends BaseManager {
       }
 
       if (streamOptions.abortSignal.aborted) {
-        const chunks =
-          (requestContext.get('chunks') as Record<string, string>) ?? {};
+        const chunks = requestContext.get('chunks');
         const Persisted = stream.messageList.getPersisted.input.db();
         const db = stream.messageList.get.input.db();
         // const core = stream.messageList.get.input.core();
         let messages: MastraDBMessage[] = [];
-        for (const [key, value] of Object.entries(chunks)) {
-          messages.push({
-            id: key,
-            role: 'assistant',
-            threadId: chatId,
-            resourceId: resourceId,
-            type: 'v2',
-            createdAt: new Date(),
-            content: {
-              format: 2,
-              parts: [
-                { type: 'text', text: value },
-                { type: 'text', text: `[Request interrupted by user]` },
-              ],
-              metadata: {
-                aborted: true,
-              },
+        messages.push({
+          id: chunks.runId,
+          role: 'assistant',
+          threadId: chatId,
+          resourceId: resourceId,
+          type: 'v2',
+          createdAt: new Date(),
+          content: {
+            format: 2,
+            parts: [
+              { type: 'text', text: chunks.text },
+              { type: 'text', text: `[Request interrupted by user]` },
+            ],
+            metadata: {
+              aborted: true,
             },
-          });
-        }
+          },
+        });
+        requestContext.set('chunks', undefined);
         await storage.saveMessages({ messages: [...db, ...messages] });
       }
     } catch (err) {
@@ -1193,7 +1267,11 @@ class MastraManager extends BaseManager {
       force?: boolean;
       model: LanguageModelV2;
     },
-  ): Promise<{ messages: ModelMessage[]; hasCompressed: boolean }> {
+  ): Promise<{
+    compressedMessage?: ModelMessage;
+    keepMessages: ModelMessage[];
+    hasCompressed: boolean;
+  }> {
     let tokenCount = await tokenCounter(messages);
 
     for (const tool of Object.values(tools)) {
@@ -1212,9 +1290,16 @@ class MastraManager extends BaseManager {
         tokenCount,
         thresholdTokenCount: options.thresholdTokenCount,
       });
-      return { messages: messages, hasCompressed: false };
+      return { keepMessages: messages, hasCompressed: false };
     }
-    console.log('compress: starting');
+    console.log('Compress starting: Current TokenCount:', tokenCount);
+    const chatId = options.requestContext.get('threadId' as never) as string;
+    appManager.sendEvent(`chat:event:${chatId}`, {
+      type: ChatEvent.ChatChunk,
+      data: JSON.stringify({
+        type: 'data-compress-start',
+      }),
+    });
     const systemMessage = messages.find((x) => x.role === 'system');
 
     let lastAssistantIndex = 0;
@@ -1344,10 +1429,40 @@ When you are using compact - please focus on test output and code changes. Inclu
       content: [{ type: 'text', text: response.text }],
     } as UserModelMessage;
 
+    const usage = response.usage;
+    appManager.sendEvent(`chat:event:${chatId}`, {
+      type: ChatEvent.ChatChunk,
+      data: JSON.stringify({
+        type: 'data-compress-end',
+        data: {
+          usage,
+        },
+      }),
+    });
     return {
-      messages: [systemMessage, userMessage, ...keepMessages],
+      compressedMessage: userMessage,
+      keepMessages: keepMessages,
       hasCompressed: true,
     };
+  }
+
+  public async saveThreadUsage(
+    threadId: string,
+    resourceId: string,
+    usage: MastraModelOutput['usage'],
+  ) {
+    const _usage = await usage;
+    try {
+      const data = await this.mastraThreadsUsageRepository.save(
+        new MastraThreadsUsage(
+          threadId,
+          resourceId,
+          _usage as LanguageModelV2Usage,
+        ),
+      );
+    } catch {
+      console.error('Failed to save thread usage', threadId, usage);
+    }
   }
 }
 

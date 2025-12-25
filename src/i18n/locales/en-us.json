@@ -67,7 +67,9 @@
     "delect_project": "Delect Project",
     "type_something": "Type something",
     "description": "Description",
-    "default_model": "Default Model"
+    "default_model": "Default Model",
+    "compressing": "Compressing...",
+    "type": "Type"
   },
   "sidebar": {
     "new_chat": "New Chat",
@@ -92,7 +94,9 @@
     "edit_mcp": "Edit Mcp Server",
     "config": "Config",
     "execute": "Execute",
-    "approval_description": "Can this tool be executed?"
+    "approval_description": "Can this tool be executed?",
+    "mcp_url": "URL",
+    "mcp_headers": "Headers"
   },
   "agents": {
     "instructions": "System Prompt",

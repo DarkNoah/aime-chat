@@ -94,6 +94,7 @@ export class ZhipuAIProvider extends BaseProvider {
       { id: 'glm-4.7', name: 'GLM-4.7' },
       { id: 'glm-4.6v', name: 'GLM-4.6V' },
       { id: 'glm-4.6v-flash', name: 'GLM-4.6V-Flash' },
+      { id: 'autoglm-phone', name: 'AutoGLM-Phone' },
       { id: 'glm-4.6', name: 'GLM-4.6' },
       {
         id: 'glm-4.5',

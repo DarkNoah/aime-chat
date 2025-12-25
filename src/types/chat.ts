@@ -102,7 +102,7 @@ export type ChatRequestContext = {
   todos?: ChatTodo[];
   maxContextSize?: number;
   workspace?: string;
-  chunks?: Record<string, string>;
+  chunks?: { runId: string; text: string };
 };
 
 export const DEFAULT_RESOURCE_ID = 'default';

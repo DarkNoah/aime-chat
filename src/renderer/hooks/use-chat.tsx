@@ -2,7 +2,6 @@
 /* eslint-disable camelcase */
 import { PromptInputMessage } from '../components/ai-elements/prompt-input';
 import { useChat as useAiSdkChat } from '@ai-sdk/react';
-import mitt, { Emitter, EventType } from 'mitt';
 
 import { IpcChatTransport } from '../pages/chat/ipc-chat-transport';
 import toast from 'react-hot-toast';
@@ -27,6 +26,7 @@ import {
 } from '@/types/chat';
 import { useThreadStore } from '../store/use-thread-store';
 import { useShallow } from 'zustand/react/shallow';
+import { eventBus } from '../lib/event-bus';
 
 export type ChatSessionProps = {
   threadId: string;
@@ -161,7 +161,6 @@ export type ChatState = {
   ensureThread: (threadId: string) => Promise<ThreadState>;
   unregisterThread: (threadId: string) => void;
   getThread: (threadId: string) => Promise<ThreadState>;
-  emitter: Emitter<Record<EventType, unknown>>;
 };
 
 export const ChatContext = createContext<ChatState | null>(null);
@@ -176,7 +175,7 @@ export function useChat() {
 
 export function ChatProvider({ children }: { children: ReactNode }) {
   const { threadStates } = useThreadStore();
-  const emitter = mitt();
+
   const { registerThread, removeThread, updateMessages, updateThreadState } =
     useThreadStore();
 
@@ -263,19 +262,13 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const onFinish = useCallback(
-    (threadId, event) => {
-      emitter.emit('onFinish', event);
-    },
-    [emitter],
-  );
+  const onFinish = useCallback((threadId, event) => {
+    eventBus.emit(`chat:onFinish:${threadId}`, event);
+  }, []);
 
-  const onData = useCallback(
-    (threadId, event) => {
-      emitter.emit('onData', event);
-    },
-    [emitter],
-  );
+  const onData = useCallback((threadId, event) => {
+    eventBus.emit(`chat:onData:${threadId}`, event);
+  }, []);
 
   const value = useMemo(
     () => ({
@@ -286,7 +279,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       stop,
       clearMessages,
       clearError,
-      emitter,
     }),
     [
       ensureThread,
@@ -296,7 +288,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       stop,
       clearMessages,
       clearError,
-      emitter,
     ],
   );
 

@@ -47,7 +47,7 @@ export const ChatPreview = React.forwardRef<ChatPreviewRef, ChatPreviewProps>(
     }, [previewData?.webPreviewUrl]);
 
     useEffect(() => {
-      if (previewData.previewPanel === ChatPreviewType.MESSAGES) {
+      if (previewData.previewPanel === ChatPreviewType.MESSAGES && threadId) {
         const getMessages = async () => {
           const res = await window.electron.mastra.getThreadMessages({
             threadId,

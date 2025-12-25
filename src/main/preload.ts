@@ -190,6 +190,10 @@ const electronHandler = {
       ipcRenderer.invoke(ToolChannel.ToggleToolActive, id),
     updateToolConfig: (id: string, value: any) =>
       ipcRenderer.invoke(ToolChannel.UpdateToolConfig, id, value),
+    reconnectMCP: (id: string) =>
+      ipcRenderer.invoke(ToolChannel.ReconnectMCP, id),
+    saveSkill: (id: string | undefined, data: any) =>
+      ipcRenderer.invoke(ToolChannel.SaveSkill, id, data),
   },
   localModel: {
     getList: (): Promise<Record<LocalModelType, LocalModelItem[]>> =>

@@ -10,7 +10,8 @@ import { Tools } from '@/entities/tools';
 import { MastraHistoryMessages } from '@/entities/mastra-history-messages';
 import { BaseManager } from '../BaseManager';
 import { Agents } from '@/entities/agents';
-import { Projects, ProjectThreads } from '@/entities/projects';
+import { Projects } from '@/entities/projects';
+import { MastraThreadsUsage } from '@/entities/mastra-threads-usage';
 
 class DBManager extends BaseManager {
   // defaultDb: Database;
@@ -37,7 +38,7 @@ class DBManager extends BaseManager {
         MastraHistoryMessages,
         Agents,
         Projects,
-        ProjectThreads,
+        MastraThreadsUsage,
       ],
       // migrationsRun: true,
       // migrations: [],

@@ -22,6 +22,7 @@ import {
   ChatPreviewData,
   ChatPreviewType,
   ChatSubmitOptions,
+  ThreadState,
 } from '@/types/chat';
 import { ChatPreview } from './chat-preview';
 import { ChatUsage } from './chat-usage';
@@ -32,7 +33,7 @@ import {
   ConversationEmptyState,
   ConversationScrollButton,
 } from '../ai-elements/conversation';
-import { MessageSquareIcon } from 'lucide-react';
+import { ChevronsUpDown, MessageSquareIcon } from 'lucide-react';
 import { Agent } from '@/types/agent';
 import toast from 'react-hot-toast';
 import { useChat as useAiSdkChat } from '@ai-sdk/react';
@@ -72,9 +73,23 @@ import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import { cn } from '@/renderer/lib/utils';
 // import { useThread } from '@/renderer/hooks/useChatStore';
 import { nanoid } from '@/utils/nanoid';
-import { useChat, useThread } from '@/renderer/hooks/use-chat';
+import { useChat } from '@/renderer/hooks/use-chat';
 import { useShallow } from 'zustand/react/shallow';
 import { useThreadStore } from '@/renderer/store/use-thread-store';
+import { eventBus } from '@/renderer/lib/event-bus';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '../ui/collapsible';
+import { Button } from '../ui/button';
+import { Badge } from '../ui/badge';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '../ui/accordion';
 
 export type ChatPanelProps = {
   children?: React.ReactNode;
@@ -83,6 +98,7 @@ export type ChatPanelProps = {
   className?: string;
   onToolMessageClick?: (toolMessage: ToolUIPart) => void;
   onSubmit?: (message: PromptInputMessage, options?: ChatSubmitOptions) => void;
+  onThreadChanged?: (thread: ThreadState) => void;
 };
 export interface ChatPanelRef {
   sendMessage: (
@@ -100,6 +116,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
       className,
       onToolMessageClick,
       onSubmit,
+      onThreadChanged,
     } = props;
 
     // const {
@@ -119,6 +136,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
     const threadState = useThreadStore(
       useShallow((s) => s.threadStates[threadId]),
     );
+    const [compressing, setCompressing] = useState(false);
 
     const {
       ensureThread,
@@ -372,20 +390,23 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
       resetChat();
 
       if (threadId) {
+        eventBus.on(`chat:onData:${threadId}`, (event) => {
+          console.log('chat:onData', event);
+          if (event.type == 'data-compress-start') {
+            setCompressing(true);
+          } else if (event.type == 'data-compress-end') {
+            setCompressing(false);
+          }
+        });
+        eventBus.on(`chat:onFinish:${threadId}`, (event) => {
+          console.log('chat:onFinish', event);
+        });
         const getThread = async () => {
           // unregisterThread(threadId);
           const _thread = await ensureThread(threadId);
           // const _thread = await getThreadFn(threadId);
           console.log(_thread);
-
-          // setThread(_thread);
-          // if (_thread?.messages?.length > 0) {
-          //   setMessages(_thread?.messages);
-          // }
-          console.log(
-            (_thread?.metadata?.modelId as string) ??
-              appInfo?.defaultModel?.model,
-          );
+          onThreadChanged?.(_thread);
 
           setModelId(
             (_thread?.metadata?.model as string) ??
@@ -408,31 +429,13 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
           setRequireToolApproval(
             (_thread?.metadata?.requireToolApproval as boolean) ?? false,
           );
-          // if (((_thread?.metadata?.todos as any[]) ?? []).length > 0) {
-          //   setPreviewData((prev: ChatPreviewData) => ({
-          //     ...prev,
-          //     todos: _thread?.metadata?.todos as any[],
-          //     previewPanel: ChatPreviewType.TODO,
-          //   }));
-          // }
           setAgentId(_thread?.metadata?.agentId as string);
         };
         getThread();
-        // const handleEvent = (event: { type: ChatEvent; data: any }) => {
-        //   if (
-        //     event.type === ChatEvent.ChatChanged &&
-        //     event.data.type === ChatChangedType.TitleUpdated
-        //   ) {
-        //     setThread({ ...thread, title: event.data.title as string });
-        //   }
-        // };
-        // window.electron.ipcRenderer.on(`chat:event:${threadId}`, handleEvent);
         return () => {
           unregisterThread(threadId);
-          // window.electron.ipcRenderer.removeListener(
-          //   `chat:event:${threadId}`,
-          //   handleEvent,
-          // );
+          eventBus.off(`chat:onData:${threadId}`);
+          eventBus.off(`chat:onFinish:${threadId}`);
         };
       } else {
         setModelId(appInfo?.defaultModel?.model);
@@ -453,8 +456,8 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
               />
             )}
             {threadState?.messages.length > 0 && (
-              <div className="pb-10">
-                {threadState?.messages?.map((message) => {
+              <div>
+                {threadState?.messages.map((message) => {
                   return (
                     <div key={message.id} className="flex flex-col gap-2">
                       {message.role === 'assistant' &&
@@ -482,56 +485,61 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
                               ))}
                           </Sources>
                         )}
-                      {message?.parts?.map((part, i) => {
-                        if (part.type === 'reasoning' && part.text.trim())
-                          return (
-                            <Reasoning
-                              key={`${message.id}-${i}`}
-                              className="w-fit"
-                              defaultOpen={false}
-                              isStreaming={part.state === 'streaming'}
-                            >
-                              <ReasoningTrigger />
-                              <ReasoningContent className="whitespace-pre-wrap">
-                                {part.text}
-                              </ReasoningContent>
-                            </Reasoning>
-                          );
-                        else if (part.type === 'text' && part.text.trim()) {
-                          if (
-                            part.text.trim() === '[Request interrupted by user]'
-                          ) {
+                      {(message.metadata as any)?.compressed === true && <></>}
+                      {!(message.metadata as any)?.compressed &&
+                        message?.parts?.map((part, i) => {
+                          if (part.type === 'reasoning' && part.text.trim())
                             return (
-                              <Alert className="w-fit bg-muted p-2">
-                                <AlertTitle className="text-xs">
-                                  Request interrupted by user
-                                </AlertTitle>
-                              </Alert>
+                              <Reasoning
+                                key={`${message.id}-${i}`}
+                                className="w-fit"
+                                defaultOpen={false}
+                                isStreaming={part.state === 'streaming'}
+                              >
+                                <ReasoningTrigger />
+                                <ReasoningContent className="whitespace-pre-wrap">
+                                  {part.text}
+                                </ReasoningContent>
+                              </Reasoning>
                             );
-                          } else {
-                            return (
-                              <Fragment key={`${message.id}-${i}`}>
-                                <Message from={message.role}>
-                                  <MessageContent>
-                                    <MessageResponse
-                                      className="text-xs"
-                                      mermaidConfig={{
-                                        theme:
-                                          theme === 'dark' ? 'dark' : 'forest',
-                                      }}
-                                    >
-                                      {part.text}
-                                    </MessageResponse>
-                                  </MessageContent>
-                                </Message>
-                                <MessageActions
-                                  className={
-                                    message.role === 'user'
-                                      ? 'justify-end'
-                                      : 'justify-start'
-                                  }
-                                >
-                                  {/* <MessageAction
+                          else if (part.type === 'text' && part.text.trim()) {
+                            if (
+                              part.text.trim() ===
+                              '[Request interrupted by user]'
+                            ) {
+                              return (
+                                <Alert className="w-fit bg-muted p-2">
+                                  <AlertTitle className="text-xs">
+                                    Request interrupted by user
+                                  </AlertTitle>
+                                </Alert>
+                              );
+                            } else {
+                              return (
+                                <Fragment key={`${message.id}-${i}`}>
+                                  <Message from={message.role}>
+                                    <MessageContent>
+                                      <MessageResponse
+                                        className="text-xs"
+                                        mermaidConfig={{
+                                          theme:
+                                            theme === 'dark'
+                                              ? 'dark'
+                                              : 'forest',
+                                        }}
+                                      >
+                                        {part.text}
+                                      </MessageResponse>
+                                    </MessageContent>
+                                  </Message>
+                                  <MessageActions
+                                    className={
+                                      message.role === 'user'
+                                        ? 'justify-end'
+                                        : 'justify-start'
+                                    }
+                                  >
+                                    {/* <MessageAction
                                     onClick={() =>
                                       navigator.clipboard.writeText(part.text)
                                     }
@@ -539,129 +547,129 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
                                   >
                                     <CopyIcon className="size-3" />
                                   </MessageAction> */}
-                                  {message?.parts.length === i + 1 &&
-                                    message.role === 'assistant' &&
-                                    message.metadata?.usage?.inputTokens &&
-                                    message.metadata?.usage?.outputTokens && (
-                                      <small className="text-xs text-gray-500 flex flex-row gap-1 items-center">
-                                        <Label>tokens: </Label>
-                                        {message.metadata?.usage
-                                          ?.inputTokens && (
-                                          <span className="flex flex-row gap-1 items-center">
-                                            <IconArrowUp
-                                              size={10}
-                                            ></IconArrowUp>
-                                            {
-                                              message.metadata?.usage
-                                                ?.inputTokens
-                                            }
-                                          </span>
-                                        )}
+                                    {message?.parts.length === i + 1 &&
+                                      message.role === 'assistant' &&
+                                      message.metadata?.usage?.inputTokens &&
+                                      message.metadata?.usage?.outputTokens && (
+                                        <small className="text-xs text-gray-500 flex flex-row gap-1 items-center">
+                                          <Label>tokens: </Label>
+                                          {message.metadata?.usage
+                                            ?.inputTokens && (
+                                            <span className="flex flex-row gap-1 items-center">
+                                              <IconArrowUp
+                                                size={10}
+                                              ></IconArrowUp>
+                                              {
+                                                message.metadata?.usage
+                                                  ?.inputTokens
+                                              }
+                                            </span>
+                                          )}
 
-                                        {message.metadata?.usage
-                                          ?.outputTokens && (
-                                          <span className="flex flex-row gap-1 items-center">
-                                            <IconArrowDown
-                                              size={10}
-                                            ></IconArrowDown>
-                                            {
-                                              message.metadata?.usage
-                                                ?.outputTokens
-                                            }
-                                          </span>
-                                        )}
-                                      </small>
-                                    )}
-                                </MessageActions>
-                              </Fragment>
+                                          {message.metadata?.usage
+                                            ?.outputTokens && (
+                                            <span className="flex flex-row gap-1 items-center">
+                                              <IconArrowDown
+                                                size={10}
+                                              ></IconArrowDown>
+                                              {
+                                                message.metadata?.usage
+                                                  ?.outputTokens
+                                              }
+                                            </span>
+                                          )}
+                                        </small>
+                                      )}
+                                  </MessageActions>
+                                </Fragment>
+                              );
+                            }
+                          } else if (part.type.startsWith('tool-')) {
+                            // eslint-disable-next-line no-underscore-dangle
+                            const _part = part as ToolUIPart;
+                            let approvalData: ToolApproval;
+                            let suspendedData: ToolSuspended;
+                            let isSuspended = false;
+                            if (_part.state === 'input-available') {
+                              approvalData =
+                                message.parts.find(
+                                  (p) =>
+                                    p.type === 'data-tool-call-approval' &&
+                                    p.id === _part?.toolCallId,
+                                )?.data ||
+                                message?.metadata?.pendingToolApprovals?.[
+                                  _part?.toolCallId
+                                ];
+
+                              suspendedData =
+                                message.parts.find(
+                                  (p) =>
+                                    p.type === 'data-tool-call-suspended' &&
+                                    p.id === _part?.toolCallId,
+                                )?.data ||
+                                message?.metadata?.suspendPayload?.[
+                                  _part?.toolCallId
+                                ];
+
+                              if (approvalData) {
+                                approvalData.type = 'approval';
+                                isSuspended = true;
+                              }
+
+                              if (suspendedData) {
+                                suspendedData.type = 'suspended';
+                                isSuspended = true;
+                              }
+                            }
+
+                            return (
+                              <div className="flex flex-col">
+                                <ToolMessage
+                                  key={`${message.id}-${i}`}
+                                  part={_part}
+                                  isSuspended={isSuspended}
+                                  onResume={(value) => {
+                                    console.log(value);
+                                    handleResumeChat(
+                                      suspendedData.runId,
+                                      _part?.toolCallId,
+                                      undefined,
+                                      value,
+                                    );
+                                  }}
+                                  suspendedData={suspendedData}
+                                  onClick={() => {
+                                    console.log(_part);
+                                    onToolMessageClick?.(_part);
+                                  }}
+                                ></ToolMessage>
+
+                                {approvalData && (
+                                  <ToolMessageApproval
+                                    approval={approvalData}
+                                    onReject={() => {
+                                      console.log('reject', approvalData);
+                                      handleResumeChat(
+                                        approvalData.runId,
+                                        _part?.toolCallId,
+                                        false,
+                                      );
+                                    }}
+                                    onAccept={() => {
+                                      console.log('accept', approvalData);
+                                      handleResumeChat(
+                                        approvalData.runId,
+                                        _part?.toolCallId,
+                                        true,
+                                      );
+                                    }}
+                                  />
+                                )}
+                              </div>
                             );
                           }
-                        } else if (part.type.startsWith('tool-')) {
-                          // eslint-disable-next-line no-underscore-dangle
-                          const _part = part as ToolUIPart;
-                          let approvalData: ToolApproval;
-                          let suspendedData: ToolSuspended;
-                          let isSuspended = false;
-                          if (_part.state === 'input-available') {
-                            approvalData =
-                              message.parts.find(
-                                (p) =>
-                                  p.type === 'data-tool-call-approval' &&
-                                  p.id === _part?.toolCallId,
-                              )?.data ||
-                              message?.metadata?.pendingToolApprovals?.[
-                                _part?.toolCallId
-                              ];
-
-                            suspendedData =
-                              message.parts.find(
-                                (p) =>
-                                  p.type === 'data-tool-call-suspended' &&
-                                  p.id === _part?.toolCallId,
-                              )?.data ||
-                              message?.metadata?.suspendPayload?.[
-                                _part?.toolCallId
-                              ];
-
-                            if (approvalData) {
-                              approvalData.type = 'approval';
-                              isSuspended = true;
-                            }
-
-                            if (suspendedData) {
-                              suspendedData.type = 'suspended';
-                              isSuspended = true;
-                            }
-                          }
-
-                          return (
-                            <div className="flex flex-col">
-                              <ToolMessage
-                                key={`${message.id}-${i}`}
-                                part={_part}
-                                isSuspended={isSuspended}
-                                onResume={(value) => {
-                                  console.log(value);
-                                  handleResumeChat(
-                                    suspendedData.runId,
-                                    _part?.toolCallId,
-                                    undefined,
-                                    value,
-                                  );
-                                }}
-                                suspendedData={suspendedData}
-                                onClick={() => {
-                                  console.log(_part);
-                                  onToolMessageClick?.(_part);
-                                }}
-                              ></ToolMessage>
-
-                              {approvalData && (
-                                <ToolMessageApproval
-                                  approval={approvalData}
-                                  onReject={() => {
-                                    console.log('reject', approvalData);
-                                    handleResumeChat(
-                                      approvalData.runId,
-                                      _part?.toolCallId,
-                                      false,
-                                    );
-                                  }}
-                                  onAccept={() => {
-                                    console.log('accept', approvalData);
-                                    handleResumeChat(
-                                      approvalData.runId,
-                                      _part?.toolCallId,
-                                      true,
-                                    );
-                                  }}
-                                />
-                              )}
-                            </div>
-                          );
-                        }
-                        return null;
-                      })}
+                          return null;
+                        })}
                       <ChatMessageAttachments
                         className={`mb-2 ${message.role === 'user' ? 'ml-auto' : 'ml-0'}`}
                       >
@@ -684,6 +692,12 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
             {threadState?.status === 'submitted' && (
               <Loader className="animate-spin" />
             )}
+            {compressing && (
+              <div className="flex flex-row gap-2 items-center">
+                <Loader className="animate-spin" />{' '}
+                <span className="text-xs">{t('common.compressing')}</span>
+              </div>
+            )}
             {threadState?.error && (
               <Alert variant="destructive" className="bg-red-200 w-fit">
                 <AlertTitle className="font-extrabold">Error</AlertTitle>
@@ -692,7 +706,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
                 </AlertDescription>
               </Alert>
             )}
-            <div className="pb-10"></div>
+            <div className="pb-20"></div>
           </ConversationContent>
           <ConversationScrollButton className="z-10 backdrop-blur" />
         </Conversation>

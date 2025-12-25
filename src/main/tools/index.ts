@@ -37,7 +37,7 @@ import {
   ResourceTemplate,
 } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z, ZodSchema } from 'zod';
-import { isArray, isObject } from '@/utils/is';
+import { isArray, isObject, isString } from '@/utils/is';
 import { CodeExecution } from './code/code-execution';
 import ExpenseManagementToolkit from './test/expense_management';
 import ToolToolkit from './common/tool';
@@ -45,6 +45,7 @@ import { Vision } from './vision/vision';
 import MemoryToolkit from './memory/memory';
 import { Task } from './common/task';
 import { WebFetch } from './web/web-fetch';
+import { Extract } from './work/extract';
 
 interface BuiltInToolContext {
   tool: BaseTool;
@@ -172,7 +173,7 @@ class ToolsManager extends BaseManager {
 
     await this.registerBuiltInTool(Task);
     await this.registerBuiltInTool(MemoryToolkit);
-
+    await this.registerBuiltInTool(Extract);
     if (!app.isPackaged) {
       await this.registerBuiltInTool(ExpenseManagementToolkit);
       await this.registerBuiltInTool(StreamTest);
@@ -224,18 +225,19 @@ class ToolsManager extends BaseManager {
     if ('url' in mcpConfig) {
       servers = {
         url: new URL(mcpConfig.url),
-        // requestInit: {
-        //   headers: mcpConfig.headers ?? {},
-        // },
-        fetch: async (url, init) => {
-          return fetch(url, {
-            ...init,
-            headers: {
-              ...init?.headers,
-              ...(mcpConfig.headers ?? {}),
-            },
-          });
+        requestInit: {
+          headers: mcpConfig.headers ?? {},
         },
+        // fetch: async (url, init) => {
+        //   return fetch(url, {
+        //     ...init,
+        //     body: init.body,
+        //     headers: {
+        //       ...(mcpConfig.headers ?? {}),
+        //       Accept: 'application/json, text/event-stream',
+        //     },
+        //   });
+        // },
       } as MastraMCPServerDefinition;
     } else if ('command' in mcpConfig) {
       servers = {
@@ -377,6 +379,21 @@ class ToolsManager extends BaseManager {
     this.registerBuiltInTools();
   }
 
+  @channel(ToolChannel.SaveSkill)
+  public async saveSkill(id: string | undefined, data: any) {
+    let localSkill: Tools;
+    if (id) {
+      localSkill = await this.toolsRepository.findOne({ where: { id } });
+    } else {
+      id = `${ToolType.SKILL}:${nanoid()}`;
+      localSkill = await this.toolsRepository.save(
+        new Tools(id, data.name, ToolType.SKILL),
+      );
+    }
+    localSkill.description = data.description;
+    await this.toolsRepository.save(localSkill);
+  }
+
   @channel(ToolChannel.SaveMCPServer)
   public async saveMCPServer(id: string | undefined, data: string) {
     const config = JSON.parse(data);
@@ -408,6 +425,11 @@ class ToolsManager extends BaseManager {
       id: _id,
       servers: { [key]: servers as MastraMCPServerDefinition },
     });
+    const oldMcpClient = this.mcpClients.find((x) => x.id == _id);
+    if (oldMcpClient && oldMcpClient.status === 'running') {
+      await oldMcpClient.mcp.disconnect();
+    }
+    this.mcpClients = this.mcpClients.filter((x) => x.id !== _id);
     const mcpClient = {
       id: _id,
       mcp,
@@ -575,7 +597,7 @@ class ToolsManager extends BaseManager {
 
   @channel(ToolChannel.GetTool)
   public async getTool(id: string) {
-    const tool = await this.toolsRepository.findOne({ where: { id } });
+    let tool = await this.toolsRepository.findOne({ where: { id } });
     if (id.startsWith(`${ToolType.SKILL}:`)) {
       const marketplace = id.split(':')[1];
       const skill = id.split(':').slice(2).join(':');
@@ -596,13 +618,22 @@ class ToolsManager extends BaseManager {
       let resources;
       let prompts;
       if (tool.isActive) {
-        if (!mcp.mcp.tools) {
-          mcp.mcp.tools = await mcp.mcp.listTools();
-        }
-        tools = mcp.mcp.tools;
+        try {
+          if (!mcp.mcp.tools) {
+            mcp.mcp.tools = await mcp.mcp.listTools();
+          }
+          tools = mcp.mcp.tools;
 
-        version = mcp.mcp.mcpClientsById.get(tool.name)?.client?._serverVersion
-          ?.version;
+          version = mcp.mcp.mcpClientsById.get(tool.name)?.client
+            ?._serverVersion?.version;
+        } catch (error: any) {
+          mcp.status = 'error';
+          mcp.error = error as Error;
+          await this.sendMcpClientUpdatedEvent(id, mcp.status, mcp.error);
+          await this.toolsRepository.update(tool.id, { isActive: false });
+          tool = await this.toolsRepository.findOne({ where: { id } });
+        }
+
         // resources = await mcp.mcp.resources.list();
         // prompts = await mcp.mcp.prompts.list();
       }
@@ -721,6 +752,32 @@ class ToolsManager extends BaseManager {
         undefined,
       );
       return tool;
+    }
+  }
+
+  @channel(ToolChannel.ReconnectMCP)
+  public async reconnectMCP(id: string) {
+    let tool = await this.toolsRepository.findOne({ where: { id } });
+    if (!tool) throw new Error('Tool not found');
+    if (tool.type === ToolType.MCP && tool.isActive) {
+      const mcp = this.mcpClients.find((x) => x.id === `${tool.id}`);
+      if (mcp && mcp.status === 'running') {
+        await mcp.mcp.disconnect();
+        mcp.status = 'starting';
+        await this.sendMcpClientUpdatedEvent(id, 'starting', undefined);
+        try {
+          const tools = await mcp.mcp.listTools();
+          mcp.mcp.tools = tools;
+          mcp.status = 'running';
+          mcp.error = undefined;
+          await this.sendMcpClientUpdatedEvent(id, mcp.status, undefined);
+        } catch (error: any) {
+          mcp.status = 'error';
+          mcp.error = error as Error;
+          await this.sendMcpClientUpdatedEvent(id, mcp.status, mcp.error);
+          await this.toolsRepository.update(tool.id, { isActive: false });
+        }
+      }
     }
   }
 

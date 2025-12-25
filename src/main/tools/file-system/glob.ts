@@ -64,7 +64,7 @@ export class Glob extends BaseTool {
     }
 
     const entries = await glob.async(pattern, {
-      cwd: path,
+      cwd,
       caseSensitiveMatch: false,
       dot: true,
       ignore: ['**/node_modules/**', '**/.git/**', '**/.DS_Store'],

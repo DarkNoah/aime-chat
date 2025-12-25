@@ -37,6 +37,14 @@ import { useTranslation } from 'react-i18next';
 import { ButtonGroup } from '@/renderer/components/ui/button-group';
 import { PromptInputMessage } from '@/renderer/components/ai-elements/prompt-input';
 import { useChat } from '@/renderer/hooks/use-chat';
+import { ChatPreview } from '@/renderer/components/chat-ui/chat-preview';
+import { ToolUIPart } from 'ai';
+import {
+  ChatPreviewData,
+  ChatPreviewType,
+  ChatTodo,
+  ThreadState,
+} from '@/types/chat';
 
 function ProjectsPage() {
   const { id } = useParams();
@@ -85,6 +93,13 @@ function ProjectsPage() {
   const [threads, setThreads] = useState<Array<{ id: string; title: string }>>(
     [],
   );
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewToolPart, setPreviewToolPart] = useState<
+    ToolUIPart | undefined
+  >();
+  const [previewData, setPreviewData] = useState<ChatPreviewData>({
+    previewPanel: ChatPreviewType.CANVAS,
+  });
 
   const getProjectThreads = useCallback(async () => {
     if (!projectResourceId) return;
@@ -111,8 +126,9 @@ function ProjectsPage() {
     }
   }, [projectResourceId]);
 
-  const handleCreateThread = async () => {
+  const handleCreateThread = async (options) => {
     const thread = await window.electron.mastra.createThread({
+      ...options,
       resourceId: projectResourceId,
     });
     console.log(thread);
@@ -140,21 +156,29 @@ function ProjectsPage() {
     options?: ChatPanelSubmitOptions,
   ) => {
     if (!options?.threadId) {
-      const thread = await handleCreateThread();
+      const thread = await handleCreateThread(options);
       options.threadId = thread.id;
       await ensureThread(thread.id);
     }
     chatPanelRef?.current?.sendMessage(message, options);
   };
+  const handleThreadChanged = (thread: ThreadState) => {
+    setPreviewData((data) => {
+      return {
+        ...data,
+        todos: thread.metadata?.todos as ChatTodo[],
+      };
+    });
+  };
 
   return (
-    <div className="h-full w-full @container relative">
+    <div className="h-full w-full flex flex-row @container relative">
       <div className="absolute top-0 left-0 p-2 z-10 flex flex-row gap-1">
         <Button
           variant="ghost"
           size="icon-sm"
           className="cursor-pointer size-6 bg-muted-foreground/20 backdrop-blur"
-          onClick={handleCreateThread}
+          onClick={() => handleCreateThread({})}
         >
           <IconPlus></IconPlus>
         </Button>
@@ -206,7 +230,7 @@ function ProjectsPage() {
                         }}
                       >
                         <div className="min-w-0 w-full flex flex-row items-center justify-between">
-                          <div className="flex flex-row items-center gap-2">
+                          <div className="flex flex-1 min-w-0 flex-row items-center gap-2">
                             <IconMessage></IconMessage>
                             <div className="truncate text-sm">
                               {thread.title}{' '}
@@ -261,8 +285,29 @@ function ProjectsPage() {
         onSubmit={handleSubmit}
         projectId={id}
         threadId={threadId}
-        className="h-full w-[500px]"
+        className="h-full w-[500px] "
+        onToolMessageClick={(_part) => {
+          setShowPreview(true);
+          setPreviewToolPart(_part);
+          setPreviewData((data) => {
+            return {
+              ...data,
+              previewPanel: ChatPreviewType.TOOL_RESULT,
+            };
+          });
+        }}
+        onThreadChanged={handleThreadChanged}
       ></ChatPanel>
+      <div className="min-w-0 p-2 flex-1">
+        <ChatPreview
+          threadId={threadId}
+          part={previewToolPart}
+          previewData={previewData}
+          onPreviewDataChange={(value) => {
+            setPreviewData(value);
+          }}
+        />
+      </div>
     </div>
   );
 }
