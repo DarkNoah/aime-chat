@@ -133,7 +133,7 @@ export class SkillManager {
     for (const marketplace of marketplaceDir) {
       try {
         const mds = await fg('**/SKILL.md', {
-          cwd: path.join(marketplaces, marketplace),
+          cwd: path.join(marketplaces, marketplace, 'skills'),
           absolute: true,
         });
         for (const md of mds) {
@@ -142,7 +142,7 @@ export class SkillManager {
           const data = matter(skillMD);
 
           const relativePath = path.relative(
-            path.join(marketplaces, marketplace),
+            path.join(marketplaces, marketplace, 'skills'),
             skillPath,
           );
           const skillId = relativePath

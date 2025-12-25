@@ -123,10 +123,16 @@ export const ChatToolSelector = ({
           <CommandInput className={cn('h-auto py-3.5')} />
           <Tabs className="p-4" defaultValue={ToolType.BUILD_IN}>
             <TabsList>
-              <TabsTrigger value={ToolType.BUILD_IN}>Built-in</TabsTrigger>
-              <TabsTrigger value={ToolType.MCP}>MCP</TabsTrigger>
+              <TabsTrigger
+                value={ToolType.BUILD_IN}
+              >{`Built-in (${value.filter((x) => x.startsWith(ToolType.BUILD_IN)).length})`}</TabsTrigger>
+              <TabsTrigger
+                value={ToolType.MCP}
+              >{`MCP (${value.filter((x) => x.startsWith(ToolType.MCP)).length})`}</TabsTrigger>
 
-              <TabsTrigger value={ToolType.SKILL}>Skill</TabsTrigger>
+              <TabsTrigger
+                value={ToolType.SKILL}
+              >{`Skill (${value.filter((x) => x.startsWith(ToolType.SKILL)).length})`}</TabsTrigger>
             </TabsList>
             <TabsContent value={ToolType.MCP}>
               <CommandList>

@@ -3,7 +3,7 @@ import { BaseProvider } from './base-provider';
 import fs from 'fs';
 import path from 'path';
 import OpenAI from 'openai';
-import { ProviderCredits, ProviderType } from '@/types/provider';
+import { ProviderCredits, ProviderTag, ProviderType } from '@/types/provider';
 import {
   EmbeddingModelV2,
   ImageModelV2,
@@ -14,6 +14,54 @@ import {
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import { createZhipu } from 'zhipu-ai-provider';
 
+export class ZhipuAIRerankModel {
+  modelId: string;
+  provider: Providers;
+
+  constructor({ modelId, provider }: { modelId: string; provider: Providers }) {
+    this.provider = provider;
+    this.modelId = modelId;
+  }
+
+  async doRerank({
+    query,
+    documents,
+    options,
+  }: {
+    query: string;
+    documents: string[];
+    options?: {
+      top_k?: number;
+      return_documents?: boolean;
+    };
+  }): Promise<{ index: number; score: number; document: string }[]> {
+    const res = await fetch('https://open.bigmodel.cn/api/paas/v4/rerank', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${this.provider.apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: this.modelId || 'rerank',
+        query: query,
+        top_n: options?.top_k || 10,
+        documents: documents,
+      }),
+    });
+
+    const data = await res.json();
+
+    return data.results
+      .map((res, i) => ({
+        index: res.index,
+        score: res.relevance_score,
+        document: options?.return_documents ? documents[res.index] : undefined,
+      }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, options?.top_k || 10);
+  }
+}
+
 export class ZhipuAIProvider extends BaseProvider {
   name: string = 'zhipuai';
   type: ProviderType = ProviderType.ZHIPUAI;
@@ -21,6 +69,8 @@ export class ZhipuAIProvider extends BaseProvider {
   defaultApiBase?: string = 'https://open.bigmodel.cn/api/paas/v4';
 
   openaiClient?: OpenAI;
+
+  tags: ProviderTag[] = [ProviderTag.WEB_SEARCH, ProviderTag.WEB_READER];
 
   constructor(provider: Providers) {
     super({ provider });
@@ -41,6 +91,10 @@ export class ZhipuAIProvider extends BaseProvider {
 
   async getLanguageModelList(): Promise<{ name: string; id: string }[]> {
     return [
+      { id: 'glm-4.7', name: 'GLM-4.7' },
+      { id: 'glm-4.6v', name: 'GLM-4.6V' },
+      { id: 'glm-4.6v-flash', name: 'GLM-4.6V-Flash' },
+      { id: 'autoglm-phone', name: 'AutoGLM-Phone' },
       { id: 'glm-4.6', name: 'GLM-4.6' },
       {
         id: 'glm-4.5',
@@ -75,6 +129,10 @@ export class ZhipuAIProvider extends BaseProvider {
     ];
   }
 
+  async getRerankModelList(): Promise<{ name: string; id: string }[]> {
+    return [{ id: 'rerank', name: 'Rerank' }];
+  }
+
   getCredits(): Promise<ProviderCredits | undefined> {
     return undefined;
   }
@@ -89,5 +147,8 @@ export class ZhipuAIProvider extends BaseProvider {
   }
   speechModel?(modelId: string): SpeechModelV2 {
     return undefined;
+  }
+  rerankModel(modelId: string) {
+    return new ZhipuAIRerankModel({ modelId, provider: this.provider });
   }
 }

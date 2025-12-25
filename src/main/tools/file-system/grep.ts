@@ -4,6 +4,10 @@ import z from 'zod';
 import { spawn } from 'child_process';
 import { rgPath } from '@vscode/ripgrep';
 import readline from 'readline';
+import pathUtil from 'path';
+import fs from 'fs';
+
+const MAX_LINE_LENGTH_TEXT_FILE = 2000;
 export class Grep extends BaseTool {
   id: string = 'Grep';
   description: string = `A powerful search tool built on ripgrep
@@ -123,7 +127,25 @@ export class Grep extends BaseTool {
       offset,
       multiline,
     } = inputData;
-    const { abortSignal } = context;
+    const { abortSignal, requestContext } = context;
+
+    let cwd;
+    if (path) {
+      if (pathUtil.isAbsolute(path)) {
+        cwd = path;
+      } else {
+        cwd = pathUtil.join(
+          requestContext.get('workspace' as never) as string,
+          path,
+        );
+      }
+    } else {
+      cwd = requestContext.get('workspace' as never) as string;
+    }
+
+    if (cwd && fs.existsSync(cwd) && !fs.statSync(cwd).isDirectory()) {
+      throw new Error(`Directory ${cwd} is not a directory`);
+    }
 
     const args: string[] = [];
 
@@ -159,13 +181,13 @@ export class Grep extends BaseTool {
 
     args.push('-e', pattern);
 
-    if (path) {
-      args.push(path);
+    if (cwd) {
+      args.push(cwd);
     }
 
     const child = spawn(rgPath, args, { stdio: ['ignore', 'pipe', 'pipe'] });
 
-    const outputLines: string[] = [];
+    let outputLines: string[] = [];
     let collectedCount = 0;
     let totalCount = 0;
     const limit =
@@ -258,7 +280,20 @@ export class Grep extends BaseTool {
       throw new Error(message);
     }
 
-    const baseOutput =
+    let linesWereTruncatedInLength = false;
+    outputLines = outputLines.map((x) => {
+      if (x.length > MAX_LINE_LENGTH_TEXT_FILE) {
+        linesWereTruncatedInLength = true;
+        return x.substring(0, MAX_LINE_LENGTH_TEXT_FILE) + '... [truncated]';
+      }
+      return x;
+    });
+
+    let baseOutput = '';
+    if (linesWereTruncatedInLength) {
+      baseOutput += `<system-reminder>Content partially truncated: some lines exceeded maximum length of ${MAX_LINE_LENGTH_TEXT_FILE} characters.</system-reminder>\n`;
+    }
+    baseOutput +=
       outputLines.length > 0 ? outputLines.join('\n') : 'No matches found';
 
     const shouldPaginate = limit !== undefined || skip > 0;

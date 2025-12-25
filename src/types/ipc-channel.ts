@@ -10,6 +10,7 @@ export enum ProviderChannel {
 }
 
 export enum AppChannel {
+  GetFileInfo = 'app:GetFileInfo',
   GetInfo = 'app:getInfo',
   Toast = 'app:toast',
   SetTheme = 'app:setTheme',
@@ -48,7 +49,9 @@ export enum KnowledgeBaseChannel {
 }
 
 export enum ToolChannel {
+  SaveSkill = 'tool:saveSkill',
   SaveMCPServer = 'tool:saveMCPServer',
+  ReconnectMCP = 'tool:reconnectMCP',
   GetMcp = 'tool:getMcp',
   DeleteTool = 'tool:deleteTool',
   GetAvailableTools = 'tool:getAvailableTools',
@@ -70,14 +73,17 @@ export enum LocalModelChannel {
 export enum AgentChannel {
   GetAgent = 'agent:getAgent',
   GetList = 'agent:getList',
-  UpdateAgent = 'agent:updateAgent',
+  SaveAgent = 'agent:saveAgent',
+  ImportAgent = 'agent:importAgent',
   GetAvailableAgents = 'agent:getAvailableAgents',
+  DeleteAgent = 'agent:deleteAgent',
+  GetAgentConfig = 'agent:getAgentConfig',
 }
-
 
 export enum ProjectChannel {
   GetProject = 'project:getProject',
   GetList = 'project:getList',
   SaveProject = 'project:saveProject',
   DeleteProject = 'project:deleteProject',
+  CreateThread = 'project:createThread',
 }

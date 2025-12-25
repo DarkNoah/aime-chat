@@ -2,14 +2,15 @@
 /* eslint no-unused-vars: off */
 import { Agent } from '@/types/agent';
 import { AppProxy } from '@/types/app';
-import { ChatInput } from '@/types/chat';
-import { PaginationInfo } from '@/types/common';
+import { ChatInput, ThreadState } from '@/types/chat';
+import { FileInfo, PaginationInfo } from '@/types/common';
 import {
   AgentChannel,
   AppChannel,
   KnowledgeBaseChannel,
   LocalModelChannel,
   MastraChannel,
+  ProjectChannel,
   ProviderChannel,
   ToolChannel,
 } from '@/types/ipc-channel';
@@ -34,8 +35,8 @@ import {
   IpcRendererEvent,
   OpenDialogOptions,
   OpenDialogReturnValue,
+  webUtils,
 } from 'electron';
-import { get } from 'http';
 
 // export type Channels = 'ipc-example';
 
@@ -69,6 +70,11 @@ const electronHandler = {
     },
   },
   app: {
+    getPathForFile: (file: File): string => {
+      return webUtils.getPathForFile(file);
+    },
+    getFileInfo: (path: string): Promise<FileInfo> =>
+      ipcRenderer.invoke(AppChannel.GetFileInfo, path),
     getInfo: () => ipcRenderer.invoke(AppChannel.GetInfo),
     toast: (
       title: string,
@@ -115,14 +121,14 @@ const electronHandler = {
     getThreads: ({
       page,
       size,
+      resourceId,
     }: {
       page: number;
       size: number;
+      resourceId?: string;
     }): Promise<PaginationInfo<StorageThreadType>> =>
-      ipcRenderer.invoke(MastraChannel.GetThreads, { page, size }),
-    getThread: (
-      id: string,
-    ): Promise<StorageThreadType & { messages: UIMessage[] }> =>
+      ipcRenderer.invoke(MastraChannel.GetThreads, { page, size, resourceId }),
+    getThread: (id: string): Promise<ThreadState> =>
       ipcRenderer.invoke(MastraChannel.GetThread, id),
     updateThread: (id: string, data: any) =>
       ipcRenderer.invoke(MastraChannel.UpdateThread, id, data),
@@ -139,6 +145,23 @@ const electronHandler = {
       ipcRenderer.invoke(MastraChannel.SaveMessages, chatId, messages),
     clearMessages: (chatId: string) =>
       ipcRenderer.invoke(MastraChannel.ClearMessages, chatId),
+    getThreadMessages: ({
+      threadId,
+      resourceId,
+      perPage,
+      page,
+    }: {
+      threadId: string;
+      resourceId?: string;
+      perPage?: number | false;
+      page?: number;
+    }) =>
+      ipcRenderer.invoke(MastraChannel.GetThreadMessages, {
+        threadId,
+        resourceId,
+        perPage,
+        page,
+      }),
   },
   knowledgeBase: {
     create: (data: CreateKnowledgeBase) =>
@@ -167,6 +190,10 @@ const electronHandler = {
       ipcRenderer.invoke(ToolChannel.ToggleToolActive, id),
     updateToolConfig: (id: string, value: any) =>
       ipcRenderer.invoke(ToolChannel.UpdateToolConfig, id, value),
+    reconnectMCP: (id: string) =>
+      ipcRenderer.invoke(ToolChannel.ReconnectMCP, id),
+    saveSkill: (id: string | undefined, data: any) =>
+      ipcRenderer.invoke(ToolChannel.SaveSkill, id, data),
   },
   localModel: {
     getList: (): Promise<Record<LocalModelType, LocalModelItem[]>> =>
@@ -179,12 +206,30 @@ const electronHandler = {
       ipcRenderer.invoke(LocalModelChannel.SetDefaultModel, modelId),
   },
   agents: {
+    importAgent: (content: string) =>
+      ipcRenderer.invoke(AgentChannel.ImportAgent, content),
     getAgent: (id: string) => ipcRenderer.invoke(AgentChannel.GetAgent, id),
     getList: (): Promise<Agent[]> => ipcRenderer.invoke(AgentChannel.GetList),
     getAvailableAgents: (): Promise<Agent[]> =>
       ipcRenderer.invoke(AgentChannel.GetAvailableAgents),
-    update: (agent: Agent) =>
-      ipcRenderer.invoke(AgentChannel.UpdateAgent, agent),
+    saveAgent: (agent: Agent) =>
+      ipcRenderer.invoke(AgentChannel.SaveAgent, agent),
+    deleteAgent: (id: string) =>
+      ipcRenderer.invoke(AgentChannel.DeleteAgent, id),
+    getAgentConfig: (id: string) =>
+      ipcRenderer.invoke(AgentChannel.GetAgentConfig, id),
+  },
+  projects: {
+    saveProject: (data: any) =>
+      ipcRenderer.invoke(ProjectChannel.SaveProject, data),
+    getProject: (id: string) =>
+      ipcRenderer.invoke(ProjectChannel.GetProject, id),
+    getList: ({ page, size }: { page: number; size: number }) =>
+      ipcRenderer.invoke(ProjectChannel.GetList, { page, size }),
+    deleteProject: (id: string) =>
+      ipcRenderer.invoke(ProjectChannel.DeleteProject, id),
+    createThread: (options?: any) =>
+      ipcRenderer.invoke(ProjectChannel.CreateThread, options),
   },
 };
 

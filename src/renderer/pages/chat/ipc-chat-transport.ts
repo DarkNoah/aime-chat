@@ -283,7 +283,7 @@ export class IpcChatTransport implements ChatTransport<UIMessage> {
                 );
               }
             } else {
-              console.log(chunk);
+              // console.log(chunk);
               chunkUint8Array = encoder.encode(
                 `data: ${JSON.stringify(chunk)}\n\n`,
               );

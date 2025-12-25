@@ -1,4 +1,14 @@
-import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  Index,
+  JoinColumn,
+  ManyToOne,
+  PrimaryColumn,
+  OneToMany,
+  UpdateDateColumn,
+} from 'typeorm';
 
 @Entity('projects')
 export class Projects {
@@ -10,9 +20,20 @@ export class Projects {
   id!: string;
 
   @Column()
-  @Index({ unique: true })
   title!: string;
 
-  @Column()
+  @Column({ nullable: true })
   path?: string;
+
+  @Column({ nullable: true })
+  tag?: string;
+
+  @Column({ nullable: true })
+  cron?: string;
+
+  @CreateDateColumn()
+  createdAt!: Date;
+
+  @UpdateDateColumn()
+  updatedAt!: Date;
 }

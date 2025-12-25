@@ -3,7 +3,7 @@ import { BaseProvider } from './base-provider';
 import fs from 'fs';
 import path from 'path';
 import OpenAI from 'openai';
-import { ProviderCredits, ProviderType } from '@/types/provider';
+import { ProviderCredits, ProviderTag, ProviderType } from '@/types/provider';
 import {
   EmbeddingModelV2,
   ImageModelV2,
@@ -13,7 +13,7 @@ import {
 } from '@ai-sdk/provider';
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import { createOpenAI } from '@ai-sdk/openai';
-
+import { OpenAIProvider as OpenAIProviderSDK } from '@ai-sdk/openai';
 export class OpenAIProvider extends BaseProvider {
   name: string = 'openai';
   type: ProviderType = ProviderType.OPENAI;
@@ -21,6 +21,10 @@ export class OpenAIProvider extends BaseProvider {
   defaultApiBase?: string = 'https://api.openai.com/v1';
 
   openaiClient?: OpenAI;
+
+  openai?: OpenAIProviderSDK;
+
+  tags: ProviderTag[] = [ProviderTag.WEB_SEARCH];
 
   constructor(provider: Providers) {
     super({ provider });
@@ -30,6 +34,11 @@ export class OpenAIProvider extends BaseProvider {
       // fetchOptions:{
       //   agent:
       // }
+    });
+
+    this.openai = createOpenAI({
+      apiKey: this.provider.apiKey,
+      baseURL: this.provider.apiBase || this.defaultApiBase,
     });
   }
 
@@ -65,6 +74,10 @@ export class OpenAIProvider extends BaseProvider {
         return { id: x.id, name: x.id };
       })
       .sort((a, b) => a.id.localeCompare(b.id));
+  }
+
+  async getRerankModelList(): Promise<{ name: string; id: string }[]> {
+    return [];
   }
 
   getCredits(): Promise<ProviderCredits | undefined> {

@@ -13,7 +13,8 @@ import { ToolConfig } from '@/types/tool';
 import { appManager } from '@/main/app';
 import { providersManager } from '@/main/providers';
 import { ProviderType } from '@/types/provider';
-import { jsonSchemaToZod } from "json-schema-to-zod";
+import { jsonSchemaToZod } from 'json-schema-to-zod';
+import { isUrl } from '@/utils/is';
 
 export interface ExtractParams extends BaseToolParams {
   modelId?: string;
@@ -22,11 +23,41 @@ export interface ExtractParams extends BaseToolParams {
 
 export class Extract extends BaseTool<ExtractParams> {
   id: string = 'Extract';
-  description = `
+  description = `Extracting key extractions from text.
+
+Supported file formats:
+- Plain text file (.txt, ...)
+- Markdown file (.md)
+- HTML file (.html)
+- PDF file (.pdf)
+- Word file (.docx, .doc)
+- PowerPoint file (.pptx, .ppt)
+- Image file (.jpg, .jpeg, .png, .bmp, .webp)
+- Video file (.mp4, .mov, .avi, .mkv, .webm)
+- Audio file (.mp3, .wav, .m4a, .ogg, .aac)
+
+fields is a json schema string:
+example:
+{
+  type: "object",
+  properties: {
+    name: { type: "string" },
+  },
+  required: ["name"],
+}
+
+Returns:
+ a json object from input fields
 `;
   inputSchema = z.strictObject({
     fields: z.string().describe('Extract JsonSchema'),
-    file_path: z.string().describe('The absolute path to the file to extract'),
+    file_path_or_url: z
+      .string()
+      .describe('The absolute path to the file to extract or the url'),
+    save_path: z
+      .string()
+      .optional()
+      .describe('The path to save the extracted data'),
   });
 
   configSchema = ToolConfig.Extract.configSchema;
@@ -39,38 +70,41 @@ export class Extract extends BaseTool<ExtractParams> {
     inputData: z.infer<typeof this.inputSchema>,
     options?: ToolExecutionContext,
   ) => {
+    const { fields, file_path_or_url } = inputData;
 
-    const { fields, file_path } = inputData;
-    const zodSchema = jsonSchemaToZod(JSON.parse(fields))
     const model = await providersManager.getLanguageModel(this.config.modelId);
     const config = this.config;
 
-
     const extractAgent = new Agent({
-      id: "extract-agent",
-      name: "ExtractAgent",
-      instructions: "You are a helpful assistant that extracts data from a file.",
+      id: 'extract-agent',
+      name: 'ExtractAgent',
+      instructions:
+        'You are an assistant specialized in extracting key extractions from text. ',
       model: model,
     });
+    const content = '';
+
+    if (isUrl(file_path_or_url)) {
+    }
+
     const response = await extractAgent.generate(
       [
         {
-          role: "system",
-          content: "Provide a summary and keywords for the following text:",
-        },
-        {
-          role: "user",
-          content: "Monkey, Ice Cream, Boat",
+          role: 'user',
+          content: `<content>
+${content}
+</content>`,
         },
       ],
       {
         structuredOutput: {
-          schema: zodSchema,
+          schema: JSON.parse(fields),
           jsonPromptInjection: true,
         },
       },
     );
+    const o = response.object;
 
-    return '';
+    return JSON.stringify(o, null, 2);
   };
 }

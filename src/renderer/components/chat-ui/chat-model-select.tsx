@@ -7,7 +7,7 @@ import React, { useEffect, useState } from 'react';
 // } from '../ai-elements/prompt-input';
 import { useProviders } from '@/renderer/hooks/use-providers';
 import { useProviderStore } from '@/renderer/store/index';
-import { CheckIcon, Loader2Icon } from 'lucide-react';
+import { CheckIcon, Loader2Icon, XIcon } from 'lucide-react';
 import { Spinner } from '../ui/spinner';
 import { SelectLabel } from '../ui/select';
 import { ModelType, Provider, ProviderModel } from '@/types/provider';
@@ -26,6 +26,7 @@ import {
 } from '../ai-elements/model-selector';
 import { PromptInputButton } from '../ai-elements/prompt-input';
 import { cn } from '@/renderer/lib/utils';
+import { Button } from '../ui/button';
 
 export type ChatModelSelectProps = {
   className?: string;
@@ -33,6 +34,8 @@ export type ChatModelSelectProps = {
   type?: ModelType;
   onChange?: (model: string) => void;
   disabled?: boolean;
+  children?: React.ReactNode;
+  clearable?: boolean;
 };
 
 export interface ChatModelSelectRef {}
@@ -47,6 +50,8 @@ export const ChatModelSelect = React.forwardRef<
     onChange,
     type = ModelType.LLM,
     disabled = false,
+    children,
+    clearable = false,
   } = props;
   const [data, setData] = useState<Provider[]>([]);
   const [modelSelectorOpen, setModelSelectorOpen] = useState(false);
@@ -85,27 +90,48 @@ export const ChatModelSelect = React.forwardRef<
 
   return (
     <ModelSelector onOpenChange={setModelSelectorOpen} open={modelSelectorOpen}>
-      <ModelSelectorTrigger asChild className={cn('border', className)}>
-        <PromptInputButton
-          className="justify-start "
-          disabled={disabled === true || loading}
-        >
-          {selectedModelData?.providerType && (
-            <ModelSelectorLogo provider={selectedModelData.providerType} />
+      <ModelSelectorTrigger
+        asChild
+        className={cn('border rounded-lg', className)}
+      >
+        <div className="flex flex-row justify-between items-center hover:bg-accent dark:hover:bg-accent/50 transition-all">
+          <PromptInputButton
+            className="justify-start flex-1 w-full  cursor-pointer"
+            disabled={disabled === true || loading}
+          >
+            {selectedModelData?.providerType && (
+              <ModelSelectorLogo provider={selectedModelData.providerType} />
+            )}
+            {selectedModelData?.name && (
+              <ModelSelectorName>{selectedModelData.name}</ModelSelectorName>
+            )}
+            {selectedModelData?.name === undefined && (
+              <span className="text-muted-foreground">Select a model</span>
+            )}
+          </PromptInputButton>
+          {clearable && (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Clear selected model"
+              className="rounded-full w-5 h-5 mr-2 hover:bg-muted-foreground/20 transition-all cursor-pointer"
+              onPointerDown={(e) => {
+                // Prevent the click from reaching ModelSelectorTrigger (which would open the popover)
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onChange?.('');
+                setSelectedModelData(null);
+                setModelSelectorOpen(false);
+              }}
+            >
+              <XIcon className="size-3" />
+            </Button>
           )}
-          {selectedModelData?.name && (
-            <ModelSelectorName>{selectedModelData.name}</ModelSelectorName>
-          )}
-          {selectedModelData?.name === undefined && (
-            <span className="text-muted-foreground">Select a model</span>
-          )}
-          {/* {loading ? (
-            <div className="flex flex-row gap-2 items-center">
-              <Spinner />
-              Loading...
-            </div>
-          ) : null} */}
-        </PromptInputButton>
+        </div>
       </ModelSelectorTrigger>
       <ModelSelectorContent>
         <ModelSelectorInput placeholder="Search models..." />

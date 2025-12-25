@@ -1,5 +1,6 @@
 import { t } from 'i18next';
 import z from 'zod';
+import { ProviderTag } from './provider';
 
 export enum ToolType {
   MCP = 'mcp',
@@ -63,16 +64,36 @@ export const ToolConfig = {
       providerId: {
         'ui:widget': 'providerSelector',
         'ui:title': t('common.provider'),
+        'ui:options': {
+          type: ProviderTag.WEB_SEARCH,
+        },
       },
       numResults: {
         'ui:title': t('common.num_results'),
       },
     },
   },
+  WebFetch: {
+    configSchema: z.strictObject({
+      providerId: z.string(),
+    }),
+    uiSchema: {
+      providerId: {
+        'ui:widget': 'providerSelector',
+        'ui:title': t('common.provider'),
+        'ui:options': {
+          type: ProviderTag.WEB_READER,
+        },
+      },
+    },
+  },
   Extract: {
     configSchema: z.strictObject({
       modelId: z.string(),
-      maxChunkSize: z.number().optional().default(32 * 1000),
+      maxChunkSize: z
+        .number()
+        .optional()
+        .default(32 * 1000),
     }),
     uiSchema: {
       modelId: {

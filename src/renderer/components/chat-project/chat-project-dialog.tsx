@@ -11,7 +11,7 @@ import {
 } from '@/renderer/components/ui/dialog';
 import { Input } from '@/renderer/components/ui/input';
 import { Label } from '@/renderer/components/ui/label';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Field, FieldContent, FieldLabel } from '../ui/field';
 import { useForm } from 'react-hook-form';
@@ -25,8 +25,18 @@ import {
   FormMessage,
 } from '@/renderer/components/ui/form';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
-import { CheckCircle2Icon } from 'lucide-react';
+import {
+  BriefcaseBusiness,
+  CheckCircle2Icon,
+  CodeIcon,
+  Folder,
+  FolderCode,
+  Lightbulb,
+} from 'lucide-react';
 import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group';
+import toast from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
+import { Project } from '@/types/project';
 
 const chatProjectSchema = z.object({
   title: z.string(),
@@ -40,47 +50,63 @@ export interface ChatProjectDialogProps extends React.ComponentProps<
   typeof Dialog
 > {
   children?: React.ReactNode;
+  value?: Project;
   onSubmit?: (data: ChatProjectFormData) => void;
 }
 
 export function ChatProjectDialog(props: ChatProjectDialogProps) {
-  const { children, onSubmit } = props;
+  const { children, onSubmit, open, value } = props;
   const { t } = useTranslation();
+  const navigate = useNavigate();
 
   const form = useForm<ChatProjectFormData>({
     resolver: zodResolver(chatProjectSchema),
     defaultValues: {
-      title: '',
-      path: '',
-      tag: '',
+      title: value?.title,
+      path: value?.path,
+      tag: value?.tag,
     },
     reValidateMode: 'onSubmit',
   });
 
   const handleSubmit = async (data: ChatProjectFormData) => {
-    debugger;
-    onSubmit?.(data);
+    try {
+      const result = await window.electron.projects.saveProject({
+        ...data,
+        id: value?.id,
+      });
+      onSubmit?.(data);
+      props?.onOpenChange(false);
+      navigate(`/projects/${result.id}`);
+    } catch (err) {
+      toast.error(err.message);
+    }
   };
+  useEffect(() => {
+    if (open) {
+      form.reset();
+      form.setValue('title', value?.title);
+      form.setValue('path', value?.path);
+      form.setValue('tag', value?.tag);
+    }
+  }, [open, form, value]);
   return (
-    <Dialog {...props}>
-      <DialogTrigger asChild>{children}</DialogTrigger>
+    <Dialog {...props} open={open}>
+      <DialogTrigger>{children}</DialogTrigger>
       <DialogContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)}>
             <DialogHeader>
-              <DialogTitle>{t('project.new_project')}</DialogTitle>
-              {/* <DialogDescription>
-              Make changes to your profile here. Click save when you&apos;re
-              done.
-            </DialogDescription> */}
+              <DialogTitle>
+                {value ? t('project.edit_project') : t('project.new_project')}
+              </DialogTitle>
             </DialogHeader>
-            <div className="grid gap-4 min-w-0 flex flex-col">
+            <div className="mt-4 gap-4 min-w-0 flex flex-col">
               <FormField
                 control={form.control}
                 name="title"
                 render={({ field }) => (
                   <Field>
-                    <FieldLabel>{t('common.title')}</FieldLabel>
                     <FieldContent className="flex flex-row items-center gap-2">
                       <Input id="title" name="title" {...field} />
                     </FieldContent>
@@ -92,13 +118,13 @@ export function ChatProjectDialog(props: ChatProjectDialogProps) {
                 control={form.control}
                 name="path"
                 render={({ field }) => (
-                  <Field>
-                    <FieldLabel>{t('common.path')}</FieldLabel>
-                    <FieldContent className="flex flex-row items-center gap-2 min-w-0 ">
+                  <Field className="min-w-0 inline-grid">
+                    <FieldLabel>{t('project.project_path')}</FieldLabel>
+                    <FieldContent className="flex flex-row items-center gap-2 min-w-0 justify-between">
                       <Button
                         variant="link"
                         type="button"
-                        className="flex-1 truncate justify-start bg-secondary min-w-0"
+                        className="flex-1 truncate justify-start bg-secondary "
                         onClick={() => {
                           if (field.value)
                             window.electron.app.openPath(field.value);
@@ -108,6 +134,7 @@ export function ChatProjectDialog(props: ChatProjectDialogProps) {
                       </Button>
                       <Button
                         type="button"
+                        size="icon"
                         onClick={async () => {
                           const res = await window.electron.app.showOpenDialog({
                             properties: ['openDirectory'],
@@ -120,7 +147,7 @@ export function ChatProjectDialog(props: ChatProjectDialogProps) {
                           field.onChange(path);
                         }}
                       >
-                        更改目录
+                        <Folder></Folder>
                       </Button>
                     </FieldContent>
                   </Field>
@@ -131,7 +158,6 @@ export function ChatProjectDialog(props: ChatProjectDialogProps) {
                 name="tag"
                 render={({ field }) => (
                   <Field>
-                    <FieldLabel>{t('common.tag')}</FieldLabel>
                     <FieldContent className="flex flex-row items-center gap-2 min-w-0 ">
                       <ToggleGroup
                         type="single"
@@ -141,26 +167,31 @@ export function ChatProjectDialog(props: ChatProjectDialogProps) {
                         value={field.value}
                         onValueChange={field.onChange}
                       >
-                        <ToggleGroupItem value="code">Code</ToggleGroupItem>
-                        <ToggleGroupItem value="work">Work</ToggleGroupItem>
+                        <ToggleGroupItem value="code">
+                          <FolderCode />
+                          Code
+                        </ToggleGroupItem>
+                        <ToggleGroupItem value="work">
+                          <BriefcaseBusiness />
+                          Work
+                        </ToggleGroupItem>
                       </ToggleGroup>
                     </FieldContent>
                   </Field>
                 )}
               />
-              <Alert>
-                <CheckCircle2Icon />
+              {/* <Alert>
+                <Lightbulb />
                 <AlertTitle>Success! Your changes have been saved</AlertTitle>
-                <AlertDescription>
-                  This is an alert with icon, title and description.
-                </AlertDescription>
-              </Alert>
+              </Alert> */}
             </div>
             <DialogFooter className="mt-4">
               <DialogClose asChild>
                 <Button variant="outline">{t('common.cancel')}</Button>
               </DialogClose>
-              <Button type="submit">{t('project.new_project')}</Button>
+              <Button type="submit">
+                {value ? t('common.save') : t('project.new_project')}
+              </Button>
             </DialogFooter>
           </form>
         </Form>

@@ -27,7 +27,7 @@ import { Tool, ToolConfig, ToolType } from '@/types/tool';
 import { ItemText } from '@radix-ui/react-select';
 import { useCallback, useEffect, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import Form from '@rjsf/shadcn';
+import Form, { Widgets } from '@rjsf/shadcn';
 import validator from '@rjsf/validator-ajv8';
 import { IconFolder } from '@tabler/icons-react';
 import { ChatPreview } from '@/renderer/components/chat-ui/chat-preview';
@@ -141,6 +141,11 @@ function ToolDetail() {
     navigate('/tools');
   };
 
+  const handleReconnectMCP = async (toolId: string) => {
+    await window.electron.tools.reconnectMCP(toolId);
+    await getTool();
+  };
+
   const handleEditMcp = async (toolId: string) => {
     const mcpConfig = await window.electron.tools.getMcp(toolId);
     console.log(mcpConfig);
@@ -151,6 +156,9 @@ function ToolDetail() {
       <Form
         schema={_tool?.inputSchema}
         validator={validator}
+        widgets={{
+          TextWidget: Widgets.TextareaWidget,
+        }}
         onSubmit={(e) => handleSubmit(_tool.name, e.formData)}
       >
         <div className="flex items-center gap-3 mt-2">
@@ -207,6 +215,16 @@ function ToolDetail() {
                     open={openMcpDialog}
                     onOpenChange={setOpenMcpDialog}
                   ></ToolEditDialog>
+                  {tool.isActive && tool.status === 'running' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleReconnectMCP(tool.id)}
+                    >
+                      Reconnect
+                    </Button>
+                  )}
+
                   <Button
                     variant="outline"
                     size="sm"
@@ -273,7 +291,9 @@ function ToolDetail() {
                 {tool?.path}
               </Button>
             </div>
-
+            <div className="flex text-sm text-muted-foreground mt-2">
+              {tool?.description}
+            </div>
             <div className="p-4 bg-secondary rounded-xl mt-2">
               {' '}
               <Streamdown>{tool?.content}</Streamdown>

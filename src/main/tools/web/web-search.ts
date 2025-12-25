@@ -13,6 +13,9 @@ import { ToolConfig } from '@/types/tool';
 import { appManager } from '@/main/app';
 import { providersManager } from '@/main/providers';
 import { ProviderType } from '@/types/provider';
+import { GoogleProvider } from '@/main/providers/google-provider';
+import { OpenAIProvider } from '@/main/providers/openai-provider';
+import { ZhipuAIProvider } from '@/main/providers/zhipuai-provider';
 
 export interface WebSearchParams extends BaseToolParams {
   providerId?: string;
@@ -74,9 +77,71 @@ Returns:
           apiKey: provider.apiKey,
         });
         results.push(...webSearchResults);
+      } else if (provider.type === ProviderType.GOOGLE) {
+        const googleProvider = (await providersManager.getProvider(
+          config?.providerId,
+        )) as GoogleProvider;
+        const googleSearch = googleProvider.google.tools.googleSearch({});
+        const res = await googleSearch.execute(
+          { webSearchQueries: [query] },
+          {
+            abortSignal: options?.abortSignal,
+            toolCallId: options?.agent?.toolCallId,
+          },
+        );
+        debugger;
+        results.push(...webSearchResults);
+      } else if (provider.type === ProviderType.OPENAI) {
+        const openaiProvider = (await providersManager.getProvider(
+          config?.providerId,
+        )) as OpenAIProvider;
+        const response = await openaiProvider.openaiClient.responses.create({
+          model: 'gpt-5',
+          tools: [{ type: 'web_search' }],
+          input: query,
+          include: ['web_search_call.action.sources'],
+        });
+
+        debugger;
+      } else if (provider.type === ProviderType.ZHIPUAI) {
+        const zhipuaiProvider = (await providersManager.getProvider(
+          config?.providerId,
+        )) as ZhipuAIProvider;
+        const options = {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${zhipuaiProvider.provider.apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            search_query: query,
+            search_engine: 'search_std',
+            search_intent: false,
+            count: numResults,
+            // search_domain_filter: '<string>',
+            search_recency_filter: 'noLimit',
+            content_size: 'medium',
+            // request_id: '<string>',
+            // user_id: '<string>',
+          }),
+        };
+
+        const res = await fetch(
+          'https://open.bigmodel.cn/api/paas/v4/web_search',
+          options,
+        );
+        const data = await res.json();
+        results.push(
+          ...data.search_result.map((x) => {
+            return {
+              href: x.link || undefined,
+              title: x.title,
+              snippet: x.content,
+            };
+          }),
+        );
       }
     }
-
     return results;
   };
 }

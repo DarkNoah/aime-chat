@@ -1,6 +1,12 @@
 import { cn } from '@/renderer/lib/utils';
 import React, { useEffect, useState, type ComponentProps } from 'react';
-import { Dialog, DialogContent, DialogTrigger } from '../ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '../ui/dialog';
 import {
   Command,
   CommandEmpty,
@@ -10,7 +16,7 @@ import {
 } from '../ui/command';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Tool, ToolType } from '@/types/tool';
-import { CheckIcon } from 'lucide-react';
+import { CheckIcon, CircleXIcon } from 'lucide-react';
 import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group';
 import {
   IconCheck,
@@ -22,36 +28,54 @@ import { Agent } from '@/types/agent';
 import { Button } from '../ui/button';
 import { useTranslation } from 'react-i18next';
 import { Spinner } from '../ui/spinner';
+import { Badge } from '../ui/badge';
 
-export type ChatAgentSelectorProps = ComponentProps<typeof Dialog> & {
+type BaseProps = ComponentProps<typeof Dialog> & {
   children?: React.ReactNode;
   className?: string;
+};
+interface SingleModeProps extends BaseProps {
+  mode: 'single';
   value?: string | undefined;
   onChange?: (value: string | undefined) => void;
   onSelectedAgent?: (agent?: Agent) => void;
-};
+}
+
+// 3. 定义 Mode 为 'multiple' 的专属 Props
+interface MultipleModeProps extends BaseProps {
+  mode: 'multiple';
+  value?: string[] | undefined;
+  onChange?: (value: string[] | undefined) => void;
+  onSelectedAgent?: (agent?: Agent[]) => void;
+}
+
+export type ChatAgentSelectorProps = SingleModeProps | MultipleModeProps;
 
 export const ChatAgentSelector = ({
   children,
   ...props
 }: ChatAgentSelectorProps) => {
   const { t } = useTranslation();
-  const { value, onChange, onSelectedAgent } = props;
+  const { value, onChange, onSelectedAgent, mode = 'single' } = props;
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<Agent[]>([]);
   const [open, setOpen] = useState(false);
-  const [selectedAgent, setSelectedAgent] = useState<Agent | undefined>();
+  const [selectedAgent, setSelectedAgent] = useState<Agent | undefined>(
+    undefined,
+  );
 
   const getAvailableAgents = async () => {
     try {
       setLoading(true);
-      const tools = await window.electron.agents.getAvailableAgents();
-      console.log(tools);
-      setData(tools);
+      const agents = await window.electron.agents.getAvailableAgents();
+      console.log(agents);
+      setData(agents);
       setLoading(false);
+      return agents;
     } catch (error) {
       console.error(error);
       setLoading(false);
+      return [];
     }
   };
   useEffect(() => {
@@ -73,22 +97,18 @@ export const ChatAgentSelector = ({
       }}
     >
       <DialogTrigger asChild>
-        <Button variant="ghost" size="sm" className="w-fit" disabled={loading}>
-          {loading ? (
-            <div className="flex flex-row gap-2 items-center">
-              <Spinner />
-              <small className="text-xs text-muted-foreground">
-                {t('common.loading')}
-              </small>
-            </div>
-          ) : (
+        {children || (
+          <Badge
+            variant="outline"
+            className="w-fit cursor-pointer backdrop-blur shadow"
+          >
             <small className="text-xs text-muted-foreground">
               {selectedAgent
                 ? `@${selectedAgent?.name}`
                 : t('common.select_agent')}
             </small>
-          )}
-        </Button>
+          </Badge>
+        )}
       </DialogTrigger>
 
       <DialogContent className={cn('p-0')}>
@@ -102,10 +122,29 @@ export const ChatAgentSelector = ({
                   key={agent.id}
                   value={agent.id}
                   onSelect={() => {
-                    setOpen(false);
-                    setSelectedAgent(agent);
-                    onChange?.(agent.id);
-                    onSelectedAgent?.(agent);
+                    if (mode === 'single') {
+                      (onChange as (value: string | undefined) => void)?.(
+                        agent.id,
+                      );
+                      onSelectedAgent?.(agent);
+                      setOpen(false);
+                    } else if (mode === 'multiple') {
+                      let ids;
+                      if ((value as string[]).includes(agent.id)) {
+                        ids = (value as string[]).filter(
+                          (id) => id !== agent.id,
+                        );
+                      } else {
+                        ids = [...new Set([...value, agent.id])];
+                      }
+
+                      (onChange as (value: string[] | undefined) => void)?.(
+                        ids,
+                      );
+                      onSelectedAgent?.(
+                        data?.filter((a) => ids.includes(a.id)),
+                      );
+                    }
                   }}
                   className="flex flex-row gap-2 items-center justify-between"
                 >
@@ -115,7 +154,12 @@ export const ChatAgentSelector = ({
                       {agent.description}
                     </small>
                   </div>
-                  {value === agent.id && <IconCheck className="w-4 h-4" />}
+                  {mode === 'single' && value === agent.id && (
+                    <IconCheck className="w-4 h-4" />
+                  )}
+                  {mode === 'multiple' && value?.includes(agent.id) && (
+                    <IconCheck className="w-4 h-4" />
+                  )}
                 </CommandItem>
               ))}
             </div>

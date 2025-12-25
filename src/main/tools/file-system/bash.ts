@@ -186,14 +186,22 @@ Output: Creates directory 'foo'`),
     if (directory && !fs.existsSync(directory)) {
       throw new Error(`Directory ${directory} does not exist`);
     }
-    if (
-      directory &&
-      fs.existsSync(directory) &&
-      !fs.statSync(directory).isDirectory()
-    ) {
-      throw new Error(`Directory ${directory} is not a directory`);
+    let cwd;
+    if (directory) {
+      if (path.isAbsolute(directory)) {
+        cwd = directory;
+      } else {
+        cwd = path.join(
+          requestContext.get('workspace' as never) as string,
+          directory,
+        );
+      }
+    } else {
+      cwd = requestContext.get('workspace' as never) as string;
     }
-    const cwd = directory;
+    if (cwd && fs.existsSync(cwd) && !fs.statSync(cwd).isDirectory()) {
+      throw new Error(`Directory ${cwd} is not a directory`);
+    }
 
     if (run_in_background) {
       const shell_id = nanoid(8);
@@ -245,7 +253,7 @@ Output: Creates directory 'foo'`),
       }
       llmContent = [
         `Command: ${inputData.command}`,
-        `Directory: ${directory || '(root)'}`,
+        `Directory: ${cwd}`,
         `Stdout: ${stdout || '(empty)'}`,
         `Stderr: ${stderr || '(empty)'}`,
         `Error: ${errorMessage ?? '(none)'}`,

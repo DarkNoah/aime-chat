@@ -1,3 +1,4 @@
+/* eslint-disable no-await-in-loop */
 'use client';
 
 import { Button } from '@/renderer/components/ui/button';
@@ -72,10 +73,16 @@ import {
 // ============================================================================
 // Provider Context & Types
 // ============================================================================
+import { Plate, usePlateEditor, createPlateEditor } from 'platejs/react';
+// import { EditorKit } from '@/renderer/components/editor/editor-kit';
+import { Editor, EditorContainer } from '@/renderer/components/ui/editor';
+import { MentionPlugin, MentionInputPlugin } from '@platejs/mention/react';
+import { FileInfo } from '@/types/common';
 
 export type AttachmentsContext = {
   files: (FileUIPart & { id: string })[];
   add: (files: File[] | FileList) => void;
+  addInline?: (files: File[] | FileList) => void;
   remove: (id: string) => void;
   clear: () => void;
   openFileDialog: () => void;
@@ -155,6 +162,44 @@ export function PromptInputProvider({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const openRef = useRef<() => void>(() => {});
 
+  const addInline = useCallback(
+    (files: File[] | FileList) => {
+      const incoming = Array.from(files);
+      if (incoming.length === 0) {
+        return;
+      }
+
+      const fileInfos = [];
+
+      const handleFiles = async () => {
+        for (const file of incoming) {
+          const path = window.electron.app.getPathForFile(file);
+          const info = await window.electron.app.getFileInfo(path);
+          fileInfos.push(info);
+        }
+
+        const text = fileInfos.map((x) => `'${x.path}'`).join(' ');
+
+        const newValue = textInput + text;
+        setTextInput((prev) => prev + text);
+      };
+      handleFiles();
+
+      // setAttachements((prev) =>
+      //   prev.concat(
+      //     incoming.map((file) => ({
+      //       id: nanoid(),
+      //       type: 'file' as const,
+      //       url: URL.createObjectURL(file),
+      //       mediaType: file.type,
+      //       filename: file.name,
+      //     })),
+      //   ),
+      // );
+    },
+    [textInput],
+  );
+
   const add = useCallback((files: File[] | FileList) => {
     const incoming = Array.from(files);
     if (incoming.length === 0) {
@@ -203,6 +248,7 @@ export function PromptInputProvider({
     () => ({
       files: attachements,
       add,
+      addInline,
       remove,
       clear,
       openFileDialog,
@@ -543,7 +589,13 @@ export const PromptInput = ({
   );
 
   const add = usingProvider
-    ? (files: File[] | FileList) => controller.attachments.add(files)
+    ? (files: File[] | FileList, inline: boolean = false) => {
+        if (inline) {
+          controller.attachments.addInline(files);
+        } else {
+          controller.attachments.add(files);
+        }
+      }
     : addLocal;
 
   const remove = usingProvider
@@ -602,7 +654,7 @@ export const PromptInput = ({
         e.preventDefault();
       }
       if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
-        add(e.dataTransfer.files);
+        add(e.dataTransfer.files, true);
       }
     };
     form.addEventListener('dragover', onDragOver);
@@ -626,7 +678,7 @@ export const PromptInput = ({
         e.preventDefault();
       }
       if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
-        add(e.dataTransfer.files);
+        add(e.dataTransfer.files, true);
       }
     };
     document.addEventListener('dragover', onDragOver);
@@ -650,7 +702,7 @@ export const PromptInput = ({
 
   const handleChange: ChangeEventHandler<HTMLInputElement> = (event) => {
     if (event.currentTarget.files) {
-      add(event.currentTarget.files);
+      add(event.currentTarget.files, false);
     }
   };
 
@@ -789,7 +841,7 @@ export const PromptInputTextarea = ({
   const controller = useOptionalPromptInputController();
   const attachments = usePromptInputAttachments();
   const [isComposing, setIsComposing] = useState(false);
-
+  const textareaRef = useRef(null);
   const handleKeyDown: KeyboardEventHandler<HTMLTextAreaElement> = (e) => {
     if (e.key === 'Enter') {
       if (isComposing || e.nativeEvent.isComposing) {
@@ -826,27 +878,50 @@ export const PromptInputTextarea = ({
     }
   };
 
-  const handlePaste: ClipboardEventHandler<HTMLTextAreaElement> = (event) => {
+  const handlePaste: ClipboardEventHandler<HTMLTextAreaElement> = async (
+    event,
+  ) => {
     const items = event.clipboardData?.items;
 
     if (!items) {
       return;
     }
 
-    const files: File[] = [];
+    const files: FileInfo[] = [];
 
     for (const item of items) {
       if (item.kind === 'file') {
         const file = item.getAsFile();
         if (file) {
-          files.push(file);
+          const path = window.electron.app.getPathForFile(file);
+          const info = await window.electron.app.getFileInfo(path);
+          files.push(info);
         }
       }
     }
 
     if (files.length > 0) {
       event.preventDefault();
-      attachments.add(files);
+      const textarea = textareaRef.current;
+      if (!textarea) return;
+
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const text = files.map((x) => `'${x.path}'`).join(' ');
+
+      const newValue =
+        controller.textInput.value.slice(0, start) +
+        text +
+        controller.textInput.value.slice(end);
+
+      // setValue(newValue);
+      // attachments.add(files);
+      console.log(
+        controller.textInput.value,
+        textarea.selectionStart,
+        textarea.selectionEnd,
+      );
+      controller.textInput.setInput(newValue);
     }
   };
 
@@ -861,9 +936,49 @@ export const PromptInputTextarea = ({
     : {
         onChange,
       };
+  // const editor = usePlateEditor({
+  //   // plugins: EditorKit,
+  //   // value: '',
+  // });
+
+  // const editor = createPlateEditor({
+  //   plugins: [
+  //     // ...其他插件
+  //     // MentionPlugin.configure({
+  //     //   options: {
+  //     //     trigger: '@',
+  //     //     triggerPreviousCharPattern: /^$|^[\s"']$/,
+  //     //     insertSpaceAfterMention: false,
+  //     //   },
+  //     // }).withComponent(MentionElement),
+  //     // MentionInputPlugin.withComponent(MentionInputElement),
+  //   ],
+  // });
+  // return (
+  //   <Plate editor={editor}>
+  //     <EditorContainer variant="default" className="px-2">
+  //       <Editor className="px-2 text-sm" />
+  //     </EditorContainer>
+  //   </Plate>
+  // );
+
+  // return (
+  //   <InputGroupTextarea
+  //     className={cn('field-sizing-content max-h-48 min-h-16', className)}
+  //     name="message"
+  //     onCompositionEnd={() => setIsComposing(false)}
+  //     onCompositionStart={() => setIsComposing(true)}
+  //     onKeyDown={handleKeyDown}
+  //     onPaste={handlePaste}
+  //     placeholder={placeholder}
+  //     {...props}
+  //     {...controlledProps}
+  //   />
+  // );
 
   return (
     <InputGroupTextarea
+      ref={textareaRef}
       className={cn('field-sizing-content max-h-48 min-h-16', className)}
       name="message"
       onCompositionEnd={() => setIsComposing(false)}

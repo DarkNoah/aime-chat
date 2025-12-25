@@ -1,16 +1,26 @@
+import { RequestContext } from '@mastra/core/request-context';
+import { ChatRequestContext } from './chat';
+
 export type BuildAgentParams = {
   tools?: string[];
+  subAgents?: string[];
   modelId: string;
+  requestContext?: RequestContext<ChatRequestContext>;
 };
 
 export type Agent = {
-  id: string;
+  id?: string;
   name?: string;
   description?: string;
   instructions?: string;
   tools?: string[];
+  subAgents?: string[];
+  suggestions?: string[];
   isActive?: boolean;
   tags?: string[];
+  isHidden?: boolean;
+  type?: string;
+  defaultModelId?: string;
 };
 
 export enum AgentTags {

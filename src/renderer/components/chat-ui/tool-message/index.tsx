@@ -32,6 +32,7 @@ import { TodoWriteMessage } from './todo-write-message';
 import { WriteMessage } from './write-message';
 import { Button } from '../../ui/button';
 import { useTranslation } from 'react-i18next';
+import { TaskMessage } from './task-message';
 
 export type ToolSuspended = {
   toolName: string;

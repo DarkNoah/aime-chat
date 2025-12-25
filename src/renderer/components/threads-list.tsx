@@ -37,7 +37,7 @@ import {
   ItemTitle,
 } from './ui/item';
 import { ScrollArea } from './ui/scroll-area';
-import { ChatChangedType, ChatEvent } from '@/types/chat';
+import { ChatChangedType, ChatEvent, ThreadEvent } from '@/types/chat';
 import ShinyText from './react-bits/ShinyText';
 import { Shimmer } from './ai-elements/shimmer';
 import { Label } from './ui/label';
@@ -133,7 +133,7 @@ export default function ThreadsList({ className }: ThreadsListProps) {
       loadMore(true);
     };
     window.electron.ipcRenderer.on(
-      'mastra:thread-created',
+      ThreadEvent.ThreadCreated,
       handleThreadCreated,
     );
     if (!initialLoadRef.current) {
@@ -179,7 +179,7 @@ export default function ThreadsList({ className }: ThreadsListProps) {
 
     return () => {
       window.electron.ipcRenderer.removeListener(
-        'mastra:thread-created',
+        ThreadEvent.ThreadCreated,
         handleThreadCreated,
       );
       window.electron.ipcRenderer.removeListener(
@@ -320,12 +320,9 @@ export default function ThreadsList({ className }: ThreadsListProps) {
       ref={containerRef}
       className={cn('flex flex-col min-h-0 h-full', className)}
     >
-      <Label className="text-muted-foreground text-xs p-2 ">
-        {t('common.chat')}
-      </Label>
       <ScrollArea className="flex-1 h-full pr-1 min-h-0">
         <div
-          className={`flex flex-col gap-1 p-2`}
+          className="flex flex-col gap-1 p-2"
           style={{
             width: `calc(var(--sidebar-width) - var(--spacing) * ${isMobile ? '3' : '6'})`,
           }}
@@ -342,8 +339,8 @@ export default function ThreadsList({ className }: ThreadsListProps) {
       </ScrollArea>
       <AlertDialog
         open={threadPendingDeletion !== null}
-        onOpenChange={(open) => {
-          if (!open) {
+        onOpenChange={(_open) => {
+          if (!_open) {
             setThreadPendingDeletion(null);
           }
         }}

@@ -3,7 +3,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@/renderer/components/ui/button';
 import { Progress } from '@/renderer/components/ui/progress';
-import { CircleCheckIcon, Loader2Icon, StarIcon } from 'lucide-react';
+import {
+  BotIcon,
+  CircleCheckIcon,
+  FolderDot,
+  Loader2Icon,
+  StarIcon,
+} from 'lucide-react';
 import { useHeader } from '@/renderer/hooks/use-title';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
@@ -41,6 +47,9 @@ import {
 } from '@/renderer/components/ui/card';
 import { Switch } from '@/renderer/components/ui/switch';
 import { Badge } from '@/renderer/components/ui/badge';
+import { AgentDialog } from '@/renderer/components/agents/agent-dialog';
+import { Item, ItemContent, ItemHeader } from '@/renderer/components/ui/item';
+import { AgentImportDialog } from '@/renderer/components/agents/agent-import-dialog';
 
 function AgentPage() {
   const { setTitle } = useHeader();
@@ -71,6 +80,24 @@ function AgentPage() {
     <div className="h-full w-full flex flex-col gap-2 p-4">
       <div className="flex flex-col w-full min-w-0">
         <div className="flex flex-col items-center justify-between gap-2">
+          <div className="flex flex-row gap-2 w-full">
+            <AgentDialog>
+              <Item variant="outline" className="cursor-pointer">
+                <ItemHeader>
+                  <BotIcon></BotIcon>
+                </ItemHeader>
+                <ItemContent>{t('agents.add_agent')}</ItemContent>
+              </Item>
+            </AgentDialog>
+            <AgentImportDialog>
+              <Item variant="outline" className="cursor-pointer">
+                <ItemHeader>
+                  <FolderDot />
+                </ItemHeader>
+                <ItemContent>{t('agents.import_agent')}</ItemContent>
+              </Item>
+            </AgentImportDialog>
+          </div>
           <div className="flex flex-row items-center gap-2">
             <InputGroup>
               <InputGroupInput
@@ -83,8 +110,6 @@ function AgentPage() {
                 <IconSearch></IconSearch>
               </InputGroupAddon>
             </InputGroup>
-
-            <Button>Add</Button>
           </div>
 
           <div className="flex flex-row items-center gap-2 flex-1 w-full min-w-0 ">
@@ -107,6 +132,7 @@ function AgentPage() {
           </div>
         </div>
       </div>
+      <div>{t('agents.local_agents')}</div>
       <ScrollArea className="flex-1 min-h-0">
         <div className="w-full flex flex-row flex-wrap gap-2">
           {agents.map((agent) => (
@@ -118,12 +144,14 @@ function AgentPage() {
                 >
                   {agent.name}
                 </CardTitle>
-                <CardDescription>{agent.description}</CardDescription>
+                <CardDescription className="line-clamp-2">
+                  {agent.description}
+                </CardDescription>
                 <CardAction>
                   <Switch
                     checked={agent.isActive}
                     onCheckedChange={async (v) => {
-                      await window.electron.agents.update({
+                      await window.electron.agents.saveAgent({
                         id: agent.id,
                         isActive: v,
                       });

@@ -3,7 +3,7 @@ import { BaseProvider } from './base-provider';
 import fs from 'fs';
 import path from 'path';
 import OpenAI from 'openai';
-import { ProviderCredits, ProviderType } from '@/types/provider';
+import { ProviderCredits, ProviderTag, ProviderType } from '@/types/provider';
 import {
   EmbeddingModelV2,
   ImageModelV2,
@@ -25,6 +25,8 @@ export class GoogleProvider extends BaseProvider {
   defaultApiBase?: string = 'https://generativelanguage.googleapis.com/v1beta';
 
   google: GoogleGenerativeAIProvider;
+
+  tags: ProviderTag[] = [ProviderTag.WEB_SEARCH];
 
   constructor(provider: Providers) {
     super({ provider });
@@ -53,25 +55,25 @@ export class GoogleProvider extends BaseProvider {
       }[];
     } = await res.json();
 
-
-
-
-
     const models = data.models
       .filter((x) => x.supportedGenerationMethods.includes('generateContent'))
       .map((x) => {
         return { id: x.name.split('/')[1], name: x.displayName };
       });
-    while(true){
-      if(!data.nextPageToken) break;
+    while (true) {
+      if (!data.nextPageToken) break;
       const res = await fetch(`${url}&pageToken=${data.nextPageToken}`);
       data = await res.json();
-      models.push(...data.models.filter((x) => x.supportedGenerationMethods.includes('generateContent')).map((x) => {
-        return { id: x.name.split('/')[1], name: x.displayName };
-      }));
+      models.push(
+        ...data.models
+          .filter((x) =>
+            x.supportedGenerationMethods.includes('generateContent'),
+          )
+          .map((x) => {
+            return { id: x.name.split('/')[1], name: x.displayName };
+          }),
+      );
     }
-
-
 
     return models;
   }
@@ -89,7 +91,9 @@ export class GoogleProvider extends BaseProvider {
       });
     return models;
   }
-
+  async getRerankModelList(): Promise<{ name: string; id: string }[]> {
+    return [];
+  }
   getCredits(): Promise<ProviderCredits | undefined> {
     return undefined;
   }

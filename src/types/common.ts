@@ -5,3 +5,13 @@ export type PaginationInfo<TItem> = {
   size: number;
   hasMore: boolean;
 };
+
+export type FileInfo = {
+  isExist: boolean;
+  isFile?: boolean;
+  path?: string;
+  name?: string;
+  ext?: string;
+  size?: number;
+  sizeStr?: string;
+};

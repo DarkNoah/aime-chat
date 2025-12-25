@@ -1,3 +1,4 @@
+/* eslint-disable camelcase */
 import React, { ForwardedRef, useCallback, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../ui/card';
 import { isArray, isObject, isString } from '@/utils/is';
@@ -14,6 +15,8 @@ import { Button } from '../../ui/button';
 import { IconFile } from '@tabler/icons-react';
 import { Source, Sources, SourcesContent } from '../../ai-elements/sources';
 import { Item, ItemContent, ItemDescription, ItemTitle } from '../../ui/item';
+import ReactDiffViewer from 'react-diff-viewer';
+import { useTheme } from 'next-themes';
 
 export type ChatToolResultPreviewProps = {
   title?: string;
@@ -32,20 +35,21 @@ export const ChatToolResultPreview = React.forwardRef<
     ref: ForwardedRef<ChatToolResultPreviewRef>,
   ) => {
     const toolName = part?.type?.split('-').slice(1).join('-');
+    const { theme } = useTheme();
     const renderResult = () => {
       if (!part?.output) return null;
       if (toolName === 'WebSearch') {
         return (
           <div className="flex flex-col gap-2">
-            {part.output?.map((source: any) => (
+            {part.output?.map((source: any, index: number) => (
               <Item
                 variant="outline"
-                key={source.href}
+                key={`${source.href}-${index}`}
                 className="cursor-pointer"
               >
                 <ItemContent
                   onClick={() => {
-                    window.open(source.href, '_blank');
+                    if (source.href) window.open(source.href, '_blank');
                   }}
                 >
                   <ItemTitle>{source.title}</ItemTitle>
@@ -180,6 +184,73 @@ export const ChatToolResultPreview = React.forwardRef<
               )}
             </div>
           );
+        case 'Task': {
+          const { description, prompt, subagent_type } = part?.input as {
+            description: string;
+            prompt: string;
+            subagent_type: string;
+          };
+          return (
+            <div className="flex flex-col gap-2">
+              <Badge>@{subagent_type}</Badge>
+              <small className="text-wrap text-muted-foreground">
+                {description}
+              </small>
+              <pre className="text-wrap text-sm break-all bg-secondary p-4 rounded-2xl">
+                {prompt}
+              </pre>
+            </div>
+          );
+        }
+        case 'Edit': {
+          const { file_path, old_string, new_string, replace_all } =
+            part?.input as {
+              file_path: string;
+              old_string: string;
+              new_string: string;
+              replace_all?: boolean;
+            };
+          return (
+            <div className="overflow-hidden flex flex-col gap-2">
+              <Button
+                variant="link"
+                className="bg-muted w-full justify-start"
+                onClick={() => {
+                  window.electron.app.openPath(file_path);
+                }}
+              >
+                <IconFile></IconFile>
+                {file_path}
+              </Button>
+              <div className="rounded-md overflow-hidden">
+                <ReactDiffViewer
+                  oldValue={old_string}
+                  newValue={new_string}
+                  splitView={false}
+                  disableWordDiff
+                  hideLineNumbers
+                  useDarkTheme={theme === 'dark'}
+                  styles={{
+                    variables: {},
+                    line: {
+                      padding: '10px 2px',
+                      fontSize: 'var(--text-sm)',
+                    },
+                  }}
+                  // renderContent={this.highlightSyntax}
+                />
+              </div>
+
+              {/* <pre className="text-wrap text-sm break-all bg-secondary rounded-md p-2">
+                {old_string}
+              </pre>
+              <pre className="text-wrap text-sm break-all bg-secondary rounded-md p-2">
+                {new_string}
+              </pre> */}
+            </div>
+          );
+        }
+
         default:
           return (
             <>

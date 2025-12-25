@@ -93,11 +93,22 @@ export function ToolEditDialog({
         mcpServers: {},
       };
       if (value.type === 'stdio') {
+        const env = {};
+        value.env
+          ?.split('\n')
+          .filter((x) => x.trim())
+          .forEach((x) => {
+            const [key, v] = x.split('=');
+            if (key.trim() && v.trim()) {
+              env[key.trim()] = v.trim();
+            }
+          });
+
         config.mcpServers = {
           [value.name]: {
             command: value.command,
             args: value.args.split('\n'),
-            env: value.env,
+            env: value.env ? env : undefined,
           },
         };
       } else if (value.type === 'sse') {
@@ -129,10 +140,16 @@ export function ToolEditDialog({
           const key = Object.keys(mcpConfig)[0];
           createMcpForm.setValue('name', key);
           if ('command' in mcpConfig[key]) {
+            let env;
+            if (mcpConfig[key].env) {
+              env = Object.entries(mcpConfig[key].env)
+                .map(([k, value]) => `${k}=${value}`)
+                .join('\n');
+            }
             createMcpForm.setValue('type', 'stdio');
             createMcpForm.setValue('command', mcpConfig[key].command);
             createMcpForm.setValue('args', mcpConfig[key].args?.join('\n'));
-            createMcpForm.setValue('env', mcpConfig[key].env);
+            createMcpForm.setValue('env', env);
           } else if ('url' in mcpConfig[key]) {
             createMcpForm.setValue('type', 'sse');
             createMcpForm.setValue('url', mcpConfig[key].url);
@@ -254,8 +271,10 @@ export function ToolEditDialog({
                             <SelectValue placeholder="请选择类型" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="stdio">stdio</SelectItem>
-                            <SelectItem value="sse">sse</SelectItem>
+                            <SelectItem value="stdio">Stdio</SelectItem>
+                            <SelectItem value="sse">
+                              StreamableHttp / SSE
+                            </SelectItem>
                           </SelectContent>
                         </Select>
                       </FormControl>
@@ -315,7 +334,7 @@ export function ToolEditDialog({
                           <FormControl>
                             <Textarea
                               id="env"
-                              placeholder="请输入命令"
+                              placeholder="Key1=Value1\nKey2=Value2"
                               {...field}
                             />
                           </FormControl>
@@ -360,7 +379,7 @@ export function ToolEditDialog({
                             <Textarea
                               id="headers"
                               placeholder={t('tools.mcp_headers_placeholder')}
-                              value={JSON.stringify(field.value)}
+                              value={JSON.stringify(field.value, null, 2)}
                               onChange={(e) => {
                                 field.onChange(JSON.parse(e.target.value));
                               }}
