@@ -96,7 +96,8 @@
     "execute": "Execute",
     "approval_description": "Can this tool be executed?",
     "mcp_url": "URL",
-    "mcp_headers": "Headers"
+    "mcp_headers": "Headers",
+    "create_skill": "Create Skill"
   },
   "agents": {
     "instructions": "System Prompt",

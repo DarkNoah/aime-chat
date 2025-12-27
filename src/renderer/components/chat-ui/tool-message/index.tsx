@@ -33,6 +33,7 @@ import { WriteMessage } from './write-message';
 import { Button } from '../../ui/button';
 import { useTranslation } from 'react-i18next';
 import { TaskMessage } from './task-message';
+import { GenerateImageMessage } from './generate-image';
 
 export type ToolSuspended = {
   toolName: string;
@@ -134,29 +135,34 @@ export const ToolMessage = React.forwardRef<ToolMessageRef, ToolMessageProps>(
         return <TodoWriteMessage part={part}></TodoWriteMessage>;
       } else if (toolName === 'Write') {
         return <WriteMessage part={part}></WriteMessage>;
+      } else if (toolName === 'GenerateImage' || toolName === 'EditImage') {
+        return <GenerateImageMessage part={part}></GenerateImageMessage>;
       }
       return null;
     };
 
     const getDescription = () => {
+      const input = part?.input as any;
       switch (toolName) {
         case 'Skill':
-          return part?.input?.skill;
+          return input?.skill;
         case 'Read':
         case 'Write':
         case 'Edit':
-          return part?.input?.file_path;
+          return input?.file_path;
         case 'Glob':
         case 'Grep':
-          return part?.input?.pattern;
+          return input?.pattern;
         case 'TodoWrite':
-          return `${part?.input?.todos?.length} todo`;
+          return `${input?.todos?.length} todo`;
         case 'KillBash':
         case 'BashOutput':
-          return part?.input?.shell_id;
-
+          return input?.shell_id;
+        case 'GenerateImage':
+        case 'EditImage':
+          return input?.prompt;
         default:
-          return part?.input?.description;
+          return input?.description;
       }
     };
 

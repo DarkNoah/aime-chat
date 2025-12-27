@@ -162,6 +162,24 @@ const electronHandler = {
         perPage,
         page,
       }),
+    getUsage: ({
+      threadId,
+      resourceId,
+    }: {
+      threadId: string;
+      resourceId?: string;
+    }) => ipcRenderer.invoke(MastraChannel.GetUsage, { threadId, resourceId }),
+    getUsageSummary: ({
+      threadId,
+      resourceId,
+    }: {
+      threadId?: string;
+      resourceId?: string;
+    }) =>
+      ipcRenderer.invoke(MastraChannel.GetUsageSummary, {
+        threadId,
+        resourceId,
+      }),
   },
   knowledgeBase: {
     create: (data: CreateKnowledgeBase) =>

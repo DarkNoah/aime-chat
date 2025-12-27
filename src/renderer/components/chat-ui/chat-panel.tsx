@@ -390,12 +390,14 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
       resetChat();
 
       if (threadId) {
-        eventBus.on(`chat:onData:${threadId}`, (event) => {
+        eventBus.on(`chat:onData:${threadId}`, (event: any) => {
           console.log('chat:onData', event);
-          if (event.type == 'data-compress-start') {
+          if (event.type === 'data-compress-start') {
             setCompressing(true);
-          } else if (event.type == 'data-compress-end') {
+          } else if (event.type === 'data-compress-end') {
             setCompressing(false);
+          } else if (event.type === 'data-usage') {
+            setUsage(event.data);
           }
         });
         eventBus.on(`chat:onFinish:${threadId}`, (event) => {

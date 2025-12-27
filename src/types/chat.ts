@@ -73,6 +73,7 @@ export enum ChatPreviewType {
   TOOL_RESULT = 'tool-result',
   MESSAGES = 'messages',
   TODO = 'todo',
+  USAGE = 'usage',
 }
 
 export type ChatPreviewData = {

@@ -104,6 +104,7 @@ import {
   ChatPreviewData,
   ChatPreviewType,
   ChatSubmitOptions,
+  ChatTodo,
 } from '@/types/chat';
 import { ChatPreview } from '../components/chat-ui/chat-preview';
 import { Label } from '../components/ui/label';
@@ -339,6 +340,16 @@ function ChatPage() {
     threadState?.metadata?.workspace,
   ]);
 
+  useEffect(() => {
+    if (!threadState) return;
+    setPreviewData((data) => {
+      return {
+        ...data,
+        todos: (threadState?.metadata?.todos as ChatTodo[]) || [],
+      };
+    });
+  }, [threadState]);
+
   return (
     <ResizablePanelGroup
       direction="horizontal"
@@ -366,7 +377,7 @@ function ChatPage() {
         <>
           <ResizableHandle withHandle />
           <ResizablePanel
-            maxSize={showPreview ? 75 : 0}
+            maxSize={showPreview ? 70 : 0}
             className={`h-full flex-1 `}
           >
             <div className="p-2 w-full h-full">

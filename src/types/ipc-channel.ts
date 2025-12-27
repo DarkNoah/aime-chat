@@ -38,6 +38,8 @@ export enum MastraChannel {
   ChatAbort = 'mastra:chatAbort',
   SaveMessages = 'mastra:saveMessages',
   ClearMessages = 'mastra:clearMessages',
+  GetUsage = 'mastra:getUsage',
+  GetUsageSummary = 'mastra:getUsageSummary',
 }
 
 export enum KnowledgeBaseChannel {

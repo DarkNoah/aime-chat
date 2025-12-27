@@ -85,6 +85,7 @@ import { getLastMessageIndex } from '../utils/messageUtils';
 import { MastraThreadsUsage } from '@/entities/mastra-threads-usage';
 import { Repository } from 'typeorm';
 import { dbManager } from '../db';
+import { costFromUsage, getTokenCosts } from 'tokenlens';
 
 class MastraManager extends BaseManager {
   app: express.Application;
@@ -520,6 +521,7 @@ class MastraManager extends BaseManager {
         google: {
           thinkingConfig: {
             thinkingLevel: 'low',
+            includeThoughts: true,
           },
         },
       };
@@ -873,7 +875,12 @@ class MastraManager extends BaseManager {
         delete streamOptions.context;
 
         stream = await this.nextStep(agent, input, streamOptions, resume);
-        await this.saveThreadUsage(chatId, resourceId, stream.usage);
+        await this.saveThreadUsage(
+          chatId,
+          resourceId,
+          stream.usage,
+          `${providerType}:${modelId}`,
+        );
         const core = stream.messageList.get.all.core();
         const db = stream.messageList.get.all.db();
         const ui = stream.messageList.get.all.ui();
@@ -1450,19 +1457,311 @@ When you are using compact - please focus on test output and code changes. Inclu
     threadId: string,
     resourceId: string,
     usage: MastraModelOutput['usage'],
+    modelId?: string,
   ) {
     const _usage = await usage;
+    const costs = getTokenCosts({ modelId, usage: _usage });
     try {
       const data = await this.mastraThreadsUsageRepository.save(
         new MastraThreadsUsage(
           threadId,
           resourceId,
           _usage as LanguageModelV2Usage,
+          modelId,
+          costs,
         ),
       );
     } catch {
       console.error('Failed to save thread usage', threadId, usage);
     }
+  }
+
+  private async findThreadUsageRows({
+    threadId,
+    resourceId,
+  }: {
+    threadId?: string;
+    resourceId?: string;
+  }) {
+    // 直接走 SQL（QueryBuilder），避免在 JS 层做筛选
+    const qb = this.mastraThreadsUsageRepository.createQueryBuilder('u');
+    if (threadId) qb.andWhere('u.thread_id = :threadId', { threadId });
+    if (resourceId) qb.andWhere('u.resource_id = :resourceId', { resourceId });
+    qb.orderBy('u.createdAt', 'ASC');
+    return qb.getMany();
+  }
+
+  private getUsageDaySqlExpr(alias = 'u') {
+    const type = dbManager.dataSource.options.type;
+    // better-sqlite3 / sqlite 都支持 strftime
+    if (type === 'better-sqlite3' || type === 'sqlite') {
+      return `strftime('%Y-%m-%d', ${alias}.createdAt)`;
+    }
+    // 兜底：多数数据库支持 DATE()
+    return `DATE(${alias}.createdAt)`;
+  }
+
+  private toFiniteNumber(v: any) {
+    const n = typeof v === 'number' ? v : Number(v);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  private async getThreadUsageSummaryFromSql({
+    threadId,
+    resourceId,
+  }: {
+    threadId?: string;
+    resourceId?: string;
+  }) {
+    const base = this.mastraThreadsUsageRepository.createQueryBuilder('u');
+    if (threadId) base.andWhere('u.thread_id = :threadId', { threadId });
+    if (resourceId)
+      base.andWhere('u.resource_id = :resourceId', { resourceId });
+
+    const raw = await base
+      .select('COUNT(1)', 'count')
+      .addSelect('SUM(COALESCE(u.input_tokens, 0))', 'inputTokens')
+      .addSelect('SUM(COALESCE(u.output_tokens, 0))', 'outputTokens')
+      .addSelect('SUM(COALESCE(u.total_tokens, 0))', 'totalTokens')
+      .addSelect('SUM(COALESCE(u.reasoning_tokens, 0))', 'reasoningTokens')
+      .addSelect('SUM(COALESCE(u.cached_input_tokens, 0))', 'cachedInputTokens')
+      .addSelect('MIN(u.createdAt)', 'firstAt')
+      .addSelect('MAX(u.createdAt)', 'lastAt')
+      .getRawOne();
+
+    const dayExpr = `COALESCE(${this.getUsageDaySqlExpr('u')}, 'unknown')`;
+    const byDayRaw = await this.mastraThreadsUsageRepository
+      .createQueryBuilder('u')
+      .select(dayExpr, 'day')
+      .addSelect('COUNT(1)', 'count')
+      .addSelect('SUM(COALESCE(u.input_tokens, 0))', 'inputTokens')
+      .addSelect('SUM(COALESCE(u.output_tokens, 0))', 'outputTokens')
+      .addSelect('SUM(COALESCE(u.total_tokens, 0))', 'totalTokens')
+      .addSelect('SUM(COALESCE(u.reasoning_tokens, 0))', 'reasoningTokens')
+      .addSelect('SUM(COALESCE(u.cached_input_tokens, 0))', 'cachedInputTokens')
+      .where(
+        base.expressionMap.wheres.map((w) => w.condition).join(' AND ') ||
+          '1=1',
+        base.getParameters(),
+      )
+      .groupBy(dayExpr)
+      .orderBy('day', 'ASC')
+      .getRawMany();
+
+    const byResourceRaw = await this.mastraThreadsUsageRepository
+      .createQueryBuilder('u')
+      .select("COALESCE(u.resource_id, 'unknown')", 'resourceId')
+      .addSelect('COUNT(1)', 'count')
+      .addSelect('SUM(COALESCE(u.input_tokens, 0))', 'inputTokens')
+      .addSelect('SUM(COALESCE(u.output_tokens, 0))', 'outputTokens')
+      .addSelect('SUM(COALESCE(u.total_tokens, 0))', 'totalTokens')
+      .addSelect('SUM(COALESCE(u.reasoning_tokens, 0))', 'reasoningTokens')
+      .addSelect('SUM(COALESCE(u.cached_input_tokens, 0))', 'cachedInputTokens')
+      .where(
+        base.expressionMap.wheres.map((w) => w.condition).join(' AND ') ||
+          '1=1',
+        base.getParameters(),
+      )
+      .groupBy('resourceId')
+      .orderBy('totalTokens', 'DESC')
+      .getRawMany();
+
+    return {
+      count: this.toFiniteNumber(raw?.count),
+      inputTokens: this.toFiniteNumber(raw?.inputTokens),
+      outputTokens: this.toFiniteNumber(raw?.outputTokens),
+      totalTokens: this.toFiniteNumber(raw?.totalTokens),
+      reasoningTokens: this.toFiniteNumber(raw?.reasoningTokens),
+      cachedInputTokens: this.toFiniteNumber(raw?.cachedInputTokens),
+      firstAt: raw?.firstAt ?? undefined,
+      lastAt: raw?.lastAt ?? undefined,
+      byDay: (byDayRaw ?? []).map((r: any) => ({
+        day: r?.day ?? 'unknown',
+        count: this.toFiniteNumber(r?.count),
+        inputTokens: this.toFiniteNumber(r?.inputTokens),
+        outputTokens: this.toFiniteNumber(r?.outputTokens),
+        totalTokens: this.toFiniteNumber(r?.totalTokens),
+        reasoningTokens: this.toFiniteNumber(r?.reasoningTokens),
+        cachedInputTokens: this.toFiniteNumber(r?.cachedInputTokens),
+      })),
+      byResourceId: (byResourceRaw ?? []).map((r: any) => ({
+        resourceId: r?.resourceId ?? 'unknown',
+        count: this.toFiniteNumber(r?.count),
+        inputTokens: this.toFiniteNumber(r?.inputTokens),
+        outputTokens: this.toFiniteNumber(r?.outputTokens),
+        totalTokens: this.toFiniteNumber(r?.totalTokens),
+        reasoningTokens: this.toFiniteNumber(r?.reasoningTokens),
+        cachedInputTokens: this.toFiniteNumber(r?.cachedInputTokens),
+      })),
+    };
+  }
+
+  private buildThreadUsageSummary(rows: MastraThreadsUsage[]) {
+    const toNum = (v?: number) =>
+      typeof v === 'number' && Number.isFinite(v) ? v : 0;
+
+    const formatDay = (createdAt?: string) => {
+      if (!createdAt) return 'unknown';
+      const d = new Date(createdAt);
+      if (!Number.isNaN(d.getTime())) {
+        return d.toISOString().slice(0, 10);
+      }
+      // Fallback: if it's already like "YYYY-MM-DD..."
+      if (createdAt.length >= 10) return createdAt.slice(0, 10);
+      return 'unknown';
+    };
+
+    const summary = {
+      count: rows.length,
+      inputTokens: 0,
+      outputTokens: 0,
+      totalTokens: 0,
+      reasoningTokens: 0,
+      cachedInputTokens: 0,
+      firstAt: rows[0]?.createdAt,
+      lastAt: rows.length ? rows[rows.length - 1].createdAt : undefined,
+      byDay: [] as Array<{
+        day: string;
+        count: number;
+        inputTokens: number;
+        outputTokens: number;
+        totalTokens: number;
+        reasoningTokens: number;
+        cachedInputTokens: number;
+      }>,
+      byResourceId: [] as Array<{
+        resourceId: string;
+        count: number;
+        inputTokens: number;
+        outputTokens: number;
+        totalTokens: number;
+        reasoningTokens: number;
+        cachedInputTokens: number;
+      }>,
+    };
+
+    const byDayMap = new Map<
+      string,
+      {
+        day: string;
+        count: number;
+        inputTokens: number;
+        outputTokens: number;
+        totalTokens: number;
+        reasoningTokens: number;
+        cachedInputTokens: number;
+      }
+    >();
+    const byResourceMap = new Map<
+      string,
+      {
+        resourceId: string;
+        count: number;
+        inputTokens: number;
+        outputTokens: number;
+        totalTokens: number;
+        reasoningTokens: number;
+        cachedInputTokens: number;
+      }
+    >();
+
+    for (const row of rows) {
+      const inputTokens = toNum(row.input_tokens);
+      const outputTokens = toNum(row.output_tokens);
+      const totalTokens = toNum(row.total_tokens);
+      const reasoningTokens = toNum(row.reasoning_tokens);
+      const cachedInputTokens = toNum(row.cached_input_tokens);
+
+      summary.inputTokens += inputTokens;
+      summary.outputTokens += outputTokens;
+      summary.totalTokens += totalTokens;
+      summary.reasoningTokens += reasoningTokens;
+      summary.cachedInputTokens += cachedInputTokens;
+
+      const day = formatDay(row.createdAt);
+      const dayAgg =
+        byDayMap.get(day) ??
+        ({
+          day,
+          count: 0,
+          inputTokens: 0,
+          outputTokens: 0,
+          totalTokens: 0,
+          reasoningTokens: 0,
+          cachedInputTokens: 0,
+        } as const);
+      const nextDayAgg = {
+        ...dayAgg,
+        count: dayAgg.count + 1,
+        inputTokens: dayAgg.inputTokens + inputTokens,
+        outputTokens: dayAgg.outputTokens + outputTokens,
+        totalTokens: dayAgg.totalTokens + totalTokens,
+        reasoningTokens: dayAgg.reasoningTokens + reasoningTokens,
+        cachedInputTokens: dayAgg.cachedInputTokens + cachedInputTokens,
+      };
+      byDayMap.set(day, nextDayAgg);
+
+      const rid = row.resource_id ?? 'unknown';
+      const ridAgg =
+        byResourceMap.get(rid) ??
+        ({
+          resourceId: rid,
+          count: 0,
+          inputTokens: 0,
+          outputTokens: 0,
+          totalTokens: 0,
+          reasoningTokens: 0,
+          cachedInputTokens: 0,
+        } as const);
+      const nextRidAgg = {
+        ...ridAgg,
+        count: ridAgg.count + 1,
+        inputTokens: ridAgg.inputTokens + inputTokens,
+        outputTokens: ridAgg.outputTokens + outputTokens,
+        totalTokens: ridAgg.totalTokens + totalTokens,
+        reasoningTokens: ridAgg.reasoningTokens + reasoningTokens,
+        cachedInputTokens: ridAgg.cachedInputTokens + cachedInputTokens,
+      };
+      byResourceMap.set(rid, nextRidAgg);
+    }
+
+    summary.byDay = Array.from(byDayMap.values()).sort((a, b) =>
+      a.day.localeCompare(b.day),
+    );
+    summary.byResourceId = Array.from(byResourceMap.values()).sort(
+      (a, b) => b.totalTokens - a.totalTokens,
+    );
+
+    return summary;
+  }
+
+  @channel(MastraChannel.GetUsage)
+  public async getUsage({
+    threadId,
+    resourceId,
+  }: {
+    threadId: string;
+    resourceId?: string;
+  }) {
+    return this.findThreadUsageRows({ threadId, resourceId });
+  }
+
+  @channel(MastraChannel.GetUsageSummary)
+  public async getUsageSummary({
+    threadId,
+    resourceId,
+  }: {
+    threadId?: string;
+    resourceId?: string;
+  }) {
+    const rows = await this.findThreadUsageRows({ threadId, resourceId });
+    return {
+      rows,
+      summary: await this.getThreadUsageSummaryFromSql({
+        threadId,
+        resourceId,
+      }),
+    };
   }
 }
 

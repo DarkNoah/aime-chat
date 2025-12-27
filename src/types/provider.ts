@@ -74,6 +74,7 @@ export enum ModelType {
   LLM = 'llm',
   EMBEDDING = 'embedding',
   RERANKER = 'reranker',
+  IMAGE_GENERATION = 'image_generation',
 }
 
 export enum ProviderTag {
@@ -81,6 +82,7 @@ export enum ProviderTag {
   RERANKER = 'reranker',
   WEB_SEARCH = 'web_search',
   WEB_READER = 'web_reader',
+  IMAGE_GENERATION = 'image_generation',
 }
 
 export interface ProviderCredits {

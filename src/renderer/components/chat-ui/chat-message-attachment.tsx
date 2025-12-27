@@ -21,14 +21,18 @@ export function ChatMessageAttachment({
 }: ChatMessageAttachmentProps) {
   const filename = data.filename || '';
   const mediaType =
-    data.mediaType?.startsWith('image/') && data.url ? 'image' : 'file';
+    (data.mediaType?.startsWith('image/') ||
+      data.mimeType?.startsWith('image/')) &&
+    (data.url || data.data)
+      ? 'image'
+      : 'file';
   const isImage = mediaType === 'image';
   const attachmentLabel = filename || (isImage ? 'Image' : 'Attachment');
 
   return (
     <div
       className={cn(
-        'group relative size-24 overflow-hidden rounded-lg',
+        'group relative size-30 overflow-hidden rounded-lg',
         className,
       )}
       {...props}
@@ -42,12 +46,20 @@ export function ChatMessageAttachment({
             src={data.url}
             width={100}
           /> */}
-          <PhotoView src={data.url}>
+          <PhotoView
+            src={
+              data.url ??
+              `data:${data.mediaType || data.mimeType};base64,${data.data}`
+            }
+          >
             <img
               alt={filename || 'attachment'}
               className="size-full object-cover"
               height={100}
-              src={data.url}
+              src={
+                data.url ??
+                `data:${data.mediaType || data.mimeType};base64,${data.data}`
+              }
               width={100}
             />
           </PhotoView>

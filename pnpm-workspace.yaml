@@ -4,6 +4,7 @@ packages:
 onlyBuiltDependencies:
   - '@clerk/shared'
   - '@parcel/watcher'
+  - '@swc/core'
   - '@vscode/ripgrep'
   - better-sqlite3
   - core-js

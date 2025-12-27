@@ -130,7 +130,7 @@ class AppManager extends BaseManager {
         await shell.openPath(path);
       }
     } else {
-      this.send('Path not found');
+      this.toast('The path does not exist', { type: 'error' });
     }
   }
 

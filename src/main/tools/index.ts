@@ -13,10 +13,6 @@ import { Tools } from '@/entities/tools';
 import { dbManager } from '../db';
 import { In, IsNull, Not, Repository } from 'typeorm';
 import { AvailableTool, Tool, ToolEvent, ToolType } from '@/types/tool';
-import fg from 'fast-glob';
-import matter from 'gray-matter';
-import { Bash } from '../mastra/tools/bash';
-import { error } from 'console';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { PythonExecute } from './code/python-execute';
 import BaseTool from './base-tool';
@@ -46,6 +42,8 @@ import MemoryToolkit from './memory/memory';
 import { Task } from './common/task';
 import { WebFetch } from './web/web-fetch';
 import { Extract } from './work/extract';
+import { GenerateImage } from './image/generate-image';
+import { EditImage } from './image/edit-image';
 
 interface BuiltInToolContext {
   tool: BaseTool;
@@ -170,7 +168,8 @@ class ToolsManager extends BaseManager {
     await this.registerBuiltInTool(RemoveBackground);
     await this.registerBuiltInTool(Vision);
     await this.registerBuiltInTool(ToolToolkit);
-
+    await this.registerBuiltInTool(GenerateImage);
+    await this.registerBuiltInTool(EditImage);
     await this.registerBuiltInTool(Task);
     await this.registerBuiltInTool(MemoryToolkit);
     await this.registerBuiltInTool(Extract);
@@ -392,6 +391,16 @@ class ToolsManager extends BaseManager {
     }
     localSkill.description = data.description;
     await this.toolsRepository.save(localSkill);
+    await skillManager.saveSkill(
+      localSkill.id as `${ToolType.SKILL}:${string}`,
+      data.name,
+      data.description,
+    );
+    await appManager.sendEvent(ToolEvent.ToolListUpdated, {
+      id: localSkill.id,
+      status: 'created',
+    });
+    return localSkill;
   }
 
   @channel(ToolChannel.SaveMCPServer)
@@ -477,16 +486,22 @@ class ToolsManager extends BaseManager {
 
   @channel(ToolChannel.DeleteTool)
   public async deleteTool(id: string) {
-    const tool = await this.toolsRepository.findOne({ where: { id } });
-    if (!tool) throw new Error('Tool not found');
-    if (tool.type === ToolType.MCP) {
+    if (id.startsWith(`${ToolType.MCP}:`)) {
+      const tool = await this.toolsRepository.findOne({ where: { id } });
+      if (!tool) {
+        throw new Error('Tool not found');
+      }
       const mcp = this.mcpClients.find((x) => x.id === `${tool.id}`);
       if (mcp) {
         await mcp.mcp.disconnect();
       }
+      this.mcpClients = this.mcpClients.filter((x) => x.id !== id);
+      await this.toolsRepository.delete(id);
+    } else if (id.startsWith(`${ToolType.SKILL}:`)) {
+      await skillManager.deleteSkill(id as `${ToolType.SKILL}:${string}`);
+      await this.toolsRepository.delete(id);
     }
-    this.mcpClients = this.mcpClients.filter((x) => x.id !== id);
-    await this.toolsRepository.delete(id);
+
     await appManager.sendEvent(ToolEvent.ToolListUpdated, {
       id,
       status: 'deleted',
@@ -567,7 +582,7 @@ class ToolsManager extends BaseManager {
     const tools = await this.toolsRepository.find({
       where: { type: filter?.type },
     });
-    const skills = await skillManager.getClaudeSkills();
+    const skills = await skillManager.getSkills();
     return {
       [ToolType.MCP]: tools
         .filter((tool) => tool.type === ToolType.MCP)
@@ -601,7 +616,9 @@ class ToolsManager extends BaseManager {
     if (id.startsWith(`${ToolType.SKILL}:`)) {
       const marketplace = id.split(':')[1];
       const skill = id.split(':').slice(2).join(':');
-      const sk = await skillManager.getClaudeSkill(skill, marketplace);
+      const sk = await skillManager.getSkill(
+        id as `${ToolType.SKILL}:${string}`,
+      );
 
       return {
         ...sk,
@@ -699,21 +716,23 @@ class ToolsManager extends BaseManager {
   public async toggleToolActive(id: string) {
     if (id.startsWith(`${ToolType.SKILL}:`)) {
       const marketplace = id.split(':')[1];
-      const skill = id.split(':').slice(2).join(':');
+      const skill = id.split(':').pop();
       let tool = await this.toolsRepository.findOne({ where: { id } });
+      const skillInfo = await skillManager.getSkill(
+        id as `${ToolType.SKILL}:${string}`,
+      );
       if (!tool) {
-        tool = new Tools(id, skill, ToolType.SKILL);
+        tool = new Tools(id, skillInfo.name, ToolType.SKILL);
         tool.isActive = true;
       } else {
         tool.isActive = !tool.isActive;
-        tool.name = skill;
       }
+      tool.name = skillInfo.name;
       await this.toolsRepository.save(tool);
-      await this.sendMcpClientUpdatedEvent(
-        id,
-        tool.isActive ? 'running' : 'stopped',
-        undefined,
-      );
+      await appManager.sendEvent(ToolEvent.ToolListUpdated, {
+        id: id,
+        status: 'updated',
+      });
       return tool;
     } else {
       const tool = await this.toolsRepository.findOne({ where: { id } });
@@ -731,6 +750,7 @@ class ToolsManager extends BaseManager {
               mcp.mcp.tools = tools;
               mcp.status = 'running';
               mcp.error = undefined;
+              await this.sendMcpClientUpdatedEvent(id, 'running', undefined);
             } catch (err) {
               mcp.status = 'error';
               mcp.error = err.message;
@@ -743,14 +763,15 @@ class ToolsManager extends BaseManager {
         }
       } else if (tool.type == ToolType.BUILD_IN) {
       }
+      await appManager.sendEvent(ToolEvent.ToolListUpdated, {
+        id: id,
+        status: 'updated',
+      });
       tool.isActive = !tool.isActive;
       await this.toolsRepository.save(tool);
+
       // const toolRes = await this.getTool(id);
-      await this.sendMcpClientUpdatedEvent(
-        id,
-        tool.isActive ? 'running' : 'stopped',
-        undefined,
-      );
+
       return tool;
     }
   }

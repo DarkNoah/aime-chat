@@ -81,12 +81,47 @@ class ProvidersManager extends BaseManager {
   public async getAvailableModels(
     type: ModelType = ModelType.LLM,
   ): Promise<Provider[]> {
+    // const data = await this.repository.find({
+    //   where: {
+    //     isActive: true,
+    //   },
+    // });
+    // const filteredData = data.filter(
+    //   (x) =>
+    //     x.models &&
+    //     x.models.length > 0 &&
+    //     x.models.filter((m) => m.isActive === true).length > 0,
+    // );
+
+    // const output: Provider[] = [];
+    // for (const providerData of filteredData) {
+    //   // const provider = await this.getProvider(providerData.id);
+    //   output.push({
+    //     id: providerData.id,
+    //     name: providerData.name,
+    //     icon: providerData.icon,
+    //     type: providerData.type as ProviderType,
+    //     models: providerData.models
+    //       .filter((m) => m.isActive === true)
+    //       .map((y) => {
+    //         return {
+    //           id: `${providerData.id}/${y.id}`,
+    //           name: y.name || y.id,
+    //           providerType: providerData.type,
+    //         };
+    //       })
+    //       .sort((a, b) => b.name.localeCompare(a.name)),
+    //   });
+    // }
+
     if (type == ModelType.LLM) {
       return this.getAvailableLanguageModels();
     } else if (type == ModelType.EMBEDDING) {
       return this.getAvailableEmbeddingModels();
     } else if (type == ModelType.RERANKER) {
       return this.getAvailableRerankModels();
+    } else if (type == ModelType.IMAGE_GENERATION) {
+      return this.getAvailableImageGenerationModels();
     }
   }
 
@@ -483,6 +518,42 @@ class ProvidersManager extends BaseManager {
               name: providerData.name,
               type: providerData.type,
               models: rerankModels
+                .map((x) => ({
+                  id: `${providerData.id}/${x.id}`,
+                  name: x.name,
+                  providerType: providerData.type,
+                  isActive: true,
+                }))
+                .sort((a, b) => b.name.localeCompare(a.name)),
+            });
+          }
+        } catch {}
+      }
+    }
+
+    return data;
+  }
+
+  public async getAvailableImageGenerationModels(): Promise<Provider[]> {
+    const providers = await this.repository.find({
+      where: {
+        isActive: true,
+      },
+    });
+    const data: Provider[] = [];
+
+    for (const providerData of providers) {
+      const provider = await this.getProvider(providerData.id);
+
+      if (provider) {
+        try {
+          const imageGenerationModels = await provider.getImageGenerationList();
+          if (imageGenerationModels.length > 0) {
+            data.push({
+              id: providerData.id,
+              name: providerData.name,
+              type: providerData.type,
+              models: imageGenerationModels
                 .map((x) => ({
                   id: `${providerData.id}/${x.id}`,
                   name: x.name,

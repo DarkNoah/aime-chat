@@ -15,25 +15,29 @@ import { zodToJsonSchema } from 'zod-to-json-schema';
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 
 export function SkillCreateDialog({
   open,
   onOpenChange,
-  uiSchema,
   onSubmit,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  uiSchema?: any;
   onSubmit?: (e: any) => void;
 }) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [data, setData] = useState<any>(null);
   const handleSubmit = async (e: any) => {
     onSubmit?.(e);
     try {
-      await window.electron.tools.saveSkill(undefined, e.formData);
+      const result = await window.electron.tools.saveSkill(
+        undefined,
+        e.formData,
+      );
       onOpenChange(false);
+      navigate(`/tools/${result.id}`);
     } catch (err) {
       toast.error(err.message);
     }
@@ -56,16 +60,22 @@ export function SkillCreateDialog({
           schema={
             zodToJsonSchema(
               z.object({
-                name: z.string().describe('The name of the skill'),
-                description: z
-                  .string()
-                  .describe('The description of the skill'),
+                name: z.string(),
+                description: z.string(),
               }),
             ) as any
           }
           validator={validator}
           onSubmit={handleSubmit}
-          uiSchema={uiSchema}
+          uiSchema={{
+            name: {
+              'ui:title': t('common.name'),
+            },
+            description: {
+              'ui:widget': 'textarea',
+              'ui:title': t('common.description'),
+            },
+          }}
         >
           <div className="flex justify-end mt-2">
             <Button type="submit">{t('common.save')}</Button>

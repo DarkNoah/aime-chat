@@ -96,7 +96,8 @@
     "execute": "执行",
     "approval_description": "是否执行该工具?",
     "mcp_url": "URL",
-    "mcp_headers": "请求头"
+    "mcp_headers": "请求头",
+    "create_skill": "创建技能"
   },
   "agents": {
     "instructions": "系统提示词",

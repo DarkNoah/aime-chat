@@ -116,6 +116,32 @@ ${skillInfo.content}`;
 }
 
 export class SkillManager {
+  public async getSkills(): Promise<SkillInfo[]> {
+    const claudeSkills = await this.getClaudeSkills();
+    const localSkills = await toolsManager.toolsRepository.find({
+      where: {
+        type: ToolType.SKILL,
+      },
+    });
+    return [
+      ...claudeSkills,
+      ...localSkills
+        .filter((x) => !claudeSkills.map((y) => y.id).includes(x.id))
+        .map((x) => {
+          return {
+            id: x.id as `${ToolType.SKILL}:${string}`,
+            name: x.name,
+            description: x.description,
+            path: path.join(
+              app.getPath('userData'),
+              'skills',
+              x.id.split(':')[1],
+            ),
+          };
+        }),
+    ];
+  }
+
   async getClaudeSkills(): Promise<SkillInfo[]> {
     const marketplaces = path.join(
       app.getPath('home'),
@@ -201,7 +227,85 @@ export class SkillManager {
     }
   }
 
-  public getSkill(id: `${ToolType.SKILL}:${string}`) {}
+  public async getSkill(id: `${ToolType.SKILL}:${string}`) {
+    const marketplace = id.split(':')[1];
+
+    if (marketplace == 'anthropic-agent-skills') {
+      const skill = id.split(':').slice(2).join(':');
+      const sk = await skillManager.getClaudeSkill(skill, marketplace);
+      return sk;
+    } else {
+      const localSkill = await toolsManager.toolsRepository.findOne({
+        where: {
+          id,
+          type: ToolType.SKILL,
+        },
+      });
+      const skillPath = path.join(
+        app.getPath('userData'),
+        'skills',
+        localSkill.id.split(':')[1],
+      );
+      return {
+        id: localSkill.id,
+        name: localSkill.name,
+        description: localSkill.description,
+        content: ',',
+        path: skillPath,
+        type: ToolType.SKILL,
+        isActive: localSkill.isActive,
+      };
+    }
+  }
+
+  public async deleteSkill(id: `${ToolType.SKILL}:${string}`) {
+    const marketplace = id.split(':')[1];
+
+    if (marketplace == 'anthropic-agent-skills') {
+      const skill = id.split(':').slice(2).join(':');
+      throw new Error('Cannot delete Claude skill');
+    } else {
+      const localSkill = await toolsManager.toolsRepository.findOne({
+        where: {
+          id,
+          type: ToolType.SKILL,
+        },
+      });
+      const skillPath = path.join(
+        app.getPath('userData'),
+        'skills',
+        localSkill.id.split(':')[1],
+      );
+      if (fs.existsSync(skillPath)) {
+        await fs.promises.rm(skillPath, { recursive: true });
+      }
+      // await toolsManager.toolsRepository.delete(id);
+    }
+  }
+
+  public async saveSkill(
+    id: `${ToolType.SKILL}:${string}`,
+    name: string,
+    description: string,
+    content?: string,
+    resources?: Record<string, string[]>,
+  ) {
+    const skillPath = path.join(
+      app.getPath('userData'),
+      'skills',
+      id.split(':').pop() as string,
+    );
+    fs.mkdirSync(skillPath, { recursive: true });
+    const skillMDContent = `---
+name: ${name}
+description: ${description}
+---
+${content}`;
+    await fs.promises.writeFile(
+      path.join(skillPath, 'SKILL.md'),
+      skillMDContent,
+    );
+  }
 }
 
 export const skillManager = new SkillManager();
