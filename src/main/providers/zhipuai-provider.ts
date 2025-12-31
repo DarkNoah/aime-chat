@@ -7,6 +7,9 @@ import { ProviderCredits, ProviderTag, ProviderType } from '@/types/provider';
 import {
   EmbeddingModelV2,
   ImageModelV2,
+  ImageModelV2CallOptions,
+  ImageModelV2CallWarning,
+  ImageModelV2ProviderMetadata,
   LanguageModelV2,
   SpeechModelV2,
   TranscriptionModelV2,
@@ -62,6 +65,67 @@ export class ZhipuAIRerankModel {
   }
 }
 
+export class ZhipuAIImageModel implements ImageModelV2 {
+  specificationVersion: 'v2' = 'v2';
+  provider: string = 'zhipuai';
+  modelId: string;
+  providerEntity: Providers;
+
+  constructor({ modelId, provider }: { modelId: string; provider: Providers }) {
+    this.providerEntity = provider;
+    this.modelId = modelId;
+  }
+
+  maxImagesPerCall:
+    | number
+    | ((options: {
+        modelId: string;
+      }) => PromiseLike<number | undefined> | number | undefined) = 1;
+  async doGenerate(options: ImageModelV2CallOptions): Promise<{
+    images: Array<string> | Array<Uint8Array>;
+    warnings: Array<ImageModelV2CallWarning>;
+    providerMetadata?: ImageModelV2ProviderMetadata;
+    response: {
+      timestamp: Date;
+      modelId: string;
+      headers: Record<string, string> | undefined;
+    };
+  }> {
+    const _options = {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${this.providerEntity.apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: this.modelId,
+        prompt: options.prompt,
+        size: options?.size || '1024x1024',
+        quality: 'standard',
+        watermark_enabled: false,
+      }),
+    };
+
+    const res = await fetch(
+      'https://open.bigmodel.cn/api/paas/v4/images/generations',
+      { ..._options, signal: options.abortSignal },
+    );
+    const data = await res.json();
+    if (data.error) {
+      throw new Error(data.error.message);
+    }
+    return {
+      images: data.data.map((x) => x.url),
+      warnings: [],
+      providerMetadata: undefined,
+      response: {
+        timestamp: new Date(),
+        modelId: this.modelId,
+        headers: undefined,
+      },
+    };
+  }
+}
 export class ZhipuAIProvider extends BaseProvider {
   name: string = 'zhipuai';
   type: ProviderType = ProviderType.ZHIPUAI;
@@ -133,6 +197,10 @@ export class ZhipuAIProvider extends BaseProvider {
     return [{ id: 'rerank', name: 'Rerank' }];
   }
 
+  async getImageGenerationList(): Promise<{ name: string; id: string }[]> {
+    return [{ id: 'cogview-4', name: 'cogview-4' }];
+  }
+
   getCredits(): Promise<ProviderCredits | undefined> {
     return undefined;
   }
@@ -140,7 +208,7 @@ export class ZhipuAIProvider extends BaseProvider {
     return undefined;
   }
   imageModel(modelId: string): ImageModelV2 {
-    return undefined;
+    return new ZhipuAIImageModel({ modelId, provider: this.provider });
   }
   transcriptionModel?(modelId: string): TranscriptionModelV2 {
     return undefined;

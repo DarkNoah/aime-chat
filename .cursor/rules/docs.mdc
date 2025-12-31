@@ -1,0 +1,4 @@
+---
+globs: packages/docs/**
+alwaysApply: false
+---

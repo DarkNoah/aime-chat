@@ -45,4 +45,7 @@ export class Agents {
 
   @Column({ nullable: true })
   defaultModelId?: string;
+
+  @Column({ nullable: true })
+  greeting?: string;
 }

@@ -162,6 +162,24 @@ const electronHandler = {
         perPage,
         page,
       }),
+    getUsage: ({
+      threadId,
+      resourceId,
+    }: {
+      threadId: string;
+      resourceId?: string;
+    }) => ipcRenderer.invoke(MastraChannel.GetUsage, { threadId, resourceId }),
+    getUsageSummary: ({
+      threadId,
+      resourceId,
+    }: {
+      threadId?: string;
+      resourceId?: string;
+    }) =>
+      ipcRenderer.invoke(MastraChannel.GetUsageSummary, {
+        threadId,
+        resourceId,
+      }),
   },
   knowledgeBase: {
     create: (data: CreateKnowledgeBase) =>
@@ -194,6 +212,8 @@ const electronHandler = {
       ipcRenderer.invoke(ToolChannel.ReconnectMCP, id),
     saveSkill: (id: string | undefined, data: any) =>
       ipcRenderer.invoke(ToolChannel.SaveSkill, id, data),
+    importSkill: (data: { files: string[] }) =>
+      ipcRenderer.invoke(ToolChannel.ImportSkill, data),
   },
   localModel: {
     getList: (): Promise<Record<LocalModelType, LocalModelItem[]>> =>

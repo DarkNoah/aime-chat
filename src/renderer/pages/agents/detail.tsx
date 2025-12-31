@@ -18,6 +18,8 @@ import {
 import {
   IconArrowBigRightLinesFilled,
   IconBox,
+  IconCheck,
+  IconCopy,
   IconEdit,
   IconFileExport,
   IconLogout,
@@ -94,6 +96,14 @@ import {
   AlertDialogTrigger,
 } from '@/renderer/components/ui/alert-dialog';
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/renderer/components/ui/dialog';
+import {
   Empty,
   EmptyDescription,
   EmptyHeader,
@@ -105,6 +115,7 @@ import {
   FieldLabel,
 } from '@/renderer/components/ui/field';
 import { ChatModelSelect } from '@/renderer/components/chat-ui/chat-model-select';
+import { ToolType } from '@/types/tool';
 
 function AgentDetail() {
   const { setTitle, setTitleAction } = useHeader();
@@ -113,6 +124,9 @@ function AgentDetail() {
   const [search, setSearch] = useState('');
   const [agent, setAgent] = useState<Agent | null>(null);
   const [editinInstructions, setEditinInstructions] = useState<boolean>(false);
+  const [configDialogOpen, setConfigDialogOpen] = useState(false);
+  const [agentConfig, setAgentConfig] = useState<string>('');
+  const [copied, setCopied] = useState(false);
   // useEffect(() => {
   //   setTitle(t('sidebar.agents'));
   // }, [setTitle, t]);
@@ -128,7 +142,29 @@ function AgentDetail() {
 
   const handleExportAgentConfig = async () => {
     const res = await window.electron.agents.getAgentConfig(id);
-    console.log(res);
+    setAgentConfig(res);
+    setConfigDialogOpen(true);
+    setCopied(false);
+  };
+
+  const handleCopyConfig = async () => {
+    await navigator.clipboard.writeText(agentConfig);
+    setCopied(true);
+    toast.success(t('common.copied'));
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleDownloadConfig = () => {
+    const blob = new Blob([agentConfig], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${agent?.name || 'agent'}.toml`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success(t('common.downloaded'));
   };
 
   const getAgent = async () => {
@@ -272,7 +308,7 @@ function AgentDetail() {
                   </FieldContent>
                 </Field>
                 <Field>
-                  <FieldLabel>{t('common.suggestions')}:</FieldLabel>
+                  <FieldLabel>{t('agents.suggestions')}:</FieldLabel>
                   <FieldContent>
                     <Textarea
                       className="border-none focus-visible:ring-0 shadow-none focus-visible:bg-secondary w-full bg-secondary"
@@ -284,6 +320,22 @@ function AgentDetail() {
                             .split('\n')
                             .map((item) => item.trim())
                             .filter((x) => x !== ''),
+                        })
+                      }
+                      onBlur={() => handleAgentChanged(agent)}
+                    ></Textarea>
+                  </FieldContent>
+                </Field>
+                <Field>
+                  <FieldLabel>{t('agents.greeting')}:</FieldLabel>
+                  <FieldContent>
+                    <Textarea
+                      className="border-none focus-visible:ring-0 shadow-none focus-visible:bg-secondary w-full bg-secondary"
+                      value={agent?.greeting}
+                      onChange={(e) =>
+                        setAgent({
+                          ...agent,
+                          greeting: e.target.value,
                         })
                       }
                       onBlur={() => handleAgentChanged(agent)}
@@ -407,14 +459,52 @@ function AgentDetail() {
                   {t('agents.config_defalut_tool')}
                 </Button>
               </ChatToolSelector>
-
-              {agent?.tools.map((toolId) => {
+              {Object.values(ToolType).map((type) => {
                 return (
-                  <Item key={toolId} variant="outline">
+                  <Item key={type} variant="outline">
                     <ItemContent>
-                      <ItemTitle>
-                        {toolId.split(':').slice(1).join(':')}
+                      <ItemTitle className="text-sm font-bold">
+                        {type.toUpperCase()}
                       </ItemTitle>
+                      <ItemDescription className="flex flex-col gap-2">
+                        {agent?.tools.filter((toolId) =>
+                          toolId.startsWith(`${type}:`),
+                        ).length === 0 && (
+                          <Empty className="bg-secondary/50">
+                            <EmptyHeader>
+                              <EmptyDescription>No tools</EmptyDescription>
+                            </EmptyHeader>
+                          </Empty>
+                        )}
+                        {agent?.tools.filter((toolId) =>
+                          toolId.startsWith(`${type}:`),
+                        ).length > 0 &&
+                          agent?.tools
+                            .filter((toolId) => toolId.startsWith(`${type}:`))
+                            .map((toolId) => {
+                              return (
+                                <Item key={toolId} variant="outline">
+                                  <ItemContent>
+                                    <ItemTitle>
+                                      {toolId.split(':').slice(1).join(':')}
+                                    </ItemTitle>
+                                  </ItemContent>
+                                  <ItemActions>
+                                    <Button
+                                      variant="outline"
+                                      size="icon-sm"
+                                      className="cursor-pointer"
+                                      onClick={() => {
+                                        navigate(`/tools/${toolId}`);
+                                      }}
+                                    >
+                                      <IconArrowBigRightLinesFilled></IconArrowBigRightLinesFilled>
+                                    </Button>
+                                  </ItemActions>
+                                </Item>
+                              );
+                            })}
+                      </ItemDescription>
                     </ItemContent>
                   </Item>
                 );
@@ -463,6 +553,56 @@ function AgentDetail() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Agent Config Dialog */}
+      <Dialog open={configDialogOpen} onOpenChange={setConfigDialogOpen}>
+        <DialogContent className="sm:max-w-2xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <IconFileExport className="size-5" />
+              {t('agents.export_agent_config')}
+            </DialogTitle>
+            <DialogDescription>
+              {agent?.name} - TOML {t('common.config')}
+            </DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="max-h-[50vh] rounded-md border bg-muted/50">
+            <pre className="p-4 text-sm font-mono whitespace-pre-wrap break-all">
+              {agentConfig}
+            </pre>
+          </ScrollArea>
+          <DialogFooter className="flex flex-row gap-2 sm:justify-between">
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={handleCopyConfig}
+                className="gap-2"
+              >
+                {copied ? (
+                  <IconCheck className="size-4" />
+                ) : (
+                  <IconCopy className="size-4" />
+                )}
+                {copied ? t('common.copied') : t('common.copy')}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleDownloadConfig}
+                className="gap-2"
+              >
+                <IconFileExport className="size-4" />
+                {t('common.download')}
+              </Button>
+            </div>
+            <Button
+              variant="secondary"
+              onClick={() => setConfigDialogOpen(false)}
+            >
+              {t('common.close')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

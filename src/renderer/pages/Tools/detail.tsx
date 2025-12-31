@@ -137,8 +137,12 @@ function ToolDetail() {
   };
 
   const handleDelete = async (toolId: string) => {
-    const res = await window.electron.tools.deleteTool(toolId);
-    navigate('/tools');
+    try {
+      const res = await window.electron.tools.deleteTool(toolId);
+      navigate('/tools');
+    } catch (err) {
+      toast.error(err.message);
+    }
   };
 
   const handleReconnectMCP = async (toolId: string) => {
@@ -237,9 +241,18 @@ function ToolDetail() {
                     size="sm"
                     onClick={() => handleDelete(tool.id)}
                   >
-                    Delete
+                    {t('common.delete')}
                   </Button>
                 </>
+              )}
+              {tool?.type === ToolType.SKILL && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => handleDelete(tool.id)}
+                >
+                  {t('common.delete')}
+                </Button>
               )}
             </ItemActions>
           )}

@@ -42,6 +42,7 @@ export type ChatSessionRef = {
     message: PromptInputMessage | undefined,
     options?: ChatSubmitOptions,
   ) => void;
+  setMessages: (messages: UIMessage[]) => void;
   clearError: () => void;
   clearMessages: () => Promise<void>;
 };
@@ -126,6 +127,9 @@ export const ChatSession = React.forwardRef<ChatSessionRef, ChatSessionProps>(
       stop,
       clearError,
       clearMessages,
+      setMessages: (message) => {
+        setMessages(message);
+      },
     }));
 
     useEffect(() => {
@@ -141,7 +145,7 @@ export const ChatSession = React.forwardRef<ChatSessionRef, ChatSessionProps>(
     }, [threadId, error, updateError]);
 
     return (
-      <div className="p-2 h-10 bg-muted-foreground/20 backdrop-blur text-muted-foreground flex items-center justify-center flex-row gap-2 rounded-xl">
+      <div className=" p-2 h-10 bg-muted-foreground/20 backdrop-blur text-muted-foreground flex items-center justify-center flex-row gap-2 rounded-xl hidden!">
         {threadId.substring(0, 2)} {threadState.status}
         <div>{threadState.messages?.length}</div>
       </div>
@@ -156,6 +160,7 @@ export type ChatState = {
     options?: ChatSubmitOptions,
   ) => void;
   stop: (threadId: string) => void;
+  setMessages: (threadId: string, messages: UIMessage[]) => void;
   clearMessages: (threadId: string) => Promise<void>;
   clearError: (threadId: string) => void;
   ensureThread: (threadId: string) => Promise<ThreadState>;
@@ -262,6 +267,15 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const setMessages = useCallback((threadId: string, messages: UIMessage[]) => {
+    const chatSessionRef = chatSessionRefs.current.get(threadId);
+    if (chatSessionRef) {
+      chatSessionRef.setMessages(messages);
+    } else {
+      toast.error(`线程 ${threadId} 未初始化`);
+    }
+  }, []);
+
   const onFinish = useCallback((threadId, event) => {
     eventBus.emit(`chat:onFinish:${threadId}`, event);
   }, []);
@@ -275,6 +289,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       ensureThread,
       unregisterThread,
       sendMessage,
+      setMessages,
       getThread,
       stop,
       clearMessages,
@@ -284,6 +299,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       ensureThread,
       unregisterThread,
       sendMessage,
+      setMessages,
       getThread,
       stop,
       clearMessages,

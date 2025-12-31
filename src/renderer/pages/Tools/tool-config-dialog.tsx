@@ -13,7 +13,7 @@ import { ZodSchema } from 'zod';
 import validator from '@rjsf/validator-ajv8';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { ProviderSelector } from '@/renderer/components/provider-selector';
-import { ProviderTag } from '@/types/provider';
+import { ModelType, ProviderTag } from '@/types/provider';
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
@@ -47,11 +47,15 @@ const ModelSelectorWidget: Widget<any, RJSFSchema, any> = ({
   readonly,
   options,
 }: WidgetProps<any, RJSFSchema, any>) => {
+  const modelType = ((options as Record<string, unknown>)?.modelType ??
+    (options as Record<string, unknown>)?.type ??
+    undefined) as ModelType | undefined;
   return (
     <ChatModelSelect
       value={typeof value === 'string' ? value : undefined}
       onChange={(val) => onChange(val)}
       disabled={disabled || readonly}
+      type={modelType}
     />
   );
 };

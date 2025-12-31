@@ -80,6 +80,10 @@ export class OpenAIProvider extends BaseProvider {
     return [];
   }
 
+  async getImageGenerationList(): Promise<{ name: string; id: string }[]> {
+    return [{ id: 'dall-e-3', name: 'Dall-E 3' }];
+  }
+
   getCredits(): Promise<ProviderCredits | undefined> {
     return undefined;
   }
@@ -92,7 +96,7 @@ export class OpenAIProvider extends BaseProvider {
   }
   imageModel(modelId: string): ImageModelV2 {
     return createOpenAI({
-      name: 'openai',
+      // name: 'openai',
       baseURL: this.provider.apiBase || this.defaultApiBase,
       apiKey: this.provider.apiKey,
     }).imageModel(modelId);

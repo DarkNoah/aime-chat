@@ -85,6 +85,9 @@ import { getLastMessageIndex } from '../utils/messageUtils';
 import { MastraThreadsUsage } from '@/entities/mastra-threads-usage';
 import { Repository } from 'typeorm';
 import { dbManager } from '../db';
+const modelsData = require('../../../assets/models.json');
+import { costFromUsage, getTokenCosts } from 'tokenlens';
+import bashManager from '../tools/file-system/bash';
 
 class MastraManager extends BaseManager {
   app: express.Application;
@@ -520,6 +523,7 @@ class MastraManager extends BaseManager {
         google: {
           thinkingConfig: {
             thinkingLevel: 'low',
+            includeThoughts: true,
           },
         },
       };
@@ -870,10 +874,20 @@ class MastraManager extends BaseManager {
           if (_inputMessage) input.push(_inputMessage);
         }
 
+        const bashSessions = bashManager.getBashSessions(chatId);
+        if (bashSessions.length > 0) {
+          for (const bashSession of bashSessions) {
+            if (bashManager.hasUpdate(bashSession.bashId)) {
+              debugger;
+              getLastMessageIndex();
+            }
+          }
+        }
+
         delete streamOptions.context;
 
         stream = await this.nextStep(agent, input, streamOptions, resume);
-        await this.saveThreadUsage(chatId, resourceId, stream.usage);
+
         const core = stream.messageList.get.all.core();
         const db = stream.messageList.get.all.db();
         const ui = stream.messageList.get.all.ui();
@@ -881,6 +895,12 @@ class MastraManager extends BaseManager {
         if (stream.status == 'suspended') {
           break;
         } else if (stream.status == 'success') {
+          await this.saveThreadUsage(
+            chatId,
+            resourceId,
+            stream.usage,
+            `${providerType}:${modelId}`,
+          );
           const lastMessage = core[core.length - 1];
           if (lastMessage.role == 'tool') {
           } else if (lastMessage.role == 'assistant') {
@@ -1450,19 +1470,185 @@ When you are using compact - please focus on test output and code changes. Inclu
     threadId: string,
     resourceId: string,
     usage: MastraModelOutput['usage'],
+    modelId?: string,
   ) {
     const _usage = await usage;
+
+    const providers = modelsData[modelId.split(':')[0]];
+
+    const costs = getTokenCosts({ modelId, usage: _usage, providers });
     try {
       const data = await this.mastraThreadsUsageRepository.save(
         new MastraThreadsUsage(
           threadId,
           resourceId,
           _usage as LanguageModelV2Usage,
+          modelId,
+          costs,
+          costs?.totalUSD,
         ),
       );
+      appManager.sendEvent(ChatEvent.ChatUsageChanged, {
+        data: { threadId, resourceId, usage: _usage, modelId, costs },
+      });
     } catch {
       console.error('Failed to save thread usage', threadId, usage);
     }
+  }
+
+  private async findThreadUsageRows({
+    threadId,
+    resourceId,
+  }: {
+    threadId?: string;
+    resourceId?: string;
+  }) {
+    // 直接走 SQL（QueryBuilder），避免在 JS 层做筛选
+    const qb = this.mastraThreadsUsageRepository.createQueryBuilder('u');
+    if (threadId) qb.andWhere('u.thread_id = :threadId', { threadId });
+    if (resourceId) qb.andWhere('u.resource_id = :resourceId', { resourceId });
+    qb.orderBy('u.createdAt', 'ASC');
+    return qb.getMany();
+  }
+
+  private getUsageDaySqlExpr(alias = 'u') {
+    const type = dbManager.dataSource.options.type;
+    // better-sqlite3 / sqlite 都支持 strftime
+    if (type === 'better-sqlite3' || type === 'sqlite') {
+      return `strftime('%Y-%m-%d', ${alias}.createdAt)`;
+    }
+    // 兜底：多数数据库支持 DATE()
+    return `DATE(${alias}.createdAt)`;
+  }
+
+  private toFiniteNumber(v: any) {
+    const n = typeof v === 'number' ? v : Number(v);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  private async getThreadUsageSummaryFromSql({
+    threadId,
+    resourceId,
+  }: {
+    threadId?: string;
+    resourceId?: string;
+  }) {
+    const base = this.mastraThreadsUsageRepository.createQueryBuilder('u');
+    if (threadId) base.andWhere('u.thread_id = :threadId', { threadId });
+    if (resourceId)
+      base.andWhere('u.resource_id = :resourceId', { resourceId });
+
+    const raw = await base
+      .select('COUNT(1)', 'count')
+      .addSelect('SUM(COALESCE(u.input_tokens, 0))', 'inputTokens')
+      .addSelect('SUM(COALESCE(u.output_tokens, 0))', 'outputTokens')
+      .addSelect('SUM(COALESCE(u.total_tokens, 0))', 'totalTokens')
+      .addSelect('SUM(COALESCE(u.reasoning_tokens, 0))', 'reasoningTokens')
+      .addSelect('SUM(COALESCE(u.cached_input_tokens, 0))', 'cachedInputTokens')
+      .addSelect('SUM(COALESCE(u.total_costs_usd, 0))', 'totalCostsUsd')
+      .addSelect('MIN(u.createdAt)', 'firstAt')
+      .addSelect('MAX(u.createdAt)', 'lastAt')
+      .getRawOne();
+
+    const dayExpr = `COALESCE(${this.getUsageDaySqlExpr('u')}, 'unknown')`;
+    const byDayRaw = await this.mastraThreadsUsageRepository
+      .createQueryBuilder('u')
+      .select(dayExpr, 'day')
+      .addSelect('COUNT(1)', 'count')
+      .addSelect('SUM(COALESCE(u.input_tokens, 0))', 'inputTokens')
+      .addSelect('SUM(COALESCE(u.output_tokens, 0))', 'outputTokens')
+      .addSelect('SUM(COALESCE(u.total_tokens, 0))', 'totalTokens')
+      .addSelect('SUM(COALESCE(u.reasoning_tokens, 0))', 'reasoningTokens')
+      .addSelect('SUM(COALESCE(u.cached_input_tokens, 0))', 'cachedInputTokens')
+      .addSelect('SUM(COALESCE(u.total_costs_usd, 0))', 'totalCostsUsd')
+      .where(
+        base.expressionMap.wheres.map((w) => w.condition).join(' AND ') ||
+          '1=1',
+        base.getParameters(),
+      )
+      .groupBy(dayExpr)
+      .orderBy('day', 'ASC')
+      .getRawMany();
+
+    const byResourceRaw = await this.mastraThreadsUsageRepository
+      .createQueryBuilder('u')
+      .select("COALESCE(u.resource_id, 'unknown')", 'resourceId')
+      .addSelect('COUNT(1)', 'count')
+      .addSelect('SUM(COALESCE(u.input_tokens, 0))', 'inputTokens')
+      .addSelect('SUM(COALESCE(u.output_tokens, 0))', 'outputTokens')
+      .addSelect('SUM(COALESCE(u.total_tokens, 0))', 'totalTokens')
+      .addSelect('SUM(COALESCE(u.reasoning_tokens, 0))', 'reasoningTokens')
+      .addSelect('SUM(COALESCE(u.cached_input_tokens, 0))', 'cachedInputTokens')
+      .addSelect('SUM(COALESCE(u.total_costs_usd, 0))', 'totalCostsUsd')
+      .where(
+        base.expressionMap.wheres.map((w) => w.condition).join(' AND ') ||
+          '1=1',
+        base.getParameters(),
+      )
+      .groupBy('resourceId')
+      .orderBy('totalTokens', 'DESC')
+      .getRawMany();
+
+    return {
+      count: this.toFiniteNumber(raw?.count),
+      inputTokens: this.toFiniteNumber(raw?.inputTokens),
+      outputTokens: this.toFiniteNumber(raw?.outputTokens),
+      totalTokens: this.toFiniteNumber(raw?.totalTokens),
+      reasoningTokens: this.toFiniteNumber(raw?.reasoningTokens),
+      cachedInputTokens: this.toFiniteNumber(raw?.cachedInputTokens),
+      totalCostsUsd: this.toFiniteNumber(raw?.totalCostsUsd),
+      firstAt: raw?.firstAt ?? undefined,
+      lastAt: raw?.lastAt ?? undefined,
+      byDay: (byDayRaw ?? []).map((r: any) => ({
+        day: r?.day ?? 'unknown',
+        count: this.toFiniteNumber(r?.count),
+        inputTokens: this.toFiniteNumber(r?.inputTokens),
+        outputTokens: this.toFiniteNumber(r?.outputTokens),
+        totalTokens: this.toFiniteNumber(r?.totalTokens),
+        reasoningTokens: this.toFiniteNumber(r?.reasoningTokens),
+        cachedInputTokens: this.toFiniteNumber(r?.cachedInputTokens),
+        totalCostsUsd: this.toFiniteNumber(r?.totalCostsUsd),
+      })),
+      byResourceId: (byResourceRaw ?? []).map((r: any) => ({
+        resourceId: r?.resourceId ?? 'unknown',
+        count: this.toFiniteNumber(r?.count),
+        inputTokens: this.toFiniteNumber(r?.inputTokens),
+        outputTokens: this.toFiniteNumber(r?.outputTokens),
+        totalTokens: this.toFiniteNumber(r?.totalTokens),
+        reasoningTokens: this.toFiniteNumber(r?.reasoningTokens),
+        cachedInputTokens: this.toFiniteNumber(r?.cachedInputTokens),
+        totalCostsUsd: this.toFiniteNumber(r?.totalCostsUsd),
+      })),
+    };
+  }
+
+  @channel(MastraChannel.GetUsage)
+  public async getUsage({
+    threadId,
+    resourceId,
+  }: {
+    threadId: string;
+    resourceId?: string;
+  }) {
+    return this.findThreadUsageRows({ threadId, resourceId });
+  }
+
+  @channel(MastraChannel.GetUsageSummary)
+  public async getUsageSummary({
+    threadId,
+    resourceId,
+  }: {
+    threadId?: string;
+    resourceId?: string;
+  }) {
+    const rows = await this.findThreadUsageRows({ threadId, resourceId });
+    return {
+      rows,
+      summary: await this.getThreadUsageSummaryFromSql({
+        threadId,
+        resourceId,
+      }),
+    };
   }
 }
 

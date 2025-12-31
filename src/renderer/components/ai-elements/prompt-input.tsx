@@ -93,6 +93,14 @@ export type TextInputContext = {
   value: string;
   setInput: (v: string) => void;
   clear: () => void;
+  /** 光标选区开始位置 */
+  selectionStart: number;
+  /** 光标选区结束位置 */
+  selectionEnd: number;
+  /** 设置光标选区位置（仅更新 state） */
+  setSelection: (start: number, end: number) => void;
+  /** 应用光标位置到 textarea DOM 元素，并可选聚焦 */
+  applyCursorPosition: (start: number, end?: number, focus?: boolean) => void;
 };
 
 export type PromptInputControllerProps = {
@@ -103,6 +111,8 @@ export type PromptInputControllerProps = {
     ref: RefObject<HTMLInputElement | null>,
     open: () => void,
   ) => void;
+  /** INTERNAL: Allows PromptInputTextarea to register its textarea ref */
+  __registerTextarea: (ref: RefObject<HTMLTextAreaElement | null>) => void;
 };
 
 const PromptInputController = createContext<PromptInputControllerProps | null>(
@@ -155,6 +165,43 @@ export function PromptInputProvider({
   const [textInput, setTextInput] = useState(initialTextInput);
   const clearInput = useCallback(() => setTextInput(''), []);
 
+  // ----- selection state (光标选区位置)
+  const [selectionStart, setSelectionStart] = useState(0);
+  const [selectionEnd, setSelectionEnd] = useState(0);
+  const setSelection = useCallback((start: number, end: number) => {
+    setSelectionStart(start);
+    setSelectionEnd(end);
+  }, []);
+
+  // ----- textarea ref (用于设置光标位置)
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const __registerTextarea = useCallback(
+    (ref: RefObject<HTMLTextAreaElement | null>) => {
+      textareaRef.current = ref.current;
+    },
+    [],
+  );
+
+  // 应用光标位置到 textarea DOM 元素
+  const applyCursorPosition = useCallback(
+    (start: number, end?: number, focus = true) => {
+      const textarea = textareaRef.current;
+      if (textarea) {
+        const endPos = end ?? start;
+        setSelectionStart(start);
+        setSelectionEnd(endPos);
+        if (focus) {
+          textarea.focus();
+        }
+        // 使用 requestAnimationFrame 确保在 React 更新后设置光标
+        requestAnimationFrame(() => {
+          textarea.setSelectionRange(start, endPos);
+        });
+      }
+    },
+    [],
+  );
+
   // ----- attachments state (global when wrapped)
   const [attachements, setAttachements] = useState<
     (FileUIPart & { id: string })[]
@@ -162,8 +209,23 @@ export function PromptInputProvider({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const openRef = useRef<() => void>(() => {});
 
+  // 使用 ref 来保存最新的状态值，避免闭包捕获旧值
+  const textInputRef = useRef(textInput);
+  const selectionStartRef = useRef(selectionStart);
+  const selectionEndRef = useRef(selectionEnd);
+
+  // 同步更新 ref
+  useEffect(() => {
+    textInputRef.current = textInput;
+  }, [textInput]);
+
+  useEffect(() => {
+    selectionStartRef.current = selectionStart;
+    selectionEndRef.current = selectionEnd;
+  }, [selectionStart, selectionEnd]);
+
   const addInline = useCallback(
-    (files: File[] | FileList) => {
+    async (files: File[] | FileList) => {
       const incoming = Array.from(files);
       if (incoming.length === 0) {
         return;
@@ -171,33 +233,40 @@ export function PromptInputProvider({
 
       const fileInfos = [];
 
-      const handleFiles = async () => {
-        for (const file of incoming) {
-          const path = window.electron.app.getPathForFile(file);
-          const info = await window.electron.app.getFileInfo(path);
-          fileInfos.push(info);
-        }
+      for (const file of incoming) {
+        const path = window.electron.app.getPathForFile(file);
+        const info = await window.electron.app.getFileInfo(path);
+        fileInfos.push(info);
+      }
+      if (fileInfos.length === 0) return;
 
-        const text = fileInfos.map((x) => `'${x.path}'`).join(' ');
+      const text = fileInfos.map((x) => `'${x.path}'`).join(' ');
 
-        const newValue = textInput + text;
-        setTextInput((prev) => prev + text);
-      };
-      handleFiles();
+      // 从 ref 获取最新值
+      const currentTextInput = textInputRef.current;
+      const currentSelectionStart = selectionStartRef.current;
+      const currentSelectionEnd = selectionEndRef.current;
 
-      // setAttachements((prev) =>
-      //   prev.concat(
-      //     incoming.map((file) => ({
-      //       id: nanoid(),
-      //       type: 'file' as const,
-      //       url: URL.createObjectURL(file),
-      //       mediaType: file.type,
-      //       filename: file.name,
-      //     })),
-      //   ),
-      // );
+      console.log(
+        'textInput',
+        currentTextInput,
+        currentSelectionStart,
+        currentSelectionEnd,
+      );
+      const newValue =
+        currentTextInput.slice(0, currentSelectionStart) +
+        text +
+        currentTextInput.slice(currentSelectionEnd);
+
+      setTextInput(newValue);
+      setSelection(currentSelectionStart, currentSelectionStart + text.length);
+      applyCursorPosition(
+        currentSelectionStart,
+        currentSelectionStart + text.length,
+        true,
+      );
     },
-    [textInput],
+    [setSelection, applyCursorPosition],
   );
 
   const add = useCallback((files: File[] | FileList) => {
@@ -254,7 +323,7 @@ export function PromptInputProvider({
       openFileDialog,
       fileInputRef,
     }),
-    [attachements, add, remove, clear, openFileDialog],
+    [attachements, add, addInline, remove, clear, openFileDialog],
   );
 
   const __registerFileInput = useCallback(
@@ -271,11 +340,26 @@ export function PromptInputProvider({
         value: textInput,
         setInput: setTextInput,
         clear: clearInput,
+        selectionStart,
+        selectionEnd,
+        setSelection,
+        applyCursorPosition,
       },
       attachments,
       __registerFileInput,
+      __registerTextarea,
     }),
-    [textInput, clearInput, attachments, __registerFileInput],
+    [
+      textInput,
+      clearInput,
+      selectionStart,
+      selectionEnd,
+      setSelection,
+      applyCursorPosition,
+      attachments,
+      __registerFileInput,
+      __registerTextarea,
+    ],
   );
 
   return (
@@ -841,7 +925,13 @@ export const PromptInputTextarea = ({
   const controller = useOptionalPromptInputController();
   const attachments = usePromptInputAttachments();
   const [isComposing, setIsComposing] = useState(false);
-  const textareaRef = useRef(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // 注册 textareaRef 到 controller，用于支持外部设置光标位置
+  useEffect(() => {
+    controller?.__registerTextarea(textareaRef);
+  }, [controller]);
+
   const handleKeyDown: KeyboardEventHandler<HTMLTextAreaElement> = (e) => {
     if (e.key === 'Enter') {
       if (isComposing || e.nativeEvent.isComposing) {
@@ -888,16 +978,20 @@ export const PromptInputTextarea = ({
     }
 
     const files: FileInfo[] = [];
-
+    const fileList: File[] = [];
     for (const item of items) {
       if (item.kind === 'file') {
         const file = item.getAsFile();
         if (file) {
-          const path = window.electron.app.getPathForFile(file);
-          const info = await window.electron.app.getFileInfo(path);
-          files.push(info);
+          fileList.push(file);
         }
       }
+    }
+    if (fileList.length === 0) return;
+    for (const f of fileList) {
+      const path = window.electron.app.getPathForFile(f);
+      const info = await window.electron.app.getFileInfo(path);
+      files.push(info);
     }
 
     if (files.length > 0) {
@@ -905,25 +999,34 @@ export const PromptInputTextarea = ({
       const textarea = textareaRef.current;
       if (!textarea) return;
 
-      const start = textarea.selectionStart;
-      const end = textarea.selectionEnd;
+      const start = controller.textInput.selectionStart;
+      const end = controller.textInput.selectionEnd;
       const text = files.map((x) => `'${x.path}'`).join(' ');
-
       const newValue =
         controller.textInput.value.slice(0, start) +
         text +
         controller.textInput.value.slice(end);
 
-      // setValue(newValue);
-      // attachments.add(files);
-      console.log(
-        controller.textInput.value,
+      controller.textInput.setInput(newValue);
+      controller.textInput.setSelection(start, start + text.length);
+      controller.textInput.applyCursorPosition(
+        start,
+        start + text.length,
+        true,
+      );
+    }
+  };
+
+  // 处理选区变化，更新 selectionStart 和 selectionEnd
+  const handleSelect = useCallback(() => {
+    const textarea = textareaRef.current as HTMLTextAreaElement | null;
+    if (textarea && controller) {
+      controller.textInput.setSelection(
         textarea.selectionStart,
         textarea.selectionEnd,
       );
-      controller.textInput.setInput(newValue);
     }
-  };
+  }, [controller]);
 
   const controlledProps = controller
     ? {
@@ -985,6 +1088,7 @@ export const PromptInputTextarea = ({
       onCompositionStart={() => setIsComposing(true)}
       onKeyDown={handleKeyDown}
       onPaste={handlePaste}
+      onSelect={handleSelect}
       placeholder={placeholder}
       {...props}
       {...controlledProps}

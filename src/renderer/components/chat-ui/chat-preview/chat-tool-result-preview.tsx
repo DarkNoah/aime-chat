@@ -17,6 +17,11 @@ import { Source, Sources, SourcesContent } from '../../ai-elements/sources';
 import { Item, ItemContent, ItemDescription, ItemTitle } from '../../ui/item';
 import ReactDiffViewer from 'react-diff-viewer';
 import { useTheme } from 'next-themes';
+import {
+  ChatMessageAttachment,
+  ChatMessageAttachments,
+} from '../chat-message-attachment';
+import { ChatToolGenerateImagePreview } from './chat-tool-generate-image-preview';
 
 export type ChatToolResultPreviewProps = {
   title?: string;
@@ -81,6 +86,18 @@ export const ChatToolResultPreview = React.forwardRef<
                     </pre>
                   );
                 })}
+              <ChatMessageAttachments className="mt-2 ml-0">
+                {part.output.content
+                  .filter((item: any) => item.type === 'image')
+                  .map((p, i) => {
+                    return (
+                      <ChatMessageAttachment
+                        data={p}
+                        key={`${part.toolCallId}-image-${i}`}
+                      />
+                    );
+                  })}
+              </ChatMessageAttachments>
             </TabsContent>
             <TabsContent value="text">
               {part.output.content
@@ -187,7 +204,7 @@ export const ChatToolResultPreview = React.forwardRef<
         case 'Task': {
           const { description, prompt, subagent_type } = part?.input as {
             description: string;
-            prompt: string;
+            prompt?: string;
             subagent_type: string;
           };
           return (
@@ -249,6 +266,10 @@ export const ChatToolResultPreview = React.forwardRef<
               </pre> */}
             </div>
           );
+        }
+        case 'GenerateImage':
+        case 'EditImage': {
+          return <ChatToolGenerateImagePreview part={part} />;
         }
 
         default:

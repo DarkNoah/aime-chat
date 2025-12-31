@@ -16,10 +16,18 @@ import { Streamdown } from '../../ai-elements/streamdown';
 import { ChatTodoList } from './chat-todo-list';
 import { Button } from '../../ui/button';
 import { ChatPreviewType, ChatPreviewData } from '@/types/chat';
-import { IconCheckbox, IconListCheck, IconWorldWww } from '@tabler/icons-react';
+import {
+  IconCheckbox,
+  IconListCheck,
+  IconWorldWww,
+  IconChartBar,
+  IconTool,
+} from '@tabler/icons-react';
+import { ChatUsageView } from '../chat-usage-view';
 
 export type ChatPreviewProps = {
   threadId?: string;
+  resourceId?: string;
   part?: ToolUIPart;
   previewData?: ChatPreviewData;
   onPreviewDataChange?: (previewData: ChatPreviewData) => void;
@@ -31,7 +39,8 @@ export interface ChatPreviewRef {}
 
 export const ChatPreview = React.forwardRef<ChatPreviewRef, ChatPreviewProps>(
   (props: ChatPreviewProps, ref: ForwardedRef<ChatPreviewRef>) => {
-    const { part, previewData, onPreviewDataChange, threadId } = props;
+    const { part, previewData, onPreviewDataChange, threadId, resourceId } =
+      props;
     const [isGenerating, setIsGenerating] = useState(false);
     const [messages, setMessages] = useState<UIMessage[]>([]);
     // const [previewUrl, setPreviewUrl] = useState<string | null>(
@@ -62,10 +71,11 @@ export const ChatPreview = React.forwardRef<ChatPreviewRef, ChatPreviewProps>(
     //   ChatPreviewType.TOOL_RESULT,
     // );
     return (
-      <div className="h-full w-full flex flex-col gap-2">
+      <div className="h-full w-full flex flex-col gap-2 ">
         <ToggleGroup
           type="single"
           variant="outline"
+          className="flex-wrap"
           spacing={2}
           size="sm"
           value={previewData?.previewPanel}
@@ -94,16 +104,17 @@ export const ChatPreview = React.forwardRef<ChatPreviewRef, ChatPreviewProps>(
             <IconWorldWww />
             Web Preview
           </ToggleGroupItem>
-          <ToggleGroupItem
+          {/* <ToggleGroupItem
             value={ChatPreviewType.CANVAS}
             className="data-[state=off]:bg-transparent bg-secondary "
           >
             Canvas
-          </ToggleGroupItem>
+          </ToggleGroupItem> */}
           <ToggleGroupItem
             value={ChatPreviewType.TOOL_RESULT}
             className="data-[state=off]:bg-transparent bg-secondary "
           >
+            <IconTool></IconTool>
             Tool Result
           </ToggleGroupItem>
           <ToggleGroupItem
@@ -111,6 +122,13 @@ export const ChatPreview = React.forwardRef<ChatPreviewRef, ChatPreviewProps>(
             className="data-[state=off]:bg-transparent bg-secondary "
           >
             Messages
+          </ToggleGroupItem>
+          <ToggleGroupItem
+            value={ChatPreviewType.USAGE}
+            className="data-[state=off]:bg-transparent bg-secondary "
+          >
+            <IconChartBar />
+            Usage
           </ToggleGroupItem>
         </ToggleGroup>
         <div className="flex-1 h-full min-h-0">
@@ -152,11 +170,11 @@ export const ChatPreview = React.forwardRef<ChatPreviewRef, ChatPreviewProps>(
             )}
           </div>
 
-          <div
+          {/* <div
             className={`h-full ${previewData.previewPanel === ChatPreviewType.CANVAS ? '' : 'hidden'}`}
           >
             <ChatCanvas></ChatCanvas>
-          </div>
+          </div> */}
 
           <div
             className={`h-full ${previewData.previewPanel === ChatPreviewType.TODO ? '' : 'hidden'}`}
@@ -181,6 +199,14 @@ export const ChatPreview = React.forwardRef<ChatPreviewRef, ChatPreviewProps>(
               </pre>
             )}
           </div>
+        </div>
+        <div
+          className={`h-full overflow-y-auto ${previewData.previewPanel === ChatPreviewType.USAGE ? '' : 'hidden'}`}
+        >
+          <ChatUsageView
+            threadId={threadId}
+            resourceId={resourceId}
+          ></ChatUsageView>
         </div>
       </div>
     );

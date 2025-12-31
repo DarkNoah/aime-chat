@@ -10,7 +10,14 @@ import {
 
 @Entity('mastra_threads_usage')
 export class MastraThreadsUsage {
-  constructor(threadId: string, resourceId: string, usage: LanguageModelUsage) {
+  constructor(
+    threadId: string,
+    resourceId: string,
+    usage?: LanguageModelUsage,
+    modelId?: string,
+    costs?: any,
+    totalCostsUsd?: number,
+  ) {
     this.id = nanoid();
     this.thread_id = threadId;
     this.resource_id = resourceId;
@@ -19,6 +26,10 @@ export class MastraThreadsUsage {
     this.total_tokens = usage?.totalTokens;
     this.reasoning_tokens = usage?.reasoningTokens;
     this.cached_input_tokens = usage?.cachedInputTokens;
+    this.raw_usage = usage;
+    this.raw_costs = costs;
+    this.model_id = modelId;
+    this.total_costs_usd = totalCostsUsd;
   }
 
   @PrimaryColumn('text')
@@ -44,6 +55,18 @@ export class MastraThreadsUsage {
 
   @Column({ nullable: true })
   cached_input_tokens?: number;
+
+  @Column({ nullable: true })
+  model_id?: string;
+
+  @Column({ type: 'json', nullable: true })
+  raw_usage?: any;
+
+  @Column({ type: 'json', nullable: true })
+  raw_costs?: any;
+
+  @Column({ type: 'real', nullable: true })
+  total_costs_usd?: number;
 
   @CreateDateColumn()
   createdAt!: string;

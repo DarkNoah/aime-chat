@@ -38,6 +38,8 @@ export enum MastraChannel {
   ChatAbort = 'mastra:chatAbort',
   SaveMessages = 'mastra:saveMessages',
   ClearMessages = 'mastra:clearMessages',
+  GetUsage = 'mastra:getUsage',
+  GetUsageSummary = 'mastra:getUsageSummary',
 }
 
 export enum KnowledgeBaseChannel {
@@ -50,6 +52,7 @@ export enum KnowledgeBaseChannel {
 
 export enum ToolChannel {
   SaveSkill = 'tool:saveSkill',
+  ImportSkill = 'tool:importSkill',
   SaveMCPServer = 'tool:saveMCPServer',
   ReconnectMCP = 'tool:reconnectMCP',
   GetMcp = 'tool:getMcp',

@@ -69,7 +69,13 @@
     "description": "Description",
     "default_model": "Default Model",
     "compressing": "Compressing...",
-    "type": "Type"
+    "type": "Type",
+    "copy": "Copy",
+    "copied": "Copied",
+    "close": "Close",
+    "import": "Import",
+    "drop_files_here": "Drop files here",
+    "drag_files_here": "Drag files here"
   },
   "sidebar": {
     "new_chat": "New Chat",
@@ -96,7 +102,9 @@
     "execute": "Execute",
     "approval_description": "Can this tool be executed?",
     "mcp_url": "URL",
-    "mcp_headers": "Headers"
+    "mcp_headers": "Headers",
+    "create_skill": "Create Skill",
+    "import_skill": "Import Skill"
   },
   "agents": {
     "instructions": "System Prompt",
@@ -109,7 +117,9 @@
     "import_agent": "Import Config",
     "config_subagent": "Config Sub Agent",
     "local_agents": "Local Agent",
-    "export_agent_config": "Export"
+    "export_agent_config": "Export",
+    "greeting": "Greeting",
+    "suggestions": "Suggestions"
   },
   "project": {
     "new_project": "New Project",

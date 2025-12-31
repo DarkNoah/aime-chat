@@ -99,3 +99,17 @@ export function isEmpty<T = unknown>(val: T): val is T {
 
   return false;
 }
+
+export function isBase64String(input: string): boolean {
+  let isBase64 = false;
+  try {
+    if (input.startsWith('data:')) {
+      return true;
+    }
+    const buffer = Buffer.from(input, 'base64');
+    isBase64 = buffer.toString('base64') === input;
+  } catch (error) {
+    isBase64 = false;
+  }
+  return isBase64;
+}

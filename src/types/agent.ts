@@ -21,6 +21,7 @@ export type Agent = {
   isHidden?: boolean;
   type?: string;
   defaultModelId?: string;
+  greeting?: string;
 };
 
 export enum AgentTags {

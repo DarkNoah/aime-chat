@@ -300,7 +300,7 @@ function ProjectsPage() {
       ></ChatPanel>
       <div className="min-w-0 p-2 flex-1">
         <ChatPreview
-          threadId={threadId}
+          resourceId={projectResourceId}
           part={previewToolPart}
           previewData={previewData}
           onPreviewDataChange={(value) => {

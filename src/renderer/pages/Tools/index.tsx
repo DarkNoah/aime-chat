@@ -99,15 +99,20 @@ import {
 } from '@/renderer/components/ui/select';
 import { nanoid } from '@/utils/nanoid';
 import { ToolEditDialog } from './tool-edit-dialog';
-import { SkillCreateDialog } from './skill-create-dialog';
+import { SkillImportDialog } from './skill-import-dialog';
 
 function Tools() {
   const { setTitle } = useHeader();
   const [model, setModel] = useState<string>('');
   const { t } = useTranslation();
-  const [tools, setTools] = useState<{ mcp: Tool[]; skills: Tool[] }>({
-    mcp: [],
-    skills: [],
+  const [tools, setTools] = useState<{
+    [ToolType.BUILD_IN]: Tool[];
+    [ToolType.MCP]: Tool[];
+    [ToolType.SKILL]: Tool[];
+  }>({
+    [ToolType.BUILD_IN]: [],
+    [ToolType.MCP]: [],
+    [ToolType.SKILL]: [],
   });
   const [open, setOpen] = useState(false);
   const [openSkillCreateDialog, setOpenSkillCreateDialog] = useState(false);
@@ -129,7 +134,11 @@ function Tools() {
       try {
         const data = await window.electron.tools.getList();
         console.log(data);
-        setTools(data);
+        setTools((prev) => ({
+          [ToolType.BUILD_IN]: data[ToolType.BUILD_IN],
+          [ToolType.MCP]: data[ToolType.MCP],
+          [ToolType.SKILL]: data[ToolType.SKILL],
+        }));
       } catch (err) {
         toast.error(err.message);
       }
@@ -202,7 +211,7 @@ function Tools() {
                 <DropdownMenuItem
                   onClick={() => setOpenSkillCreateDialog(true)}
                 >
-                  {t('common.add_skill')}
+                  {t('tools.import_skill')}
                 </DropdownMenuItem>
               </DropdownMenuGroup>
             </DropdownMenuContent>
@@ -262,9 +271,13 @@ function Tools() {
         <ScrollArea className="h-full flex-1 min-h-0">
           <SidebarMenu className="pr-3">
             {tools[view]
-              ?.filter((tool) =>
-                tool.name.toLowerCase().includes(search.toLowerCase()),
-              )
+              ?.filter((tool) => {
+                if (search) {
+                  return tool.name.toLowerCase().includes(search.toLowerCase());
+                } else {
+                  return true;
+                }
+              })
               ?.map((tool) => (
                 <SidebarMenuItem
                   key={tool.id}
@@ -325,10 +338,10 @@ function Tools() {
         </ScrollArea>
       </div>
       <ToolEditDialog open={open} onOpenChange={setOpen}></ToolEditDialog>
-      <SkillCreateDialog
+      <SkillImportDialog
         open={openSkillCreateDialog}
         onOpenChange={setOpenSkillCreateDialog}
-      ></SkillCreateDialog>
+      ></SkillImportDialog>
       <div className="flex flex-col flex-1 w-full min-w-0">
         <Routes>
           <Route path=":id" element={<ToolDetail />} />

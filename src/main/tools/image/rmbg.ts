@@ -25,81 +25,9 @@ import { localModelManager } from '@/main/local-model';
 export interface RemoveBackgroundParams extends BaseToolParams {
   modelName: string;
 }
-
-// const models: Record<string, CachedModel> = {};
-// const modelLoadPromises: Record<string, Promise<CachedModel>> = {};
-
-// async function ensureModelLoaded(modelName: string, modelPath: string) {
-//   if (models[modelName]) {
-//     return models[modelName];
-//   }
-
-//   if (!modelLoadPromises[modelName]) {
-//     modelLoadPromises[modelName] = (async () => {
-//       const [model, processor] = await Promise.all([
-//         AutoModel.from_pretrained(modelPath, {
-//           local_files_only: true,
-//         }),
-//         AutoProcessor.from_pretrained(modelPath, {}),
-//       ]);
-
-//       const entry: CachedModel = {
-//         model,
-//         processor,
-//         lastUsed: Date.now(),
-//         activeCount: 0,
-//       };
-
-//       models[modelName] = entry;
-//       return entry;
-//     })();
-//   }
-
-//   const entry = await modelLoadPromises[modelName];
-//   delete modelLoadPromises[modelName];
-//   return entry;
-// }
-
-// function scheduleModelRelease(modelName: string) {
-//   const entry = models[modelName];
-//   if (!entry) {
-//     return;
-//   }
-
-//   if (entry.releaseTimer) {
-//     clearTimeout(entry.releaseTimer);
-//   }
-
-//   entry.releaseTimer = setTimeout(() => {
-//     entry.releaseTimer = undefined;
-//     void releaseModelIfIdle(modelName);
-//   }, MODEL_RELEASE_DELAY_MS);
-// }
-
-// async function releaseModelIfIdle(modelName: string) {
-//   const entry = models[modelName];
-//   if (!entry) {
-//     return;
-//   }
-
-//   const idleTime = Date.now() - entry.lastUsed;
-//   if (idleTime < MODEL_RELEASE_DELAY_MS || entry.activeCount > 0) {
-//     scheduleModelRelease(modelName);
-//     return;
-//   }
-
-//   try {
-//     await entry.model?.dispose?.();
-//   } catch (error) {
-//     console.warn(`[RemoveBackground] 释放模型 ${modelName} 失败`, error);
-//   } finally {
-//     delete models[modelName];
-//   }
-// }
-
 export class RemoveBackground extends BaseTool {
   id: string = 'RemoveBackground';
-  description = '测试工具';
+  description = 'remove background from image, output is a png image file';
   inputSchema = z.object({
     url_or_file_path: z.string().describe('The url or path to the image file'),
     save_path: z

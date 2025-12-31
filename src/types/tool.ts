@@ -1,6 +1,6 @@
 import { t } from 'i18next';
 import z from 'zod';
-import { ProviderTag } from './provider';
+import { ModelType, ProviderTag } from './provider';
 
 export enum ToolType {
   MCP = 'mcp',
@@ -123,6 +123,34 @@ export const ToolConfig = {
     uiSchema: {
       modelName: {
         'ui:title': t('common.model_name'),
+      },
+    },
+  },
+  GenerateImage: {
+    configSchema: z.strictObject({
+      modelId: z.string(),
+    }),
+    uiSchema: {
+      modelId: {
+        'ui:widget': 'modelSelector',
+        'ui:title': t('common.model'),
+        'ui:options': {
+          type: ModelType.IMAGE_GENERATION,
+        },
+      },
+    },
+  },
+  EditImage: {
+    configSchema: z.strictObject({
+      modelId: z.string(),
+    }),
+    uiSchema: {
+      modelId: {
+        'ui:widget': 'modelSelector',
+        'ui:title': t('common.model'),
+        'ui:options': {
+          type: ModelType.IMAGE_GENERATION,
+        },
       },
     },
   },

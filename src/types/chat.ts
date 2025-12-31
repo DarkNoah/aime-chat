@@ -40,6 +40,7 @@ export enum ChatEvent {
   ChatChunk = 'chat:chat-chunk',
   ChatChanged = 'chat:chat-changed',
   ChatUsage = 'chat:chat-usage',
+  ChatUsageChanged = 'chat:chat-usage-changed',
   ChatError = 'chat:chat-error',
   ChatAbort = 'chat:chat-abort',
 }
@@ -73,6 +74,7 @@ export enum ChatPreviewType {
   TOOL_RESULT = 'tool-result',
   MESSAGES = 'messages',
   TODO = 'todo',
+  USAGE = 'usage',
 }
 
 export type ChatPreviewData = {
