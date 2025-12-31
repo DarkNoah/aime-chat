@@ -11,6 +11,7 @@ export interface ProviderModel {
   name: string;
   providerType?: ProviderType | string;
   isActive: boolean;
+  isCustom?: boolean;
   limit?: {
     context?: number;
     output?: number;

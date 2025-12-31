@@ -139,7 +139,7 @@ import type {
 import { ChatAgentSelector } from '../components/chat-ui/chat-agent-selector';
 import { Agent } from '@/types/agent';
 import { ChatPanel, ChatPanelRef } from '../components/chat-ui/chat-panel';
-import { useChat, useThread } from '../hooks/use-chat';
+import { useChat } from '../hooks/use-chat';
 import { useThreadStore } from '../store/use-thread-store';
 import { useShallow } from 'zustand/react/shallow';
 

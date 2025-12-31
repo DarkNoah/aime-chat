@@ -212,6 +212,8 @@ const electronHandler = {
       ipcRenderer.invoke(ToolChannel.ReconnectMCP, id),
     saveSkill: (id: string | undefined, data: any) =>
       ipcRenderer.invoke(ToolChannel.SaveSkill, id, data),
+    importSkill: (data: { files: string[] }) =>
+      ipcRenderer.invoke(ToolChannel.ImportSkill, data),
   },
   localModel: {
     getList: (): Promise<Record<LocalModelType, LocalModelItem[]>> =>

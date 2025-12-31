@@ -14,6 +14,8 @@ import matter from 'gray-matter';
 import { ToolType } from '@/types/tool';
 import fg from 'fast-glob';
 import { isString } from '@/utils/is';
+import unzipper from 'unzipper';
+import os from 'os';
 
 export interface SkillToolParams extends BaseToolParams {
   skills: SkillInfo[] | string[];
@@ -74,8 +76,7 @@ Important:
 When users ask you to perform tasks, check if any of the available skills below can help complete the task more effectively. Skills provide specialized capabilities and domain knowledge.
 
 How to use skills:
-- Invoke skills using this tool with the skill name only (no arguments)
-- When you invoke a skill, you will see <command-message>The "{name}" skill is loading</command-message>
+- Invoke skills using this tool with the skill id only (no arguments)
 - The skill's prompt will expand and provide detailed instructions on how to complete the task
 - Examples:
   - \`skill: "pdf"\` - invoke the pdf skill
@@ -92,6 +93,7 @@ ${_skills
   .map(
     (skill) => `
   <skill>
+    <id>${skill.id}</id>
     <name>${skill.name}</name>
     <description>${skill.description}</description>
   </skill>`,
@@ -106,7 +108,9 @@ ${_skills
     context: ToolExecutionContext<z.ZodSchema, any>,
   ) => {
     const { skill } = inputData;
-    const skillInfo = await skillManager.getClaudeSkill(skill);
+    const skillInfo = await skillManager.getSkill(
+      skill as `${ToolType.SKILL}:${string}`,
+    );
     if (skillInfo)
       return `Base directory for this skill: ${skillInfo.path}
 
@@ -241,16 +245,17 @@ export class SkillManager {
           type: ToolType.SKILL,
         },
       });
-      const skillPath = path.join(
-        app.getPath('userData'),
-        'skills',
-        localSkill.id.split(':')[1],
+      const skillPath = localSkill.value?.path;
+      const skillContent = await fs.promises.readFile(
+        path.join(skillPath, 'SKILL.md'),
+        { encoding: 'utf8' },
       );
+      const skillInfo = matter(skillContent);
       return {
         id: localSkill.id,
-        name: localSkill.name,
-        description: localSkill.description,
-        content: ',',
+        name: skillInfo.data.name,
+        description: skillInfo.data.description,
+        content: skillInfo.content,
         path: skillPath,
         type: ToolType.SKILL,
         isActive: localSkill.isActive,
@@ -305,6 +310,55 @@ ${content}`;
       path.join(skillPath, 'SKILL.md'),
       skillMDContent,
     );
+  }
+
+  public async parseSkill(file: string, savePath?: string): Promise<SkillInfo> {
+    // 创建临时目录
+    const tempDir = path.join(os.tmpdir(), `skill-${nanoid()}`);
+    await fs.promises.mkdir(tempDir, { recursive: true });
+
+    try {
+      // 流式解压 zip 文件到临时目录
+      await new Promise<void>((resolve, reject) => {
+        fs.createReadStream(file)
+          .pipe(unzipper.Extract({ path: tempDir }))
+          .on('close', resolve)
+          .on('error', reject);
+      });
+
+      // 查找 SKILL.md 文件（兼容大小写）
+      const files = await fg('**/skill.md', {
+        cwd: tempDir,
+        caseSensitiveMatch: false,
+        absolute: true,
+      });
+
+      if (files.length === 0) {
+        throw new Error('SKILL.md not found in the zip file');
+      }
+
+      // 读取并返回 SKILL.md 内容
+      const skillMD = await fs.promises.readFile(files[0], {
+        encoding: 'utf8',
+      });
+      const sourcePath = path.dirname(files[0]);
+      const data = matter(skillMD);
+      if (savePath) {
+        // 确保目标目录存在
+        await fs.promises.mkdir(savePath, { recursive: true });
+        // 将 tempDir 内容复制到 savePath
+        await fs.promises.cp(sourcePath, savePath, { recursive: true });
+      }
+      return {
+        id: `${ToolType.SKILL}:${data.data.name}`,
+        name: data.data.name,
+        description: data.data.description,
+        // content: data.content,
+      };
+    } finally {
+      // 清理临时目录
+      await fs.promises.rm(tempDir, { recursive: true, force: true });
+    }
   }
 }
 

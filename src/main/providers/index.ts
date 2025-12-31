@@ -169,6 +169,7 @@ class ProvidersManager extends BaseManager {
           id: x.id,
           name: x.name,
           isActive: x.isActive,
+          isCustom: x.isCustom ?? false,
         };
       }),
     });
@@ -177,188 +178,50 @@ class ProvidersManager extends BaseManager {
   @channel(ProviderChannel.GetModelList)
   public async getModels(id: string): Promise<any> {
     const providerData = await this.repository.findOne({ where: { id } });
-    const savedModels: Array<{ id: string; name: string; isActive: boolean }> =
-      providerData?.models ?? [];
+    const savedModels: Array<{
+      id: string;
+      name: string;
+      isActive: boolean;
+      isCustom?: boolean;
+    }> = providerData?.models ?? [];
+
+    // 获取自定义模型
+    const customModels = savedModels
+      .filter((m) => m.isCustom)
+      .map((m) => ({
+        id: m.id,
+        name: m.name || m.id,
+        isActive: m.isActive,
+        isCustom: true,
+      }));
+
     const provider = await this.getProvider(id);
     if (!provider) {
-      const models = Object.values(modelsData[providerData.type]?.models ?? {});
-      return models.map((x) => {
+      const models = Object.values(
+        modelsData[providerData.type]?.models ?? {},
+      ) as ProviderModel[];
+      const providerModels = models.map((x) => {
         return {
           isActive: savedModels.find((z) => z.id === x.id)?.isActive || false,
           ...x,
         };
       });
+      return [...customModels, ...providerModels];
     }
 
     const models = await provider.getLanguageModelList();
 
-    return models.map((x) => {
+    const providerModels = models.map((x) => {
       const info = modelsData[provider.type]?.models[x.id] || {};
       return {
         id: x.id,
-
         isActive: savedModels.find((z) => z.id === x.id)?.isActive || false,
         ...info,
         name: info?.name || x.name || x.id,
       } as ProviderModel;
     });
-    // if (provider.type === ProviderType.OPENAI) {
-    //   const openai = new OpenAI({
-    //     apiKey: provider.apiKey,
-    //     baseURL: provider.apiBase || undefined,
-    //   });
-    //   const list = await openai.models.list();
-    //   const items = (list?.data ?? []).map((x: any) => {
-    //     const model = savedModels.find((z) => z.id === x.id || z.name === x.id);
-    //     return {
-    //       id: x.id,
-    //       name: model?.name || x.id,
-    //       isActive: model?.isActive || false,
-    //     } as ProviderModel;
-    //   });
-    //   return items.sort((a: ProviderModel, b: ProviderModel) =>
-    //     a.name.localeCompare(b.name),
-    //   );
-    // } else if (provider?.type == ProviderType.DEEPSEEK) {
-    //   const options = {
-    //     method: 'GET',
-    //     headers: {
-    //       accept: 'application/json',
-    //       'content-type': 'application/json',
-    //       Authorization: `Bearer ${provider.apiKey}`,
-    //     },
-    //   };
 
-    //   const url = 'https://api.deepseek.com/models';
-    //   const res = await fetch(url, options);
-    //   const models = await res.json();
-    //   const items = (models?.data ?? []).map((x: any) => {
-    //     const model = savedModels.find((z) => z.id === x.id || z.name === x.id);
-    //     return {
-    //       id: x.id,
-    //       name: model?.name || x.id,
-    //       isActive: model?.isActive || false,
-    //     } as ProviderModel;
-    //   });
-    //   return items.sort((a: ProviderModel, b: ProviderModel) =>
-    //     a.name.localeCompare(b.name),
-    //   );
-    // } else if (provider?.type == ProviderType.GOOGLE) {
-    //   const ai = new GoogleGenAI({ apiKey: provider.apiKey });
-    //   const res = await ai.models.list({
-    //     config: {
-    //       pageSize: 100,
-    //     },
-    //   });
-    //   return res.page
-    //     .filter((x: any) => x.supportedActions.includes('generateContent'))
-    //     .map((x: any) => {
-    //       const id = x.name.split('/')[1];
-    //       const model = savedModels.find((z) => z.id === id);
-    //       return {
-    //         id: id,
-    //         name: model?.name || x.displayName,
-    //         isActive: model?.isActive || false,
-    //       } as ProviderModel;
-    //     })
-    //     .sort((a: ProviderModel, b: ProviderModel) =>
-    //       a.name.localeCompare(b.name),
-    //     );
-    // } else if (provider?.type == ProviderType.GATEWAY) {
-    //   const availableModels = await gateway.getAvailableModels();
-    //   return availableModels.models
-    //     .filter((x: any) => x.modelType == 'language')
-    //     .map((x: any) => {
-    //       const model = savedModels.find((z) => z.id === x.id);
-    //       return {
-    //         id: x.id,
-    //         name: model?.name || x.name,
-    //         isActive: model?.isActive || false,
-    //       } as ProviderModel;
-    //     })
-    //     .sort((a: ProviderModel, b: ProviderModel) =>
-    //       a.name.localeCompare(b.name),
-    //     );
-    // } else if (provider?.type == ProviderType.MODELSCOPE) {
-    //   const openai = new OpenAI({
-    //     apiKey: provider.apiKey,
-    //     baseURL: provider.apiBase || 'https://api-inference.modelscope.cn/v1',
-    //   });
-    //   const list = await openai.models.list();
-    //   const items = (list?.data ?? []).map((x: any) => {
-    //     const model = savedModels.find((z) => z.id === x.id || z.name === x.id);
-    //     return {
-    //       id: x.id,
-    //       name: model?.name || x.id,
-    //       isActive: model?.isActive || false,
-    //     } as ProviderModel;
-    //   });
-    //   return items.sort((a: ProviderModel, b: ProviderModel) =>
-    //     a.name.localeCompare(b.name),
-    //   );
-    // } else if (provider?.type == ProviderType.ZHIPUAI) {
-    //   const models = [
-    //     {
-    //       id: 'glm-4.6',
-    //       name: 'GLM-4.6',
-    //     },
-    //   ];
-    //   const items = (models ?? []).map((x: any) => {
-    //     const model = savedModels.find((z) => z.id === x.id || z.name === x.id);
-    //     return {
-    //       id: x.id,
-    //       name: model?.name || x.id,
-    //       isActive: model?.isActive || false,
-    //     } as ProviderModel;
-    //   });
-    //   return items.sort((a: ProviderModel, b: ProviderModel) =>
-    //     a.name.localeCompare(b.name),
-    //   );
-    // } else if (provider?.type == ProviderType.OLLAMA) {
-    //   const ollama = new Ollama({
-    //     host: provider.apiBase,
-    //   });
-    //   const list = await ollama.list();
-    //   const models = list.models
-    //     .map((x) => {
-    //       return {
-    //         id: x.model,
-    //         name: x.name,
-    //       };
-    //     })
-    //     .sort((a, b) => a.name.localeCompare(b.name));
-    //   const items = (models ?? []).map((x: any) => {
-    //     const model = savedModels.find((z) => z.id === x.id || z.name === x.id);
-    //     return {
-    //       id: x.id,
-    //       name: model?.name || x.id,
-    //       isActive: model?.isActive || false,
-    //     } as ProviderModel;
-    //   });
-    //   return items.sort((a: ProviderModel, b: ProviderModel) =>
-    //     a.name.localeCompare(b.name),
-    //   );
-    // } else if (provider?.type == ProviderType.LMSTUDIO) {
-    //   const openai = new OpenAI({
-    //     apiKey: provider.apiKey,
-    //     baseURL: provider.apiBase || 'http://127.0.0.1:1234/v1',
-    //   });
-    //   const list = await openai.models.list();
-    //   const items = (
-    //     list?.data.filter((x) => !x.id.startsWith('text-embedding-')) ?? []
-    //   ).map((x: any) => {
-    //     const model = savedModels.find((z) => z.id === x.id || z.name === x.id);
-    //     return {
-    //       id: x.id,
-    //       name: model?.name || x.id,
-    //       isActive: model?.isActive || false,
-    //     } as ProviderModel;
-    //   });
-    //   return items.sort((a: ProviderModel, b: ProviderModel) =>
-    //     a.name.localeCompare(b.name),
-    //   );
-    // }
-    // return provider?.models;
+    return [...customModels, ...providerModels];
   }
 
   public async getLanguageModel(

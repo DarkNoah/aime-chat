@@ -16,6 +16,7 @@ export class MastraThreadsUsage {
     usage?: LanguageModelUsage,
     modelId?: string,
     costs?: any,
+    totalCostsUsd?: number,
   ) {
     this.id = nanoid();
     this.thread_id = threadId;
@@ -28,6 +29,7 @@ export class MastraThreadsUsage {
     this.raw_usage = usage;
     this.raw_costs = costs;
     this.model_id = modelId;
+    this.total_costs_usd = totalCostsUsd;
   }
 
   @PrimaryColumn('text')
@@ -62,6 +64,9 @@ export class MastraThreadsUsage {
 
   @Column({ type: 'json', nullable: true })
   raw_costs?: any;
+
+  @Column({ type: 'real', nullable: true })
+  total_costs_usd?: number;
 
   @CreateDateColumn()
   createdAt!: string;

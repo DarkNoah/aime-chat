@@ -99,7 +99,7 @@ import {
 } from '@/renderer/components/ui/select';
 import { nanoid } from '@/utils/nanoid';
 import { ToolEditDialog } from './tool-edit-dialog';
-import { SkillCreateDialog } from './skill-create-dialog';
+import { SkillImportDialog } from './skill-import-dialog';
 
 function Tools() {
   const { setTitle } = useHeader();
@@ -211,7 +211,7 @@ function Tools() {
                 <DropdownMenuItem
                   onClick={() => setOpenSkillCreateDialog(true)}
                 >
-                  {t('common.add_skill')}
+                  {t('tools.import_skill')}
                 </DropdownMenuItem>
               </DropdownMenuGroup>
             </DropdownMenuContent>
@@ -338,10 +338,10 @@ function Tools() {
         </ScrollArea>
       </div>
       <ToolEditDialog open={open} onOpenChange={setOpen}></ToolEditDialog>
-      <SkillCreateDialog
+      <SkillImportDialog
         open={openSkillCreateDialog}
         onOpenChange={setOpenSkillCreateDialog}
-      ></SkillCreateDialog>
+      ></SkillImportDialog>
       <div className="flex flex-col flex-1 w-full min-w-0">
         <Routes>
           <Route path=":id" element={<ToolDetail />} />

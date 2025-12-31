@@ -6,7 +6,15 @@ import React, {
   useMemo,
   useState,
 } from 'react';
-import { Area, AreaChart, CartesianGrid, Line, XAxis, YAxis } from 'recharts';
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  Label,
+  Line,
+  XAxis,
+  YAxis,
+} from 'recharts';
 import { Button } from '../../ui/button';
 import {
   Card,
@@ -23,6 +31,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from '../../ui/chart';
+import { ChatEvent, DEFAULT_RESOURCE_ID } from '@/types/chat';
 
 type UsageRow = {
   id: string;
@@ -43,6 +52,7 @@ type UsageSummary = {
   totalTokens: number;
   reasoningTokens: number;
   cachedInputTokens: number;
+  totalCostsUsd: number;
   firstAt?: string;
   lastAt?: string;
   byDay: Array<{
@@ -53,6 +63,7 @@ type UsageSummary = {
     totalTokens: number;
     reasoningTokens: number;
     cachedInputTokens: number;
+    totalCostsUsd: number;
   }>;
   byResourceId: Array<{
     resourceId: string;
@@ -62,6 +73,7 @@ type UsageSummary = {
     totalTokens: number;
     reasoningTokens: number;
     cachedInputTokens: number;
+    totalCostsUsd: number;
   }>;
 };
 
@@ -96,9 +108,10 @@ export const ChatUsageView = React.forwardRef<
         threadId,
         resourceId,
       })) as UsageSummaryResponse;
+      console.log('getUsageSummary', res);
       setData(res);
     } catch (e: any) {
-      setError(e?.message ?? '加载 usage 失败');
+      setError(e?.message ?? 'Load usage failed');
       setData(null);
     } finally {
       setIsLoading(false);
@@ -106,14 +119,39 @@ export const ChatUsageView = React.forwardRef<
   }, [threadId, resourceId]);
 
   useEffect(() => {
+    const handleChatUsageChanged = (event: {
+      data: {
+        threadId: string;
+        resourceId: string;
+      };
+    }) => {
+      console.log('handleChatUsageChanged', event.data);
+      if (
+        threadId === event.data?.threadId &&
+        (resourceId ?? DEFAULT_RESOURCE_ID) === event.data?.resourceId
+      ) {
+        reload();
+      }
+    };
+
+    window.electron.ipcRenderer.on(ChatEvent.ChatUsageChanged, (event: any) =>
+      handleChatUsageChanged(event),
+    );
     reload();
-  }, [reload]);
+    return () => {
+      window.electron.ipcRenderer.removeListener(
+        ChatEvent.ChatUsageChanged,
+        handleChatUsageChanged,
+      );
+    };
+  }, [threadId, resourceId, reload]);
 
   const chartConfig: ChartConfig = useMemo(
     () => ({
       inputTokens: { label: 'Input', color: 'var(--color-chart-1)' },
       outputTokens: { label: 'Output', color: 'var(--color-chart-2)' },
       totalTokens: { label: 'Total', color: 'var(--color-chart-3)' },
+      totalCostsUsd: { label: 'Cost ($)', color: 'var(--color-chart-4)' },
     }),
     [],
   );
@@ -123,6 +161,20 @@ export const ChatUsageView = React.forwardRef<
 
   const formatCompact = (n?: number) =>
     new Intl.NumberFormat('en-US', { notation: 'compact' }).format(n ?? 0);
+
+  // 专门用于格式化美元金额（支持小数）
+  const formatUsd = (n?: number) => {
+    const v = n ?? 0;
+    if (v === 0) return '$0';
+    // 非常小的金额显示更多小数位
+    if (Math.abs(v) < 0.01) {
+      return `$${v.toFixed(6)}`;
+    }
+    if (Math.abs(v) < 1) {
+      return `$${v.toFixed(4)}`;
+    }
+    return `$${v.toFixed(2)}`;
+  };
 
   const formatDateTime = (iso?: string) => {
     if (!iso) return '—';
@@ -149,12 +201,12 @@ export const ChatUsageView = React.forwardRef<
 
   return (
     <div className={className}>
-      <div className="flex items-center justify-between gap-2 p-4">
+      {/* <div className="flex items-center justify-between gap-2 p-4">
         <div></div>
         <Button size="sm" variant="secondary" onClick={() => reload()}>
           刷新
         </Button>
-      </div>
+      </div> */}
 
       {error ? (
         <div className="px-4 pb-4 text-sm text-destructive">{error}</div>
@@ -175,12 +227,21 @@ export const ChatUsageView = React.forwardRef<
             </small>
           </CardContent>
         </Card>
+        <Card>
+          <CardHeader className="gap-1">
+            <CardTitle className="text-sm">Total Costs</CardTitle>
+            <CardDescription>USD</CardDescription>
+          </CardHeader>
+          <CardContent className="text-2xl font-semibold flex flex-col gap-2">
+            {formatUsd(summary?.totalCostsUsd)}
+          </CardContent>
+        </Card>
       </div>
 
       <div className="px-4 pb-6">
         <Card>
           <CardHeader className="gap-1">
-            <CardTitle className="text-sm">按天趋势</CardTitle>
+            <CardTitle className="text-sm">Day</CardTitle>
             <CardDescription>
               {summary?.firstAt ? (
                 <>
@@ -188,60 +249,135 @@ export const ChatUsageView = React.forwardRef<
                   {formatDateTime(summary.lastAt)}
                 </>
               ) : (
-                '暂无数据'
+                'No data'
               )}
             </CardDescription>
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <div className="text-sm text-muted-foreground">加载中…</div>
+              <div className="text-sm text-muted-foreground">Loading...</div>
             ) : series.length ? (
-              <ChartContainer className="h-64 w-full" config={chartConfig}>
-                <AreaChart data={series} margin={{ left: 12, right: 12 }}>
-                  <CartesianGrid vertical={false} />
-                  <XAxis
-                    dataKey="day"
-                    tickMargin={8}
-                    minTickGap={24}
-                    tickFormatter={(v) =>
-                      typeof v === 'string' && v.length >= 10 ? v.slice(5) : v
-                    }
-                  />
-                  <YAxis tickMargin={8} />
-                  <ChartTooltip
-                    content={
-                      <ChartTooltipContent labelKey="day" indicator="dot" />
-                    }
-                  />
-                  <ChartLegend content={<ChartLegendContent />} />
-                  <Area
-                    dataKey="inputTokens"
-                    type="monotone"
-                    stackId="a"
-                    fill="var(--color-inputTokens)"
-                    stroke="var(--color-inputTokens)"
-                    fillOpacity={0.35}
-                  />
-                  <Area
-                    dataKey="outputTokens"
-                    type="monotone"
-                    stackId="a"
-                    fill="var(--color-outputTokens)"
-                    stroke="var(--color-outputTokens)"
-                    fillOpacity={0.35}
-                  />
-                  <Line
-                    dataKey="totalTokens"
-                    type="monotone"
-                    stroke="var(--color-totalTokens)"
-                    strokeWidth={2}
-                    dot={false}
-                  />
-                </AreaChart>
-              </ChartContainer>
+              <div className="flex flex-col gap-6">
+                {/* Token 使用量图表 */}
+                <div>
+                  <div className="text-xs text-muted-foreground mb-2">
+                    Token Usage
+                  </div>
+                  <ChartContainer className="h-48 w-full" config={chartConfig}>
+                    <AreaChart data={series} margin={{ left: 10, right: 10 }}>
+                      <CartesianGrid vertical={false} />
+                      <XAxis
+                        dataKey="day"
+                        tickMargin={8}
+                        minTickGap={24}
+                        tickFormatter={(v) =>
+                          typeof v === 'string' && v.length >= 10
+                            ? v.slice(5)
+                            : v
+                        }
+                      />
+                      <YAxis
+                        tickMargin={8}
+                        tickFormatter={(v) => formatCompact(v)}
+                      />
+                      <ChartTooltip
+                        content={
+                          <ChartTooltipContent
+                            labelKey="day"
+                            indicator="dot"
+                            formatter={(value) =>
+                              formatCompact(value as number)
+                            }
+                          />
+                        }
+                      />
+                      <ChartLegend content={<ChartLegendContent />} />
+                      <Area
+                        dataKey="inputTokens"
+                        type="monotone"
+                        stackId="a"
+                        fill="var(--color-inputTokens)"
+                        stroke="var(--color-inputTokens)"
+                        fillOpacity={0.35}
+                      />
+                      <Area
+                        dataKey="outputTokens"
+                        type="monotone"
+                        stackId="a"
+                        fill="var(--color-outputTokens)"
+                        stroke="var(--color-outputTokens)"
+                        fillOpacity={0.35}
+                      />
+                      <Line
+                        dataKey="totalTokens"
+                        type="monotone"
+                        stroke="var(--color-totalTokens)"
+                        strokeWidth={2}
+                        dot={false}
+                      />
+                    </AreaChart>
+                  </ChartContainer>
+                </div>
+
+                {/* 费用图表 */}
+                <div>
+                  <div className="text-xs text-muted-foreground mb-2">
+                    Cost (USD)
+                  </div>
+                  <ChartContainer className="h-32 w-full" config={chartConfig}>
+                    <AreaChart data={series} margin={{ left: 10, right: 10 }}>
+                      <CartesianGrid vertical={false} />
+                      <XAxis
+                        dataKey="day"
+                        tickMargin={8}
+                        minTickGap={24}
+                        tickFormatter={(v) =>
+                          typeof v === 'string' && v.length >= 10
+                            ? v.slice(5)
+                            : v
+                        }
+                      />
+                      <YAxis
+                        tickMargin={8}
+                        domain={['auto', 'auto']}
+                        tickFormatter={(v) => {
+                          if (v === 0) return '$0';
+                          if (Math.abs(v) < 0.0001)
+                            return `$${v.toExponential(1)}`;
+                          if (Math.abs(v) < 0.01) return `$${v.toFixed(5)}`;
+                          if (Math.abs(v) < 1) return `$${v.toFixed(3)}`;
+                          return `$${v.toFixed(2)}`;
+                        }}
+                      />
+                      <ChartTooltip
+                        content={
+                          <ChartTooltipContent
+                            labelKey="day"
+                            indicator="dot"
+                            formatter={(value) => {
+                              const v = typeof value === 'number' ? value : 0;
+                              return v < 0.01
+                                ? `$${v.toFixed(6)}`
+                                : `$${v.toFixed(4)}`;
+                            }}
+                          />
+                        }
+                      />
+                      <Area
+                        dataKey="totalCostsUsd"
+                        type="monotone"
+                        fill="var(--color-totalCostsUsd)"
+                        stroke="var(--color-totalCostsUsd)"
+                        fillOpacity={0.4}
+                        strokeWidth={2}
+                      />
+                    </AreaChart>
+                  </ChartContainer>
+                </div>
+              </div>
             ) : (
               <div className="text-sm text-muted-foreground">
-                暂无 usage 数据。
+                No usage data.
               </div>
             )}
           </CardContent>

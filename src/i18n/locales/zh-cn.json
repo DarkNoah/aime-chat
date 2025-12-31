@@ -69,7 +69,13 @@
     "description": "描述",
     "default_model": "默认模型",
     "compressing": "正在压缩提示词...",
-    "type": "类型"
+    "type": "类型",
+    "copy": "复制",
+    "copied": "已复制",
+    "close": "关闭",
+    "import": "导入",
+    "drop_files_here": "在此处拖放文件",
+    "drag_files_here": "将文件拖到这里"
   },
   "sidebar": {
     "new_chat": "新聊天",
@@ -97,7 +103,8 @@
     "approval_description": "是否执行该工具?",
     "mcp_url": "URL",
     "mcp_headers": "请求头",
-    "create_skill": "创建技能"
+    "create_skill": "创建技能",
+    "import_skill": "导入技能"
   },
   "agents": {
     "instructions": "系统提示词",
@@ -110,7 +117,9 @@
     "import_agent": "导入配置",
     "config_subagent": "配置子代理",
     "local_agents": "本地助手",
-    "export_agent_config": "导出配置"
+    "export_agent_config": "导出配置",
+    "greeting": "开场白",
+    "suggestions": "提议"
   },
   "project": {
     "new_project": "创建项目",

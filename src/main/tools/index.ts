@@ -178,9 +178,10 @@ class ToolsManager extends BaseManager {
       await this.registerBuiltInTool(StreamTest);
     }
 
-    const skills = await skillManager.getClaudeSkills();
+    const skills = await skillManager.getSkills();
     await this.registerBuiltInTool(Skill, {
       skills: skills.map((skill) => ({
+        id: skill.id,
         name: skill.name,
         description: skill.description,
         path: skill.path,
@@ -381,6 +382,7 @@ class ToolsManager extends BaseManager {
   @channel(ToolChannel.SaveSkill)
   public async saveSkill(id: string | undefined, data: any) {
     let localSkill: Tools;
+    const { files }: { files: string[] } = data;
     if (id) {
       localSkill = await this.toolsRepository.findOne({ where: { id } });
     } else {
@@ -401,6 +403,43 @@ class ToolsManager extends BaseManager {
       status: 'created',
     });
     return localSkill;
+  }
+
+  @channel(ToolChannel.ImportSkill)
+  public async importSkill(data: { files: string[] }) {
+    const { files }: { files: string[] } = data;
+    const skills = [];
+    for (const file of files) {
+      const fileName = path.basename(file);
+      const skill = await skillManager.parseSkill(file);
+      const skillName = skill.name.toLowerCase().replaceAll(' ', '-');
+      const id = `${ToolType.SKILL}:${skillName}`;
+      if (await this.toolsRepository.findOne({ where: { id } })) {
+        throw new Error(`Skill ${skillName} already exists`);
+      }
+      const tool = new Tools(
+        `${ToolType.SKILL}:local:${skillName}`,
+        skillName,
+        ToolType.SKILL,
+      );
+      // tool.description = skill.description;
+      const savePath = path.join(app.getPath('userData'), 'skills', skillName);
+      tool.value = {
+        path: savePath,
+      };
+      // await this.toolsRepository.save(localSkill);
+      skills.push({ tool, importPath: file, savePath });
+    }
+
+    for (const { tool, importPath, savePath } of skills) {
+      const skill = await skillManager.parseSkill(importPath, savePath);
+      // tool.name = skill.name;
+      await this.toolsRepository.save(tool);
+      await appManager.sendEvent(ToolEvent.ToolListUpdated, {
+        id: skill.id,
+        status: 'created',
+      });
+    }
   }
 
   @channel(ToolChannel.SaveMCPServer)
@@ -498,8 +537,15 @@ class ToolsManager extends BaseManager {
       this.mcpClients = this.mcpClients.filter((x) => x.id !== id);
       await this.toolsRepository.delete(id);
     } else if (id.startsWith(`${ToolType.SKILL}:`)) {
+      const tool = await this.toolsRepository.findOne({ where: { id } });
+      if (!tool) {
+        throw new Error('Tool not found');
+      }
       await skillManager.deleteSkill(id as `${ToolType.SKILL}:${string}`);
       await this.toolsRepository.delete(id);
+      if (id.startsWith(`${ToolType.SKILL}:local:`)) {
+        await fs.promises.rm(tool.value?.path, { recursive: true });
+      }
     }
 
     await appManager.sendEvent(ToolEvent.ToolListUpdated, {
@@ -616,6 +662,7 @@ class ToolsManager extends BaseManager {
     if (id.startsWith(`${ToolType.SKILL}:`)) {
       const marketplace = id.split(':')[1];
       const skill = id.split(':').slice(2).join(':');
+
       const sk = await skillManager.getSkill(
         id as `${ToolType.SKILL}:${string}`,
       );
@@ -727,7 +774,7 @@ class ToolsManager extends BaseManager {
       } else {
         tool.isActive = !tool.isActive;
       }
-      tool.name = skillInfo.name;
+      // tool.name = skillInfo.name;
       await this.toolsRepository.save(tool);
       await appManager.sendEvent(ToolEvent.ToolListUpdated, {
         id: id,

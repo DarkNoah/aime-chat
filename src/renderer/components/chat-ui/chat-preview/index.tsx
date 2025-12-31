@@ -104,12 +104,12 @@ export const ChatPreview = React.forwardRef<ChatPreviewRef, ChatPreviewProps>(
             <IconWorldWww />
             Web Preview
           </ToggleGroupItem>
-          <ToggleGroupItem
+          {/* <ToggleGroupItem
             value={ChatPreviewType.CANVAS}
             className="data-[state=off]:bg-transparent bg-secondary "
           >
             Canvas
-          </ToggleGroupItem>
+          </ToggleGroupItem> */}
           <ToggleGroupItem
             value={ChatPreviewType.TOOL_RESULT}
             className="data-[state=off]:bg-transparent bg-secondary "
@@ -170,11 +170,11 @@ export const ChatPreview = React.forwardRef<ChatPreviewRef, ChatPreviewProps>(
             )}
           </div>
 
-          <div
+          {/* <div
             className={`h-full ${previewData.previewPanel === ChatPreviewType.CANVAS ? '' : 'hidden'}`}
           >
             <ChatCanvas></ChatCanvas>
-          </div>
+          </div> */}
 
           <div
             className={`h-full ${previewData.previewPanel === ChatPreviewType.TODO ? '' : 'hidden'}`}

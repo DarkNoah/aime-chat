@@ -142,6 +142,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
       ensureThread,
       unregisterThread,
       sendMessage,
+      setMessages,
       stop,
       clearMessages,
       clearError,
@@ -161,6 +162,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
         }
       | undefined
     >();
+    const [agent, setAgent] = useState<Agent | undefined>();
     const [modelId, setModelId] = useState<string | undefined>();
     const [agentId, setAgentId] = useState<string | undefined>();
     const [requireToolApproval, setRequireToolApproval] = useState(false);
@@ -278,8 +280,9 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
     };
 
     const handleAgentChange = (_agent: Agent) => {
-      chatInputRef.current?.setTools(_agent.tools || []);
+      chatInputRef.current?.setTools(_agent?.tools || []);
       setAgentId(_agent?.id);
+      setAgent(_agent);
       if (_agent?.defaultModelId) {
         setModelId(_agent?.defaultModelId);
       }
@@ -288,6 +291,20 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
       }
       if (_agent?.suggestions) {
         setSuggestions(_agent?.suggestions || []);
+      }
+      if (
+        _agent?.greeting &&
+        (!threadState || threadState?.messages.length === 0)
+      ) {
+        if (threadId) {
+          setMessages(threadId, [
+            {
+              id: nanoid(),
+              role: 'assistant',
+              parts: [{ type: 'text', text: _agent?.greeting }],
+            },
+          ]);
+        }
       }
     };
 
@@ -398,6 +415,21 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
             setCompressing(false);
           } else if (event.type === 'data-usage') {
             setUsage(event.data);
+          } else if (event.type === 'data-send-event') {
+            const { target_panel, data } = event.data as {
+              target_panel: string;
+              data: any;
+            };
+            // if (target_panel === 'web_preview' && data?.url) {
+            //   setShowPreview(true);
+            //   setPreviewData((prev: ChatPreviewData) => {
+            //     return {
+            //       ...prev,
+            //       previewPanel: ChatPreviewType.WEB_PREVIEW,
+            //       webPreviewUrl: data?.url,
+            //     };
+            //   });
+            // }
           }
         });
         eventBus.on(`chat:onFinish:${threadId}`, (event) => {
@@ -449,7 +481,23 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
       <div className={cn('flex flex-col h-full', className)}>
         <Conversation className="h-full w-full flex-1 flex items-center justify-center overflow-y-hidden">
           <ConversationContent className="h-full" id="chat-conversation">
-            {threadState?.messages.length === 0 && (
+            {!threadState && agent?.greeting && (
+              <div className="flex flex-col gap-2">
+                <Message from="assistant">
+                  <MessageContent>
+                    <MessageResponse
+                      className="text-xs"
+                      mermaidConfig={{
+                        theme: theme === 'dark' ? 'dark' : 'forest',
+                      }}
+                    >
+                      {agent?.greeting}
+                    </MessageResponse>
+                  </MessageContent>
+                </Message>
+              </div>
+            )}
+            {!threadState && threadState?.messages.length === 0 && (
               <ConversationEmptyState
                 description="Messages will appear here as the conversation progresses."
                 icon={<MessageSquareIcon className="size-6" />}
@@ -708,7 +756,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
                 </AlertDescription>
               </Alert>
             )}
-            <div className="pb-20"></div>
+            {threadState?.messages.length > 0 && <div className="pb-20"></div>}
           </ConversationContent>
           <ConversationScrollButton className="z-10 backdrop-blur" />
         </Conversation>
@@ -719,7 +767,8 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
               mode="single"
               onSelectedAgent={handleAgentChange}
             ></ChatAgentSelector>
-            {usage?.usage?.totalTokens && (
+
+            {usage?.usage?.totalTokens > 0 && (
               <ChatUsage
                 value={{
                   usage: usage?.usage,

@@ -22,6 +22,7 @@ import { Task } from '@/main/tools/common/task';
 import { SubAgentInfo } from '@/types/task';
 import { Explore } from './explore-agent';
 import { Plan } from './plan-agent';
+import { stringify } from 'smol-toml';
 
 type BuiltInAgent = BaseAgent & {
   classType: any;
@@ -82,8 +83,19 @@ class AgentManager extends BaseManager {
     }
     let { tools = [], subAgents = [] } = params || {};
 
-    let _skills = await skillManager.getClaudeSkills();
-    _skills = _skills.filter((x) => tools.includes(x.id));
+    const _skills = []; //await skillManager.getClaudeSkills();
+
+    for (const tool of tools.filter((x) =>
+      x.startsWith(`${ToolType.SKILL}:`),
+    )) {
+      const skill = await skillManager.getSkill(
+        tool as `${ToolType.SKILL}:${string}`,
+      );
+      if (skill) {
+        _skills.push(skill);
+      }
+    }
+    // _skills = _skills.filter((x) => tools.includes(x.id));
 
     const builtInAgent = this.builtInAgents.find((x) => x.id == agentId);
 
@@ -178,15 +190,10 @@ class AgentManager extends BaseManager {
     }
     const builtInAgent = this.builtInAgents.find((x) => x.id == agentEntity.id);
     return {
-      id: agentEntity.id,
-      name: agentEntity.name,
-      description: agentEntity.description,
+      ...agentEntity,
       instructions: await convertToInstructionContent(
         builtInAgent?.instructions ?? agentEntity.instructions,
       ),
-      type: agentEntity.type,
-      tags: agentEntity.tags,
-      isActive: agentEntity.isActive,
       tools: [
         ...new Set([
           ...(builtInAgent?.tools ?? []),
@@ -199,8 +206,6 @@ class AgentManager extends BaseManager {
           ...(agentEntity.subAgents ?? []),
         ]),
       ],
-      defaultModelId: agentEntity.defaultModelId,
-      suggestions: agentEntity.suggestions,
     };
   }
   @channel(AgentChannel.GetList)
@@ -253,11 +258,7 @@ class AgentManager extends BaseManager {
         (x) => x.id == agentEntity.id,
       );
       return {
-        id: agentEntity.id,
-        name: agentEntity.name,
-        description: agentEntity.description,
-        tags: agentEntity.tags,
-        isActive: agentEntity.isActive,
+        ...agentEntity,
         tools: [
           ...new Set([
             ...(builtInAgent?.tools ?? []),
@@ -270,8 +271,6 @@ class AgentManager extends BaseManager {
             ...(agentEntity.subAgents ?? []),
           ]),
         ],
-        defaultModelId: agentEntity.defaultModelId,
-        suggestions: agentEntity.suggestions,
       };
     });
   }
@@ -293,18 +292,37 @@ class AgentManager extends BaseManager {
   @channel(AgentChannel.GetAgentConfig)
   public async getAgentConfig(id: string): Promise<string> {
     const agent = await this.getAgent(id);
-    return `
-id: ${agent.id}
-name: ${agent.name}
-description: ${agent.description}
-instructions: ${agent.instructions}
-tools:
-  ${agent.tools?.map((x) => `- ${x}`).join('\n')}
-subAgents:
-  ${agent.subAgents?.map((x) => `- ${x}`).join('\n')}
-suggestions:
-  ${agent.suggestions?.map((x) => `- ${x}`).join('\n')}
-`;
+
+    const mcpServers = {};
+    toolsManager;
+    for (const mcpServer of agent.tools.filter((x) =>
+      x.startsWith(`${ToolType.MCP}:`),
+    )) {
+      const mcps = (await toolsManager.getList({ type: ToolType.MCP }))[
+        ToolType.MCP
+      ];
+      let mcp = mcps.find((x) =>
+        mcpServer.startsWith(`${ToolType.MCP}:${x.name}_`),
+      );
+      if (mcp) {
+        const mcpConfig = await toolsManager.getMcp(mcp.id);
+        const [key, value] = Object.entries(mcpConfig)[0];
+        mcpServers[key] = value;
+      }
+    }
+    const tomlString = stringify({
+      id: agent.id,
+      name: agent.name,
+      description: agent.description,
+      instructions: agent.instructions,
+      tools: agent.tools,
+      subAgents: agent.subAgents,
+      suggestions: agent.suggestions,
+      tags: agent.tags,
+      greeting: agent.greeting,
+      mcpServers: mcpServers,
+    });
+    return tomlString;
   }
 }
 

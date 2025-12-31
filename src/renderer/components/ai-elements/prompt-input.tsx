@@ -365,7 +365,6 @@ export function PromptInputProvider({
   return (
     <PromptInputController.Provider value={controller}>
       <ProviderAttachmentsContext.Provider value={attachments}>
-        {`selectionStart: ${selectionStart}, selectionEnd: ${selectionEnd}`}
         {children}
       </ProviderAttachmentsContext.Provider>
     </PromptInputController.Provider>

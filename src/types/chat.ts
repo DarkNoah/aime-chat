@@ -40,6 +40,7 @@ export enum ChatEvent {
   ChatChunk = 'chat:chat-chunk',
   ChatChanged = 'chat:chat-changed',
   ChatUsage = 'chat:chat-usage',
+  ChatUsageChanged = 'chat:chat-usage-changed',
   ChatError = 'chat:chat-error',
   ChatAbort = 'chat:chat-abort',
 }

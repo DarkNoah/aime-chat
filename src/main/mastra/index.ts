@@ -85,7 +85,9 @@ import { getLastMessageIndex } from '../utils/messageUtils';
 import { MastraThreadsUsage } from '@/entities/mastra-threads-usage';
 import { Repository } from 'typeorm';
 import { dbManager } from '../db';
+const modelsData = require('../../../assets/models.json');
 import { costFromUsage, getTokenCosts } from 'tokenlens';
+import bashManager from '../tools/file-system/bash';
 
 class MastraManager extends BaseManager {
   app: express.Application;
@@ -872,15 +874,20 @@ class MastraManager extends BaseManager {
           if (_inputMessage) input.push(_inputMessage);
         }
 
+        const bashSessions = bashManager.getBashSessions(chatId);
+        if (bashSessions.length > 0) {
+          for (const bashSession of bashSessions) {
+            if (bashManager.hasUpdate(bashSession.bashId)) {
+              debugger;
+              getLastMessageIndex();
+            }
+          }
+        }
+
         delete streamOptions.context;
 
         stream = await this.nextStep(agent, input, streamOptions, resume);
-        await this.saveThreadUsage(
-          chatId,
-          resourceId,
-          stream.usage,
-          `${providerType}:${modelId}`,
-        );
+
         const core = stream.messageList.get.all.core();
         const db = stream.messageList.get.all.db();
         const ui = stream.messageList.get.all.ui();
@@ -888,6 +895,12 @@ class MastraManager extends BaseManager {
         if (stream.status == 'suspended') {
           break;
         } else if (stream.status == 'success') {
+          await this.saveThreadUsage(
+            chatId,
+            resourceId,
+            stream.usage,
+            `${providerType}:${modelId}`,
+          );
           const lastMessage = core[core.length - 1];
           if (lastMessage.role == 'tool') {
           } else if (lastMessage.role == 'assistant') {
@@ -1460,7 +1473,10 @@ When you are using compact - please focus on test output and code changes. Inclu
     modelId?: string,
   ) {
     const _usage = await usage;
-    const costs = getTokenCosts({ modelId, usage: _usage });
+
+    const providers = modelsData[modelId.split(':')[0]];
+
+    const costs = getTokenCosts({ modelId, usage: _usage, providers });
     try {
       const data = await this.mastraThreadsUsageRepository.save(
         new MastraThreadsUsage(
@@ -1469,8 +1485,12 @@ When you are using compact - please focus on test output and code changes. Inclu
           _usage as LanguageModelV2Usage,
           modelId,
           costs,
+          costs?.totalUSD,
         ),
       );
+      appManager.sendEvent(ChatEvent.ChatUsageChanged, {
+        data: { threadId, resourceId, usage: _usage, modelId, costs },
+      });
     } catch {
       console.error('Failed to save thread usage', threadId, usage);
     }
@@ -1525,6 +1545,7 @@ When you are using compact - please focus on test output and code changes. Inclu
       .addSelect('SUM(COALESCE(u.total_tokens, 0))', 'totalTokens')
       .addSelect('SUM(COALESCE(u.reasoning_tokens, 0))', 'reasoningTokens')
       .addSelect('SUM(COALESCE(u.cached_input_tokens, 0))', 'cachedInputTokens')
+      .addSelect('SUM(COALESCE(u.total_costs_usd, 0))', 'totalCostsUsd')
       .addSelect('MIN(u.createdAt)', 'firstAt')
       .addSelect('MAX(u.createdAt)', 'lastAt')
       .getRawOne();
@@ -1539,6 +1560,7 @@ When you are using compact - please focus on test output and code changes. Inclu
       .addSelect('SUM(COALESCE(u.total_tokens, 0))', 'totalTokens')
       .addSelect('SUM(COALESCE(u.reasoning_tokens, 0))', 'reasoningTokens')
       .addSelect('SUM(COALESCE(u.cached_input_tokens, 0))', 'cachedInputTokens')
+      .addSelect('SUM(COALESCE(u.total_costs_usd, 0))', 'totalCostsUsd')
       .where(
         base.expressionMap.wheres.map((w) => w.condition).join(' AND ') ||
           '1=1',
@@ -1557,6 +1579,7 @@ When you are using compact - please focus on test output and code changes. Inclu
       .addSelect('SUM(COALESCE(u.total_tokens, 0))', 'totalTokens')
       .addSelect('SUM(COALESCE(u.reasoning_tokens, 0))', 'reasoningTokens')
       .addSelect('SUM(COALESCE(u.cached_input_tokens, 0))', 'cachedInputTokens')
+      .addSelect('SUM(COALESCE(u.total_costs_usd, 0))', 'totalCostsUsd')
       .where(
         base.expressionMap.wheres.map((w) => w.condition).join(' AND ') ||
           '1=1',
@@ -1573,6 +1596,7 @@ When you are using compact - please focus on test output and code changes. Inclu
       totalTokens: this.toFiniteNumber(raw?.totalTokens),
       reasoningTokens: this.toFiniteNumber(raw?.reasoningTokens),
       cachedInputTokens: this.toFiniteNumber(raw?.cachedInputTokens),
+      totalCostsUsd: this.toFiniteNumber(raw?.totalCostsUsd),
       firstAt: raw?.firstAt ?? undefined,
       lastAt: raw?.lastAt ?? undefined,
       byDay: (byDayRaw ?? []).map((r: any) => ({
@@ -1583,6 +1607,7 @@ When you are using compact - please focus on test output and code changes. Inclu
         totalTokens: this.toFiniteNumber(r?.totalTokens),
         reasoningTokens: this.toFiniteNumber(r?.reasoningTokens),
         cachedInputTokens: this.toFiniteNumber(r?.cachedInputTokens),
+        totalCostsUsd: this.toFiniteNumber(r?.totalCostsUsd),
       })),
       byResourceId: (byResourceRaw ?? []).map((r: any) => ({
         resourceId: r?.resourceId ?? 'unknown',
@@ -1592,147 +1617,9 @@ When you are using compact - please focus on test output and code changes. Inclu
         totalTokens: this.toFiniteNumber(r?.totalTokens),
         reasoningTokens: this.toFiniteNumber(r?.reasoningTokens),
         cachedInputTokens: this.toFiniteNumber(r?.cachedInputTokens),
+        totalCostsUsd: this.toFiniteNumber(r?.totalCostsUsd),
       })),
     };
-  }
-
-  private buildThreadUsageSummary(rows: MastraThreadsUsage[]) {
-    const toNum = (v?: number) =>
-      typeof v === 'number' && Number.isFinite(v) ? v : 0;
-
-    const formatDay = (createdAt?: string) => {
-      if (!createdAt) return 'unknown';
-      const d = new Date(createdAt);
-      if (!Number.isNaN(d.getTime())) {
-        return d.toISOString().slice(0, 10);
-      }
-      // Fallback: if it's already like "YYYY-MM-DD..."
-      if (createdAt.length >= 10) return createdAt.slice(0, 10);
-      return 'unknown';
-    };
-
-    const summary = {
-      count: rows.length,
-      inputTokens: 0,
-      outputTokens: 0,
-      totalTokens: 0,
-      reasoningTokens: 0,
-      cachedInputTokens: 0,
-      firstAt: rows[0]?.createdAt,
-      lastAt: rows.length ? rows[rows.length - 1].createdAt : undefined,
-      byDay: [] as Array<{
-        day: string;
-        count: number;
-        inputTokens: number;
-        outputTokens: number;
-        totalTokens: number;
-        reasoningTokens: number;
-        cachedInputTokens: number;
-      }>,
-      byResourceId: [] as Array<{
-        resourceId: string;
-        count: number;
-        inputTokens: number;
-        outputTokens: number;
-        totalTokens: number;
-        reasoningTokens: number;
-        cachedInputTokens: number;
-      }>,
-    };
-
-    const byDayMap = new Map<
-      string,
-      {
-        day: string;
-        count: number;
-        inputTokens: number;
-        outputTokens: number;
-        totalTokens: number;
-        reasoningTokens: number;
-        cachedInputTokens: number;
-      }
-    >();
-    const byResourceMap = new Map<
-      string,
-      {
-        resourceId: string;
-        count: number;
-        inputTokens: number;
-        outputTokens: number;
-        totalTokens: number;
-        reasoningTokens: number;
-        cachedInputTokens: number;
-      }
-    >();
-
-    for (const row of rows) {
-      const inputTokens = toNum(row.input_tokens);
-      const outputTokens = toNum(row.output_tokens);
-      const totalTokens = toNum(row.total_tokens);
-      const reasoningTokens = toNum(row.reasoning_tokens);
-      const cachedInputTokens = toNum(row.cached_input_tokens);
-
-      summary.inputTokens += inputTokens;
-      summary.outputTokens += outputTokens;
-      summary.totalTokens += totalTokens;
-      summary.reasoningTokens += reasoningTokens;
-      summary.cachedInputTokens += cachedInputTokens;
-
-      const day = formatDay(row.createdAt);
-      const dayAgg =
-        byDayMap.get(day) ??
-        ({
-          day,
-          count: 0,
-          inputTokens: 0,
-          outputTokens: 0,
-          totalTokens: 0,
-          reasoningTokens: 0,
-          cachedInputTokens: 0,
-        } as const);
-      const nextDayAgg = {
-        ...dayAgg,
-        count: dayAgg.count + 1,
-        inputTokens: dayAgg.inputTokens + inputTokens,
-        outputTokens: dayAgg.outputTokens + outputTokens,
-        totalTokens: dayAgg.totalTokens + totalTokens,
-        reasoningTokens: dayAgg.reasoningTokens + reasoningTokens,
-        cachedInputTokens: dayAgg.cachedInputTokens + cachedInputTokens,
-      };
-      byDayMap.set(day, nextDayAgg);
-
-      const rid = row.resource_id ?? 'unknown';
-      const ridAgg =
-        byResourceMap.get(rid) ??
-        ({
-          resourceId: rid,
-          count: 0,
-          inputTokens: 0,
-          outputTokens: 0,
-          totalTokens: 0,
-          reasoningTokens: 0,
-          cachedInputTokens: 0,
-        } as const);
-      const nextRidAgg = {
-        ...ridAgg,
-        count: ridAgg.count + 1,
-        inputTokens: ridAgg.inputTokens + inputTokens,
-        outputTokens: ridAgg.outputTokens + outputTokens,
-        totalTokens: ridAgg.totalTokens + totalTokens,
-        reasoningTokens: ridAgg.reasoningTokens + reasoningTokens,
-        cachedInputTokens: ridAgg.cachedInputTokens + cachedInputTokens,
-      };
-      byResourceMap.set(rid, nextRidAgg);
-    }
-
-    summary.byDay = Array.from(byDayMap.values()).sort((a, b) =>
-      a.day.localeCompare(b.day),
-    );
-    summary.byResourceId = Array.from(byResourceMap.values()).sort(
-      (a, b) => b.totalTokens - a.totalTokens,
-    );
-
-    return summary;
   }
 
   @channel(MastraChannel.GetUsage)

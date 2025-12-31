@@ -213,7 +213,7 @@ Output: Creates directory 'foo'`),
         undefined,
         threadId,
       );
-      return `Command running in background with ID: ${shell_id}`;
+      return `Command running in background with ID: ${shell_id}, You can use BashOutput to check its output whenever you need to see what's happening.`;
     }
 
     let exited = false;
@@ -404,7 +404,7 @@ export class ListBash extends BaseTool {
     const { requestContext } = context;
     const threadId = requestContext.get('threadId' as never) as string;
 
-    const bashes = bashManager.getBashSessions(threadId).toArray();
+    const bashes = bashManager.getBashSessions(threadId);
     return bashes.length == 0
       ? `No running bash sessions found`
       : bashes
@@ -717,12 +717,11 @@ export class BashManager {
   }
 
   getBashSessions(threadId?: string) {
-    if (threadId)
-      return this.bashMap
-        .values()
-        .filter((session) => session.threadId === threadId);
-
-    return this.bashMap.values();
+    const sessions = Array.from(this.bashMap.values());
+    if (threadId) {
+      return sessions.filter((session) => session.threadId === threadId);
+    }
+    return sessions;
   }
 }
 

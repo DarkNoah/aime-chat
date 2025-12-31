@@ -20,6 +20,13 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/renderer/components/ui/sheet';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/renderer/components/ui/dialog';
 import { Label } from '@/renderer/components/ui/label';
 import { Textarea } from '@/renderer/components/ui/textarea';
 import {
@@ -49,7 +56,14 @@ import {
 } from '@/renderer/components/ui/item';
 import { ScrollArea } from '@/renderer/components/ui/scroll-area';
 import ProviderIcon from '@/renderer/components/provider-icon';
-import { AlertCircleIcon, Edit, Package, Search, Trash } from 'lucide-react';
+import {
+  AlertCircleIcon,
+  Edit,
+  Package,
+  Plus,
+  Search,
+  Trash,
+} from 'lucide-react';
 import { Spinner } from '@/renderer/components/ui/spinner';
 import {
   Alert,
@@ -125,6 +139,11 @@ function Providers() {
     id: string;
     name: string;
   } | null>(null);
+
+  // 添加模型弹窗状态
+  const [addModelOpen, setAddModelOpen] = useState<boolean>(false);
+  const [newModelId, setNewModelId] = useState<string>('');
+  const [newModelName, setNewModelName] = useState<string>('');
 
   async function refreshProviders() {
     setLoading(true);
@@ -228,6 +247,40 @@ function Providers() {
       toast.error(err.message);
     }
   };
+
+  // 打开添加模型弹窗
+  const openAddModel = () => {
+    setNewModelId('');
+    setNewModelName('');
+    setAddModelOpen(true);
+  };
+
+  // 添加自定义模型
+  const addCustomModel = () => {
+    if (!newModelId.trim()) {
+      toast.error('模型 ID 不能为空');
+      return;
+    }
+    // 检查是否已存在
+    if (models.some((m) => m.id === newModelId.trim())) {
+      toast.error('模型 ID 已存在');
+      return;
+    }
+    const newModel: ProviderModel = {
+      id: newModelId.trim(),
+      name: newModelName.trim() || newModelId.trim(),
+      isActive: true,
+      isCustom: true,
+    };
+    setModels((prev) => [newModel, ...prev]);
+    setAddModelOpen(false);
+  };
+
+  // 删除自定义模型
+  const removeCustomModel = (modelId: string) => {
+    setModels((prev) => prev.filter((m) => m.id !== modelId));
+  };
+
   const renderApi = useCallback(() => {
     const doc = modelsData[editProvider?.type ?? selectedType]?.doc;
     if (!doc) return null;
@@ -470,26 +523,32 @@ function Providers() {
         <SheetContent className="min-w-[560px]">
           <SheetHeader>
             <SheetTitle>模型管理</SheetTitle>
-            <InputGroup>
-              <InputGroupInput
-                placeholder="Search..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-              <InputGroupAddon>
-                <Search />
-              </InputGroupAddon>
-              <InputGroupAddon align="inline-end">
-                {
-                  models.filter(
-                    (m) =>
-                      m.name.toLowerCase().includes(search.toLowerCase()) ||
-                      m.id.toLowerCase().includes(search.toLowerCase()),
-                  ).length
-                }{' '}
-                model
-              </InputGroupAddon>
-            </InputGroup>
+            <div className="flex flex-row gap-2">
+              <InputGroup>
+                <InputGroupInput
+                  placeholder="Search..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+                <InputGroupAddon>
+                  <Search />
+                </InputGroupAddon>
+                <InputGroupAddon align="inline-end">
+                  {
+                    models.filter(
+                      (m) =>
+                        m.name.toLowerCase().includes(search.toLowerCase()) ||
+                        m.id.toLowerCase().includes(search.toLowerCase()),
+                    ).length
+                  }{' '}
+                  model
+                </InputGroupAddon>
+              </InputGroup>
+              <Button variant="outline" onClick={openAddModel}>
+                <Plus />
+                添加模型
+              </Button>
+            </div>
           </SheetHeader>
           {getModelsError && (
             <div className="p-4">
@@ -544,7 +603,17 @@ function Providers() {
                           <Item variant="outline" key={m.id}>
                             <ItemContent>
                               <Field className="w-full">
-                                <Label>{m.name}</Label>
+                                <Label className="flex items-center gap-2">
+                                  {m.name}
+                                  {m.isCustom && (
+                                    <Badge
+                                      variant="secondary"
+                                      className="text-xs"
+                                    >
+                                      自定义
+                                    </Badge>
+                                  )}
+                                </Label>
                                 <FieldDescription className="text-sm">
                                   {m.id}
                                 </FieldDescription>
@@ -583,7 +652,7 @@ function Providers() {
                               </Field>
                             </ItemContent>
                             <ItemActions>
-                              <div className="col-span-3">
+                              <div className="col-span-3 flex items-center gap-2">
                                 <Switch
                                   checked={!!m.isActive}
                                   onCheckedChange={(v) =>
@@ -596,6 +665,16 @@ function Providers() {
                                     })
                                   }
                                 />
+                                {m.isCustom && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-destructive hover:text-destructive"
+                                    onClick={() => removeCustomModel(m.id)}
+                                  >
+                                    <Trash className="h-4 w-4" />
+                                  </Button>
+                                )}
                               </div>
                             </ItemActions>
                           </Item>
@@ -636,6 +715,45 @@ function Providers() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* 添加自定义模型弹窗 */}
+      <Dialog open={addModelOpen} onOpenChange={setAddModelOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>添加自定义模型</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-4 py-4">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="modelId">
+                模型 ID <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="modelId"
+                placeholder="例如：gpt-4o-mini"
+                value={newModelId}
+                onChange={(e) => setNewModelId(e.target.value)}
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="modelName">模型名称（可选）</Label>
+              <Input
+                id="modelName"
+                placeholder="例如：GPT-4o Mini"
+                value={newModelName}
+                onChange={(e) => setNewModelName(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddModelOpen(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button onClick={addCustomModel} disabled={!newModelId.trim()}>
+              {t('common.add')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

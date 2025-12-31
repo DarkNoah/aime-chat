@@ -63,6 +63,18 @@ export const ChatAgentSelector = ({
   const [selectedAgent, setSelectedAgent] = useState<Agent | undefined>(
     undefined,
   );
+  const [insideValue, setInsideValue] = useState<string[] | string | undefined>(
+    undefined,
+  );
+
+  useEffect(() => {
+    if (insideValue !== value) {
+      setInsideValue(value);
+      setSelectedAgent(data?.find((agent) => agent.id === value));
+      onChange?.(value);
+      onSelectedAgent?.(data?.find((agent) => agent.id === value));
+    }
+  }, [value, data]);
 
   const getAvailableAgents = async () => {
     try {
@@ -82,9 +94,9 @@ export const ChatAgentSelector = ({
     getAvailableAgents();
   }, []);
 
-  useEffect(() => {
-    setSelectedAgent(data?.find((agent) => agent.id === value));
-  }, [data, value]);
+  // useEffect(() => {
+
+  // }, [data, value]);
 
   return (
     <Dialog
@@ -130,12 +142,12 @@ export const ChatAgentSelector = ({
                       setOpen(false);
                     } else if (mode === 'multiple') {
                       let ids;
-                      if ((value as string[]).includes(agent.id)) {
-                        ids = (value as string[]).filter(
+                      if ((insideValue as string[]).includes(agent.id)) {
+                        ids = (insideValue as string[]).filter(
                           (id) => id !== agent.id,
                         );
                       } else {
-                        ids = [...new Set([...value, agent.id])];
+                        ids = [...new Set([...insideValue, agent.id])];
                       }
 
                       (onChange as (value: string[] | undefined) => void)?.(
@@ -154,10 +166,10 @@ export const ChatAgentSelector = ({
                       {agent.description}
                     </small>
                   </div>
-                  {mode === 'single' && value === agent.id && (
+                  {mode === 'single' && insideValue === agent.id && (
                     <IconCheck className="w-4 h-4" />
                   )}
-                  {mode === 'multiple' && value?.includes(agent.id) && (
+                  {mode === 'multiple' && insideValue?.includes(agent.id) && (
                     <IconCheck className="w-4 h-4" />
                   )}
                 </CommandItem>
