@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - 'packages/docs/**'
+      - "packages/docs/**"
   # 允许手动触发部署
   workflow_dispatch:
 
@@ -35,30 +35,14 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-
-      - name: Get pnpm store directory
-        shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
-
-      - name: Setup pnpm cache
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
+          cache: "npm"
+          cache-dependency-path: packages/docs/package-lock.json
 
       - name: Install dependencies
-        run: pnpm install
+        run: npm install
 
       - name: Build Docusaurus site
-        run: pnpm run build
+        run: npm run build
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
@@ -78,4 +62,3 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-
