@@ -43,7 +43,7 @@ const config: Config = {
           sidebarPath: './sidebars.ts',
           // Please change this to your repo.
           // Remove this to remove the "edit this page" links.
-          editUrl: 'https://github.com/aime-chat/aime-chat/tree/main/docs/',
+          editUrl: 'https://github.com/DarkNoah/aime-chat/tree/main/packages/docs/',
         },
         blog: false,
         theme: {
@@ -54,8 +54,8 @@ const config: Config = {
   ],
 
   themeConfig: {
-    // Replace with your project's social card
-    image: 'img/docusaurus-social-card.jpg',
+    // Social card image
+    image: 'img/icon.png',
     colorMode: {
       respectPrefersColorScheme: true,
     },
@@ -73,7 +73,7 @@ const config: Config = {
           label: '文档',
         },
         {
-          href: 'https://github.com/aime-chat/aime-chat',
+          href: 'https://github.com/DarkNoah/aime-chat',
           label: 'GitHub',
           position: 'right',
         },
