@@ -22,7 +22,7 @@ const config: Config = {
 
   // GitHub pages deployment config.
   // If you aren't using GitHub pages, you don't need these.
-  organizationName: 'aime-chat', // Usually your GitHub org/user name.
+  organizationName: 'DarkNoah', // Usually your GitHub org/user name.
   projectName: 'aime-chat', // Usually your repo name.
 
   onBrokenLinks: 'throw',
@@ -100,7 +100,7 @@ const config: Config = {
           items: [
             {
               label: 'GitHub Issues',
-              href: 'https://github.com/aime-chat/aime-chat/issues',
+              href: 'https://github.com/DarkNoah/aime-chat/issues',
             },
           ],
         },
@@ -109,7 +109,7 @@ const config: Config = {
           items: [
             {
               label: 'GitHub',
-              href: 'https://github.com/aime-chat/aime-chat',
+              href: 'https://github.com/DarkNoah/aime-chat',
             },
           ],
         },

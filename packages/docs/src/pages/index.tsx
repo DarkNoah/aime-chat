@@ -4,27 +4,44 @@ import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 import Layout from '@theme/Layout';
 import HomepageFeatures from '@site/src/components/HomepageFeatures';
 import Heading from '@theme/Heading';
+import {
+  RocketIcon,
+  StarIcon,
+  AppleIcon,
+  WindowsIcon,
+  LinuxIcon,
+  RobotIcon,
+  ToolIcon,
+  LightningIcon,
+  CodeIcon,
+  FolderIcon,
+  GlobeIcon,
+  ImageIcon,
+  DatabaseIcon,
+  PlugIcon,
+  SparkleIcon,
+} from '@site/src/components/Icons';
 
 import styles from './index.module.css';
 
 const providers = [
-  { name: 'OpenAI', icon: '🤖', color: '#10a37f' },
-  { name: 'DeepSeek', icon: '🔮', color: '#6366f1' },
-  { name: 'Google', icon: '🌐', color: '#4285f4' },
-  { name: '智谱 AI', icon: '🧠', color: '#ff6b35' },
-  { name: 'Ollama', icon: '🦙', color: '#1d1d1f' },
-  { name: 'LMStudio', icon: '💻', color: '#8b5cf6' },
-  { name: 'ModelScope', icon: '🎯', color: '#ff4d4f' },
-  { name: 'SiliconFlow', icon: '⚡', color: '#00d4aa' },
+  { name: 'OpenAI', icon: <RobotIcon />, color: '#10a37f' },
+  { name: 'DeepSeek', icon: <SparkleIcon />, color: '#6366f1' },
+  { name: 'Google', icon: <GlobeIcon />, color: '#4285f4' },
+  { name: '智谱 AI', icon: <RobotIcon />, color: '#ff6b35' },
+  { name: 'Ollama', icon: <SparkleIcon />, color: '#1d1d1f' },
+  { name: 'LMStudio', icon: <CodeIcon />, color: '#8b5cf6' },
+  { name: 'ModelScope', icon: <SparkleIcon />, color: '#ff4d4f' },
+  { name: 'SiliconFlow', icon: <LightningIcon />, color: '#00d4aa' },
 ];
 
 const tools = [
-  { name: '代码执行', icon: '⚙️', desc: 'Python / Node.js' },
-  { name: '文件操作', icon: '📁', desc: '读写 / 搜索 / 编辑' },
-  { name: '网络请求', icon: '🌍', desc: '抓取 / 搜索' },
-  { name: '图像处理', icon: '🖼️', desc: '分析 / 背景移除' },
-  { name: '数据库', icon: '🗄️', desc: 'LibSQL 操作' },
-  { name: 'MCP 扩展', icon: '🔌', desc: '无限可能' },
+  { name: '代码执行', icon: <CodeIcon />, desc: 'Python / Node.js' },
+  { name: '文件操作', icon: <FolderIcon />, desc: '读写 / 搜索 / 编辑' },
+  { name: '网络请求', icon: <GlobeIcon />, desc: '抓取 / 搜索' },
+  { name: '图像处理', icon: <ImageIcon />, desc: '分析 / 背景移除' },
+  { name: '数据库', icon: <DatabaseIcon />, desc: 'LibSQL 操作' },
+  { name: 'MCP 扩展', icon: <PlugIcon />, desc: '无限可能' },
 ];
 
 function HomepageHeader() {
@@ -42,7 +59,7 @@ function HomepageHeader() {
       <div className="container">
         {/* 徽章 */}
         <div className={styles.heroBadge}>
-          <span className={styles.badgeIcon}>🎉</span>
+          <span className={styles.badgeIcon}><SparkleIcon /></span>
           <span>开源免费 · 本地优先 · 隐私安全</span>
         </div>
 
@@ -110,7 +127,7 @@ function ProvidersSection() {
     <section className={styles.providers}>
       <div className="container">
         <div className={styles.sectionHeader}>
-          <span className={styles.sectionIcon}>🤖</span>
+          <span className={styles.sectionIcon}><RobotIcon /></span>
           <h2 className={styles.sectionTitle}>支持多种 AI 服务商</h2>
           <p className={styles.sectionSubtitle}>
             一个应用，连接所有主流 AI 模型
@@ -140,7 +157,7 @@ function ToolsSection() {
     <section className={styles.tools}>
       <div className="container">
         <div className={styles.sectionHeader}>
-          <span className={styles.sectionIcon}>🛠️</span>
+          <span className={styles.sectionIcon}><ToolIcon /></span>
           <h2 className={styles.sectionTitle}>强大的工具系统</h2>
           <p className={styles.sectionSubtitle}>
             让 AI 不只是聊天，还能执行实际操作
@@ -210,7 +227,7 @@ function QuickStartSection() {
               <br />
               <span className={styles.codeComment}># 启动应用</span>
               <br />
-              <span className={styles.codePrompt}>$</span>{' '}
+              <span can className={styles.codePrompt}>$</span>{' '}
               <span className={styles.codeCommand}>pnpm start</span>
               <br />
               <span className={styles.codeSuccess}>✨ 应用已启动！</span>
@@ -233,13 +250,13 @@ function CTASection() {
           </p>
           <div className={styles.ctaButtons}>
             <Link className={styles.ctaButtonPrimary} to="/docs/intro">
-              📖 查看文档
+              <span><BookIcon /></span> 查看文档
             </Link>
             <Link
               className={styles.ctaButtonSecondary}
-              href="https://github.com/aime-chat/aime-chat/releases"
+              href="https://github.com/DarkNoah/aime-chat/releases"
             >
-              📦 下载应用
+              <span><PackageIcon /></span> 下载应用
             </Link>
           </div>
         </div>

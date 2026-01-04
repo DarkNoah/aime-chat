@@ -11,7 +11,7 @@ sidebar_position: 1
 AIME Chat 是一款基于 **Electron** 构建的跨平台 AI 聊天桌面应用，集成了多种主流 AI 服务商，提供智能对话、知识库管理、工具调用等丰富功能。它采用本地优先的设计理念，确保您的数据隐私安全。
 
 <div align="center">
-  <img src="/img/docusaurus.png" alt="AIME Chat 界面预览" width="600" />
+  <img src="/img/icon.png" alt="AIME Chat Logo" width="200" />
 </div>
 
 ## ✨ 核心特性
@@ -92,7 +92,7 @@ AI Agent 可自主调用各类工具：
 
 ```bash
 # 克隆项目
-git clone https://github.com/aime-chat/aime-chat.git
+git clone https://github.com/DarkNoah/aime-chat.git
 
 # 进入项目目录
 cd aime-chat
