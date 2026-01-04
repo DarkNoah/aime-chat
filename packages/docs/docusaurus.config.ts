@@ -22,7 +22,7 @@ const config: Config = {
 
   // GitHub pages deployment config.
   // If you aren't using GitHub pages, you don't need these.
-  organizationName: 'aime-chat', // Usually your GitHub org/user name.
+  organizationName: 'DarkNoah', // Usually your GitHub org/user name.
   projectName: 'aime-chat', // Usually your repo name.
 
   onBrokenLinks: 'throw',
@@ -43,22 +43,9 @@ const config: Config = {
           sidebarPath: './sidebars.ts',
           // Please change this to your repo.
           // Remove this to remove the "edit this page" links.
-          editUrl: 'https://github.com/aime-chat/aime-chat/tree/main/docs/',
+          editUrl: 'https://github.com/DarkNoah/aime-chat/tree/main/packages/docs/',
         },
-        blog: {
-          showReadingTime: true,
-          feedOptions: {
-            type: ['rss', 'atom'],
-            xslt: true,
-          },
-          // Please change this to your repo.
-          // Remove this to remove the "edit this page" links.
-          editUrl: 'https://github.com/aime-chat/aime-chat/tree/main/docs/',
-          // Useful options to enforce blogging best practices
-          onInlineTags: 'warn',
-          onInlineAuthors: 'warn',
-          onUntruncatedBlogPosts: 'warn',
-        },
+        blog: false,
         theme: {
           customCss: './src/css/custom.css',
         },
@@ -67,8 +54,8 @@ const config: Config = {
   ],
 
   themeConfig: {
-    // Replace with your project's social card
-    image: 'img/docusaurus-social-card.jpg',
+    // Social card image
+    image: 'img/icon.png',
     colorMode: {
       respectPrefersColorScheme: true,
     },
@@ -85,9 +72,8 @@ const config: Config = {
           position: 'left',
           label: '文档',
         },
-        { to: '/blog', label: '博客', position: 'left' },
         {
-          href: 'https://github.com/aime-chat/aime-chat',
+          href: 'https://github.com/DarkNoah/aime-chat',
           label: 'GitHub',
           position: 'right',
         },
@@ -114,7 +100,7 @@ const config: Config = {
           items: [
             {
               label: 'GitHub Issues',
-              href: 'https://github.com/aime-chat/aime-chat/issues',
+              href: 'https://github.com/DarkNoah/aime-chat/issues',
             },
           ],
         },
@@ -122,12 +108,8 @@ const config: Config = {
           title: '更多',
           items: [
             {
-              label: '博客',
-              to: '/blog',
-            },
-            {
               label: 'GitHub',
-              href: 'https://github.com/aime-chat/aime-chat',
+              href: 'https://github.com/DarkNoah/aime-chat',
             },
           ],
         },

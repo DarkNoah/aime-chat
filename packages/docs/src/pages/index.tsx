@@ -4,27 +4,46 @@ import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 import Layout from '@theme/Layout';
 import HomepageFeatures from '@site/src/components/HomepageFeatures';
 import Heading from '@theme/Heading';
+import {
+  IconRocket,
+  IconStar,
+  IconBrandApple,
+  IconBrandWindows,
+  IconBrandUbuntu,
+  IconRobot,
+  IconTool,
+  IconBolt,
+  IconCode,
+  IconFolder,
+  IconWorld,
+  IconPhoto,
+  IconDatabase,
+  IconPlug,
+  IconSparkles,
+  IconBook,
+  IconPackage,
+} from '@tabler/icons-react';
 
 import styles from './index.module.css';
 
 const providers = [
-  { name: 'OpenAI', icon: '🤖', color: '#10a37f' },
-  { name: 'DeepSeek', icon: '🔮', color: '#6366f1' },
-  { name: 'Google', icon: '🌐', color: '#4285f4' },
-  { name: '智谱 AI', icon: '🧠', color: '#ff6b35' },
-  { name: 'Ollama', icon: '🦙', color: '#1d1d1f' },
-  { name: 'LMStudio', icon: '💻', color: '#8b5cf6' },
-  { name: 'ModelScope', icon: '🎯', color: '#ff4d4f' },
-  { name: 'SiliconFlow', icon: '⚡', color: '#00d4aa' },
+  { name: 'OpenAI', icon: <IconRobot size={28} />, color: '#10a37f' },
+  { name: 'DeepSeek', icon: <IconSparkles size={28} />, color: '#6366f1' },
+  { name: 'Google', icon: <IconWorld size={28} />, color: '#4285f4' },
+  { name: '智谱 AI', icon: <IconRobot size={28} />, color: '#ff6b35' },
+  { name: 'Ollama', icon: <IconSparkles size={28} />, color: '#1d1d1f' },
+  { name: 'LMStudio', icon: <IconCode size={28} />, color: '#8b5cf6' },
+  { name: 'ModelScope', icon: <IconSparkles size={28} />, color: '#ff4d4f' },
+  { name: 'SiliconFlow', icon: <IconBolt size={28} />, color: '#00d4aa' },
 ];
 
 const tools = [
-  { name: '代码执行', icon: '⚙️', desc: 'Python / Node.js' },
-  { name: '文件操作', icon: '📁', desc: '读写 / 搜索 / 编辑' },
-  { name: '网络请求', icon: '🌍', desc: '抓取 / 搜索' },
-  { name: '图像处理', icon: '🖼️', desc: '分析 / 背景移除' },
-  { name: '数据库', icon: '🗄️', desc: 'LibSQL 操作' },
-  { name: 'MCP 扩展', icon: '🔌', desc: '无限可能' },
+  { name: '代码执行', icon: <IconCode size={24} />, desc: 'Python / Node.js' },
+  { name: '文件操作', icon: <IconFolder size={24} />, desc: '读写 / 搜索 / 编辑' },
+  { name: '网络请求', icon: <IconWorld size={24} />, desc: '抓取 / 搜索' },
+  { name: '图像处理', icon: <IconPhoto size={24} />, desc: '分析 / 背景移除' },
+  { name: '数据库', icon: <IconDatabase size={24} />, desc: 'LibSQL 操作' },
+  { name: 'MCP 扩展', icon: <IconPlug size={24} />, desc: '无限可能' },
 ];
 
 function HomepageHeader() {
@@ -42,7 +61,7 @@ function HomepageHeader() {
       <div className="container">
         {/* 徽章 */}
         <div className={styles.heroBadge}>
-          <span className={styles.badgeIcon}>🎉</span>
+          <span className={styles.badgeIcon}><IconSparkles size={16} /></span>
           <span>开源免费 · 本地优先 · 隐私安全</span>
         </div>
 
@@ -60,13 +79,13 @@ function HomepageHeader() {
             className={clsx(styles.heroButton, styles.heroButtonPrimary)}
             to="/docs/intro"
           >
-            <span>🚀</span> 快速开始
+            <IconRocket size={20} /> 快速开始
           </Link>
           <Link
             className={clsx(styles.heroButton, styles.heroButtonSecondary)}
-            href="https://github.com/aime-chat/aime-chat"
+            href="https://github.com/DarkNoah/aime-chat"
           >
-            <span>⭐</span> Star on GitHub
+            <IconStar size={20} /> Star on GitHub
           </Link>
         </div>
 
@@ -91,13 +110,13 @@ function HomepageHeader() {
         {/* 平台图标 */}
         <div className={styles.platforms}>
           <span className={styles.platformIcon} title="macOS">
-            🍎
+            <IconBrandApple size={24} />
           </span>
           <span className={styles.platformIcon} title="Windows">
-            🪟
+            <IconBrandWindows size={24} />
           </span>
           <span className={styles.platformIcon} title="Linux">
-            🐧
+            <IconBrandUbuntu size={24} />
           </span>
         </div>
       </div>
@@ -110,7 +129,7 @@ function ProvidersSection() {
     <section className={styles.providers}>
       <div className="container">
         <div className={styles.sectionHeader}>
-          <span className={styles.sectionIcon}>🤖</span>
+          <span className={styles.sectionIcon}><IconRobot size={32} /></span>
           <h2 className={styles.sectionTitle}>支持多种 AI 服务商</h2>
           <p className={styles.sectionSubtitle}>
             一个应用，连接所有主流 AI 模型
@@ -140,7 +159,7 @@ function ToolsSection() {
     <section className={styles.tools}>
       <div className="container">
         <div className={styles.sectionHeader}>
-          <span className={styles.sectionIcon}>🛠️</span>
+          <span className={styles.sectionIcon}><IconTool size={32} /></span>
           <h2 className={styles.sectionTitle}>强大的工具系统</h2>
           <p className={styles.sectionSubtitle}>
             让 AI 不只是聊天，还能执行实际操作
@@ -167,7 +186,7 @@ function QuickStartSection() {
     <section className={styles.quickStart}>
       <div className={styles.quickStartContainer}>
         <div className={styles.sectionHeader}>
-          <span className={styles.sectionIcon}>⚡</span>
+          <span className={styles.sectionIcon}><IconBolt size={32} /></span>
           <h2 className={styles.sectionTitle}>快速开始</h2>
           <p className={styles.sectionSubtitle}>几个简单的命令即可启动</p>
         </div>
@@ -196,7 +215,7 @@ function QuickStartSection() {
               <span className={styles.codePrompt}>$</span>{' '}
               <span className={styles.codeCommand}>git clone</span>{' '}
               <span className={styles.codeUrl}>
-                https://github.com/aime-chat/aime-chat.git
+                https://github.com/DarkNoah/aime-chat.git
               </span>
               <br />
               <br />
@@ -233,13 +252,13 @@ function CTASection() {
           </p>
           <div className={styles.ctaButtons}>
             <Link className={styles.ctaButtonPrimary} to="/docs/intro">
-              📖 查看文档
+              <IconBook size={20} /> 查看文档
             </Link>
             <Link
               className={styles.ctaButtonSecondary}
-              href="https://github.com/aime-chat/aime-chat/releases"
+              href="https://github.com/DarkNoah/aime-chat/releases"
             >
-              📦 下载应用
+              <IconPackage size={20} /> 下载应用
             </Link>
           </div>
         </div>

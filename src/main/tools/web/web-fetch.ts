@@ -1,4 +1,3 @@
-import { Agent } from '@mastra/core/agent';
 import { createTool, ToolExecutionContext } from '@mastra/core/tools';
 import { generateText } from 'ai';
 import z from 'zod';
@@ -13,7 +12,11 @@ import { ToolConfig } from '@/types/tool';
 import { providersManager } from '@/main/providers';
 import { ProviderType } from '@/types/provider';
 import { ZhipuAIProvider } from '@/main/providers/zhipuai-provider';
-
+import { PDFLoader } from '@/main/utils/loaders/pdf-loader';
+import { BrowserContext, chromium } from 'playwright';
+import { appManager } from '@/main/app';
+import { instancesManager } from '@/main/instances';
+import { JinaAIProvider } from '@/main/providers/jinaai-provider';
 export interface WebFetchParams extends BaseToolParams {
   providerId?: string;
 }
@@ -38,7 +41,10 @@ Usage notes:
   inputSchema = z
     .object({
       url: z.string().url().describe('The URL to fetch content from'),
-      prompt: z.string().describe('The prompt to run on the fetched content'),
+      prompt: z
+        .string()
+        .optional()
+        .describe('The prompt to run on the fetched content'),
     })
     .strict();
 
@@ -54,41 +60,121 @@ Usage notes:
   ) => {
     const { url, prompt } = inputData;
     const config = this.config;
-    if (config?.providerId) {
-      const provider = await providersManager.get(config?.providerId);
-      if (provider.type === ProviderType.ZHIPUAI) {
-        const zhipuaiProvider = (await providersManager.getProvider(
-          config?.providerId,
-        )) as ZhipuAIProvider;
-        const options = {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${zhipuaiProvider.provider.apiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            url: url,
-            timeout: 20,
-            no_cache: false,
-            return_format: 'markdown',
-            retain_images: true,
-            no_gfm: false,
-            keep_img_data_url: true,
-            with_images_summary: true,
-            with_links_summary: false,
-          }),
-        };
+    const providerId = config?.providerId || ProviderType.LOCAL;
+    const provider = await providersManager.getProvider(providerId);
+    if (provider.type === ProviderType.LOCAL) {
+      // const userDataDir = path.join(
+      //   app.getPath('userData'),
+      //   'instances',
+      //   'default_browser',
+      // );
+      // const httpProxy = await appManager.getProxy();
+      // const browserContext = await chromium.launchPersistentContext(
+      //   userDataDir,
+      //   {
+      //     headless: false,
+      //     proxy: httpProxy
+      //       ? {
+      //           server: `${httpProxy}`,
+      //         }
+      //       : undefined,
+      //     args: [
+      //       '--disable-blink-features=AutomationControlled',
+      //       '--enable-webgl',
+      //     ],
+      //     // channel: 'msedge',
+      //     // executablePath: this.instances?.config?.executablePath,
+      //   },
+      // );
+      const instance = await instancesManager.getWebBrowserInstance();
+      const page = await instance.browserContext.newPage();
+      try {
+        await page.goto(url, { timeout: 5000 });
+        await page.waitForLoadState('networkidle');
+      } catch {}
 
-        const res = await fetch(
-          'https://open.bigmodel.cn/api/paas/v4/reader',
-          options,
-        );
-        const data = await res.json();
-        if (data.error) {
-          return data.error.message;
-        }
-        return data.reader_result.content;
+      //await page.waitForLoadState('domcontentloaded', { timeout: 3000 });
+      // html = await page.content();
+      // const pdfDir = path.join(app.getPath('temp'), 'tmp');
+      // if (!fs.existsSync(pdfDir)) {
+      //   fs.mkdirSync(pdfDir, { recursive: true });
+      // }
+
+      // const pdfPath = path.join(getDataPath(), 'tmp', `${uuidv4()}.pdf`);
+      //创建文件夹
+
+      await page.emulateMedia({ media: 'screen' });
+
+      const pdfBuffer = await page.pdf({
+        displayHeaderFooter: false,
+        printBackground: false,
+      });
+
+      //const pdfPath = `./${Date.now()}.pdf`;
+      //fs.writeFileSync(pdfPath, pdfBuffer);
+
+      // 将Buffer转换为Blob对象
+      const blob = new Blob([Buffer.from(pdfBuffer)], {
+        type: 'application/pdf',
+      });
+      const loader = new PDFLoader(blob, {
+        pageJoiner: '\n',
+      });
+      const docs = await loader.load();
+      // await page.pdf({
+      //   path: pdfPath,
+      //   printBackground: false,
+      // });
+
+      const html = await page.content();
+      await page.close();
+      return docs;
+    } else if (provider.type === ProviderType.ZHIPUAI) {
+      const zhipuaiProvider = (await providersManager.getProvider(
+        config?.providerId,
+      )) as ZhipuAIProvider;
+      const options = {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${zhipuaiProvider.provider.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          url: url,
+          timeout: 20,
+          no_cache: false,
+          return_format: 'markdown',
+          retain_images: true,
+          no_gfm: false,
+          keep_img_data_url: true,
+          with_images_summary: true,
+          with_links_summary: false,
+        }),
+      };
+
+      const res = await fetch(
+        'https://open.bigmodel.cn/api/paas/v4/reader',
+        options,
+      );
+      const data = await res.json();
+      if (data.error) {
+        return data.error.message;
       }
+      return data.reader_result.content;
+    } else if (provider.type === ProviderType.JINA_AI) {
+      const jinaaiProvider = (await providersManager.getProvider(
+        config?.providerId,
+      )) as JinaAIProvider;
+      const token = `Bearer ${jinaaiProvider.provider.apiKey}`;
+
+      const options = {
+        headers: {
+          Authorization: token,
+        },
+      };
+      const res = await fetch(`https://r.jina.ai/${url}`, options);
+      const data = await res.text();
+      return data;
     }
     return '';
   };

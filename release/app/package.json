@@ -1,12 +1,12 @@
 {
   "name": "aime-chat",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "A foundation for scalable desktop apps",
   "license": "MIT",
   "author": {
     "name": "Noah",
     "email": "781172480@qq.com",
-    "url": "https://github.com/aime/aime-chat"
+    "url": "https://github.com/DarkNoah/aime-chat"
   },
   "main": "./dist/main/main.js",
   "scripts": {
@@ -19,6 +19,8 @@
     "@libsql/client": "^0.15.15",
     "@vscode/ripgrep": "^1.17.0",
     "better-sqlite3": "^11.10.0",
+    "pdf-parse": "^2.4.5",
+    "playwright": "^1.57.0",
     "undici": "^7.10.0"
   }
 }

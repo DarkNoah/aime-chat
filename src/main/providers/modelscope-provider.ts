@@ -184,10 +184,15 @@ export class ModelScopeProvider extends BaseProvider {
 
   languageModel(modelId: string): LanguageModelV2 {
     return {
-      url: this.provider.apiBase || this.defaultApiBase,
+      url: this.defaultApiBase,
       id: `modelscope/${modelId}`,
       apiKey: this.provider.apiKey,
     };
+    // return createOpenAICompatible({
+    //   baseURL: this.defaultApiBase,
+    //   apiKey: this.provider.apiKey,
+    //   name: this.provider.name,
+    // }).languageModel(modelId);
   }
 
   async getLanguageModelList(): Promise<{ name: string; id: string }[]> {
@@ -204,6 +209,7 @@ export class ModelScopeProvider extends BaseProvider {
   async getImageGenerationList(): Promise<{ name: string; id: string }[]> {
     return [
       { id: 'Qwen/Qwen-Image-Edit-2511', name: 'Qwen-Image-Edit-2511' },
+      { id: 'Qwen/Qwen-Image-2512', name: 'Qwen-Image-2512' },
       { id: 'Qwen/Qwen-Image', name: 'Qwen-Image' },
     ];
   }

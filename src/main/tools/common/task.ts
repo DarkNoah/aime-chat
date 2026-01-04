@@ -191,7 +191,10 @@ assistant: "I'm going to use the Task tool to launch the greeting-responder agen
       agent: agentContext,
     } = context;
     const toolCallId = agentContext.toolCallId;
-    const agent = await agentManager.buildAgent(subagent_type);
+    const rootAgentModel = requestContext.get('model' as never) as string;
+    const agent = await agentManager.buildAgent(subagent_type, {
+      modelId: rootAgentModel,
+    });
     // const model = await providersManager.getLanguageModel(model);
     const stream = await agent.stream(prompt, {
       abortSignal: abortSignal,

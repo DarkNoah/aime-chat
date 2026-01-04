@@ -8,10 +8,12 @@ sidebar_position: 1
 
 ## 什么是 AIME Chat？
 
-AIME Chat 是一款基于 **Electron** 构建的跨平台 AI 聊天桌面应用，集成了多种主流 AI 服务商，提供智能对话、知识库管理、工具调用等丰富功能。它采用本地优先的设计理念，确保您的数据隐私安全。
+AIME Chat 是一款基于 **Electron** 构建的跨平台 AI 聊天桌面应用，集成了多种主流
+AI
+服务商，提供智能对话、知识库管理、工具调用等丰富功能。它采用本地优先的设计理念，确保您的数据隐私安全。
 
 <div align="center">
-  <img src="/img/docusaurus.png" alt="AIME Chat 界面预览" width="600" />
+  <img src="/img/icon.png" alt="AIME Chat Logo" width="200" />
 </div>
 
 ## ✨ 核心特性
@@ -50,15 +52,15 @@ AIME Chat 是一款基于 **Electron** 构建的跨平台 AI 聊天桌面应用�
 
 AI Agent 可自主调用各类工具：
 
-| 类别 | 工具 | 描述 |
-|------|------|------|
-| 文件系统 | Bash、Read、Write、Edit、Grep、Glob | 文件读写、搜索、编辑 |
-| 代码执行 | Python、Node.js | 执行 Python 和 Node.js 代码 |
-| 网络工具 | Web Fetch、Web Search | 网页抓取与搜索 |
-| 图像处理 | RMBG | 图像背景移除 |
-| 视觉分析 | Vision | 图像识别与分析 |
-| 数据库 | LibSQL | 数据库操作 |
-| 任务管理 | Todo、Task | 任务创建与管理 |
+| 类别     | 工具                                | 描述                        |
+| -------- | ----------------------------------- | --------------------------- |
+| 文件系统 | Bash、Read、Write、Edit、Grep、Glob | 文件读写、搜索、编辑        |
+| 代码执行 | Python、Node.js                     | 执行 Python 和 Node.js 代码 |
+| 网络工具 | Web Fetch、Web Search               | 网页抓取与搜索              |
+| 图像处理 | RMBG                                | 图像背景移除                |
+| 视觉分析 | Vision                              | 图像识别与分析              |
+| 数据库   | LibSQL                              | 数据库操作                  |
+| 任务管理 | Todo、Task                          | 任务创建与管理              |
 
 ### 🔌 MCP 协议支持
 
@@ -80,19 +82,20 @@ AI Agent 可自主调用各类工具：
 
 ## 🖥️ 支持平台
 
-| 平台 | 支持状态 |
-|------|----------|
-| macOS | ✅ 完全支持 |
+| 平台    | 支持状态    |
+| ------- | ----------- |
+| macOS   | ✅ 完全支持 |
 | Windows | ✅ 完全支持 |
-| Linux | ✅ 完全支持 |
+| Linux   | ✅ 完全支持 |
 
 ## 🚀 快速开始
 
-准备好开始使用了吗？前往 [安装指南](./getting-started/installation) 了解如何安装和配置 AIME Chat。
+准备好开始使用了吗？前往 [安装指南](./getting-started/installation)
+了解如何安装和配置 AIME Chat。
 
 ```bash
 # 克隆项目
-git clone https://github.com/aime-chat/aime-chat.git
+git clone https://github.com/DarkNoah/aime-chat.git
 
 # 进入项目目录
 cd aime-chat
@@ -114,7 +117,8 @@ pnpm start
 
 ## 🤝 参与贡献
 
-我们欢迎任何形式的贡献！查看 [贡献指南](./contributing) 了解如何参与项目开发。
+我们欢迎任何形式的贡献！请访问
+[GitHub 仓库](https://github.com/DarkNoah/aime-chat) 了解如何参与项目开发。
 
 ## 📄 开源协议
 

@@ -136,6 +136,9 @@ export function SkillImportDialog({
             </p>
           </div>
         </div>
+        <small className="text-muted-foreground text-sm">
+          {t('tools.import_skill_tips')}
+        </small>
 
         {/* 已拖入的文件列表 */}
         {droppedFiles.length > 0 && (

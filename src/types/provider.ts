@@ -76,6 +76,7 @@ export enum ModelType {
   EMBEDDING = 'embedding',
   RERANKER = 'reranker',
   IMAGE_GENERATION = 'image_generation',
+  VIDEO_GENERATION = 'video_generation',
 }
 
 export enum ProviderTag {

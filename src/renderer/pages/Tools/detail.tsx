@@ -45,6 +45,7 @@ import { ToolConfigDialog } from './tool-config-dialog';
 import { ToolEditDialog } from './tool-edit-dialog';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
+import { Transl } from '@/renderer/components/translations/transl';
 
 function ToolDetail() {
   const location = useLocation();
@@ -305,11 +306,11 @@ function ToolDetail() {
               </Button>
             </div>
             <div className="flex text-sm text-muted-foreground mt-2">
-              {tool?.description}
+              <Transl>{tool?.description}</Transl>
             </div>
             <div className="p-4 bg-secondary rounded-xl mt-2">
               {' '}
-              <Streamdown>{tool?.content}</Streamdown>
+              <Transl useMarkdown>{tool?.content}</Transl>
             </div>
           </>
         )}

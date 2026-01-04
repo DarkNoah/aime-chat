@@ -152,7 +152,7 @@ class AgentManager extends BaseManager {
       description: builtInAgent?.description ?? agentEntity.description,
 
       model: await providersManager.getLanguageModel(
-        params?.modelId ?? agentEntity.defaultModelId,
+        agentEntity.defaultModelId ?? params?.modelId,
       ),
       memory: new Memory({
         storage: storage,

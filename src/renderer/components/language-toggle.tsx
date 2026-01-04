@@ -9,14 +9,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/renderer/components/ui/select';
-import {
-  changeLanguage,
-  getCurrentLanguage,
-  languages,
-  type Language,
-} from '@/i18n';
+import { changeLanguage, getCurrentLanguage } from '@/i18n';
 import { Globe } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { LanguageCode, LanguageCodes } from '@/types/languages';
 
 export interface LanguageToggleProps {
   className?: string;
@@ -25,7 +21,7 @@ export interface LanguageToggleProps {
 export default function LanguageToggle(props: LanguageToggleProps) {
   const { className } = props;
   const { t } = useTranslation();
-  const [currentLang, setCurrentLang] = useState<Language>('en-US');
+  const [currentLang, setCurrentLang] = useState<LanguageCode>('en-us');
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -33,7 +29,7 @@ export default function LanguageToggle(props: LanguageToggleProps) {
     setCurrentLang(getCurrentLanguage());
   }, []);
 
-  const handleLanguageChange = async (language: Language) => {
+  const handleLanguageChange = async (language: LanguageCode) => {
     await changeLanguage(language);
     setCurrentLang(language);
     await window.electron.app.setLanguage(language);
@@ -49,7 +45,7 @@ export default function LanguageToggle(props: LanguageToggleProps) {
   return (
     <Select
       value={currentLang}
-      onValueChange={(value) => handleLanguageChange(value as Language)}
+      onValueChange={(value) => handleLanguageChange(value as LanguageCode)}
     >
       <SelectTrigger size="sm" className={cn('gap-1', className)}>
         <div className="flex flex-row items-center gap-2">
@@ -58,7 +54,7 @@ export default function LanguageToggle(props: LanguageToggleProps) {
         </div>
       </SelectTrigger>
       <SelectContent align="end">
-        {languages.map((lang) => (
+        {LanguageCodes.map((lang) => (
           <SelectItem
             key={lang}
             value={lang}
