@@ -220,10 +220,11 @@ When in doubt, use this tool. Being proactive with task management demonstrates 
     requestContext.set('todos' as never, todos as never);
     const threadId = requestContext.get('threadId' as never);
     const storage = mastra.getStorage();
-    let currentThread = await storage.getThreadById({
+    const memoryStore = await storage.getStore('memory');
+    let currentThread = await memoryStore.getThreadById({
       threadId: threadId,
     });
-    currentThread = await storage.updateThread({
+    currentThread = await memoryStore.updateThread({
       id: threadId,
       title: currentThread.title,
       metadata: {

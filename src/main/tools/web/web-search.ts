@@ -24,7 +24,7 @@ export interface WebSearchParams extends BaseToolParams {
 
 export const webSearchResultSchema = z.array(
   z.object({
-    href: z.string(),
+    href: z.string().optional(),
     title: z.string().optional(),
     snippet: z.string().optional(),
   }),

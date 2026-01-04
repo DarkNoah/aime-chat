@@ -47,7 +47,7 @@ abstract class BaseTool<
     this.config = config;
   }
 
-  execute?: ToolAction<ZodSchema>['execute'];
+  execute?: ToolAction['execute'];
   toModelOutput?: (output: any) => LanguageModelV2ToolResultPart['output'];
   mastra?: Mastra;
   requireApproval?: boolean;

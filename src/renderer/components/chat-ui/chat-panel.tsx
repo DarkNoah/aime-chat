@@ -505,8 +505,12 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
                 className="h-full"
               />
             )}
+
             {threadState?.messages.length > 0 && (
-              <div>
+              <div className="mt-6">
+                {/* <pre className="text-xs whitespace-pre-wrap break-all bg-secondary p-2 rounded-2xl">
+                  {JSON.stringify(threadState?.messages, null, 2)}
+                </pre> */}
                 {threadState?.messages.map((message) => {
                   return (
                     <div key={message.id} className="flex flex-col gap-2">
@@ -640,26 +644,43 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
                             let approvalData: ToolApproval;
                             let suspendedData: ToolSuspended;
                             let isSuspended = false;
+                            const metadata = message?.metadata as any;
                             if (_part.state === 'input-available') {
-                              approvalData =
-                                message.parts.find(
-                                  (p) =>
-                                    p.type === 'data-tool-call-approval' &&
-                                    p.id === _part?.toolCallId,
-                                )?.data ||
-                                message?.metadata?.pendingToolApprovals?.[
-                                  _part?.toolCallId
+                              const pendingToolApproval =
+                                metadata?.pendingToolApprovals?.[
+                                  _part.type.substring('tool-'.length)
                                 ];
+                              const suspendedTool =
+                                metadata?.suspendedTools?.[
+                                  _part.type.substring('tool-'.length)
+                                ];
+                              approvalData = message.parts.find(
+                                (p) =>
+                                  p.type === 'data-tool-call-approval' &&
+                                  p.id === _part?.toolCallId,
+                              )?.data;
+                              if (
+                                !approvalData &&
+                                pendingToolApproval &&
+                                pendingToolApproval.toolCallId ===
+                                  _part?.toolCallId
+                              ) {
+                                approvalData = pendingToolApproval;
+                              }
 
-                              suspendedData =
-                                message.parts.find(
-                                  (p) =>
-                                    p.type === 'data-tool-call-suspended' &&
-                                    p.id === _part?.toolCallId,
-                                )?.data ||
-                                message?.metadata?.suspendPayload?.[
-                                  _part?.toolCallId
-                                ];
+                              suspendedData = message.parts.find(
+                                (p) =>
+                                  p.type === 'data-tool-call-suspended' &&
+                                  p.id === _part?.toolCallId,
+                              )?.data;
+
+                              if (
+                                !suspendedData &&
+                                suspendedTool &&
+                                suspendedTool.toolCallId === _part?.toolCallId
+                              ) {
+                                suspendedData = suspendedTool;
+                              }
 
                               if (approvalData) {
                                 approvalData.type = 'approval';
@@ -667,7 +688,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
                               }
 
                               if (suspendedData) {
-                                suspendedData.type = 'suspended';
+                                // suspendedData.type = 'suspension';
                                 isSuspended = true;
                               }
                             }

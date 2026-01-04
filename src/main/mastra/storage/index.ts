@@ -1,5 +1,4 @@
 import { LibSQLStore, LibSQLVector } from '@mastra/libsql';
-import { MastraVector } from '@mastra/core/vector';
 import { getDbPath } from '../../utils';
 
 export const getStorage = () => {

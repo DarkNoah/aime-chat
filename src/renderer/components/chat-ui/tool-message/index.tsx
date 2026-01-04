@@ -135,7 +135,11 @@ export const ToolMessage = React.forwardRef<ToolMessageRef, ToolMessageProps>(
         return <TodoWriteMessage part={part}></TodoWriteMessage>;
       } else if (toolName === 'Write') {
         return <WriteMessage part={part}></WriteMessage>;
-      } else if (toolName === 'GenerateImage' || toolName === 'EditImage') {
+      } else if (
+        toolName === 'GenerateImage' ||
+        toolName === 'EditImage' ||
+        toolName === 'RemoveBackground'
+      ) {
         return <GenerateImageMessage part={part}></GenerateImageMessage>;
       }
       return null;
@@ -160,7 +164,7 @@ export const ToolMessage = React.forwardRef<ToolMessageRef, ToolMessageProps>(
           return input?.shell_id;
         case 'GenerateImage':
         case 'EditImage':
-          return input?.prompt;
+          return input?.prompt ?? '';
         default:
           return input?.description;
       }

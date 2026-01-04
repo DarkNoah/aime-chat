@@ -12,6 +12,7 @@ import {
 } from '@mastra/core/llm';
 import { ModelMessage, UIMessage } from 'ai';
 import { RequestContext } from '@mastra/core/request-context';
+import { MessageList, MessageListInput } from '@mastra/core/agent/message-list';
 
 export const convertToCoreMessages = (
   messages: Array<UIMessage | ModelMessage>,
@@ -54,3 +55,7 @@ export const convertToInstructionContent = async (
   }
   return instructionContent;
 };
+
+export function toAISdkV5Messages(messages: MessageListInput) {
+  return new MessageList().add(messages, `memory`).get.all.aiV5.ui();
+}

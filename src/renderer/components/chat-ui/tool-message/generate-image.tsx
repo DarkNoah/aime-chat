@@ -64,10 +64,9 @@ export const GenerateImageMessage = React.forwardRef<
     const { className, part, title, ...rest } = props;
     const [images, setImages] = useState<FileInfo[]>([]);
 
-    const { prompt = '', images: imagePaths = [] } = part?.input as {
-      prompt?: string;
-      images?: string[];
-    };
+    // const { images: imagePaths = [] } = part?.input as {
+    //   images?: string[];
+    // };
 
     useEffect(() => {
       const handleSplitContextAndFiles = async () => {
@@ -78,15 +77,23 @@ export const GenerateImageMessage = React.forwardRef<
       handleSplitContextAndFiles();
     }, [part?.output]);
 
+    // useEffect(() => {
+    //   const { prompt, images: imagePaths = [] } = part?.input as {
+    //     prompt?: string;
+    //     images?: string[];
+    //   };
+
+    // }, [part?.input]);
+
     return (
       <Item
         variant="outline"
         className="w-fit bg-secondary p-2 gap-2 items-center"
       >
         <ItemContent>
-          {prompt && (
+          {part?.input?.prompt && (
             <ItemTitle className="text-muted-foreground text-sm">
-              {prompt}
+              {part?.input?.prompt}
             </ItemTitle>
           )}
           <ItemDescription className=" ">

@@ -71,7 +71,7 @@ export const countTokens = (message: string | ModelMessage): number => {
           }
         }
       } else {
-        tokenString += JSON.stringify(part);
+        // tokenString += JSON.stringify(part);
       }
     }
   }
