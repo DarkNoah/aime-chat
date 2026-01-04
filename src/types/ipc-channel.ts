@@ -24,6 +24,18 @@ export enum AppChannel {
   GetRuntimeInfo = 'app:getRuntimeInfo',
   SetApiServerPort = 'app:setApiServerPort',
   ToggleApiServerEnable = 'app:toggleApiServerEnable',
+  // 更新相关
+  CheckForUpdates = 'app:checkForUpdates',
+  DownloadUpdate = 'app:downloadUpdate',
+  InstallUpdate = 'app:installUpdate',
+  GetUpdateStatus = 'app:getUpdateStatus',
+  // 更新事件
+  UpdateAvailable = 'app:updateAvailable',
+  UpdateNotAvailable = 'app:updateNotAvailable',
+  UpdateDownloadProgress = 'app:updateDownloadProgress',
+  UpdateDownloaded = 'app:updateDownloaded',
+  UpdateError = 'app:updateError',
+  Translation = 'app:translation',
 }
 
 export enum MastraChannel {

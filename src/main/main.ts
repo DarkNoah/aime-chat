@@ -10,7 +10,6 @@
  */
 import path from 'path';
 import { app, BrowserWindow, shell, ipcMain, dialog } from 'electron';
-import { autoUpdater } from 'electron-updater';
 import log from 'electron-log';
 import MenuBuilder from './menu';
 import { resolveHtmlPath } from './util';
@@ -24,6 +23,8 @@ import { toolsManager } from './tools';
 import { localModelManager } from './local-model';
 import { agentManager } from './mastra/agents';
 import { projectManager } from './project';
+import { updateManager } from './app/update';
+import { instancesManager } from './instances';
 
 async function init() {
   try {
@@ -35,21 +36,15 @@ async function init() {
     await toolsManager.init();
     await localModelManager.init();
     await agentManager.init();
-    await projectManager.init()
+    await projectManager.init();
+    await updateManager.init();
+    await instancesManager.init();
   } catch (err) {
     dialog.showErrorBox('Mastra Init Error', String(err));
   }
 }
 
 init();
-
-class AppUpdater {
-  constructor() {
-    log.transports.file.level = 'info';
-    autoUpdater.logger = log;
-    autoUpdater.checkForUpdatesAndNotify();
-  }
-}
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -128,16 +123,17 @@ const createWindow = async () => {
     shell.openExternal(edata.url);
     return { action: 'deny' };
   });
-
-  // Remove this if your app does not use auto updates
-  // eslint-disable-next-line
-  new AppUpdater();
 };
 
-/**
- * Add event listeners...
- */
-
+app.setAsDefaultProtocolClient('aime-chat');
+app.on('open-url', (event, url) => {
+  console.log('macOS 捕获到 URL:', url);
+});
+app.on('second-instance', (event, commandLine) => {
+  // commandLine 是一个数组，里面包含类似 "my-app://action?data=123" 的字符串
+  const url = commandLine.pop();
+  console.log('从网页传来的数据:', url);
+});
 app.on('window-all-closed', () => {
   // Respect the OSX convention of having the application in memory even
   // after all windows have been closed

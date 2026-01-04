@@ -441,6 +441,9 @@ function Providers() {
                                 >
                                   <IconSearch /> Brave Search
                                 </SelectItem>
+                                <SelectItem key="jina-ai" value="jina-ai">
+                                  <IconSearch /> Jina AI
+                                </SelectItem>
                               </SelectGroup>
                             </SelectContent>
                           </Select>

@@ -27,6 +27,7 @@ import {
   UpdateProvider,
 } from '@/types/provider';
 import { AvailableTool, ToolType } from '@/types/tool';
+import { UpdateState } from '@/types/app';
 import { MastraDBMessage, StorageThreadType } from '@mastra/core/memory';
 import { UIMessage } from 'ai';
 import {
@@ -100,6 +101,21 @@ const electronHandler = {
       ipcRenderer.invoke(AppChannel.SetApiServerPort, port),
     toggleApiServerEnable: (enabled: boolean) =>
       ipcRenderer.invoke(AppChannel.ToggleApiServerEnable, enabled),
+    // 更新相关 API
+    checkForUpdates: (): Promise<UpdateState> =>
+      ipcRenderer.invoke(AppChannel.CheckForUpdates),
+    downloadUpdate: (): Promise<UpdateState> =>
+      ipcRenderer.invoke(AppChannel.DownloadUpdate),
+    installUpdate: (): Promise<void> =>
+      ipcRenderer.invoke(AppChannel.InstallUpdate),
+    getUpdateStatus: (): Promise<UpdateState> =>
+      ipcRenderer.invoke(AppChannel.GetUpdateStatus),
+    translation: (
+      source: string,
+      lang: string,
+      force?: boolean,
+    ): Promise<string> =>
+      ipcRenderer.invoke(AppChannel.Translation, { source, lang, force }),
   },
   providers: {
     getList: (filter?: { tags?: ProviderTag[] }) =>

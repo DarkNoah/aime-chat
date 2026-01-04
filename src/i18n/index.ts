@@ -4,12 +4,13 @@ import LanguageDetector from 'i18next-browser-languagedetector';
 import enUs from './locales/en-us.json';
 import zhCn from './locales/zh-cn.json';
 import Cookies from 'js-cookie';
+import { LanguageCode } from '@/types/languages';
 
-export const languages = ['en-US', 'zh-CN'] as const;
-export type Language = (typeof languages)[number];
+// export const languages = ['en-US', 'zh-CN'] as const;
+// export type Language = (typeof languages)[number];
 
 const option = {
-  fallbackLng: 'zh-CN',
+  fallbackLng: 'zh-cn',
   debug: process.env.NODE_ENV !== 'production',
 
   resources: {
@@ -29,14 +30,14 @@ const option = {
 };
 i18n.use(LanguageDetector).use(initReactI18next).init(option);
 
-export const changeLanguage = async (language: Language) => {
+export const changeLanguage = async (language: LanguageCode) => {
   await i18n.changeLanguage(language);
   Cookies.set('language', language, { expires: 365 });
 };
 
 // 获取当前语言
-export const getCurrentLanguage = (): Language => {
-  return (i18n.language as Language) || 'en-US';
+export const getCurrentLanguage = (): LanguageCode => {
+  return (i18n.language.toLowerCase() as LanguageCode) || 'en-us';
 };
 
 export default i18n;

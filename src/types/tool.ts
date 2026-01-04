@@ -105,6 +105,17 @@ export const ToolConfig = {
       },
     },
   },
+  Translation: {
+    configSchema: z.strictObject({
+      modelId: z.string(),
+    }),
+    uiSchema: {
+      modelId: {
+        'ui:widget': 'modelSelector',
+        'ui:title': t('common.model'),
+      },
+    },
+  },
   Vision: {
     configSchema: z.strictObject({
       modelId: z.string(),
@@ -123,6 +134,20 @@ export const ToolConfig = {
     uiSchema: {
       modelName: {
         'ui:title': t('common.model_name'),
+      },
+    },
+  },
+  GenerateVideo: {
+    configSchema: z.strictObject({
+      modelId: z.string(),
+    }),
+    uiSchema: {
+      modelId: {
+        'ui:widget': 'modelSelector',
+        'ui:title': t('common.model'),
+        'ui:options': {
+          type: ModelType.VIDEO_GENERATION,
+        },
       },
     },
   },

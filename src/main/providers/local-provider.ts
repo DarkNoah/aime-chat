@@ -12,7 +12,7 @@ import {
 import { TextEmbeddingPipeline, PoolingType } from 'openvino-genai-node';
 import { BaseProvider } from './base-provider';
 import { Providers } from '@/entities/providers';
-import { ProviderCredits, ProviderType } from '@/types/provider';
+import { ProviderCredits, ProviderTag, ProviderType } from '@/types/provider';
 import fs from 'fs';
 import path from 'path';
 import { appManager } from '../app';
@@ -232,6 +232,7 @@ export class LocalProvider extends BaseProvider {
   description: string;
   defaultApiBase?: string;
 
+  tags: ProviderTag[] = [ProviderTag.WEB_READER];
   constructor() {
     super();
   }

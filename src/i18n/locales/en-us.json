@@ -1,7 +1,7 @@
 {
   "language": {
-    "en-US": "English",
-    "zh-CN": "中文"
+    "en-us": "English",
+    "zh-cn": "中文"
   },
   "hello": "Hello2",
   "settings": {
@@ -75,7 +75,8 @@
     "close": "Close",
     "import": "Import",
     "drop_files_here": "Drop files here",
-    "drag_files_here": "Drag files here"
+    "drag_files_here": "Drag files here",
+    "other_provider": "Other Provider"
   },
   "sidebar": {
     "new_chat": "New Chat",
@@ -104,7 +105,8 @@
     "mcp_url": "URL",
     "mcp_headers": "Headers",
     "create_skill": "Create Skill",
-    "import_skill": "Import Skill"
+    "import_skill": "Import Skill",
+    "import_skill_tips": "Only packaged skill files (*.skill) are supported for import."
   },
   "agents": {
     "instructions": "System Prompt",

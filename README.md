@@ -65,7 +65,7 @@ npm run build
 Package desktop application:
 
 ```bash
-npm run package
+pnpm package
 ```
 
 Packaged applications will be generated in the `release/build` directory.

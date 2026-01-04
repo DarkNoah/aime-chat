@@ -38,6 +38,7 @@ import { OllamaProvider } from './ollama-provider';
 import fs from 'fs';
 import path from 'path';
 import { LocalProvider } from './local-provider';
+import { JinaAIProvider } from './jinaai-provider';
 const modelsData = require('../../../assets/models.json');
 class ProvidersManager extends BaseManager {
   repository: Repository<Providers>;
@@ -64,7 +65,7 @@ class ProvidersManager extends BaseManager {
     if (!filter?.tags?.length) {
       return this.repository.find();
     }
-    return this.repository
+    const proviers = await this.repository
       .createQueryBuilder('p')
       .where(
         `EXISTS (
@@ -75,6 +76,21 @@ class ProvidersManager extends BaseManager {
         { tags: filter.tags },
       )
       .getMany();
+    const localProvider = await this.getProvider(ProviderType.LOCAL);
+    if (
+      localProvider &&
+      localProvider.tags.filter((t) => filter.tags.includes(t)).length > 0
+    ) {
+      proviers.push({
+        id: localProvider.id,
+        name: localProvider.name,
+        type: localProvider.type,
+        models: [],
+        tags: localProvider.tags,
+        isActive: true,
+      });
+    }
+    return proviers;
   }
 
   @channel(ProviderChannel.GetAvailableModels)
@@ -456,6 +472,8 @@ class ProvidersManager extends BaseManager {
         return new ModelScopeProvider(provider);
       case ProviderType.OLLAMA:
         return new OllamaProvider(provider);
+      case ProviderType.JINA_AI:
+        return new JinaAIProvider(provider);
     }
   }
 

@@ -37,3 +37,37 @@ export class AppProxy {
   password?: string;
   proxyType?: 'http' | 'https' | 'socks5';
 }
+
+export type UpdateStatus =
+  | 'idle'
+  | 'checking'
+  | 'available'
+  | 'not-available'
+  | 'downloading'
+  | 'downloaded'
+  | 'error';
+
+export interface UpdateInfo {
+  version: string;
+  releaseDate?: string;
+  releaseNotes?: string;
+  files?: Array<{
+    url: string;
+    sha512?: string;
+    size?: number;
+  }>;
+}
+
+export interface UpdateProgress {
+  bytesPerSecond: number;
+  percent: number;
+  transferred: number;
+  total: number;
+}
+
+export interface UpdateState {
+  status: UpdateStatus;
+  updateInfo?: UpdateInfo;
+  progress?: UpdateProgress;
+  error?: string;
+}

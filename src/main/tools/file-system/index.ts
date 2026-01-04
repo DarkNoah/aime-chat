@@ -17,7 +17,7 @@ import { Bash } from './bash';
 import { Edit } from './edit';
 import { Grep } from './grep';
 import { Write } from './write';
-import { Read } from './read';
+import { Read, ReadBinaryFile } from './read';
 import { RequestContext } from '@mastra/core/request-context';
 
 export interface FileSystemParams extends BaseToolkitParams {}
@@ -28,7 +28,14 @@ export class FileSystem extends BaseToolkit {
 
   constructor(params?: FileSystemParams) {
     super(
-      [new Glob(), new Edit(), new Grep(), new Write(), new Read()],
+      [
+        new Glob(),
+        new Edit(),
+        new Grep(),
+        new Write(),
+        new Read(),
+        new ReadBinaryFile(),
+      ],
       params,
     );
   }

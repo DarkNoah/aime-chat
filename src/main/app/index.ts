@@ -42,10 +42,18 @@ import path from 'path';
 import mastraManager from '../mastra';
 import { FileInfo } from '@/types/common';
 import { filesize } from 'filesize';
-
+import { Translations } from '@/entities/translations';
+import crypto from 'crypto';
+import { agentManager } from '../mastra/agents';
+import { providersManager } from '../providers';
+import { toolsManager } from '../tools';
+import { ToolType } from '@/types/tool';
+import { Translation } from '../tools/work/translation';
+import { nanoid } from '@/utils/nanoid';
 class AppManager extends BaseManager {
   repository: Repository<Providers>;
   settingsRepository: Repository<Settings>;
+  translationRepository: Repository<Translations>;
   appProxy: AppProxy;
   defaultApiServerPort = 41100;
 
@@ -54,6 +62,8 @@ class AppManager extends BaseManager {
   }
 
   public async init() {
+    this.translationRepository =
+      dbManager.dataSource.getRepository(Translations);
     this.settingsRepository = dbManager.dataSource.getRepository(Settings);
     const settings = await this.settingsRepository.find();
     nativeTheme.themeSource =
@@ -170,6 +180,13 @@ class AppManager extends BaseManager {
       const data = new Settings('theme', theme);
       await this.settingsRepository.upsert(data, ['id']);
     }
+  }
+
+  public async getProxy(): Promise<string | undefined> {
+    if (this.appProxy.host && this.appProxy.port) {
+      return `${this.appProxy.host}:${this.appProxy.port}`;
+    }
+    return undefined;
   }
 
   @channel(AppChannel.SetProxy)
@@ -319,6 +336,43 @@ class AppManager extends BaseManager {
       await mastraManager.close();
     }
     await this.settingsRepository.upsert(settings, ['id']);
+  }
+  @channel(AppChannel.Translation)
+  public async translation(data: {
+    source: string;
+    lang: string;
+    force?: boolean;
+  }) {
+    const hash = crypto.createHash('sha256').update(data.source).digest('hex');
+    const translation = await this.translationRepository.findOne({
+      where: { hash: hash, lang: data.lang.toLowerCase() },
+    });
+    if (translation) return translation.translation;
+
+    if (!translation && data.force) {
+      const tool = await toolsManager.buildTool(
+        `${ToolType.BUILD_IN}:${Translation.name}`,
+      );
+      try {
+        const result = await (tool as Translation).execute({
+          source: data.source,
+          lang: data.lang,
+        });
+        const entity = new Translations(nanoid());
+        entity.hash = hash;
+        entity.source = data.source;
+        entity.lang = data.lang.toLowerCase();
+        entity.translation = result;
+        await this.translationRepository.upsert(entity, ['id']);
+        return entity.translation;
+      } catch {
+        this.toast('Failed to translate', { type: 'error' });
+        return data.source;
+      }
+    } else {
+      return data.source ?? '';
+    }
+    return translation.translation;
   }
 }
 export const appManager = new AppManager();

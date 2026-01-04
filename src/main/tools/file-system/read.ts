@@ -11,12 +11,13 @@ import { nanoid } from '@/utils/nanoid';
 import BaseToolkit, { BaseToolkitParams } from '../base-toolkit';
 import { truncateText } from '@/utils/common';
 import os from 'os';
-import stripAnsi from 'strip-ansi';
 import { spawn } from 'child_process';
 import { glob } from 'fast-glob';
 import { formatCodeWithLineNumbers, updateFileModTime } from '.';
 import { isBinaryFile } from 'isbinaryfile';
 import { filesize } from 'filesize';
+import { PDFLoader } from '@/main/utils/loaders/pdf-loader';
+import { WordLoader } from '@/main/utils/loaders/word-loader';
 
 const DEFAULT_MAX_LINES_TEXT_FILE = 2000;
 const MAX_LINE_LENGTH_TEXT_FILE = 2000;
@@ -156,6 +157,7 @@ Usage:
   inputSchema = z
     .object({
       file_path: z.string().describe('The absolute path to the file to read'),
+      args: z.object({}).optional().describe(``),
     })
     .strict();
   outputSchema = z.string();
@@ -174,12 +176,19 @@ Usage:
 
     const ext = path.extname(file_path).toLowerCase();
 
-    let llmTextContent = `<system-reminder>
-File size: ${filesize(stats.size)}
-</system-reminder>\n`;
-
-    llmTextContent += formattedLines;
-    await updateFileModTime(file_path, context.requestContext);
-    return llmTextContent;
+    let content = '';
+    if (ext === '.pdf') {
+      const loader = new PDFLoader(file_path);
+      const content = await loader.load();
+      return content;
+    } else if (ext === '.docx' || ext === '.doc') {
+      const loader = new WordLoader(file_path);
+      // const info = await loader.info();
+      const content = await loader.load();
+      return content;
+    } else if (ext === '.xls' || ext === '.xlsx') {
+    } else if (ext === '.ppt' || ext === '.pptx') {
+    }
+    return content;
   };
 }

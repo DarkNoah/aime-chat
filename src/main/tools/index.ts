@@ -44,6 +44,7 @@ import { WebFetch } from './web/web-fetch';
 import { Extract } from './work/extract';
 import { GenerateImage } from './image/generate-image';
 import { EditImage } from './image/edit-image';
+import { Translation } from './work/translation';
 
 interface BuiltInToolContext {
   tool: BaseTool;
@@ -173,6 +174,7 @@ class ToolsManager extends BaseManager {
     await this.registerBuiltInTool(Task);
     await this.registerBuiltInTool(MemoryToolkit);
     await this.registerBuiltInTool(Extract);
+    await this.registerBuiltInTool(Translation);
     if (!app.isPackaged) {
       await this.registerBuiltInTool(ExpenseManagementToolkit);
       await this.registerBuiltInTool(StreamTest);

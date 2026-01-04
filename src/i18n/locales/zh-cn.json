@@ -1,7 +1,7 @@
 {
   "language": {
-    "en-US": "English",
-    "zh-CN": "中文"
+    "en-us": "English",
+    "zh-cn": "中文"
   },
   "hello": "你好",
   "settings": {
@@ -75,7 +75,8 @@
     "close": "关闭",
     "import": "导入",
     "drop_files_here": "在此处拖放文件",
-    "drag_files_here": "将文件拖到这里"
+    "drag_files_here": "将文件拖到这里",
+    "other_provider": "其他供应商"
   },
   "sidebar": {
     "new_chat": "新聊天",
@@ -104,7 +105,8 @@
     "mcp_url": "URL",
     "mcp_headers": "请求头",
     "create_skill": "创建技能",
-    "import_skill": "导入技能"
+    "import_skill": "导入技能",
+    "import_skill_tips": "只能导入打包后的skill包如 *.skill"
   },
   "agents": {
     "instructions": "系统提示词",
