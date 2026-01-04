@@ -92,7 +92,7 @@ const config: Config = {
             },
             {
               label: '功能指南',
-              to: '/docs/features/ai-providers',
+              to: '/docs/getting-started/ai-providers',
             },
           ],
         },

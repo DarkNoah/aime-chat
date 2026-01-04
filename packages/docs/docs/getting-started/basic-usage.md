@@ -87,7 +87,7 @@ AIME Chat 支持明亮和暗黑两种主题：
 
 ## 下一步
 
-- 了解如何 [配置 AI 服务商](../features/ai-providers)
+- 了解如何 [配置 AI 服务商](./ai-providers)
 - 探索 [知识库功能](../features/knowledge-base)
 - 学习 [工具系统](../features/tools) 的高级用法
 

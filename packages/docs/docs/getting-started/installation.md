@@ -116,7 +116,7 @@ export ELECTRON_MIRROR="https://npmmirror.com/mirrors/electron/"
 
 安装完成后，您可以：
 
-- 查看 [AI 服务商配置](../features/ai-providers) 来配置您的 AI 服务
+- 查看 [AI 服务商配置](./ai-providers) 来配置您的 AI 服务
 - 了解 [基本使用](./basic-usage) 开始您的第一次对话
 
 

@@ -110,7 +110,7 @@ pnpm start
 ## 📖 文档导航
 
 - **[安装指南](./getting-started/installation)** - 了解如何安装和运行
-- **[AI 服务商配置](./features/ai-providers)** - 配置各类 AI 服务商
+- **[AI 服务商配置](./getting-started/ai-providers)** - 配置各类 AI 服务商
 - **[知识库使用](./features/knowledge-base)** - 构建和使用知识库
 - **[工具系统](./features/tools)** - 了解内置工具和 MCP 扩展
 - **[Agent 管理](./features/agents)** - 自定义和管理 AI Agent
