@@ -280,9 +280,12 @@ function ToolDetail() {
                     <AccordionItem value={_tool.id} key={_tool.id}>
                       <AccordionTrigger>{_tool.name}</AccordionTrigger>
                       <AccordionContent className="flex flex-col gap-4 text-balance">
-                        <pre className="text-xs break-all text-wrap bg-secondary p-4 rounded-2xl">
+                        {/* <pre className="text-xs break-all text-wrap bg-secondary p-4 rounded-2xl">
                           {_tool?.description}
-                        </pre>
+                        </pre> */}
+                        <Transl className="bg-secondary p-4 rounded-2xl">
+                          {_tool?.description}
+                        </Transl>
                         {_tool.inputSchema &&
                           _tool.inputSchema.type === 'object' &&
                           renderForm(_tool)}

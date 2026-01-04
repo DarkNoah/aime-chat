@@ -65,6 +65,7 @@ export function Transl(props: TranslProps) {
   const [currentLang, setCurrentLang] =
     useState<LanguageCode>(getCurrentLanguage());
   const [mounted, setMounted] = useState(false);
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -114,14 +115,19 @@ export function Transl(props: TranslProps) {
   return (
     <div className={cn('relative ', className)}>
       {useMarkdown && <Streamdown>{content}</Streamdown>}
-      {!useMarkdown && content}
+      {!useMarkdown && (
+        <pre className={cn('text-xs break-all text-wrap')}>{content}</pre>
+      )}
       {mounted && (
-        <DropdownMenu>
+        <DropdownMenu onOpenChange={setOpen}>
           <DropdownMenuTrigger asChild>
             <Button
               size="icon-sm"
-              variant="outline"
-              className="absolute right-0 -top-10"
+              variant="ghost"
+              className={cn(
+                'absolute right-0 top-0 backdrop-blur  hover:opacity-100 bg-transparent',
+                open ? 'opacity-100' : 'opacity-20',
+              )}
             >
               <IconLanguage className="h-4 w-4" />
             </Button>

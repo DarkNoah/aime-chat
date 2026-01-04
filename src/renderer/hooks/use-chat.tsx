@@ -278,6 +278,15 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
   const onFinish = useCallback((threadId, event) => {
     eventBus.emit(`chat:onFinish:${threadId}`, event);
+    window.electron.mastra
+      .getThreadMessages({ threadId })
+      .then((data) => {
+        setMessages(threadId, data.messages);
+        return data;
+      })
+      .catch((err) => {
+        toast.error(err.message);
+      });
   }, []);
 
   const onData = useCallback((threadId, event) => {

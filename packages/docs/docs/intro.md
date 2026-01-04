@@ -13,7 +13,7 @@ AI
 服务商，提供智能对话、知识库管理、工具调用等丰富功能。它采用本地优先的设计理念，确保您的数据隐私安全。
 
 <div align="center">
-  <img src="/img/icon.png" alt="AIME Chat Logo" width="200" />
+  <img src="/aime-chat/img/icon.png" alt="AIME Chat Logo" width="200" />
 </div>
 
 ## ✨ 核心特性

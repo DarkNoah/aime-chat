@@ -18,7 +18,7 @@ const config: Config = {
   url: 'https://aime-chat.github.io',
   // Set the /<baseUrl>/ pathname under which your site is served
   // For GitHub pages deployment, it is often '/<projectName>/'
-  baseUrl: '/',
+  baseUrl: '/aime-chat/',
 
   // GitHub pages deployment config.
   // If you aren't using GitHub pages, you don't need these.
@@ -43,7 +43,8 @@ const config: Config = {
           sidebarPath: './sidebars.ts',
           // Please change this to your repo.
           // Remove this to remove the "edit this page" links.
-          editUrl: 'https://github.com/DarkNoah/aime-chat/tree/main/packages/docs/',
+          editUrl:
+            'https://github.com/DarkNoah/aime-chat/tree/main/packages/docs/',
         },
         blog: false,
         theme: {

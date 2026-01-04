@@ -1,4 +1,4 @@
-import { Mastra, MastraMessageV2 } from '@mastra/core';
+import { Mastra } from '@mastra/core';
 import { Memory } from '@mastra/memory';
 import { getStorage, getVectorStore } from './storage';
 import { BaseManager } from '../BaseManager';
@@ -25,8 +25,9 @@ import type {
   LanguageModelV2Usage,
   SharedV2ProviderOptions,
 } from '@ai-sdk/provider';
-import { toAISdkV5Messages, toAISdkV4Messages } from '@mastra/ai-sdk/ui';
-import { toAISdkStream } from '@mastra/ai-sdk';
+// import { toAISdkV5Messages } from '@mastra/ai-sdk';
+
+import { toAISdkFormat } from '@mastra/ai-sdk';
 // import { RuntimeContext } from '@mastra/core';
 import { RequestContext } from '@mastra/core/request-context';
 import { reactAgent } from './agents/react-agent';
@@ -70,6 +71,7 @@ import tokenCounter, { countTokens } from '@/main/utils/tokenCounter';
 import {
   convertToCoreMessages,
   convertToInstructionContent,
+  toAISdkV5Messages,
 } from '../utils/convertToCoreMessages';
 import compressAgent from './agents/compress-agent';
 import { skillManager } from '../tools/common/skill';
@@ -219,7 +221,9 @@ class MastraManager extends BaseManager {
     resourceId?: string;
   }): Promise<PaginationInfo<StorageThreadType>> {
     const storage = this.mastra.getStorage();
-    const threads = await storage?.listThreadsByResourceId({
+    const memory = await storage.getStore('memory');
+
+    const threads = await memory?.listThreadsByResourceId({
       page: page,
       perPage: size,
       resourceId: resourceId,
@@ -237,7 +241,8 @@ class MastraManager extends BaseManager {
   @channel(MastraChannel.GetThread)
   public async getThread(id: string): Promise<ThreadState> {
     const storage = this.mastra.getStorage();
-    const thread = await storage?.getThreadById({ threadId: id });
+    const memoryStore = await storage.getStore('memory');
+    const thread = await memoryStore?.getThreadById({ threadId: id });
 
     const memory = new Memory({
       storage: storage,
@@ -253,7 +258,7 @@ class MastraManager extends BaseManager {
     });
     // const messagesDb = await memory.recall({ threadId: id, resourceId: '123' });
 
-    const messages = await storage.listMessages({
+    const messages = await memoryStore.listMessages({
       threadId: id,
       resourceId: thread?.resourceId || DEFAULT_RESOURCE_ID,
       // format: 'v2',
@@ -292,8 +297,9 @@ class MastraManager extends BaseManager {
     mastraDBMessages: MastraDBMessage[];
   }> {
     const storage = this.mastra.getStorage();
-    const thread = await storage?.getThreadById({ threadId: threadId });
-    const messages = await storage.listMessages({
+    const memoryStore = await storage.getStore('memory');
+    const thread = await memoryStore?.getThreadById({ threadId: threadId });
+    const messages = await memoryStore.listMessages({
       threadId,
       resourceId: resourceId || thread?.resourceId || DEFAULT_RESOURCE_ID,
       perPage,
@@ -317,7 +323,8 @@ class MastraManager extends BaseManager {
     agentId?: string;
   }): Promise<StorageThreadType> {
     const storage = this.mastra.getStorage();
-    const thread = await storage.saveThread({
+    const memoryStore = await storage.getStore('memory');
+    const thread = await memoryStore.saveThread({
       thread: {
         id: nanoid(),
         title: 'New Thread',
@@ -339,7 +346,8 @@ class MastraManager extends BaseManager {
     data: StorageThreadType,
   ): Promise<StorageThreadType> {
     const storage = this.mastra.getStorage();
-    const thread = await storage.updateThread({
+    const memoryStore = await storage.getStore('memory');
+    const thread = await memoryStore.updateThread({
       id: id,
       title: data.title,
       metadata: data.metadata || {},
@@ -357,8 +365,9 @@ class MastraManager extends BaseManager {
   @channel(MastraChannel.DeleteThread)
   public async deleteThread(id: string): Promise<void> {
     const storage = this.mastra.getStorage();
-    const thread = await storage.getThreadById({ threadId: id });
-    await storage.deleteThread({ threadId: id });
+    const memoryStore = await storage.getStore('memory');
+    const thread = await memoryStore.getThreadById({ threadId: id });
+    await memoryStore.deleteThread({ threadId: id });
     const workspace = thread.metadata?.workspace as string;
     if (workspace) {
       if (fs.existsSync(workspace) && fs.statSync(workspace).isDirectory()) {
@@ -375,8 +384,9 @@ class MastraManager extends BaseManager {
   @channel(MastraChannel.ClearMessages)
   public async clearMessages(id: string): Promise<void> {
     const storage = this.mastra.getStorage();
-    const messages = await storage.listMessages({ threadId: id });
-    await storage.deleteMessages(messages.messages.map((x) => x.id));
+    const memoryStore = await storage.getStore('memory');
+    const messages = await memoryStore.listMessages({ threadId: id });
+    await memoryStore.deleteMessages(messages.messages.map((x) => x.id));
   }
 
   @channel(MastraChannel.Chat, { mode: 'on' })
@@ -411,8 +421,8 @@ class MastraManager extends BaseManager {
       }
     }
     const appInfo = await appManager.getInfo();
-
-    let currentThread = await storage.getThreadById({ threadId: chatId });
+    const memoryStore = await storage.getStore('memory');
+    let currentThread = await memoryStore.getThreadById({ threadId: chatId });
 
     // for (const uiMessage of uiMessages) {
     //   delete uiMessage.id;
@@ -441,7 +451,7 @@ class MastraManager extends BaseManager {
 
       fs.mkdirSync(workspace, { recursive: true });
 
-      currentThread = await storage.updateThread({
+      currentThread = await memoryStore.updateThread({
         id: chatId,
         title: currentThread.title,
         metadata: {
@@ -485,7 +495,7 @@ class MastraManager extends BaseManager {
       const controller = new AbortController();
       const signal = controller.signal;
 
-      const historyMessages = await storage.listMessages({
+      const historyMessages = await memoryStore.listMessages({
         threadId: chatId,
         resourceId: resourceId,
       });
@@ -503,10 +513,7 @@ class MastraManager extends BaseManager {
       //   createdAt: new Date(),
       // };
 
-      const providerOptions: AgentExecutionOptions<
-        any,
-        'aisdk'
-      >['providerOptions'] = {
+      const providerOptions: AgentExecutionOptions['providerOptions'] = {
         zhipuai: {
           thinking: {
             type: 'enabled',
@@ -527,7 +534,7 @@ class MastraManager extends BaseManager {
           },
         },
       };
-      let streamOptions: AgentExecutionOptions<any, 'aisdk'> = {
+      let streamOptions: AgentExecutionOptions = {
         runId: runId,
         providerOptions: think ? providerOptions : undefined,
         modelSettings: options?.modelSettings,
@@ -565,7 +572,7 @@ class MastraManager extends BaseManager {
           console.log('stream usage:', usage);
           // Persist final results to database
 
-          const uiMessages = response.uiMessages;
+          // const uiMessages = response.uiMessages;
           // const msg = await storage.updateMessages({
           //   messages: uiMessages.map((x) => {
           //     return {
@@ -605,8 +612,8 @@ class MastraManager extends BaseManager {
               maxTokens: maxContextSize,
             },
           });
-          currentThread = await storage.getThreadById({ threadId: chatId });
-          currentThread = await storage.updateThread({
+          currentThread = await memoryStore.getThreadById({ threadId: chatId });
+          currentThread = await memoryStore.updateThread({
             id: chatId,
             title: currentThread.title,
             metadata: {
@@ -802,7 +809,7 @@ class MastraManager extends BaseManager {
           }
         : undefined;
       while (true) {
-        const historyMessages = await storage.listMessages({
+        const historyMessages = await memoryStore.listMessages({
           threadId: chatId,
           resourceId: resourceId,
         });
@@ -835,7 +842,7 @@ class MastraManager extends BaseManager {
             },
           );
         if (hasCompressed) {
-          await storage.updateMessages({
+          await memoryStore.updateMessages({
             messages: historyMessages.messages.map((x) => {
               return {
                 id: x.id,
@@ -879,7 +886,7 @@ class MastraManager extends BaseManager {
           for (const bashSession of bashSessions) {
             if (bashManager.hasUpdate(bashSession.bashId)) {
               debugger;
-              getLastMessageIndex();
+              // getLastMessageIndex();
             }
           }
         }
@@ -917,54 +924,54 @@ class MastraManager extends BaseManager {
           throw stream.error;
         }
       }
-      if (stream.status == 'suspended') {
-        const messages = stream.messageList.get.all.db();
-        const lastMessage = messages[messages.length - 1];
-        if (
-          lastMessage?.role == 'assistant' &&
-          lastMessage?.content?.metadata?.pendingToolApprovals
-        ) {
-          const pendingToolApprovals =
-            lastMessage?.content?.metadata?.pendingToolApprovals;
-        } else {
-          // const core = stream.messageList.get.all.core();
-          const suspendPayload = await stream.suspendPayload;
-          // const finishReason = await stream.finishReason;
-          const toolCallId = suspendPayload.toolCallId;
-          suspendPayload.runId = stream.runId;
+      // if (stream.status == 'suspended') {
+      //   const messages = stream.messageList.get.all.db();
+      //   const lastMessage = messages[messages.length - 1];
+      //   if (
+      //     lastMessage?.role == 'assistant' &&
+      //     lastMessage?.content?.metadata?.pendingToolApprovals
+      //   ) {
+      //     const pendingToolApprovals =
+      //       lastMessage?.content?.metadata?.pendingToolApprovals;
+      //   } else {
+      //     // const core = stream.messageList.get.all.core();
+      //     const suspendPayload = await stream.suspendPayload;
+      //     // const finishReason = await stream.finishReason;
+      //     const toolCallId = suspendPayload.toolCallId;
+      //     suspendPayload.runId = stream.runId;
 
-          const message = messages.find(
-            (x) =>
-              x.role == 'assistant' &&
-              x.content.parts.find(
-                (x) =>
-                  x.type == 'tool-invocation' &&
-                  x.toolInvocation.toolCallId == toolCallId,
-              ),
-          );
+      //     const message = messages.find(
+      //       (x) =>
+      //         x.role == 'assistant' &&
+      //         x.content.parts.find(
+      //           (x) =>
+      //             x.type == 'tool-invocation' &&
+      //             x.toolInvocation.toolCallId == toolCallId,
+      //         ),
+      //     );
 
-          await storage.updateMessages({
-            messages: [
-              {
-                id: message.id,
-                content: {
-                  ...message.content,
-                  metadata: {
-                    ...message.content.metadata,
-                    suspendPayload: {
-                      ...((message.content.metadata?.suspendPayload as Record<
-                        string,
-                        any
-                      >) ?? {}),
-                      [toolCallId]: suspendPayload,
-                    },
-                  },
-                },
-              },
-            ],
-          });
-        }
-      }
+      //     await memoryStore.updateMessages({
+      //       messages: [
+      //         {
+      //           id: message.id,
+      //           content: {
+      //             ...message.content,
+      //             metadata: {
+      //               ...message.content.metadata,
+      //               suspendPayload: {
+      //                 ...((message.content.metadata?.suspendPayload as Record<
+      //                   string,
+      //                   any
+      //                 >) ?? {}),
+      //                 [toolCallId]: suspendPayload,
+      //               },
+      //             },
+      //           },
+      //         },
+      //       ],
+      //     });
+      //   }
+      // }
 
       if (streamOptions.abortSignal.aborted) {
         const chunks = requestContext.get('chunks');
@@ -991,7 +998,7 @@ class MastraManager extends BaseManager {
           },
         });
         requestContext.set('chunks', undefined);
-        await storage.saveMessages({ messages: [...db, ...messages] });
+        await memoryStore.saveMessages({ messages: [...db, ...messages] });
       }
     } catch (err) {
       console.error(err);
@@ -1007,7 +1014,7 @@ class MastraManager extends BaseManager {
       appManager.sendEvent(ChatEvent.ChatChanged, {
         data: { type: ChatChangedType.Finish, chatId },
       });
-      currentThread = await storage.getThreadById({ threadId: chatId });
+      currentThread = await memoryStore.getThreadById({ threadId: chatId });
       if (currentThread.title == 'New Thread') {
         const title = await agent.genTitle(
           inputMessage,
@@ -1015,7 +1022,7 @@ class MastraManager extends BaseManager {
           undefined,
           fastLanguageModel,
         );
-        currentThread = await storage.updateThread({
+        currentThread = await memoryStore.updateThread({
           id: chatId,
           title: title.replaceAll('\n', '').trim(),
           metadata: currentThread.metadata,
@@ -1041,7 +1048,7 @@ class MastraManager extends BaseManager {
     inputMessage:
       | UIMessageWithMetadata
       | UIMessage<unknown, UIDataTypes, UITools>,
-    streamOptions: AgentExecutionOptions<any, 'aisdk'>,
+    streamOptions: AgentExecutionOptions,
     resume?: {
       toolCallId?: string;
       approved?: boolean;
@@ -1083,7 +1090,7 @@ class MastraManager extends BaseManager {
     } else {
       stream = await agent.stream(inputMessage, streamOptions);
     }
-    const uiStream = toAISdkStream(stream, {
+    const uiStream = toAISdkFormat(stream, {
       from: 'agent',
     });
 
@@ -1102,165 +1109,165 @@ class MastraManager extends BaseManager {
     return stream;
   }
 
-  @channel(MastraChannel.ChatWorkflow, { mode: 'on' })
-  public async chatWorkflow(
-    event: IpcMainEvent,
-    data: ChatInput,
-  ): Promise<void> {
-    const {
-      agentId,
-      messageId,
-      trigger,
-      messages: uiMessages,
-      model,
-      webSearch,
-      think,
-      tools,
-      runId,
-      chatId,
-      options,
-    } = data;
-    const storage = this.mastra.getStorage();
-    let currentThread = await storage.getThreadById({ threadId: chatId });
-    const inputMessage = uiMessages[uiMessages.length - 1];
-    const mastraAgent = this.mastra.getAgentById(agentId || 'react-agent');
-    if (!mastraAgent) {
-      throw new Error('Agent not found');
-    }
-    const { providerId, modeId, modelInfo } =
-      await providersManager.getModelInfo(model);
-    mastraAgent.model = await providersManager.getLanguageModel(model);
-    const _tools = toolsManager.createTools(tools, {
-      Skill: {
-        skills: tools
-          .filter((x) => x.startsWith(ToolType.SKILL + ':'))
-          .map((x) => x.split(':').slice(2).join(':')),
-      },
-    });
-    const requestContext = new RequestContext();
-    requestContext.set('model' as never, model as never);
+  // @channel(MastraChannel.ChatWorkflow, { mode: 'on' })
+  // public async chatWorkflow(
+  //   event: IpcMainEvent,
+  //   data: ChatInput,
+  // ): Promise<void> {
+  //   const {
+  //     agentId,
+  //     messageId,
+  //     trigger,
+  //     messages: uiMessages,
+  //     model,
+  //     webSearch,
+  //     think,
+  //     tools,
+  //     runId,
+  //     chatId,
+  //     options,
+  //   } = data;
+  //   const storage = this.mastra.getStorage();
+  //   let currentThread = await storage.getThreadById({ threadId: chatId });
+  //   const inputMessage = uiMessages[uiMessages.length - 1];
+  //   const mastraAgent = this.mastra.getAgentById(agentId || 'react-agent');
+  //   if (!mastraAgent) {
+  //     throw new Error('Agent not found');
+  //   }
+  //   const { providerId, modeId, modelInfo } =
+  //     await providersManager.getModelInfo(model);
+  //   mastraAgent.model = await providersManager.getLanguageModel(model);
+  //   const _tools = toolsManager.createTools(tools, {
+  //     Skill: {
+  //       skills: tools
+  //         .filter((x) => x.startsWith(ToolType.SKILL + ':'))
+  //         .map((x) => x.split(':').slice(2).join(':')),
+  //     },
+  //   });
+  //   const requestContext = new RequestContext();
+  //   requestContext.set('model' as never, model as never);
 
-    const workflow = this.mastra.getWorkflowById('claude-code');
+  //   const workflow = this.mastra.getWorkflowById('claude-code');
 
-    let result: WorkflowRunOutput;
+  //   let result: WorkflowRunOutput;
 
-    const run = await workflow.createRun({
-      runId: chatId,
-      resourceId: DEFAULT_RESOURCE_ID,
-      disableScorers: true,
-    });
+  //   const run = await workflow.createRun({
+  //     runId: chatId,
+  //     resourceId: DEFAULT_RESOURCE_ID,
+  //     disableScorers: true,
+  //   });
 
-    const snapshot = await storage?.loadWorkflowSnapshot({
-      runId: chatId,
-      workflowName: workflow.id,
-    });
+  //   const snapshot = await storage?.loadWorkflowSnapshot({
+  //     runId: chatId,
+  //     workflowName: workflow.id,
+  //   });
 
-    if (snapshot?.status == 'suspended') {
-      for (const [key, value] of Object.entries(snapshot.requestContext)) {
-        requestContext.set(key as never, value as never);
-      }
-      result = await run.resumeStream({
-        resumeData: { start: true },
-        requestContext: requestContext,
-      });
-    } else {
-      result = await run.stream({
-        inputData: {
-          messages: uiMessages,
-          // agentId: 'claude-code',
-          model: model,
-          tools: tools,
-        },
-        requestContext,
-      });
-    }
+  //   if (snapshot?.status == 'suspended') {
+  //     for (const [key, value] of Object.entries(snapshot.requestContext)) {
+  //       requestContext.set(key as never, value as never);
+  //     }
+  //     result = await run.resumeStream({
+  //       resumeData: { start: true },
+  //       requestContext: requestContext,
+  //     });
+  //   } else {
+  //     result = await run.stream({
+  //       inputData: {
+  //         messages: uiMessages,
+  //         // agentId: 'claude-code',
+  //         model: model,
+  //         tools: tools,
+  //       },
+  //       requestContext,
+  //     });
+  //   }
 
-    // let heartbeat;
-    // const stream_2 = await createUIMessageStream({
-    //   execute: async (options) => {
-    //     appManager.sendEvent(`chat:event:${chatId}`, {
-    //       type: ChatEvent.ChatStart,
-    //       data: {},
-    //     });
+  //   // let heartbeat;
+  //   // const stream_2 = await createUIMessageStream({
+  //   //   execute: async (options) => {
+  //   //     appManager.sendEvent(`chat:event:${chatId}`, {
+  //   //       type: ChatEvent.ChatStart,
+  //   //       data: {},
+  //   //     });
 
-    //     appManager.sendEvent(ChatEvent.ChatStart, {
-    //       data: { chatId },
-    //     });
-    //     this.threadChats.push({
-    //       id: chatId,
-    //       title: 'string',
-    //       status: 'streaming',
-    //       controller: run.abortController,
-    //     });
-    //     const { writer } = options;
-    //     heartbeat = setInterval(() => {
-    //       writer.write({
-    //         type: 'data-heartbeat',
-    //         data: { datetime: new Date().toISOString() },
-    //         transient: true,
-    //       });
-    //     }, 1000 * 30);
+  //   //     appManager.sendEvent(ChatEvent.ChatStart, {
+  //   //       data: { chatId },
+  //   //     });
+  //   //     this.threadChats.push({
+  //   //       id: chatId,
+  //   //       title: 'string',
+  //   //       status: 'streaming',
+  //   //       controller: run.abortController,
+  //   //     });
+  //   //     const { writer } = options;
+  //   //     heartbeat = setInterval(() => {
+  //   //       writer.write({
+  //   //         type: 'data-heartbeat',
+  //   //         data: { datetime: new Date().toISOString() },
+  //   //         transient: true,
+  //   //       });
+  //   //     }, 1000 * 30);
 
-    //     writer.merge(result.fullStream.);
-    //   },
-    //   onFinish: (data) => {
-    //     clearInterval(heartbeat);
-    //     appManager.sendEvent(ChatEvent.ChatFinish, {
-    //       data: { chatId },
-    //     });
-    //   },
-    //   onError: (error: Error | undefined) => {
-    //     console.log('Stream error:', error);
-    //     clearInterval(heartbeat);
+  //   //     writer.merge(result.fullStream.);
+  //   //   },
+  //   //   onFinish: (data) => {
+  //   //     clearInterval(heartbeat);
+  //   //     appManager.sendEvent(ChatEvent.ChatFinish, {
+  //   //       data: { chatId },
+  //   //     });
+  //   //   },
+  //   //   onError: (error: Error | undefined) => {
+  //   //     console.log('Stream error:', error);
+  //   //     clearInterval(heartbeat);
 
-    //     return error?.message ?? 'Unknown error';
-    //   },
-    // });
+  //   //     return error?.message ?? 'Unknown error';
+  //   //   },
+  //   // });
 
-    appManager.sendEvent(`chat:event:${chatId}`, {
-      type: ChatEvent.ChatChanged,
-      data: { type: ChatChangedType.Start, chatId },
-    });
-    appManager.sendEvent(ChatEvent.ChatChanged, {
-      data: { type: ChatChangedType.Start, chatId },
-    });
-    this.threadChats.push({
-      id: chatId,
-      title: 'string',
-      status: 'streaming',
-      controller: run.abortController,
-    });
+  //   appManager.sendEvent(`chat:event:${chatId}`, {
+  //     type: ChatEvent.ChatChanged,
+  //     data: { type: ChatChangedType.Start, chatId },
+  //   });
+  //   appManager.sendEvent(ChatEvent.ChatChanged, {
+  //     data: { type: ChatChangedType.Start, chatId },
+  //   });
+  //   this.threadChats.push({
+  //     id: chatId,
+  //     title: 'string',
+  //     status: 'streaming',
+  //     controller: run.abortController,
+  //   });
 
-    for await (const chunk of result.fullStream) {
-      console.log(chunk);
-      appManager.sendEvent(`chat:event:${chatId}`, {
-        type: ChatEvent.ChatChunk,
-        data: JSON.stringify(chunk),
-      });
-    }
+  //   for await (const chunk of result.fullStream) {
+  //     console.log(chunk);
+  //     appManager.sendEvent(`chat:event:${chatId}`, {
+  //       type: ChatEvent.ChatChunk,
+  //       data: JSON.stringify(chunk),
+  //     });
+  //   }
 
-    appManager.sendEvent(ChatEvent.ChatChanged, {
-      data: { type: ChatChangedType.Finish, chatId },
-    });
-    appManager.sendEvent(`chat:event:${chatId}`, {
-      type: ChatEvent.ChatChanged,
-      data: { type: ChatChangedType.Finish, chatId },
-    });
-    this.threadChats = this.threadChats.filter((chat) => chat.id !== chatId);
+  //   appManager.sendEvent(ChatEvent.ChatChanged, {
+  //     data: { type: ChatChangedType.Finish, chatId },
+  //   });
+  //   appManager.sendEvent(`chat:event:${chatId}`, {
+  //     type: ChatEvent.ChatChanged,
+  //     data: { type: ChatChangedType.Finish, chatId },
+  //   });
+  //   this.threadChats = this.threadChats.filter((chat) => chat.id !== chatId);
 
-    // const reader = result.fullStream.getReader();
-    // while (true) {
-    //   const { done, value } = await reader.read();
-    //   if (done) {
-    //     break;
-    //   }
-    //   console.log(value);
-    //   appManager.sendEvent(`chat:event:${chatId}`, {
-    //     type: ChatEvent.ChatChunk,
-    //     data: JSON.stringify(value),
-    //   });
-    // }
-  }
+  //   // const reader = result.fullStream.getReader();
+  //   // while (true) {
+  //   //   const { done, value } = await reader.read();
+  //   //   if (done) {
+  //   //     break;
+  //   //   }
+  //   //   console.log(value);
+  //   //   appManager.sendEvent(`chat:event:${chatId}`, {
+  //   //     type: ChatEvent.ChatChunk,
+  //   //     data: JSON.stringify(value),
+  //   //   });
+  //   // }
+  // }
 
   @channel(MastraChannel.ChatAbort)
   public async chatAbort(chatId: string): Promise<void> {
@@ -1273,7 +1280,9 @@ class MastraManager extends BaseManager {
     messages: MastraDBMessage[],
   ): Promise<void> {
     const storage = this.mastra.getStorage();
-    await storage.saveMessages({
+
+    const memoryStore = await storage.getStore('memory');
+    await memoryStore.saveMessages({
       messages: messages,
     });
   }

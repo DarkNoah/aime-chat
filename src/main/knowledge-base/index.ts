@@ -8,7 +8,6 @@ import {
   UpdateKnowledgeBase,
 } from '@/types/knowledge-base';
 import { Repository } from 'typeorm';
-import { getStorage } from '../mastra/storage';
 import { Client as LibSQLClient } from '@libsql/client';
 import { nanoid } from '@/utils/nanoid';
 import { providersManager } from '../providers';

@@ -75,7 +75,8 @@ class ProjectManager extends BaseManager {
     model?: string;
   }): Promise<StorageThreadType> {
     const storage = mastraManager.mastra.getStorage();
-    const thread = await storage.saveThread({
+    const memoryStore = await storage.getStore('memory');
+    const thread = await memoryStore.saveThread({
       thread: {
         id: nanoid(),
         title: 'New Thread',

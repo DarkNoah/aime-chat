@@ -57,6 +57,8 @@ Important:
       .describe(`The skill name (no arguments). E.g., "pdf" or "xlsx"`),
   });
 
+  //outputSchema = z.string();
+
   constructor(config?: SkillToolParams) {
     super(config);
     this.description = this.getDescription(config?.skills ?? []);

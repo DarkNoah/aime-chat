@@ -1,4 +1,4 @@
-import type {SidebarsConfig} from '@docusaurus/plugin-content-docs';
+import type { SidebarsConfig } from '@docusaurus/plugin-content-docs';
 
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
 
@@ -22,41 +22,37 @@ const sidebars: SidebarsConfig = {
       items: [
         'getting-started/installation',
         'getting-started/basic-usage',
+        'getting-started/ai-providers',
       ],
     },
     {
       type: 'category',
       label: '功能特性',
       items: [
-        'features/ai-providers',
         'features/knowledge-base',
-        'features/tools',
+        {
+          type: 'category',
+          label: 'Tools 工具',
+          items: ['features/tools/overview'],
+        },
         'features/agents',
         {
           type: 'category',
           label: 'MCP 协议',
-          items: [
-            'features/mcp/overview',
-          ],
+          items: ['features/mcp/overview'],
         },
-        {
-          type: 'category',
-          label: '记忆系统',
-          items: [
-            'features/memory/overview',
-            'features/memory/rag',
-          ],
-        },
+        // {
+        //   type: 'category',
+        //   label: '记忆系统',
+        //   items: [],
+        // },
       ],
     },
-    {
-      type: 'category',
-      label: '开发指南',
-      items: [
-        'development/architecture',
-        'development/custom-tools',
-      ],
-    },
+    // {
+    //   type: 'category',
+    //   label: '开发指南',
+    //   items: ['development/architecture', 'development/custom-tools'],
+    // },
   ],
 
   // But you can create a sidebar manually

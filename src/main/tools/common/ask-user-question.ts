@@ -115,46 +115,46 @@ Usage notes:
       return agent.suspend?.({ reason: 'Human approval required.' });
     }
 
-    const storage = mastra.getStorage();
+    // const storage = mastra.getStorage();
+    // const memoryStore = await storage.getStore('memory');
+    // const messages = (
+    //   await memoryStore.listMessages({
+    //     threadId: agent.threadId,
+    //     resourceId: agent.resourceId,
+    //   })
+    // ).messages;
+    // const message = messages.find(
+    //   (x) =>
+    //     x.role == 'assistant' &&
+    //     x.content.parts.find(
+    //       (x) =>
+    //         x.type == 'tool-invocation' &&
+    //         x.toolInvocation.toolCallId == agent.toolCallId,
+    //     ),
+    // );
 
-    const messages = (
-      await storage.listMessages({
-        threadId: agent.threadId,
-        resourceId: agent.resourceId,
-      })
-    ).messages;
-    const message = messages.find(
-      (x) =>
-        x.role == 'assistant' &&
-        x.content.parts.find(
-          (x) =>
-            x.type == 'tool-invocation' &&
-            x.toolInvocation.toolCallId == agent.toolCallId,
-        ),
-    );
+    // const toolCallId = agent.toolCallId;
 
-    const toolCallId = agent.toolCallId;
-
-    delete message.content.metadata?.suspendPayload[toolCallId];
-    await storage.updateMessages({
-      messages: [
-        {
-          id: message.id,
-          content: {
-            ...message.content,
-            metadata: {
-              ...message.content.metadata,
-              suspendPayload: {
-                ...((message.content.metadata?.suspendPayload as Record<
-                  string,
-                  any
-                >) ?? {}),
-              },
-            },
-          },
-        },
-      ],
-    });
+    // delete message.content.metadata?.suspendPayload[toolCallId];
+    // await memoryStore.updateMessages({
+    //   messages: [
+    //     {
+    //       id: message.id,
+    //       content: {
+    //         ...message.content,
+    //         metadata: {
+    //           ...message.content.metadata,
+    //           suspendPayload: {
+    //             ...((message.content.metadata?.suspendPayload as Record<
+    //               string,
+    //               any
+    //             >) ?? {}),
+    //           },
+    //         },
+    //       },
+    //     },
+    //   ],
+    // });
 
     const answers = agent?.resumeData?.answers;
     const answerString = answers
