@@ -436,6 +436,7 @@ const addDays = (date: Date, days: number) =>
 const formatDate = (date: Date) => date.toISOString().slice(0, 10);
 
 export class GetTeamMembers extends BaseTool {
+  static readonly toolName = 'get_team_members';
   id = 'get_team_members';
   description = `Returns a list of team members for a given department.
 
@@ -645,6 +646,7 @@ export class GetTeamMembers extends BaseTool {
 }
 
 export class GetExpenses extends BaseTool {
+  static readonly toolName = 'get_expenses';
   id = 'get_expenses';
   description = `
 Returns all expense line items for a given employee in a specific quarter.
@@ -767,6 +769,7 @@ Returns all expense line items for a given employee in a specific quarter.
 }
 
 export class GetCustomBudget extends BaseTool {
+  static readonly toolName = 'get_custom_budget';
   id = 'get_custom_budget';
   description = `
 Get the custom quarterly travel budget for a specific employee.
@@ -817,6 +820,7 @@ Get the custom quarterly travel budget for a specific employee.
 }
 
 class ExpenseManagementToolkit extends BaseToolkit {
+  static readonly toolName = 'expense_management_toolkit';
   id = 'expense_management_toolkit';
   constructor(params?: BaseToolkitParams) {
     super(
