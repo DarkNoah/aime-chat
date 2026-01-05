@@ -71,8 +71,10 @@ Usage:
 
     if (!stats.isFile()) throw new Error(`File '${file_path}' is not a file.`);
 
-    if (stats.size === 0)
+    if (stats.size === 0) {
+      await updateFileModTime(file_path, context.requestContext);
       return `<system-reminder>The file '${file_path}' is empty.</system-reminder>`;
+    }
 
     if (offset !== undefined && offset < 0) {
       throw new Error('Offset must be a non-negative number');

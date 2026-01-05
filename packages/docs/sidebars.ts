@@ -46,11 +46,11 @@ const sidebars: SidebarsConfig = {
         // },
       ],
     },
-    // {
-    //   type: 'category',
-    //   label: '开发指南',
-    //   items: ['development/architecture', 'development/custom-tools'],
-    // },
+    {
+      type: 'category',
+      label: 'Agent智能体',
+      items: ['agents/overview', 'agents/code-agent'],
+    },
   ],
 
   // But you can create a sidebar manually
