@@ -491,5 +491,3 @@ Code Agent 是 AIME Chat 中最强大的编程助手，它：
 
 - [Agent 概览](./overview.md)
 - [工具系统](../features/tools.md)
-- [Explore Agent](./explore-agent.md)
-- [Plan Agent](./plan-agent.md)
