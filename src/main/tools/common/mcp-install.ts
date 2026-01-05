@@ -13,6 +13,7 @@ import { ChatEvent } from '@/types/chat';
 import { isString } from '@/utils/is';
 
 export class MCPInstall extends BaseTool {
+  static readonly toolName = 'MCPInstall';
   id: string = 'MCPInstall';
   description = `
   `;

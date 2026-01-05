@@ -25,6 +25,7 @@ export interface TranslationParams extends BaseToolParams {
 }
 
 export class Translation extends BaseTool<TranslationParams> {
+  static readonly toolName = 'Translation';
   id: string = 'Translation';
   description = `Translating text to a different language.`;
   inputSchema = z.strictObject({

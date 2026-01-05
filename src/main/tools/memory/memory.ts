@@ -16,6 +16,7 @@ export const MemoryType = ['note', 'decision', 'task', 'reference'] as [
 ];
 
 export class StoreMemory extends BaseTool {
+  static readonly toolName = 'StoreMemory';
   id: string = 'StoreMemory';
   description = 'Store a new memory with content and optional metadata.';
   inputSchema = z.object({
@@ -54,6 +55,7 @@ export class StoreMemory extends BaseTool {
   };
 }
 export class RetrieveMemory extends BaseTool {
+  static readonly toolName = 'RetrieveMemory';
   id: string = 'RetrieveMemory';
   description = 'Retrieve memories based on semantic similarity to a query.';
   inputSchema = z.object({
@@ -76,6 +78,7 @@ export class RetrieveMemory extends BaseTool {
   };
 }
 export class ListMemory extends BaseTool {
+  static readonly toolName = 'ListMemory';
   id: string = 'ListMemory';
   description = 'List memories with pagination and optional filtering.';
   inputSchema = z.object({
@@ -101,6 +104,7 @@ export class ListMemory extends BaseTool {
   };
 }
 export class DeleteMemory extends BaseTool {
+  static readonly toolName = 'DeleteMemory';
   id: string = 'DeleteMemory';
   description = 'Delete a specific memory by its content hash.';
   inputSchema = z.object({
@@ -122,6 +126,7 @@ export class DeleteMemory extends BaseTool {
 }
 
 class MemoryToolkit extends BaseToolkit {
+  static readonly toolName = 'MemoryToolkit';
   id = 'MemoryToolkit';
   constructor(params?: BaseToolkitParams) {
     super(

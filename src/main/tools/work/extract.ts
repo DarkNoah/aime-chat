@@ -22,6 +22,7 @@ export interface ExtractParams extends BaseToolParams {
 }
 
 export class Extract extends BaseTool<ExtractParams> {
+  static readonly toolName = 'Extract';
   id: string = 'Extract';
   description = `Extracting key extractions from text.
 

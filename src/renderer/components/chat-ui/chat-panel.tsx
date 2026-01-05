@@ -282,7 +282,9 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
 
     const handleAgentChange = (_agent: Agent) => {
       if (!threadState) {
-        chatInputRef.current?.setTools(_agent?.tools || []);
+        const tools = _agent?.tools || [];
+        tools.push(...(threadState?.metadata?.tools || []));
+        chatInputRef.current?.setTools([...new Set(tools)]);
       }
       setAgentId(_agent?.id);
       setAgent(_agent);

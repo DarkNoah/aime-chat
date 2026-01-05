@@ -76,7 +76,10 @@
     "import": "Import",
     "drop_files_here": "Drop files here",
     "drag_files_here": "Drag files here",
-    "other_provider": "Other Provider"
+    "other_provider": "Other Provider",
+    "paste": "Paste",
+    "cut": "Cut",
+    "selectAll": "Select All"
   },
   "sidebar": {
     "new_chat": "New Chat",

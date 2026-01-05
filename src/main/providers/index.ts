@@ -39,6 +39,8 @@ import fs from 'fs';
 import path from 'path';
 import { LocalProvider } from './local-provider';
 import { JinaAIProvider } from './jinaai-provider';
+import { BraveSearchProvider } from './brave-search-provider';
+import { TavilyProvider } from './tavily-provider';
 const modelsData = require('../../../assets/models.json');
 class ProvidersManager extends BaseManager {
   repository: Repository<Providers>;
@@ -474,6 +476,10 @@ class ProvidersManager extends BaseManager {
         return new OllamaProvider(provider);
       case ProviderType.JINA_AI:
         return new JinaAIProvider(provider);
+      case ProviderType.BRAVE_SEARCH:
+        return new BraveSearchProvider(provider);
+      case ProviderType.TAVILY:
+        return new TavilyProvider(provider);
     }
   }
 

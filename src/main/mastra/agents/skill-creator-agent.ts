@@ -26,6 +26,7 @@ import { Skill } from '@/main/tools/common/skill';
 import { app } from 'electron';
 
 export class SkillCreator extends BaseAgent {
+  static readonly agentName = 'SkillCreator';
   id: string = 'SkillCreator';
   name: string = 'SkillCreator';
   description?: string = `Guide for creating effective skills. This skill should be used when users want to create a new skill (or update an existing skill) that extends agent capabilities with specialized knowledge, workflows, or tool integrations.`;
@@ -53,19 +54,17 @@ Today's date: ${new Date().toISOString().split('T')[0]}
   isHidden = true;
   // model: string = 'openai/gpt-4o-mini';
   tools: string[] = [
-    `${ToolType.BUILD_IN}:${TodoWrite.name}`,
-    // `${ToolType.BUILD_IN}:${AskUserQuestion.name}`,
-    // `${ToolType.BUILD_IN}:${Task.name}`,
-    `${ToolType.BUILD_IN}:${Bash.name}`,
-    `${ToolType.BUILD_IN}:${Read.name}`,
-    `${ToolType.BUILD_IN}:${Write.name}`,
-    `${ToolType.BUILD_IN}:${Edit.name}`,
-    `${ToolType.BUILD_IN}:${Glob.name}`,
-    `${ToolType.BUILD_IN}:${Grep.name}`,
-    `${ToolType.BUILD_IN}:${WebFetch.name}`,
-    `${ToolType.BUILD_IN}:${WebSearch.name}`,
-    `${ToolType.BUILD_IN}:${CodeExecution.name}`,
-    `${ToolType.BUILD_IN}:${Skill.name}`,
+    `${ToolType.BUILD_IN}:${TodoWrite.toolName}`,
+    `${ToolType.BUILD_IN}:${Bash.toolName}`,
+    `${ToolType.BUILD_IN}:${Read.toolName}`,
+    `${ToolType.BUILD_IN}:${Write.toolName}`,
+    `${ToolType.BUILD_IN}:${Edit.toolName}`,
+    `${ToolType.BUILD_IN}:${Glob.toolName}`,
+    `${ToolType.BUILD_IN}:${Grep.toolName}`,
+    `${ToolType.BUILD_IN}:${WebFetch.toolName}`,
+    `${ToolType.BUILD_IN}:${WebSearch.toolName}`,
+    `${ToolType.BUILD_IN}:${CodeExecution.toolName}`,
+    `${ToolType.BUILD_IN}:${Skill.toolName}`,
   ];
   constructor(params: BaseAgentParams) {
     super(params);

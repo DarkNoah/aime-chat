@@ -22,6 +22,7 @@ export interface EditImageParams extends BaseToolParams {
   modelId: string;
 }
 export class EditImage extends BaseTool {
+  static readonly toolName = 'EditImage';
   id: string = 'EditImage';
   description = `Edit a specific image file using a natural language prompt and optional reference images to guide the transformation.
 Returns:

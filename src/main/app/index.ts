@@ -351,7 +351,7 @@ class AppManager extends BaseManager {
 
     if (!translation && data.force) {
       const tool = await toolsManager.buildTool(
-        `${ToolType.BUILD_IN}:${Translation.name}`,
+        `${ToolType.BUILD_IN}:${Translation.toolName}`,
       );
       try {
         const result = await (tool as Translation).execute({

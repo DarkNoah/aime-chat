@@ -1,7 +1,7 @@
 {
   "name": "aime-chat",
   "description": "A foundation for scalable desktop apps",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "keywords": [
     "electron",
     "boilerplate",
@@ -13,13 +13,13 @@
     "hot",
     "reload"
   ],
-  "homepage": "https://github.com/electron-react-boilerplate/electron-react-boilerplate#readme",
+  "homepage": "https://github.com/DarkNoah/aime-chat#readme",
   "bugs": {
-    "url": "https://github.com/electron-react-boilerplate/electron-react-boilerplate/issues"
+    "url": "https://github.com/DarkNoah/aime-chat/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/electron-react-boilerplate/electron-react-boilerplate.git"
+    "url": "git+https://github.com/DarkNoah/aime-chat.git"
   },
   "license": "MIT",
   "author": {
@@ -175,6 +175,7 @@
     "@tabler/icons-react": "^3.35.0",
     "@tailwindcss/postcss": "^4.1.16",
     "@tailwindcss/typography": "^0.5.19",
+    "@tavily/core": "^0.6.4",
     "@teamsupercell/typings-for-css-modules-loader": "^2.5.2",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.2.0",
@@ -353,9 +354,11 @@
       "hardenedRuntime": true,
       "entitlements": "assets/entitlements.mac.plist",
       "entitlementsInherit": "assets/entitlements.mac.plist",
-      "gatekeeperAssess": false
+      "gatekeeperAssess": false,
+      "artifactName": "${productName}-${arch}-mac.${ext}"
     },
     "dmg": {
+      "artifactName": "${productName}-${arch}.${ext}",
       "contents": [
         {
           "x": 130,
@@ -372,13 +375,18 @@
     "win": {
       "target": [
         "nsis"
-      ]
+      ],
+      "artifactName": "${productName}.${ext}"
+    },
+    "nsis": {
+      "artifactName": "${productName}-setup.${ext}"
     },
     "linux": {
       "target": [
         "AppImage"
       ],
-      "category": "Development"
+      "category": "Development",
+      "artifactName": "${productName}.${ext}"
     },
     "directories": {
       "app": "release/app",

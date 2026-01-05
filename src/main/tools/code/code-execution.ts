@@ -58,6 +58,7 @@ _init_mcp_tools()
 };
 
 export class CodeExecution extends BaseTool {
+  static readonly toolName = 'CodeExecution';
   id: string = 'CodeExecution';
   description = `Execute Python code. using uv runtime.
 The code will be executed with Python 3.10.

@@ -22,6 +22,7 @@ export interface TaskToolParams extends BaseToolParams {
 }
 
 export class Task extends BaseTool {
+  static readonly toolName = 'Task';
   id: string = 'Task';
   description = `Launch a new agent to handle complex, multi-step tasks autonomously.
 

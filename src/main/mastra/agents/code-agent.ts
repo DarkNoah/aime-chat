@@ -39,24 +39,24 @@ export class CodeAgent extends BaseAgent {
   instructions: DynamicAgentInstructions = codeAgentInstructions;
   // model: string = 'openai/gpt-4o-mini';
   tools: string[] = [
-    `${ToolType.BUILD_IN}:${TodoWrite.name}`,
-    `${ToolType.BUILD_IN}:${AskUserQuestion.name}`,
-    // `${ToolType.BUILD_IN}:${Task.name}`,
-    `${ToolType.BUILD_IN}:${Bash.name}`,
-    `${ToolType.BUILD_IN}:${BashOutput.name}`,
-    `${ToolType.BUILD_IN}:${KillBash.name}`,
-    `${ToolType.BUILD_IN}:${Read.name}`,
-    `${ToolType.BUILD_IN}:${Write.name}`,
-    `${ToolType.BUILD_IN}:${Edit.name}`,
-    `${ToolType.BUILD_IN}:${Glob.name}`,
-    `${ToolType.BUILD_IN}:${Grep.name}`,
-    `${ToolType.BUILD_IN}:${WebFetch.name}`,
-    `${ToolType.BUILD_IN}:${WebSearch.name}`,
-    `${ToolType.BUILD_IN}:${CodeExecution.name}`,
-    `${ToolType.BUILD_IN}:${Skill.name}`,
-    `${ToolType.BUILD_IN}:${Task.name}`,
+    `${ToolType.BUILD_IN}:${TodoWrite.toolName}`,
+    `${ToolType.BUILD_IN}:${AskUserQuestion.toolName}`,
+    // `${ToolType.BUILD_IN}:${Task.toolName}`,
+    `${ToolType.BUILD_IN}:${Bash.toolName}`,
+    `${ToolType.BUILD_IN}:${BashOutput.toolName}`,
+    `${ToolType.BUILD_IN}:${KillBash.toolName}`,
+    `${ToolType.BUILD_IN}:${Read.toolName}`,
+    `${ToolType.BUILD_IN}:${Write.toolName}`,
+    `${ToolType.BUILD_IN}:${Edit.toolName}`,
+    `${ToolType.BUILD_IN}:${Glob.toolName}`,
+    `${ToolType.BUILD_IN}:${Grep.toolName}`,
+    `${ToolType.BUILD_IN}:${WebFetch.toolName}`,
+    `${ToolType.BUILD_IN}:${WebSearch.toolName}`,
+    `${ToolType.BUILD_IN}:${CodeExecution.toolName}`,
+    `${ToolType.BUILD_IN}:${Skill.toolName}`,
+    `${ToolType.BUILD_IN}:${Task.toolName}`,
   ];
-  subAgents: string[] = [`${Explore.name}`, `${Plan.name}`];
+  subAgents: string[] = [`${Explore.agentName}`, `${Plan.agentName}`];
   constructor(params: BaseAgentParams) {
     super(params);
   }

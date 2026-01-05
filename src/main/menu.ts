@@ -1,10 +1,18 @@
+import { isUrl } from '@/utils/is';
 import {
   app,
   Menu,
   shell,
   BrowserWindow,
   MenuItemConstructorOptions,
+  MenuItem,
+  dialog,
+  SaveDialogOptions,
 } from 'electron';
+import { t } from 'i18next';
+// import { appManager } from './app/AppManager';
+
+const fs = require('fs');
 
 interface DarwinMenuItemConstructorOptions extends MenuItemConstructorOptions {
   selector?: string;
@@ -19,12 +27,10 @@ export default class MenuBuilder {
   }
 
   buildMenu(): Menu {
-    if (
+    const isDev =
       process.env.NODE_ENV === 'development' ||
-      process.env.DEBUG_PROD === 'true'
-    ) {
-      this.setupDevelopmentEnvironment();
-    }
+      process.env.DEBUG_PROD === 'true';
+    this.setupContextMenu(isDev);
 
     const template =
       process.platform === 'darwin'
@@ -32,32 +38,155 @@ export default class MenuBuilder {
         : this.buildDefaultTemplate();
 
     const menu = Menu.buildFromTemplate(template);
+
     Menu.setApplicationMenu(menu);
 
     return menu;
   }
 
-  setupDevelopmentEnvironment(): void {
+  setupContextMenu(isDev: boolean = false): void {
     this.mainWindow.webContents.on('context-menu', (_, props) => {
-      const { x, y } = props;
+      const { x, y, selectionText, mediaType, srcURL, formControlType } = props;
 
-      Menu.buildFromTemplate([
-        {
-          label: 'Inspect element',
-          click: () => {
-            this.mainWindow.webContents.inspectElement(x, y);
-          },
-        },
-      ]).popup({ window: this.mainWindow });
+      const menu = new Menu();
+      if (selectionText) {
+        menu.append(
+          new MenuItem({
+            label: t('common.copy'),
+            role: 'copy',
+            accelerator: 'Ctrl+C',
+          }),
+        );
+        menu.append(
+          new MenuItem({
+            label: t('common.paste'),
+            role: 'paste',
+            accelerator: 'Ctrl+V',
+          }),
+        );
+        menu.append(
+          new MenuItem({
+            label: t('common.cut'),
+            role: 'cut',
+            accelerator: 'Ctrl+X',
+          }),
+        );
+        menu.append(
+          new MenuItem({
+            label: t('common.selectAll'),
+            role: 'selectAll',
+            accelerator: 'Ctrl+A',
+          }),
+        );
+        menu.append(new MenuItem({ type: 'separator' }));
+        // menu.append(
+        //   new MenuItem({
+        //     label: t('play'),
+        //     click: () => {
+        //       appManager.tts(selectionText.trim());
+        //     },
+        //   }),
+        // );
+      } else if (mediaType == 'image') {
+        menu.append(
+          new MenuItem({
+            label: t('common.copy'),
+            role: 'copy',
+            accelerator: 'Ctrl+C',
+          }),
+        );
+        menu.append(
+          new MenuItem({
+            label: t('common.save'),
+            accelerator: 'Ctrl+S',
+            click: async () => {
+              let ext = '';
+              if (isUrl(srcURL)) {
+                ext = srcURL.split(';')[0].split('/')[1];
+              } else if (srcURL.startsWith('file://')) {
+                ext = srcURL.split('.').pop();
+              }
+
+              const arg: SaveDialogOptions = {
+                properties: ['createDirectory', 'showOverwriteConfirmation'],
+                defaultPath: `image_${new Date().getTime()}.${ext}`,
+              };
+              const res = await dialog.showSaveDialog(
+                this.mainWindow as BrowserWindow,
+                arg,
+              );
+
+              if (!res.canceled && res.filePath) {
+                const base64Data = srcURL.replace(
+                  /^data:image\/\w+;base64,/,
+                  '',
+                );
+                const buffer = Buffer.from(base64Data, 'base64');
+                fs.writeFile(res.filePath, buffer, (err) => {
+                  if (err) {
+                    console.error('Failed to save the file:', err);
+                  } else {
+                    console.log('File saved successfully');
+                  }
+                });
+              }
+            },
+          }),
+        );
+      } else {
+        menu.append(
+          new MenuItem({
+            label: t('common.copy'),
+            role: 'copy',
+            accelerator: 'Ctrl+C',
+          }),
+        );
+        menu.append(
+          new MenuItem({
+            label: t('common.paste'),
+            role: 'paste',
+            accelerator: 'Ctrl+V',
+          }),
+        );
+        menu.append(
+          new MenuItem({
+            label: t('common.cut'),
+            role: 'cut',
+            accelerator: 'Ctrl+X',
+          }),
+        );
+        menu.append(
+          new MenuItem({
+            label: t('common.selectAll'),
+            role: 'selectAll',
+            accelerator: 'Ctrl+A',
+          }),
+        );
+        menu.append(new MenuItem({ type: 'separator' }));
+      }
+
+      if (isDev) {
+        menu.append(new MenuItem({ type: 'separator' }));
+        menu.append(
+          new MenuItem({
+            label: 'Inspect element',
+
+            click: () => {
+              this.mainWindow.webContents.inspectElement(x, y);
+            },
+          }),
+        );
+      }
+      Menu.buildFromTemplate(menu.items).popup({ window: this.mainWindow });
     });
   }
 
   buildDarwinTemplate(): MenuItemConstructorOptions[] {
     const subMenuAbout: DarwinMenuItemConstructorOptions = {
-      label: 'Electron',
+      label: 'aime-chat',
       submenu: [
         {
-          label: 'About ElectronReact',
+          label: 'About Aime-Chat',
           selector: 'orderFrontStandardAboutPanel:',
         },
         { type: 'separator' },
@@ -151,37 +280,6 @@ export default class MenuBuilder {
         { label: 'Bring All to Front', selector: 'arrangeInFront:' },
       ],
     };
-    const subMenuHelp: MenuItemConstructorOptions = {
-      label: 'Help',
-      submenu: [
-        {
-          label: 'Learn More',
-          click() {
-            shell.openExternal('https://electronjs.org');
-          },
-        },
-        {
-          label: 'Documentation',
-          click() {
-            shell.openExternal(
-              'https://github.com/electron/electron/tree/main/docs#readme',
-            );
-          },
-        },
-        {
-          label: 'Community Discussions',
-          click() {
-            shell.openExternal('https://www.electronjs.org/community');
-          },
-        },
-        {
-          label: 'Search Issues',
-          click() {
-            shell.openExternal('https://github.com/electron/electron/issues');
-          },
-        },
-      ],
-    };
 
     const subMenuView =
       process.env.NODE_ENV === 'development' ||
@@ -189,7 +287,7 @@ export default class MenuBuilder {
         ? subMenuViewDev
         : subMenuViewProd;
 
-    return [subMenuAbout, subMenuEdit, subMenuView, subMenuWindow, subMenuHelp];
+    return [subMenuAbout, subMenuEdit, subMenuView, subMenuWindow];
   }
 
   buildDefaultTemplate() {
@@ -251,37 +349,6 @@ export default class MenuBuilder {
                   },
                 },
               ],
-      },
-      {
-        label: 'Help',
-        submenu: [
-          {
-            label: 'Learn More',
-            click() {
-              shell.openExternal('https://electronjs.org');
-            },
-          },
-          {
-            label: 'Documentation',
-            click() {
-              shell.openExternal(
-                'https://github.com/electron/electron/tree/main/docs#readme',
-              );
-            },
-          },
-          {
-            label: 'Community Discussions',
-            click() {
-              shell.openExternal('https://www.electronjs.org/community');
-            },
-          },
-          {
-            label: 'Search Issues',
-            click() {
-              shell.openExternal('https://github.com/electron/electron/issues');
-            },
-          },
-        ],
       },
     ];
 

@@ -75,7 +75,7 @@ class AgentManager extends BaseManager {
 
   async buildAgent(agentId?: string, params?: BuildAgentParams) {
     const agentEntity = await this.agentsRepository.findOne({
-      where: { id: agentId ?? DefaultAgent.name },
+      where: { id: agentId ?? DefaultAgent.agentName },
     });
 
     if (!agentEntity) {
@@ -124,21 +124,21 @@ class AgentManager extends BaseManager {
     ];
     if (
       subAgentsInfo.length > 0 &&
-      !toolIds.includes(`${ToolType.BUILD_IN}:${Task.name}`)
+      !toolIds.includes(`${ToolType.BUILD_IN}:${Task.toolName}`)
     ) {
-      toolIds.push(`${ToolType.BUILD_IN}:${Task.name}`);
+      toolIds.push(`${ToolType.BUILD_IN}:${Task.toolName}`);
     }
     if (
       _skills.length > 0 &&
-      !toolIds.includes(`${ToolType.BUILD_IN}:${Skill.name}`)
+      !toolIds.includes(`${ToolType.BUILD_IN}:${Skill.toolName}`)
     ) {
-      toolIds.push(`${ToolType.BUILD_IN}:${Skill.name}`);
+      toolIds.push(`${ToolType.BUILD_IN}:${Skill.toolName}`);
     }
     const _tools = await toolsManager.buildTools(toolIds, {
-      [`${ToolType.BUILD_IN}:${Skill.name}`]: {
+      [`${ToolType.BUILD_IN}:${Skill.toolName}`]: {
         skills: _skills,
       },
-      [`${ToolType.BUILD_IN}:${Task.name}`]: {
+      [`${ToolType.BUILD_IN}:${Task.toolName}`]: {
         subAgents: subAgentsInfo,
       },
     });

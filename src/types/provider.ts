@@ -69,6 +69,8 @@ export enum ProviderType {
   LOCAL = 'local',
   BRAVE_SEARCH = 'brave-search',
   JINA_AI = 'jina-ai',
+  TAVILY = 'tavily',
+  MINERU = 'mineru',
 }
 
 export enum ModelType {
@@ -85,6 +87,7 @@ export enum ProviderTag {
   WEB_SEARCH = 'web_search',
   WEB_READER = 'web_reader',
   IMAGE_GENERATION = 'image_generation',
+  OCR = 'ocr',
 }
 
 export interface ProviderCredits {

@@ -22,6 +22,7 @@ import { WordLoader } from '@/main/utils/loaders/word-loader';
 const DEFAULT_MAX_LINES_TEXT_FILE = 2000;
 const MAX_LINE_LENGTH_TEXT_FILE = 2000;
 export class Read extends BaseTool {
+  static readonly toolName = 'Read';
   id: string = 'Read';
   description: string = `Reads a file from the local filesystem. You can access any file directly by using this tool.
 Assume this tool is able to read all files on the machine. If the User provides a path to a file assume that path is valid. It is okay to read a file that does not exist; an error will be returned.
@@ -140,6 +141,7 @@ Usage:
 }
 
 export class ReadBinaryFile extends BaseTool {
+  static readonly toolName = 'ReadBinaryFile';
   id: string = 'ReadBinaryFile';
   description: string = `Reads a file from the local filesystem. You can access any file directly by using this tool.
 Assume this tool is able to read all files on the machine. If the User provides a path to a file assume that path is valid. It is okay to read a file that does not exist; an error will be returned.

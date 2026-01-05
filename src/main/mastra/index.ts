@@ -30,7 +30,6 @@ import type {
 import { toAISdkFormat } from '@mastra/ai-sdk';
 // import { RuntimeContext } from '@mastra/core';
 import { RequestContext } from '@mastra/core/request-context';
-import { reactAgent } from './agents/react-agent';
 import { providersManager } from '../providers';
 import { channel } from '../ipc/IpcController';
 import { PaginationInfo } from '@/types/common';
@@ -116,9 +115,7 @@ class MastraManager extends BaseManager {
     });
 
     this.mastra = new Mastra({
-      agents: {
-        reactAgent,
-      },
+      agents: {},
       workflows: { claudeCodeWorkflow, chatWorkflow },
       // agents: {
       //   agent,

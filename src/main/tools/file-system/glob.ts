@@ -15,6 +15,7 @@ import { spawn } from 'child_process';
 import { glob } from 'fast-glob';
 
 export class Glob extends BaseTool {
+  static readonly toolName = 'Glob';
   id: string = 'Glob';
   description: string = `- Fast file pattern matching tool that works with any codebase size
 - Supports glob patterns like "**/\\*.js" or "src/**/\\*.ts"

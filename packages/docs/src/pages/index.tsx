@@ -107,17 +107,51 @@ function HomepageHeader() {
           </div>
         </div>
 
-        {/* 平台图标 */}
-        <div className={styles.platforms}>
-          <span className={styles.platformIcon} title="macOS">
-            <IconBrandApple size={24} />
-          </span>
-          <span className={styles.platformIcon} title="Windows">
-            <IconBrandWindows size={24} />
-          </span>
-          <span className={styles.platformIcon} title="Linux">
-            <IconBrandUbuntu size={24} />
-          </span>
+        {/* 平台下载 */}
+        <div className={styles.downloadSection}>
+          <p className={styles.downloadTitle}>立即下载</p>
+          <div className={styles.platforms}>
+            <Link
+              className={styles.platformLink}
+              href="https://github.com/DarkNoah/aime-chat/releases/latest/download/aime-chat-arm64.dmg"
+              title="macOS (Apple Silicon)"
+            >
+              <span className={styles.platformIcon}>
+                <IconBrandApple size={24} />
+              </span>
+              <span className={styles.platformText}>macOS (ARM)</span>
+            </Link>
+            <Link
+              className={styles.platformLink}
+              href="https://github.com/DarkNoah/aime-chat/releases/latest/download/aime-chat-x64.dmg"
+              title="macOS (Intel)"
+            >
+              <span className={styles.platformIcon}>
+                <IconBrandApple size={24} />
+              </span>
+              <span className={styles.platformText}>macOS (Intel)</span>
+            </Link>
+            <Link
+              className={styles.platformLink}
+              href="https://github.com/DarkNoah/aime-chat/releases/latest/download/aime-chat-setup.exe"
+              title="Windows"
+            >
+              <span className={styles.platformIcon}>
+                <IconBrandWindows size={24} />
+              </span>
+              <span className={styles.platformText}>Windows</span>
+            </Link>
+            <Link
+              className={styles.platformLink}
+              href="https://github.com/DarkNoah/aime-chat/releases/latest/download/aime-chat.AppImage"
+              title="Linux"
+            >
+              <span className={styles.platformIcon}>
+                <IconBrandUbuntu size={24} />
+              </span>
+              <span className={styles.platformText}>Linux</span>
+            </Link>
+          </div>
         </div>
       </div>
     </header>

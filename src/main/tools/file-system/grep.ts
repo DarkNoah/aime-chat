@@ -9,6 +9,7 @@ import fs from 'fs';
 
 const MAX_LINE_LENGTH_TEXT_FILE = 2000;
 export class Grep extends BaseTool {
+  static readonly toolName = 'Grep';
   id: string = 'Grep';
   description: string = `A powerful search tool built on ripgrep
 

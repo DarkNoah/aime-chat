@@ -94,10 +94,10 @@ class ToolsManager extends BaseManager {
     const parent = Object.getPrototypeOf(classType);
     let tool: BaseTool | BaseToolkit;
     let isToolkit;
-    if (parent.name == BaseTool.name) {
+    if (parent.toolName == BaseTool.toolName) {
       tool = new classType(params) as BaseTool;
       isToolkit = false;
-    } else if (parent.name == BaseToolkit.name) {
+    } else if (parent.toolName == BaseToolkit.toolName) {
       tool = new classType(params) as BaseToolkit;
       isToolkit = true;
     }
@@ -175,8 +175,8 @@ class ToolsManager extends BaseManager {
     await this.registerBuiltInTool(MemoryToolkit);
     await this.registerBuiltInTool(Extract);
     await this.registerBuiltInTool(Translation);
+    await this.registerBuiltInTool(ExpenseManagementToolkit);
     if (!app.isPackaged) {
-      await this.registerBuiltInTool(ExpenseManagementToolkit);
       await this.registerBuiltInTool(StreamTest);
     }
 

@@ -4,6 +4,7 @@ import BaseTool from './base-tool';
 export interface BaseToolkitParams {}
 
 abstract class BaseToolkit {
+  static readonly toolName = 'BaseToolkit';
   abstract id: string;
   description: string;
   tools: BaseTool[];

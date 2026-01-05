@@ -5,7 +5,8 @@ import BaseToolkit, { BaseToolkitParams } from '../base-toolkit';
 import { createClient, Client as LibSQLClient } from '@libsql/client';
 
 export class LibSQLQuery extends BaseTool {
-  id: string = 'libsql_query';
+  static readonly toolName = 'LibSQLQuery';
+  id: string = 'LibSQLQuery';
   description = `
 `;
   inputSchema = z.object({
@@ -25,7 +26,8 @@ export class LibSQLQuery extends BaseTool {
 }
 
 export class LibSQLCreateTable extends BaseTool {
-  id: string = 'libsql_query';
+  static readonly toolName = 'LibSQLCreateTable';
+  id: string = 'LibSQLCreateTable';
   description = `
 `;
   inputSchema = z.object({
@@ -56,7 +58,8 @@ export class LibSQLCreateTable extends BaseTool {
 }
 
 export class LibSQLListTable extends BaseTool {
-  id: string = 'libsql_list_table';
+  static readonly toolName = 'LibSQLListTable';
+  id: string = 'LibSQLListTable';
   description = `
 `;
   inputSchema = z.object({});
@@ -82,8 +85,8 @@ export class LibSQLListTable extends BaseTool {
   };
 }
 
-
 export class LibSQLToolkit extends BaseToolkit {
+  static readonly toolName = 'LibSQLToolkit';
   id: string = 'LibSQLToolkit';
   description = 'LibSQL Database client';
 

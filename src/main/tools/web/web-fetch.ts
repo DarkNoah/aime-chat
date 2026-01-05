@@ -21,6 +21,8 @@ export interface WebFetchParams extends BaseToolParams {
   providerId?: string;
 }
 export class WebFetch extends BaseTool<WebFetchParams> {
+  static readonly toolName = 'WebFetch';
+
   id: string = 'WebFetch';
   description = `- Fetches content from a specified URL and processes it using an AI model
 - Takes a URL and a prompt as input

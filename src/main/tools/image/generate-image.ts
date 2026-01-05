@@ -23,6 +23,7 @@ export interface GenerateImageParams extends BaseToolParams {
   modelId: string;
 }
 export class GenerateImage extends BaseTool {
+  static readonly toolName = 'GenerateImage';
   id: string = 'GenerateImage';
   description = 'Create a new image from a text prompt.';
   inputSchema = z.object({
