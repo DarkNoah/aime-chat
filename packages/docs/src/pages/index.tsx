@@ -39,7 +39,11 @@ const providers = [
 
 const tools = [
   { name: '代码执行', icon: <IconCode size={24} />, desc: 'Python / Node.js' },
-  { name: '文件操作', icon: <IconFolder size={24} />, desc: '读写 / 搜索 / 编辑' },
+  {
+    name: '文件操作',
+    icon: <IconFolder size={24} />,
+    desc: '读写 / 搜索 / 编辑',
+  },
   { name: '网络请求', icon: <IconWorld size={24} />, desc: '抓取 / 搜索' },
   { name: '图像处理', icon: <IconPhoto size={24} />, desc: '分析 / 背景移除' },
   { name: '数据库', icon: <IconDatabase size={24} />, desc: 'LibSQL 操作' },
@@ -61,7 +65,9 @@ function HomepageHeader() {
       <div className="container">
         {/* 徽章 */}
         <div className={styles.heroBadge}>
-          <span className={styles.badgeIcon}><IconSparkles size={16} /></span>
+          <span className={styles.badgeIcon}>
+            <IconSparkles size={16} />
+          </span>
           <span>开源免费 · 本地优先 · 隐私安全</span>
         </div>
 
@@ -163,7 +169,9 @@ function ProvidersSection() {
     <section className={styles.providers}>
       <div className="container">
         <div className={styles.sectionHeader}>
-          <span className={styles.sectionIcon}><IconRobot size={32} /></span>
+          <span className={styles.sectionIcon}>
+            <IconRobot size={32} />
+          </span>
           <h2 className={styles.sectionTitle}>支持多种 AI 服务商</h2>
           <p className={styles.sectionSubtitle}>
             一个应用，连接所有主流 AI 模型
@@ -193,7 +201,9 @@ function ToolsSection() {
     <section className={styles.tools}>
       <div className="container">
         <div className={styles.sectionHeader}>
-          <span className={styles.sectionIcon}><IconTool size={32} /></span>
+          <span className={styles.sectionIcon}>
+            <IconTool size={32} />
+          </span>
           <h2 className={styles.sectionTitle}>强大的工具系统</h2>
           <p className={styles.sectionSubtitle}>
             让 AI 不只是聊天，还能执行实际操作
@@ -220,7 +230,9 @@ function QuickStartSection() {
     <section className={styles.quickStart}>
       <div className={styles.quickStartContainer}>
         <div className={styles.sectionHeader}>
-          <span className={styles.sectionIcon}><IconBolt size={32} /></span>
+          <span className={styles.sectionIcon}>
+            <IconBolt size={32} />
+          </span>
           <h2 className={styles.sectionTitle}>快速开始</h2>
           <p className={styles.sectionSubtitle}>几个简单的命令即可启动</p>
         </div>

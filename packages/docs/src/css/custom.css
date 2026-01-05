@@ -779,3 +779,7 @@ hr {
 .menu ul {
   list-style: none;
 }
+
+.navbar-sidebar.theme-layout-navbar-sidebar {
+  height: 100vh;
+}

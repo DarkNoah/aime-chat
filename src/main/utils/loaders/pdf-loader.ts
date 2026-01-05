@@ -1,3 +1,4 @@
+import { OcrAccuracy, recognize } from '@napi-rs/system-ocr';
 import { BaseLoader } from './base-loader';
 import { type ParseParameters } from 'pdf-parse';
 
@@ -37,8 +38,26 @@ export class PDFLoader extends BaseLoader {
 
     const documents: string[] = [];
     const content = await pdf.getText(this.options || {});
+    let text = '';
+    if (
+      content.pages.filter((page) => !page.text.trim()).length ==
+      content.pages.length
+    ) {
+      const images = await pdf.getImage({ imageBuffer: true });
+
+      for (const page of images.pages) {
+        for (const image of page.images) {
+          const imageBuffer = image.data;
+          const result = await recognize(imageBuffer, OcrAccuracy.Accurate);
+          text += result.text;
+        }
+        text += `\n\n-- ${page.pageNumber} of ${images.total} --\n\n`;
+      }
+    } else {
+      text = content.text;
+    }
     await pdf.destroy();
-    return content.text;
+    return text;
 
     // for (let i = 1; i <= info.total; i += 1) {
     //   const content = await pdf.getText({ partial: [i] });

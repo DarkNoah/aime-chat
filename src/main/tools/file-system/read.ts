@@ -18,6 +18,10 @@ import { isBinaryFile } from 'isbinaryfile';
 import { filesize } from 'filesize';
 import { PDFLoader } from '@/main/utils/loaders/pdf-loader';
 import { WordLoader } from '@/main/utils/loaders/word-loader';
+import mime from 'mime';
+import { OcrAccuracy, recognize } from '@napi-rs/system-ocr';
+import { PowerPointLoader } from '@/main/utils/loaders/power-point-loader';
+import { ExcelLoader } from '@/main/utils/loaders/excel-loader';
 
 const DEFAULT_MAX_LINES_TEXT_FILE = 2000;
 const MAX_LINE_LENGTH_TEXT_FILE = 2000;
@@ -181,6 +185,7 @@ Usage:
     const ext = path.extname(file_path).toLowerCase();
 
     let content = '';
+    const mimeType = mime.lookup(file_path);
     if (ext === '.pdf') {
       const loader = new PDFLoader(file_path);
       const content = await loader.load();
@@ -191,7 +196,18 @@ Usage:
       const content = await loader.load();
       return content;
     } else if (ext === '.xls' || ext === '.xlsx') {
+      const loader = new ExcelLoader(file_path);
+      const content = await loader.load();
+      return content;
     } else if (ext === '.ppt' || ext === '.pptx') {
+      const loader = new PowerPointLoader(file_path);
+      const content = await loader.load();
+      return content;
+    } else if (mimeType.startsWith('image/')) {
+      // import { PaddleOcrService } from 'ppu-paddle-ocr';
+
+      const result = await recognize(file_path, OcrAccuracy.Accurate);
+      return result.text;
     }
     return content;
   };

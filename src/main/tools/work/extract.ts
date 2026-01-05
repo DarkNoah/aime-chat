@@ -86,6 +86,10 @@ Returns:
     const content = '';
 
     if (isUrl(file_path_or_url)) {
+    } else if (
+      fs.existsSync(file_path_or_url) &&
+      fs.statSync(file_path_or_url).isFile()
+    ) {
     }
 
     const response = await extractAgent.generate(

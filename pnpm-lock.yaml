@@ -126,6 +126,9 @@ importers:
       '@modelcontextprotocol/sdk':
         specifier: ^1.23.0
         version: 1.23.0(@cfworker/json-schema@4.1.1)(zod@3.25.76)
+      '@napi-rs/system-ocr':
+        specifier: ^1.0.2
+        version: 1.0.2
       '@platejs/mention':
         specifier: ^52.0.15
         version: 52.0.15(platejs@52.0.15(@types/react@19.2.7)(immer@10.2.0)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(scheduler@0.27.0)(use-sync-external-store@1.6.0(react@19.2.0)))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
@@ -579,6 +582,9 @@ importers:
       sass-loader:
         specifier: ^16.0.5
         version: 16.0.6(@rspack/core@1.6.8)(sass@1.94.2)(webpack@5.103.0)
+      shape:
+        specifier: ^0.0.1
+        version: 0.0.1
       shiki:
         specifier: ^3.14.0
         version: 3.17.1
@@ -2608,6 +2614,34 @@ packages:
 
   '@napi-rs/canvas@0.1.80':
     resolution: {integrity: sha512-DxuT1ClnIPts1kQx8FBmkk4BQDTfI5kIzywAaMjQSXfNnra5UFU9PwurXrl+Je3bJ6BGsp/zmshVVFbCmyI+ww==}
+    engines: {node: '>= 10'}
+
+  '@napi-rs/system-ocr-darwin-arm64@1.0.2':
+    resolution: {integrity: sha512-/9E1T4+Pzbk8eI1QC1a1wimj4wgweKn9NUGtmO9Vf0rDi1TxYaJsv6ioSzdmhlazkKxd27Brk5VfLfUg6Bha6A==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@napi-rs/system-ocr-darwin-x64@1.0.2':
+    resolution: {integrity: sha512-z8FiuVjMEXrqU9O5tIWfLkNWzyx8moQZ/kgYo1jPvbiaC+bA0gBBo9X8C1dYrF7Q3nLug0zTU59FMAESXbhJpA==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [darwin]
+
+  '@napi-rs/system-ocr-win32-arm64-msvc@1.0.2':
+    resolution: {integrity: sha512-5ygjw6gcHazDcNciqzRrRurjQC9syaQJ9Q0PTh+23sgmFR3ct4Xt/tDEstNiqoxADesJL41GwGMmMlI1rrFMkg==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [win32]
+
+  '@napi-rs/system-ocr-win32-x64-msvc@1.0.2':
+    resolution: {integrity: sha512-LXo7WdwJ46r4r+a+iDk8QH3+6Z2tThRfTMq1WNhv+gsbsAsgY68FYFLQPdOO+Ek6P75E5y46aDBdhJNEAaccdA==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [win32]
+
+  '@napi-rs/system-ocr@1.0.2':
+    resolution: {integrity: sha512-L6qM8ybM8RltTjLAG8rAeg/Jxgu13mxko4zL+SEWhhIikMkgjnSgvpThXueXHqt5mI9Ts96Dgc8Kpb3Y9Zj2nQ==}
     engines: {node: '>= 10'}
 
   '@napi-rs/wasm-runtime@0.2.12':
@@ -11673,6 +11707,9 @@ packages:
     resolution: {integrity: sha512-/6KqX+GVUdqPuPPd2LxDDxzX6CAbjJehAAOKlNpqqUpAqPM6HeL8f+o3a+JsyGjn2lv0WY8UsTgUJjU9Ok55NA==}
     engines: {node: '>=8'}
 
+  shape@0.0.1:
+    resolution: {integrity: sha512-k21i+3im36PDdEFdL9yMX/fAGg0ieFeUCBEyvQ/WyybkiOCSGlJwNSrXfl9SVTf+L/nWeNJriLPTZHS/6yUorg==}
+
   sharp@0.34.5:
     resolution: {integrity: sha512-Ou9I5Ft9WNcCbXrU9cMgPBcCK8LiwLqcbywW3t4oDV37n1pzpuNLsYiAV8eODnjbtQlSDwZ2cUEeQz4E54Hltg==}
     engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
@@ -15950,6 +15987,25 @@ snapshots:
       '@napi-rs/canvas-linux-x64-gnu': 0.1.80
       '@napi-rs/canvas-linux-x64-musl': 0.1.80
       '@napi-rs/canvas-win32-x64-msvc': 0.1.80
+
+  '@napi-rs/system-ocr-darwin-arm64@1.0.2':
+    optional: true
+
+  '@napi-rs/system-ocr-darwin-x64@1.0.2':
+    optional: true
+
+  '@napi-rs/system-ocr-win32-arm64-msvc@1.0.2':
+    optional: true
+
+  '@napi-rs/system-ocr-win32-x64-msvc@1.0.2':
+    optional: true
+
+  '@napi-rs/system-ocr@1.0.2':
+    optionalDependencies:
+      '@napi-rs/system-ocr-darwin-arm64': 1.0.2
+      '@napi-rs/system-ocr-darwin-x64': 1.0.2
+      '@napi-rs/system-ocr-win32-arm64-msvc': 1.0.2
+      '@napi-rs/system-ocr-win32-x64-msvc': 1.0.2
 
   '@napi-rs/wasm-runtime@0.2.12':
     dependencies:
@@ -26646,6 +26702,8 @@ snapshots:
   shallow-clone@3.0.1:
     dependencies:
       kind-of: 6.0.3
+
+  shape@0.0.1: {}
 
   sharp@0.34.5:
     dependencies:
