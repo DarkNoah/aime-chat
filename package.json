@@ -138,6 +138,7 @@
     "@mastra/react": "^0.1.0-beta.19",
     "@mastra/schema-compat": "^1.0.0-beta.5",
     "@modelcontextprotocol/sdk": "^1.23.0",
+    "@napi-rs/system-ocr": "^1.0.2",
     "@platejs/mention": "^52.0.15",
     "@pmmmwh/react-refresh-webpack-plugin": "^0.5.15",
     "@radix-ui/react-accordion": "^1.2.12",
@@ -289,6 +290,7 @@
     "rimraf": "^6.0.1",
     "sass": "^1.86.0",
     "sass-loader": "^16.0.5",
+    "shape": "^0.0.1",
     "shiki": "^3.14.0",
     "slate-react": "^0.120.0",
     "smol-toml": "^1.6.0",
@@ -334,7 +336,9 @@
     "afterSign": ".erb/scripts/notarize.js",
     "asarUnpack": [
       "**\\*.{node,dll}",
-      "**/node_modules/openvino-node/**/*"
+      "**/node_modules/openvino-node/**/*",
+      "**/node_modules/ppu-ocv/**/*",
+      "**/@techstark/opencv-js/**/*"
     ],
     "files": [
       "dist",
