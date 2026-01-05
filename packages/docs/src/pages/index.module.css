@@ -935,6 +935,17 @@
     display: none;
   }
 
+  .platforms {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .platformLink {
+    width: 100%;
+    max-width: 200px;
+    justify-content: center;
+  }
+
   .sectionTitle {
     font-size: 1.75rem;
   }
