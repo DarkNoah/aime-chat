@@ -33,15 +33,12 @@ const sidebars: SidebarsConfig = {
         {
           type: 'category',
           label: 'Tools 工具',
-          items: ['features/tools/overview'],
+          items: ['features/tools/overview', 'features/tools/rmbg'],
         },
         'features/agents',
-        {
-          type: 'category',
-          label: 'MCP 协议',
-          items: ['features/mcp/overview'],
-        },
+        'features/mcp',
         'features/ptc',
+        'features/transl',
         // {
         //   type: 'category',
         //   label: '记忆系统',
