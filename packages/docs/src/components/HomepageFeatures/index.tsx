@@ -118,7 +118,7 @@ export default function HomepageFeatures(): JSX.Element {
             强大、灵活、安全的 AI 对话体验
           </p>
         </div>
-        <div className="row">
+        <div className="row" style={{ rowGap: '1rem' }}>
           {FeatureList.map((props, idx) => (
             <Feature key={idx} {...props} />
           ))}

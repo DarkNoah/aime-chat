@@ -125,7 +125,7 @@ export function Transl(props: TranslProps) {
               size="icon-sm"
               variant="ghost"
               className={cn(
-                'absolute right-0 top-0 backdrop-blur  hover:opacity-100 bg-transparent',
+                'absolute right-0 top-0 backdrop-blur hover:opacity-100 opacity-100 ',
                 open ? 'opacity-100' : 'opacity-20',
               )}
             >

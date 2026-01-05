@@ -265,6 +265,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
         agentId,
         model: modelId,
         runId: _runId,
+        projectId,
         threadId,
         approved,
         resumeData,
@@ -280,7 +281,9 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
     };
 
     const handleAgentChange = (_agent: Agent) => {
-      chatInputRef.current?.setTools(_agent?.tools || []);
+      if (!threadState) {
+        chatInputRef.current?.setTools(_agent?.tools || []);
+      }
       setAgentId(_agent?.id);
       setAgent(_agent);
       if (_agent?.defaultModelId) {
@@ -395,6 +398,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
       // setMessages([]);
       // clearError(threadId);
       setUsage(undefined);
+      setCompressing(false);
       // setThread(undefined);
       setAgentId(undefined);
       chatInputRef.current?.setTools([]);
@@ -454,6 +458,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
               maxTokens: number;
             },
           );
+
           chatInputRef.current?.setTools(
             (_thread?.metadata?.tools as string[]) ?? [],
           );

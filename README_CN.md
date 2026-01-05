@@ -14,6 +14,10 @@
   </p>
 
   <p>
+    🌐 <a href="https://darknoah.github.io/aime-chat/">官方网站</a>
+  </p>
+
+  <p>
     <strong>中文</strong> | <a href="README.md">English</a>
   </p>
 </div>
@@ -35,37 +39,30 @@
 
 ### 前置要求
 
-- Node.js >= 14.x
-- npm >= 7.x
+- Node.js >= 22.x
+- npm >= 10.x
+- pnpm >= 10.x
 
 ### 安装依赖
 
 ```bash
-npm install
+pnpm install
 ```
 
 ### 开发模式
 
 启动开发服务器：
 
-```bash
-npm start
-```
+- 点击VSCode中调试界面的Electron Main开始运行调试
 
 应用将在开发模式下启动，支持热重载。
 
 ### 打包应用
 
-构建生产版本：
-
-```bash
-npm run build
-```
-
 打包桌面应用：
 
 ```bash
-npm run package
+pnpm package
 ```
 
 打包后的应用将生成在 `release/build` 目录中。
@@ -170,50 +167,15 @@ aime-chat/
 
 ## 项目初始化
 ```bash
-git clone https://github.com/aime/aime-chat.git
+git clone https://github.com/DarkNoah/aime-chat.git
 cd ./aime-chat
 pnpm install
 
-# 构建mastra
-cd ./packages/mastra
-pnpm install
-npm run build
-
 # 由于pnpm默认禁止运行postinstall脚本, 如果遇到缺失下载二进制包或之类的,请运行
 pnpm approve-builds
-
-```
-## 📝 可用脚本
-
-```bash
-# 开发
-npm start              # 启动开发服务器
-npm run start:main     # 仅启动主进程（带监控）
-npm run start:renderer # 仅启动渲染进程
-
-# 构建
-npm run build          # 构建生产版本
-npm run build:main     # 构建主进程
-npm run build:renderer # 构建渲染进程
-
-# 打包
-npm run package        # 打包桌面应用
-
-# 代码质量
-npm run lint           # 检查代码
-npm run lint:fix       # 修复代码问题
-npm test              # 运行测试
-
-# 其他
-npm run postinstall    # 安装依赖后的初始化
-npm run rebuild        # 重新构建原生模块
 ```
 
 ## ⚙️ 配置
-
-### 环境变量
-
-应用支持通过界面配置各项设置，无需手动设置环境变量。
 
 ### 数据存储
 
@@ -236,7 +198,6 @@ npm run rebuild        # 重新构建原生模块
 ### 代码规范
 
 - 使用 ESLint 和 Prettier 保持代码风格一致
-- 提交前运行 `npm run lint:fix` 修复格式问题
 - 遵循 TypeScript 类型规范
 
 ## 📄 许可证
@@ -259,6 +220,7 @@ npm run rebuild        # 重新构建原生模块
 
 ## 🔗 相关链接
 
+- [官方网站](https://darknoah.github.io/aime-chat/)
 - [问题反馈](https://github.com/aime/aime-chat/issues)
 - [更新日志](CHANGELOG.md)
 

@@ -41,6 +41,7 @@ const sidebars: SidebarsConfig = {
           label: 'MCP 协议',
           items: ['features/mcp/overview'],
         },
+        'features/ptc',
         // {
         //   type: 'category',
         //   label: '记忆系统',
