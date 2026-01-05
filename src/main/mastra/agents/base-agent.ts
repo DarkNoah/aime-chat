@@ -12,6 +12,7 @@ export interface BaseAgentParams {
 }
 
 export abstract class BaseAgent {
+  static readonly agentName: string;
   abstract id: string;
   abstract name: string;
   description?: string;

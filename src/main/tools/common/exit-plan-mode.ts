@@ -11,6 +11,7 @@ import { nanoid } from '@/utils/nanoid';
 export interface ExitPlanModeParams extends BaseToolParams {}
 
 export class ExitPlanMode extends BaseTool {
+  static readonly toolName = 'ExitPlanMode';
   id: string = 'ExitPlanMode';
   description = `Use this tool when you are in plan mode and have finished presenting your plan and are ready to code. This will prompt the user to exit plan mode.
 IMPORTANT: Only use this tool when the task requires planning the implementation steps of a task that requires writing code. For research tasks where you're gathering information, searching files, reading files or in general trying to understand the codebase - do NOT use this tool.

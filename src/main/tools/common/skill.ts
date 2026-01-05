@@ -22,6 +22,7 @@ export interface SkillToolParams extends BaseToolParams {
 }
 
 export class Skill extends BaseTool {
+  static readonly toolName = 'Skill';
   id: string = 'Skill';
   description = `Execute a skill within the main conversation
 

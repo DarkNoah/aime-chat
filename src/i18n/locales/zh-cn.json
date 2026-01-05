@@ -76,7 +76,10 @@
     "import": "导入",
     "drop_files_here": "在此处拖放文件",
     "drag_files_here": "将文件拖到这里",
-    "other_provider": "其他供应商"
+    "other_provider": "其他供应商",
+    "paste": "粘贴",
+    "cut": "剪切",
+    "selectAll": "全选"
   },
   "sidebar": {
     "new_chat": "新聊天",

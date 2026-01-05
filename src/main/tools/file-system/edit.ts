@@ -5,6 +5,7 @@ import BaseTool from '../base-tool';
 import { needReadFile, updateFileModTime, formatCodeWithLineNumbers } from '.';
 
 export class Edit extends BaseTool {
+  static readonly toolName = 'Edit';
   id: string = 'Edit';
   description: string = `Performs exact string replacements in files.
 
@@ -220,8 +221,6 @@ const replaceSnippetWithContext = (
     startLine: startLine + 1, // Converting to 1-based line numbering
   };
 };
-
-
 
 const safeReplace = (
   sourceString: string,

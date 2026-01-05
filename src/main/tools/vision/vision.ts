@@ -46,6 +46,7 @@ export interface VisionParams extends BaseToolParams {
 }
 
 export class Vision extends BaseTool<VisionParams> {
+  static readonly toolName = 'Vision';
   id: string = 'Vision';
   description = `
 `;

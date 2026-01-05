@@ -13,6 +13,7 @@ import { ChatEvent } from '@/types/chat';
 import { isString } from '@/utils/is';
 
 export class SendEvent extends BaseTool {
+  static readonly toolName = 'SendEvent';
   id: string = 'SendEvent';
   description = `Send an event to the user interface panel.
 

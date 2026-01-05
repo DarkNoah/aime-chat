@@ -6,6 +6,7 @@ import {
 import { BaseAgent, BaseAgentParams } from './base-agent';
 
 export class DefaultAgent extends BaseAgent {
+  static readonly agentName = 'DefaultAgent';
   id: string = 'DefaultAgent';
   name: string = 'Default Agent';
   instructions: DynamicAgentInstructions = ({ requestContext, mastra }) => {

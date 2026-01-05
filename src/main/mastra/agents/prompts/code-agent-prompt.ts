@@ -23,7 +23,7 @@ export const codeAgentInstructions: DynamicAgentInstructions = ({
   let isGitRepo;
   workspace = requestContext.get('workspace');
   const tools = requestContext.get('tools') ?? [];
-  const hasTaskTool = tools.includes(`${ToolType.BUILD_IN}:${Task.name}`);
+  const hasTaskTool = tools.includes(`${ToolType.BUILD_IN}:${Task.toolName}`);
   if (workspace) {
     isGitRepo = fs.existsSync(path.join(workspace, '.git'));
   }

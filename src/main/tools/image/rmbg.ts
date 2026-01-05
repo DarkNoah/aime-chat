@@ -26,6 +26,7 @@ export interface RemoveBackgroundParams extends BaseToolParams {
   modelName: string;
 }
 export class RemoveBackground extends BaseTool {
+  static readonly toolName = 'RemoveBackground';
   id: string = 'RemoveBackground';
   description = 'remove background from image, output is a png image file';
   inputSchema = z.object({

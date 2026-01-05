@@ -11,6 +11,7 @@ import { nanoid } from '@/utils/nanoid';
 import { ToolTags } from '@/types/tool';
 
 export class NodejsExecute extends BaseTool {
+  static readonly toolName = 'NodejsExecute';
   id: string = 'NodejsExecute';
   description = `Run node.js code
 Usage:

@@ -10,6 +10,7 @@ import path from 'path';
 import { nanoid } from '@/utils/nanoid';
 
 export class StreamTest extends BaseTool {
+  static readonly toolName = 'StreamTest';
   id: string = 'StreamTest';
   description = '测试工具';
   inputSchema = z.object({

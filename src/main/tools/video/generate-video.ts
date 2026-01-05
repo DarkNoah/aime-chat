@@ -23,6 +23,7 @@ export interface GenerateVideoParams extends BaseToolParams {
   modelId: string;
 }
 export class GenerateVideo extends BaseTool {
+  static readonly toolName = 'GenerateVideo';
   id: string = 'GenerateVideo';
   description = 'Create a video from a text prompt.';
   inputSchema = z.object({

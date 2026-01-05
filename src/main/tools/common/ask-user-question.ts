@@ -53,6 +53,7 @@ const QuestionItemSchema = z
   .strict(); // additionalProperties: false, required 已由 z.object 保证
 
 export class AskUserQuestion extends BaseTool {
+  static readonly toolName = 'AskUserQuestion';
   id: string = 'AskUserQuestion';
   description = `Use this tool when you need to ask the user questions during execution. This allows you to:
 

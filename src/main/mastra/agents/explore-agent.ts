@@ -24,6 +24,7 @@ import fs from 'fs';
 import path from 'path';
 
 export class Explore extends BaseAgent {
+  static readonly agentName = 'Explore';
   id: string = 'Explore';
   name: string = 'Explore';
   description?: string = `Fast agent specialized for exploring codebases. Use this when you need to quickly find files by patterns (eg. "src/components/**/*.tsx"), search code for keywords (eg. "API endpoints"), or answer questions about the codebase (eg. "how do API endpoints work?"). When calling this agent, specify the desired thoroughness level: "quick" for basic searches, "medium" for moderate exploration, or "very thorough" for comprehensive analysis across multiple locations and naming conventions.`;
@@ -81,18 +82,16 @@ Today's date: ${new Date().toISOString().split('T')[0]}
   isHidden = true;
   // model: string = 'openai/gpt-4o-mini';
   tools: string[] = [
-    `${ToolType.BUILD_IN}:${TodoWrite.name}`,
-    // `${ToolType.BUILD_IN}:${AskUserQuestion.name}`,
-    // `${ToolType.BUILD_IN}:${Task.name}`,
-    `${ToolType.BUILD_IN}:${Bash.name}`,
-    `${ToolType.BUILD_IN}:${Read.name}`,
-    `${ToolType.BUILD_IN}:${Write.name}`,
-    `${ToolType.BUILD_IN}:${Edit.name}`,
-    `${ToolType.BUILD_IN}:${Glob.name}`,
-    `${ToolType.BUILD_IN}:${Grep.name}`,
-    `${ToolType.BUILD_IN}:${WebFetch.name}`,
-    `${ToolType.BUILD_IN}:${WebSearch.name}`,
-    `${ToolType.BUILD_IN}:${CodeExecution.name}`,
+    `${ToolType.BUILD_IN}:${TodoWrite.toolName}`,
+    `${ToolType.BUILD_IN}:${Bash.toolName}`,
+    `${ToolType.BUILD_IN}:${Read.toolName}`,
+    `${ToolType.BUILD_IN}:${Write.toolName}`,
+    `${ToolType.BUILD_IN}:${Edit.toolName}`,
+    `${ToolType.BUILD_IN}:${Glob.toolName}`,
+    `${ToolType.BUILD_IN}:${Grep.toolName}`,
+    `${ToolType.BUILD_IN}:${WebFetch.toolName}`,
+    `${ToolType.BUILD_IN}:${WebSearch.toolName}`,
+    `${ToolType.BUILD_IN}:${CodeExecution.toolName}`,
   ];
   constructor(params: BaseAgentParams) {
     super(params);

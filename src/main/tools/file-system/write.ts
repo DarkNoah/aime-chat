@@ -18,6 +18,7 @@ import { RequestContext } from '@mastra/core/request-context';
 import { needReadFile, updateFileModTime } from '.';
 
 export class Write extends BaseTool {
+  static readonly toolName = 'Write';
   id: string = 'Write';
   description: string = `Writes a file to the local filesystem.
 

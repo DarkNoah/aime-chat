@@ -314,40 +314,99 @@
   background: rgba(0, 0, 0, 0.1);
 }
 
-/* 平台图标 */
+/* 平台下载 */
+.downloadSection {
+  margin-top: 2.5rem;
+  animation: fadeInUp 0.8s ease-out 0.6s both;
+}
+
+.downloadTitle {
+  font-size: 0.9rem;
+  color: #707070;
+  margin-bottom: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+[data-theme='light'] .downloadTitle {
+  color: #939393;
+}
+
 .platforms {
   display: flex;
   justify-content: center;
-  gap: 1rem;
-  margin-top: 2rem;
-  animation: fadeInUp 0.8s ease-out 0.6s both;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.platformLink {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  transition: all 0.3s ease;
+  text-decoration: none;
+}
+
+[data-theme='light'] .platformLink {
+  background: rgba(0, 0, 0, 0.03);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.platformLink:hover {
+  transform: translateY(-3px);
+  background: rgba(26, 237, 115, 0.1);
+  border-color: hsl(143, 97%, 54%);
+  box-shadow: 0 8px 20px rgba(26, 237, 115, 0.2);
+  text-decoration: none;
+}
+
+[data-theme='light'] .platformLink:hover {
+  background: rgba(26, 237, 115, 0.08);
+  border-color: hsl(143, 97%, 40%);
+  box-shadow: 0 8px 20px rgba(26, 237, 115, 0.15);
 }
 
 .platformIcon {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0.75rem;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 12px;
-  transition: all 0.3s ease;
   color: #939393;
+  transition: color 0.3s ease;
 }
 
 [data-theme='light'] .platformIcon {
-  background: rgba(0, 0, 0, 0.03);
   color: #5f5f5f;
 }
 
-.platformIcon:hover {
-  transform: scale(1.15);
-  background: rgba(26, 237, 115, 0.1);
+.platformLink:hover .platformIcon {
   color: hsl(143, 97%, 54%);
 }
 
-[data-theme='light'] .platformIcon:hover {
-  background: rgba(26, 237, 115, 0.08);
+[data-theme='light'] .platformLink:hover .platformIcon {
   color: hsl(143, 97%, 40%);
+}
+
+.platformText {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #e6e6e6;
+  white-space: nowrap;
+}
+
+[data-theme='light'] .platformText {
+  color: #141414;
+}
+
+.platformLink:hover .platformText {
+  color: #ffffff;
+}
+
+[data-theme='light'] .platformLink:hover .platformText {
+  color: #0a0a0a;
 }
 
 /* ============ Section Header ============ */
@@ -833,6 +892,18 @@
 
   .statNumber {
     font-size: 2rem;
+  }
+
+  .platforms {
+    gap: 0.5rem;
+  }
+
+  .platformLink {
+    padding: 0.5rem 0.75rem;
+  }
+
+  .platformText {
+    font-size: 0.75rem;
   }
 
   .providerGrid {

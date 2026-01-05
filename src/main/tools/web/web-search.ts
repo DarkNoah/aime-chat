@@ -16,7 +16,7 @@ import { ProviderType } from '@/types/provider';
 import { GoogleProvider } from '@/main/providers/google-provider';
 import { OpenAIProvider } from '@/main/providers/openai-provider';
 import { ZhipuAIProvider } from '@/main/providers/zhipuai-provider';
-
+import { tavily } from '@tavily/core';
 export interface WebSearchParams extends BaseToolParams {
   providerId?: string;
   numResults?: number;
@@ -30,11 +30,12 @@ export const webSearchResultSchema = z.array(
   }),
 );
 export class WebSearch extends BaseTool<WebSearchParams> {
+  static readonly toolName = 'WebSearch';
   id: string = 'WebSearch';
-  description = `- Allows Claude to search the web and use the results to inform responses
+  description = `- Allows to search the web and use the results to inform responses
 - Provides up-to-date information for current events and recent data
 - Returns search result information formatted as search result blocks
-- Use this tool for accessing information beyond Claude's knowledge cutoff
+- Use this tool for accessing information beyond ai model knowledge cutoff
 - Searches are performed automatically within a single API call
 
 Usage notes:
@@ -140,6 +141,20 @@ Returns:
             };
           }),
         );
+      } else if (provider.type === ProviderType.TAVILY) {
+        const proxy = await appManager.getProxy();
+        const client = tavily({
+          apiKey: provider.apiKey,
+          proxies: {
+            http: 'http://' + proxy,
+            https: 'http://' + proxy,
+          },
+          // apiBaseURL: 'https://api.tavily.com',
+        });
+        const response = await client.search(query, {
+          maxResults: numResults,
+        });
+        debugger;
       }
     }
     return results;

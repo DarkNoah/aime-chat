@@ -436,12 +436,21 @@ function Providers() {
                                   {t('common.other_provider')}
                                 </SelectLabel>
                                 <SelectItem
-                                  key="brave-search"
-                                  value="brave-search"
+                                  key={ProviderType.BRAVE_SEARCH}
+                                  value={ProviderType.BRAVE_SEARCH}
                                 >
                                   <IconSearch /> Brave Search
                                 </SelectItem>
-                                <SelectItem key="jina-ai" value="jina-ai">
+                                <SelectItem
+                                  key={ProviderType.TAVILY}
+                                  value={ProviderType.TAVILY}
+                                >
+                                  <IconSearch /> TAVILY
+                                </SelectItem>
+                                <SelectItem
+                                  key={ProviderType.JINA_AI}
+                                  value={ProviderType.JINA_AI}
+                                >
                                   <IconSearch /> Jina AI
                                 </SelectItem>
                               </SelectGroup>

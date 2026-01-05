@@ -23,6 +23,7 @@ export interface ToolToolkitParams extends BaseToolParams {
 }
 
 export class ToolSearch extends BaseTool<ToolToolkitParams> {
+  static readonly toolName = 'ToolSearch';
   id: string = 'ToolSearch';
   description = `Search for available tools that can help with a task. Returns tool definitions for matching tools. Use this when you need a tool but don't have it available yet.`;
   inputSchema = z.object({
@@ -74,6 +75,7 @@ export class ToolSearch extends BaseTool<ToolToolkitParams> {
 }
 
 export class ToolExecution extends BaseTool<ToolToolkitParams> {
+  static readonly toolName = 'ToolExecution';
   id: string = 'ToolExecution';
   description = `tool execution`;
   inputSchema = z.object({
@@ -86,7 +88,7 @@ export class ToolExecution extends BaseTool<ToolToolkitParams> {
 
   outputSchema = z.string();
 
-  constructor(config?: BaseToolParams) {
+  constructor(config?: ToolToolkitParams) {
     super(config);
   }
 
@@ -107,12 +109,13 @@ export class ToolExecution extends BaseTool<ToolToolkitParams> {
 }
 
 class ToolToolkit extends BaseToolkit {
+  static readonly toolName = 'ToolToolkit';
   id = 'ToolToolkit';
 
   configSchema = ToolConfig.ToolToolkit.configSchema;
 
   constructor(params?: ToolToolkitParams) {
-    super([new ToolSearch(params), new ToolExecution()], params);
+    super([new ToolSearch(params), new ToolExecution(params)], params);
   }
 
   getTools() {

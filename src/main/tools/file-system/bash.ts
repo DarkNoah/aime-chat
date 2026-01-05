@@ -18,6 +18,7 @@ import Stream from 'stream';
 const MAX_OUTPUT_LENGTH = 30000;
 
 export class Bash extends BaseTool {
+  static readonly toolName = 'Bash';
   id: string = 'Bash';
   description: string = `Executes a given bash command in a persistent shell session with optional timeout, ensuring proper handling and security measures.
 
@@ -271,6 +272,7 @@ Output: Creates directory 'foo'`),
 }
 
 export class BashOutput extends BaseTool {
+  static readonly toolName = 'BashOutput';
   id: string = 'BashOutput';
   description: string = `- Retrieves output from a running or completed background bash shell
 - Takes a shell_id parameter identifying the shell
@@ -350,6 +352,7 @@ export class BashOutput extends BaseTool {
 }
 
 export class KillBash extends BaseTool {
+  static readonly toolName = 'KillBash';
   id: string = 'KillBash';
   description: string = `- Kills a running background bash shell by its ID
 - Takes a shell_id parameter identifying the shell to kill
@@ -391,6 +394,7 @@ export class KillBash extends BaseTool {
 }
 
 export class ListBash extends BaseTool {
+  static readonly toolName = 'ListBash';
   id: string = 'ListBash';
   description: string = `- Use this tool found all running background bash shells`;
 
@@ -422,8 +426,8 @@ IsRunning: ${x.isExited ? 'No' : 'Yes'}`,
 export interface BashToolParams extends BaseToolkitParams {}
 
 export class BashToolkit extends BaseToolkit {
+  static readonly toolName = 'BashToolkit';
   id: string = 'BashToolkit';
-
   constructor(params?: BashToolParams) {
     super(
       [new Bash(), new KillBash(), new BashOutput(), new ListBash()],
