@@ -365,8 +365,8 @@ class AppManager extends BaseManager {
         entity.translation = result;
         await this.translationRepository.upsert(entity, ['id']);
         return entity.translation;
-      } catch {
-        this.toast('Failed to translate', { type: 'error' });
+      } catch (err) {
+        this.toast(`Failed to translate: ${err.message}`, { type: 'error' });
         return data.source;
       }
     } else {

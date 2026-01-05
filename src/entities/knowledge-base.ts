@@ -65,6 +65,18 @@ export class KnowledgeBase {
 
 @Entity('knowledgebase_item')
 export class KnowledgeBaseItem {
+  constructor(
+    id: string,
+    knowledgeBaseId: string,
+    content: string,
+    sourceType: KnowledgeBaseSourceType,
+  ) {
+    this.id = id;
+    this.knowledgeBaseId = knowledgeBaseId;
+    this.content = content;
+    this.sourceType = sourceType;
+  }
+
   @PrimaryColumn()
   id!: string;
 
@@ -103,8 +115,11 @@ export class KnowledgeBaseItem {
   @Column({ nullable: true })
   chunkCount?: number;
 
-  @Column()
-  timestamp!: number;
+  @CreateDateColumn()
+  createdAt!: Date;
+
+  @UpdateDateColumn()
+  updatedAt!: Date;
 
   @Column({ nullable: true })
   sha256?: string;

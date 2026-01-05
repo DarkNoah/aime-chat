@@ -14,6 +14,10 @@
   </p>
 
   <p>
+    🌐 <a href="https://darknoah.github.io/aime-chat/">Official Website</a>
+  </p>
+
+  <p>
     <a href="README_CN.md">中文</a> | <strong>English</strong>
   </p>
 </div>
@@ -35,32 +39,25 @@
 
 ### Prerequisites
 
-- Node.js >= 14.x
-- npm >= 7.x
+- Node.js >= 22.x
+- npm >= 10.x
+- pnpm >= 10.x
 
 ### Install Dependencies
 
 ```bash
-npm install
+pnpm install
 ```
 
 ### Development Mode
 
 Start the development server:
 
-```bash
-npm start
-```
+- Click on "Electron Main" in VSCode's debug panel to start debugging
 
 The application will start in development mode with hot reload support.
 
 ### Build Application
-
-Build production version:
-
-```bash
-npm run build
-```
 
 Package desktop application:
 
@@ -168,37 +165,18 @@ Rich built-in tools that AI Agents can call autonomously:
 - **Hot Reload**: webpack-dev-server
 - **App Packaging**: electron-builder
 
-## 📝 Available Scripts
+## Project Initialization
 
 ```bash
-# Development
-npm start              # Start development server
-npm run start:main     # Start main process only (with monitoring)
-npm run start:renderer # Start renderer process only
+git clone https://github.com/DarkNoah/aime-chat.git
+cd ./aime-chat
+pnpm install
 
-# Build
-npm run build          # Build production version
-npm run build:main     # Build main process
-npm run build:renderer # Build renderer process
-
-# Package
-npm run package        # Package desktop application
-
-# Code Quality
-npm run lint           # Check code
-npm run lint:fix       # Fix code issues
-npm test              # Run tests
-
-# Others
-npm run postinstall    # Initialize after installing dependencies
-npm run rebuild        # Rebuild native modules
+# Since pnpm disables postinstall scripts by default, if you encounter missing binary packages or similar issues, run:
+pnpm approve-builds
 ```
 
 ## ⚙️ Configuration
-
-### Environment Variables
-
-The application supports configuration through the interface without manually setting environment variables.
 
 ### Data Storage
 
@@ -221,7 +199,6 @@ Issues and Pull Requests are welcome!
 ### Code Standards
 
 - Use ESLint and Prettier to maintain consistent code style
-- Run `npm run lint:fix` before committing to fix format issues
 - Follow TypeScript type specifications
 
 ## 📄 License
@@ -244,7 +221,8 @@ This project is licensed under the [MIT](LICENSE) License.
 
 ## 🔗 Related Links
 
-- [Issue Tracker](https://github.com/aime/aime-chat/issues)
+- [Official Website](https://darknoah.github.io/aime-chat/)
+- [Issue Tracker](https://github.com/DarkNoah/aime-chat/issues)
 - [Changelog](CHANGELOG.md)
 
 ---

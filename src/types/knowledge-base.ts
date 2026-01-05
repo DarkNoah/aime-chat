@@ -13,6 +13,7 @@ export enum KnowledgeBaseSourceType {
   Folder = 'folder',
   Text = 'text',
 }
+
 export type KnowledgeBase = {
   id: string;
   name: string;

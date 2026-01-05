@@ -5,6 +5,8 @@ import { channel } from '../ipc/IpcController';
 import { KnowledgeBaseChannel } from '@/types/ipc-channel';
 import {
   CreateKnowledgeBase,
+  KnowledgeBaseItemState,
+  KnowledgeBaseSourceType,
   UpdateKnowledgeBase,
 } from '@/types/knowledge-base';
 import { Repository } from 'typeorm';
@@ -16,10 +18,13 @@ import fs from 'fs';
 
 export class KnowledgeBaseManager extends BaseManager {
   knowledgeBaseRepository: Repository<KnowledgeBase>;
+  knowledgeBaseItemRepository: Repository<KnowledgeBaseItem>;
   libSQLClient: LibSQLClient;
   public async init() {
     this.knowledgeBaseRepository =
       dbManager.dataSource.getRepository(KnowledgeBase);
+    this.knowledgeBaseItemRepository =
+      dbManager.dataSource.getRepository(KnowledgeBaseItem);
     this.libSQLClient = dbManager.getLocalLibSQLClient();
   }
 
@@ -88,15 +93,40 @@ export class KnowledgeBaseManager extends BaseManager {
     const kbs = await this.knowledgeBaseRepository.find();
     return kbs;
   }
-
-  public async importSource(kbId: string, source: string) {
+  @channel(KnowledgeBaseChannel.ImportSource)
+  public async importSource(data: {
+    kbId: string;
+    source: string;
+    type: KnowledgeBaseSourceType;
+  }) {
+    const { kbId, source, type } = data;
     const kb = await this.knowledgeBaseRepository.findOneBy({ id: kbId });
     if (!kb) {
       throw new Error('Knowledge base not found');
     }
-    if (isUrl(source)) {
-    } else if (fs.existsSync(source) && fs.statSync(source).isFile()) {
-    } else if (fs.existsSync(source) && fs.statSync(source).isDirectory()) {
+    if (type == KnowledgeBaseSourceType.Web && isUrl(source)) {
+    } else if (
+      type == KnowledgeBaseSourceType.File &&
+      fs.existsSync(data.source) &&
+      fs.statSync(data.source).isFile()
+    ) {
+    } else if (
+      type == KnowledgeBaseSourceType.Folder &&
+      fs.existsSync(data.source) &&
+      fs.statSync(data.source).isDirectory()
+    ) {
+    } else if (
+      type == KnowledgeBaseSourceType.Text &&
+      data.source?.content?.trim()
+    ) {
+      const content = data.source?.content?.trim();
+      const item = new KnowledgeBaseItem(nanoid(), kbId, content, type);
+      item.name = content.substring(0, 10);
+      item.isEnable = false;
+      item.state = KnowledgeBaseItemState.Pending;
+
+      // await this.knowledgeBaseItemRepository.save(item);
+      debugger;
     }
   }
 

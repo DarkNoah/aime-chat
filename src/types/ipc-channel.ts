@@ -60,6 +60,7 @@ export enum KnowledgeBaseChannel {
   Delete = 'knowledge-base:delete',
   Get = 'knowledge-base:get',
   GetList = 'knowledge-base:getList',
+  ImportSource = 'knowledge-base:importSource',
 }
 
 export enum ToolChannel {

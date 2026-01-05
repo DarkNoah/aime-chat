@@ -16,6 +16,7 @@ import {
 } from '@/types/ipc-channel';
 import {
   CreateKnowledgeBase,
+  KnowledgeBaseSourceType,
   UpdateKnowledgeBase,
 } from '@/types/knowledge-base';
 import { LocalModelItem, LocalModelType } from '@/types/local-model';
@@ -205,6 +206,11 @@ const electronHandler = {
     delete: (id: string) => ipcRenderer.invoke(KnowledgeBaseChannel.Delete, id),
     get: (id: string) => ipcRenderer.invoke(KnowledgeBaseChannel.Get, id),
     getList: () => ipcRenderer.invoke(KnowledgeBaseChannel.GetList),
+    importSource: (data: {
+      kbId: string;
+      source: string;
+      type: KnowledgeBaseSourceType;
+    }) => ipcRenderer.invoke(KnowledgeBaseChannel.ImportSource, data),
   },
   tools: {
     deleteTool: (id: string) => ipcRenderer.invoke(ToolChannel.DeleteTool, id),

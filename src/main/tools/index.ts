@@ -279,12 +279,10 @@ class ToolsManager extends BaseManager {
                 where: { id: builtInTool.id },
               });
               if (!toolEntity?.isActive) throw new Error('Tool is not active');
-              const buildedTools = (await this.buildTool(
-                builtInTool.id,
-              )) as BaseTool[];
-              const result = await buildedTools
-                .find((x) => x.id === _tool.id)
-                ?.execute?.(args);
+              const buildedTool = (await this.buildTool(
+                `${ToolType.BUILD_IN}:${_tool.id}`,
+              )) as BaseTool;
+              const result = await buildedTool.execute?.(args);
               return {
                 content: [
                   {
