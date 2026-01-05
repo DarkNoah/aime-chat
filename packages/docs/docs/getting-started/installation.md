@@ -6,13 +6,58 @@ sidebar_position: 1
 
 本指南将帮助您在本地安装和运行 AIME Chat。
 
-## 系统要求
+## 普通用户安装
 
-在开始之前，请确保您的系统满足以下要求：
+如果您只是想使用 AIME Chat，可以直接下载预编译的安装包，无需进行源码编译。
 
-- **Node.js** >= 14.x
-- **npm** >= 7.x 或 **pnpm** >= 8.x（推荐）
-- **Git**
+### 下载安装包
+
+请访问 [文档主页](/)，根据您的操作系统下载对应的安装包：
+
+- **macOS**: 下载 `.dmg` 安装包
+- **Windows**: 下载 `.exe` 安装程序
+- **Linux**: 下载 `.AppImage` 或 `.deb` 安装包
+
+### 安装步骤
+
+#### macOS
+
+1. 下载 `.dmg` 文件
+2. 双击打开，将 AIME Chat 拖拽到应用程序文件夹
+3. 在应用程序中启动 AIME Chat
+
+:::note 注意
+首次启动时，如果系统提示"无法验证开发者"，请在系统偏好设置 > 安全性与隐私中点击"仍要打开"。
+:::
+
+#### Windows
+
+1. 下载 `.exe` 安装程序
+2. 双击运行安装程序
+3. 按照安装向导完成安装
+4. 从开始菜单启动 AIME Chat
+
+#### Linux
+
+**AppImage 版本**（推荐）：
+
+```bash
+# 添加执行权限
+chmod +x aime-chat-x.x.x-linux.AppImage
+
+# 运行应用
+./aime-chat-x.x.x-linux.AppImage
+```
+
+**Deb 包版本**：
+
+```bash
+# 安装 deb 包
+sudo dpkg -i aime-chat-x.x.x-linux.deb
+
+# 如果遇到依赖问题，运行
+sudo apt-get install -f
+```
 
 ### 操作系统支持
 
@@ -22,7 +67,17 @@ sidebar_position: 1
 | Windows | Windows 10/11 |
 | Linux | Ubuntu 20.04+, Fedora 34+ 等 |
 
-## 安装步骤
+## 开发者安装
+
+如果您想参与 AIME Chat 的开发或从源码构建，请按照以下步骤操作。
+
+### 系统要求
+
+在开始之前，请确保您的系统满足以下要求：
+
+- **Node.js** >= 14.x
+- **npm** >= 7.x 或 **pnpm** >= 8.x（推荐）
+- **Git**
 
 ### 1. 克隆项目
 

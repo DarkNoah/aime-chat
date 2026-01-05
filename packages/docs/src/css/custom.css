@@ -185,23 +185,39 @@ body {
 }
 
 .button--primary {
-  background: linear-gradient(135deg, var(--ifm-color-primary) 0%, hsl(125, 66%, 35%) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--ifm-color-primary) 0%,
+    hsl(125, 66%, 35%) 100%
+  );
   border: none;
 }
 
 [data-theme='dark'] .button--primary {
-  background: linear-gradient(135deg, hsl(143, 97%, 54%) 0%, hsl(125, 66%, 50%) 100%);
+  background: linear-gradient(
+    135deg,
+    hsl(143, 97%, 54%) 0%,
+    hsl(125, 66%, 50%) 100%
+  );
 }
 
 .button--primary:hover {
   transform: translateY(-2px);
   box-shadow: 0 10px 25px rgba(26, 237, 115, 0.25);
-  background: linear-gradient(135deg, var(--ifm-color-primary-light) 0%, hsl(125, 66%, 40%) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--ifm-color-primary-light) 0%,
+    hsl(125, 66%, 40%) 100%
+  );
 }
 
 [data-theme='dark'] .button--primary:hover {
   box-shadow: 0 10px 25px rgba(26, 237, 115, 0.35);
-  background: linear-gradient(135deg, hsl(143, 97%, 60%) 0%, hsl(125, 66%, 55%) 100%);
+  background: linear-gradient(
+    135deg,
+    hsl(143, 97%, 60%) 0%,
+    hsl(125, 66%, 55%) 100%
+  );
 }
 
 .button--secondary {
@@ -591,19 +607,22 @@ tbody td {
 }
 
 .menu__caret::before {
-  content: "";
-  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16px" height="16px" viewBox="0 0 24 24"><path fill="rgba(147,147,147,1)" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path></svg>') center;
+  content: '';
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16px" height="16px" viewBox="0 0 24 24"><path fill="rgba(147,147,147,1)" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path></svg>')
+    center;
   transform-origin: center;
 }
 
 .menu__link--active:not(.menu__link--sublist)::before {
-  content: "";
-  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16px" height="16px" viewBox="0 0 24 24"><path fill="rgba(10,10,10,1)" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path></svg>') center;
+  content: '';
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16px" height="16px" viewBox="0 0 24 24"><path fill="rgba(10,10,10,1)" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path></svg>')
+    center;
   transform-origin: center;
 }
 
 [data-theme='dark'] .menu__link--active:not(.menu__link--sublist)::before {
-  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16px" height="16px" viewBox="0 0 24 24"><path fill="rgba(255,255,255,1)" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path></svg>') center;
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16px" height="16px" viewBox="0 0 24 24"><path fill="rgba(255,255,255,1)" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path></svg>')
+    center;
 }
 
 .menu__link--active:not(.menu__link--sublist) {
@@ -611,7 +630,7 @@ tbody td {
 }
 
 /* 代码块标题栏 */
-div[class*="codeBlockTitle"] {
+div[class*='codeBlockTitle'] {
   border: 0.5px solid var(--border);
   border-bottom: none;
   background: var(--mastra-surface-2);
@@ -629,9 +648,9 @@ div[class*="codeBlockTitle"] {
   box-shadow: 2px 0 var(--ifm-color-primary) inset;
 }
 
-.theme-code-block-highlighted-line.codeLine_lJS_ [class*="codeLineContent"] {
+.theme-code-block-highlighted-line.codeLine_lJS_ [class*='codeLineContent'] {
   &:before {
-    content: "";
+    content: '';
     inset-block: 0;
     left: 20px;
     background: rgba(26, 237, 115, 0.1);
@@ -642,13 +661,15 @@ div[class*="codeBlockTitle"] {
   background: transparent;
 }
 
-[data-theme='dark'] .theme-code-block-highlighted-line.codeLine_lJS_ [class*="codeLineContent"]:before {
+[data-theme='dark']
+  .theme-code-block-highlighted-line.codeLine_lJS_
+  [class*='codeLineContent']:before {
   background: rgba(26, 237, 115, 0.2);
 }
 
-.theme-code-block-highlighted-line.codeLine_lJS_ [class*="codeLineNumber"] {
+.theme-code-block-highlighted-line.codeLine_lJS_ [class*='codeLineNumber'] {
   &:after {
-    content: "";
+    content: '';
     inset-block: 0;
     left: 0;
     background: rgba(26, 237, 115, 0.1);
@@ -659,22 +680,24 @@ div[class*="codeBlockTitle"] {
   background: transparent;
 }
 
-[data-theme='dark'] .theme-code-block-highlighted-line.codeLine_lJS_ [class*="codeLineNumber"]:after {
+[data-theme='dark']
+  .theme-code-block-highlighted-line.codeLine_lJS_
+  [class*='codeLineNumber']:after {
   background: rgba(26, 237, 115, 0.2);
 }
 
-[data-theme="dark"] .theme-code-block-highlighted-line {
+[data-theme='dark'] .theme-code-block-highlighted-line {
   background-color: var(--mastra-surface-5);
 }
 
 /* Copy button */
-button[class*="copyButton"],
-button[class*="clean-btn"] {
+button[class*='copyButton'],
+button[class*='clean-btn'] {
   border: none;
   background: transparent;
 }
 
-button[class*="copyButton"]:hover {
+button[class*='copyButton']:hover {
   background: var(--mastra-surface-3);
 }
 
@@ -684,7 +707,7 @@ button[class*="copyButton"]:hover {
 }
 
 /* 语言标签 */
-div[class*="codeBlockLines"] {
+div[class*='codeBlockLines'] {
   font-family: var(--ifm-font-family-monospace);
 }
 
@@ -728,7 +751,7 @@ button {
   font-family: var(--ifm-font-family-base);
 }
 
-input[type="search"]::-webkit-search-cancel-button {
+input[type='search']::-webkit-search-cancel-button {
   -webkit-appearance: none;
   appearance: none;
 }
@@ -753,6 +776,6 @@ hr {
   color: var(--border-subtle) !important;
 }
 
-ul {
+.menu ul {
   list-style: none;
 }
