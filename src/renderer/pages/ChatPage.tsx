@@ -220,6 +220,12 @@ function ChatPage() {
       }
     } else if (location.pathname === '/chat') {
       setTitle(t('chat.new_chat'));
+      if (location.state?.options?.agentId) {
+        setTimeout(() => {
+          chatPanelRef?.current?.setAgentId(location.state?.options?.agentId);
+          location.state = null;
+        }, 100);
+      }
     }
     return () => {};
   }, [threadId]);

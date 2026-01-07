@@ -25,7 +25,7 @@ abstract class BaseTool<
   any,
   ToolExecutionContext<ZodSchema, any>
 > {
-  static readonly toolName = 'BaseTool';
+  static readonly toolName: string = 'BaseTool';
   abstract id: string;
   description: string;
   abstract inputSchema: ZodSchema;

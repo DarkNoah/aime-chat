@@ -41,6 +41,7 @@ import { LocalProvider } from './local-provider';
 import { JinaAIProvider } from './jinaai-provider';
 import { BraveSearchProvider } from './brave-search-provider';
 import { TavilyProvider } from './tavily-provider';
+import { appManager } from '../app';
 const modelsData = require('../../../assets/models.json');
 class ProvidersManager extends BaseManager {
   repository: Repository<Providers>;
@@ -226,18 +227,23 @@ class ProvidersManager extends BaseManager {
       });
       return [...customModels, ...providerModels];
     }
+    let providerModels = [];
 
-    const models = await provider.getLanguageModelList();
+    try {
+      const models = await provider.getLanguageModelList();
 
-    const providerModels = models.map((x) => {
-      const info = modelsData[provider.type]?.models[x.id] || {};
-      return {
-        id: x.id,
-        isActive: savedModels.find((z) => z.id === x.id)?.isActive || false,
-        ...info,
-        name: info?.name || x.name || x.id,
-      } as ProviderModel;
-    });
+      providerModels = models.map((x) => {
+        const info = modelsData[provider.type]?.models[x.id] || {};
+        return {
+          id: x.id,
+          isActive: savedModels.find((z) => z.id === x.id)?.isActive || false,
+          ...info,
+          name: info?.name || x.name || x.id,
+        } as ProviderModel;
+      });
+    } catch (err) {
+      appManager.toast(err.message, { type: 'error' });
+    }
 
     return [...customModels, ...providerModels];
   }

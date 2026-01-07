@@ -43,6 +43,8 @@ jobs:
 
       - name: Build Docusaurus site
         run: npm run build
+        env:
+          GA_MEASUREMENT_ID: ${{ vars.GA_MEASUREMENT_ID }}
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

@@ -149,12 +149,36 @@ Returns:
             http: 'http://' + proxy,
             https: 'http://' + proxy,
           },
+
           // apiBaseURL: 'https://api.tavily.com',
         });
         const response = await client.search(query, {
           maxResults: numResults,
         });
         debugger;
+      } else if (provider.type === ProviderType.JINA_AI) {
+        const proxy = await appManager.getProxy();
+        const url = 'https://s.jina.ai/?q=' + encodeURIComponent(query);
+        const response = await fetch(url, {
+          headers: {
+            Accept: 'application/json',
+            Authorization: `Bearer ${provider.apiKey}`,
+            'X-Respond-With': 'no-content',
+          },
+
+          signal: options?.abortSignal,
+        });
+        const data = await response.json();
+
+        results.push(
+          ...data.data.map((x) => {
+            return {
+              title: x.title,
+              href: x.url,
+              snippet: x.description,
+            };
+          }),
+        );
       }
     }
     return results;

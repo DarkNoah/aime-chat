@@ -4,6 +4,8 @@ import type * as Preset from '@docusaurus/preset-classic';
 
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
 
+const gtagTrackingId = process.env.GA_MEASUREMENT_ID;
+
 const config: Config = {
   title: 'AIME Chat',
   tagline: '强大的 AI 桌面聊天应用',
@@ -121,6 +123,14 @@ const config: Config = {
       theme: prismThemes.github,
       darkTheme: prismThemes.dracula,
     },
+    ...(gtagTrackingId
+      ? {
+          gtag: {
+            trackingID: gtagTrackingId,
+            anonymizeIP: true,
+          },
+        }
+      : {}),
   } satisfies Preset.ThemeConfig,
 };
 

@@ -236,6 +236,8 @@ const electronHandler = {
       ipcRenderer.invoke(ToolChannel.SaveSkill, id, data),
     importSkill: (data: { files: string[] }) =>
       ipcRenderer.invoke(ToolChannel.ImportSkill, data),
+    previewGitSkill: (data: { gitUrl: string }) =>
+      ipcRenderer.invoke(ToolChannel.PreviewGitSkill, data),
   },
   localModel: {
     getList: (): Promise<Record<LocalModelType, LocalModelItem[]>> =>

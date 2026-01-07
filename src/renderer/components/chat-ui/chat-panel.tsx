@@ -105,6 +105,7 @@ export interface ChatPanelRef {
     message: PromptInputMessage,
     options?: ChatSubmitOptions,
   ) => void;
+  setAgentId: (agentId: string) => void;
 }
 
 export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
@@ -118,21 +119,6 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
       onSubmit,
       onThreadChanged,
     } = props;
-
-    // const {
-    //   messages: threadMessages,
-    //   status: threadStatus,
-    //   error: threadError,
-    //   // sendMessage: threadSendMessage,
-    //   // stop: threadStop,
-    // } = useThread(threadId);
-    // const threadStates = useChatStore((state) => state.threadStates);
-    // const { messages: threadMessages, status: threadStatus } =
-    //   useThread(threadId);
-    // const threadMessages = useChatStore(
-    //   (state) => (threadId ? state.threadStates[threadId]?.messages : []) ?? [],
-    // );
-    // const threadMessages = [];
     const threadState = useThreadStore(
       useShallow((s) => s.threadStates[threadId]),
     );
@@ -166,65 +152,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
     const [modelId, setModelId] = useState<string | undefined>();
     const [agentId, setAgentId] = useState<string | undefined>();
     const [requireToolApproval, setRequireToolApproval] = useState(false);
-    // const [thread, setThread] = useState<StorageThreadType | undefined>();
     const [suggestions, setSuggestions] = useState<string[] | undefined>();
-
-    // 使用 useRef 保持 transport 实例稳定，避免每次渲染创建新实例
-    // const transportRef = useRef(new IpcChatTransport());
-
-    // const {
-    //   messages,
-    //   setMessages,
-    //   sendMessage: aiSkdSendMessage,
-    //   resumeStream,
-    //   regenerate,
-    //   status,
-    //   error,
-    //   stop,
-    //   clearError,
-    // } = useAiSdkChat({
-    //   id: threadId,
-    //   transport: transportRef.current,
-    //   onFinish: (event) => {
-    //     if (event.isAbort) {
-    //       const _messages = event.messages;
-    //     }
-
-    //     console.log('onFinish', event);
-    //   },
-    //   onData: (dataPart) => {
-    //     console.log('onData', dataPart);
-
-    //     if (dataPart.type === 'data-workflow-step-suspended') {
-    //       const { runId: _runId } = dataPart.data as { runId: string };
-    //       setRunId(_runId);
-    //     }
-    //     if (dataPart.type === 'data-usage') {
-    //       setUsage(dataPart.data);
-    //     }
-    //     if (dataPart.type === 'data-send-event') {
-    //       const { target_panel, data } = dataPart.data as {
-    //         target_panel: string;
-    //         data: any;
-    //       };
-    //       if (target_panel === 'web_preview' && data?.url) {
-    //         setShowPreview(true);
-    //         setPreviewData((prev: ChatPreviewData) => {
-    //           return {
-    //             ...prev,
-    //             previewPanel: ChatPreviewType.WEB_PREVIEW,
-    //             webPreviewUrl: data?.url,
-    //           };
-    //         });
-    //       }
-    //     }
-    //   },
-    //   onError: (err) => {
-    //     console.error(err);
-    //     toast.error(err.message);
-    //     // clearError();
-    //   },
-    // });
 
     useImperativeHandle(ref, () => ({
       sendMessage: (
@@ -252,6 +180,11 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
         sendMessage(threadId, inputMessage, body);
         setInput('');
         chatInputRef.current?.attachmentsClear();
+      },
+      setAgentId: (_agentId: string) => {
+        setAgentId((prev) => {
+          return _agentId;
+        });
       },
     }));
 
