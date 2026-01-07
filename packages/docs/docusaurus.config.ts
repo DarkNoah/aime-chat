@@ -49,6 +49,12 @@ const config: Config = {
             'https://github.com/DarkNoah/aime-chat/tree/main/packages/docs/',
         },
         blog: false,
+        gtag: gtagTrackingId
+          ? {
+              trackingID: gtagTrackingId,
+              anonymizeIP: true,
+            }
+          : undefined,
         theme: {
           customCss: './src/css/custom.css',
         },
@@ -123,14 +129,6 @@ const config: Config = {
       theme: prismThemes.github,
       darkTheme: prismThemes.dracula,
     },
-    ...(gtagTrackingId
-      ? {
-          gtag: {
-            trackingID: gtagTrackingId,
-            anonymizeIP: true,
-          },
-        }
-      : {}),
   } satisfies Preset.ThemeConfig,
 };
 
