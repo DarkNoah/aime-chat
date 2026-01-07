@@ -9,7 +9,7 @@ import {
 } from '@/renderer/components/ui/dialog';
 import Form from '@rjsf/shadcn';
 import type { RJSFSchema, Widget, WidgetProps } from '@rjsf/utils';
-import { IconSettings } from '@tabler/icons-react';
+import { IconSearch, IconSettings } from '@tabler/icons-react';
 import z, { ZodSchema } from 'zod';
 import validator from '@rjsf/validator-ajv8';
 import { zodToJsonSchema } from 'zod-to-json-schema';
@@ -21,6 +21,13 @@ import { cn } from '@/renderer/lib/utils';
 import { UploadIcon, FileIcon, XIcon } from 'lucide-react';
 import { FileInfo } from '@/types/common';
 import fileSize from 'filesize';
+import { Input } from '@/renderer/components/ui/input';
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from '@/renderer/components/ui/input-group';
 
 // function formatFileSize(bytes: number): string {
 //   if (bytes === 0) return '0 B';
@@ -44,6 +51,7 @@ export function SkillImportDialog({
   const [data, setData] = useState<any>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [droppedFiles, setDroppedFiles] = useState<FileInfo[]>([]);
+  const [gitUrl, setGitUrl] = useState<string>('');
 
   const handleDragOver = useCallback((e: DragEvent) => {
     e.preventDefault();
@@ -97,6 +105,20 @@ export function SkillImportDialog({
     }
   };
 
+  const handlePreviewGitSkill = async () => {
+    // onSubmit?.(e);
+    try {
+      const result = await window.electron.tools.previewGitSkill({
+        gitUrl,
+      });
+      onOpenChange(false);
+      setDroppedFiles([]);
+      // navigate(`/tools/${result.id}`);
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -136,6 +158,21 @@ export function SkillImportDialog({
             </p>
           </div>
         </div>
+        <InputGroup>
+          <InputGroupInput
+            value={gitUrl}
+            onChange={(e) => setGitUrl(e.target.value)}
+            placeholder={t('common.enter_git_url')}
+          />
+          <InputGroupAddon align="inline-end">
+            <InputGroupButton
+              variant="ghost"
+              onClick={() => handlePreviewGitSkill()}
+            >
+              <IconSearch className="w-4 h-4" />
+            </InputGroupButton>
+          </InputGroupAddon>
+        </InputGroup>
         <small className="text-muted-foreground text-sm">
           {t('tools.import_skill_tips')}
         </small>

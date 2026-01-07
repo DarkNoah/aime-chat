@@ -149,7 +149,7 @@ export const ToolMessage = React.forwardRef<ToolMessageRef, ToolMessageProps>(
       const input = part?.input as any;
       switch (toolName) {
         case 'Skill':
-          return input?.skill;
+          return input?.skill_id;
         case 'Read':
         case 'Write':
         case 'Edit':

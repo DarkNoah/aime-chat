@@ -21,7 +21,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/renderer/components/ui/dropdown-menu';
-import { IconPlus, IconSearch } from '@tabler/icons-react';
+import { IconMessageCircle, IconPlus, IconSearch } from '@tabler/icons-react';
 import { ScrollArea } from '@/renderer/components/ui/scroll-area';
 import { SidebarMenu } from '@/renderer/components/ui/sidebar';
 import { Route, Routes, useLocation, useNavigate } from 'react-router-dom';
@@ -50,6 +50,7 @@ import { Badge } from '@/renderer/components/ui/badge';
 import { AgentDialog } from '@/renderer/components/agents/agent-dialog';
 import { Item, ItemContent, ItemHeader } from '@/renderer/components/ui/item';
 import { AgentImportDialog } from '@/renderer/components/agents/agent-import-dialog';
+import { ChatSubmitOptions } from '@/types/chat';
 
 function AgentPage() {
   const { setTitle } = useHeader();
@@ -72,10 +73,17 @@ function AgentPage() {
     getList();
   }, []);
 
-  const handleClickAgent = (agent: Agent) => {
+  const handleClickAgentDetail = (agent: Agent) => {
     navigate(`/agents/${agent.id}`);
   };
-
+  const handleClickAgent = (agent: Agent) => {
+    const options: ChatSubmitOptions = {
+      agentId: agent.id,
+    };
+    navigate(`/chat`, {
+      state: { options },
+    });
+  };
   return (
     <div className="h-full w-full flex flex-col gap-2 p-4">
       <div className="flex flex-col w-full min-w-0">
@@ -136,11 +144,11 @@ function AgentPage() {
       <ScrollArea className="flex-1 min-h-0">
         <div className="w-full flex flex-row flex-wrap gap-2">
           {agents.map((agent) => (
-            <Card className="w-full max-w-sm" key={agent.id}>
+            <Card className="w-full max-w-sm justify-between" key={agent.id}>
               <CardHeader>
                 <CardTitle
                   className="cursor-pointer hover:underline"
-                  onClick={() => handleClickAgent(agent)}
+                  onClick={() => handleClickAgentDetail(agent)}
                 >
                   {agent.name}
                 </CardTitle>
@@ -160,10 +168,22 @@ function AgentPage() {
                   />
                 </CardAction>
               </CardHeader>
-              <CardContent>
-                {agent.tools?.length > 0 && (
-                  <Badge variant="outline">{agent.tools?.length} tools</Badge>
-                )}
+              <CardContent className="flex flex-col gap-2">
+                <div>
+                  {agent.tools?.length > 0 && (
+                    <Badge variant="outline">{agent.tools?.length} tools</Badge>
+                  )}
+                </div>
+                <div className="flex flex-row">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleClickAgent(agent)}
+                  >
+                    <IconMessageCircle />
+                    {t('common.chat')}
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           ))}

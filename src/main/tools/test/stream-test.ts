@@ -39,9 +39,9 @@ export class StreamTest extends BaseTool {
     // throw new Error('error');
 
     if (abortSignal?.aborted) {
-      return 'aborted';
+      return { status: 'aborted' };
     }
 
-    return 'ok';
+    return { status: 'ok' };
   };
 }

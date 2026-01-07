@@ -126,7 +126,7 @@ export class DeleteMemory extends BaseTool {
 }
 
 class MemoryToolkit extends BaseToolkit {
-  static readonly toolName = 'MemoryToolkit';
+  static readonly toolName: string = 'MemoryToolkit';
   id = 'MemoryToolkit';
   constructor(params?: BaseToolkitParams) {
     super(

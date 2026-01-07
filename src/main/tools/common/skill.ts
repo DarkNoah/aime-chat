@@ -53,9 +53,11 @@ Important:
 
 `;
   inputSchema = z.strictObject({
-    skill: z
+    skill_id: z
       .string()
-      .describe(`The skill name (no arguments). E.g., "pdf" or "xlsx"`),
+      .describe(
+        `The skill id (no arguments). E.g., "skill:anthropic-agent-skills:pdf" or "skill:anthropic-agent-skills:xlsx"`,
+      ),
   });
 
   //outputSchema = z.string();
@@ -110,15 +112,18 @@ ${_skills
     inputData: z.infer<typeof this.inputSchema>,
     context: ToolExecutionContext<z.ZodSchema, any>,
   ) => {
-    const { skill } = inputData;
+    const { skill_id } = inputData;
+    if (!skill_id.startsWith(`${ToolType.SKILL}:`)) {
+      throw new Error(`please use skill id`);
+    }
     const skillInfo = await skillManager.getSkill(
-      skill as `${ToolType.SKILL}:${string}`,
+      skill_id as `${ToolType.SKILL}:${string}`,
     );
     if (skillInfo)
       return `Base directory for this skill: ${skillInfo.path}
 
 ${skillInfo.content}`;
-    return `skill: "${skill}" not found`;
+    return `skill id: "${skill_id}" not found`;
   };
 }
 

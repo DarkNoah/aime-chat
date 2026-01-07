@@ -517,6 +517,7 @@ class MastraManager extends BaseManager {
           },
         },
         openai: {
+          store: false,
           reasoningEffort: 'low',
         },
         deepseek: {

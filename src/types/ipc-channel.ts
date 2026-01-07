@@ -66,6 +66,7 @@ export enum KnowledgeBaseChannel {
 export enum ToolChannel {
   SaveSkill = 'tool:saveSkill',
   ImportSkill = 'tool:importSkill',
+  PreviewGitSkill = 'tool:previewGitSkill',
   SaveMCPServer = 'tool:saveMCPServer',
   ReconnectMCP = 'tool:reconnectMCP',
   GetMcp = 'tool:getMcp',
