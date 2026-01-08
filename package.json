@@ -1,7 +1,7 @@
 {
   "name": "aime-chat",
   "description": "A foundation for scalable desktop apps",
-  "version": "0.3.6",
+  "version": "0.3.7",
   "keywords": [
     "electron",
     "boilerplate",
@@ -187,6 +187,7 @@
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@types/react-test-renderer": "^19.0.0",
+    "@types/shell-quote": "^1.7.5",
     "@types/unzipper": "^0.10.11",
     "@types/webpack-bundle-analyzer": "^4.7.0",
     "@types/xlsx": "^0.0.36",
@@ -292,6 +293,7 @@
     "sass": "^1.86.0",
     "sass-loader": "^16.0.5",
     "shape": "^0.0.1",
+    "shell-quote": "^1.8.3",
     "shiki": "^3.14.0",
     "slate-react": "^0.120.0",
     "smol-toml": "^1.6.0",
@@ -363,7 +365,7 @@
       "artifactName": "${productName}-${arch}-mac.${ext}"
     },
     "dmg": {
-      "artifactName": "${productName}-${arch}.${ext}",
+      "artifactName": "${productName}-${arch}-mac.${ext}",
       "contents": [
         {
           "x": 130,
@@ -381,17 +383,17 @@
       "target": [
         "nsis"
       ],
-      "artifactName": "${productName}.${ext}"
+      "artifactName": "${productName}-win.${ext}"
     },
     "nsis": {
-      "artifactName": "${productName}-setup.${ext}"
+      "artifactName": "${productName}-setup-win.${ext}"
     },
     "linux": {
       "target": [
         "AppImage"
       ],
       "category": "Development",
-      "artifactName": "${productName}.${ext}"
+      "artifactName": "${productName}-linux.${ext}"
     },
     "directories": {
       "app": "release/app",

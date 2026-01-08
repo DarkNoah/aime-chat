@@ -124,18 +124,25 @@ asyncio.run(main())
     const temp = app.getPath('temp');
     const tempDir = path.join(temp, nanoid());
     await fs.promises.mkdir(tempDir, { recursive: true });
+    const isWindows = process.platform === 'win32';
+    const uvPreCommand = isWindows ? 'uv.exe' : './uv';
     try {
       const uvRuntime = await getUVRuntime();
       if (uvRuntime.status !== 'installed') {
         throw new Error('UV runtime is not installed');
       }
 
-      const resultInit = await runCommand(
-        `./uv init "${tempDir}" && ./uv venv "${path.join(tempDir, '.venv')}"`,
+
+      let resultInit = await runCommand(
+        `${uvPreCommand} init "${tempDir}" && ${uvPreCommand} venv "${path.join(tempDir, '.venv')}"`,
         {
           cwd: uvRuntime?.dir,
         },
       );
+
+
+
+
       if (resultInit.code !== 0) {
         throw new Error(
           `Failed to initialize UV project: ${resultInit.stderr}`,
@@ -145,7 +152,7 @@ asyncio.run(main())
       if (ptc && !packages.includes('mcp')) packages.push('mcp');
       if (packages.length > 0) {
         const result = await runCommand(
-          `./uv add ${packages.join(' ')} --project "${tempDir}"`,
+          `${uvPreCommand} add ${packages.join(' ')} --project "${tempDir}"`,
           {
             cwd: uvRuntime?.dir,
           },
@@ -156,15 +163,28 @@ asyncio.run(main())
         }
       }
       if (ptc) {
-        let site_packages_path = path.join(
-          tempDir,
-          '.venv',
-          'lib',
-          'python*',
-          'site-packages',
-        );
+        let site_packages_path;
+        if(isWindows)
+          {
+            site_packages_path = path.posix.join(
+              tempDir.replace(/\\/g, '/'),
+              '.venv',
+              'lib',
+              '**',
+              'site-packages',
+            );
+        } else{
+          site_packages_path = path.join(
+            tempDir,
+            '.venv',
+            'lib',
+            'python*',
+            'site-packages',
+          );
+        }
         const sitePackages = await fg(site_packages_path, {
           onlyDirectories: true,
+          caseSensitiveMatch:false,
         });
         if (sitePackages.length !== 1) {
           throw new Error('Site packages path not found or not unique');
@@ -180,8 +200,9 @@ asyncio.run(main())
 
       const tempFile = path.join(tempDir, 'main.py');
       await fs.promises.writeFile(tempFile, code);
+
       const result = await runCommand(
-        `./uv run --project "${tempDir}" "${tempFile}"`,
+        `${uvPreCommand} run --project "${tempDir}" "${tempFile}"`,
         {
           cwd: uvRuntime?.dir,
         },

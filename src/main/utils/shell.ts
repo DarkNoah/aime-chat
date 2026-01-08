@@ -7,6 +7,8 @@ import stripAnsi from 'strip-ansi';
 import fixPath from 'fix-path';
 import { appManager } from '../app';
 import iconv from 'iconv-lite';
+import { isString } from '@/utils/is';
+import { parse, quote } from "shell-quote";
 
 export const decodeBuffer = (data: Buffer) => {
   return process.platform === 'win32'
@@ -15,7 +17,7 @@ export const decodeBuffer = (data: Buffer) => {
 };
 
 export const runCommand = async (
-  command: string,
+  command: string | string[],
   options?: {
     cwd?: string;
     timeout?: number;
@@ -23,13 +25,14 @@ export const runCommand = async (
     abortSignal?: AbortSignal;
     onStdOut?: (str: string) => void;
     onStdErr?: (str: string) => void;
+    usePowerShell?: boolean;
   },
 ) => {
   const {
     shell,
     tempFilePath,
     command: realCommand,
-  } = createShell(command, options.cwd, options.timeout, options.env);
+  } = createShell(command, options?.cwd, options?.timeout, options?.env, options?.usePowerShell);
   let exited = false;
   let stdout = '';
   let output = '';
@@ -158,12 +161,14 @@ export const runCommand = async (
 };
 
 export const createShell = (
-  input_command: string,
+  input_command: string | string[],
   cwd?: string,
   timeout?: number,
   env?: Record<string, string>,
+  usePowerShell: boolean = false,
 ) => {
   const isWindows = os.platform() === 'win32';
+
   const tempFileName = `shell_pgrep_${crypto
     .randomBytes(6)
     .toString('hex')}.tmp`;
@@ -195,25 +200,57 @@ export const createShell = (
     ? input_command
     : (() => {
         // wrap command to append subprocess pids (via pgrep) to temporary file
-        let command = input_command.trim();
+        let command = isString(input_command) ? input_command : quote(input_command);
         if (!command.endsWith('&')) command += ';';
         return `{ ${command} }; __code=$?; pgrep -g 0 >${tempFilePath} 2>&1; exit $__code;`;
       })();
 
+
+  if(isWindows && usePowerShell) {
+    const command = isString(input_command)? parse(input_command) as string[] : input_command;
+    return {shell:spawn('powershell.exe', command, {
+      stdio: ['ignore', 'pipe', 'pipe'],
+      // detached: true, // ensure subprocess starts its own process group (esp. in Linux)
+      cwd: cwd,
+      timeout: timeout,
+      env: _env,
+    }),tempFilePath, command: _command }
+  }
+
+  let real_input_command:string[];
+  if(isString(_command)){
+    real_input_command = parse(_command) as string[];
+  }else{
+    real_input_command = _command;
+  }
+
+
+  real_input_command = real_input_command.map(x=>{
+
+    if(isString(x)){
+      return x;
+    }else{
+      if("op" in x){
+        return x["op"]
+      } else{
+        return "";
+      }
+    }
+  });
   const shell = isWindows
-    ? spawn('cmd.exe', ['/c', _command], {
+    ? spawn('cmd.exe', ['/c', ...real_input_command], {
         stdio: ['ignore', 'pipe', 'pipe'],
         // detached: true, // ensure subprocess starts its own process group (esp. in Linux)
         cwd: cwd,
         timeout: timeout,
         env: _env,
       })
-    : spawn('bash', ['-c', _command], {
+    : spawn('bash', ['-c', ...real_input_command], {
         stdio: ['ignore', 'pipe', 'pipe'],
         detached: true, // ensure subprocess starts its own process group (esp. in Linux)
         cwd: cwd,
         timeout: timeout,
         env: _env,
       });
-  return { shell, tempFilePath, command: _command };
+  return { shell, tempFilePath, command: quote(real_input_command)  };
 };

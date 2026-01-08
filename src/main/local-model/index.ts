@@ -75,10 +75,11 @@ class LocalModelManager extends BaseManager {
     const modelName = data.modelId.split('/').pop();
 
     const modelPath = path.join(appInfo.modelPath, data.type, modelName);
-
+    const isWindows = process.platform === 'win32';
+    const preCommand = isWindows ? 'uvx.exe' : './uvx';
     if (data.source === 'modelscope') {
       const res = await runCommand(
-        `./uvx modelscope download --model ${modelInfo.repo} --local_dir "${modelPath}"`,
+        `${preCommand} modelscope download --model ${modelInfo.repo} --local_dir "${modelPath}"`,
         {
           cwd: uv.dir,
         },
@@ -89,7 +90,7 @@ class LocalModelManager extends BaseManager {
       }
     } else if (data.source === 'huggingface') {
       const res = await runCommand(
-        `./uvx hf download ${modelInfo.repo} --local-dir "${modelPath}"`,
+        `${preCommand} hf download ${modelInfo.repo} --local-dir "${modelPath}"`,
         {
           cwd: uv.dir,
         },
