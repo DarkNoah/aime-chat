@@ -270,6 +270,9 @@ importers:
       '@types/react-test-renderer':
         specifier: ^19.0.0
         version: 19.1.0
+      '@types/shell-quote':
+        specifier: ^1.7.5
+        version: 1.7.5
       '@types/unzipper':
         specifier: ^0.10.11
         version: 0.10.11
@@ -585,6 +588,9 @@ importers:
       shape:
         specifier: ^0.0.1
         version: 0.0.1
+      shell-quote:
+        specifier: ^1.8.3
+        version: 1.8.3
       shiki:
         specifier: ^3.14.0
         version: 3.17.1
@@ -5259,6 +5265,9 @@ packages:
 
   '@types/serve-static@1.15.10':
     resolution: {integrity: sha512-tRs1dB+g8Itk72rlSI2ZrW6vZg0YrLI81iQSTkMmOqnqCaNr/8Ek4VwWcN5vZgCYWbg/JJSGBlUaYGAOP73qBw==}
+
+  '@types/shell-quote@1.7.5':
+    resolution: {integrity: sha512-+UE8GAGRPbJVQDdxi16dgadcBfQ+KG2vgZhV1+3A1XmHbmwcdwhCUwIdy+d3pAGrbvgRoVSjeI9vOWyq376Yzw==}
 
   '@types/sockjs@0.3.36':
     resolution: {integrity: sha512-MK9V6NzAS1+Ud7JV9lJLFqW85VbC9dq3LmwZCuBe4wBDgKC0Kj/jd8Xl+nSviU+Qc3+m7umHHyHg//2KSa0a0Q==}
@@ -10062,6 +10071,7 @@ packages:
   next@16.0.6:
     resolution: {integrity: sha512-2zOZ/4FdaAp5hfCU/RnzARlZzBsjaTZ/XjNQmuyYLluAPM7kcrbIkdeO2SL0Ysd1vnrSgU+GwugfeWX1cUCgCg==}
     engines: {node: '>=20.9.0'}
+    deprecated: This version has a security vulnerability. Please upgrade to a patched version. See https://nextjs.org/blog/CVE-2025-66478 for more details.
     hasBin: true
     peerDependencies:
       '@opentelemetry/api': ^1.1.0
@@ -18854,6 +18864,8 @@ snapshots:
       '@types/node': 22.13.10
       '@types/send': 0.17.6
 
+  '@types/shell-quote@1.7.5': {}
+
   '@types/sockjs@0.3.36':
     dependencies:
       '@types/node': 22.13.10
@@ -24927,8 +24939,8 @@ snapshots:
 
   ollama-ai-provider-v2@1.5.5(zod@3.25.76):
     dependencies:
-      '@ai-sdk/provider': 2.0.0
-      '@ai-sdk/provider-utils': 3.0.18(zod@3.25.76)
+      '@ai-sdk/provider': 2.0.1
+      '@ai-sdk/provider-utils': 3.0.20(zod@3.25.76)
       zod: 3.25.76
     optional: true
 

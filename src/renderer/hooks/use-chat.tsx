@@ -345,7 +345,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
   return (
     <ChatContext.Provider value={value}>
-      <div className="fixed top-0 left-0 p-4 flex flex-row gap-2 z-20">
+      <div className="fixed top-0 left-0 flex flex-row gap-2 z-20">
         {Object.keys(threadStates).map((threadId) => (
           <ChatSession
             key={threadId}

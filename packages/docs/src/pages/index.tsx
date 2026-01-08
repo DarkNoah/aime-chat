@@ -119,7 +119,7 @@ function HomepageHeader() {
           <div className={styles.platforms}>
             <Link
               className={styles.platformLink}
-              href="https://github.com/DarkNoah/aime-chat/releases/latest/download/aime-chat-arm64.dmg"
+              href="https://github.com/DarkNoah/aime-chat/releases/latest/download/aime-chat-arm64-mac.dmg"
               title="macOS (Apple Silicon)"
             >
               <span className={styles.platformIcon}>
@@ -127,19 +127,19 @@ function HomepageHeader() {
               </span>
               <span className={styles.platformText}>macOS (ARM)</span>
             </Link>
-            <Link
+            {/* <Link
               className={styles.platformLink}
-              href="https://github.com/DarkNoah/aime-chat/releases/latest/download/aime-chat-x64.dmg"
+              href="https://github.com/DarkNoah/aime-chat/releases/latest/download/aime-chat-x64-macos.dmg"
               title="macOS (Intel)"
             >
               <span className={styles.platformIcon}>
                 <IconBrandApple size={24} />
               </span>
               <span className={styles.platformText}>macOS (Intel)</span>
-            </Link>
+            </Link> */}
             <Link
               className={styles.platformLink}
-              href="https://github.com/DarkNoah/aime-chat/releases/latest/download/aime-chat-setup.exe"
+              href="https://github.com/DarkNoah/aime-chat/releases/latest/download/aime-chat-setup-win.exe"
               title="Windows"
             >
               <span className={styles.platformIcon}>
@@ -147,16 +147,16 @@ function HomepageHeader() {
               </span>
               <span className={styles.platformText}>Windows</span>
             </Link>
-            <Link
+            {/* <Link
               className={styles.platformLink}
-              href="https://github.com/DarkNoah/aime-chat/releases/latest/download/aime-chat.AppImage"
+              href="https://github.com/DarkNoah/aime-chat/releases/latest/download/aime-chat-linux.AppImage"
               title="Linux"
             >
               <span className={styles.platformIcon}>
                 <IconBrandUbuntu size={24} />
               </span>
               <span className={styles.platformText}>Linux</span>
-            </Link>
+            </Link> */}
           </div>
         </div>
       </div>

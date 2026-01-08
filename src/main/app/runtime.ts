@@ -27,17 +27,29 @@ export async function installUVRuntime() {
   }
   uv.status = 'installing';
   let success = false;
-  if (process.platform === 'darwin') {
-    const result = await runCommand(
-      `curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR="${path.dirname(uvPath)}" UV_NO_MODIFY_PATH=1 sh`,
-    );
-    if (result.code === 0) success = true;
-  } else if (process.platform === 'win32') {
-    const result = await runCommand(
-      `powershell -ExecutionPolicy ByPass -Command "$env:UV_INSTALL_DIR='${path.dirname(uvPath)}'; $env:UV_NO_MODEIFY=1; irm https://astral.sh/uv/install.ps1 | iex"`,
-    );
-    if (result.code === 0) success = true;
+  try{
+    if (process.platform === 'darwin') {
+      const result = await runCommand(
+        `curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR="${path.dirname(uvPath)}" UV_NO_MODIFY_PATH=1 sh`,
+      );
+      if (result.code === 0) success = true;
+    } else if (process.platform === 'win32') {
+      const result = await runCommand(['-ExecutionPolicy','ByPass','-Command','irm https://astral.sh/uv/install.ps1 | iex'],
+
+        {
+          env: {
+            UV_INSTALL_DIR: path.dirname(uvPath),
+            UV_NO_MODIFY_PATH: '1',
+          },
+          usePowerShell:true
+        }
+      );
+      if (result.code === 0) success = true;
+    }
+  }catch{
+    success = false;
   }
+
 
   if (success) {
     appManager.toast('UV Runtime installed successfully', { type: 'success' });
@@ -48,13 +60,18 @@ export async function installUVRuntime() {
   }
 }
 export async function unInstallUVRuntime() {
-  const uvPath = path.join(app.getPath('userData'), '.runtime', 'bin', 'uv');
-  const uvxPath = path.join(app.getPath('userData'), '.runtime', 'bin', 'uvx');
+  const isWindows = process.platform === 'win32';
+  const uvPath = path.join(app.getPath('userData'), '.runtime', 'bin', isWindows ? 'uv.exe' : 'uv');
+  const uvxPath = path.join(app.getPath('userData'), '.runtime', 'bin', isWindows ? 'uvx.exe' : 'uvx');
+  const uvwPath = path.join(app.getPath('userData'), '.runtime', 'bin', isWindows ? 'uvw.exe' : 'uvw');
   if (fs.existsSync(uvPath)) {
     await fs.promises.rm(uvPath, { recursive: true });
   }
   if (fs.existsSync(uvxPath)) {
     await fs.promises.rm(uvxPath, { recursive: true });
+  }
+  if (fs.existsSync(uvwPath)) {
+    await fs.promises.rm(uvwPath, { recursive: true });
   }
   await getUVRuntime(true);
 }
@@ -62,7 +79,8 @@ export async function getUVRuntime(refresh = false) {
   if (uv.status === 'installing' && refresh == false) {
     return uv;
   }
-  const uvPath = path.join(app.getPath('userData'), '.runtime', 'bin', 'uv');
+  const isWindows = process.platform === 'win32';
+  const uvPath = path.join(app.getPath('userData'), '.runtime', 'bin', isWindows ? 'uv.exe' : 'uv');
 
   if (!fs.existsSync(uvPath)) {
     uv.status = 'not_installed';
@@ -75,8 +93,9 @@ export async function getUVRuntime(refresh = false) {
   if (uv.status === 'installed' && refresh == false) {
     return uv;
   }
-  const result = await runCommand(`"${uvPath}" --version`, {
+  const result = await runCommand(`"${path.basename(uvPath)}" --version`, {
     timeout: 1000 * 5,
+    cwd: path.dirname(uvPath)
   });
   if (result.code === 0 && result.stdout.startsWith('uv ')) {
     uv.status = 'installed';

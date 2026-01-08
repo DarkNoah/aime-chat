@@ -35,9 +35,13 @@ export const countTokens = (message: string | ModelMessage): number => {
     return encoder.encode(message).length;
   }
 
+
   let tokenString = message.role;
   let overhead = 0;
 
+  if(!message?.content){
+    return 0;
+  }
   if (typeof message.content === 'string' && message.content) {
     tokenString += message.content;
   } else if (Array.isArray(message.content)) {

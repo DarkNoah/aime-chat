@@ -1,24 +1,12 @@
-import { Agent } from '@mastra/core/agent';
 import { createTool, ToolExecutionContext } from '@mastra/core/tools';
-import { generateText, tool } from 'ai-v5';
 import z from 'zod';
 import BaseTool, { BaseToolParams } from '../base-tool';
-import { runCommand } from '@/main/utils/shell';
-import { getUVRuntime } from '@/main/app/runtime';
-import { app } from 'electron';
-import fs from 'fs';
-import path from 'path';
-import { nanoid } from '@/utils/nanoid';
 import { ToolConfig, ToolTags } from '@/types/tool';
 import { appManager } from '@/main/app';
 import { providersManager } from '@/main/providers';
-import { ProviderType } from '@/types/provider';
-import { jsonSchemaToZod } from 'json-schema-to-zod';
-import { isUrl } from '@/utils/is';
 import { LanguageModel } from 'ai';
 import { Translation as TranslationAgent } from '@/main/mastra/agents/translation-agent';
 import { LanguageCodes } from '@/types/languages';
-import { text } from 'stream/consumers';
 
 export interface TranslationParams extends BaseToolParams {
   modelId?: string;
