@@ -1,7 +1,7 @@
 {
   "name": "aime-chat",
   "description": "A foundation for scalable desktop apps",
-  "version": "0.3.5",
+  "version": "0.3.6",
   "keywords": [
     "electron",
     "boilerplate",
@@ -403,7 +403,8 @@
     "publish": {
       "provider": "github",
       "owner": "DarkNoah",
-      "repo": "aime-chat"
+      "repo": "aime-chat",
+      "releaseType": "release"
     }
   },
   "devEngines": {
