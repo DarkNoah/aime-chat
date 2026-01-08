@@ -40,4 +40,4 @@ jobs:
           # This is used for uploading release assets to github
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          pnpm exec electron-builder -- --publish never --mac
+          pnpm exec electron-builder -- --publish always --mac
