@@ -37,7 +37,14 @@ class UpdateManager extends BaseManager {
 
     // 注册事件监听
     this.setupEventListeners();
-    this.checkForUpdates();
+
+    // macOS 未签名应用无法使用自动更新，跳过自动检查
+    // 用户仍可手动检查更新，但安装需要手动下载
+    if (process.platform !== 'darwin') {
+      this.checkForUpdates();
+    } else {
+      log.info('Skipping auto update check on macOS (unsigned app)');
+    }
 
     log.info('UpdateManager initialized');
   }

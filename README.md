@@ -67,6 +67,17 @@ pnpm package
 
 Packaged applications will be generated in the `release/build` directory.
 
+### macOS Installation Notes
+
+Due to the app not being signed with an Apple Developer certificate, macOS Gatekeeper may prevent the app from running. If you see "App is damaged" or "Cannot be opened" error, please run the following command in Terminal:
+
+```bash
+# After mounting the DMG and copying to Applications
+xattr -cr /Applications/aime-chat.app
+```
+
+Or right-click the app → hold Option key → click "Open".
+
 ## 📦 Project Structure
 
 ```

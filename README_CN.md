@@ -67,6 +67,17 @@ pnpm package
 
 打包后的应用将生成在 `release/build` 目录中。
 
+### macOS 安装说明
+
+由于应用未使用 Apple 开发者证书签名，macOS Gatekeeper 可能会阻止应用运行。如果遇到"应用已损坏"或"无法打开"的提示，请在终端中执行以下命令：
+
+```bash
+# 挂载 DMG 并复制到应用程序文件夹后执行
+xattr -cr /Applications/aime-chat.app
+```
+
+或者右键点击应用 → 按住 Option 键 → 点击"打开"。
+
 ## 📦 项目结构
 
 ```
