@@ -219,7 +219,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
       chatInputRef.current?.setTools([...new Set(tools)]);
       setAgentId(_agent?.id);
       setAgent(_agent);
-      if (_agent?.defaultModelId) {
+      if (_agent?.defaultModelId && !threadState?.metadata?.model) {
         setModelId(_agent?.defaultModelId);
       }
       if (_agent?.subAgents) {
