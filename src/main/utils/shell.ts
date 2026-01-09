@@ -8,7 +8,7 @@ import fixPath from 'fix-path';
 import { appManager } from '../app';
 import iconv from 'iconv-lite';
 import { isString } from '@/utils/is';
-import { parse, quote } from "shell-quote";
+import { parse, quote } from 'shell-quote';
 
 export const decodeBuffer = (data: Buffer) => {
   return process.platform === 'win32'
@@ -32,7 +32,13 @@ export const runCommand = async (
     shell,
     tempFilePath,
     command: realCommand,
-  } = createShell(command, options?.cwd, options?.timeout, options?.env, options?.usePowerShell);
+  } = createShell(
+    command,
+    options?.cwd,
+    options?.timeout,
+    options?.env,
+    options?.usePowerShell,
+  );
   let exited = false;
   let stdout = '';
   let output = '';
@@ -200,57 +206,65 @@ export const createShell = (
     ? input_command
     : (() => {
         // wrap command to append subprocess pids (via pgrep) to temporary file
-        let command = isString(input_command) ? input_command : quote(input_command);
+        let command = isString(input_command)
+          ? input_command
+          : quote(input_command);
         if (!command.endsWith('&')) command += ';';
         return `{ ${command} }; __code=$?; pgrep -g 0 >${tempFilePath} 2>&1; exit $__code;`;
       })();
 
-
-  if(isWindows && usePowerShell) {
-    const command = isString(input_command)? parse(input_command) as string[] : input_command;
-    return {shell:spawn('powershell.exe', command, {
-      stdio: ['ignore', 'pipe', 'pipe'],
-      // detached: true, // ensure subprocess starts its own process group (esp. in Linux)
-      cwd: cwd,
-      timeout: timeout,
-      env: _env,
-    }),tempFilePath, command: _command }
-  }
-
-  let real_input_command:string[];
-  if(isString(_command)){
-    real_input_command = parse(_command) as string[];
-  }else{
-    real_input_command = _command;
-  }
-
-
-  real_input_command = real_input_command.map(x=>{
-
-    if(isString(x)){
-      return x;
-    }else{
-      if("op" in x){
-        return x["op"]
-      } else{
-        return "";
-      }
-    }
-  });
-  const shell = isWindows
-    ? spawn('cmd.exe', ['/c', ...real_input_command], {
+  if (isWindows && usePowerShell) {
+    const command = isString(input_command)
+      ? (parse(input_command) as string[])
+      : input_command;
+    return {
+      shell: spawn('powershell.exe', command, {
         stdio: ['ignore', 'pipe', 'pipe'],
         // detached: true, // ensure subprocess starts its own process group (esp. in Linux)
         cwd: cwd,
         timeout: timeout,
         env: _env,
-      })
-    : spawn('bash', ['-c', ...real_input_command], {
-        stdio: ['ignore', 'pipe', 'pipe'],
-        detached: true, // ensure subprocess starts its own process group (esp. in Linux)
-        cwd: cwd,
-        timeout: timeout,
-        env: _env,
-      });
-  return { shell, tempFilePath, command: quote(real_input_command)  };
+      }),
+      tempFilePath,
+      command: _command,
+    };
+  }
+
+  if (!isWindows) {
+    const shell = spawn('bash', ['-c', _command as string], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+      detached: true, // ensure subprocess starts its own process group (esp. in Linux)
+      cwd: cwd,
+      timeout: timeout,
+      env: _env,
+    });
+    return { shell, tempFilePath, command: _command };
+  } else {
+    let real_input_command: string[];
+    if (isString(_command)) {
+      real_input_command = parse(_command) as string[];
+    } else {
+      real_input_command = _command;
+    }
+
+    real_input_command = real_input_command.map((x) => {
+      if (isString(x)) {
+        return x;
+      } else {
+        if ('op' in x) {
+          return x['op'];
+        } else {
+          return '';
+        }
+      }
+    });
+    const shell = spawn('cmd.exe', ['/c', ...real_input_command], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+      // detached: true, // ensure subprocess starts its own process group (esp. in Linux)
+      cwd: cwd,
+      timeout: timeout,
+      env: _env,
+    });
+    return { shell, tempFilePath, command: _command };
+  }
 };

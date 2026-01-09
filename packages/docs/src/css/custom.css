@@ -238,10 +238,10 @@ body {
 a {
   transition: color 0.2s ease;
   color: var(--ifm-link-color);
-  text-decoration: underline;
+  /* text-decoration: underline;
   text-decoration-thickness: 1px;
   text-underline-offset: 2px;
-  text-decoration-color: var(--ifm-color-primary-dark);
+  text-decoration-color: var(--ifm-color-primary-dark); */
 }
 
 a:hover {
