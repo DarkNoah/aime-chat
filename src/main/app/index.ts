@@ -337,6 +337,41 @@ class AppManager extends BaseManager {
     }
     await this.settingsRepository.upsert(settings, ['id']);
   }
+  @channel(AppChannel.GetSetupStatus)
+  public async getSetupStatus(): Promise<{
+    needsSetup: boolean;
+    hasProvider: boolean;
+    hasDefaultModel: boolean;
+    hasRuntime: boolean;
+  }> {
+    const providers = await providersManager.getList();
+    const hasProvider =
+      providers.length > 0 && providers.some((p) => p.isActive);
+    const settings = await this.settingsRepository.find();
+    const hasDefaultModel = !!settings.find((x) => x.id === 'defaultModel')
+      ?.value?.model;
+    const runtimeInfo = await this.getRuntimeInfo();
+    const hasRuntime =
+      runtimeInfo?.uv?.installed || runtimeInfo?.node?.installed;
+    const setupCompleted = settings.find(
+      (x) => x.id === 'setupCompleted',
+    )?.value;
+
+    return {
+      needsSetup: !setupCompleted && !hasProvider,
+      hasProvider,
+      hasDefaultModel,
+      hasRuntime,
+    };
+  }
+
+  @channel(AppChannel.CompleteSetup)
+  public async completeSetup(): Promise<void> {
+    await this.settingsRepository.upsert(new Settings('setupCompleted', true), [
+      'id',
+    ]);
+  }
+
   @channel(AppChannel.Translation)
   public async translation(data: {
     source: string;

@@ -79,7 +79,12 @@
     "other_provider": "其他供应商",
     "paste": "粘贴",
     "cut": "剪切",
-    "selectAll": "全选"
+    "selectAll": "全选",
+    "back": "返回",
+    "next": "下一步",
+    "skip": "跳过",
+    "saving": "保存中...",
+    "optional": "可选"
   },
   "sidebar": {
     "new_chat": "新聊天",
@@ -135,5 +140,67 @@
     "add_url": "添加网址",
     "add_files": "添加文件",
     "add_text": "添加文本"
+  },
+  "setup": {
+    "welcome": {
+      "title": "欢迎使用 AIME Chat",
+      "description": "您的智能 AI 助手，助力提升效率和创造力。让我们通过几个简单的步骤完成设置。",
+      "get_started": "开始设置",
+      "setup_time": "设置大约需要 2 分钟"
+    },
+    "features": {
+      "chat": "智能对话",
+      "chat_desc": "与强大的 AI 模型对话，获取答案、撰写内容、解决问题。",
+      "tools": "强大工具",
+      "tools_desc": "连接 MCP 服务器，使用内置工具扩展 AI 能力。",
+      "agents": "自定义助手",
+      "agents_desc": "创建专属的 AI 助手，满足您的特定工作流程。"
+    },
+    "provider": {
+      "title": "添加模型供应商",
+      "description": "连接 AI 模型供应商以开始对话。您可以稍后添加更多供应商。",
+      "type": "供应商类型",
+      "select_type": "选择供应商",
+      "popular": "热门",
+      "all_providers": "所有供应商",
+      "name": "显示名称",
+      "get_api_key": "点击获取 API Key",
+      "add_provider": "添加供应商",
+      "added_success": "供应商添加成功！",
+      "added_error": "添加供应商失败",
+      "added_title": "供应商已添加！",
+      "added_description": "您可以继续添加更多供应商，或进入下一步。",
+      "add_another": "添加另一个供应商"
+    },
+    "model": {
+      "title": "设置默认模型",
+      "description": "为不同任务选择默认模型。您可以随时在设置中更改。",
+      "fast_model": "快速模型",
+      "fast_model_desc": "用于快速任务，如摘要和简单问题。",
+      "default_model": "默认模型",
+      "default_model_desc": "用于需要更强推理能力的复杂任务。",
+      "saved_success": "默认模型已保存！",
+      "saved_error": "保存默认模型失败",
+      "tip": "提示：快速模型更便宜、更快，而默认模型为复杂任务提供更好的质量。"
+    },
+    "runtime": {
+      "title": "安装运行环境",
+      "description": "安装可选的运行环境以启用高级功能，如 MCP 服务器和代码执行。",
+      "uv_desc": "Python 包管理器，用于运行 MCP 服务器和 Python 工具。",
+      "node_desc": "JavaScript 运行时，用于运行基于 Node.js 的 MCP 服务器。",
+      "installed": "已安装",
+      "not_installed": "未安装",
+      "install": "安装",
+      "installing": "安装中...",
+      "tip": "推荐安装 UV 运行环境以运行 MCP 服务器。您可以跳过此步骤，稍后在设置中安装。"
+    },
+    "complete": {
+      "title": "设置完成！",
+      "description": "AIME Chat 已准备就绪。开始探索 AI 助手的强大功能吧。",
+      "quick_tips": "快速提示",
+      "tip_chat": "点击侧边栏的 + 按钮开始新对话。",
+      "tip_agents": "在助手页面探索预置助手或创建自己的助手。",
+      "start_chatting": "开始对话"
+    }
   }
 }

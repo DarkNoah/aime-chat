@@ -117,6 +117,14 @@ const electronHandler = {
       force?: boolean,
     ): Promise<string> =>
       ipcRenderer.invoke(AppChannel.Translation, { source, lang, force }),
+    getSetupStatus: (): Promise<{
+      needsSetup: boolean;
+      hasProvider: boolean;
+      hasDefaultModel: boolean;
+      hasRuntime: boolean;
+    }> => ipcRenderer.invoke(AppChannel.GetSetupStatus),
+    completeSetup: (): Promise<void> =>
+      ipcRenderer.invoke(AppChannel.CompleteSetup),
   },
   providers: {
     getList: (filter?: { tags?: ProviderTag[] }) =>

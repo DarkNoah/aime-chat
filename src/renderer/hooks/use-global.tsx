@@ -12,11 +12,20 @@ import React, {
 import { Toaster, toast } from 'react-hot-toast';
 import { Spinner } from '../components/ui/spinner';
 
+export type SetupStatus = {
+  needsSetup: boolean;
+  hasProvider: boolean;
+  hasDefaultModel: boolean;
+  hasRuntime: boolean;
+};
+
 type GlobalState = {
   appInfo?: AppInfo;
   user?: string;
   setUser: (user?: string) => void;
   getAppInfo: () => Promise<void>;
+  setupStatus?: SetupStatus;
+  getSetupStatus: () => Promise<SetupStatus>;
 };
 
 export const GlobalContext = createContext<GlobalState | null>(null);
@@ -24,6 +33,7 @@ export const GlobalContext = createContext<GlobalState | null>(null);
 export function GlobalProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<string | undefined>();
   const [appInfo, setAppInfo] = useState<AppInfo | undefined>();
+  const [setupStatus, setSetupStatus] = useState<SetupStatus | undefined>();
 
   const getAppInfo = async () => {
     const data = await window.electron.app.getInfo();
@@ -31,9 +41,15 @@ export function GlobalProvider({ children }: { children: ReactNode }) {
     setAppInfo(data);
   };
 
+  const getSetupStatus = async (): Promise<SetupStatus> => {
+    const data = await window.electron.app.getSetupStatus();
+    setSetupStatus(data);
+    return data;
+  };
+
   const contextValue = useMemo(
-    () => ({ user, setUser, appInfo, getAppInfo }),
-    [user, appInfo],
+    () => ({ user, setUser, appInfo, getAppInfo, setupStatus, getSetupStatus }),
+    [user, appInfo, setupStatus],
   );
 
   const handleToast = useCallback(
@@ -56,6 +72,7 @@ export function GlobalProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     getAppInfo();
+    getSetupStatus();
     window.electron.ipcRenderer.removeAllListeners(AppChannel.Toast);
     window.electron.ipcRenderer.on(AppChannel.Toast, handleToast);
     return () => {
@@ -63,14 +80,16 @@ export function GlobalProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  const isLoading = !appInfo || setupStatus === undefined;
+
   return (
     <GlobalContext.Provider value={contextValue}>
-      {appInfo ? (
-        children
-      ) : (
+      {isLoading ? (
         <div className="w-full h-screen flex items-center justify-center">
           <Spinner className="w-[64px] h-[64px]" />
         </div>
+      ) : (
+        children
       )}
     </GlobalContext.Provider>
   );
