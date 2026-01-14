@@ -168,9 +168,19 @@
       "add_provider": "添加供应商",
       "added_success": "供应商添加成功！",
       "added_error": "添加供应商失败",
+      "already_exists": "供应商已存在",
       "added_title": "供应商已添加！",
       "added_description": "您可以继续添加更多供应商，或进入下一步。",
-      "add_another": "添加另一个供应商"
+      "add_another": "添加另一个供应商",
+      "models_title": "启用模型",
+      "models_description": "选择要使用的模型。您可以稍后在设置中更改。",
+      "enable_recommended": "启用推荐",
+      "models_count": "已启用 {{enabled}}/{{total}} 个模型",
+      "models_tip": "启用您计划使用的模型。推荐的模型通常是最新且最强大的。",
+      "save_models": "保存并继续",
+      "load_models_error": "加载模型失败",
+      "save_models_error": "保存模型失败",
+      "enabled_models": "已启用 {{count}} 个模型"
     },
     "model": {
       "title": "设置默认模型",

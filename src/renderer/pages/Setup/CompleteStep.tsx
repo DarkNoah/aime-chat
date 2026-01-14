@@ -8,9 +8,11 @@ import {
   CardTitle,
 } from '@/renderer/components/ui/card';
 import { useTranslation } from 'react-i18next';
-import { SetupStepProps } from './index';
 import { Check, Rocket, MessageSquare, Sparkles } from 'lucide-react';
-import icon from '@/../assets/icon.png';
+
+interface SetupStepProps {
+  onNext: () => void;
+}
 
 function CompleteStep({ onNext }: SetupStepProps) {
   const { t } = useTranslation();

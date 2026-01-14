@@ -9,7 +9,6 @@ import {
   CardFooter,
 } from '@/renderer/components/ui/card';
 import { useTranslation } from 'react-i18next';
-import { SetupStepProps } from './index';
 import {
   ArrowLeft,
   ArrowRight,
@@ -22,6 +21,12 @@ import { ChatModelSelect } from '@/renderer/components/chat-ui/chat-model-select
 import { Spinner } from '@/renderer/components/ui/spinner';
 import { useGlobal } from '@/renderer/hooks/use-global';
 import toast from 'react-hot-toast';
+
+interface SetupStepProps {
+  onNext: () => void;
+  onBack?: () => void;
+  onSkip?: () => void;
+}
 
 function ModelStep({ onNext, onBack, onSkip }: SetupStepProps) {
   const { t } = useTranslation();

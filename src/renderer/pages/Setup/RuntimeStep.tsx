@@ -10,7 +10,6 @@ import {
 } from '@/renderer/components/ui/card';
 import { Badge } from '@/renderer/components/ui/badge';
 import { useTranslation } from 'react-i18next';
-import { SetupStepProps } from './index';
 import {
   ArrowLeft,
   ArrowRight,
@@ -28,6 +27,12 @@ import {
   ItemTitle,
   ItemDescription,
 } from '@/renderer/components/ui/item';
+
+interface SetupStepProps {
+  onNext: () => void;
+  onBack?: () => void;
+  onSkip?: () => void;
+}
 
 interface RuntimeInfo {
   uv?: {
@@ -65,9 +70,10 @@ function RuntimeStep({ onNext, onBack, onSkip }: SetupStepProps) {
 
   const handleInstallUV = async () => {
     setInstalling(true);
-    setRuntimeInfo((prev) =>
-      prev ? { ...prev, uv: { ...prev.uv, status: 'installing' } as any } : null,
-    );
+    setRuntimeInfo((prev) => {
+      if (!prev) return null;
+      return { ...prev, uv: { ...prev.uv, status: 'installing' } as any };
+    });
     try {
       await window.electron.app.installRuntime('uv');
       await getRuntimeInfo();
@@ -110,22 +116,22 @@ function RuntimeStep({ onNext, onBack, onSkip }: SetupStepProps) {
                     <Badge variant="secondary">{runtimeInfo.uv.version}</Badge>
                   )}
                 </ItemTitle>
-                <ItemDescription>
-                  {t('setup.runtime.uv_desc')}
-                </ItemDescription>
+                <ItemDescription>{t('setup.runtime.uv_desc')}</ItemDescription>
               </ItemContent>
               <ItemActions>
-                {isUVInstalled ? (
+                {isUVInstalled && (
                   <Badge className="bg-green-500/10 text-green-500 hover:bg-green-500/20">
                     <Check className="w-3 h-3 mr-1" />
                     {t('setup.runtime.installed')}
                   </Badge>
-                ) : isUVInstalling ? (
+                )}
+                {!isUVInstalled && isUVInstalling && (
                   <Button disabled size="sm">
                     <Spinner className="w-4 h-4 mr-2" />
                     {t('setup.runtime.installing')}
                   </Button>
-                ) : (
+                )}
+                {!isUVInstalled && !isUVInstalling && (
                   <Button size="sm" onClick={handleInstallUV}>
                     <Download className="w-4 h-4 mr-2" />
                     {t('setup.runtime.install')}
@@ -143,7 +149,9 @@ function RuntimeStep({ onNext, onBack, onSkip }: SetupStepProps) {
                 <ItemTitle className="flex items-center gap-2">
                   Node.js
                   {isNodeInstalled && runtimeInfo?.node?.version && (
-                    <Badge variant="secondary">{runtimeInfo.node.version}</Badge>
+                    <Badge variant="secondary">
+                      {runtimeInfo.node.version}
+                    </Badge>
                   )}
                 </ItemTitle>
                 <ItemDescription>
@@ -195,4 +203,3 @@ function RuntimeStep({ onNext, onBack, onSkip }: SetupStepProps) {
 }
 
 export default RuntimeStep;
-
