@@ -8,9 +8,11 @@ import {
   CardTitle,
 } from '@/renderer/components/ui/card';
 import { useTranslation } from 'react-i18next';
-import { SetupStepProps } from './index';
 import { Sparkles, MessageSquare, Wrench, Brain } from 'lucide-react';
-import icon from '@/../assets/icon.png';
+
+interface SetupStepProps {
+  onNext: () => void;
+}
 
 function WelcomeStep({ onNext }: SetupStepProps) {
   const { t } = useTranslation();
@@ -39,11 +41,9 @@ function WelcomeStep({ onNext }: SetupStepProps) {
         <div className="flex justify-center">
           <div className="relative">
             <div className="absolute inset-0 bg-primary/20 blur-2xl rounded-full" />
-            <img
-              src={icon}
-              alt="AIME Chat"
-              className="relative w-20 h-20 rounded-2xl shadow-lg"
-            />
+            <div className="relative w-20 h-20 rounded-2xl shadow-lg bg-primary/10 flex items-center justify-center">
+              <Sparkles className="w-10 h-10 text-primary" />
+            </div>
           </div>
         </div>
         <div className="space-y-2">

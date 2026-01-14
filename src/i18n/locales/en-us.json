@@ -168,9 +168,19 @@
       "add_provider": "Add Provider",
       "added_success": "Provider added successfully!",
       "added_error": "Failed to add provider",
+      "already_exists": "Provider already exists",
       "added_title": "Provider Added!",
       "added_description": "You can continue to add more providers or proceed to the next step.",
-      "add_another": "Add Another Provider"
+      "add_another": "Add Another Provider",
+      "models_title": "Enable Models",
+      "models_description": "Select which models you want to use. You can change this later in settings.",
+      "enable_recommended": "Enable Recommended",
+      "models_count": "{{enabled}} of {{total}} models enabled",
+      "models_tip": "Enable the models you plan to use. Recommended models are usually the latest and most capable.",
+      "save_models": "Save & Continue",
+      "load_models_error": "Failed to load models",
+      "save_models_error": "Failed to save models",
+      "enabled_models": "{{count}} models enabled"
     },
     "model": {
       "title": "Set Default Models",

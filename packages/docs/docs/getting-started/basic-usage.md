@@ -6,6 +6,10 @@ sidebar_position: 2
 
 本指南将帮助您快速上手 AIME Chat 的基本功能。
 
+## 初始化导向
+
+![初始化导向](./images/aime_chat_init.gif)
+
 ## 界面概览
 
 AIME Chat 的界面主要分为以下几个部分：
