@@ -36,6 +36,9 @@ export enum AppChannel {
   UpdateDownloaded = 'app:updateDownloaded',
   UpdateError = 'app:updateError',
   Translation = 'app:translation',
+  // Setup 相关
+  GetSetupStatus = 'app:getSetupStatus',
+  CompleteSetup = 'app:completeSetup',
 }
 
 export enum MastraChannel {

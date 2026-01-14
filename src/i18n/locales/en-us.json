@@ -79,7 +79,12 @@
     "other_provider": "Other Provider",
     "paste": "Paste",
     "cut": "Cut",
-    "selectAll": "Select All"
+    "selectAll": "Select All",
+    "back": "Back",
+    "next": "Next",
+    "skip": "Skip",
+    "saving": "Saving...",
+    "optional": "optional"
   },
   "sidebar": {
     "new_chat": "New Chat",
@@ -135,5 +140,67 @@
     "add_url": "Add Url",
     "add_files": "Add Files",
     "add_text": "Add Text"
+  },
+  "setup": {
+    "welcome": {
+      "title": "Welcome to AIME Chat",
+      "description": "Your intelligent AI assistant for productivity and creativity. Let's get you set up in just a few steps.",
+      "get_started": "Get Started",
+      "setup_time": "Setup takes about 2 minutes"
+    },
+    "features": {
+      "chat": "Smart Conversations",
+      "chat_desc": "Chat with powerful AI models to get answers, write content, and solve problems.",
+      "tools": "Powerful Tools",
+      "tools_desc": "Connect MCP servers and use built-in tools to extend AI capabilities.",
+      "agents": "Custom Agents",
+      "agents_desc": "Create specialized AI agents tailored to your specific workflows."
+    },
+    "provider": {
+      "title": "Add Model Provider",
+      "description": "Connect to an AI model provider to start chatting. You can add more providers later.",
+      "type": "Provider Type",
+      "select_type": "Select a provider",
+      "popular": "Popular",
+      "all_providers": "All Providers",
+      "name": "Display Name",
+      "get_api_key": "Get your API key here",
+      "add_provider": "Add Provider",
+      "added_success": "Provider added successfully!",
+      "added_error": "Failed to add provider",
+      "added_title": "Provider Added!",
+      "added_description": "You can continue to add more providers or proceed to the next step.",
+      "add_another": "Add Another Provider"
+    },
+    "model": {
+      "title": "Set Default Models",
+      "description": "Choose your default models for different tasks. You can change these anytime in settings.",
+      "fast_model": "Fast Model",
+      "fast_model_desc": "Used for quick tasks like summarization and simple questions.",
+      "default_model": "Default Model",
+      "default_model_desc": "Used for complex tasks requiring more reasoning power.",
+      "saved_success": "Default models saved!",
+      "saved_error": "Failed to save default models",
+      "tip": "Tip: Fast models are cheaper and quicker, while default models provide better quality for complex tasks."
+    },
+    "runtime": {
+      "title": "Install Runtime",
+      "description": "Install optional runtimes to enable advanced features like MCP servers and code execution.",
+      "uv_desc": "Python package manager for running MCP servers and Python tools.",
+      "node_desc": "JavaScript runtime for running Node.js-based MCP servers.",
+      "installed": "Installed",
+      "not_installed": "Not Installed",
+      "install": "Install",
+      "installing": "Installing...",
+      "tip": "UV runtime is recommended for running MCP servers. You can skip this step and install later in Settings."
+    },
+    "complete": {
+      "title": "You're All Set!",
+      "description": "AIME Chat is ready to use. Start exploring the power of AI assistance.",
+      "quick_tips": "Quick Tips",
+      "tip_chat": "Start a new chat by clicking the + button in the sidebar.",
+      "tip_agents": "Explore pre-built agents or create your own in the Agents section.",
+      "start_chatting": "Start Chatting"
+    }
   }
 }

@@ -61,6 +61,7 @@ import {
 } from './components/ui/breadcrumb';
 import ProjectsPage from './pages/projects';
 import { ChatProvider } from './hooks/use-chat';
+import SetupPage from './pages/Setup';
 
 function Hello() {
   const { setTitle } = useHeader();
@@ -144,6 +145,53 @@ export function SiteHeader() {
   );
 }
 
+function MainLayout(props: { children: ReactNode }) {
+  const { children } = props;
+
+  return (
+    <ChatProvider>
+      <SidebarProvider
+        style={
+          {
+            '--sidebar-width': 'calc(var(--spacing) * 64)',
+            '--header-height': 'calc(var(--spacing) * 12)',
+          } as React.CSSProperties
+        }
+        className="group/layout"
+      >
+        <HeaderProvider>
+          <AppSidebar variant="inset" className="" />
+
+          <SidebarInset>
+            <SiteHeader></SiteHeader>
+            <div className="@container/main flex-1 min-h-0 flex flex-col max-h-[calc(100vh-var(--header-height)-var(--spacing)*4)]">
+              {children}
+            </div>
+          </SidebarInset>
+        </HeaderProvider>
+        <Toaster />
+      </SidebarProvider>
+    </ChatProvider>
+  );
+}
+
+function SetupRedirect({ children }: { children: ReactNode }) {
+  const { setupStatus } = useGlobal();
+  const location = useLocation();
+
+  // If on setup page, don't redirect
+  if (location.pathname.startsWith('/setup')) {
+    return <>{children}</>;
+  }
+
+  // If needs setup, redirect to setup page
+  if (setupStatus?.needsSetup) {
+    return <Navigate to="/setup" replace />;
+  }
+
+  return <>{children}</>;
+}
+
 function LayoutPage(props: { children: ReactNode }) {
   const { children } = props;
 
@@ -156,35 +204,40 @@ function LayoutPage(props: { children: ReactNode }) {
         disableTransitionOnChange
       >
         <I18nProvider>
-          {/* <AppHeader></AppHeader> */}
-          <ChatProvider>
-            <SidebarProvider
-              style={
-                {
-                  '--sidebar-width': 'calc(var(--spacing) * 64)',
-                  '--header-height': 'calc(var(--spacing) * 12)',
-                } as React.CSSProperties
-              }
-              className="group/layout"
-            >
-              <HeaderProvider>
-                <AppSidebar variant="inset" className="" />
-
-                <SidebarInset>
-                  <SiteHeader></SiteHeader>
-                  <div className="@container/main flex-1 min-h-0 flex flex-col max-h-[calc(100vh-var(--header-height)-var(--spacing)*4)]">
-                    {children}
-                  </div>
-                </SidebarInset>
-              </HeaderProvider>
-              <Toaster />
-
-              {/* <Toaster /> */}
-            </SidebarProvider>
-          </ChatProvider>
+          <SetupRedirect>{children}</SetupRedirect>
         </I18nProvider>
       </ThemeProvider>
     </GlobalProvider>
+  );
+}
+
+function AppRoutes() {
+  const location = useLocation();
+  const isSetupRoute = location.pathname.startsWith('/setup');
+
+  // Setup page has its own layout (no sidebar)
+  if (isSetupRoute) {
+    return (
+      <Routes>
+        <Route path="/setup/*" element={<SetupPage />} />
+      </Routes>
+    );
+  }
+
+  // Main app with sidebar layout
+  return (
+    <MainLayout>
+      <Routes>
+        <Route path="/" element={<Navigate to="/chat" replace />} />
+        <Route path="/chat/*" element={<ChatPage />} />
+        <Route path="/settings/*" element={<Settings />} />
+        <Route path="/tools/*" element={<Tools />} />
+        <Route path="/knowledge-base/*" element={<KnowledgeBasePage />} />
+        <Route path="/agents" element={<AgentPage />} />
+        <Route path="/agents/:id" element={<AgentDetail />} />
+        <Route path="/projects/:id" element={<ProjectsPage />} />
+      </Routes>
+    </MainLayout>
   );
 }
 
@@ -192,17 +245,7 @@ export default function App() {
   return (
     <Router>
       <LayoutPage>
-        <Routes>
-          <Route path="/" element={<Navigate to="/chat" replace />} />
-          <Route path="/chat/*" element={<ChatPage />} />
-          {/* <Route path="/home" element={<Home />} /> */}
-          <Route path="/settings/*" element={<Settings />} />
-          <Route path="/tools/*" element={<Tools />} />
-          <Route path="/knowledge-base/*" element={<KnowledgeBasePage />} />
-          <Route path="/agents" element={<AgentPage />} />
-          <Route path="/agents/:id" element={<AgentDetail />} />
-          <Route path="/projects/:id" element={<ProjectsPage />} />
-        </Routes>
+        <AppRoutes />
       </LayoutPage>
     </Router>
   );

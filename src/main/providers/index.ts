@@ -1,4 +1,4 @@
-import { Repository } from 'typeorm';
+import { Not, Repository } from 'typeorm';
 import { BaseManager } from '../BaseManager';
 import { Providers } from '@/entities/providers';
 import { dialog, ipcMain } from 'electron';
@@ -146,6 +146,9 @@ class ProvidersManager extends BaseManager {
 
   @channel(ProviderChannel.Create)
   public async create(data: CreateProvider): Promise<Provider> {
+    if (await this.repository.findOne({ where: { name: data.name.trim() } })) {
+      throw new Error('Provider already exists');
+    }
     const provider = this.repository.create({
       id: uuidv4(),
       name: data.name,
@@ -174,6 +177,14 @@ class ProvidersManager extends BaseManager {
   public async updateProviders(id: string, data: any): Promise<void> {
     // const providerData = await this.repository.findOne({ where: { id } });
     const provider = await this.getProvider(id);
+    if (
+      data?.name?.trim() &&
+      (await this.repository.findOne({
+        where: { name: data.name?.trim(), id: Not(id) },
+      }))
+    ) {
+      throw new Error('Provider already exists');
+    }
     if (provider && provider.tags && provider.tags.length > 0) {
       data['tags'] = provider.tags;
     }

@@ -881,11 +881,19 @@ class MastraManager extends BaseManager {
 
         const bashSessions = bashManager.getBashSessions(chatId);
         if (bashSessions.length > 0) {
+          const systemReminder = [];
           for (const bashSession of bashSessions) {
             if (bashManager.hasUpdate(bashSession.bashId)) {
+              const reminder = `Background Bash ${bashSession.bashId} (command: ${bashSession.command}) (status: ${bashSession.isExited ? 'exited' : 'running'}) Has new output available. You can check its output using the BashOutput tool.`;
               debugger;
               // getLastMessageIndex();
             }
+          }
+          if (systemReminder.length > 0) {
+            input[input.length - 1].parts.push({
+              type: 'text',
+              text: `<system-reminder>\n${systemReminder.join('\n')}\n</system-reminder>`,
+            });
           }
         }
 
