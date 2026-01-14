@@ -63,7 +63,11 @@ function ProviderStep({ onNext, onBack, onSkip }: SetupStepProps) {
       setProviderAdded(true);
       toast.success(t('setup.provider.added_success'));
     } catch (err: any) {
-      toast.error(err.message || t('setup.provider.added_error'));
+      if (err.message.includes('Error: Provider already exists')) {
+        toast.error(t('setup.provider.already_exists'));
+      } else {
+        toast.error(err.message || t('setup.provider.added_error'));
+      }
     } finally {
       setSubmitting(false);
     }

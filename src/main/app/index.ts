@@ -358,7 +358,7 @@ class AppManager extends BaseManager {
     )?.value;
 
     return {
-      needsSetup: !setupCompleted && !hasProvider,
+      needsSetup: !setupCompleted,
       hasProvider,
       hasDefaultModel,
       hasRuntime,

@@ -1,3 +1,5 @@
+/* eslint-disable promise/always-return */
+/* eslint-disable promise/catch-or-return */
 import React, { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -10,6 +12,7 @@ import RuntimeStep from './RuntimeStep';
 import CompleteStep from './CompleteStep';
 import { useTranslation } from 'react-i18next';
 import { Toaster } from 'react-hot-toast';
+import { useGlobal } from '@/renderer/hooks/use-global';
 
 export interface SetupStepProps {
   onNext: () => void;
@@ -28,6 +31,7 @@ const steps = [
 function SetupPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { getSetupStatus } = useGlobal();
   const [currentStep, setCurrentStep] = useState(0);
 
   const handleNext = useCallback(() => {
@@ -36,10 +40,12 @@ function SetupPage() {
     } else {
       // Complete setup and navigate to main app
       window.electron.app.completeSetup().then(() => {
-        navigate('/chat');
+        getSetupStatus().then(() => {
+          navigate('/chat');
+        });
       });
     }
-  }, [currentStep, navigate]);
+  }, [currentStep, getSetupStatus, navigate]);
 
   const handleBack = useCallback(() => {
     if (currentStep > 0) {
@@ -122,4 +128,3 @@ function SetupPage() {
 }
 
 export default SetupPage;
-

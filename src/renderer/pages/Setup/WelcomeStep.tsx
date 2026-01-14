@@ -93,4 +93,3 @@ function WelcomeStep({ onNext }: SetupStepProps) {
 }
 
 export default WelcomeStep;
-

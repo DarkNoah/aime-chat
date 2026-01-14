@@ -77,4 +77,3 @@ function CompleteStep({ onNext }: SetupStepProps) {
 }
 
 export default CompleteStep;
-
