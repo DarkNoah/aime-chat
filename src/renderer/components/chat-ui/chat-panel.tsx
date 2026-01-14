@@ -636,6 +636,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
                                 <ToolMessage
                                   key={`${message.id}-${i}`}
                                   part={_part}
+                                  threadId={threadId}
                                   isSuspended={isSuspended}
                                   onResume={(value) => {
                                     console.log(value);

@@ -89,7 +89,7 @@ export const ToolConfig = {
   },
   Extract: {
     configSchema: z.strictObject({
-      modelId: z.string(),
+      modelId: z.string().optional(),
       maxChunkSize: z
         .number()
         .optional()
@@ -99,6 +99,9 @@ export const ToolConfig = {
       modelId: {
         'ui:widget': 'modelSelector',
         'ui:title': t('common.model'),
+        'ui:options': {
+          clearable: true,
+        },
       },
       maxChunkSize: {
         'ui:title': t('common.max_chunk_size'),

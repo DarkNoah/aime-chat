@@ -50,12 +50,15 @@ const ModelSelectorWidget: Widget<any, RJSFSchema, any> = ({
   const modelType = ((options as Record<string, unknown>)?.modelType ??
     (options as Record<string, unknown>)?.type ??
     undefined) as ModelType | undefined;
+  const clearable =
+    ((options as Record<string, unknown>)?.clearable as boolean) ?? false;
   return (
     <ChatModelSelect
       value={typeof value === 'string' ? value : undefined}
       onChange={(val) => onChange(val)}
       disabled={disabled || readonly}
       type={modelType}
+      clearable={clearable}
     />
   );
 };

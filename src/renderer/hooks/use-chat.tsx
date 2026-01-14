@@ -154,6 +154,7 @@ export const ChatSession = React.forwardRef<ChatSessionRef, ChatSessionProps>(
 );
 
 export type ChatState = {
+  sendEvent?: (threadId: string, event: string, data: any) => void;
   sendMessage: (
     threadId: string,
     message: PromptInputMessage | undefined,
@@ -293,8 +294,16 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     eventBus.emit(`chat:onData:${threadId}`, event);
   }, []);
 
+  const sendEvent = useCallback(
+    (threadId: string, event: string, data: any) => {
+      eventBus.emit(`chat:onEvent:${threadId}`, { event, data });
+    },
+    [],
+  );
+
   const value = useMemo(
     () => ({
+      sendEvent,
       ensureThread,
       unregisterThread,
       sendMessage,
@@ -305,6 +314,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       clearError,
     }),
     [
+      sendEvent,
       ensureThread,
       unregisterThread,
       sendMessage,

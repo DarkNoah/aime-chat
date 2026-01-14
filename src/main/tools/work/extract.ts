@@ -4,9 +4,11 @@ import z from 'zod';
 import BaseTool, { BaseToolParams } from '../base-tool';
 import fs from 'fs';
 import path from 'path';
-import { ToolConfig } from '@/types/tool';
+import { ToolConfig, ToolType } from '@/types/tool';
 import { providersManager } from '@/main/providers';
 import { isUrl } from '@/utils/is';
+import { toolsManager } from '..';
+import { ReadBinaryFile } from '../file-system/read';
 
 export interface ExtractParams extends BaseToolParams {
   modelId?: string;
@@ -32,11 +34,11 @@ Supported file formats:
 fields is a json schema string:
 example:
 {
-  type: "object",
-  properties: {
-    name: { type: "string" },
+  "type": "object",
+  "properties": {
+    "name": { "type": "string", "description": "The name of the person" }
   },
-  required: ["name"],
+  "required": ["name"],
 }
 
 Returns:
@@ -63,9 +65,12 @@ Returns:
     inputData: z.infer<typeof this.inputSchema>,
     options?: ToolExecutionContext,
   ) => {
+    const mode = options.requestContext.get('model' as never) as string;
     const { fields, file_path_or_url } = inputData;
 
-    const model = await providersManager.getLanguageModel(this.config.modelId);
+    const model = await providersManager.getLanguageModel(
+      this.config?.modelId ?? mode,
+    );
     const config = this.config;
 
     const extractAgent = new Agent({
@@ -75,15 +80,24 @@ Returns:
         'You are an assistant specialized in extracting key extractions from text. ',
       model: model,
     });
-    const content = '';
+    let content = '';
 
     if (isUrl(file_path_or_url)) {
     } else if (
       fs.existsSync(file_path_or_url) &&
       fs.statSync(file_path_or_url).isFile()
     ) {
+      const readBinaryFile = await toolsManager.buildTool(
+        `${ToolType.BUILD_IN}:${ReadBinaryFile.toolName}`,
+      );
+      content = await (readBinaryFile as ReadBinaryFile).execute(
+        {
+          file_path: file_path_or_url,
+        },
+        options,
+      );
     }
-
+    const fieldsSchema = JSON.parse(fields);
     const response = await extractAgent.generate(
       [
         {
@@ -95,7 +109,7 @@ ${content}
       ],
       {
         structuredOutput: {
-          schema: JSON.parse(fields),
+          schema: fieldsSchema,
           jsonPromptInjection: true,
         },
       },
