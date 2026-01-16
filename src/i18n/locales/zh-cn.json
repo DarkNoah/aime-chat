@@ -84,7 +84,9 @@
     "next": "下一步",
     "skip": "跳过",
     "saving": "保存中...",
-    "optional": "可选"
+    "optional": "可选",
+    "mode": "模式",
+    "force_pdf_ocr": "强制pdf使用ocr"
   },
   "sidebar": {
     "new_chat": "新聊天",

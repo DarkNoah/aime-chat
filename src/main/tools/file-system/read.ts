@@ -1,7 +1,7 @@
 import { createTool, ToolExecutionContext } from '@mastra/core/tools';
 import { generateText } from 'ai';
 import z from 'zod';
-import BaseTool from '../base-tool';
+import BaseTool, { BaseToolParams } from '../base-tool';
 import { app } from 'electron';
 import fs from 'fs';
 import path from 'path';
@@ -20,6 +20,8 @@ import mime from 'mime';
 import { OcrAccuracy, recognize } from '@napi-rs/system-ocr';
 import { PowerPointLoader } from '@/main/utils/loaders/power-point-loader';
 import { ExcelLoader } from '@/main/utils/loaders/excel-loader';
+import { OcrLoader } from '@/main/utils/loaders/ocr-loader';
+import { ToolConfig } from '@/types/tool';
 
 const DEFAULT_MAX_LINES_TEXT_FILE = 2000;
 const MAX_LINE_LENGTH_TEXT_FILE = 2000;
@@ -144,6 +146,10 @@ Usage:
   };
 }
 
+export interface ReadBinaryFileParams extends BaseToolParams {
+  mode?: 'system' | 'paddleocr' | 'mineru-api';
+  forcePDFOcr?: boolean;
+}
 export class ReadBinaryFile extends BaseTool {
   static readonly toolName = 'ReadBinaryFile';
   id: string = 'ReadBinaryFile';
@@ -170,6 +176,16 @@ Usage:
     .strict();
   outputSchema = z.string();
 
+  configSchema = ToolConfig.ReadBinaryFile.configSchema;
+  mode?: ReadBinaryFileParams['mode'];
+  forcePDFOcr?: ReadBinaryFileParams['forcePDFOcr'];
+
+  constructor(config?: ReadBinaryFileParams) {
+    super(config);
+    this.mode = config?.mode ?? 'system';
+    this.forcePDFOcr = config?.forcePDFOcr ?? false;
+  }
+
   execute = async (
     inputData: z.infer<typeof this.inputSchema>,
     context: ToolExecutionContext<z.ZodSchema, any>,
@@ -187,9 +203,15 @@ Usage:
     let content = '';
     const mimeType = mime.lookup(file_path);
     if (ext === '.pdf') {
-      const loader = new PDFLoader(file_path);
-      const content = await loader.load();
-      return content;
+      if (this.forcePDFOcr) {
+        const loader = new OcrLoader(file_path, { mode: this.mode });
+        const content = await loader.load();
+        return content;
+      } else {
+        const loader = new PDFLoader(file_path);
+        const content = await loader.load();
+        return content;
+      }
     } else if (ext === '.docx' || ext === '.doc') {
       const loader = new WordLoader(file_path);
       // const info = await loader.info();
@@ -204,10 +226,10 @@ Usage:
       const content = await loader.load();
       return content;
     } else if (mimeType.startsWith('image/')) {
-      // import { PaddleOcrService } from 'ppu-paddle-ocr';
-
-      const result = await recognize(file_path, OcrAccuracy.Accurate);
-      return result.text;
+      // 使用 paddle OCR 进行图像文字识别
+      const loader = new OcrLoader(file_path, { mode: this.mode });
+      const content = await loader.load();
+      return content;
     }
     return content;
   };

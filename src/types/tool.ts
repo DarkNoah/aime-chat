@@ -36,6 +36,20 @@ export enum ToolEvent {
   ToolListUpdated = 'tool:tool-list-updated',
 }
 export const ToolConfig = {
+  ReadBinaryFile: {
+    configSchema: z.strictObject({
+      mode: z.enum(['system', 'paddleocr']).optional().default('system'),
+      forcePDFOcr: z.boolean().optional().default(false),
+    }),
+    uiSchema: {
+      mode: {
+        'ui:title': t('common.mode'),
+      },
+      forcePDFOcr: {
+        'ui:title': t('common.force_pdf_ocr'),
+      },
+    },
+  },
   ToolToolkit: {
     configSchema: z.strictObject({
       method: z.enum(['auto', 'bm25', 'regex', 'embeddings', 'hybrid']),

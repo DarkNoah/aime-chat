@@ -283,6 +283,17 @@ function ToolDetail() {
                         {/* <pre className="text-xs break-all text-wrap bg-secondary p-4 rounded-2xl">
                           {_tool?.description}
                         </pre> */}
+                        {ToolConfig[_tool?.name]?.configSchema && (
+                          <div className="">
+                            <ToolConfigDialog
+                              toolId={`${ToolType.BUILD_IN}:${_tool.id}`}
+                              configSchema={
+                                ToolConfig[_tool?.name].configSchema
+                              }
+                              uiSchema={ToolConfig[_tool?.name].uiSchema}
+                            />
+                          </div>
+                        )}
                         <Transl className="bg-secondary p-4 rounded-2xl">
                           {_tool?.description}
                         </Transl>

@@ -125,9 +125,19 @@
   ],
   "ocr": [
     {
-      "id": "RapidOCR-json_v0.2.0",
-      "type": "github",
-      "download": "https://github.com/hiroi-sora/RapidOCR-json/releases/download/v0.2.0/RapidOCR-json_v0.2.0.7z"
+      "id": "ppocrv5-onnx",
+      "library": "transformers",
+      "repo": "bukuroo/PPOCRv5-ONNX",
+      "download": [
+        {
+          "source": "modelscope",
+          "url": "https://www.modelscope.cn/models/bukuroo/PPOCRv5-ONNX"
+        },
+        {
+          "source": "huggingface",
+          "url": "https://huggingface.co/bukuroo/PPOCRv5-ONNX"
+        }
+      ]
     }
   ],
   "tts": [
