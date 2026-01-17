@@ -17,14 +17,20 @@ import { Grep } from './grep';
 import { Write } from './write';
 import { Read, ReadBinaryFile } from './read';
 import { RequestContext } from '@mastra/core/request-context';
+import { ToolConfig } from '@/types/tool';
 
-export interface FileSystemParams extends BaseToolkitParams {}
+export interface FileSystemParams extends BaseToolkitParams {
+  // ocrMode?: 'system' | 'paddleocr' | 'mineru-api';
+  [key: string]: any;
+}
 
 export class FileSystem extends BaseToolkit {
   id: string = 'FileSystem';
-  description = '测试工具';
+  description = 'FileSystem Toolkit';
+  // configSchema = ToolConfig.FileSystem.configSchema;
 
   constructor(params?: FileSystemParams) {
+    const readBinaryFileConfig = params?.[ReadBinaryFile.toolName];
     super(
       [
         new Glob(),
@@ -32,7 +38,7 @@ export class FileSystem extends BaseToolkit {
         new Grep(),
         new Write(),
         new Read(),
-        new ReadBinaryFile(),
+        new ReadBinaryFile(readBinaryFileConfig),
       ],
       params,
     );

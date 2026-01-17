@@ -33,8 +33,11 @@ import { getMainWindow } from '../main';
 import { HttpsProxyAgent } from 'https-proxy-agent';
 import {
   getNodeRuntime,
+  getPaddleOcrRuntime,
   getUVRuntime,
+  installPaddleOcrRuntime,
   installUVRuntime,
+  uninstallPaddleOcrRuntime,
   unInstallUVRuntime,
 } from './runtime';
 import { fstat } from 'fs';
@@ -73,6 +76,10 @@ class AppManager extends BaseManager {
     });
     this.appProxy = (proxySetting?.value || { mode: 'noproxy' }) as AppProxy;
     await this.setProxy(this.appProxy);
+
+    // const uv = await getUVRuntime();
+    // const node = await getNodeRuntime();
+    // const paddleOcr = await getPaddleOcrRuntime();
   }
 
   public getMainWindow() {
@@ -284,6 +291,8 @@ class AppManager extends BaseManager {
   public async installRuntime(pkg: string) {
     if (pkg == 'uv') {
       await installUVRuntime();
+    } else if (pkg == 'paddleOcr') {
+      await installPaddleOcrRuntime();
     }
   }
 
@@ -291,6 +300,8 @@ class AppManager extends BaseManager {
   public async UninstallRumtime(pkg: string) {
     if (pkg == 'uv') {
       await unInstallUVRuntime();
+    } else if (pkg == 'paddleOcr') {
+      await uninstallPaddleOcrRuntime();
     }
   }
 
@@ -300,6 +311,7 @@ class AppManager extends BaseManager {
     return {
       uv: uv,
       node: await getNodeRuntime(),
+      paddleOcr: await getPaddleOcrRuntime(),
     };
   }
 
