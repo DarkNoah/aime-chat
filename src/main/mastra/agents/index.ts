@@ -74,8 +74,9 @@ class AgentManager extends BaseManager {
   }
 
   async buildAgent(agentId?: string, params?: BuildAgentParams) {
+    const _agentId = agentId ?? DefaultAgent.agentName;
     const agentEntity = await this.agentsRepository.findOne({
-      where: { id: agentId ?? DefaultAgent.agentName },
+      where: { id: _agentId },
     });
 
     if (!agentEntity) {
@@ -97,7 +98,7 @@ class AgentManager extends BaseManager {
     }
     // _skills = _skills.filter((x) => tools.includes(x.id));
 
-    const builtInAgent = this.builtInAgents.find((x) => x.id == agentId);
+    const builtInAgent = this.builtInAgents.find((x) => x.id == _agentId);
 
     subAgents = [
       ...new Set([...subAgents, ...(builtInAgent?.subAgents ?? [])]),

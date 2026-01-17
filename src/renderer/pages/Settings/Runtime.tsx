@@ -44,15 +44,15 @@ function Runtime() {
   }, []);
   const handleInstallRuntime = async (pkg: string) => {
     setLoading(true);
-    setRuntimeInfo({ ...runtimeInfo, uv: { status: 'installing' } });
-    await window.electron.app.installRuntime('uv');
+    setRuntimeInfo({ ...runtimeInfo, [pkg]: { status: 'installing' } });
+    await window.electron.app.installRuntime(pkg);
     getRuntimeInfo();
     setLoading(false);
   };
 
   const handleUninstallRuntime = async (pkg: string) => {
     setLoading(true);
-    await window.electron.app.uninstallRuntime('uv');
+    await window.electron.app.uninstallRuntime(pkg);
     getRuntimeInfo();
     setLoading(false);
   };
@@ -126,6 +126,51 @@ function Runtime() {
           )}
         </ItemContent>
         <ItemActions></ItemActions>
+      </Item>
+      <Item variant="outline">
+        <ItemContent className="min-w-0">
+          <ItemTitle>
+            PaddleOCR{' '}
+            {runtimeInfo?.paddleOcr?.version && (
+              <Badge>{runtimeInfo?.paddleOcr?.version}</Badge>
+            )}
+          </ItemTitle>
+          {runtimeInfo?.paddleOcr?.path && (
+            <ItemDescription>
+              <Button
+                variant="link"
+                size="sm"
+                onClick={() =>
+                  window.electron.app.openPath(runtimeInfo?.paddleOcr?.path)
+                }
+              >
+                <IconFolder />
+                <span className="truncate">{runtimeInfo?.paddleOcr?.path}</span>
+              </Button>
+            </ItemDescription>
+          )}
+        </ItemContent>
+        <ItemActions>
+          {runtimeInfo?.paddleOcr?.status === 'not_installed' && (
+            <Button onClick={() => handleInstallRuntime('paddleOcr')}>
+              Install
+            </Button>
+          )}
+          {runtimeInfo?.paddleOcr?.status === 'installed' && (
+            <Button
+              onClick={() => handleUninstallRuntime('paddleOcr')}
+              variant="destructive"
+            >
+              Uninstall
+            </Button>
+          )}
+          {runtimeInfo?.paddleOcr?.status === 'installing' && (
+            <Button disabled>
+              <Spinner />
+              Installing...
+            </Button>
+          )}
+        </ItemActions>
       </Item>
     </div>
   );

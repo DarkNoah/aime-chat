@@ -22,7 +22,9 @@
     "better-sqlite3": "^11.10.0",
     "pdf-parse": "^2.4.5",
     "playwright": "^1.57.0",
+    "ppu-paddle-ocr": "^3.6.0",
     "shape": "^0.0.1",
+    "sharp": "^0.34.5",
     "undici": "^7.10.0"
   }
 }

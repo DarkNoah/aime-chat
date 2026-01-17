@@ -721,7 +721,11 @@ class ToolsManager extends BaseManager {
         }),
       };
     } else if (tool.type === ToolType.BUILD_IN) {
-      const _tool = this.builtInTools.find((x) => x.id === tool.id);
+      const _tool = tool.toolkitId
+        ? this.builtInTools
+            .find((x) => x.id === tool.toolkitId)
+            ?.tools.find((x) => x.id == tool.name)
+        : this.builtInTools.find((x) => x.id === tool.id);
       if (!_tool?.isToolkit) {
         const __tool = _tool as BaseTool;
         return {
@@ -886,6 +890,7 @@ class ToolsManager extends BaseManager {
       }
       let buildedTool = await this.buildTool(
         toolEntity.id as `${ToolType.BUILD_IN}:${string}`,
+        // toolEntity.value ?? {},
       );
 
       if (Array.isArray(buildedTool)) {
@@ -976,7 +981,10 @@ class ToolsManager extends BaseManager {
 
           tools[t.id] = t;
         } else {
-          const newToolkit = new tool.classType(params) as BaseToolkit;
+          const toolEntity = toolEntities.find((x) => x.id === toolName);
+          const newToolkit = new tool.classType({
+            [toolEntity.name]: toolEntity.value,
+          }) as BaseToolkit;
           for (const _tool of newToolkit.tools) {
             if (_tool.id == toolName.substring(ToolType.BUILD_IN.length + 1)) {
               const t = createTool({

@@ -142,6 +142,7 @@ import { ChatPanel, ChatPanelRef } from '../components/chat-ui/chat-panel';
 import { useChat } from '../hooks/use-chat';
 import { useThreadStore } from '../store/use-thread-store';
 import { useShallow } from 'zustand/react/shallow';
+import { eventBus } from '@/renderer/lib/event-bus';
 
 function ChatPage() {
   const { appInfo } = useGlobal();
@@ -212,12 +213,27 @@ function ChatPage() {
   };
 
   useEffect(() => {
+    setShowPreview(false);
     if (threadId) {
       const { message, options } = location.state || {};
       if (message) {
         location.state = null;
         chatPanelRef?.current?.sendMessage(message, options);
       }
+      eventBus.on(`chat:onEvent:${threadId}`, (event: any) => {
+        console.log('chat:onEvent', event);
+        setShowPreview(true);
+        setPreviewData((data) => {
+          return {
+            ...data,
+            previewPanel: ChatPreviewType.WEB_PREVIEW,
+            webPreviewUrl: event.data?.url,
+          };
+        });
+      });
+      return () => {
+        eventBus.off(`chat:onEvent:${threadId}`);
+      };
     } else if (location.pathname === '/chat') {
       setTitle(t('chat.new_chat'));
       if (location.state?.options?.agentId) {

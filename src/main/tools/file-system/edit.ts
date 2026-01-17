@@ -53,11 +53,11 @@ Usage:
 
     const { requestContext } = context;
 
-    if (await needReadFile(file_path, context.requestContext)) {
-      throw new Error(
-        `File '${file_path}' has been modified since last read. Please use 'Read' tool to read the file first and then do this again.`,
-      );
-    }
+    // if (await needReadFile(file_path, context.requestContext)) {
+    //   throw new Error(
+    //     `File '${file_path}' has been modified since last read. Please use 'Read' tool to read the file first and then do this again.`,
+    //   );
+    // }
 
     let content = '';
 

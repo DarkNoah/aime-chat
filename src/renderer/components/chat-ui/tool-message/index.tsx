@@ -34,6 +34,7 @@ import { Button } from '../../ui/button';
 import { useTranslation } from 'react-i18next';
 import { TaskMessage } from './task-message';
 import { GenerateImageMessage } from './generate-image';
+import { SendEventMessage } from './send-event-message';
 
 export type ToolSuspended = {
   toolName: string;
@@ -46,6 +47,7 @@ export type ToolSuspended = {
 export interface ToolMessageRef {}
 
 export type ToolMessageProps = ComponentProps<typeof Badge> & {
+  threadId?: string;
   part?: ToolUIPart;
   title?: string;
   isSuspended?: boolean;
@@ -103,6 +105,7 @@ export const ToolMessage = React.forwardRef<ToolMessageRef, ToolMessageProps>(
   (props: ToolMessageProps, ref: ForwardedRef<ToolMessageRef>) => {
     const {
       className,
+      threadId,
       part,
       title,
       isSuspended,
@@ -141,6 +144,10 @@ export const ToolMessage = React.forwardRef<ToolMessageRef, ToolMessageProps>(
         toolName === 'RemoveBackground'
       ) {
         return <GenerateImageMessage part={part}></GenerateImageMessage>;
+      } else if (toolName === 'SendEvent') {
+        return (
+          <SendEventMessage threadId={threadId} part={part}></SendEventMessage>
+        );
       }
       return null;
     };

@@ -84,7 +84,9 @@
     "next": "Next",
     "skip": "Skip",
     "saving": "Saving...",
-    "optional": "optional"
+    "optional": "optional",
+    "mode": "Mode",
+    "force_pdf_ocr": "Force pdf use ocr"
   },
   "sidebar": {
     "new_chat": "New Chat",

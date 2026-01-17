@@ -45,6 +45,7 @@ import {
   ChatTodo,
   ThreadState,
 } from '@/types/chat';
+import { eventBus } from '@/renderer/lib/event-bus';
 
 function ProjectsPage() {
   const { id } = useParams();
@@ -93,7 +94,6 @@ function ProjectsPage() {
   const [threads, setThreads] = useState<Array<{ id: string; title: string }>>(
     [],
   );
-  const [showPreview, setShowPreview] = useState(false);
   const [previewToolPart, setPreviewToolPart] = useState<
     ToolUIPart | undefined
   >();
@@ -171,6 +171,25 @@ function ProjectsPage() {
     });
   };
 
+  useEffect(() => {
+    if (threadId) {
+      eventBus.on(`chat:onEvent:${threadId}`, (event: any) => {
+        console.log('chat:onEvent', event);
+
+        setPreviewData((data) => {
+          return {
+            ...data,
+            previewPanel: ChatPreviewType.WEB_PREVIEW,
+            webPreviewUrl: event.data?.url,
+          };
+        });
+      });
+      return () => {
+        eventBus.off(`chat:onEvent:${threadId}`);
+      };
+    }
+    return () => {};
+  }, [threadId]);
   return (
     <div className="h-full w-full flex flex-row @container relative">
       <div className="absolute top-0 left-0 p-2 z-10 flex flex-row gap-1">

@@ -32,6 +32,7 @@ import { Mastra } from '@mastra/core';
 import { Explore } from './explore-agent';
 import { codeAgentInstructions } from './prompts/code-agent-prompt';
 import { Plan } from './plan-agent';
+import { SendEvent } from '@/main/tools/common/send-event';
 export class CodeAgent extends BaseAgent {
   id: string = 'CodeAgent';
   name: string = 'Code Agent';
@@ -55,6 +56,7 @@ export class CodeAgent extends BaseAgent {
     `${ToolType.BUILD_IN}:${CodeExecution.toolName}`,
     `${ToolType.BUILD_IN}:${Skill.toolName}`,
     `${ToolType.BUILD_IN}:${Task.toolName}`,
+    `${ToolType.BUILD_IN}:${SendEvent.toolName}`,
   ];
   subAgents: string[] = [`${Explore.agentName}`, `${Plan.agentName}`];
   constructor(params: BaseAgentParams) {

@@ -1,4 +1,9 @@
-export const LocalModelTypes = ['embedding', 'reranker', 'other'] as const;
+export const LocalModelTypes = [
+  'embedding',
+  'reranker',
+  'other',
+  'ocr',
+] as const;
 export type LocalModelType = (typeof LocalModelTypes)[number];
 export type LocalModelLibrary = 'transformers' | 'openvino';
 export type LocalModelItem = {

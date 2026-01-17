@@ -36,6 +36,20 @@ export enum ToolEvent {
   ToolListUpdated = 'tool:tool-list-updated',
 }
 export const ToolConfig = {
+  ReadBinaryFile: {
+    configSchema: z.strictObject({
+      mode: z.enum(['system', 'paddleocr']).optional().default('system'),
+      forcePDFOcr: z.boolean().optional().default(false),
+    }),
+    uiSchema: {
+      mode: {
+        'ui:title': t('common.mode'),
+      },
+      forcePDFOcr: {
+        'ui:title': t('common.force_pdf_ocr'),
+      },
+    },
+  },
   ToolToolkit: {
     configSchema: z.strictObject({
       method: z.enum(['auto', 'bm25', 'regex', 'embeddings', 'hybrid']),
@@ -89,7 +103,7 @@ export const ToolConfig = {
   },
   Extract: {
     configSchema: z.strictObject({
-      modelId: z.string(),
+      modelId: z.string().optional(),
       maxChunkSize: z
         .number()
         .optional()
@@ -99,6 +113,9 @@ export const ToolConfig = {
       modelId: {
         'ui:widget': 'modelSelector',
         'ui:title': t('common.model'),
+        'ui:options': {
+          clearable: true,
+        },
       },
       maxChunkSize: {
         'ui:title': t('common.max_chunk_size'),
