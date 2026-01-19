@@ -58,6 +58,7 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from '@/renderer/components/ui/input-group';
+import { InputPassword } from '@/renderer/components/ui/input-password';
 
 interface SetupStepProps {
   onNext: () => void;
@@ -313,7 +314,7 @@ function ProviderStep({ onNext, onBack, onSkip }: SetupStepProps) {
             <FormItem>
               <FormLabel>API Key</FormLabel>
               <FormControl>
-                <Input type="password" placeholder="sk-..." {...field} />
+                <InputPassword placeholder="sk-..." {...field} />
               </FormControl>
               {renderApiDoc()}
               <FormMessage />

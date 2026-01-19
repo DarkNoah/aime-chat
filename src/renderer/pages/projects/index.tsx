@@ -306,7 +306,7 @@ function ProjectsPage() {
         threadId={threadId}
         className="h-full w-[500px] "
         onToolMessageClick={(_part) => {
-          setShowPreview(true);
+          // setShowPreview(true);
           setPreviewToolPart(_part);
           setPreviewData((data) => {
             return {

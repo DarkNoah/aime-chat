@@ -1,7 +1,7 @@
 {
   "name": "aime-chat",
   "description": "A foundation for scalable desktop apps",
-  "version": "0.3.9",
+  "version": "0.3.10",
   "keywords": [
     "electron",
     "boilerplate",
@@ -264,13 +264,12 @@
     "node-abi": "^4.17.0",
     "officeparser": "^5.2.2",
     "ollama": "^0.6.2",
+    "onnxruntime-node": "^1.23.2",
     "openai": "^6.8.1",
-    "openvino-genai-node": "^2025.3.0",
     "pdf-parse": "^2.4.5",
     "playwright": "^1.57.0",
     "pngjs": "^7.0.0",
     "postcss-loader": "^8.2.0",
-    "ppu-paddle-ocr": "^3.6.0",
     "prettier": "^3.5.3",
     "react-day-picker": "^9.11.1",
     "react-diff-viewer": "^3.1.1",
@@ -342,8 +341,9 @@
     "afterSign": ".erb/scripts/notarize.js",
     "asarUnpack": [
       "**\\*.{node,dll}",
-      "**/node_modules/openvino-node/**/*",
-      "**/node_modules/ppu-ocv/**/*",
+      "**/node_modules/onnxruntime-node/**",
+      "**/node_modules/openvino-genai-node/**",
+      "**/node_modules/openvino-node/**",
       "**/@techstark/opencv-js/**/*"
     ],
     "files": [
