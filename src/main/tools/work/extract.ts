@@ -90,14 +90,18 @@ Returns:
       const readBinaryFile = await toolsManager.buildTool(
         `${ToolType.BUILD_IN}:${ReadBinaryFile.toolName}`,
       );
+      console.log('准备OCR文件:', file_path_or_url);
       content = await (readBinaryFile as ReadBinaryFile).execute(
         {
           file_path: file_path_or_url,
         },
         options,
       );
+
+      console.log('文件内容:', content);
     }
     const fieldsSchema = JSON.parse(fields);
+    console.log('准备提取内容...');
     const response = await extractAgent.generate(
       [
         {
@@ -115,7 +119,7 @@ ${content}
       },
     );
     const o = response.object;
-
+    console.log('提取结果:', o);
     return JSON.stringify(o, null, 2);
   };
 }

@@ -36,7 +36,7 @@ from typing import Any, Dict, Optional
 
 # ---------- Config ----------
 DEFAULT_DEVICE = os.environ.get("PPSTRUCTURE_DEVICE", "cpu")  # "gpu" or "cpu"
-IDLE_TIMEOUT_SEC = int(os.environ.get("PPSTRUCTURE_IDLE_TIMEOUT", "120"))  # 10 min
+IDLE_TIMEOUT_SEC = int(os.environ.get("PPSTRUCTURE_IDLE_TIMEOUT", "600"))  # 10 min
 BASE_OUT_DIR = os.environ.get("PPSTRUCTURE_OUT_DIR", "output")
 os.environ["DISABLE_MODEL_SOURCE_CHECK"] ="True"
 

@@ -9,6 +9,7 @@ import { getUVRuntime } from '@/main/app/runtime';
 import { spawn, ChildProcess } from 'child_process';
 import { createHash, randomUUID } from 'crypto';
 import readline from 'readline';
+import fg from 'fast-glob';
 
 export type OcrLoaderOptions = {
   mode: 'system' | 'paddleocr' | 'mineru-api';
@@ -81,7 +82,7 @@ function createPythonClient({ command, args, cwd, env }: PythonClientOptions) {
   function call(
     method: string,
     params: Record<string, any>,
-    { timeoutMs = 120_000 } = {},
+    { timeoutMs = 600_000 } = {},
   ): Promise<any> {
     start();
     const id = randomUUID();
@@ -241,6 +242,7 @@ async function getPaddleOcrPythonService(): Promise<{
       const md5Hash = createHash('md5').update(bufferData).digest('hex');
 
       const imagePath = path.join(cachePath, `${md5Hash}${options.ext}`);
+      fs.mkdirSync(path.dirname(imagePath), { recursive: true });
       const imageOutDir = path.join(outPath, md5Hash);
 
       // 检查是否已有缓存的结果
@@ -250,7 +252,14 @@ async function getPaddleOcrPythonService(): Promise<{
           const resultDirs = await fs.promises.readdir(imageOutDir);
           let text = '';
           for (const dir of resultDirs.sort()) {
-            const mdPath = path.join(imageOutDir, dir, md5Hash + '.md');
+            const mdFiles = await fg(
+              path.join(imageOutDir, dir, md5Hash + '*.md'),
+              {
+                onlyFiles: true,
+                caseSensitiveMatch: false,
+              },
+            );
+            const mdPath = mdFiles.length > 0 ? mdFiles[0] : null;
             if (fs.existsSync(mdPath)) {
               const mdContent = await fs.promises.readFile(mdPath, 'utf-8');
               text += mdContent + '\n';
@@ -284,7 +293,14 @@ async function getPaddleOcrPythonService(): Promise<{
       if (response.result?.items) {
         for (const item of response.result.items) {
           if (item.markdown_dir) {
-            const mdPath = path.join(item.markdown_dir, md5Hash + '.md');
+            const mdFiles = await fg(
+              path.join(item.markdown_dir, md5Hash + '*.md'),
+              {
+                onlyFiles: true,
+                caseSensitiveMatch: false,
+              },
+            );
+            const mdPath = mdFiles.length > 0 ? mdFiles[0] : null;
             if (fs.existsSync(mdPath)) {
               const mdContent = await fs.promises.readFile(mdPath, 'utf-8');
               text += mdContent + '\n';
