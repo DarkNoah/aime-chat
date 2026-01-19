@@ -3,6 +3,7 @@ import { createShell, runCommand } from '../utils/shell';
 import { app } from 'electron';
 import path from 'path';
 import { appManager } from '.';
+import { getAssetPath } from '../utils';
 
 export const uv = {
   status: 'not_installed' as 'installed' | 'not_installed' | 'installing',
@@ -272,6 +273,13 @@ export async function installPaddleOcrRuntime() {
 
   const result2 = await runCommand(
     `${uvPreCommand} run --project "${paddleOcrDir}" paddleocr -v`,
+    {
+      cwd: uvRuntime?.dir,
+    },
+  );
+
+  const result3 = await runCommand(
+    `${uvPreCommand} run --project "${paddleOcrDir}" paddleocr pp_structurev3 -i ${getAssetPath('runtime','paddleocr-runtime','test-image.png')}}`,
     {
       cwd: uvRuntime?.dir,
     },
