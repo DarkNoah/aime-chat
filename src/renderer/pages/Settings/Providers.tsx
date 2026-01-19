@@ -105,6 +105,7 @@ import {
   InputGroupInput,
 } from '@/renderer/components/ui/input-group';
 import toast from 'react-hot-toast';
+import { InputPassword } from '@/renderer/components/ui/input-password';
 
 function Providers() {
   const { setTitle } = useHeader();
@@ -505,11 +506,7 @@ function Providers() {
                     <FormItem>
                       <FormLabel>API Key</FormLabel>
                       <FormControl>
-                        <Input
-                          type="password"
-                          placeholder="sk-..."
-                          {...field}
-                        />
+                        <InputPassword placeholder="sk-..." {...field} />
                       </FormControl>
                       {renderApi()}
                       <FormMessage />
