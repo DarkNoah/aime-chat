@@ -9,7 +9,7 @@ import {
   SpeechModelV2,
   TranscriptionModelV2,
 } from '@ai-sdk/provider';
-import { TextEmbeddingPipeline, PoolingType } from 'openvino-genai-node';
+// import { TextEmbeddingPipeline, PoolingType } from 'openvino-genai-node';
 import { BaseProvider } from './base-provider';
 import { Providers } from '@/entities/providers';
 import { ProviderCredits, ProviderTag, ProviderType } from '@/types/provider';
@@ -75,8 +75,12 @@ export class LocalEmbeddingModel implements EmbeddingModelV2<string> {
 
     let embeddings: Float32Array[] = [];
     if (library == 'openvino') {
-      const pipeline = await TextEmbeddingPipeline(modelPath);
-      embeddings = (await pipeline.embedDocuments(values)) as Float32Array[];
+      throw new Error('Openvino not implemented.')
+      // const { TextEmbeddingPipeline, PoolingType } = await import('openvino-genai-node')
+
+      
+      // const pipeline = await TextEmbeddingPipeline(modelPath);
+      // embeddings = (await pipeline.embedDocuments(values)) as Float32Array[];
     } else if (library == 'transformers') {
       if (localModels[this.modelId] == null) {
         // const { pipeline, env } = await this.TransformersApi;

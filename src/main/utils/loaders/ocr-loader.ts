@@ -120,33 +120,34 @@ async function getPaddleOcrService(): Promise<any> {
     await paddleOcrInitializing;
     return paddleOcrService!;
   }
+  return null;
 
   // 动态导入 ESM 模块
-  const { PaddleOcrService } = await import('ppu-paddle-ocr');
-  const appInfo = await appManager.getInfo();
-  const modelPath = path.join(appInfo.modelPath, 'ocr', 'ppocrv5-onnx');
+  // const { PaddleOcrService } = await import('ppu-paddle-ocr');
+  // const appInfo = await appManager.getInfo();
+  // const modelPath = path.join(appInfo.modelPath, 'ocr', 'ppocrv5-onnx');
 
-  paddleOcrService = new PaddleOcrService({
-    debugging: {
-      debug: true,
-      verbose: true,
-      // debugFolder: './debug-output',
-    },
-    model: {
-      detection: path.join(modelPath, 'ppocrv5-server-det.onnx'),
-      recognition: path.join(modelPath, 'ppocrv5-server-rec.onnx'),
-      charactersDictionary: path.join(modelPath, 'ppocrv5_dict.txt'),
-    },
-    detection: {
-      autoDeskew: true,
-    },
-  });
+  // paddleOcrService = new PaddleOcrService({
+  //   debugging: {
+  //     debug: true,
+  //     verbose: true,
+  //     // debugFolder: './debug-output',
+  //   },
+  //   model: {
+  //     detection: path.join(modelPath, 'ppocrv5-server-det.onnx'),
+  //     recognition: path.join(modelPath, 'ppocrv5-server-rec.onnx'),
+  //     charactersDictionary: path.join(modelPath, 'ppocrv5_dict.txt'),
+  //   },
+  //   detection: {
+  //     autoDeskew: true,
+  //   },
+  // });
 
-  paddleOcrInitializing = paddleOcrService.initialize();
-  await paddleOcrInitializing;
-  paddleOcrInitializing = null;
+  // paddleOcrInitializing = paddleOcrService.initialize();
+  // await paddleOcrInitializing;
+  // paddleOcrInitializing = null;
 
-  return paddleOcrService;
+  // return paddleOcrService;
 }
 
 export async function destroyPaddleOcrService(): Promise<void> {

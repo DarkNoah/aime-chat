@@ -20,9 +20,9 @@
     "@napi-rs/system-ocr": "^1.0.2",
     "@vscode/ripgrep": "^1.17.0",
     "better-sqlite3": "^11.10.0",
+    "onnxruntime-node": "^1.23.2",
     "pdf-parse": "^2.4.5",
     "playwright": "^1.57.0",
-    "ppu-paddle-ocr": "^3.6.0",
     "shape": "^0.0.1",
     "sharp": "^0.34.5",
     "undici": "^7.10.0"

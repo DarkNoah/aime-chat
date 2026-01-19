@@ -204,6 +204,7 @@ export async function getPaddleOcrRuntime(refresh = false) {
         env: {
           DISABLE_MODEL_SOURCE_CHECK: 'true',
         },
+        timeout:1000 * 30
       },
     );
     if (result2.code === 0) {
@@ -237,32 +238,37 @@ export async function installPaddleOcrRuntime() {
     await fs.promises.rm(paddleOcrDir, { recursive: true });
   }
   fs.mkdirSync(paddleOcrDir, { recursive: true });
+
+  const uv_source = `set UV_PYPI_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple`
+
   let resultInit = await runCommand(
-    `${uvPreCommand} init "${paddleOcrDir}" && ${uvPreCommand} venv "${path.join(paddleOcrDir, '.venv')}" --python=3.10`,
+    `${uv_source} && ${uvPreCommand} init "${paddleOcrDir}" --python=3.10 && ${uvPreCommand} venv "${path.join(paddleOcrDir, '.venv')}" --python=3.10`,
     {
       cwd: uvRuntime?.dir,
     },
   );
   if (
     resultInit.code !== 0 ||
-    !resultInit.output.startsWith('Initialized project')
+    !resultInit.output.includes('Initialized project')
   ) {
-    throw new Error('Failed to initialize PaddleOCR project');
+    // throw new Error('Failed to initialize PaddleOCR project');
+    paddleOcr.status = 'not_installed';
+    paddleOcr.installed = false;
+    paddleOcr.path = undefined;
+    paddleOcr.dir = undefined;
+    paddleOcr.version = undefined;
+    return paddleOcr;
   }
 
-  // const resultInstallPaddle = await runCommand(
-  //   `source "${path.join(paddleOcrDir, '.venv', 'bin', 'activate')}" && ${uvPreCommand} --project "${paddleOcrDir}" pip install paddlepaddle==3.2.2 -i https://www.paddlepaddle.org.cn/packages/stable/cpu/`,
-  //   {
-  //     cwd: uvRuntime?.dir,
-  //   },
-  // );
+  const activateSourcePython = isWindows ? path.join(paddleOcrDir, '.venv', 'Scripts', 'python.exe'): path.join(paddleOcrDir, '.venv', 'bin', 'python');
 
-  const result = await runCommand(
-    `source "${path.join(paddleOcrDir, '.venv', 'bin', 'activate')}" && ${uvPreCommand} add paddle paddleocr "paddlex[ocr]" paddlepaddle==3.2.2 --project "${paddleOcrDir}"`,
+  const result1 = await runCommand(
+    `${uvPreCommand} --project "${paddleOcrDir}" add paddleocr "paddlex[ocr]" paddlepaddle==3.2.2`,
     {
-      cwd: uvRuntime?.dir,
+      cwd: uvRuntime?.dir
     },
   );
+
 
   const result2 = await runCommand(
     `${uvPreCommand} run --project "${paddleOcrDir}" paddleocr -v`,

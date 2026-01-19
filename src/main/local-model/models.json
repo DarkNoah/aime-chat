@@ -31,36 +31,6 @@
       ]
     },
     {
-      "id": "Qwen/Qwen3-Embedding-0.6B-fp16",
-      "library": "openvino",
-      "repo": "OpenVINO/Qwen3-Embedding-0.6B-fp16-ov",
-      "download": [
-        {
-          "source": "modelscope",
-          "url": "https://www.modelscope.cn/models/OpenVINO/Qwen3-Embedding-0.6B-fp16-ov"
-        },
-        {
-          "source": "huggingface",
-          "url": "https://huggingface.co/OpenVINO/Qwen3-Embedding-0.6B-fp16-ov"
-        }
-      ]
-    },
-    {
-      "id": "Qwen/Qwen3-Embedding-0.6B-int8-ov",
-      "library": "openvino",
-      "repo": "OpenVINO/Qwen3-Embedding-0.6B-int8-ov",
-      "download": [
-        {
-          "source": "modelscope",
-          "url": "https://www.modelscope.cn/models/OpenVINO/Qwen3-Embedding-0.6B-int8-ov"
-        },
-        {
-          "source": "huggingface",
-          "url": "https://huggingface.co/OpenVINO/Qwen3-Embedding-0.6B-int8-ov"
-        }
-      ]
-    },
-    {
       "id": "Qwen/Qwen3-Embedding-0.6B",
       "library": "transformers",
       "repo": "onnx-community/Qwen3-Embedding-0.6B-ONNX",

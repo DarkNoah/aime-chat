@@ -19,6 +19,7 @@ export const decodeBuffer = (data: Buffer) => {
 export const runCommand = async (
   command: string | string[],
   options?: {
+    file?: string;
     cwd?: string;
     timeout?: number;
     env?: Record<string, string>;
@@ -38,6 +39,7 @@ export const runCommand = async (
     options?.timeout,
     options?.env,
     options?.usePowerShell,
+    options?.file
   );
   let exited = false;
   let stdout = '';
@@ -172,6 +174,7 @@ export const createShell = (
   timeout?: number,
   env?: Record<string, string>,
   usePowerShell: boolean = false,
+  file :string = null
 ) => {
   const isWindows = os.platform() === 'win32';
 
@@ -231,7 +234,7 @@ export const createShell = (
   }
 
   if (!isWindows) {
-    const shell = spawn('bash', ['-c', _command as string], {
+    const shell = spawn(file || 'bash', file ? [_command as string]: ['-c', _command as string], {
       stdio: ['ignore', 'pipe', 'pipe'],
       detached: true, // ensure subprocess starts its own process group (esp. in Linux)
       cwd: cwd,
@@ -258,7 +261,7 @@ export const createShell = (
         }
       }
     });
-    const shell = spawn('cmd.exe', ['/c', ...real_input_command], {
+    const shell = spawn(file || 'cmd.exe', file ? [...real_input_command] : ['/c', ...real_input_command], {
       stdio: ['ignore', 'pipe', 'pipe'],
       // detached: true, // ensure subprocess starts its own process group (esp. in Linux)
       cwd: cwd,
