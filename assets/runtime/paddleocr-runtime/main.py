@@ -42,6 +42,7 @@ os.environ["DISABLE_MODEL_SOURCE_CHECK"] ="True"
 
 # PaddleOCR import (heavy)
 from paddleocr import PPStructureV3  # noqa: E402
+import paddle
 
 
 # ---------- Idle watchdog ----------
@@ -77,6 +78,7 @@ def get_pipeline(device: str) -> Any:
     """
     global _pipeline, _pipeline_device
     device = (device or DEFAULT_DEVICE).lower().strip()
+    hasGPU = paddle.is_compiled_with_cuda()
 
     with _pipeline_lock:
         if _pipeline is not None and _pipeline_device == device:
@@ -84,7 +86,7 @@ def get_pipeline(device: str) -> Any:
 
         # Recreate pipeline when first time or device changed
         # You can add other args here: lang="en", use_doc_orientation_classify=True, etc.
-        _pipeline = PPStructureV3(device=device)
+        _pipeline = PPStructureV3(device="gpu" if hasGPU else device)
         _pipeline_device = device
         return _pipeline
 
