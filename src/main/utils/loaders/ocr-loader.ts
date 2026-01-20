@@ -253,7 +253,7 @@ async function getPaddleOcrPythonService(): Promise<{
           let text = '';
           for (const dir of resultDirs.sort()) {
             const mdFiles = await fg(
-              path.join(imageOutDir, dir, md5Hash + '*.md'),
+              path.join(imageOutDir, dir, md5Hash + '*.md').replace(/\\/g, '/'),
               {
                 onlyFiles: true,
                 caseSensitiveMatch: false,
@@ -294,7 +294,9 @@ async function getPaddleOcrPythonService(): Promise<{
         for (const item of response.result.items) {
           if (item.markdown_dir) {
             const mdFiles = await fg(
-              path.join(item.markdown_dir, md5Hash + '*.md'),
+              path
+                .join(item.markdown_dir, md5Hash + '*.md')
+                .replace(/\\/g, '/'),
               {
                 onlyFiles: true,
                 caseSensitiveMatch: false,

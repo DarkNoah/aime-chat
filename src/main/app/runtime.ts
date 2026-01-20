@@ -205,7 +205,7 @@ export async function getPaddleOcrRuntime(refresh = false) {
         env: {
           DISABLE_MODEL_SOURCE_CHECK: 'true',
         },
-        timeout:1000 * 30
+        timeout: 1000 * 30,
       },
     );
     if (result2.code === 0) {
@@ -240,7 +240,7 @@ export async function installPaddleOcrRuntime() {
   }
   fs.mkdirSync(paddleOcrDir, { recursive: true });
 
-  const uv_source = `set UV_PYPI_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple`
+  const uv_source = `set UV_PYPI_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple`;
 
   let resultInit = await runCommand(
     `${uv_source} && ${uvPreCommand} init "${paddleOcrDir}" --python=3.10 && ${uvPreCommand} venv "${path.join(paddleOcrDir, '.venv')}" --python=3.10`,
@@ -261,13 +261,23 @@ export async function installPaddleOcrRuntime() {
     return paddleOcr;
   }
 
-  const activateSourcePython = isWindows ? path.join(paddleOcrDir, '.venv', 'Scripts', 'python.exe'): path.join(paddleOcrDir, '.venv', 'bin', 'python');
+  const activateSourcePython = isWindows
+    ? path.join(paddleOcrDir, '.venv', 'Scripts', 'python.exe')
+    : path.join(paddleOcrDir, '.venv', 'bin', 'python');
+
+  let hasGPU = false;
+  const hasGPUResult = await runCommand(`nvidia-smi`, {
+    cwd: uvRuntime?.dir,
+  });
+  if (hasGPUResult.code === 0 && hasGPUResult.stdout.includes('NVIDIA-SMI')) {
+    hasGPU = true;
+  }
 
   const result1 = await runCommand(
     `${uvPreCommand} --project "${paddleOcrDir}" --no-cache add paddleocr "paddlex[ocr]" paddlepaddle==3.2.2`,
     {
       cwd: uvRuntime?.dir,
-      usePowerShell: isWindows
+      // usePowerShell: isWindows,
     },
   );
   if (result1.code !== 0) {
@@ -279,7 +289,6 @@ export async function installPaddleOcrRuntime() {
     return paddleOcr;
   }
 
-
   const result2 = await runCommand(
     `${uvPreCommand} run --project "${paddleOcrDir}" paddleocr -v`,
     {
@@ -288,7 +297,7 @@ export async function installPaddleOcrRuntime() {
   );
 
   const result3 = await runCommand(
-    `${uvPreCommand} run --project "${paddleOcrDir}" paddleocr pp_structurev3 -i ${getAssetPath('runtime','paddleocr-runtime','test-image.png')}}`,
+    `${uvPreCommand} run --project "${paddleOcrDir}" paddleocr pp_structurev3 -i "${getAssetPath('runtime', 'paddleocr-runtime', 'test-image.png')}"`,
     {
       cwd: uvRuntime?.dir,
     },
