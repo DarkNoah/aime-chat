@@ -199,7 +199,7 @@ export async function getPaddleOcrRuntime(refresh = false) {
     const uvPreCommand = isWindows ? 'uv.exe' : './uv';
 
     const result2 = await runCommand(
-      `${uvPreCommand} run --project "${paddleOcrDir}" paddleocr -v`,
+      `${uvPreCommand}  run --project "${paddleOcrDir}" paddleocr -v`,
       {
         cwd: uvRuntime?.dir,
         env: {
@@ -264,11 +264,20 @@ export async function installPaddleOcrRuntime() {
   const activateSourcePython = isWindows ? path.join(paddleOcrDir, '.venv', 'Scripts', 'python.exe'): path.join(paddleOcrDir, '.venv', 'bin', 'python');
 
   const result1 = await runCommand(
-    `${uvPreCommand} --project "${paddleOcrDir}" add paddleocr "paddlex[ocr]" paddlepaddle==3.2.2`,
+    `${uvPreCommand} --project "${paddleOcrDir}" --no-cache add paddleocr "paddlex[ocr]" paddlepaddle==3.2.2`,
     {
-      cwd: uvRuntime?.dir
+      cwd: uvRuntime?.dir,
+      usePowerShell: isWindows
     },
   );
+  if (result1.code !== 0) {
+    paddleOcr.status = 'not_installed';
+    paddleOcr.installed = false;
+    paddleOcr.path = undefined;
+    paddleOcr.dir = undefined;
+    paddleOcr.version = undefined;
+    return paddleOcr;
+  }
 
 
   const result2 = await runCommand(
