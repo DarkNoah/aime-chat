@@ -147,7 +147,7 @@ Usage:
 }
 
 export interface ReadBinaryFileParams extends BaseToolParams {
-  mode?: 'system' | 'paddleocr' | 'mineru-api';
+  mode?: 'auto' | 'system' | 'paddleocr' | 'mineru-api';
   forcePDFOcr?: boolean;
 }
 export class ReadBinaryFile extends BaseTool {
@@ -170,7 +170,7 @@ Usage:
 - If you read a file that exists but has empty contents you will receive a system reminder warning`;
   inputSchema = z
     .object({
-      file_path: z.string().describe('The absolute path to the file to read'),
+      file_source: z.string().describe('The absolute path to the file to read'),
       args: z.object({}).optional().describe(``),
     })
     .strict();
@@ -190,44 +190,44 @@ Usage:
     inputData: z.infer<typeof this.inputSchema>,
     context: ToolExecutionContext<z.ZodSchema, any>,
   ) => {
-    const { file_path } = inputData;
-    if (!fs.existsSync(file_path))
-      throw new Error(`File '${file_path}' does not exist.`);
-    const stats = await fs.promises.stat(file_path);
-    if (!stats.isFile()) throw new Error(`File '${file_path}' is not a file.`);
+    const { file_source } = inputData;
+    if (!fs.existsSync(file_source))
+      throw new Error(`File '${file_source}' does not exist.`);
+    const stats = await fs.promises.stat(file_source);
+    if (!stats.isFile()) throw new Error(`File '${file_source}' is not a file.`);
     if (stats.size === 0)
-      return `<system-reminder>The file '${file_path}' is empty.</system-reminder>`;
+      return `<system-reminder>The file '${file_source}' is empty.</system-reminder>`;
 
-    const ext = path.extname(file_path).toLowerCase();
+    const ext = path.extname(file_source).toLowerCase();
 
     let content = '';
-    const mimeType = mime.lookup(file_path);
+    const mimeType = mime.lookup(file_source);
     if (ext === '.pdf') {
       if (this.forcePDFOcr) {
-        const loader = new OcrLoader(file_path, { mode: this.mode });
+        const loader = new OcrLoader(file_source, { mode: this.mode });
         const content = await loader.load();
         return content;
       } else {
-        const loader = new PDFLoader(file_path);
+        const loader = new PDFLoader(file_source);
         const content = await loader.load();
         return content;
       }
     } else if (ext === '.docx' || ext === '.doc') {
-      const loader = new WordLoader(file_path);
+      const loader = new WordLoader(file_source);
       // const info = await loader.info();
       const content = await loader.load();
       return content;
     } else if (ext === '.xls' || ext === '.xlsx') {
-      const loader = new ExcelLoader(file_path);
+      const loader = new ExcelLoader(file_source);
       const content = await loader.load();
       return content;
     } else if (ext === '.ppt' || ext === '.pptx') {
-      const loader = new PowerPointLoader(file_path);
+      const loader = new PowerPointLoader(file_source);
       const content = await loader.load();
       return content;
     } else if (mimeType.startsWith('image/')) {
       // 使用 paddle OCR 进行图像文字识别
-      const loader = new OcrLoader(file_path, { mode: this.mode });
+      const loader = new OcrLoader(file_source, { mode: this.mode });
       const content = await loader.load();
       return content;
     }

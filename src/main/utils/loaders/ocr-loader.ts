@@ -5,14 +5,15 @@ import { appManager } from '@/main/app';
 import path from 'path';
 import { app } from 'electron';
 import { getAssetPath } from '..';
-import { getUVRuntime } from '@/main/app/runtime';
+import { getPaddleOcrRuntime, getUVRuntime } from '@/main/app/runtime';
 import { spawn, ChildProcess } from 'child_process';
 import { createHash, randomUUID } from 'crypto';
 import readline from 'readline';
 import fg from 'fast-glob';
 
 export type OcrLoaderOptions = {
-  mode: 'system' | 'paddleocr' | 'mineru-api';
+  mode: 'auto' | 'system' | 'paddleocr' | 'mineru-api';
+  splitPages?: boolean;
 };
 
 // ---------- Python Client ----------
@@ -325,16 +326,25 @@ export class OcrLoader extends BaseLoader {
 
   constructor(filePathOrBlob: string | Blob, options?: OcrLoaderOptions) {
     super(filePathOrBlob);
-    this.options = { mode: 'system', ...(options ?? {}) };
+    this.options = { mode: 'auto', ...(options ?? {}) };
   }
 
   async parse(raw: Buffer, metadata: Record<string, any>): Promise<any> {
-    if (this.options.mode === 'system') {
+    let mode = this.options.mode;
+    if (this.options.mode === 'auto') {
+      const paddleOcrRuntime = await getPaddleOcrRuntime();
+      if (paddleOcrRuntime.status === 'installed') {
+        mode === 'paddleocr';
+      } else {
+        mode === 'system'
+      }
+    }
+    if (mode === 'system') {
       const result = await recognize(raw, OcrAccuracy.Accurate);
       return result.text;
     }
 
-    if (this.options.mode === 'paddleocr') {
+    if (mode === 'paddleocr') {
       const service = await getPaddleOcrPythonService();
       const result = await service.recognize(raw.buffer, {
         noCache: false,

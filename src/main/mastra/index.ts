@@ -89,12 +89,15 @@ import { dbManager } from '../db';
 const modelsData = require('../../../assets/models.json');
 import { costFromUsage, getTokenCosts } from 'tokenlens';
 import bashManager from '../tools/file-system/bash';
+import { DefaultAgent } from './agents/default-agent';
+import { Agents } from '@/entities/agents';
 
 class MastraManager extends BaseManager {
   app: express.Application;
   public httpServer?: ReturnType<express.Application['listen']>;
   mastra: Mastra;
   mastraThreadsUsageRepository: Repository<MastraThreadsUsage>;
+  agentsRepository: Repository<Agents>;
   threadChats: (ChatThread & { controller: AbortController })[] = [];
 
   statefulTransport?: StreamableHTTPServerTransport;
@@ -154,6 +157,7 @@ class MastraManager extends BaseManager {
   async init() {
     this.mastraThreadsUsageRepository =
       dbManager.dataSource.getRepository(MastraThreadsUsage);
+    this.agentsRepository = dbManager.dataSource.getRepository(Agents);
     this.statefulTransport = new StreamableHTTPServerTransport({
       sessionIdGenerator: () => nanoid(),
     });
@@ -394,7 +398,6 @@ class MastraManager extends BaseManager {
       trigger,
       projectId,
       messages: uiMessages,
-      model,
       webSearch,
       think,
       tools = [],
@@ -407,6 +410,7 @@ class MastraManager extends BaseManager {
       toolCallId,
       resumeData,
     } = data;
+    let { model } = data;
     const storage = this.mastra.getStorage();
 
     let resourceId = DEFAULT_RESOURCE_ID;
@@ -430,6 +434,19 @@ class MastraManager extends BaseManager {
     )) as LanguageModelV2;
 
     const inputMessage = uiMessages[uiMessages.length - 1];
+
+
+
+    if (!model) {
+      const _agentId = agentId ?? DefaultAgent.agentName;
+      const agentEntity = await this.agentsRepository.findOne({
+        where: { id: _agentId },
+      });
+      model = agentEntity?.defaultModelId || (await appManager.getInfo())?.defaultModel?.model
+    }
+
+
+
 
     const provider = await providersManager.get(model.split('/')[0]);
     if (!provider) {
