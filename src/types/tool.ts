@@ -38,7 +38,7 @@ export enum ToolEvent {
 export const ToolConfig = {
   ReadBinaryFile: {
     configSchema: z.strictObject({
-      mode: z.enum(['system', 'paddleocr']).optional().default('system'),
+      mode: z.enum(['auto', 'system', 'paddleocr']).optional().default('auto'),
       forcePDFOcr: z.boolean().optional().default(false),
     }),
     uiSchema: {

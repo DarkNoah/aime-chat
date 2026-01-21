@@ -23,6 +23,7 @@ import { SubAgentInfo } from '@/types/task';
 import { Explore } from './explore-agent';
 import { Plan } from './plan-agent';
 import { stringify } from 'smol-toml';
+import { appManager } from '@/main/app';
 
 type BuiltInAgent = BaseAgent & {
   classType: any;
@@ -151,9 +152,8 @@ class AgentManager extends BaseManager {
       name: builtInAgent?.name ?? agentEntity.name,
       instructions: builtInAgent?.instructions ?? agentEntity.instructions,
       description: builtInAgent?.description ?? agentEntity.description,
-
       model: await providersManager.getLanguageModel(
-        agentEntity.defaultModelId ?? params?.modelId,
+        params?.modelId
       ),
       memory: new Memory({
         storage: storage,

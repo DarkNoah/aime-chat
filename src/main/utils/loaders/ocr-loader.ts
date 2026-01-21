@@ -5,13 +5,15 @@ import { appManager } from '@/main/app';
 import path from 'path';
 import { app } from 'electron';
 import { getAssetPath } from '..';
-import { getUVRuntime } from '@/main/app/runtime';
+import { getPaddleOcrRuntime, getUVRuntime } from '@/main/app/runtime';
 import { spawn, ChildProcess } from 'child_process';
 import { createHash, randomUUID } from 'crypto';
 import readline from 'readline';
+import fg from 'fast-glob';
 
 export type OcrLoaderOptions = {
-  mode: 'system' | 'paddleocr' | 'mineru-api';
+  mode: 'auto' | 'system' | 'paddleocr' | 'mineru-api';
+  splitPages?: boolean;
 };
 
 // ---------- Python Client ----------
@@ -81,7 +83,7 @@ function createPythonClient({ command, args, cwd, env }: PythonClientOptions) {
   function call(
     method: string,
     params: Record<string, any>,
-    { timeoutMs = 120_000 } = {},
+    { timeoutMs = 600_000 } = {},
   ): Promise<any> {
     start();
     const id = randomUUID();
@@ -241,6 +243,7 @@ async function getPaddleOcrPythonService(): Promise<{
       const md5Hash = createHash('md5').update(bufferData).digest('hex');
 
       const imagePath = path.join(cachePath, `${md5Hash}${options.ext}`);
+      fs.mkdirSync(path.dirname(imagePath), { recursive: true });
       const imageOutDir = path.join(outPath, md5Hash);
 
       // 检查是否已有缓存的结果
@@ -250,7 +253,14 @@ async function getPaddleOcrPythonService(): Promise<{
           const resultDirs = await fs.promises.readdir(imageOutDir);
           let text = '';
           for (const dir of resultDirs.sort()) {
-            const mdPath = path.join(imageOutDir, dir, md5Hash + '.md');
+            const mdFiles = await fg(
+              path.join(imageOutDir, dir, md5Hash + '*.md').replace(/\\/g, '/'),
+              {
+                onlyFiles: true,
+                caseSensitiveMatch: false,
+              },
+            );
+            const mdPath = mdFiles.length > 0 ? mdFiles[0] : null;
             if (fs.existsSync(mdPath)) {
               const mdContent = await fs.promises.readFile(mdPath, 'utf-8');
               text += mdContent + '\n';
@@ -284,7 +294,16 @@ async function getPaddleOcrPythonService(): Promise<{
       if (response.result?.items) {
         for (const item of response.result.items) {
           if (item.markdown_dir) {
-            const mdPath = path.join(item.markdown_dir, md5Hash + '.md');
+            const mdFiles = await fg(
+              path
+                .join(item.markdown_dir, md5Hash + '*.md')
+                .replace(/\\/g, '/'),
+              {
+                onlyFiles: true,
+                caseSensitiveMatch: false,
+              },
+            );
+            const mdPath = mdFiles.length > 0 ? mdFiles[0] : null;
             if (fs.existsSync(mdPath)) {
               const mdContent = await fs.promises.readFile(mdPath, 'utf-8');
               text += mdContent + '\n';
@@ -307,16 +326,25 @@ export class OcrLoader extends BaseLoader {
 
   constructor(filePathOrBlob: string | Blob, options?: OcrLoaderOptions) {
     super(filePathOrBlob);
-    this.options = { mode: 'system', ...(options ?? {}) };
+    this.options = { mode: 'auto', ...(options ?? {}) };
   }
 
   async parse(raw: Buffer, metadata: Record<string, any>): Promise<any> {
-    if (this.options.mode === 'system') {
+    let mode = this.options.mode;
+    if (this.options.mode === 'auto') {
+      const paddleOcrRuntime = await getPaddleOcrRuntime();
+      if (paddleOcrRuntime.status === 'installed') {
+        mode === 'paddleocr';
+      } else {
+        mode === 'system'
+      }
+    }
+    if (mode === 'system') {
       const result = await recognize(raw, OcrAccuracy.Accurate);
       return result.text;
     }
 
-    if (this.options.mode === 'paddleocr') {
+    if (mode === 'paddleocr') {
       const service = await getPaddleOcrPythonService();
       const result = await service.recognize(raw.buffer, {
         noCache: false,

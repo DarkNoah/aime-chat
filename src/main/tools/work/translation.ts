@@ -34,9 +34,17 @@ export class Translation extends BaseTool<TranslationParams> {
     const { source, lang } = inputData;
     const appInfo = await appManager.getInfo();
     const fastModel = appInfo.defaultModel?.fastModel;
-    const model = (await providersManager.getLanguageModel(
+    let model;
+    try {
+        model = (await providersManager.getLanguageModel(
       this.config?.modelId || fastModel,
     )) as LanguageModel;
+    } catch (error) {
+      model = (await providersManager.getLanguageModel(
+        fastModel,
+      )) as LanguageModel;
+    }
+
     const translationAgent = new TranslationAgent({}).buildAgent({ model });
     translationAgent.model = model;
     const result =
