@@ -14,6 +14,7 @@ import {
 import OpenAI from 'openai';
 import { ZodSchema } from 'zod';
 import { ProviderCredits, ProviderTag, ProviderType } from '@/types/provider';
+import { OpenAICompatibleConfig } from '@mastra/core/llm';
 
 export interface BaseImageModelV2CallOptions extends Omit<
   ImageModelV2CallOptions,
@@ -45,7 +46,7 @@ export abstract class BaseProvider implements ProviderV2 {
     this.id = params?.provider.id;
   }
 
-  languageModel(modelId: string): LanguageModelV2 {
+  languageModel(modelId: string): LanguageModelV2 | OpenAICompatibleConfig {
     throw new Error('Method not implemented.');
   }
   textEmbeddingModel(modelId: string): EmbeddingModelV2<string> {

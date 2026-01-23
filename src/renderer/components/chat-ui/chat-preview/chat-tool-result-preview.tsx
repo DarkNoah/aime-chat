@@ -22,6 +22,7 @@ import {
   ChatMessageAttachments,
 } from '../chat-message-attachment';
 import { ChatToolGenerateImagePreview } from './chat-tool-generate-image-preview';
+import { ChatToolBashPreview } from './chat-tool-bash-preview';
 
 export type ChatToolResultPreviewProps = {
   title?: string;
@@ -271,6 +272,8 @@ export const ChatToolResultPreview = React.forwardRef<
         case 'EditImage': {
           return <ChatToolGenerateImagePreview part={part} />;
         }
+        case 'Bash':
+          return <ChatToolBashPreview part={part} />;
 
         default:
           return (

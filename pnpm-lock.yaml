@@ -34,8 +34,8 @@ importers:
         specifier: ^3.0.0
         version: 3.0.0(zod@3.25.76)
       '@ai-sdk/deepseek':
-        specifier: ^1.0.27
-        version: 1.0.30(zod@3.25.76)
+        specifier: ^1.0.31
+        version: 1.0.31(zod@3.25.76)
       '@ai-sdk/google':
         specifier: ^2.0.29
         version: 2.0.44(zod@3.25.76)
@@ -754,8 +754,8 @@ packages:
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
-  '@ai-sdk/deepseek@1.0.30':
-    resolution: {integrity: sha512-pafNclW9L8Z3WimaRwlpHrGbdeaDE/UklT3rMi2aoRRyrA+s7zGcFuu1zbO2ViLNlKfaS91XZa9MFAPXbIftUA==}
+  '@ai-sdk/deepseek@1.0.31':
+    resolution: {integrity: sha512-Il7WJp8bA3CmlreYSl1YzCucGTn2e5P81IANYIIEeLtWrbK0Y9CLoOCROj8xKYyUSMKlINyGZX2uP79cKewtSg==}
     engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
@@ -4461,9 +4461,6 @@ packages:
         optional: true
       zod-openapi:
         optional: true
-
-  '@standard-schema/spec@1.0.0':
-    resolution: {integrity: sha512-m2bOd0f2RT9k8QJx1JN85cZYyH1RqFBdlwtkSlf4tBDYLCiiZnv1fIIwacK6cqwXavOydf0NPToMQgpKq+dVlA==}
 
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
@@ -10068,7 +10065,6 @@ packages:
   next@16.0.6:
     resolution: {integrity: sha512-2zOZ/4FdaAp5hfCU/RnzARlZzBsjaTZ/XjNQmuyYLluAPM7kcrbIkdeO2SL0Ysd1vnrSgU+GwugfeWX1cUCgCg==}
     engines: {node: '>=20.9.0'}
-    deprecated: This version has a security vulnerability. Please upgrade to a patched version. See https://nextjs.org/blog/CVE-2025-66478 for more details.
     hasBin: true
     peerDependencies:
       '@opentelemetry/api': ^1.1.0
@@ -13228,9 +13224,8 @@ snapshots:
       zod: 3.25.76
     optional: true
 
-  '@ai-sdk/deepseek@1.0.30(zod@3.25.76)':
+  '@ai-sdk/deepseek@1.0.31(zod@3.25.76)':
     dependencies:
-      '@ai-sdk/openai-compatible': 1.0.28(zod@3.25.76)
       '@ai-sdk/provider': 2.0.0
       '@ai-sdk/provider-utils': 3.0.18(zod@3.25.76)
       zod: 3.25.76
@@ -13346,7 +13341,7 @@ snapshots:
   '@ai-sdk/provider-utils@3.0.18(zod@3.25.76)':
     dependencies:
       '@ai-sdk/provider': 2.0.0
-      '@standard-schema/spec': 1.0.0
+      '@standard-schema/spec': 1.1.0
       eventsource-parser: 3.0.6
       zod: 3.25.76
 
@@ -14809,7 +14804,7 @@ snapshots:
       '@ai-sdk/anthropic': 2.0.57(zod@3.25.76)
       '@ai-sdk/azure': 2.0.91(zod@3.25.76)
       '@ai-sdk/cerebras': 1.0.34(zod@3.25.76)
-      '@ai-sdk/deepseek': 1.0.30(zod@3.25.76)
+      '@ai-sdk/deepseek': 1.0.31(zod@3.25.76)
       '@ai-sdk/google': 2.0.44(zod@3.25.76)
       '@ai-sdk/google-vertex': 3.0.97(zod@3.25.76)
       '@ai-sdk/groq': 2.0.34(zod@3.25.76)
@@ -17925,8 +17920,6 @@ snapshots:
       openapi-types: 12.1.3
     optionalDependencies:
       zod: 3.25.76
-
-  '@standard-schema/spec@1.0.0': {}
 
   '@standard-schema/spec@1.1.0': {}
 

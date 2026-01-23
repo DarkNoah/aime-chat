@@ -213,7 +213,7 @@ export class SkillManager {
       return undefined;
     }
     const mds = await fg(
-      `${marketplace ? marketplace + '/' : ''}**/${id.replaceAll(':', '/')}/SKILL.md`,
+      `${marketplace ? marketplace + '/' : ''}**/${id.replaceAll(':', '/')}/SKILL.md`.replace(/\\/g, '/'),
       {
         cwd: marketplaces,
         absolute: true,
@@ -239,10 +239,12 @@ export class SkillManager {
 
   public async getSkill(id: `${ToolType.SKILL}:${string}`) {
     const marketplace = id.split(':')[1];
+    const skill = id.split(':').slice(2).join(':');
+    const sk = await skillManager.getClaudeSkill(skill, marketplace);
 
-    if (marketplace == 'anthropic-agent-skills') {
-      const skill = id.split(':').slice(2).join(':');
-      const sk = await skillManager.getClaudeSkill(skill, marketplace);
+    if (sk) {
+      //const skill = id.split(':').slice(2).join(':');
+      // const sk = await skillManager.getClaudeSkill(skill, marketplace);
       return sk;
     } else {
       const localSkill = await toolsManager.toolsRepository.findOne({
@@ -251,7 +253,11 @@ export class SkillManager {
           type: ToolType.SKILL,
         },
       });
-      const skillPath = localSkill.value?.path;
+      if (!localSkill) {
+        return undefined
+      }
+      try {
+        const skillPath = localSkill.value?.path;
       const skillContent = await fs.promises.readFile(
         path.join(skillPath, 'SKILL.md'),
         { encoding: 'utf8' },
@@ -266,6 +272,11 @@ export class SkillManager {
         type: ToolType.SKILL,
         isActive: localSkill.isActive,
       };
+      } catch (err) {
+        console.error(`Error reading skill file: ${err}`);
+        return undefined
+      }
+
     }
   }
 

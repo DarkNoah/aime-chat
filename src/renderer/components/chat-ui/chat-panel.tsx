@@ -309,6 +309,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
         files: message.files,
       };
       if (threadId) {
+        console.log(inputMessage, body);
         sendMessage(threadId, inputMessage, body);
         setInput('');
         chatInputRef.current?.attachmentsClear();
@@ -512,7 +513,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
                                   <Message from={message.role}>
                                     <MessageContent>
                                       <MessageResponse
-                                        className="text-xs"
+                                        className="text-xs whitespace-break-spaces"
                                         mermaidConfig={{
                                           theme:
                                             theme === 'dark'
@@ -726,6 +727,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
               value={agentId}
               mode="single"
               onSelectedAgent={handleAgentChange}
+              clearable
             ></ChatAgentSelector>
 
             {usage?.usage?.totalTokens > 0 && (

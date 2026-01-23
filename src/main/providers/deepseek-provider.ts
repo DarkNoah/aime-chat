@@ -32,6 +32,11 @@ export class DeepSeekProvider extends BaseProvider {
   }
 
   languageModel(modelId: string): LanguageModelV2 {
+    return {
+      url: this.provider.apiBase || this.defaultApiBase,
+      id: `deepseek/${modelId}`,
+      apiKey: this.provider.apiKey || process.env.DEEPSEEK_API_KEY,
+    }
     return createOpenAICompatible({
       name: 'deepseek',
       baseURL: this.provider.apiBase || this.defaultApiBase,

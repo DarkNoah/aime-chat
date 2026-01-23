@@ -14,6 +14,7 @@ import {
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import { createOpenAI } from '@ai-sdk/openai';
 import { OpenAIProvider as OpenAIProviderSDK } from '@ai-sdk/openai';
+import { OpenAICompatibleConfig } from '@mastra/core/llm';
 export class OpenAIProvider extends BaseProvider {
   name: string = 'openai';
   type: ProviderType = ProviderType.OPENAI;
@@ -42,7 +43,13 @@ export class OpenAIProvider extends BaseProvider {
     });
   }
 
-  languageModel(modelId: string): LanguageModelV2 {
+  languageModel(modelId: string): LanguageModelV2 | OpenAICompatibleConfig {
+    return {
+      id: "openai/"+ modelId,
+      apiKey: this.provider.apiKey,
+      url: this.provider.apiBase || this.defaultApiBase,
+    } as OpenAICompatibleConfig
+
     return createOpenAI({
       name: 'openai',
       baseURL: this.provider.apiBase || this.defaultApiBase,

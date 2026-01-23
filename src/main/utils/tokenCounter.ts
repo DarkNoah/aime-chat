@@ -69,7 +69,12 @@ export const countTokens = (message: string | ModelMessage): number => {
           if (typeof part.output === 'string') {
             tokenString += part.output;
           } else {
-            tokenString += JSON.stringify(part.output);
+            if (part.output["type"] =="text" && part.output["text"]) {
+                tokenString += part.output["text"]
+            }
+
+            // const jsonString = JSON.stringify(part.output);
+            // tokenString += JSON.stringify(part.output);
             // minus some tokens for JSON
             // overhead -= 12;
           }
