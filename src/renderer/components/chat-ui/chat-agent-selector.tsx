@@ -16,7 +16,7 @@ import {
 } from '../ui/command';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Tool, ToolType } from '@/types/tool';
-import { CheckIcon, CircleXIcon } from 'lucide-react';
+import { CheckIcon, CircleXIcon, XIcon } from 'lucide-react';
 import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group';
 import {
   IconCheck,
@@ -33,6 +33,7 @@ import { Badge } from '../ui/badge';
 type BaseProps = ComponentProps<typeof Dialog> & {
   children?: React.ReactNode;
   className?: string;
+  clearable?: boolean;
 };
 interface SingleModeProps extends BaseProps {
   mode: 'single';
@@ -56,7 +57,13 @@ export const ChatAgentSelector = ({
   ...props
 }: ChatAgentSelectorProps) => {
   const { t } = useTranslation();
-  const { value, onChange, onSelectedAgent, mode = 'single' } = props;
+  const {
+    value,
+    onChange,
+    onSelectedAgent,
+    mode = 'single',
+    clearable = false,
+  } = props;
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<Agent[]>([]);
   const [open, setOpen] = useState(false);
@@ -112,13 +119,39 @@ export const ChatAgentSelector = ({
         {children || (
           <Badge
             variant="outline"
-            className="w-fit cursor-pointer backdrop-blur shadow"
+            className="w-fit cursor-pointer backdrop-blur shadow flex flex-row items-center justify-between"
           >
             <small className="text-xs text-muted-foreground">
               {selectedAgent
                 ? `@${selectedAgent?.name}`
                 : t('common.select_agent')}
             </small>
+            {clearable && selectedAgent && (
+              <Button
+                variant="link"
+                size="icon-sm"
+                className="rounded-full w-5 h-5 hover:bg-muted-foreground/20 transition-all cursor-pointer text-muted-foreground"
+                onPointerDown={(e) => {
+                  // Prevent the click from reaching ModelSelectorTrigger (which would open the popover)
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (mode === 'single') {
+
+                    onSelectedAgent(undefined);
+                  } else {
+                    onSelectedAgent([]);
+                  }
+
+                  // setOpen(false);
+                }}
+              >
+                <XIcon className="size-3" />
+              </Button>
+            )}
           </Badge>
         )}
       </DialogTrigger>

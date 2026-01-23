@@ -36,6 +36,16 @@ export enum ToolEvent {
   ToolListUpdated = 'tool:tool-list-updated',
 }
 export const ToolConfig = {
+  CodeExecution: {
+    configSchema: z.strictObject({
+      ptcOpen: z.boolean().optional().default(false),
+    }),
+    uiSchema: {
+      ptcOpen: {
+        'ui:title': t('common.ptc_open'),
+      },
+    },
+  },
   ReadBinaryFile: {
     configSchema: z.strictObject({
       mode: z.enum(['auto', 'system', 'paddleocr']).optional().default('auto'),

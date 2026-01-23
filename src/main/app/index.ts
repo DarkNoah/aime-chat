@@ -53,6 +53,7 @@ import { toolsManager } from '../tools';
 import { ToolType } from '@/types/tool';
 import { Translation } from '../tools/work/translation';
 import { nanoid } from '@/utils/nanoid';
+import { HookAgent, HookProxyAgent } from './hook-agent';
 class AppManager extends BaseManager {
   repository: Repository<Providers>;
   settingsRepository: Repository<Settings>;
@@ -242,7 +243,7 @@ class AppManager extends BaseManager {
       try {
         const url = new URL(proxyConfig.proxyRules);
         setGlobalDispatcher(
-          new ProxyAgent({
+          new HookProxyAgent({
             uri: proxyConfig.proxyRules,
           }),
         );

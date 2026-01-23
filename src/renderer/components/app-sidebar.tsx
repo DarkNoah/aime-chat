@@ -22,6 +22,7 @@ import {
   IconBook,
   IconRobot,
   IconFolderPlus,
+  IconBrandGithub,
 } from '@tabler/icons-react';
 // import { NavMain } from '@/app/(pages)/nav-main';
 // import { NavSecondary } from '@/app/dashboard/nav-secondary';
@@ -181,6 +182,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarFooter>
         <SidebarSeparator className="ml-0"></SidebarSeparator>
         <SidebarMenu>
+          <SidebarMenuItem className="flex flex-row gap-2">
+            <SidebarMenuButton
+              onClick={() => window.open('https://github.com/DarkNoah/aime-chat', '_blank')}
+              className="cursor-pointer"
+            >
+              <IconBrandGithub></IconBrandGithub>
+              GitHub
+            </SidebarMenuButton>
+          </SidebarMenuItem>
           <SidebarMenuItem className="flex flex-row gap-2">
             <SidebarMenuButton
               isActive={location.pathname === '/settings'}

@@ -1,7 +1,7 @@
 import { createTool, ToolExecutionContext } from '@mastra/core/tools';
 import { generateText } from 'ai';
 import z from 'zod';
-import BaseTool from '../base-tool';
+import BaseTool, { BaseToolParams } from '../base-tool';
 import { runCommand } from '@/main/utils/shell';
 import { getUVRuntime } from '@/main/app/runtime';
 import { app } from 'electron';
@@ -10,7 +10,7 @@ import path from 'path';
 import { nanoid } from '@/utils/nanoid';
 import fg from 'fast-glob';
 import { appManager } from '@/main/app';
-import { ToolTags } from '@/types/tool';
+import { ToolConfig, ToolTags } from '@/types/tool';
 
 const getSitecustomizePy = async () => {
   const appInfo = await appManager.getInfo();
@@ -56,7 +56,9 @@ _init_mcp_tools()
 
 `;
 };
-
+export interface CodeExecutionParams extends BaseToolParams {
+  ptcOpen?: boolean;
+}
 export class CodeExecution extends BaseTool {
   static readonly toolName = 'CodeExecution';
   id: string = 'CodeExecution';
@@ -111,9 +113,55 @@ asyncio.run(main())
   });
 
   tags = [ToolTags.CODE];
+  configSchema = ToolConfig.CodeExecution.configSchema;
+  ptcOpen: boolean = false;
 
-  constructor() {
-    super();
+  constructor(config?: CodeExecutionParams) {
+    super(config);
+    this.ptcOpen = config?.ptcOpen ?? false;
+    this.description = this.getDescription();
+  }
+
+  getDescription = () => {
+    const desc = `Execute Python code. using uv runtime.
+The code will be executed with Python 3.10.
+
+Usage:
+- every time will run in a new temporary directory, which is deleted after the run is completed.
+- packages need to be reinstalled for every run if you need.`
+    if (this.ptcOpen) {
+      return desc + `
+PTC Mode:
+Programmatic Tool Calling (PTC) allows to write code that calls tools programmatically within the Code Execution environment, rather than requiring round-trips through the model for each tool invocation
+- You can use all tools in the current context.
+- You know tool names and descriptions and arguments in current context.
+
+<tips>
+- All returns will be returned as text.
+- According to the tool description, if the returned format is a JSON or a JSON array and you need to use it, please use json.loads(result) to obtain the correct JSON object.
+- All tool is async, so you need to use await to call the tool.
+- There is no need to import the module for that function, because I have already loaded the function globally. You can use it directly.
+- if you need to return some information, please use print(result) to return the result.
+</tips>
+
+<example>
+available tools: [Bash, RemoveBackground, ...]
+user: "Please remove the background from the image, find all .jpg in /path/to/images", and save in /path/to/images_removed_bg
+assistant:
+import asyncio
+import glob
+import os
+async def main():
+    images = glob.glob('/path/to/images/**/*.jpg', recursive=True)
+    for image_path in images:
+        result_text = await RemoveBackground(url_or_file_path = image_path, save_path = "/path/to/images_removed_bg/" + os.path.basename(image_path).replace('.jpg', '_removed.jpg')))
+        result = json.loads(result_text)
+    print('done')
+asyncio.run(main())
+</example>
+`
+    }
+    return desc;
   }
 
   execute = async (
@@ -182,7 +230,7 @@ asyncio.run(main())
             'site-packages',
           );
         }
-        const sitePackages = await fg(site_packages_path, {
+        const sitePackages = await fg(site_packages_path.replace(/\\/g, '/'), {
           onlyDirectories: true,
           caseSensitiveMatch:false,
         });

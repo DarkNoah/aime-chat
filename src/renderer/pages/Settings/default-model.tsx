@@ -63,6 +63,7 @@ export default function DefaultModel() {
         </ItemContent>
         <ItemActions>
           <ChatModelSelect
+            clearable
             className="w-[200px] border"
             value={appInfo?.defaultModel?.fastModel}
             onChange={(model) => {
@@ -78,6 +79,7 @@ export default function DefaultModel() {
         </ItemContent>
         <ItemActions>
           <ChatModelSelect
+            clearable
             className="w-[200px] border"
             value={appInfo?.defaultModel?.model}
             onChange={(model) => {

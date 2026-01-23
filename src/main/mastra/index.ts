@@ -534,8 +534,9 @@ class MastraManager extends BaseManager {
           },
         },
         openai: {
-          store: false,
+          store: true,
           reasoningEffort: 'low',
+          include: ['reasoning.encrypted_content', ...(webSearch ? ['web_search_call.action.sources'] : [])]
         },
         deepseek: {
           thinking: {
@@ -675,6 +676,60 @@ class MastraManager extends BaseManager {
         },
         requireToolApproval: requireToolApproval,
         prepareStep: async (options) => {
+          // const { messageList, systemMessages, messages } = options;
+
+          // const m = [];
+          // messages.forEach(message => {
+          //   console.log(message.createdAt.getTime())
+          //   if(message.content.parts.find(p=>p?.providerMetadata?.openai?.itemId)){
+          //     message.content.parts = message.content.parts.map(p => {
+          //       if (p?.providerMetadata?.openai?.itemId) {
+          //         return {
+          //           ...p,
+          //           providerMetadata: {
+          //             ...p.providerMetadata,
+          //             openai: {
+          //               ...p.providerMetadata?.openai,
+          //               itemId: undefined,
+          //             },
+          //           },
+          //         }
+          //       }
+          //       else if (p?.callProviderMetadata?.openai?.itemId) {
+          //         // return {
+          //         //   ...p,
+          //         //   callProviderMetadata: {
+          //         //     ...p.callProviderMetadata,
+          //         //     openai: {
+          //         //       ...p.callProviderMetadata?.openai,
+          //         //       itemId: undefined,
+          //         //     },
+          //         //   },
+          //         // }
+
+          //       }
+          //       return p;
+          //     });
+          //   }
+          //   m.push(message);
+          // });
+
+    //           inputMessage.forEach(message => {
+    //   if(message.parts.find(p=>p?.providerMetadata?.openai?.itemId)){
+    //     message.parts = message.parts.map(p=>{
+    //       if(p?.providerMetadata?.openai?.itemId){
+    //         return {
+    //           ...p,
+    //           providerMetadata: {
+    //             ...p.providerMetadata,
+    //             openai: undefined,
+    //           },
+    //         }
+    //       }
+    //       return p;
+    //     });
+    //   }
+    // });
           return {};
         },
         // prepareStep: async (options) => {
@@ -922,6 +977,9 @@ class MastraManager extends BaseManager {
         const db = stream.messageList.get.all.db();
         const ui = stream.messageList.get.all.ui();
 
+
+
+
         if (stream.status == 'suspended') {
           break;
         } else if (stream.status == 'success') {
@@ -1021,7 +1079,8 @@ class MastraManager extends BaseManager {
           },
         });
         requestContext.set('chunks', undefined);
-        await memoryStore.saveMessages({ messages: [...db, ...messages] });
+        // await memoryStore.saveMessages({ messages: [...db, ...messages] });
+        await memoryStore.saveMessages({ messages: [...messages] });
       }
     } catch (err) {
       console.error(err);
@@ -1083,6 +1142,12 @@ class MastraManager extends BaseManager {
     ) as string;
     const runId = streamOptions.runId;
     let stream: MastraModelOutput;
+
+
+
+
+
+
     if (
       runId &&
       resume?.toolCallId &&
@@ -1111,10 +1176,12 @@ class MastraManager extends BaseManager {
         );
       }
     } else {
+      console.log(inputMessage)
       stream = await agent.stream(inputMessage, streamOptions);
     }
     const uiStream = toAISdkFormat(stream, {
       from: 'agent',
+      // sendReasoning:true,
     });
 
     const uiStreamReader = uiStream.getReader();
