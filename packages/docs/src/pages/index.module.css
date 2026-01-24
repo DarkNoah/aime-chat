@@ -269,6 +269,26 @@
   color: #0a0a0a;
 }
 
+/* 截图区域 */
+.heroScreenshot {
+  margin-top: 2.5rem;
+  animation: fadeInUp 0.8s ease-out 0.5s both;
+}
+
+.heroScreenshotImage {
+  max-width: 100%;
+  height: auto;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.heroScreenshotImage:hover {
+  transform: scale(1.02);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.4);
+}
+
 /* 统计数据 */
 .stats {
   display: flex;
@@ -276,7 +296,7 @@
   justify-content: center;
   gap: 2rem;
   margin-top: 3.5rem;
-  animation: fadeInUp 0.8s ease-out 0.5s both;
+  animation: fadeInUp 0.8s ease-out 0.6s both;
 }
 
 .statItem {
@@ -317,7 +337,7 @@
 /* 平台下载 */
 .downloadSection {
   margin-top: 2.5rem;
-  animation: fadeInUp 0.8s ease-out 0.6s both;
+  animation: fadeInUp 0.8s ease-out 0.7s both;
 }
 
 .downloadTitle {

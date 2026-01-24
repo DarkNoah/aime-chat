@@ -39,6 +39,10 @@ export enum AppChannel {
   // Setup 相关
   GetSetupStatus = 'app:getSetupStatus',
   CompleteSetup = 'app:completeSetup',
+  // 文件系统
+  GetDirectoryTree = 'app:getDirectoryTree',
+  GetDirectoryChildren = 'app:getDirectoryChildren',
+  SearchInDirectory = 'app:searchInDirectory',
 }
 
 export enum MastraChannel {

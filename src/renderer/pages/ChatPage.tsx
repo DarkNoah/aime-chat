@@ -405,6 +405,7 @@ function ChatPage() {
             <div className="p-2 w-full h-full">
               <ChatPreview
                 threadId={threadId}
+                workspace={threadState?.metadata?.workspace as string}
                 part={previewToolPart}
                 previewData={previewData}
                 onPreviewDataChange={(value) => {

@@ -8,7 +8,6 @@ import { Separator } from '@/renderer/components/ui/separator';
 import { useGlobal } from '@/renderer/hooks/use-global';
 import { useHeader } from '@/renderer/hooks/use-title';
 import { useTranslation } from 'react-i18next';
-import logo from '@/../assets/icon.png';
 import { useEffect, useState } from 'react';
 import { Button } from '@/renderer/components/ui/button';
 import {

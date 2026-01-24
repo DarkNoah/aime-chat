@@ -22,7 +22,7 @@ import {
 } from '@/renderer/components/ui/command';
 import { useGlobal } from '@/renderer/hooks/use-global';
 import { useHeader } from '@/renderer/hooks/use-title';
-import { ProjectEvent } from '@/types/project';
+import { Project, ProjectEvent } from '@/types/project';
 import {
   IconClockHour3,
   IconFolder,
@@ -51,7 +51,7 @@ function ProjectsPage() {
   const { id } = useParams();
   const { setTitle } = useHeader();
   const { t } = useTranslation();
-  const [project, setProject] = useState<string | undefined>();
+  const [project, setProject] = useState<Project | undefined>();
   const [threadId, setThreadId] = useState<any | undefined>();
   const chatPanelRef = useRef<ChatPanelRef>(null);
   const { ensureThread } = useChat();
@@ -98,7 +98,7 @@ function ProjectsPage() {
     ToolUIPart | undefined
   >();
   const [previewData, setPreviewData] = useState<ChatPreviewData>({
-    previewPanel: ChatPreviewType.CANVAS,
+    previewPanel: ChatPreviewType.FILE_SYSTEM,
   });
 
   const getProjectThreads = useCallback(async () => {
@@ -304,6 +304,7 @@ function ProjectsPage() {
         onSubmit={handleSubmit}
         projectId={id}
         threadId={threadId}
+
         className="h-full w-[500px] "
         onToolMessageClick={(_part) => {
           // setShowPreview(true);
@@ -320,6 +321,7 @@ function ProjectsPage() {
       <div className="min-w-0 p-2 flex-1">
         <ChatPreview
           resourceId={projectResourceId}
+          workspace={project?.path}
           part={previewToolPart}
           previewData={previewData}
           onPreviewDataChange={(value) => {
