@@ -86,7 +86,9 @@
     "saving": "Saving...",
     "optional": "optional",
     "mode": "Mode",
-    "force_pdf_ocr": "Force pdf use ocr"
+    "force_pdf_ocr": "Force pdf use ocr",
+    "add_photos_or_files": "Add photos or files",
+    "screen_capture": "Screen Capture"
   },
   "sidebar": {
     "new_chat": "New Chat",
@@ -101,7 +103,9 @@
   "chat": {
     "new_chat": "New Chat",
     "clear_messages_title": "Clear Messages",
-    "clear_messages_description": "Are you sure you want to clear all current messages?"
+    "clear_messages_description": "Are you sure you want to clear all current messages?",
+    "file_system": "File System",
+    "project": "Project"
   },
   "tools": {
     "mcp_command": "Command",

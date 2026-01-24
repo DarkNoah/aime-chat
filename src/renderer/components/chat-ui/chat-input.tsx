@@ -2,8 +2,10 @@
 import {
   BotIcon,
   BrainIcon,
+  CameraIcon,
   CheckIcon,
   GlobeIcon,
+  ImageIcon,
   MicIcon,
   SirenIcon,
   WrenchIcon,
@@ -119,6 +121,7 @@ export interface ChatInputRef {
   setModel: (model: string) => void;
   setTools: (toolNames: string[]) => void;
   setSubAgents: (subAgentIds: string[]) => void;
+  setThink: (think: boolean) => void;
   getTools: () => string[];
 }
 
@@ -179,6 +182,9 @@ export const ChatInput = React.forwardRef<ChatInputRef, ChatInputProps>(
       setSubAgents: (subAgentIds: string[]) => {
         setSubAgents(subAgentIds ?? []);
       },
+      setThink: (think: boolean) => {
+        setThink(think);
+      },
     }));
 
     const handleSubmit = () => {
@@ -217,7 +223,20 @@ export const ChatInput = React.forwardRef<ChatInputRef, ChatInputProps>(
               <PromptInputActionMenu>
                 <PromptInputActionMenuTrigger />
                 <PromptInputActionMenuContent>
-                  <PromptInputActionAddAttachments />
+                  <PromptInputActionAddAttachments
+                    label={t('common.add_photos_or_files')}
+                    icon={<ImageIcon className="mr-2 size-4" />}
+                    onSelect={(e) => {
+                      attachmentRef?.current?.openFileDialog();
+                    }}
+                  />
+                  <PromptInputActionAddAttachments
+                    label={t('common.screen_capture')}
+                    icon={<CameraIcon className="mr-2 size-4" />}
+                    onSelect={(e) => {
+                      attachmentRef?.current?.screenCapture();
+                    }}
+                  />
                 </PromptInputActionMenuContent>
               </PromptInputActionMenu>
               {showMic && (

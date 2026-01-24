@@ -1,5 +1,5 @@
 /* eslint-disable no-nested-ternary */
-import React, { ForwardedRef, useEffect, useState } from 'react';
+import React, { ForwardedRef, use, useEffect, useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../ui/tabs';
 import { ChatCanvas } from '../chat-canvas';
 import {
@@ -24,10 +24,14 @@ import {
   IconTool,
   IconFile,
   IconFolder,
+  IconDashboard,
 } from '@tabler/icons-react';
 import { ChatUsageView } from '../chat-usage-view';
 import { ChatFilesystem } from '../chat-filesystem';
 import { useGlobal } from '@/renderer/hooks/use-global';
+import { useTranslation } from 'react-i18next';
+import { Project } from '@/types/project';
+import { ProjectView } from '../../project-ui/project-view';
 
 export type ChatPreviewProps = {
   threadId?: string;
@@ -35,6 +39,7 @@ export type ChatPreviewProps = {
   workspace?: string;
   part?: ToolUIPart;
   previewData?: ChatPreviewData;
+  project?: Project;
   onPreviewDataChange?: (previewData: ChatPreviewData) => void;
 };
 
@@ -51,10 +56,12 @@ export const ChatPreview = React.forwardRef<ChatPreviewRef, ChatPreviewProps>(
       threadId,
       resourceId,
       workspace,
+      project,
     } = props;
     const [isGenerating, setIsGenerating] = useState(false);
     const [messages, setMessages] = useState<UIMessage[]>([]);
     const { appInfo } = useGlobal();
+    const { t } = useTranslation();
     // const [previewUrl, setPreviewUrl] = useState<string | null>(
     //   previewData?.webPreviewUrl ?? 'about:blank',
     // );
@@ -106,8 +113,18 @@ export const ChatPreview = React.forwardRef<ChatPreviewRef, ChatPreviewProps>(
             className="data-[state=off]:bg-transparent bg-secondary "
           >
             <IconFolder />
-            File System
+            {t('chat.file_system')}
           </ToggleGroupItem>
+          {project && (
+            <ToggleGroupItem
+              value={ChatPreviewType.PROJECT}
+              size="sm"
+              className="data-[state=off]:bg-transparent bg-secondary "
+            >
+              <IconDashboard />
+              {t('chat.project')}
+            </ToggleGroupItem>
+          )}
           <ToggleGroupItem
             value={ChatPreviewType.TODO}
             size="sm"
@@ -202,7 +219,10 @@ export const ChatPreview = React.forwardRef<ChatPreviewRef, ChatPreviewProps>(
           <div
             className={`h-full ${previewData.previewPanel === ChatPreviewType.FILE_SYSTEM ? '' : 'hidden'}`}
           >
-            <ChatFilesystem workspace={workspace} />
+            <ChatFilesystem
+              workspace={workspace}
+              className="rounded-xl border"
+            />
           </div>
 
           <div
@@ -237,6 +257,13 @@ export const ChatPreview = React.forwardRef<ChatPreviewRef, ChatPreviewProps>(
             resourceId={resourceId}
           ></ChatUsageView>
         </div>
+        {project && (
+          <div
+            className={`h-full overflow-y-auto ${previewData.previewPanel === ChatPreviewType.PROJECT ? '' : 'hidden'}`}
+          >
+            <ProjectView project={project}></ProjectView>
+          </div>
+        )}
       </div>
     );
   },

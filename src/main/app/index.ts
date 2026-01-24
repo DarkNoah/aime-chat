@@ -3,12 +3,14 @@ import { BaseManager } from '../BaseManager';
 import { Providers } from '@/entities/providers';
 import {
   BrowserWindow,
+  desktopCapturer,
   dialog,
   ipcMain,
   nativeTheme,
   OpenDialogOptions,
   OpenDialogReturnValue,
   ProxyConfig,
+  screen,
   shell,
   webUtils,
   type NativeTheme,
@@ -17,7 +19,13 @@ import { dbManager } from '../db';
 import { channel } from '../ipc/IpcController';
 import { CreateProvider, Provider } from '@/types/provider';
 import { AppChannel } from '@/types/ipc-channel';
-import { AppInfo, AppProxy } from '@/types/app';
+import {
+  AppInfo,
+  AppProxy,
+  ScreenCaptureOptions,
+  ScreenCaptureResult,
+  ScreenSource,
+} from '@/types/app';
 import { app } from 'electron';
 import { getDbPath, getDefaultModelPath } from '../utils';
 import { platform } from 'os';
@@ -51,7 +59,8 @@ import {
   SearchResult,
 } from '@/types/common';
 import { rgPath } from '@vscode/ripgrep';
-import { spawn } from 'child_process';
+import { execSync, spawn } from 'child_process';
+import os from 'os';
 import readline from 'readline';
 import { filesize } from 'filesize';
 import { Translations } from '@/entities/translations';
@@ -751,6 +760,166 @@ class AppManager extends BaseManager {
       return data.source ?? '';
     }
     return translation.translation;
+  }
+
+  @channel(AppChannel.ScreenCapture)
+  public async screenCapture(
+    options: ScreenCaptureOptions,
+  ): Promise<ScreenCaptureResult> {
+    const { mode, sourceId } = options;
+    const tmpPath = path.join(
+      os.tmpdir(),
+      `aime-screenshot-${Date.now()}.png`,
+    );
+
+    try {
+      // 隐藏主窗口以避免截图时显示
+      const mainWindow = this.getMainWindow();
+      if (mode !== 'window') {
+        mainWindow?.hide();
+        // 等待窗口隐藏动画完成
+        await new Promise((resolve) => setTimeout(resolve, 300));
+      }
+
+      if (platform() === 'darwin') {
+        // macOS: 使用原生 screencapture 命令
+        return await this.captureScreenMacOS(mode, tmpPath, mainWindow);
+      } else {
+        // Windows/Linux: 使用 desktopCapturer API
+        return await this.captureScreenDesktopCapturer(
+          mode,
+          tmpPath,
+          sourceId,
+          mainWindow,
+        );
+      }
+    } catch (error) {
+      const mainWindow = this.getMainWindow();
+      mainWindow?.show();
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
+  private async captureScreenMacOS(
+    mode: string,
+    tmpPath: string,
+    mainWindow: BrowserWindow | null,
+  ): Promise<ScreenCaptureResult> {
+    try {
+      let command: string;
+      switch (mode) {
+        case 'fullscreen':
+          command = `screencapture -x "${tmpPath}"`;
+          break;
+        case 'selection':
+          command = `screencapture -i "${tmpPath}"`;
+          break;
+        case 'window':
+          command = `screencapture -w "${tmpPath}"`;
+          break;
+        default:
+          command = `screencapture -i "${tmpPath}"`;
+      }
+
+      execSync(command, { encoding: 'utf-8' });
+
+      // 恢复窗口
+      mainWindow?.show();
+
+      // 检查文件是否存在（用户可能取消了截图）
+      if (fs.existsSync(tmpPath)) {
+        return {
+          success: true,
+          filePath: tmpPath,
+        };
+      } else {
+        return {
+          success: false,
+          error: 'Screenshot cancelled by user',
+        };
+      }
+    } catch (error) {
+      mainWindow?.show();
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
+  private async captureScreenDesktopCapturer(
+    mode: string,
+    tmpPath: string,
+    sourceId: string | undefined,
+    mainWindow: BrowserWindow | null,
+  ): Promise<ScreenCaptureResult> {
+    try {
+      const primaryDisplay = screen.getPrimaryDisplay();
+      const { width, height } = primaryDisplay.size;
+      const scaleFactor = primaryDisplay.scaleFactor;
+
+      const sources = await desktopCapturer.getSources({
+        types: mode === 'window' ? ['window'] : ['screen'],
+        thumbnailSize: {
+          width: Math.floor(width * scaleFactor),
+          height: Math.floor(height * scaleFactor),
+        },
+      });
+
+      if (sources.length === 0) {
+        mainWindow?.show();
+        return {
+          success: false,
+          error: 'No screen sources available',
+        };
+      }
+
+      // 选择源：如果指定了 sourceId 则使用，否则使用第一个
+      const source = sourceId
+        ? sources.find((s) => s.id === sourceId) || sources[0]
+        : sources[0];
+
+      // 获取缩略图并保存为文件
+      const thumbnail = source.thumbnail;
+      const pngBuffer = thumbnail.toPNG();
+
+      fs.writeFileSync(tmpPath, pngBuffer);
+
+      mainWindow?.show();
+
+      return {
+        success: true,
+        filePath: tmpPath,
+      };
+    } catch (error) {
+      mainWindow?.show();
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
+  @channel(AppChannel.GetScreenSources)
+  public async getScreenSources(): Promise<ScreenSource[]> {
+    try {
+      const sources = await desktopCapturer.getSources({
+        types: ['screen', 'window'],
+        thumbnailSize: { width: 320, height: 180 },
+      });
+
+      return sources.map((source) => ({
+        id: source.id,
+        name: source.name,
+        thumbnail: source.thumbnail.toDataURL(),
+      }));
+    } catch (error) {
+      console.error('Failed to get screen sources:', error);
+      return [];
+    }
   }
 }
 export const appManager = new AppManager();

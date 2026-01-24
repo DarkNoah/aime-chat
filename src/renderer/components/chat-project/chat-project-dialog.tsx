@@ -68,6 +68,7 @@ export function ChatProjectDialog(props: ChatProjectDialogProps) {
     },
     reValidateMode: 'onSubmit',
   });
+  const formValues = form.watch();
 
   const handleSubmit = async (data: ChatProjectFormData) => {
     try {
@@ -189,7 +190,10 @@ export function ChatProjectDialog(props: ChatProjectDialogProps) {
               <DialogClose asChild>
                 <Button variant="outline">{t('common.cancel')}</Button>
               </DialogClose>
-              <Button type="submit">
+              <Button
+                type="submit"
+                disabled={!formValues.title || !formValues.path}
+              >
                 {value ? t('common.save') : t('project.new_project')}
               </Button>
             </DialogFooter>

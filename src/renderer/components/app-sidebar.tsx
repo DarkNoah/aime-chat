@@ -102,11 +102,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       url: '/tools',
       icon: IconTools,
     },
-    {
-      title: t('sidebar.knowledge_base'),
-      url: '/knowledge-base',
-      icon: IconBook,
-    },
+    // {
+    //   title: t('sidebar.knowledge_base'),
+    //   url: '/knowledge-base',
+    //   icon: IconBook,
+    // },
     {
       title: t('sidebar.agents'),
       url: '/agents',
@@ -184,7 +184,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <SidebarMenu>
           <SidebarMenuItem className="flex flex-row gap-2">
             <SidebarMenuButton
-              onClick={() => window.open('https://github.com/DarkNoah/aime-chat', '_blank')}
+              onClick={() =>
+                window.open('https://github.com/DarkNoah/aime-chat', '_blank')
+              }
               className="cursor-pointer"
             >
               <IconBrandGithub></IconBrandGithub>

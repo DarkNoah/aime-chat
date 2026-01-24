@@ -12,6 +12,7 @@ import {
   MastraToolInvocationOptions,
   ToolExecutionContext,
 } from '@mastra/core/tools';
+import mime from 'mime';
 
 const inputSchema = z.strictObject({
   url_or_file_path: z.string(),
@@ -53,6 +54,16 @@ export class Vision extends BaseTool<VisionParams> {
   inputSchema = z.strictObject({
     file_path: z.string().describe('The search query to use'),
   });
+  outputSchema = z.object({
+    content: z.array(
+      z.object({
+        type: z.enum(['image', 'text']),
+        data: z.string().optional(),
+        text: z.string().optional(),
+        mimeType: z.string().optional(),
+      }),
+    ),
+  });
 
   format: 'ai-sdk' = 'ai-sdk';
   configSchema = ToolConfig.Vision.configSchema;
@@ -68,19 +79,25 @@ export class Vision extends BaseTool<VisionParams> {
     const { file_path } = inputData;
     const config = this.config;
 
-    return file_path;
-  };
-
-  toModelOutput = (output: any): LanguageModelV2ToolResultPart['output'] => {
+    // const model = await providersManager.getImageModel(
+    //   this.config?.modelId ?? mode,
+    // );
+    //const response = await model.generate(file_path);
+    // return {
+    //   content: response.images.map((image) => ({
+    //     type: 'image',
+    //     data: image,
+    //   })),
+    // };
+    const mimeType = mime.lookup(file_path);
     return {
-      type: 'tool-result',
-      toolCallId: nanoid(),
-      toolName: this.id,
-
-      output: {
-        type: 'content',
-        value: [{ type: 'media', mediaType: 'image/png', data: output }],
-      },
-    } as LanguageModelV2ToolResultPart;
+      content: [
+        {
+          type: 'image',
+          data: fs.readFileSync(file_path).toString('base64'),
+          mimeType: mimeType,
+        },
+      ],
+    };
   };
 }

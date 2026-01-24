@@ -43,6 +43,9 @@ export enum AppChannel {
   GetDirectoryTree = 'app:getDirectoryTree',
   GetDirectoryChildren = 'app:getDirectoryChildren',
   SearchInDirectory = 'app:searchInDirectory',
+  // 屏幕截图
+  ScreenCapture = 'app:screenCapture',
+  GetScreenSources = 'app:getScreenSources',
 }
 
 export enum MastraChannel {

@@ -86,7 +86,9 @@
     "saving": "保存中...",
     "optional": "可选",
     "mode": "模式",
-    "force_pdf_ocr": "强制pdf使用ocr"
+    "force_pdf_ocr": "强制pdf使用ocr",
+    "add_photos_or_files": "添加图片或文件",
+    "screen_capture": "屏幕截图"
   },
   "sidebar": {
     "new_chat": "新聊天",
@@ -101,7 +103,9 @@
   "chat": {
     "new_chat": "新聊天",
     "clear_messages_title": "清空消息",
-    "clear_messages_description": "确定要清楚当前所有消息吗?"
+    "clear_messages_description": "确定要清楚当前所有消息吗?",
+    "file_system": "文件系统",
+    "project": "项目"
   },
   "tools": {
     "mcp_command": "命令",

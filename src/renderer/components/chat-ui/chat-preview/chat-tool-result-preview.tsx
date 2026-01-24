@@ -66,6 +66,9 @@ export const ChatToolResultPreview = React.forwardRef<
           </div>
         );
       }
+      if (toolName === 'Bash') {
+        return null;
+      }
       if (
         isObject(part?.output) &&
         'content' in part.output &&

@@ -435,18 +435,15 @@ class MastraManager extends BaseManager {
 
     const inputMessage = uiMessages[uiMessages.length - 1];
 
-
-
     if (!model) {
       const _agentId = agentId ?? DefaultAgent.agentName;
       const agentEntity = await this.agentsRepository.findOne({
         where: { id: _agentId },
       });
-      model = agentEntity?.defaultModelId || (await appManager.getInfo())?.defaultModel?.model
+      model =
+        agentEntity?.defaultModelId ||
+        (await appManager.getInfo())?.defaultModel?.model;
     }
-
-
-
 
     const provider = await providersManager.get(model.split('/')[0]);
     if (!provider) {
@@ -477,6 +474,7 @@ class MastraManager extends BaseManager {
           modelId: `${providerType}:${modelId}`,
           requireToolApproval,
           workspace,
+          think,
         },
       });
       const todos: ChatTodo[] =
@@ -490,6 +488,7 @@ class MastraManager extends BaseManager {
       requestContext.set('projectId', project?.id);
       requestContext.set('resourceId', resourceId);
       requestContext.set('workspace', workspace);
+      requestContext.set('think', think);
       requestContext.set('todos', todos);
       requestContext.set(
         'maxContextSize',
@@ -530,13 +529,16 @@ class MastraManager extends BaseManager {
       const providerOptions: AgentExecutionOptions['providerOptions'] = {
         zhipuai: {
           thinking: {
-            type: 'enabled',
+            type: think ? 'enabled' : 'disabled',
           },
         },
         openai: {
           store: true,
-          reasoningEffort: 'low',
-          include: ['reasoning.encrypted_content', ...(webSearch ? ['web_search_call.action.sources'] : [])]
+          reasoningEffort: think ? 'medium' : undefined,
+          include: [
+            'reasoning.encrypted_content',
+            ...(webSearch ? ['web_search_call.action.sources'] : []),
+          ],
         },
         deepseek: {
           thinking: {
@@ -552,7 +554,7 @@ class MastraManager extends BaseManager {
       };
       let streamOptions: AgentExecutionOptions = {
         runId: runId,
-        providerOptions: think ? providerOptions : undefined,
+        providerOptions: providerOptions,
         modelSettings: options?.modelSettings,
         requestContext: requestContext,
         context: convertToModelMessages(historyMessagesAISdkV5),
@@ -714,22 +716,22 @@ class MastraManager extends BaseManager {
           //   m.push(message);
           // });
 
-    //           inputMessage.forEach(message => {
-    //   if(message.parts.find(p=>p?.providerMetadata?.openai?.itemId)){
-    //     message.parts = message.parts.map(p=>{
-    //       if(p?.providerMetadata?.openai?.itemId){
-    //         return {
-    //           ...p,
-    //           providerMetadata: {
-    //             ...p.providerMetadata,
-    //             openai: undefined,
-    //           },
-    //         }
-    //       }
-    //       return p;
-    //     });
-    //   }
-    // });
+          //           inputMessage.forEach(message => {
+          //   if(message.parts.find(p=>p?.providerMetadata?.openai?.itemId)){
+          //     message.parts = message.parts.map(p=>{
+          //       if(p?.providerMetadata?.openai?.itemId){
+          //         return {
+          //           ...p,
+          //           providerMetadata: {
+          //             ...p.providerMetadata,
+          //             openai: undefined,
+          //           },
+          //         }
+          //       }
+          //       return p;
+          //     });
+          //   }
+          // });
           return {};
         },
         // prepareStep: async (options) => {
@@ -957,8 +959,7 @@ class MastraManager extends BaseManager {
           for (const bashSession of bashSessions) {
             if (bashManager.hasUpdate(bashSession.bashId)) {
               const reminder = `Background Bash ${bashSession.bashId} (command: ${bashSession.command}) (status: ${bashSession.isExited ? 'exited' : 'running'}) Has new output available. You can check its output using the BashOutput tool.`;
-              debugger;
-              // getLastMessageIndex();
+              systemReminder.push(reminder);
             }
           }
           if (systemReminder.length > 0) {
@@ -971,18 +972,33 @@ class MastraManager extends BaseManager {
 
         delete streamOptions.context;
 
-        stream = await this.nextStep(agent, input, streamOptions, resume);
+        stream = await this.nextStep(
+          agent,
+          input,
+          streamOptions,
+          resume,
+          think,
+        );
 
         const core = stream.messageList.get.all.core();
         const db = stream.messageList.get.all.db();
         const ui = stream.messageList.get.all.ui();
 
-
-
-
         if (stream.status == 'suspended') {
           break;
         } else if (stream.status == 'success') {
+          const reasoningText = await stream.reasoningText;
+          if (reasoningText) {
+            const index = await getLastMessageIndex(db, 'assistant');
+            if (index > 0) {
+              const reasoningPart = db[index].content.parts.find(
+                (x) => x.type === 'reasoning' && !x.reasoning,
+              );
+              reasoningPart.reasoning = reasoningText;
+              await memoryStore.updateMessages({ messages: [...db] });
+            }
+          }
+
           await this.saveThreadUsage(
             chatId,
             resourceId,
@@ -1136,17 +1152,13 @@ class MastraManager extends BaseManager {
       approved?: boolean;
       resumeData?: Record<string, any>;
     },
+    think?: boolean,
   ) {
     const chatId = streamOptions.requestContext.get(
       'threadId' as never,
     ) as string;
     const runId = streamOptions.runId;
     let stream: MastraModelOutput;
-
-
-
-
-
 
     if (
       runId &&
@@ -1176,12 +1188,12 @@ class MastraManager extends BaseManager {
         );
       }
     } else {
-      console.log(inputMessage)
+      console.log(inputMessage);
       stream = await agent.stream(inputMessage, streamOptions);
     }
     const uiStream = toAISdkFormat(stream, {
       from: 'agent',
-      // sendReasoning:true,
+      sendReasoning: think ? true : false,
     });
 
     const uiStreamReader = uiStream.getReader();

@@ -195,19 +195,16 @@ export const ChatToolBashPreview = React.forwardRef<
           )}
         >
           {/* Traffic lights */}
-          <div className="flex items-center gap-1.5">
+          {/* <div className="flex items-center gap-1.5">
             <div className="w-3 h-3 rounded-full bg-red-500/80 hover:bg-red-500 transition-colors" />
             <div className="w-3 h-3 rounded-full bg-yellow-500/80 hover:bg-yellow-500 transition-colors" />
             <div className="w-3 h-3 rounded-full bg-green-500/80 hover:bg-green-500 transition-colors" />
-          </div>
+          </div> */}
 
           {/* Terminal icon and path */}
-          <div className="flex-1 flex items-center justify-center gap-2 text-zinc-400 text-xs">
+          <div className="flex-1 flex items-center justify-start gap-2 text-zinc-400 text-xs min-w-0">
             <IconTerminal2 className="w-3.5 h-3.5" />
-            <span
-              className="font-mono truncate max-w-[200px]"
-              title={directory}
-            >
+            <span className="font-mono truncate flex-1" title={directory}>
               {shortDir}
             </span>
           </div>
@@ -284,12 +281,11 @@ export const ChatToolBashPreview = React.forwardRef<
 
           {/* Stdout Output */}
           {stdout && (
-            <div className="mt-3 pt-3 border-t border-zinc-700/50 dark:border-zinc-800/50">
+            <div className="pt-3 ">
               <pre
                 className={cn(
                   'text-xs whitespace-pre-wrap break-all',
                   'text-zinc-300 dark:text-zinc-400',
-                  'max-h-[300px] overflow-y-auto',
                 )}
               >
                 {stdout}

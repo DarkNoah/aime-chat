@@ -9,6 +9,7 @@ import { providersManager } from '@/main/providers';
 import { isUrl } from '@/utils/is';
 import { toolsManager } from '..';
 import { ReadBinaryFile } from '../file-system/read';
+import { WebFetch } from '../web/web-fetch';
 
 export interface ExtractParams extends BaseToolParams {
   modelId?: string;
@@ -33,6 +34,7 @@ Supported file formats:
 
 fields is a json schema string:
 example:
+\`\`\`json
 {
   "type": "object",
   "properties": {
@@ -40,6 +42,10 @@ example:
   },
   "required": ["name"],
 }
+\`\`\`
+
+properties's key must use english
+
 
 Returns:
  a json object from input fields
@@ -49,10 +55,10 @@ Returns:
     file_path_or_url: z
       .string()
       .describe('The absolute path to the file to extract or the url'),
-    save_path: z
-      .string()
-      .optional()
-      .describe('The path to save the extracted data'),
+    // save_path: z
+    //   .string()
+    //   .optional()
+    //   .describe('The path to save the extracted data'),
   });
 
   configSchema = ToolConfig.Extract.configSchema;
@@ -67,6 +73,14 @@ Returns:
   ) => {
     const mode = options.requestContext.get('model' as never) as string;
     const { fields, file_path_or_url } = inputData;
+    let fieldsSchema;
+    try {
+      fieldsSchema = JSON.parse(fields);
+    } catch (error) {
+      return {
+        error: 'Invalid fields schema',
+      };
+    }
 
     const model = await providersManager.getLanguageModel(
       this.config?.modelId ?? mode,
@@ -83,6 +97,15 @@ Returns:
     let content = '';
 
     if (isUrl(file_path_or_url)) {
+      const webFetch = await toolsManager.buildTool(
+        `${ToolType.BUILD_IN}:${WebFetch.toolName}`,
+      );
+      content = await (webFetch as WebFetch).execute(
+        {
+          url: file_path_or_url,
+        },
+        options,
+      );
     } else if (
       fs.existsSync(file_path_or_url) &&
       fs.statSync(file_path_or_url).isFile()
@@ -100,7 +123,7 @@ Returns:
 
       console.log('文件内容:', content);
     }
-    const fieldsSchema = JSON.parse(fields);
+
     console.log('准备提取内容...');
     const response = await extractAgent.generate(
       [
