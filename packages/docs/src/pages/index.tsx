@@ -25,6 +25,7 @@ import {
 } from '@tabler/icons-react';
 
 import styles from './index.module.css';
+import useBaseUrl from '@docusaurus/useBaseUrl';
 
 const providers = [
   { name: 'OpenAI', icon: <IconRobot size={28} />, color: '#10a37f' },
