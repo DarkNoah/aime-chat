@@ -95,6 +95,15 @@ function HomepageHeader() {
           </Link>
         </div>
 
+        <div className={styles.heroScreenshot}>
+          <img
+            className={styles.heroScreenshotImage}
+            src={useBaseUrl('img/ScreenShot_2026-01-24_171537_284.png')}
+            alt="AIME Chat 应用截图"
+            loading="lazy"
+          />
+        </div>
+
         {/* 统计数据 */}
         <div className={styles.stats}>
           <div className={styles.statItem}>

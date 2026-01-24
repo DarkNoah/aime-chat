@@ -24,6 +24,10 @@
 
 ---
 
+<div align="center">
+  <img src="packages/docs/static/img/ScreenShot_2026-01-24_171537_284.png" alt="AIME Chat Screenshot" width="800" />
+</div>
+
 ## ✨ Features
 
 - 🤖 **Multiple AI Provider Support** - Integrated with mainstream AI providers including OpenAI, DeepSeek, Google, Zhipu AI, Ollama, LMStudio, ModelScope, and more

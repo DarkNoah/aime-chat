@@ -24,6 +24,10 @@
 
 ---
 
+<div align="center">
+  <img src="packages/docs/static/img/ScreenShot_2026-01-24_171537_284.png" alt="AIME Chat 截图" width="800" />
+</div>
+
 ## ✨ 功能特性
 
 - 🤖 **多 AI 提供商支持** - 集成 OpenAI、DeepSeek、Google、智谱 AI、Ollama、LMStudio、ModelScope 等多个主流 AI 提供商
