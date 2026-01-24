@@ -1,7 +1,7 @@
 {
   "name": "aime-chat",
   "description": "A foundation for scalable desktop apps",
-  "version": "0.3.12",
+  "version": "0.3.13",
   "keywords": [
     "electron",
     "boilerplate",

@@ -75,6 +75,7 @@ export enum ChatPreviewType {
   MESSAGES = 'messages',
   TODO = 'todo',
   USAGE = 'usage',
+  FILE_SYSTEM = 'file-system',
 }
 
 export type ChatPreviewData = {

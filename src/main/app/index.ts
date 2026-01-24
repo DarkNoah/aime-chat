@@ -43,7 +43,16 @@ import {
 import { fstat } from 'fs';
 import path from 'path';
 import mastraManager from '../mastra';
-import { FileInfo } from '@/types/common';
+import {
+  DirectoryTreeNode,
+  FileInfo,
+  SearchInDirectoryParams,
+  SearchInDirectoryResult,
+  SearchResult,
+} from '@/types/common';
+import { rgPath } from '@vscode/ripgrep';
+import { spawn } from 'child_process';
+import readline from 'readline';
 import { filesize } from 'filesize';
 import { Translations } from '@/entities/translations';
 import crypto from 'crypto';
@@ -179,6 +188,327 @@ class AppManager extends BaseManager {
       size,
       sizeStr,
     };
+  }
+
+  @channel(AppChannel.GetDirectoryTree)
+  public async getDirectoryTree(dirPath: string): Promise<DirectoryTreeNode> {
+    // 只获取一层目录结构（懒加载）
+    return this.getDirectoryChildren(dirPath);
+  }
+
+  // 获取指定目录的直接子项（不递归）
+  private async getDirectoryChildren(
+    dirPath: string,
+  ): Promise<DirectoryTreeNode> {
+    const IGNORED_ENTRIES = [
+      'node_modules',
+      '.git',
+      '.DS_Store',
+      '__pycache__',
+      '.venv',
+      'venv',
+      '.idea',
+      '.vscode',
+      '.next',
+      '.cache',
+    ];
+
+    if (!fs.existsSync(dirPath)) {
+      return {
+        name: path.basename(dirPath),
+        path: dirPath,
+        isDirectory: true,
+        children: [],
+      };
+    }
+
+    const stat = await fs.promises.stat(dirPath);
+    const node: DirectoryTreeNode = {
+      name: path.basename(dirPath),
+      path: dirPath,
+      isDirectory: stat.isDirectory(),
+    };
+
+    if (!stat.isDirectory()) {
+      return node;
+    }
+
+    try {
+      const entries = await fs.promises.readdir(dirPath, {
+        withFileTypes: true,
+      });
+      const children: DirectoryTreeNode[] = [];
+
+      for (const entry of entries) {
+        // 跳过被忽略的目录和隐藏文件（以.开头的，除了一些特殊的）
+        if (IGNORED_ENTRIES.includes(entry.name)) {
+          continue;
+        }
+
+        const childPath = path.join(dirPath, entry.name);
+        const isDir = entry.isDirectory();
+
+        const childNode: DirectoryTreeNode = {
+          name: entry.name,
+          path: childPath,
+          isDirectory: isDir,
+        };
+
+        // 如果是目录，检查是否有子项（用于显示展开箭头）
+        if (isDir) {
+          try {
+            const subEntries = await fs.promises.readdir(childPath);
+            const hasChildren = subEntries.some(
+              (e) => !IGNORED_ENTRIES.includes(e),
+            );
+            // 用空数组表示有子项但未加载，用 undefined 表示无子项
+            childNode.children = hasChildren ? [] : undefined;
+          } catch {
+            childNode.children = undefined;
+          }
+        }
+
+        children.push(childNode);
+      }
+
+      // 排序：目录在前，文件在后，同类按名称排序
+      children.sort((a, b) => {
+        if (a.isDirectory && !b.isDirectory) return -1;
+        if (!a.isDirectory && b.isDirectory) return 1;
+        return a.name.localeCompare(b.name);
+      });
+
+      node.children = children;
+    } catch {
+      node.children = [];
+    }
+
+    return node;
+  }
+
+  @channel(AppChannel.GetDirectoryChildren)
+  public async loadDirectoryChildren(
+    dirPath: string,
+  ): Promise<DirectoryTreeNode[]> {
+    const result = await this.getDirectoryChildren(dirPath);
+    return result.children || [];
+  }
+
+  @channel(AppChannel.SearchInDirectory)
+  public async searchInDirectory(
+    params: SearchInDirectoryParams,
+  ): Promise<SearchInDirectoryResult> {
+    const { pattern, directory, caseSensitive = false, limit = 100 } = params;
+
+    if (!pattern || !directory) {
+      return { results: [], total: 0, truncated: false };
+    }
+
+    if (!fs.existsSync(directory)) {
+      return { results: [], total: 0, truncated: false };
+    }
+
+    const allResults: SearchResult[] = [];
+    let totalCount = 0;
+
+    // 1. 搜索文件名和文件夹名
+    const fileResults = await this.searchFileNames(
+      pattern,
+      directory,
+      caseSensitive,
+    );
+    allResults.push(...fileResults);
+    totalCount += fileResults.length;
+
+    // 2. 搜索文件内容
+    const contentResults = await this.searchFileContent(
+      pattern,
+      directory,
+      caseSensitive,
+      limit - allResults.length,
+    );
+    allResults.push(...contentResults.results);
+    totalCount += contentResults.total;
+
+    const truncated = allResults.length > limit || contentResults.truncated;
+    const finalResults = allResults.slice(0, limit);
+
+    return { results: finalResults, total: totalCount, truncated };
+  }
+
+  private async searchFileNames(
+    pattern: string,
+    directory: string,
+    caseSensitive: boolean,
+  ): Promise<SearchResult[]> {
+    return new Promise((resolve) => {
+      const args: string[] = [
+        '--files',
+        '--hidden',
+        '--glob',
+        '!node_modules/**',
+        '--glob',
+        '!.git/**',
+        directory,
+      ];
+
+      const child = spawn(rgPath, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+      const results: SearchResult[] = [];
+
+      const rl = readline.createInterface({
+        input: child.stdout,
+        crlfDelay: Infinity,
+      });
+
+      const patternLower = pattern.toLowerCase();
+      const regex = caseSensitive
+        ? new RegExp(pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+        : new RegExp(pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+
+      rl.on('line', (filePath) => {
+        const relativePath = filePath.replace(directory, '').replace(/^\//, '');
+        const parts = relativePath.split('/');
+        const fileName = parts.pop() || '';
+        const folderPath = parts.join('/');
+
+        // 检查文件名是否匹配
+        if (regex.test(fileName)) {
+          results.push({
+            type: 'filename',
+            file: filePath,
+            line: 0,
+            column: 0,
+            match: fileName,
+            context: fileName,
+          });
+        }
+
+        // 检查文件夹名是否匹配（只检查最后一个文件夹）
+        if (parts.length > 0) {
+          const lastFolder = parts[parts.length - 1];
+          if (
+            regex.test(lastFolder) &&
+            !results.some(
+              (r) =>
+                r.type === 'folder' &&
+                r.file === path.join(directory, folderPath),
+            )
+          ) {
+            results.push({
+              type: 'folder',
+              file: path.join(directory, folderPath),
+              line: 0,
+              column: 0,
+              match: lastFolder,
+              context: folderPath,
+            });
+          }
+        }
+      });
+
+      rl.on('close', () => {
+        // 去重文件夹结果
+        const seen = new Set<string>();
+        const uniqueResults = results.filter((r) => {
+          const key = `${r.type}:${r.file}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+        resolve(uniqueResults);
+      });
+
+      child.on('error', () => {
+        resolve([]);
+      });
+
+      setTimeout(() => {
+        child.kill('SIGTERM');
+        rl.close();
+      }, 5000);
+    });
+  }
+
+  private async searchFileContent(
+    pattern: string,
+    directory: string,
+    caseSensitive: boolean,
+    limit: number,
+  ): Promise<{ results: SearchResult[]; total: number; truncated: boolean }> {
+    if (limit <= 0) {
+      return { results: [], total: 0, truncated: false };
+    }
+
+    const args: string[] = [
+      '--json',
+      '--hidden',
+      '--glob',
+      '!node_modules/**',
+      '--glob',
+      '!.git/**',
+      '--glob',
+      '!*.lock',
+      '--glob',
+      '!package-lock.json',
+    ];
+
+    if (!caseSensitive) {
+      args.push('-i');
+    }
+
+    args.push('-e', pattern, directory);
+
+    return new Promise((resolve) => {
+      const child = spawn(rgPath, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+
+      const results: SearchResult[] = [];
+      let total = 0;
+      let truncated = false;
+
+      const rl = readline.createInterface({
+        input: child.stdout,
+        crlfDelay: Infinity,
+      });
+
+      rl.on('line', (line) => {
+        try {
+          const json = JSON.parse(line);
+          if (json.type === 'match') {
+            total++;
+            if (results.length < limit) {
+              const data = json.data;
+              const submatches = data.submatches || [];
+              const match = submatches[0]?.match?.text || '';
+              results.push({
+                type: 'content',
+                file: data.path?.text || '',
+                line: data.line_number || 0,
+                column: submatches[0]?.start || 0,
+                match,
+                context: data.lines?.text?.trim() || '',
+              });
+            } else {
+              truncated = true;
+            }
+          }
+        } catch {
+          // Ignore invalid JSON lines
+        }
+      });
+
+      rl.on('close', () => {
+        resolve({ results, total, truncated });
+      });
+
+      child.on('error', () => {
+        resolve({ results: [], total: 0, truncated: false });
+      });
+
+      setTimeout(() => {
+        child.kill('SIGTERM');
+        rl.close();
+      }, 10000);
+    });
   }
 
   @channel(AppChannel.SetTheme)

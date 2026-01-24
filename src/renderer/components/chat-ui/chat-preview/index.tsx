@@ -22,12 +22,17 @@ import {
   IconWorldWww,
   IconChartBar,
   IconTool,
+  IconFile,
+  IconFolder,
 } from '@tabler/icons-react';
 import { ChatUsageView } from '../chat-usage-view';
+import { ChatFilesystem } from '../chat-filesystem';
+import { useGlobal } from '@/renderer/hooks/use-global';
 
 export type ChatPreviewProps = {
   threadId?: string;
   resourceId?: string;
+  workspace?: string;
   part?: ToolUIPart;
   previewData?: ChatPreviewData;
   onPreviewDataChange?: (previewData: ChatPreviewData) => void;
@@ -39,10 +44,17 @@ export interface ChatPreviewRef {}
 
 export const ChatPreview = React.forwardRef<ChatPreviewRef, ChatPreviewProps>(
   (props: ChatPreviewProps, ref: ForwardedRef<ChatPreviewRef>) => {
-    const { part, previewData, onPreviewDataChange, threadId, resourceId } =
-      props;
+    const {
+      part,
+      previewData,
+      onPreviewDataChange,
+      threadId,
+      resourceId,
+      workspace,
+    } = props;
     const [isGenerating, setIsGenerating] = useState(false);
     const [messages, setMessages] = useState<UIMessage[]>([]);
+    const { appInfo } = useGlobal();
     // const [previewUrl, setPreviewUrl] = useState<string | null>(
     //   previewData?.webPreviewUrl ?? 'about:blank',
     // );
@@ -89,6 +101,14 @@ export const ChatPreview = React.forwardRef<ChatPreviewRef, ChatPreviewProps>(
           }
         >
           <ToggleGroupItem
+            value={ChatPreviewType.FILE_SYSTEM}
+            size="sm"
+            className="data-[state=off]:bg-transparent bg-secondary "
+          >
+            <IconFolder />
+            File System
+          </ToggleGroupItem>
+          <ToggleGroupItem
             value={ChatPreviewType.TODO}
             size="sm"
             className="data-[state=off]:bg-transparent bg-secondary "
@@ -117,12 +137,15 @@ export const ChatPreview = React.forwardRef<ChatPreviewRef, ChatPreviewProps>(
             <IconTool></IconTool>
             Tool Result
           </ToggleGroupItem>
-          <ToggleGroupItem
-            value={ChatPreviewType.MESSAGES}
-            className="data-[state=off]:bg-transparent bg-secondary "
-          >
-            Messages
-          </ToggleGroupItem>
+
+          {!appInfo.isPackaged && (
+            <ToggleGroupItem
+              value={ChatPreviewType.MESSAGES}
+              className="data-[state=off]:bg-transparent bg-secondary "
+            >
+              Messages
+            </ToggleGroupItem>
+          )}
           <ToggleGroupItem
             value={ChatPreviewType.USAGE}
             className="data-[state=off]:bg-transparent bg-secondary "
@@ -175,6 +198,12 @@ export const ChatPreview = React.forwardRef<ChatPreviewRef, ChatPreviewProps>(
           >
             <ChatCanvas></ChatCanvas>
           </div> */}
+
+          <div
+            className={`h-full ${previewData.previewPanel === ChatPreviewType.FILE_SYSTEM ? '' : 'hidden'}`}
+          >
+            <ChatFilesystem workspace={workspace} />
+          </div>
 
           <div
             className={`h-full ${previewData.previewPanel === ChatPreviewType.TODO ? '' : 'hidden'}`}

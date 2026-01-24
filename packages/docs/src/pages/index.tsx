@@ -78,7 +78,7 @@ function HomepageHeader() {
         <p className={styles.heroDescription}>
           基于 Electron 构建的跨平台 AI 聊天应用
           <br />
-          集成多种 AI 服务商，支持智能对话、知识库管理、工具调用
+          支持 Open CoWork 能力，集成多种 AI 服务商，支持智能对话、知识库管理、工具调用
         </p>
         <div className={styles.buttons}>
           <Link
@@ -206,7 +206,7 @@ function ToolsSection() {
           </span>
           <h2 className={styles.sectionTitle}>强大的工具系统</h2>
           <p className={styles.sectionSubtitle}>
-            让 AI 不只是聊天，还能执行实际操作
+            支持 CoWork 能力，让 AI 不只是聊天，还能执行实际操作
           </p>
         </div>
         <div className={styles.toolGrid}>
@@ -294,7 +294,7 @@ function CTASection() {
         <div className={styles.ctaContent}>
           <h2 className={styles.ctaTitle}>准备好开始了吗？</h2>
           <p className={styles.ctaDescription}>
-            免费下载，立即体验智能 AI 助手的强大功能
+            免费下载，立即体验 Open CoWork 和智能 AI 助手的强大功能
           </p>
           <div className={styles.ctaButtons}>
             <Link className={styles.ctaButtonPrimary} to="/docs/intro">

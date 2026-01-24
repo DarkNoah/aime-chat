@@ -3,7 +3,13 @@
 import { Agent } from '@/types/agent';
 import { AppProxy } from '@/types/app';
 import { ChatInput, ThreadState } from '@/types/chat';
-import { FileInfo, PaginationInfo } from '@/types/common';
+import {
+  DirectoryTreeNode,
+  FileInfo,
+  PaginationInfo,
+  SearchInDirectoryParams,
+  SearchInDirectoryResult,
+} from '@/types/common';
 import {
   AgentChannel,
   AppChannel,
@@ -125,6 +131,14 @@ const electronHandler = {
     }> => ipcRenderer.invoke(AppChannel.GetSetupStatus),
     completeSetup: (): Promise<void> =>
       ipcRenderer.invoke(AppChannel.CompleteSetup),
+    getDirectoryTree: (path: string): Promise<DirectoryTreeNode> =>
+      ipcRenderer.invoke(AppChannel.GetDirectoryTree, path),
+    getDirectoryChildren: (path: string): Promise<DirectoryTreeNode[]> =>
+      ipcRenderer.invoke(AppChannel.GetDirectoryChildren, path),
+    searchInDirectory: (
+      params: SearchInDirectoryParams,
+    ): Promise<SearchInDirectoryResult> =>
+      ipcRenderer.invoke(AppChannel.SearchInDirectory, params),
   },
   providers: {
     getList: (filter?: { tags?: ProviderTag[] }) =>

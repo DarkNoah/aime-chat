@@ -9,6 +9,7 @@ import {
 } from '@/renderer/components/ui/card';
 import { useTranslation } from 'react-i18next';
 import { Sparkles, MessageSquare, Wrench, Brain } from 'lucide-react';
+import logo from '@/../../assets/icon.png';
 
 interface SetupStepProps {
   onNext: () => void;
@@ -28,11 +29,11 @@ function WelcomeStep({ onNext }: SetupStepProps) {
       title: t('setup.features.tools'),
       description: t('setup.features.tools_desc'),
     },
-    {
-      icon: Brain,
-      title: t('setup.features.agents'),
-      description: t('setup.features.agents_desc'),
-    },
+    // {
+    //   icon: Brain,
+    //   title: t('setup.features.agents'),
+    //   description: t('setup.features.agents_desc'),
+    // },
   ];
 
   return (
@@ -41,9 +42,7 @@ function WelcomeStep({ onNext }: SetupStepProps) {
         <div className="flex justify-center">
           <div className="relative">
             <div className="absolute inset-0 bg-primary/20 blur-2xl rounded-full" />
-            <div className="relative w-20 h-20 rounded-2xl shadow-lg bg-primary/10 flex items-center justify-center">
-              <Sparkles className="w-10 h-10 text-primary" />
-            </div>
+            <img src={logo} alt="logo" className='size-[100px]' ></img>
           </div>
         </div>
         <div className="space-y-2">
@@ -59,7 +58,7 @@ function WelcomeStep({ onNext }: SetupStepProps) {
       <CardContent className="space-y-8 pt-4">
         {/* Features Grid */}
         <div className="grid gap-4">
-          {features.map((feature, index) => (
+          {/* {features.map((feature, index) => (
             <div
               key={index}
               className="flex items-start gap-4 p-4 rounded-lg bg-muted/50 hover:bg-muted/80 transition-colors"
@@ -74,7 +73,7 @@ function WelcomeStep({ onNext }: SetupStepProps) {
                 </p>
               </div>
             </div>
-          ))}
+          ))} */}
         </div>
 
         {/* CTA Button */}

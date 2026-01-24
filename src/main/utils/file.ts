@@ -16,6 +16,9 @@ export const saveFile = async (
       ? path.join(workspace, filePath)
       : path.join(app.getPath('temp'), filePath);
   }
+  if (!fs.existsSync(path.dirname(_filePath))) {
+    fs.mkdirSync(path.dirname(_filePath), { recursive: true });
+  }
   if (isString(data) && isUrl(data)) {
     return await downloadFile(data, _filePath);
   } else if (data instanceof Buffer) {

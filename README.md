@@ -8,7 +8,7 @@
   </p>
 
   <p>
-    <img src="https://img.shields.io/badge/version-0.3.8-blue.svg" alt="Version">
+    <img src="https://img.shields.io/badge/version-0.3.13-blue.svg" alt="Version">
     <img src="https://img.shields.io/badge/platform-macOS%20|%20Windows%20|%20Linux-lightgrey.svg" alt="Platform">
     <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License">
   </p>
@@ -28,6 +28,7 @@
 
 - 🤖 **Multiple AI Provider Support** - Integrated with mainstream AI providers including OpenAI, DeepSeek, Google, Zhipu AI, Ollama, LMStudio, ModelScope, and more
 - 💬 **Intelligent Conversations** - Powerful AI Agent system based on Mastra framework, supporting streaming responses and tool calling
+- 🤝 **Open CoWork Capability** - AI is not just for chatting, it can perform actual operations like file editing, code execution, web searching, and more
 - 📚 **Knowledge Base Management** - Built-in vector database with support for document retrieval and knowledge Q&A
 - 🛠️ **Tool Integration** - Support for MCP (Model Context Protocol) client with extensible tool capabilities
 - 🎨 **Modern UI** - Built with shadcn/ui component library, supports light/dark theme switching
@@ -145,6 +146,7 @@ Rich built-in tools that AI Agents can call autonomously:
 | Web Tools | Web Fetch, Web Search | Web scraping and search |
 | Image Processing | RMBG | Image background removal |
 | Vision Analysis | Vision | Image recognition and analysis |
+| OCR Recognition | PaddleOCR | Document and image text recognition (supports PDF/images) |
 | Database | LibSQL | Database operations |
 | Task Management | Todo, Task | Task creation and management |
 
@@ -188,6 +190,16 @@ pnpm approve-builds
 ```
 
 ## ⚙️ Configuration
+
+### Optional Runtime Libraries
+
+AIME Chat supports optional runtime libraries that can be installed from the Settings page:
+
+| Runtime | Description |
+|---------|-------------|
+| PaddleOCR | OCR recognition engine based on PaddlePaddle, supports document structure analysis and text extraction from PDF/images |
+
+These runtimes are managed via the built-in uv package manager and will be installed in the application data directory.
 
 ### Data Storage
 

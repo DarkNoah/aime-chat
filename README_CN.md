@@ -8,7 +8,7 @@
   </p>
 
   <p>
-    <img src="https://img.shields.io/badge/version-0.3.8-blue.svg" alt="Version">
+    <img src="https://img.shields.io/badge/version-0.3.13-blue.svg" alt="Version">
     <img src="https://img.shields.io/badge/platform-macOS%20|%20Windows%20|%20Linux-lightgrey.svg" alt="Platform">
     <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License">
   </p>
@@ -28,6 +28,7 @@
 
 - 🤖 **多 AI 提供商支持** - 集成 OpenAI、DeepSeek、Google、智谱 AI、Ollama、LMStudio、ModelScope 等多个主流 AI 提供商
 - 💬 **智能对话** - 基于 Mastra 框架的强大 AI Agent 系统，支持流式响应和工具调用
+- 🤝 **Open CoWork 能力** - AI 不只是聊天，还能执行实际操作，如文件编辑、代码执行、网络搜索等
 - 📚 **知识库管理** - 内置向量数据库，支持文档检索和知识问答
 - 🛠️ **工具集成** - 支持 MCP（Model Context Protocol）客户端，可扩展各类工具能力
 - 🎨 **现代化 UI** - 使用 shadcn/ui 组件库，支持亮色/暗色主题切换
@@ -145,6 +146,7 @@ aime-chat/
 | 网络工具 | Web Fetch, Web Search | 网页抓取和网络搜索 |
 | 图像处理 | RMBG | 图像背景移除 |
 | 视觉分析 | Vision | 图像识别和分析 |
+| OCR 识别 | PaddleOCR | 文档和图片文字识别（支持 PDF/图片） |
 | 数据库 | LibSQL | 数据库操作 |
 | 任务管理 | Todo, Task | 任务创建和管理 |
 
@@ -187,6 +189,16 @@ pnpm approve-builds
 ```
 
 ## ⚙️ 配置
+
+### 可选运行库
+
+AIME Chat 支持可选的运行库，可以在设置页面中安装：
+
+| 运行库 | 说明 |
+|--------|------|
+| PaddleOCR | 基于 PaddlePaddle 的 OCR 识别引擎，支持文档结构分析和从 PDF/图片中提取文字 |
+
+这些运行库通过内置的 uv 包管理器进行管理，将安装在应用数据目录中。
 
 ### 数据存储
 
