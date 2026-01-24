@@ -337,6 +337,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
       setAgentId(undefined);
       chatInputRef.current?.setTools([]);
       chatInputRef.current?.setSubAgents([]);
+      chatInputRef.current?.setThink(true);
       setSuggestions(undefined);
       setRequireToolApproval(false);
     };
@@ -391,6 +392,9 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
               modelId?: string;
               maxTokens: number;
             },
+          );
+          chatInputRef.current?.setThink(
+            (_thread?.metadata?.think as boolean) ?? false,
           );
 
           chatInputRef.current?.setTools(

@@ -304,7 +304,6 @@ function ProjectsPage() {
         onSubmit={handleSubmit}
         projectId={id}
         threadId={threadId}
-
         className="h-full w-[500px] "
         onToolMessageClick={(_part) => {
           // setShowPreview(true);
@@ -324,6 +323,7 @@ function ProjectsPage() {
           workspace={project?.path}
           part={previewToolPart}
           previewData={previewData}
+          project={project}
           onPreviewDataChange={(value) => {
             setPreviewData(value);
           }}

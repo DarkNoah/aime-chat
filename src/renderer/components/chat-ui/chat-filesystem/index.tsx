@@ -53,7 +53,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({
 
   const handleFileClick = () => {
     if (!node.isDirectory) {
-      window.electron.app.openPath(node.path);
+      // window.electron.app.openPath(node.path);
     }
   };
 
@@ -430,17 +430,20 @@ export const ChatFilesystem = React.forwardRef<
     <div className={cn('h-full flex flex-col ', className)}>
       {/* 头部：路径和刷新按钮 */}
       <div className="flex items-center justify-between px-2 py-1 border-b">
-        <Button
-          variant="link"
-          size="sm"
-          className="text-xs text-muted-foreground truncate flex-1 justify-start"
-          title={workspace}
-          onClick={() => {
-            window.electron.app.openPath(workspace);
-          }}
-        >
-          {workspace}
-        </Button>
+        <div className="flex-1 min-w-0">
+          <Button
+            variant="link"
+            size="sm"
+            className="text-xs text-muted-foreground truncate justify-start w-full"
+            title={workspace}
+            onClick={() => {
+              window.electron.app.openPath(workspace);
+            }}
+          >
+            {workspace}
+          </Button>
+        </div>
+
         <Button
           variant="ghost"
           size="icon-sm"
@@ -511,7 +514,7 @@ export const ChatFilesystem = React.forwardRef<
           </div>
         )}
         {!searching && !isSearchMode && (
-          <div className="py-1">
+          <div className="p-1">
             {tree.children?.map((child) => (
               <TreeNode key={child.path} node={child} level={0} />
             ))}

@@ -1,4 +1,6 @@
+/* eslint-disable no-underscore-dangle */
 /* eslint-disable no-await-in-loop */
+
 'use client';
 
 import { Button } from '@/renderer/components/ui/button';
@@ -87,6 +89,7 @@ export type AttachmentsContext = {
   clear: () => void;
   openFileDialog: () => void;
   fileInputRef: RefObject<HTMLInputElement | null>;
+  screenCapture: () => void;
 };
 
 export type TextInputContext = {
@@ -313,6 +316,30 @@ export function PromptInputProvider({
     openRef.current?.();
   }, []);
 
+  const screenCapture = useCallback(async () => {
+    try {
+      const result = await window.electron.app.screenCapture({
+        mode: 'selection',
+      });
+      if (result.success && result.filePath) {
+        // 直接添加截图到附件列表
+        setAttachements((prev) =>
+          prev.concat([
+            {
+              id: nanoid(),
+              type: 'file' as const,
+              url: `file://${result.filePath}`,
+              mediaType: 'image/png',
+              filename: result.filePath.split('/').pop() || 'screenshot.png',
+            },
+          ]),
+        );
+      }
+    } catch (error) {
+      console.error('Screen capture failed:', error);
+    }
+  }, []);
+
   const attachments = useMemo<AttachmentsContext>(
     () => ({
       files: attachements,
@@ -321,9 +348,18 @@ export function PromptInputProvider({
       remove,
       clear,
       openFileDialog,
+      screenCapture,
       fileInputRef,
     }),
-    [attachements, add, addInline, remove, clear, openFileDialog],
+    [
+      attachements,
+      add,
+      addInline,
+      remove,
+      clear,
+      openFileDialog,
+      screenCapture,
+    ],
   );
 
   const __registerFileInput = useCallback(
@@ -506,7 +542,7 @@ export function PromptInputAttachments({
 
   return (
     <div
-      className={cn('flex flex-wrap items-center gap-2 p-3', className)}
+      className={cn('flex flex-wrap items-start gap-2 p-3 w-full', className)}
       {...props}
     >
       {attachments.files.map((file) => (
@@ -520,23 +556,19 @@ export type PromptInputActionAddAttachmentsProps = ComponentProps<
   typeof DropdownMenuItem
 > & {
   label?: string;
+  icon?: ReactNode;
 };
 
 export const PromptInputActionAddAttachments = ({
   label = 'Add photos or files',
+  icon,
   ...props
 }: PromptInputActionAddAttachmentsProps) => {
   const attachments = usePromptInputAttachments();
 
   return (
-    <DropdownMenuItem
-      {...props}
-      onSelect={(e) => {
-        e.preventDefault();
-        attachments.openFileDialog();
-      }}
-    >
-      <ImageIcon className="mr-2 size-4" /> {label}
+    <DropdownMenuItem {...props}>
+      {icon || <ImageIcon className="mr-2 size-4" />} {label}
     </DropdownMenuItem>
   );
 };
@@ -801,6 +833,26 @@ export const PromptInput = ({
     });
   };
 
+  const screenCapture = useCallback(async () => {
+    try {
+      const result = await window.electron.app.screenCapture({
+        mode: 'selection',
+      });
+      if (result.success && result.filePath) {
+        const newFile = {
+          id: nanoid(),
+          type: 'file' as const,
+          url: `file://${result.filePath}`,
+          mediaType: 'image/png',
+          filename: result.filePath.split('/').pop() || 'screenshot.png',
+        };
+        setItems((prev) => [...prev, newFile]);
+      }
+    } catch (error) {
+      console.error('Screen capture failed:', error);
+    }
+  }, []);
+
   const ctx = useMemo<AttachmentsContext>(
     () => ({
       files: files.map((item) => ({ ...item, id: item.id })),
@@ -808,9 +860,10 @@ export const PromptInput = ({
       remove,
       clear,
       openFileDialog,
+      screenCapture,
       fileInputRef: inputRef,
     }),
-    [files, add, remove, clear, openFileDialog],
+    [files, add, remove, clear, openFileDialog, screenCapture],
   );
 
   const handleSubmit: FormEventHandler<HTMLFormElement> = (event) => {
@@ -943,7 +996,7 @@ export const PromptInputTextarea = ({
       e.preventDefault();
 
       // Check if the submit button is disabled before submitting
-      const form = e.currentTarget.form;
+      const { form } = e.currentTarget;
       const submitButton = form?.querySelector(
         'button[type="submit"]',
       ) as HTMLButtonElement | null;
@@ -955,17 +1008,17 @@ export const PromptInputTextarea = ({
     }
 
     // Remove last attachment when Backspace is pressed and textarea is empty
-    if (
-      e.key === 'Backspace' &&
-      e.currentTarget.value === '' &&
-      attachments.files.length > 0
-    ) {
-      e.preventDefault();
-      const lastAttachment = attachments.files.at(-1);
-      if (lastAttachment) {
-        attachments.remove(lastAttachment.id);
-      }
-    }
+    // if (
+    //   e.key === 'Backspace' &&
+    //   e.currentTarget.value === '' &&
+    //   attachments.files.length > 0
+    // ) {
+    //   e.preventDefault();
+    //   const lastAttachment = attachments.files.at(-1);
+    //   if (lastAttachment) {
+    //     attachments.remove(lastAttachment.id);
+    //   }
+    // }
   };
 
   const handlePaste: ClipboardEventHandler<HTMLTextAreaElement> = async (

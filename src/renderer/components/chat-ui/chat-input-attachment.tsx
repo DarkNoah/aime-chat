@@ -12,6 +12,7 @@ export interface ChatInputAttachmentRef {
   add: (files: File[] | FileList) => void;
   remove: (id: string) => void;
   openFileDialog: () => void;
+  screenCapture: () => void;
 }
 
 export const ChatInputAttachment = React.forwardRef(
@@ -33,6 +34,9 @@ export const ChatInputAttachment = React.forwardRef(
       },
       openFileDialog: () => {
         attachments.openFileDialog();
+      },
+      screenCapture: () => {
+        attachments.screenCapture();
       },
     }));
 

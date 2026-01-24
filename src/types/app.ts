@@ -71,3 +71,23 @@ export interface UpdateState {
   progress?: UpdateProgress;
   error?: string;
 }
+
+// Screen Capture Types
+export type ScreenCaptureMode = 'fullscreen' | 'selection' | 'window';
+
+export interface ScreenCaptureOptions {
+  mode: ScreenCaptureMode;
+  sourceId?: string; // 用于窗口模式
+}
+
+export interface ScreenCaptureResult {
+  success: boolean;
+  filePath?: string;
+  error?: string;
+}
+
+export interface ScreenSource {
+  id: string;
+  name: string;
+  thumbnail: string; // base64
+}

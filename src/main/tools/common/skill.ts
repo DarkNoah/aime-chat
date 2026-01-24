@@ -56,6 +56,7 @@ Important:
       .describe(
         `The skill id (no arguments). E.g., "skill:anthropic-agent-skills:pdf" or "skill:anthropic-agent-skills:xlsx"`,
       ),
+    agrs: z.string().optional().describe(`Optional arguments for the skill`),
   });
 
   //outputSchema = z.string();
@@ -110,7 +111,7 @@ ${_skills
     inputData: z.infer<typeof this.inputSchema>,
     context: ToolExecutionContext<z.ZodSchema, any>,
   ) => {
-    const { skill_id } = inputData;
+    const { skill_id, agrs } = inputData;
     if (!skill_id.startsWith(`${ToolType.SKILL}:`)) {
       throw new Error(`please use skill id`);
     }
@@ -120,7 +121,11 @@ ${_skills
     if (skillInfo)
       return `Base directory for this skill: ${skillInfo.path}
 
-${skillInfo.content}`;
+${skillInfo.content}
+
+
+${agrs ? 'ARGUMENTS: ' + agrs : ''}
+`;
     return `skill id: "${skill_id}" not found`;
   };
 }
@@ -213,7 +218,10 @@ export class SkillManager {
       return undefined;
     }
     const mds = await fg(
-      `${marketplace ? marketplace + '/' : ''}**/${id.replaceAll(':', '/')}/SKILL.md`.replace(/\\/g, '/'),
+      `${marketplace ? marketplace + '/' : ''}**/${id.replaceAll(':', '/')}/SKILL.md`.replace(
+        /\\/g,
+        '/',
+      ),
       {
         cwd: marketplaces,
         absolute: true,
@@ -254,29 +262,28 @@ export class SkillManager {
         },
       });
       if (!localSkill) {
-        return undefined
+        return undefined;
       }
       try {
         const skillPath = localSkill.value?.path;
-      const skillContent = await fs.promises.readFile(
-        path.join(skillPath, 'SKILL.md'),
-        { encoding: 'utf8' },
-      );
-      const skillInfo = matter(skillContent);
-      return {
-        id: localSkill.id,
-        name: skillInfo.data.name,
-        description: skillInfo.data.description,
-        content: skillInfo.content,
-        path: skillPath,
-        type: ToolType.SKILL,
-        isActive: localSkill.isActive,
-      };
+        const skillContent = await fs.promises.readFile(
+          path.join(skillPath, 'SKILL.md'),
+          { encoding: 'utf8' },
+        );
+        const skillInfo = matter(skillContent);
+        return {
+          id: localSkill.id,
+          name: skillInfo.data.name,
+          description: skillInfo.data.description,
+          content: skillInfo.content,
+          path: skillPath,
+          type: ToolType.SKILL,
+          isActive: localSkill.isActive,
+        };
       } catch (err) {
         console.error(`Error reading skill file: ${err}`);
-        return undefined
+        return undefined;
       }
-
     }
   }
 

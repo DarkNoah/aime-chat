@@ -1,7 +1,12 @@
 // Disable no-unused-vars, broken for spread args
 /* eslint no-unused-vars: off */
 import { Agent } from '@/types/agent';
-import { AppProxy } from '@/types/app';
+import {
+  AppProxy,
+  ScreenCaptureOptions,
+  ScreenCaptureResult,
+  ScreenSource,
+} from '@/types/app';
 import { ChatInput, ThreadState } from '@/types/chat';
 import {
   DirectoryTreeNode,
@@ -139,6 +144,10 @@ const electronHandler = {
       params: SearchInDirectoryParams,
     ): Promise<SearchInDirectoryResult> =>
       ipcRenderer.invoke(AppChannel.SearchInDirectory, params),
+    screenCapture: (options: ScreenCaptureOptions): Promise<ScreenCaptureResult> =>
+      ipcRenderer.invoke(AppChannel.ScreenCapture, options),
+    getScreenSources: (): Promise<ScreenSource[]> =>
+      ipcRenderer.invoke(AppChannel.GetScreenSources),
   },
   providers: {
     getList: (filter?: { tags?: ProviderTag[] }) =>

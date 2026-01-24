@@ -76,6 +76,7 @@ export enum ChatPreviewType {
   TODO = 'todo',
   USAGE = 'usage',
   FILE_SYSTEM = 'file-system',
+  PROJECT = 'project',
 }
 
 export type ChatPreviewData = {
@@ -105,6 +106,7 @@ export type ChatRequestContext = {
   todos?: ChatTodo[];
   maxContextSize?: number;
   workspace?: string;
+  think?: boolean;
   chunks?: { runId: string; text: string };
 };
 
