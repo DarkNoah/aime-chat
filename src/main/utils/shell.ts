@@ -39,7 +39,7 @@ export const runCommand = async (
     options?.timeout,
     options?.env,
     options?.usePowerShell,
-    options?.file
+    options?.file,
   );
   let exited = false;
   let stdout = '';
@@ -174,7 +174,7 @@ export const createShell = (
   timeout?: number,
   env?: Record<string, string>,
   usePowerShell: boolean = false,
-  file :string = null
+  file: string = null,
 ) => {
   const isWindows = os.platform() === 'win32';
 
@@ -184,9 +184,25 @@ export const createShell = (
   const tempFilePath = path.join(os.tmpdir(), tempFileName);
 
   fixPath();
+  let env_path: string = process.env.PATH;
+  if (env && env['PATH']) {
+    if (process.platform === 'win32') {
+      if (!env['PATH'].endsWith(';')) {
+        env['PATH'] += ';';
+      }
+    } else {
+      if (!env['PATH'].endsWith(':')) {
+        env['PATH'] += ':';
+      }
+    }
+
+    env_path = env['PATH'] + process.env.PATH;
+    delete env['PATH'];
+  }
+
   let _env = {
     ...process.env,
-    PATH: process.env.PATH,
+    PATH: env_path,
     HOME: os.homedir(),
   };
 
@@ -234,13 +250,17 @@ export const createShell = (
   }
 
   if (!isWindows) {
-    const shell = spawn(file || 'bash', file ? [_command as string]: ['-c', _command as string], {
-      stdio: ['ignore', 'pipe', 'pipe'],
-      detached: true, // ensure subprocess starts its own process group (esp. in Linux)
-      cwd: cwd,
-      timeout: timeout,
-      env: _env,
-    });
+    const shell = spawn(
+      file || 'bash',
+      file ? [_command as string] : ['-c', _command as string],
+      {
+        stdio: ['ignore', 'pipe', 'pipe'],
+        detached: true, // ensure subprocess starts its own process group (esp. in Linux)
+        cwd: cwd,
+        timeout: timeout,
+        env: _env,
+      },
+    );
     return { shell, tempFilePath, command: _command };
   } else {
     let real_input_command: string[];
@@ -261,13 +281,17 @@ export const createShell = (
         }
       }
     });
-    const shell = spawn(file || 'cmd.exe', file ? [...real_input_command] : ['/c', ...real_input_command], {
-      stdio: ['ignore', 'pipe', 'pipe'],
-      // detached: true, // ensure subprocess starts its own process group (esp. in Linux)
-      cwd: cwd,
-      timeout: timeout,
-      env: _env,
-    });
+    const shell = spawn(
+      file || 'cmd.exe',
+      file ? [...real_input_command] : ['/c', ...real_input_command],
+      {
+        stdio: ['ignore', 'pipe', 'pipe'],
+        // detached: true, // ensure subprocess starts its own process group (esp. in Linux)
+        cwd: cwd,
+        timeout: timeout,
+        env: _env,
+      },
+    );
     return { shell, tempFilePath, command: _command };
   }
 };

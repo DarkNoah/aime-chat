@@ -1,9 +1,13 @@
 import { FileInfo } from '@/types/common';
+import { isString } from './is';
 
 export async function splitContextAndFiles(input: string): Promise<{
   context: string;
   attachments: FileInfo[];
 }> {
+  if (!isString(input)) {
+    return { context: input, attachments: [] };
+  }
   if (!input || !(input.includes('<file>') || input.includes('<folder>'))) {
     return { context: input, attachments: [] };
   }

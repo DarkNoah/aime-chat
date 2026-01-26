@@ -15,6 +15,7 @@ import stripAnsi from 'strip-ansi';
 import { ChildProcessByStdio, spawn } from 'child_process';
 import iconv from 'iconv-lite';
 import Stream from 'stream';
+import { appManager } from '@/main/app';
 const MAX_OUTPUT_LENGTH = 30000;
 
 export class Bash extends BaseTool {
@@ -203,6 +204,17 @@ Output: Creates directory 'foo'`),
     if (cwd && fs.existsSync(cwd) && !fs.statSync(cwd).isDirectory()) {
       throw new Error(`Directory ${cwd} is not a directory`);
     }
+    const runtimeInfo = await appManager.getRuntimeInfo();
+
+    const env = {
+      PATH: '',
+    };
+
+    if (runtimeInfo.uv.installed || runtimeInfo.bun.installed) {
+      env['PATH'] +=
+        `${runtimeInfo.uv.dir || runtimeInfo.bun.dir}` +
+        (process.platform === 'win32' ? ';' : ':');
+    }
 
     if (run_in_background) {
       const shell_id = nanoid(8);
@@ -210,6 +222,7 @@ Output: Creates directory 'foo'`),
         { command: inputData.command, description: inputData.description },
         shell_id,
         cwd,
+        env,
         timeout,
         undefined,
         threadId,
@@ -218,6 +231,11 @@ Output: Creates directory 'foo'`),
     }
 
     let exited = false;
+
+    // if (runtimeInfo.bun.installed) {
+    //   env['PATH'] +=
+    //     `${runtimeInfo.bun.dir}` + (process.platform === 'win32' ? ';' : ':');
+    // }
 
     let {
       output,
@@ -229,7 +247,7 @@ Output: Creates directory 'foo'`),
       backgroundPIDs,
       tempFilePath,
       pid,
-    } = await runCommand(inputData.command, { cwd, timeout, abortSignal });
+    } = await runCommand(inputData.command, { cwd, timeout, abortSignal, env });
     console.log(tempFilePath, inputData.command);
     let llmContent = '';
     if (abortSignal?.aborted) {
@@ -475,6 +493,7 @@ export class BashManager {
     },
     bashId?: string,
     cwd?: string,
+    env?: Record<string, string>,
     timeout?: number,
     abortSignal?: AbortSignal,
     threadId?: string,
@@ -489,6 +508,7 @@ export class BashManager {
       input.command,
       cwd,
       timeout,
+      env,
     );
     if (!bashId) {
       bashId = nanoid(8);

@@ -22,6 +22,7 @@ import { AppChannel } from '@/types/ipc-channel';
 import {
   AppInfo,
   AppProxy,
+  RuntimeInfo,
   ScreenCaptureOptions,
   ScreenCaptureResult,
   ScreenSource,
@@ -654,13 +655,16 @@ class AppManager extends BaseManager {
   }
 
   @channel(AppChannel.GetRuntimeInfo)
-  public async getRuntimeInfo(): Promise<any> {
+  public async getRuntimeInfo(): Promise<RuntimeInfo> {
     const uv = await getUVRuntime();
+    const bun = await getBunRuntime();
+    const node = await getNodeRuntime();
+    const paddleOcr = await getPaddleOcrRuntime();
     return {
       uv: uv,
-      bun: await getBunRuntime(),
-      node: await getNodeRuntime(),
-      paddleOcr: await getPaddleOcrRuntime(),
+      bun: bun,
+      node: node,
+      paddleOcr: paddleOcr,
     };
   }
 
@@ -986,18 +990,21 @@ class AppManager extends BaseManager {
         webPreferences: {
           nodeIntegration: true,
           contextIsolation: false,
+          devTools: false,
         },
       });
 
       // 监听选择完成事件
       const handleSelection = (
         _event: Electron.IpcMainEvent,
-        selection: { x: number; y: number; width: number; height: number } | null,
+        selection: {
+          x: number;
+          y: number;
+          width: number;
+          height: number;
+        } | null,
       ) => {
-        ipcMain.removeListener(
-          AppChannel.ScreenCaptureSelect,
-          handleSelection,
-        );
+        ipcMain.removeListener(AppChannel.ScreenCaptureSelect, handleSelection);
         selectionWindow.close();
         resolve(selection);
       };
@@ -1006,10 +1013,7 @@ class AppManager extends BaseManager {
 
       // 窗口关闭时也要 resolve
       selectionWindow.on('closed', () => {
-        ipcMain.removeListener(
-          AppChannel.ScreenCaptureSelect,
-          handleSelection,
-        );
+        ipcMain.removeListener(AppChannel.ScreenCaptureSelect, handleSelection);
         resolve(null);
       });
 
@@ -1092,15 +1096,15 @@ class AppManager extends BaseManager {
   <div id="size"></div>
   <script>
     const { ipcRenderer } = require('electron');
-    
+
     const overlay = document.getElementById('overlay');
     const selection = document.getElementById('selection');
     const sizeInfo = document.getElementById('size');
-    
+
     let isSelecting = false;
     let startX = 0;
     let startY = 0;
-    
+
     document.addEventListener('mousedown', (e) => {
       isSelecting = true;
       startX = e.clientX;
@@ -1112,40 +1116,40 @@ class AppManager extends BaseManager {
       selection.style.height = '0';
       sizeInfo.style.display = 'block';
     });
-    
+
     document.addEventListener('mousemove', (e) => {
       if (!isSelecting) return;
-      
+
       const currentX = e.clientX;
       const currentY = e.clientY;
-      
+
       const left = Math.min(startX, currentX);
       const top = Math.min(startY, currentY);
       const width = Math.abs(currentX - startX);
       const height = Math.abs(currentY - startY);
-      
+
       selection.style.left = left + 'px';
       selection.style.top = top + 'px';
       selection.style.width = width + 'px';
       selection.style.height = height + 'px';
-      
+
       sizeInfo.textContent = width + ' x ' + height;
       sizeInfo.style.left = (left + width + 10) + 'px';
       sizeInfo.style.top = (top + height + 10) + 'px';
     });
-    
+
     document.addEventListener('mouseup', (e) => {
       if (!isSelecting) return;
       isSelecting = false;
-      
+
       const currentX = e.clientX;
       const currentY = e.clientY;
-      
+
       const left = Math.min(startX, currentX);
       const top = Math.min(startY, currentY);
       const width = Math.abs(currentX - startX);
       const height = Math.abs(currentY - startY);
-      
+
       if (width > 5 && height > 5) {
         ipcRenderer.send('${AppChannel.ScreenCaptureSelect}', {
           x: left,
@@ -1159,7 +1163,7 @@ class AppManager extends BaseManager {
         sizeInfo.style.display = 'none';
       }
     });
-    
+
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         ipcRenderer.send('${AppChannel.ScreenCaptureSelect}', null);

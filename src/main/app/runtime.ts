@@ -4,8 +4,9 @@ import { app } from 'electron';
 import path from 'path';
 import { appManager } from '.';
 import { getAssetPath } from '../utils';
+import { RuntimeInfo } from '@/types/app';
 
-export const uv = {
+export const uv: RuntimeInfo['uv'] = {
   status: 'not_installed' as 'installed' | 'not_installed' | 'installing',
   installed: false,
   path: undefined,
@@ -13,21 +14,21 @@ export const uv = {
   version: undefined,
 };
 
-export const node = {
+export const node: RuntimeInfo['node'] = {
   installed: undefined,
   path: undefined,
   dir: undefined,
   version: undefined,
 };
 
-export const paddleOcr = {
+export const paddleOcr: RuntimeInfo['paddleOcr'] = {
   status: 'not_installed' as 'installed' | 'not_installed' | 'installing',
   installed: false,
   path: undefined,
   dir: undefined,
   version: undefined,
 };
-export const bun = {
+export const bun: RuntimeInfo['bun'] = {
   status: 'not_installed' as 'installed' | 'not_installed' | 'installing',
   installed: undefined,
   path: undefined,

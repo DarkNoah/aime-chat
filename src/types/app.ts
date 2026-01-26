@@ -91,3 +91,33 @@ export interface ScreenSource {
   name: string;
   thumbnail: string; // base64
 }
+
+export interface RuntimeInfo {
+  uv?: {
+    status: 'installed' | 'not_installed' | 'installing';
+    installed: boolean;
+    path?: string;
+    dir?: string;
+    version?: string;
+  };
+  bun: {
+    status: 'installed' | 'not_installed' | 'installing';
+    installed: boolean;
+    path?: string;
+    dir?: string;
+    version?: string;
+  };
+  node: {
+    installed: boolean;
+    path?: string;
+    dir?: string;
+    version?: string;
+  };
+  paddleOcr: {
+    status: 'installed' | 'not_installed' | 'installing';
+    installed: boolean;
+    path?: string;
+    dir?: string;
+    version?: string;
+  };
+}
