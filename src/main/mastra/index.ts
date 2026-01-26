@@ -91,6 +91,7 @@ import { costFromUsage, getTokenCosts } from 'tokenlens';
 import bashManager from '../tools/file-system/bash';
 import { DefaultAgent } from './agents/default-agent';
 import { Agents } from '@/entities/agents';
+import { Project } from '@/types/project';
 
 class MastraManager extends BaseManager {
   app: express.Application;
@@ -414,7 +415,7 @@ class MastraManager extends BaseManager {
     const storage = this.mastra.getStorage();
 
     let resourceId = DEFAULT_RESOURCE_ID;
-    let project: Projects | undefined;
+    let project: Project | undefined;
     if (projectId) {
       project = await projectManager.getProject(projectId);
       if (project) {
@@ -987,17 +988,17 @@ class MastraManager extends BaseManager {
         if (stream.status == 'suspended') {
           break;
         } else if (stream.status == 'success') {
-          const reasoningText = await stream.reasoningText;
-          if (reasoningText) {
-            const index = await getLastMessageIndex(db, 'assistant');
-            if (index > 0) {
-              const reasoningPart = db[index].content.parts.find(
-                (x) => x.type === 'reasoning' && !x.reasoning,
-              );
-              reasoningPart.reasoning = reasoningText;
-              await memoryStore.updateMessages({ messages: [...db] });
-            }
-          }
+          // const reasoningText = await stream.reasoningText;
+          // if (reasoningText) {
+          //   const index = await getLastMessageIndex(db, 'assistant');
+          //   if (index > 0) {
+          //     const reasoningPart = db[index].content.parts.find(
+          //       (x) => x.type === 'reasoning' && !x.reasoning,
+          //     );
+          //     reasoningPart.reasoning = reasoningText;
+          //     await memoryStore.updateMessages({ messages: [...db] });
+          //   }
+          // }
 
           await this.saveThreadUsage(
             chatId,
@@ -1193,7 +1194,7 @@ class MastraManager extends BaseManager {
     }
     const uiStream = toAISdkFormat(stream, {
       from: 'agent',
-      sendReasoning: think ? true : false,
+      sendReasoning: false,
     });
 
     const uiStreamReader = uiStream.getReader();

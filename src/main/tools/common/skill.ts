@@ -14,6 +14,7 @@ import fg from 'fast-glob';
 import { isString } from '@/utils/is';
 import unzipper from 'unzipper';
 import os from 'os';
+import { getSkills } from '@/main/utils/skills';
 
 export interface SkillToolParams extends BaseToolParams {
   skills: SkillInfo[] | string[];
@@ -112,12 +113,33 @@ ${_skills
     context: ToolExecutionContext<z.ZodSchema, any>,
   ) => {
     const { skill_id, agrs } = inputData;
+    const { requestContext } = context;
     if (!skill_id.startsWith(`${ToolType.SKILL}:`)) {
       throw new Error(`please use skill id`);
     }
-    const skillInfo = await skillManager.getSkill(
-      skill_id as `${ToolType.SKILL}:${string}`,
-    );
+
+    const workspace = requestContext.get('workspace' as never);
+    let skillInfo;
+    if (
+      workspace &&
+      fs.existsSync(workspace) &&
+      fs.statSync(workspace).isDirectory()
+    ) {
+      const skillsPath = path.join(workspace, '.aime-chat', 'skills');
+      if (fs.existsSync(skillsPath) && fs.statSync(skillsPath).isDirectory()) {
+        const skills = await getSkills(skillsPath);
+        const skill = skills.find((x) => x.id === skill_id);
+        if (skill) {
+          skillInfo = skill;
+        }
+      }
+    }
+    if (!skillInfo) {
+      skillInfo = await skillManager.getSkill(
+        skill_id as `${ToolType.SKILL}:${string}`,
+      );
+    }
+
     if (skillInfo)
       return `Base directory for this skill: ${skillInfo.path}
 

@@ -172,6 +172,49 @@ function Runtime() {
           )}
         </ItemActions>
       </Item>
+      <Item variant="outline">
+        <ItemContent className="min-w-0">
+          <ItemTitle>
+            Bun{' '}
+            {runtimeInfo?.bun?.version && (
+              <Badge>{runtimeInfo?.bun?.version}</Badge>
+            )}
+          </ItemTitle>
+          {runtimeInfo?.bun?.path && (
+            <ItemDescription>
+              <Button
+                variant="link"
+                size="sm"
+                onClick={() =>
+                  window.electron.app.openPath(runtimeInfo?.bun?.path)
+                }
+              >
+                <IconFolder />
+                <span className="truncate">{runtimeInfo?.bun?.path}</span>
+              </Button>
+            </ItemDescription>
+          )}
+        </ItemContent>
+        <ItemActions>
+          {runtimeInfo?.bun?.status === 'not_installed' && (
+            <Button onClick={() => handleInstallRuntime('bun')}>Install</Button>
+          )}
+          {runtimeInfo?.bun?.status === 'installed' && (
+            <Button
+              onClick={() => handleUninstallRuntime('bun')}
+              variant="destructive"
+            >
+              Uninstall
+            </Button>
+          )}
+          {runtimeInfo?.bun?.status === 'installing' && (
+            <Button disabled>
+              <Spinner />
+              Installing...
+            </Button>
+          )}
+        </ItemActions>
+      </Item>
     </div>
   );
 }

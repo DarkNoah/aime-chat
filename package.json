@@ -136,6 +136,7 @@
     "@mastra/mcp": "^1.0.0-beta.7",
     "@mastra/memory": "^1.0.0-beta.10",
     "@mastra/observability": "^1.0.0-beta.9",
+    "@mastra/rag": "^2.0.0",
     "@mastra/react": "^0.1.0-beta.19",
     "@mastra/schema-compat": "^1.0.0-beta.5",
     "@modelcontextprotocol/sdk": "^1.23.0",

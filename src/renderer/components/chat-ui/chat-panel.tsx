@@ -517,7 +517,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
                                   <Message from={message.role}>
                                     <MessageContent>
                                       <MessageResponse
-                                        className="text-xs whitespace-break-spaces"
+                                        className={`text-xs ${message.role === 'user' ? 'whitespace-break-spaces' : ''}`}
                                         mermaidConfig={{
                                           theme:
                                             theme === 'dark'

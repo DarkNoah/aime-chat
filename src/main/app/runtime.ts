@@ -27,7 +27,13 @@ export const paddleOcr = {
   dir: undefined,
   version: undefined,
 };
-
+export const bun = {
+  status: 'not_installed' as 'installed' | 'not_installed' | 'installing',
+  installed: undefined,
+  path: undefined,
+  dir: undefined,
+  version: undefined,
+};
 export async function installUVRuntime() {
   const uvPath = path.join(app.getPath('userData'), '.runtime', 'bin', 'uv');
   if (fs.existsSync(uvPath)) return;
@@ -328,4 +334,102 @@ export async function uninstallPaddleOcrRuntime() {
   paddleOcr.path = undefined;
   paddleOcr.dir = undefined;
   paddleOcr.version = undefined;
+}
+
+export async function getBunRuntime(refresh = false) {
+  if (bun.status === 'installing' && refresh == false) {
+    return bun;
+  }
+  const isWindows = process.platform === 'win32';
+  const bunPath = path.join(
+    app.getPath('userData'),
+    '.runtime',
+    'bin',
+    isWindows ? 'bun.exe' : 'bun',
+  );
+
+  if (!fs.existsSync(bunPath)) {
+    bun.status = 'not_installed';
+    bun.installed = false;
+    bun.path = undefined;
+    bun.dir = undefined;
+    bun.version = undefined;
+    return bun;
+  }
+  if (bun.status === 'installed' && refresh == false) {
+    return bun;
+  }
+  const result = await runCommand(`"${bunPath}" --version`, {
+    timeout: 1000 * 5,
+    // cwd: path.dirname(bunPath),
+  });
+  if (result.code === 0) {
+    bun.status = 'installed';
+    bun.installed = true;
+    bun.path = bunPath;
+    bun.dir = path.dirname(bunPath);
+    bun.version = result.stdout.trim();
+    return bun;
+  }
+}
+
+export async function installBunRuntime() {
+  const bunPath = path.join(app.getPath('userData'), '.runtime');
+  if (fs.existsSync(path.join(bunPath, 'bin', 'bun'))) return;
+  if (bun.status === 'installing') {
+    return;
+  }
+  bun.status = 'installing';
+  let success = false;
+  try {
+    fs.mkdirSync(bunPath, { recursive: true });
+    if (process.platform === 'darwin') {
+      const result = await runCommand(
+        `curl -fsSL https://bun.sh/install | bash`,
+        { env: { BUN_INSTALL: bunPath } },
+      );
+      if (result.code === 0) success = true;
+    } else if (process.platform === 'win32') {
+      const result = await runCommand(
+        [
+          '-ExecutionPolicy',
+          'ByPass',
+          '-Command',
+          'irm bun.sh/install.ps1 | iex | iex',
+        ],
+
+        {
+          env: {
+            BUN_INSTALL: bunPath,
+          },
+          usePowerShell: true,
+        },
+      );
+      if (result.code === 0) success = true;
+    }
+  } catch {
+    success = false;
+  }
+
+  if (success) {
+    appManager.toast('Bun Runtime installed successfully', { type: 'success' });
+    return await getBunRuntime(true);
+  } else {
+    appManager.toast('Failed to install Bun Runtime', { type: 'error' });
+    bun.status = 'not_installed';
+  }
+}
+
+export async function uninstallBunRuntime() {
+  const isWindows = process.platform === 'win32';
+  const bunPath = path.join(
+    app.getPath('userData'),
+    '.runtime',
+    'bin',
+    isWindows ? 'bun.exe' : 'bun',
+  );
+  if (fs.existsSync(bunPath)) {
+    await fs.promises.rm(bunPath, { recursive: true });
+  }
+  await getBunRuntime(true);
 }

@@ -144,7 +144,9 @@ const electronHandler = {
       params: SearchInDirectoryParams,
     ): Promise<SearchInDirectoryResult> =>
       ipcRenderer.invoke(AppChannel.SearchInDirectory, params),
-    screenCapture: (options: ScreenCaptureOptions): Promise<ScreenCaptureResult> =>
+    screenCapture: (
+      options: ScreenCaptureOptions,
+    ): Promise<ScreenCaptureResult> =>
       ipcRenderer.invoke(AppChannel.ScreenCapture, options),
     getScreenSources: (): Promise<ScreenSource[]> =>
       ipcRenderer.invoke(AppChannel.GetScreenSources),
@@ -267,6 +269,12 @@ const electronHandler = {
       ipcRenderer.invoke(ToolChannel.SaveSkill, id, data),
     importSkill: (data: { files: string[] }) =>
       ipcRenderer.invoke(ToolChannel.ImportSkill, data),
+    importSkills: (data: {
+      repo_or_url: string;
+      files?: string[];
+      path?: string;
+      selectedSkills: string[];
+    }) => ipcRenderer.invoke(ToolChannel.ImportSkills, data),
     previewGitSkill: (data: { gitUrl: string }) =>
       ipcRenderer.invoke(ToolChannel.PreviewGitSkill, data),
   },
@@ -305,6 +313,8 @@ const electronHandler = {
       ipcRenderer.invoke(ProjectChannel.DeleteProject, id),
     createThread: (options?: any) =>
       ipcRenderer.invoke(ProjectChannel.CreateThread, options),
+    deleteSkill: (projectId: string, skillId: string) =>
+      ipcRenderer.invoke(ProjectChannel.DeleteSkill, projectId, skillId),
   },
 };
 

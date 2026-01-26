@@ -1,9 +1,12 @@
+import { SkillInfo } from './skill';
+
 export type Project = {
   id?: string;
   title?: string;
   path?: string;
   tag?: string;
   createdAt?: Date;
+  skills?: SkillInfo[];
 };
 
 export enum ProjectEvent {

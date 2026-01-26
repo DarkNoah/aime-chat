@@ -89,6 +89,17 @@ export type ChatPreviewData = {
   }[];
 };
 
+export type ChatTask = {
+  taskId: string;
+  subject: string;
+  description?: string;
+  status: 'pending' | 'in_progress' | 'completed';
+  activeForm?: string;
+  metadata?: Record<string, any>;
+  blockedBy?: string[];
+  blocks?: string[];
+  owner?: string;
+};
 export type ChatTodo = {
   content: string;
   status: 'pending' | 'in_progress' | 'completed';
