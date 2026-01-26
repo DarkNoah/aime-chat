@@ -5,6 +5,7 @@ import path from 'path';
 import { appManager } from '.';
 import { getAssetPath } from '../utils';
 import { RuntimeInfo } from '@/types/app';
+import TOML from '@iarna/toml';
 
 export const uv: RuntimeInfo['uv'] = {
   status: 'not_installed' as 'installed' | 'not_installed' | 'installing',
@@ -250,7 +251,8 @@ export async function installPaddleOcrRuntime() {
   const uv_source = `set UV_PYPI_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple`;
 
   let resultInit = await runCommand(
-    `${uv_source} && ${uvPreCommand} init "${paddleOcrDir}" --python=3.10 && ${uvPreCommand} venv "${path.join(paddleOcrDir, '.venv')}" --python=3.10`,
+    // `${uv_source} && ${uvPreCommand} init "${paddleOcrDir}" --python=3.10 && ${uvPreCommand} venv "${path.join(paddleOcrDir, '.venv')}" --python=3.10`,
+    `${uv_source} && ${uvPreCommand} init "${paddleOcrDir}" --python=3.12 && ${uvPreCommand} venv "${path.join(paddleOcrDir, '.venv')}" --python=3.12`,
     {
       cwd: uvRuntime?.dir,
     },
@@ -280,8 +282,46 @@ export async function installPaddleOcrRuntime() {
     hasGPU = true;
   }
 
+  const pyprojectPath = path.join(paddleOcrDir, 'pyproject.toml');
+  const newRange = '>=3.12,<3.13';
+
+  const raw = fs.readFileSync(pyprojectPath, 'utf-8');
+  const data = TOML.parse(raw) as any;
+
+  // 确保 [project] 存在
+  data.project ??= {};
+  data.project['requires-python'] = newRange;
+
+  const updated = TOML.stringify(data);
+  fs.writeFileSync(pyprojectPath, updated);
+
+  const result_pin = await runCommand(
+    `${uvPreCommand} --project "${paddleOcrDir}" python pin 3.12`,
+    {
+      cwd: uvRuntime?.dir,
+      // usePowerShell: isWindows,s
+    },
+  );
+
+  const result_install_paddle = await runCommand(
+    `${uvPreCommand} --project "${paddleOcrDir}" --no-cache pip install paddlepaddle${hasGPU ? '-gpu==3.2.0 -i https://www.paddlepaddle.org.cn/packages/stable/cu126/' : ''} --python "${activateSourcePython}"`,
+    {
+      cwd: uvRuntime?.dir,
+      // usePowerShell: isWindows,s
+    },
+  );
+
+  if (result_install_paddle.code !== 0) {
+    paddleOcr.status = 'not_installed';
+    paddleOcr.installed = false;
+    paddleOcr.path = undefined;
+    paddleOcr.dir = undefined;
+    paddleOcr.version = undefined;
+    return paddleOcr;
+  }
+
   const result1 = await runCommand(
-    `${uvPreCommand} --project "${paddleOcrDir}" --no-cache add paddleocr "paddlex[ocr]" paddlepaddle==3.2.2`,
+    `${uvPreCommand} --project "${paddleOcrDir}" --no-cache pip install "paddleocr[all]" "paddlex[ocr]" --python "${activateSourcePython}"`,
     {
       cwd: uvRuntime?.dir,
       // usePowerShell: isWindows,

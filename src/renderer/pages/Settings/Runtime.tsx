@@ -26,6 +26,7 @@ import { useHeader } from '@/renderer/hooks/use-title';
 import { IconFolder, IconLoader2 } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import toast from 'react-hot-toast';
 
 function Runtime() {
   const { appInfo, getAppInfo } = useGlobal();
@@ -45,16 +46,26 @@ function Runtime() {
   const handleInstallRuntime = async (pkg: string) => {
     setLoading(true);
     setRuntimeInfo({ ...runtimeInfo, [pkg]: { status: 'installing' } });
-    await window.electron.app.installRuntime(pkg);
-    getRuntimeInfo();
-    setLoading(false);
+    try {
+      await window.electron.app.installRuntime(pkg);
+      getRuntimeInfo();
+    } catch (err) {
+      toast.error(`Failed to install ${pkg} runtime.`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleUninstallRuntime = async (pkg: string) => {
     setLoading(true);
-    await window.electron.app.uninstallRuntime(pkg);
-    getRuntimeInfo();
-    setLoading(false);
+    try {
+      await window.electron.app.uninstallRuntime(pkg);
+      getRuntimeInfo();
+    } catch (err) {
+      toast.error(`Failed to uninstall ${pkg} runtime.`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
