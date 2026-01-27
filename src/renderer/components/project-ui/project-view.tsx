@@ -1,17 +1,133 @@
 import { cn } from '@/renderer/lib/utils';
 import { Project } from '@/types/project';
-import React, { ForwardedRef } from 'react';
+import React, { ForwardedRef, useState } from 'react';
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemTitle,
+} from '../ui/item';
+import { Button } from '../ui/button';
+import { SkillImportDialog } from '@/renderer/pages/Tools/skill-import-dialog';
+import { useTranslation } from 'react-i18next';
+import { ScrollArea } from '../ui/scroll-area';
+import { Input } from '../ui/input';
+import { IconTrash } from '@tabler/icons-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '../ui/alert-dialog';
 
 export type ProjectViewProps = {
   project?: Project;
   className?: string;
+  onProjectChanged?: () => void;
 };
 
 export interface ProjectViewRef {}
 
 export const ProjectView = React.forwardRef<ProjectViewRef, ProjectViewProps>(
   (props: ProjectViewProps, ref: ForwardedRef<ProjectViewRef>) => {
-    const { project, className } = props;
-    return <div className={cn('', className)}>ProjectView</div>;
+    const { project, className, onProjectChanged } = props;
+    const [openSkillDialog, setOpenSkillDialog] = useState(false);
+    const { t } = useTranslation();
+    const handleDeleteSkill = async (skillId: string) => {
+      await window.electron.projects.deleteSkill(project?.id, skillId);
+      onProjectChanged?.();
+    };
+    return (
+      <div className={cn('flex flex-col gap-2', className)}>
+        <Item variant="outline">
+          <ItemContent>
+            <ItemTitle>
+              Skills{' '}
+              {project?.skills && project?.skills.length > 0
+                ? `(${project?.skills.length})`
+                : ''}
+            </ItemTitle>
+            {/* <ItemDescription>
+              A simple item with title and description.
+            </ItemDescription> */}
+          </ItemContent>
+          <ItemActions>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setOpenSkillDialog(true)}
+            >
+              {t('project.add_skills')}
+            </Button>
+            <SkillImportDialog
+              open={openSkillDialog}
+              onOpenChange={setOpenSkillDialog}
+              importPath={project?.path}
+              onImportSkillsSuccess={() => onProjectChanged?.()}
+            ></SkillImportDialog>
+          </ItemActions>
+          {project?.skills && project?.skills.length > 0 && (
+            <div className="max-h-[400px] overflow-y-auto w-full">
+              <div className="w-full flex flex-col gap-2 pr-2">
+                {project?.skills.map((skill) => {
+                  return (
+                    <Item key={skill.id} variant="outline" className="w-full">
+                      <ItemContent>
+                        <ItemTitle>{skill.name}</ItemTitle>
+                        <ItemDescription className="line-clamp-2 text-xs text-muted-foreground">
+                          {skill.description}
+                        </ItemDescription>
+                      </ItemContent>
+                      <ItemActions>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="destructive"
+                              size="icon-sm"
+                              className="cursor-pointer"
+                            >
+                              <IconTrash></IconTrash>
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>
+                                {t('common.ask_to_delete_skill')}
+                              </AlertDialogTitle>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>
+                                {t('common.cancel')}
+                              </AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleDeleteSkill(skill.id)}
+                              >
+                                {t('common.delete')}
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </ItemActions>
+                    </Item>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </Item>
+        {/* <Item variant="outline">
+          <ItemContent>
+            <ItemTitle>Work Memory</ItemTitle>
+          </ItemContent>
+          <ItemActions></ItemActions>
+        </Item> */}
+      </div>
+    );
   },
 );

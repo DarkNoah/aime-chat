@@ -38,7 +38,7 @@ Usage:
 - You can optionally specify a line offset and limit (especially handy for long files), but it's recommended to read the whole file by not providing these parameters
 - Any lines longer than ${MAX_LINE_LENGTH_TEXT_FILE} characters will be truncated
 - Results are returned using cat -n format, with line numbers starting at 1
-- This tool allows Claude Code to read images (eg PNG, JPG, etc). When reading an image file the contents are presented visually as Claude Code is a multimodal LLM.
+- This tool allows to read images (eg PNG, JPG, etc). When reading an image file the contents are presented visually as Claude Code is a multimodal LLM.
 - This tool can read PDF files (.pdf). PDFs are processed page by page, extracting both text and visual content for analysis.
 - This tool can read Jupyter notebooks (.ipynb files) and returns all cells with their outputs, combining code, text, and visualizations.
 - You have the capability to call multiple tools in a single response. It is always better to speculatively read multiple files as a batch that are potentially useful.
@@ -149,6 +149,7 @@ Usage:
 export interface ReadBinaryFileParams extends BaseToolParams {
   mode?: 'auto' | 'system' | 'paddleocr' | 'mineru-api';
   forcePDFOcr?: boolean;
+  forceWordOcr?: boolean;
 }
 export class ReadBinaryFile extends BaseTool {
   static readonly toolName = 'ReadBinaryFile';
@@ -182,7 +183,7 @@ Usage:
 
   constructor(config?: ReadBinaryFileParams) {
     super(config);
-    this.mode = config?.mode ?? 'system';
+    this.mode = config?.mode ?? 'auto';
     this.forcePDFOcr = config?.forcePDFOcr ?? false;
   }
 
@@ -194,7 +195,8 @@ Usage:
     if (!fs.existsSync(file_source))
       throw new Error(`File '${file_source}' does not exist.`);
     const stats = await fs.promises.stat(file_source);
-    if (!stats.isFile()) throw new Error(`File '${file_source}' is not a file.`);
+    if (!stats.isFile())
+      throw new Error(`File '${file_source}' is not a file.`);
     if (stats.size === 0)
       return `<system-reminder>The file '${file_source}' is empty.</system-reminder>`;
 

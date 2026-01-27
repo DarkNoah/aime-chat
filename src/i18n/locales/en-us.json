@@ -88,7 +88,13 @@
     "mode": "Mode",
     "force_pdf_ocr": "Force pdf use ocr",
     "add_photos_or_files": "Add photos or files",
-    "screen_capture": "Screen Capture"
+    "screen_capture": "Screen Capture",
+    "required": "This field is required",
+    "enter_git_url": "Enter git url or repo",
+    "delete_agent": "Delete agent",
+    "importing": "Importing",
+    "import_success": "Import Success",
+    "ask_to_delete_skill": "Delect skill?"
   },
   "sidebar": {
     "new_chat": "New Chat",
@@ -140,7 +146,8 @@
   "project": {
     "new_project": "New Project",
     "project_path": "Project Path",
-    "edit_project": "Edit Project"
+    "edit_project": "Edit Project",
+    "add_skills": "Add Skills"
   },
   "knowledge-base": {
     "add_url": "Add Url",

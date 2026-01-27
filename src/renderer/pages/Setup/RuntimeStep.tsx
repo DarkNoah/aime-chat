@@ -27,25 +27,12 @@ import {
   ItemTitle,
   ItemDescription,
 } from '@/renderer/components/ui/item';
+import { RuntimeInfo } from '@/types/app';
 
 interface SetupStepProps {
   onNext: () => void;
   onBack?: () => void;
   onSkip?: () => void;
-}
-
-interface RuntimeInfo {
-  uv?: {
-    status: 'installed' | 'not_installed' | 'installing';
-    installed: boolean;
-    path?: string;
-    version?: string;
-  };
-  node?: {
-    installed: boolean;
-    path?: string;
-    version?: string;
-  };
 }
 
 function RuntimeStep({ onNext, onBack, onSkip }: SetupStepProps) {
@@ -82,9 +69,25 @@ function RuntimeStep({ onNext, onBack, onSkip }: SetupStepProps) {
     }
   };
 
+  const handleInstallBun = async () => {
+    setInstalling(true);
+    setRuntimeInfo((prev) => {
+      if (!prev) return null;
+      return { ...prev, bun: { ...prev.bun, status: 'installing' } as any };
+    });
+    try {
+      await window.electron.app.installRuntime('bun');
+      await getRuntimeInfo();
+    } finally {
+      setInstalling(false);
+    }
+  };
   const isUVInstalled = runtimeInfo?.uv?.status === 'installed';
   const isNodeInstalled = runtimeInfo?.node?.installed;
   const isUVInstalling = runtimeInfo?.uv?.status === 'installing' || installing;
+  const isBunInstalled = runtimeInfo?.bun?.status === 'installed';
+  const isBunInstalling =
+    runtimeInfo?.bun?.status === 'installing' || installing;
 
   return (
     <Card className="border-0 shadow-2xl bg-card/80 backdrop-blur-sm">
@@ -140,18 +143,16 @@ function RuntimeStep({ onNext, onBack, onSkip }: SetupStepProps) {
               </ItemActions>
             </Item>
 
-            {/* Node.js Runtime */}
+            {/* Bun Runtime */}
             <Item variant="outline" className="rounded-lg">
               <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-green-500/10 text-green-500 shrink-0">
                 <Terminal className="w-5 h-5" />
               </div>
               <ItemContent>
                 <ItemTitle className="flex items-center gap-2">
-                  Node.js
-                  {isNodeInstalled && runtimeInfo?.node?.version && (
-                    <Badge variant="secondary">
-                      {runtimeInfo.node.version}
-                    </Badge>
+                  Bun
+                  {isBunInstalled && runtimeInfo?.bun?.version && (
+                    <Badge variant="secondary">{runtimeInfo.bun.version}</Badge>
                   )}
                 </ItemTitle>
                 <ItemDescription>
@@ -159,15 +160,23 @@ function RuntimeStep({ onNext, onBack, onSkip }: SetupStepProps) {
                 </ItemDescription>
               </ItemContent>
               <ItemActions>
-                {isNodeInstalled ? (
+                {isBunInstalled && (
                   <Badge className="bg-green-500/10 text-green-500 hover:bg-green-500/20">
                     <Check className="w-3 h-3 mr-1" />
                     {t('setup.runtime.installed')}
                   </Badge>
-                ) : (
-                  <Badge variant="outline">
-                    {t('setup.runtime.not_installed')}
-                  </Badge>
+                )}
+                {!isBunInstalled && isBunInstalling && (
+                  <Button disabled size="sm">
+                    <Spinner className="w-4 h-4 mr-2" />
+                    {t('setup.runtime.installing')}
+                  </Button>
+                )}
+                {!isBunInstalled && !isBunInstalling && (
+                  <Button size="sm" onClick={handleInstallBun}>
+                    <Download className="w-4 h-4 mr-2" />
+                    {t('setup.runtime.install')}
+                  </Button>
                 )}
               </ItemActions>
             </Item>

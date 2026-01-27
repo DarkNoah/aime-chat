@@ -22,8 +22,11 @@ import { Task } from '@/main/tools/common/task';
 import { SubAgentInfo } from '@/types/task';
 import { Explore } from './explore-agent';
 import { Plan } from './plan-agent';
-import { stringify } from 'smol-toml';
+import { stringify, parse as tomlParse } from 'smol-toml';
 import { appManager } from '@/main/app';
+import fs from 'fs';
+import path from 'path';
+import { getSkills } from '@/main/utils/skills';
 
 type BuiltInAgent = BaseAgent & {
   classType: any;
@@ -85,7 +88,7 @@ class AgentManager extends BaseManager {
     }
     let { tools = [], subAgents = [] } = params || {};
 
-    const _skills = []; //await skillManager.getClaudeSkills();
+    let _skills = []; //await skillManager.getClaudeSkills();
 
     for (const tool of tools.filter((x) =>
       x.startsWith(`${ToolType.SKILL}:`),
@@ -97,6 +100,26 @@ class AgentManager extends BaseManager {
         _skills.push(skill);
       }
     }
+
+    const workspace = params?.requestContext?.get('workspace');
+    if (
+      workspace &&
+      fs.existsSync(workspace) &&
+      fs.statSync(workspace).isDirectory()
+    ) {
+      const skillsPath = path.join(workspace, '.aime-chat', 'skills');
+      if (fs.existsSync(skillsPath) && fs.statSync(skillsPath).isDirectory()) {
+        // const skills = await fs.promises.readdir(skillsPath);
+        const skills = await getSkills(skillsPath);
+        for (const skill of skills) {
+          if (_skills.map((x) => x.id).includes(skill.id)) {
+            _skills = _skills.filter((x) => x.id !== skill.id);
+          }
+          _skills.push(skill);
+        }
+      }
+    }
+
     // _skills = _skills.filter((x) => tools.includes(x.id));
 
     const builtInAgent = this.builtInAgents.find((x) => x.id == _agentId);
@@ -152,9 +175,7 @@ class AgentManager extends BaseManager {
       name: builtInAgent?.name ?? agentEntity.name,
       instructions: builtInAgent?.instructions ?? agentEntity.instructions,
       description: builtInAgent?.description ?? agentEntity.description,
-      model: await providersManager.getLanguageModel(
-        params?.modelId
-      ),
+      model: await providersManager.getLanguageModel(params?.modelId),
       memory: new Memory({
         storage: storage,
         options: {
@@ -324,6 +345,29 @@ class AgentManager extends BaseManager {
       mcpServers: mcpServers,
     });
     return tomlString;
+  }
+  @channel(AgentChannel.ImportAgent)
+  public async importAgent(content: string): Promise<Agent> {
+    const data = tomlParse(content);
+    let agentEntity = await this.agentsRepository.findOne({
+      where: { id: data.id as string },
+    });
+    if (agentEntity) {
+      throw new Error('Agent already exists');
+    }
+    agentEntity = new Agents(data.id as string, AgentType.CUSTOM);
+    agentEntity.name = data.name as string;
+    agentEntity.description = data.description as string;
+    agentEntity.instructions = data.instructions as string;
+    agentEntity.tools = data.tools as string[];
+    agentEntity.subAgents = data.subAgents as string[];
+    agentEntity.suggestions = data.suggestions as string[];
+    agentEntity.tags = data.tags as string[];
+    agentEntity.greeting = data.greeting as string;
+    agentEntity.isActive = true;
+    await this.agentsRepository.save(agentEntity);
+
+    return agentEntity;
   }
 }
 

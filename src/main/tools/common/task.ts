@@ -14,6 +14,7 @@ import fg from 'fast-glob';
 import { SubAgentInfo } from '@/types/task';
 import { agentManager } from '@/main/mastra/agents';
 import { providersManager } from '@/main/providers';
+import { ChatTask, ChatTodo } from '@/types/chat';
 
 export interface TaskToolParams extends BaseToolParams {
   subAgents: SubAgentInfo[] | string[];
@@ -28,7 +29,6 @@ The Task tool launches specialized agents (subprocesses) that autonomously handl
 
 Available agent types and the tools they have access to:
 - general-purpose: General-purpose agent for researching complex questions, searching for code, and executing multi-step tasks. When you are searching for a keyword or file and are not confident that you will find the right match in the first few tries use this agent to perform the search for you. (Tools: *)
-- statusline-setup: Use this agent to configure the user's Claude Code status line setting. (Tools: Read, Edit)
 - Explore: Fast agent specialized for exploring codebases. Use this when you need to quickly find files by patterns (eg. "src/components/**/*.tsx"), search code for keywords (eg. "API endpoints"), or answer questions about the codebase (eg. "how do API endpoints work?"). When calling this agent, specify the desired thoroughness level: "quick" for basic searches, "medium" for moderate exploration, or "very thorough" for comprehensive analysis across multiple locations and naming conventions. (Tools: All tools)
 - Plan: Fast agent specialized for exploring codebases. Use this when you need to quickly find files by patterns (eg. "src/components/**/*.tsx"), search code for keywords (eg. "API endpoints"), or answer questions about the codebase (eg. "how do API endpoints work?"). When calling this agent, specify the desired thoroughness level: "quick" for basic searches, "medium" for moderate exploration, or "very thorough" for comprehensive analysis across multiple locations and naming conventions. (Tools: All tools)
 
@@ -237,5 +237,399 @@ assistant: "I'm going to use the Task tool to launch the greeting-responder agen
       .filter((x) => x.type === 'text')
       .map((x) => x.text)
       .join('\n');
+  };
+}
+
+export class TaskCreate extends BaseTool {
+  static readonly toolName = 'TaskCreate';
+  id: string = 'TaskCreate';
+  description = `Use this tool to create a structured task list for your current coding session. This helps you track progress, organize complex tasks, and demonstrate thoroughness to the user.
+It also helps the user understand the progress of the task and overall progress of their requests.
+
+## When to Use This Tool
+
+Use this tool proactively in these scenarios:
+
+- Complex multi-step tasks - When a task requires 3 or more distinct steps or actions
+- Non-trivial and complex tasks - Tasks that require careful planning or multiple operations
+- Plan mode - When using plan mode, create a task list to track the work
+- User explicitly requests todo list - When the user directly asks you to use the todo list
+- User provides multiple tasks - When users provide a list of things to be done (numbered or comma-separated)
+- After receiving new instructions - Immediately capture user requirements as tasks
+- When you start working on a task - Mark it as in_progress BEFORE beginning work
+- After completing a task - Mark it as completed and add any new follow-up tasks discovered during implementation
+
+## When NOT to Use This Tool
+
+Skip using this tool when:
+- There is only a single, straightforward task
+- The task is trivial and tracking it provides no organizational benefit
+- The task can be completed in less than 3 trivial steps
+- The task is purely conversational or informational
+
+NOTE that you should not use this tool if there is only one trivial task to do. In this case you are better off just doing the task directly.
+
+## Task Fields
+
+- **subject**: A brief, actionable title in imperative form (e.g., "Fix authentication bug in login flow")
+- **description**: Detailed description of what needs to be done, including context and acceptance criteria
+- **activeForm**: Present continuous form shown in spinner when task is in_progress (e.g., "Fixing authentication bug"). This is displayed to the user while you work on the task.
+
+**IMPORTANT**: Always provide activeForm when creating tasks. The subject should be imperative ("Run tests") while activeForm should be present continuous ("Running tests"). All tasks are created with status \`pending\`.
+
+## Tips
+
+- Create tasks with clear, specific subjects that describe the outcome
+- Include enough detail in the description for another agent to understand and complete the task
+- After creating tasks, use TaskUpdate to set up dependencies (blocks/blockedBy) if needed
+- Check TaskList first to avoid creating duplicate tasks`;
+
+  inputSchema = z
+    .object({
+      subject: z.string().describe('A brief title for the task'),
+      description: z
+        .string()
+        .describe('A detailed description of what needs to be done'),
+      activeForm: z
+        .string()
+        .describe(
+          'Present continuous form shown in spinner when in_progress (e.g., "Running tests")',
+        )
+        .optional(),
+      metadata: z
+        .record(z.unknown())
+        .describe('Arbitrary metadata to attach to the task')
+        .optional(),
+    })
+    .strict();
+
+  constructor() {
+    super();
+  }
+
+  execute = async (
+    inputData: z.infer<typeof this.inputSchema>,
+    context: ToolExecutionContext<z.ZodSchema, any>,
+  ) => {
+    const { subject, description, activeForm, metadata } = inputData;
+
+    const { requestContext, mastra, agent } = context;
+    const todos = (requestContext.get('todos' as never) as ChatTask[]) ?? [];
+    const threadId = requestContext.get('threadId' as never);
+    const storage = mastra.getStorage();
+    const memoryStore = await storage.getStore('memory');
+    let currentThread = await memoryStore.getThreadById({
+      threadId: threadId,
+    });
+    currentThread = await memoryStore.updateThread({
+      id: threadId,
+      title: currentThread.title,
+      metadata: {
+        ...(currentThread.metadata || {}),
+        todos: todos,
+      },
+    });
+
+    return `Task #1 created successfully: ${subject}`;
+  };
+}
+
+export class TaskGet extends BaseTool {
+  static readonly toolName = 'TaskGet';
+  id: string = 'TaskGet';
+  description = `Use this tool to retrieve a task by its ID from the task list.
+
+## When to Use This Tool
+
+- When you need the full description and context before starting work on a task
+- To understand task dependencies (what it blocks, what blocks it)
+- After being assigned a task, to get complete requirements
+
+## Output
+
+Returns full task details:
+- **subject**: Task title
+- **description**: Detailed requirements and context
+- **status**: 'pending', 'in_progress', or 'completed'
+- **blocks**: Tasks waiting on this one to complete
+- **blockedBy**: Tasks that must complete before this one can start
+
+## Tips
+
+- After fetching a task, verify its blockedBy list is empty before beginning work.
+- Use TaskList to see all tasks in summary form.
+`;
+
+  inputSchema = z
+    .object({
+      taskId: z.string().describe('The ID of the task to retrieve'),
+    })
+    .strict();
+
+  constructor() {
+    super();
+  }
+
+  execute = async (
+    inputData: z.infer<typeof this.inputSchema>,
+    context: ToolExecutionContext<z.ZodSchema, any>,
+  ) => {
+    const { taskId } = inputData;
+
+    const { requestContext, mastra, agent } = context;
+
+    const threadId = requestContext.get('threadId' as never);
+    const storage = mastra.getStorage();
+    const memoryStore = await storage.getStore('memory');
+    let currentThread = await memoryStore.getThreadById({
+      threadId: threadId,
+    });
+    const todos = (currentThread.metadata?.todos as ChatTask[]) || [];
+
+    const task = todos.find((x) => x.taskId === taskId);
+    if (!task) {
+      return `Task #${taskId} not found`;
+    }
+
+    return `Task #${task.taskId}: ${task.subject}
+Status: ${task.status}
+Description: ${task.description}
+${task.metadata ? `Metadata: ${JSON.stringify(task.metadata, null, 2)}` : ''}
+${task.blockedBy ? `Blocked by: ${task.blockedBy.map((b) => '#' + b).join(', ')}` : ''}
+${task.blocks ? `Blocks: ${task.blocks.map((b) => '#' + b).join(', ')}` : ''}
+`;
+  };
+}
+export class TaskList extends BaseTool {
+  static readonly toolName = 'TaskList';
+  id: string = 'TaskList';
+  description = `Use this tool to retrieve a task by its ID from the task list.
+
+## When to Use This Tool
+
+- When you need the full description and context before starting work on a task
+- To understand task dependencies (what it blocks, what blocks it)
+- After being assigned a task, to get complete requirements
+
+## Output
+
+Returns full task details:
+- **subject**: Task title
+- **description**: Detailed requirements and context
+- **status**: 'pending', 'in_progress', or 'completed'
+- **blocks**: Tasks waiting on this one to complete
+- **blockedBy**: Tasks that must complete before this one can start
+
+## Tips
+
+- After fetching a task, verify its blockedBy list is empty before beginning work.
+- Use TaskList to see all tasks in summary form.
+`;
+
+  inputSchema = z.object({}).strict();
+
+  constructor() {
+    super();
+  }
+
+  execute = async (
+    inputData: z.infer<typeof this.inputSchema>,
+    context: ToolExecutionContext<z.ZodSchema, any>,
+  ) => {
+    // const { } = inputData;
+
+    const { requestContext, mastra, agent } = context;
+
+    const threadId = requestContext.get('threadId' as never);
+    const storage = mastra.getStorage();
+    const memoryStore = await storage.getStore('memory');
+    let currentThread = await memoryStore.getThreadById({
+      threadId: threadId,
+    });
+    const todos = (currentThread.metadata?.todos as ChatTask[]) || [];
+    return todos
+      .map((x) => {
+        return `#${x.taskId} [${x.status}] ${x.subject} ${x.blockedBy ? `[blocked by ${x.blockedBy.map((b) => '#' + b).join(', ')}]` : ''}`;
+      })
+      .join('\n');
+    // return `#1 [pending] aime-chat 项目研究`;
+  };
+}
+
+export class TaskUpdate extends BaseTool {
+  static readonly toolName = 'TaskUpdate';
+  id: string = 'TaskUpdate';
+  description = `Use this tool to update a task in the task list.
+
+## When to Use This Tool
+
+**Mark tasks as resolved:**
+- When you have completed the work described in a task
+- When a task is no longer needed or has been superseded
+- IMPORTANT: Always mark your assigned tasks as resolved when you finish them
+- After resolving, call TaskList to find your next task
+
+- ONLY mark a task as completed when you have FULLY accomplished it
+- If you encounter errors, blockers, or cannot finish, keep the task as in_progress
+- When blocked, create a new task describing what needs to be resolved
+- Never mark a task as completed if:
+  - Tests are failing
+  - Implementation is partial
+  - You encountered unresolved errors
+  - You couldn't find necessary files or dependencies
+
+**Update task details:**
+- When requirements change or become clearer
+- When establishing dependencies between tasks
+
+## Fields You Can Update
+
+- **status**: The task status (see Status Workflow below)
+- **subject**: Change the task title (imperative form, e.g., "Run tests")
+- **description**: Change the task description
+- **activeForm**: Present continuous form shown in spinner when in_progress (e.g., "Running tests")
+- **owner**: Change the task owner (agent name)
+- **metadata**: Merge metadata keys into the task (set a key to null to delete it)
+- **addBlocks**: Mark tasks that cannot start until this one completes
+- **addBlockedBy**: Mark tasks that must complete before this one can start
+
+## Status Workflow
+
+Status progresses: \`pending\` → \`in_progress\` → \`completed\`
+
+## Staleness
+
+Make sure to read a task's latest state using \`TaskGet\` before updating it.
+
+## Examples
+
+Mark task as in progress when starting work:
+\`\`\`json
+{"taskId": "1", "status": "in_progress"}
+\`\`\`
+
+Mark task as completed after finishing work:
+\`\`\`json
+{"taskId": "1", "status": "completed"}
+\`\`\`
+
+Claim a task by setting owner:
+\`\`\`json
+{"taskId": "1", "owner": "my-name"}
+\`\`\`
+
+Set up task dependencies:
+\`\`\`json
+{"taskId": "2", "addBlockedBy": ["1"]}
+\`\`\`
+`;
+
+  inputSchema = z
+    .object({
+      taskId: z.string().describe('The ID of the task to update'),
+      subject: z.string().describe('New subject for the task').optional(),
+      description: z
+        .string()
+        .describe('New description for the task')
+        .optional(),
+      activeForm: z
+        .string()
+        .describe(
+          'Present continuous form shown in spinner when in_progress (e.g., "Running tests")',
+        )
+        .optional(),
+      status: z
+        .enum(['pending', 'in_progress', 'completed'])
+        .describe('New status for the task')
+        .optional(),
+      addBlocks: z
+        .array(z.string())
+        .describe('Task IDs that this task blocks')
+        .optional(),
+      addBlockedBy: z
+        .array(z.string())
+        .describe('Task IDs that block this task')
+        .optional(),
+      owner: z.string().describe('New owner for the task').optional(),
+      metadata: z
+        .record(z.unknown())
+        .describe(
+          'Metadata keys to merge into the task. Set a key to null to delete it.',
+        )
+        .optional(),
+    })
+    .strict();
+
+  constructor() {
+    super();
+  }
+
+  execute = async (
+    inputData: z.infer<typeof this.inputSchema>,
+    context: ToolExecutionContext<z.ZodSchema, any>,
+  ) => {
+    const {
+      taskId,
+      status,
+      subject,
+      description,
+      activeForm,
+      metadata,
+      addBlocks,
+      addBlockedBy,
+      owner,
+    } = inputData;
+    const { requestContext, mastra, agent } = context;
+
+    const threadId = requestContext.get('threadId' as never);
+    const storage = mastra.getStorage();
+    const memoryStore = await storage.getStore('memory');
+    let currentThread = await memoryStore.getThreadById({
+      threadId: threadId,
+    });
+    const todos = (currentThread.metadata?.todos as ChatTask[]) || [];
+    const task = todos.find((x) => x.taskId === taskId);
+    if (!task) {
+      return `Task #${taskId} not found`;
+    }
+    const updatedItems = [];
+    if (status) {
+      task.status = status;
+      updatedItems.push('status');
+    }
+    if (subject) {
+      task.subject = subject;
+      updatedItems.push('subject');
+    }
+    if (description) {
+      task.description = description;
+      updatedItems.push('description');
+    }
+    if (activeForm) {
+      task.activeForm = activeForm;
+      updatedItems.push('activeForm');
+    }
+    if (metadata) {
+      task.metadata = metadata;
+      updatedItems.push('metadata');
+    }
+
+    // 被阻塞
+    if (addBlockedBy) {
+      task.blockedBy = addBlockedBy;
+      updatedItems.push('blockedBy');
+    }
+    // 添加阻塞谁
+    if (addBlocks) {
+      task.blocks = addBlocks;
+      updatedItems.push('blocks');
+    }
+    if (owner) {
+      task.owner = owner;
+      updatedItems.push('owner');
+    }
+    if (status == 'completed') {
+    }
+    return `Task #${taskId} updated successfully: ${updatedItems.join(', ')}`;
   };
 }

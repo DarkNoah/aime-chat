@@ -22,6 +22,7 @@ import { AppChannel } from '@/types/ipc-channel';
 import {
   AppInfo,
   AppProxy,
+  RuntimeInfo,
   ScreenCaptureOptions,
   ScreenCaptureResult,
   ScreenSource,
@@ -40,11 +41,14 @@ import { Settings } from '@/entities/settings';
 import { getMainWindow } from '../main';
 import { HttpsProxyAgent } from 'https-proxy-agent';
 import {
+  getBunRuntime,
   getNodeRuntime,
   getPaddleOcrRuntime,
   getUVRuntime,
+  installBunRuntime,
   installPaddleOcrRuntime,
   installUVRuntime,
+  uninstallBunRuntime,
   uninstallPaddleOcrRuntime,
   unInstallUVRuntime,
 } from './runtime';
@@ -65,6 +69,7 @@ import readline from 'readline';
 import { filesize } from 'filesize';
 import { Translations } from '@/entities/translations';
 import crypto from 'crypto';
+import sharp from 'sharp';
 import { agentManager } from '../mastra/agents';
 import { providersManager } from '../providers';
 import { toolsManager } from '../tools';
@@ -465,7 +470,7 @@ class AppManager extends BaseManager {
       args.push('-i');
     }
 
-    args.push('-e', pattern, directory);
+    args.push('-e', pattern, directory.replaceAll('\\', '/'));
 
     return new Promise((resolve) => {
       const child = spawn(rgPath, args, { stdio: ['ignore', 'pipe', 'pipe'] });
@@ -633,6 +638,8 @@ class AppManager extends BaseManager {
       await installUVRuntime();
     } else if (pkg == 'paddleOcr') {
       await installPaddleOcrRuntime();
+    } else if (pkg == 'bun') {
+      await installBunRuntime();
     }
   }
 
@@ -642,16 +649,22 @@ class AppManager extends BaseManager {
       await unInstallUVRuntime();
     } else if (pkg == 'paddleOcr') {
       await uninstallPaddleOcrRuntime();
+    } else if (pkg == 'bun') {
+      await uninstallBunRuntime();
     }
   }
 
   @channel(AppChannel.GetRuntimeInfo)
-  public async getRuntimeInfo(): Promise<any> {
+  public async getRuntimeInfo(): Promise<RuntimeInfo> {
     const uv = await getUVRuntime();
+    const bun = await getBunRuntime();
+    const node = await getNodeRuntime();
+    const paddleOcr = await getPaddleOcrRuntime();
     return {
       uv: uv,
-      node: await getNodeRuntime(),
-      paddleOcr: await getPaddleOcrRuntime(),
+      bun: bun,
+      node: node,
+      paddleOcr: paddleOcr,
     };
   }
 
@@ -767,10 +780,7 @@ class AppManager extends BaseManager {
     options: ScreenCaptureOptions,
   ): Promise<ScreenCaptureResult> {
     const { mode, sourceId } = options;
-    const tmpPath = path.join(
-      os.tmpdir(),
-      `aime-screenshot-${Date.now()}.png`,
-    );
+    const tmpPath = path.join(os.tmpdir(), `aime-screenshot-${Date.now()}.png`);
 
     try {
       // 隐藏主窗口以避免截图时显示
@@ -886,6 +896,55 @@ class AppManager extends BaseManager {
       const thumbnail = source.thumbnail;
       const pngBuffer = thumbnail.toPNG();
 
+      // 如果是 selection 模式，需要让用户选择区域
+      if (mode === 'selection') {
+        const fullscreenPath = path.join(
+          os.tmpdir(),
+          `aime-screenshot-full-${Date.now()}.png`,
+        );
+        fs.writeFileSync(fullscreenPath, pngBuffer);
+
+        // 创建区域选择窗口并等待用户选择
+        const selection = await this.showSelectionWindow(
+          fullscreenPath,
+          width,
+          height,
+          scaleFactor,
+        );
+
+        // 删除全屏临时文件
+        try {
+          fs.unlinkSync(fullscreenPath);
+        } catch {
+          // ignore
+        }
+
+        mainWindow?.show();
+
+        if (!selection) {
+          return {
+            success: false,
+            error: 'Screenshot cancelled by user',
+          };
+        }
+
+        // 使用 sharp 裁剪图片
+        await sharp(pngBuffer)
+          .extract({
+            left: Math.round(selection.x * scaleFactor),
+            top: Math.round(selection.y * scaleFactor),
+            width: Math.round(selection.width * scaleFactor),
+            height: Math.round(selection.height * scaleFactor),
+          })
+          .toFile(tmpPath);
+
+        return {
+          success: true,
+          filePath: tmpPath,
+        };
+      }
+
+      // 非 selection 模式，直接保存全屏截图
       fs.writeFileSync(tmpPath, pngBuffer);
 
       mainWindow?.show();
@@ -901,6 +960,223 @@ class AppManager extends BaseManager {
         error: error instanceof Error ? error.message : String(error),
       };
     }
+  }
+
+  private showSelectionWindow(
+    imagePath: string,
+    screenWidth: number,
+    screenHeight: number,
+    scaleFactor: number,
+  ): Promise<{ x: number; y: number; width: number; height: number } | null> {
+    return new Promise((resolve) => {
+      const primaryDisplay = screen.getPrimaryDisplay();
+      const { x: displayX, y: displayY } = primaryDisplay.bounds;
+
+      // 创建透明全屏窗口
+      // 注意：这里使用 nodeIntegration: true 是安全的，因为窗口是临时的、
+      // 只加载内联 HTML，不会加载任何外部内容
+      const selectionWindow = new BrowserWindow({
+        x: displayX,
+        y: displayY,
+        width: screenWidth,
+        height: screenHeight,
+        frame: false,
+        transparent: true,
+        alwaysOnTop: true,
+        skipTaskbar: true,
+        resizable: false,
+        movable: false,
+        fullscreen: true,
+        webPreferences: {
+          nodeIntegration: true,
+          contextIsolation: false,
+          devTools: false,
+        },
+      });
+
+      // 监听选择完成事件
+      const handleSelection = (
+        _event: Electron.IpcMainEvent,
+        selection: {
+          x: number;
+          y: number;
+          width: number;
+          height: number;
+        } | null,
+      ) => {
+        ipcMain.removeListener(AppChannel.ScreenCaptureSelect, handleSelection);
+        selectionWindow.close();
+        resolve(selection);
+      };
+
+      ipcMain.on(AppChannel.ScreenCaptureSelect, handleSelection);
+
+      // 窗口关闭时也要 resolve
+      selectionWindow.on('closed', () => {
+        ipcMain.removeListener(AppChannel.ScreenCaptureSelect, handleSelection);
+        resolve(null);
+      });
+
+      // 读取图片并转为 base64
+      const imageBuffer = fs.readFileSync(imagePath);
+      const base64Image = imageBuffer.toString('base64');
+      const dataUrl = `data:image/png;base64,${base64Image}`;
+
+      // 内联 HTML/CSS/JS
+      const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      cursor: crosshair;
+      user-select: none;
+    }
+    #background {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-image: url('${dataUrl}');
+      background-size: cover;
+      background-position: center;
+    }
+    #overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.3);
+    }
+    #selection {
+      position: absolute;
+      border: 2px solid #fff;
+      background: transparent;
+      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+      display: none;
+    }
+    #info {
+      position: fixed;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 8px 16px;
+      border-radius: 4px;
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 14px;
+      z-index: 1000;
+    }
+    #size {
+      position: absolute;
+      background: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 12px;
+      display: none;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="background"></div>
+  <div id="overlay"></div>
+  <div id="selection"></div>
+  <div id="info">拖拽选择截图区域，ESC 取消</div>
+  <div id="size"></div>
+  <script>
+    const { ipcRenderer } = require('electron');
+
+    const overlay = document.getElementById('overlay');
+    const selection = document.getElementById('selection');
+    const sizeInfo = document.getElementById('size');
+
+    let isSelecting = false;
+    let startX = 0;
+    let startY = 0;
+
+    document.addEventListener('mousedown', (e) => {
+      isSelecting = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      selection.style.display = 'block';
+      selection.style.left = startX + 'px';
+      selection.style.top = startY + 'px';
+      selection.style.width = '0';
+      selection.style.height = '0';
+      sizeInfo.style.display = 'block';
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (!isSelecting) return;
+
+      const currentX = e.clientX;
+      const currentY = e.clientY;
+
+      const left = Math.min(startX, currentX);
+      const top = Math.min(startY, currentY);
+      const width = Math.abs(currentX - startX);
+      const height = Math.abs(currentY - startY);
+
+      selection.style.left = left + 'px';
+      selection.style.top = top + 'px';
+      selection.style.width = width + 'px';
+      selection.style.height = height + 'px';
+
+      sizeInfo.textContent = width + ' x ' + height;
+      sizeInfo.style.left = (left + width + 10) + 'px';
+      sizeInfo.style.top = (top + height + 10) + 'px';
+    });
+
+    document.addEventListener('mouseup', (e) => {
+      if (!isSelecting) return;
+      isSelecting = false;
+
+      const currentX = e.clientX;
+      const currentY = e.clientY;
+
+      const left = Math.min(startX, currentX);
+      const top = Math.min(startY, currentY);
+      const width = Math.abs(currentX - startX);
+      const height = Math.abs(currentY - startY);
+
+      if (width > 5 && height > 5) {
+        ipcRenderer.send('${AppChannel.ScreenCaptureSelect}', {
+          x: left,
+          y: top,
+          width: width,
+          height: height
+        });
+      } else {
+        // 选区太小，视为取消
+        selection.style.display = 'none';
+        sizeInfo.style.display = 'none';
+      }
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        ipcRenderer.send('${AppChannel.ScreenCaptureSelect}', null);
+      }
+    });
+  </script>
+</body>
+</html>`;
+
+      selectionWindow.loadURL(
+        `data:text/html;charset=utf-8,${encodeURIComponent(html)}`,
+      );
+    });
   }
 
   @channel(AppChannel.GetScreenSources)

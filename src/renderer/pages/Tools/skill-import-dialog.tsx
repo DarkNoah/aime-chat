@@ -9,11 +9,12 @@ import {
 } from '@/renderer/components/ui/dialog';
 import Form from '@rjsf/shadcn';
 import type { RJSFSchema, Widget, WidgetProps } from '@rjsf/utils';
-import { IconSearch, IconSettings } from '@tabler/icons-react';
+import { IconLoader, IconSearch, IconSettings } from '@tabler/icons-react';
 import z, { ZodSchema } from 'zod';
 import validator from '@rjsf/validator-ajv8';
 import { zodToJsonSchema } from 'zod-to-json-schema';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
+import { Checkbox } from '@/renderer/components/ui/checkbox';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
@@ -28,6 +29,13 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from '@/renderer/components/ui/input-group';
+import { SkillInfo } from '@/types/skill';
+import {
+  Item,
+  ItemContent,
+  ItemDescription,
+  ItemTitle,
+} from '@/renderer/components/ui/item';
 
 // function formatFileSize(bytes: number): string {
 //   if (bytes === 0) return '0 B';
@@ -40,10 +48,14 @@ import {
 export function SkillImportDialog({
   open,
   onOpenChange,
+  importPath,
+  onImportSkillsSuccess,
   // onSubmit,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  importPath?: string;
+  onImportSkillsSuccess?: (skills: SkillInfo[]) => void;
   // onSubmit?: (e: any) => void;
 }) {
   const { t } = useTranslation();
@@ -52,7 +64,17 @@ export function SkillImportDialog({
   const [isDragOver, setIsDragOver] = useState(false);
   const [droppedFiles, setDroppedFiles] = useState<FileInfo[]>([]);
   const [gitUrl, setGitUrl] = useState<string>('');
-
+  const [skills, setSkills] = useState<SkillInfo[]>([]);
+  const [selectedGitUrl, setSelectedGitUrl] = useState<string>('');
+  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const reset = () => {
+    setSkills([]);
+    setSelectedSkills([]);
+    setGitUrl('');
+    setDroppedFiles([]);
+  };
   const handleDragOver = useCallback((e: DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -94,34 +116,58 @@ export function SkillImportDialog({
   const handleSubmit = async () => {
     // onSubmit?.(e);
     try {
-      const result = await window.electron.tools.importSkill({
-        files: droppedFiles.map((x) => x.path),
-      });
+      setImporting(true);
+      if (droppedFiles && droppedFiles.length > 0) {
+        const result = await window.electron.tools.importSkill({
+          files: droppedFiles.map((x) => x.path),
+        });
+      } else if (selectedSkills.length > 0) {
+        const result = await window.electron.tools.importSkills({
+          repo_or_url: gitUrl,
+          selectedSkills,
+          path: importPath,
+        });
+      }
+
+      toast.success(t('common.import_success'));
+      onImportSkillsSuccess?.(skills);
       onOpenChange(false);
-      setDroppedFiles([]);
+      reset();
       // navigate(`/tools/${result.id}`);
     } catch (err) {
       toast.error(err.message);
+    } finally {
+      setImporting(false);
     }
   };
 
   const handlePreviewGitSkill = async () => {
     // onSubmit?.(e);
-    try {
-      const result = await window.electron.tools.previewGitSkill({
-        gitUrl,
-      });
-      onOpenChange(false);
-      setDroppedFiles([]);
-      // navigate(`/tools/${result.id}`);
-    } catch (err) {
-      toast.error(err.message);
+    if (loading) return;
+    setLoading(true);
+    setSkills([]);
+    setSelectedSkills([]);
+    const result = await window.electron.tools.previewGitSkill({
+      gitUrl,
+    });
+    if (result.success) {
+      setSelectedGitUrl(result.repoUrl);
+      setSkills(result.skills);
+      setSelectedSkills(result.skills.map((x) => x.path));
+    } else {
+      toast.error(result.error);
     }
+    setLoading(false);
+  };
+
+  const handleOpenChange = (_open: boolean) => {
+    reset();
+    onOpenChange(_open);
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent onInteractOutside={(e) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle>{t('tools.import_skill')}</DialogTitle>
         </DialogHeader>
@@ -158,24 +204,32 @@ export function SkillImportDialog({
             </p>
           </div>
         </div>
+        <small className="text-muted-foreground text-sm">
+          {t('tools.import_skill_tips')}
+        </small>
         <InputGroup>
           <InputGroupInput
             value={gitUrl}
             onChange={(e) => setGitUrl(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                handlePreviewGitSkill();
+              }
+            }}
             placeholder={t('common.enter_git_url')}
           />
           <InputGroupAddon align="inline-end">
             <InputGroupButton
               variant="ghost"
+              className="rounded-full"
               onClick={() => handlePreviewGitSkill()}
+              disabled={loading}
             >
-              <IconSearch className="w-4 h-4" />
+              {loading && <IconLoader className="w-4 h-4 animate-spin" />}
+              {!loading && <IconSearch className="w-4 h-4" />}
             </InputGroupButton>
           </InputGroupAddon>
         </InputGroup>
-        <small className="text-muted-foreground text-sm">
-          {t('tools.import_skill_tips')}
-        </small>
 
         {/* 已拖入的文件列表 */}
         {droppedFiles.length > 0 && (
@@ -203,7 +257,50 @@ export function SkillImportDialog({
             ))}
           </div>
         )}
-        <Button onClick={handleSubmit}>{t('common.import')}</Button>
+        {skills.length > 0 && (
+          <div className="mt-2 space-y-2 max-h-[300px] overflow-y-auto">
+            {skills.map((skill) => (
+              <Item
+                key={skill.path}
+                variant="muted"
+                size="sm"
+                className="cursor-pointer"
+                onClick={() => {
+                  setSelectedSkills((prev) => {
+                    if (prev.includes(skill.path)) {
+                      return prev.filter((x) => x !== skill.path);
+                    } else {
+                      return [...prev, skill.path];
+                    }
+                  });
+                }}
+              >
+                <ItemContent className="flex flex-row items-center gap-2">
+                  <Checkbox checked={selectedSkills.includes(skill.path)} />
+                  <div className="flex flex-col">
+                    <ItemTitle> {skill.name}</ItemTitle>
+                    <ItemDescription> {skill.description}</ItemDescription>
+                  </div>
+                </ItemContent>
+              </Item>
+            ))}
+          </div>
+        )}
+        <Button
+          onClick={handleSubmit}
+          disabled={
+            (selectedSkills.length === 0 && droppedFiles.length === 0) ||
+            importing
+          }
+        >
+          {!importing && t('common.import')}
+          {importing && (
+            <div className="flex flex-row gap-2 items-center">
+              {t('common.importing')}{' '}
+              <IconLoader className="w-4 h-4 animate-spin" />
+            </div>
+          )}
+        </Button>
       </DialogContent>
     </Dialog>
   );

@@ -112,10 +112,11 @@ function ToolDetail() {
         title: toolName,
         part: {
           type: `tool-${toolName}`,
+          input: data,
           output: res,
           toolCallId: nanoid(),
           state: 'output-available',
-          input: undefined,
+          // input: undefined,
         },
       });
 

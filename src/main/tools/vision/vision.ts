@@ -59,7 +59,7 @@ export class Vision extends BaseTool<VisionParams> {
       z.object({
         type: z.enum(['image', 'text']),
         data: z.string().optional(),
-        text: z.string().optional(),
+        image: z.string().optional(),
         mimeType: z.string().optional(),
       }),
     ),

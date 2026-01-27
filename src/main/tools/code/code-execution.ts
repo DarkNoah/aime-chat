@@ -128,9 +128,11 @@ The code will be executed with Python 3.10.
 
 Usage:
 - every time will run in a new temporary directory, which is deleted after the run is completed.
-- packages need to be reinstalled for every run if you need.`
+- packages need to be reinstalled for every run if you need.`;
     if (this.ptcOpen) {
-      return desc + `
+      return (
+        desc +
+        `
 PTC Mode:
 Programmatic Tool Calling (PTC) allows to write code that calls tools programmatically within the Code Execution environment, rather than requiring round-trips through the model for each tool invocation
 - You can use all tools in the current context.
@@ -160,9 +162,10 @@ async def main():
 asyncio.run(main())
 </example>
 `
+      );
     }
     return desc;
-  }
+  };
 
   execute = async (
     inputData: z.infer<typeof this.inputSchema>,
@@ -180,16 +183,12 @@ asyncio.run(main())
         throw new Error('UV runtime is not installed');
       }
 
-
       let resultInit = await runCommand(
         `${uvPreCommand} init "${tempDir}" && ${uvPreCommand} venv "${path.join(tempDir, '.venv')}"`,
         {
           cwd: uvRuntime?.dir,
         },
       );
-
-
-
 
       if (resultInit.code !== 0) {
         throw new Error(
@@ -212,16 +211,15 @@ asyncio.run(main())
       }
       if (ptc) {
         let site_packages_path;
-        if(isWindows)
-          {
-            site_packages_path = path.posix.join(
-              tempDir.replace(/\\/g, '/'),
-              '.venv',
-              'lib',
-              '**',
-              'site-packages',
-            );
-        } else{
+        if (isWindows) {
+          site_packages_path = path.posix.join(
+            tempDir.replace(/\\/g, '/'),
+            '.venv',
+            'lib',
+            '**',
+            'site-packages',
+          );
+        } else {
           site_packages_path = path.join(
             tempDir,
             '.venv',
@@ -232,7 +230,7 @@ asyncio.run(main())
         }
         const sitePackages = await fg(site_packages_path.replace(/\\/g, '/'), {
           onlyDirectories: true,
-          caseSensitiveMatch:false,
+          caseSensitiveMatch: false,
         });
         if (sitePackages.length !== 1) {
           throw new Error('Site packages path not found or not unique');

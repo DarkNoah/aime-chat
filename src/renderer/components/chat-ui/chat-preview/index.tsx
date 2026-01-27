@@ -41,6 +41,7 @@ export type ChatPreviewProps = {
   previewData?: ChatPreviewData;
   project?: Project;
   onPreviewDataChange?: (previewData: ChatPreviewData) => void;
+  onProjectChanged?: () => void;
 };
 
 export interface ChatPreviewRef {}
@@ -57,6 +58,7 @@ export const ChatPreview = React.forwardRef<ChatPreviewRef, ChatPreviewProps>(
       resourceId,
       workspace,
       project,
+      onProjectChanged,
     } = props;
     const [isGenerating, setIsGenerating] = useState(false);
     const [messages, setMessages] = useState<UIMessage[]>([]);
@@ -261,7 +263,12 @@ export const ChatPreview = React.forwardRef<ChatPreviewRef, ChatPreviewProps>(
           <div
             className={`h-full overflow-y-auto ${previewData.previewPanel === ChatPreviewType.PROJECT ? '' : 'hidden'}`}
           >
-            <ProjectView project={project}></ProjectView>
+            <ProjectView
+              project={project}
+              onProjectChanged={() => {
+                onProjectChanged?.();
+              }}
+            ></ProjectView>
           </div>
         )}
       </div>

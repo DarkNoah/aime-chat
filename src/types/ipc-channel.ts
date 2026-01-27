@@ -46,6 +46,7 @@ export enum AppChannel {
   // 屏幕截图
   ScreenCapture = 'app:screenCapture',
   GetScreenSources = 'app:getScreenSources',
+  ScreenCaptureSelect = 'app:screenCaptureSelect',
 }
 
 export enum MastraChannel {
@@ -76,6 +77,7 @@ export enum KnowledgeBaseChannel {
 export enum ToolChannel {
   SaveSkill = 'tool:saveSkill',
   ImportSkill = 'tool:importSkill',
+  ImportSkills = 'tool:importSkills',
   PreviewGitSkill = 'tool:previewGitSkill',
   SaveMCPServer = 'tool:saveMCPServer',
   ReconnectMCP = 'tool:reconnectMCP',
@@ -113,4 +115,5 @@ export enum ProjectChannel {
   SaveProject = 'project:saveProject',
   DeleteProject = 'project:deleteProject',
   CreateThread = 'project:createThread',
+  DeleteSkill = 'project:deleteSkill',
 }

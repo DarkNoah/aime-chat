@@ -324,6 +324,10 @@ function ProjectsPage() {
           part={previewToolPart}
           previewData={previewData}
           project={project}
+          onProjectChanged={() => {
+            console.log('onProjectChanged');
+            getProject();
+          }}
           onPreviewDataChange={(value) => {
             setPreviewData(value);
           }}

@@ -26,6 +26,7 @@ import { useHeader } from '@/renderer/hooks/use-title';
 import { IconFolder, IconLoader2 } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import toast from 'react-hot-toast';
 
 function Runtime() {
   const { appInfo, getAppInfo } = useGlobal();
@@ -45,16 +46,26 @@ function Runtime() {
   const handleInstallRuntime = async (pkg: string) => {
     setLoading(true);
     setRuntimeInfo({ ...runtimeInfo, [pkg]: { status: 'installing' } });
-    await window.electron.app.installRuntime(pkg);
-    getRuntimeInfo();
-    setLoading(false);
+    try {
+      await window.electron.app.installRuntime(pkg);
+      getRuntimeInfo();
+    } catch (err) {
+      toast.error(`Failed to install ${pkg} runtime.`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleUninstallRuntime = async (pkg: string) => {
     setLoading(true);
-    await window.electron.app.uninstallRuntime(pkg);
-    getRuntimeInfo();
-    setLoading(false);
+    try {
+      await window.electron.app.uninstallRuntime(pkg);
+      getRuntimeInfo();
+    } catch (err) {
+      toast.error(`Failed to uninstall ${pkg} runtime.`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -165,6 +176,49 @@ function Runtime() {
             </Button>
           )}
           {runtimeInfo?.paddleOcr?.status === 'installing' && (
+            <Button disabled>
+              <Spinner />
+              Installing...
+            </Button>
+          )}
+        </ItemActions>
+      </Item>
+      <Item variant="outline">
+        <ItemContent className="min-w-0">
+          <ItemTitle>
+            Bun{' '}
+            {runtimeInfo?.bun?.version && (
+              <Badge>{runtimeInfo?.bun?.version}</Badge>
+            )}
+          </ItemTitle>
+          {runtimeInfo?.bun?.path && (
+            <ItemDescription>
+              <Button
+                variant="link"
+                size="sm"
+                onClick={() =>
+                  window.electron.app.openPath(runtimeInfo?.bun?.path)
+                }
+              >
+                <IconFolder />
+                <span className="truncate">{runtimeInfo?.bun?.path}</span>
+              </Button>
+            </ItemDescription>
+          )}
+        </ItemContent>
+        <ItemActions>
+          {runtimeInfo?.bun?.status === 'not_installed' && (
+            <Button onClick={() => handleInstallRuntime('bun')}>Install</Button>
+          )}
+          {runtimeInfo?.bun?.status === 'installed' && (
+            <Button
+              onClick={() => handleUninstallRuntime('bun')}
+              variant="destructive"
+            >
+              Uninstall
+            </Button>
+          )}
+          {runtimeInfo?.bun?.status === 'installing' && (
             <Button disabled>
               <Spinner />
               Installing...

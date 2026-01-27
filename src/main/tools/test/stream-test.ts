@@ -24,6 +24,7 @@ export class StreamTest extends BaseTool {
     inputData: z.infer<typeof this.inputSchema>,
     options?: ToolExecutionContext,
   ) => {
+    const now = Date.now();
     const abortSignal = options?.abortSignal as AbortSignal;
     const { time } = inputData;
 
@@ -40,6 +41,10 @@ export class StreamTest extends BaseTool {
       return { status: 'aborted' };
     }
 
-    return { status: 'ok' };
+    return {
+      startTime: now.toString(),
+      endTime: Date.now().toString(),
+      status: 'ok',
+    };
   };
 }

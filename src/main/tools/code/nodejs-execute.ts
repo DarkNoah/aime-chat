@@ -3,7 +3,7 @@ import { generateText } from 'ai';
 import z from 'zod';
 import BaseTool from '../base-tool';
 import { runCommand } from '@/main/utils/shell';
-import { getUVRuntime } from '@/main/app/runtime';
+import { getBunRuntime, getUVRuntime } from '@/main/app/runtime';
 import { app } from 'electron';
 import fs from 'fs';
 import path from 'path';
@@ -13,7 +13,7 @@ import { ToolTags } from '@/types/tool';
 export class NodejsExecute extends BaseTool {
   static readonly toolName = 'NodejsExecute';
   id: string = 'NodejsExecute';
-  description = `Run node.js code
+  description = `Run node.js code with Bun
 Usage:
 - Each execution environment runs code in a new system temporary directory, which is deleted after the run is completed.
 - Dependencies need to be reinstalled for every run if you need.`;
@@ -42,8 +42,10 @@ Usage:
     await fs.promises.mkdir(tempDir, { recursive: true });
     let tempFile;
 
-    const uvRuntime = await getUVRuntime();
-
+    const bunRuntime = await getBunRuntime();
+    if (bunRuntime.status !== 'installed') {
+      throw new Error('Bun runtime is not installed');
+    }
     let result;
     if (use_ts) {
       tempFile = path.join(tempDir, 'src', nanoid() + '.ts');
