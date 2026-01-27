@@ -353,7 +353,7 @@ export class OcrLoader extends BaseLoader {
       return result.text;
     }
 
-    return '';
+    throw new Error(`Unsupported OCR mode: ${mode}`);
   }
 
   getInfo(buffer: Buffer, metadata: Record<string, any>): Promise<any> {
