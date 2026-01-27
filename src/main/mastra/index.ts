@@ -659,7 +659,7 @@ class MastraManager extends BaseManager {
           });
         },
         onChunk: (chunk) => {
-          // console.log('Stream chunk:', chunk);
+          console.log('Stream chunk:', chunk);
           if (chunk.type == 'text-delta') {
             const textDelta = chunk.payload.text;
             const _chunks = requestContext.get('chunks') ?? {
@@ -673,6 +673,8 @@ class MastraManager extends BaseManager {
               _chunks.text = textDelta;
             }
             requestContext.set('chunks', _chunks);
+          } else {
+            requestContext.set('chunks', undefined);
           }
           //if()
           //const maxContextSize = requestContext.get('maxContextSize');

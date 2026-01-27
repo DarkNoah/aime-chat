@@ -1235,6 +1235,22 @@ class ToolsManager extends BaseManager {
           recursive: true,
         },
       );
+      if (!data.path) {
+        const tool = new Tools(
+          `${ToolType.SKILL}:local:${selectedSkill.id}`,
+          selectedSkill.id,
+          ToolType.SKILL,
+        );
+        tool.isActive = true;
+        tool.value = {
+          path: path.join(skillsPath, selectedSkill.id),
+        };
+        await this.toolsRepository.save(tool);
+        await appManager.sendEvent(ToolEvent.ToolListUpdated, {
+          id: `${ToolType.SKILL}:local:${selectedSkill.id}`,
+          status: 'created',
+        });
+      }
     }
 
     await fs.promises.rmdir(tmpDir, { recursive: true });

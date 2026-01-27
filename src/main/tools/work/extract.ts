@@ -116,7 +116,7 @@ Returns:
       console.log('准备OCR文件:', file_path_or_url);
       content = await (readBinaryFile as ReadBinaryFile).execute(
         {
-          file_path: file_path_or_url,
+          file_source: file_path_or_url,
         },
         options,
       );

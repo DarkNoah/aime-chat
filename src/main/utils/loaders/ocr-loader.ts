@@ -334,9 +334,9 @@ export class OcrLoader extends BaseLoader {
     if (this.options.mode === 'auto') {
       const paddleOcrRuntime = await getPaddleOcrRuntime();
       if (paddleOcrRuntime.status === 'installed') {
-        mode === 'paddleocr';
+        mode = 'paddleocr';
       } else {
-        mode === 'system'
+        mode = 'system';
       }
     }
     if (mode === 'system') {
