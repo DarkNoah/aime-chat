@@ -118,8 +118,9 @@ export function SkillImportDialog({
     try {
       setImporting(true);
       if (droppedFiles && droppedFiles.length > 0) {
-        const result = await window.electron.tools.importSkill({
+        const result = await window.electron.tools.importSkills({
           files: droppedFiles.map((x) => x.path),
+          path: importPath,
         });
       } else if (selectedSkills.length > 0) {
         const result = await window.electron.tools.importSkills({

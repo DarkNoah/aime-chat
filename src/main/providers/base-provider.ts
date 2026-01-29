@@ -34,8 +34,8 @@ export abstract class BaseProvider implements ProviderV2 {
   abstract name: string;
   abstract type: ProviderType;
   abstract description?: string;
-
   abstract defaultApiBase?: string;
+  hasChatModel?: boolean = true;
 
   provider: Providers;
 

@@ -12,7 +12,7 @@ import { Label } from '../../ui/label';
 import { CodeBlock } from '../../ai-elements/code-block';
 import { Badge } from '../../ui/badge';
 import { Button } from '../../ui/button';
-import { IconFile } from '@tabler/icons-react';
+import { IconFile, IconSearch } from '@tabler/icons-react';
 import { Source, Sources, SourcesContent } from '../../ai-elements/sources';
 import { Item, ItemContent, ItemDescription, ItemTitle } from '../../ui/item';
 import ReactDiffViewer from 'react-diff-viewer';
@@ -46,7 +46,7 @@ export const ChatToolResultPreview = React.forwardRef<
       if (!part?.output) return null;
       if (toolName === 'WebSearch') {
         return (
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2 overflow-y-auto">
             {part.output?.map((source: any, index: number) => (
               <Item
                 variant="outline"
@@ -183,7 +183,12 @@ export const ChatToolResultPreview = React.forwardRef<
             </>
           );
         case 'WebSearch':
-          return <Badge variant="secondary">{part?.input?.query}</Badge>;
+          return (
+            <Badge variant="secondary">
+              <IconSearch></IconSearch>
+              {part?.input?.query}
+            </Badge>
+          );
         case 'Read':
         case 'Write':
           return (
@@ -290,7 +295,7 @@ export const ChatToolResultPreview = React.forwardRef<
       }
     }, [part?.input, toolName]);
     return (
-      <Card className={cn('h-full w-full', className)}>
+      <Card className={cn('h-fit w-full', className)}>
         <CardHeader>
           <CardTitle>
             {toolName}{' '}

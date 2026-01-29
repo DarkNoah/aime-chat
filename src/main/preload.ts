@@ -36,6 +36,7 @@ import {
   ModelType,
   ProviderModel,
   ProviderTag,
+  ProviderTypeList,
   UpdateProvider,
 } from '@/types/provider';
 import { AvailableTool, ToolType } from '@/types/tool';
@@ -152,11 +153,13 @@ const electronHandler = {
       ipcRenderer.invoke(AppChannel.GetScreenSources),
   },
   providers: {
-    getList: (filter?: { tags?: ProviderTag[] }) =>
+    getList: (filter?: { tags?: ProviderTag[]; onlyChatModel?: boolean }) =>
       ipcRenderer.invoke(ProviderChannel.GetList, filter),
     get: (id: string) => ipcRenderer.invoke(ProviderChannel.Get, id),
     getAvailableModels: (type: ModelType) =>
       ipcRenderer.invoke(ProviderChannel.GetAvailableModels, type),
+    getProviderTypeList: (): Promise<ProviderTypeList[]> =>
+      ipcRenderer.invoke(ProviderChannel.GetProviderTypeList),
     create: (data: CreateProvider) =>
       ipcRenderer.invoke(ProviderChannel.Create, data),
     update: (id: string, data: UpdateProvider) =>
@@ -270,10 +273,10 @@ const electronHandler = {
     importSkill: (data: { files: string[] }) =>
       ipcRenderer.invoke(ToolChannel.ImportSkill, data),
     importSkills: (data: {
-      repo_or_url: string;
+      repo_or_url?: string;
       files?: string[];
       path?: string;
-      selectedSkills: string[];
+      selectedSkills?: string[];
     }) => ipcRenderer.invoke(ToolChannel.ImportSkills, data),
     previewGitSkill: (data: { gitUrl: string }) =>
       ipcRenderer.invoke(ToolChannel.PreviewGitSkill, data),

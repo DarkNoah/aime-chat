@@ -225,5 +225,9 @@
       "tip_agents": "Explore pre-built agents or create your own in the Agents section.",
       "start_chatting": "Start Chatting"
     }
+  },
+  "providers": {
+    "chat_provider": "Chat Provider",
+    "other_provider": "Other Provider"
   }
 }

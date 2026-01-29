@@ -225,5 +225,9 @@
       "tip_agents": "在助手页面探索预置助手或创建自己的助手。",
       "start_chatting": "开始对话"
     }
+  },
+  "providers": {
+    "chat_provider": "对话模型",
+    "other_provider": "其他供应商"
   }
 }

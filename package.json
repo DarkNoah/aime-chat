@@ -295,6 +295,7 @@
     "rimraf": "^6.0.1",
     "sass": "^1.86.0",
     "sass-loader": "^16.0.5",
+    "serpapi": "^2.2.1",
     "shape": "^0.0.1",
     "sharp": "^0.34.5",
     "shell-quote": "^1.8.3",

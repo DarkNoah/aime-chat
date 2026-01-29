@@ -35,6 +35,7 @@ import {
   CreateProvider,
   ProviderType,
   UpdateProvider,
+  ProviderTypeList,
 } from '@/types/provider';
 import {
   AlertDialog,
@@ -145,11 +146,15 @@ function Providers() {
   const [addModelOpen, setAddModelOpen] = useState<boolean>(false);
   const [newModelId, setNewModelId] = useState<string>('');
   const [newModelName, setNewModelName] = useState<string>('');
+  const [providerTypeList, setProviderTypeList] = useState<ProviderTypeList[]>(
+    [],
+  );
 
   async function refreshProviders() {
     setLoading(true);
     try {
       const data = await window.electron.providers.getList();
+      console.log(data);
       setProviders(data);
     } finally {
       setLoading(false);
@@ -157,6 +162,12 @@ function Providers() {
   }
 
   useEffect(() => {
+    const getProviderTypeList = async () => {
+      setProviderTypeList(
+        await window.electron.providers.getProviderTypeList(),
+      );
+    };
+    getProviderTypeList();
     refreshProviders();
   }, []);
 
@@ -334,14 +345,17 @@ function Providers() {
                   checked={(p as any).isActive as boolean}
                   onCheckedChange={(v) => toggleActive(p.id, !!v)}
                 />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => openModels(p)}
-                >
-                  <Package />
-                  {t('common.model')}
-                </Button>
+                {p.hasChatModel && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => openModels(p)}
+                  >
+                    <Package />
+                    {t('common.model')}
+                  </Button>
+                )}
+
                 <Button variant="outline" size="sm" onClick={() => openEdit(p)}>
                   <Edit></Edit>
                 </Button>
@@ -408,8 +422,19 @@ function Providers() {
                             value={field.value}
                             onValueChange={(v) => {
                               field.onChange(v);
-                              if (modelsData[v]) {
-                                form.setValue('name', modelsData[v].name);
+                              if (
+                                providerTypeList.find((g) =>
+                                  g.providers.find((p) => p.id === v),
+                                )
+                              ) {
+                                form.setValue(
+                                  'name',
+                                  providerTypeList
+                                    .find((g) =>
+                                      g.providers.find((p) => p.id === v),
+                                    )
+                                    ?.providers.find((p) => p.id === v)?.name,
+                                );
                               }
                             }}
                           >
@@ -417,9 +442,27 @@ function Providers() {
                               <SelectValue placeholder="选择类型" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectGroup>
+                              {providerTypeList.map((group) => (
+                                <SelectGroup key={group.groupId}>
+                                  <SelectLabel>
+                                    {t(`providers.${group.groupId}`)}
+                                  </SelectLabel>
+                                  {group.providers.map((provider) => (
+                                    <SelectItem
+                                      key={provider.id}
+                                      value={provider.id}
+                                    >
+                                      <ModelSelectorLogo
+                                        provider={provider.id}
+                                      ></ModelSelectorLogo>
+                                      {provider.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectGroup>
+                              ))}
+                              {/* <SelectGroup>
                                 <SelectLabel>
-                                  {t('common.model_provider')}
+                                  {t('providers.chat_provider')}
                                 </SelectLabel>
                                 {Object.values(modelsData)
                                   .sort((x, y) => x.name.localeCompare(y.name))
@@ -434,7 +477,7 @@ function Providers() {
                               </SelectGroup>
                               <SelectGroup>
                                 <SelectLabel>
-                                  {t('common.other_provider')}
+                                  {t('providers.other_provider')}
                                 </SelectLabel>
                                 <SelectItem
                                   key={ProviderType.BRAVE_SEARCH}
@@ -454,7 +497,7 @@ function Providers() {
                                 >
                                   <IconSearch /> Jina AI
                                 </SelectItem>
-                              </SelectGroup>
+                              </SelectGroup> */}
                             </SelectContent>
                           </Select>
                         </FormControl>

@@ -102,11 +102,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       url: '/tools',
       icon: IconTools,
     },
-    // {
-    //   title: t('sidebar.knowledge_base'),
-    //   url: '/knowledge-base',
-    //   icon: IconBook,
-    // },
+    {
+      title: t('sidebar.knowledge_base'),
+      url: '/knowledge-base',
+      icon: IconBook,
+      hidden: appInfo?.isPackaged,
+    },
     {
       title: t('sidebar.agents'),
       url: '/agents',
@@ -129,7 +130,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             )}
           </SidebarMenuItem>
         </SidebarMenu>
-        <NavItems items={navItems}></NavItems>
+        <NavItems items={navItems.filter((x) => !x.hidden)}></NavItems>
         <SidebarSeparator className="ml-0"></SidebarSeparator>
       </SidebarHeader>
       <ChatProjectDialog

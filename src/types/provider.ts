@@ -4,6 +4,7 @@ export interface Provider {
   icon?: string;
   type?: ProviderType | string | undefined;
   models?: ProviderModel[];
+  hasChatModel?: boolean;
 }
 
 export interface ProviderModel {
@@ -70,6 +71,7 @@ export enum ProviderType {
   BRAVE_SEARCH = 'brave-search',
   JINA_AI = 'jina-ai',
   TAVILY = 'tavily',
+  SERPAPI = 'serpapi',
   MINERU = 'mineru',
 }
 
@@ -94,4 +96,9 @@ export interface ProviderCredits {
   totalCredits: number;
   usedCredits: number;
   remainingCredits: number;
+}
+
+export interface ProviderTypeList {
+  groupId: string;
+  providers: { id: string; name: string }[];
 }

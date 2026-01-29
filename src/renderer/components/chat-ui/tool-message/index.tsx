@@ -172,6 +172,10 @@ export const ToolMessage = React.forwardRef<ToolMessageRef, ToolMessageProps>(
         case 'GenerateImage':
         case 'EditImage':
           return input?.prompt ?? '';
+        case 'WebSearch':
+          return input?.query;
+        case 'WebFetch':
+          return input?.url;
         default:
           return input?.description;
       }

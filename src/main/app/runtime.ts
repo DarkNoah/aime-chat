@@ -436,7 +436,7 @@ export async function installBunRuntime() {
           '-ExecutionPolicy',
           'ByPass',
           '-Command',
-          'irm bun.sh/install.ps1 | iex | iex',
+          'irm bun.sh/install.ps1 | iex',
         ],
 
         {
