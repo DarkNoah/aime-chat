@@ -28,6 +28,7 @@ export const paddleOcr: RuntimeInfo['paddleOcr'] = {
   path: undefined,
   dir: undefined,
   version: undefined,
+  mode: 'default',
 };
 export const bun: RuntimeInfo['bun'] = {
   status: 'not_installed' as 'installed' | 'not_installed' | 'installing',
@@ -321,7 +322,7 @@ export async function installPaddleOcrRuntime() {
   }
 
   const result1 = await runCommand(
-    `${uvPreCommand} --project "${paddleOcrDir}" --no-cache pip install "paddleocr[all]" "paddlex[ocr]" --python "${activateSourcePython}"`,
+    `${uvPreCommand} --project "${paddleOcrDir}" --no-cache pip install "paddleocr[all]" "paddlex[ocr]" ${process.platform === 'darwin' ? 'mlx-vlm' : ''} --python "${activateSourcePython}"`,
     {
       cwd: uvRuntime?.dir,
       // usePowerShell: isWindows,
@@ -336,6 +337,16 @@ export async function installPaddleOcrRuntime() {
     return paddleOcr;
   }
 
+  if (process.platform === 'darwin') {
+    const resultInstallMLX = await runCommand(
+      `${uvPreCommand} --project "${paddleOcrDir}" --no-cache add mlx-vlm --prerelease=allow `,
+      {
+        cwd: uvRuntime?.dir,
+        // usePowerShell: isWindows,
+      },
+    );
+    debugger;
+  }
   const result2 = await runCommand(
     `${uvPreCommand} run --project "${paddleOcrDir}" paddleocr -v`,
     {

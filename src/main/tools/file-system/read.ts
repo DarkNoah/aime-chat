@@ -215,7 +215,9 @@ Usage:
         return content;
       }
     } else if (ext === '.docx' || ext === '.doc') {
-      const loader = new WordLoader(file_source);
+      const loader = new WordLoader(file_source, {
+        type: ext === '.docx' ? 'docx' : 'doc',
+      });
       // const info = await loader.info();
       const content = await loader.load();
       return content;

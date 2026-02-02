@@ -159,6 +159,10 @@ Output: Creates directory 'foo'`),
       .string()
       .optional()
       .describe('The directory to run the command in (must be absolute path)'),
+    // env: z
+    //   .record(z.string(), z.string())
+    //   .optional()
+    //   .describe('Optional the environment variables to set'),
     timeout: z
       .number()
       .optional()
@@ -206,12 +210,13 @@ Output: Creates directory 'foo'`),
     }
     const runtimeInfo = await appManager.getRuntimeInfo();
 
-    const env = {
+    const _env = {
       PATH: '',
+      // ...(env ? env : {}),
     };
 
     if (runtimeInfo.uv.installed || runtimeInfo.bun.installed) {
-      env['PATH'] +=
+      _env['PATH'] +=
         `${runtimeInfo.uv.dir || runtimeInfo.bun.dir}` +
         (process.platform === 'win32' ? ';' : ':');
     }
@@ -222,7 +227,7 @@ Output: Creates directory 'foo'`),
         { command: inputData.command, description: inputData.description },
         shell_id,
         cwd,
-        env,
+        _env,
         timeout,
         undefined,
         threadId,
@@ -247,7 +252,12 @@ Output: Creates directory 'foo'`),
       backgroundPIDs,
       tempFilePath,
       pid,
-    } = await runCommand(inputData.command, { cwd, timeout, abortSignal, env });
+    } = await runCommand(inputData.command, {
+      cwd,
+      timeout,
+      abortSignal,
+      env: _env,
+    });
     console.log(tempFilePath, inputData.command);
     let llmContent = '';
     if (abortSignal?.aborted) {

@@ -176,6 +176,8 @@ export const ToolMessage = React.forwardRef<ToolMessageRef, ToolMessageProps>(
           return input?.query;
         case 'WebFetch':
           return input?.url;
+        case 'Extract':
+          return input?.file_path_or_url;
         default:
           return input?.description;
       }

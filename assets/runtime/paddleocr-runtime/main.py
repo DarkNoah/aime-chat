@@ -42,7 +42,72 @@ os.environ["DISABLE_MODEL_SOURCE_CHECK"] ="True"
 
 # PaddleOCR import (heavy)
 from paddleocr import PPStructureV3  # noqa: E402
+from paddleocr import PaddleOCRVL
 import paddle
+
+
+class MlxVlmResult:
+    def __init__(self, result: Any, input_path: str) -> None:
+        self.result = result
+        self.input_path = input_path
+
+    def save_to_json(self, save_path: str) -> None:
+        pass
+
+    def save_to_markdown(self, save_path: str) -> None:
+        out_dir = Path(save_path)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        stem = Path(self.input_path).stem
+        md_path = out_dir / f"{stem}.md"
+        with md_path.open("w", encoding="utf-8") as f:
+            f.write(self.result.text)
+
+
+class MlxVlmPipeline:
+    def __init__(
+        self,
+        model: Any,
+        processor: Any,
+        config: Any,
+        prompt: str,
+        # formatted_prompt: str,
+        generate_fn: Any,
+    ) -> None:
+        self._model = model
+        self._processor = processor
+        self._config = config
+        self._prompt = prompt
+        # self._formatted_prompt = formatted_prompt
+        self._generate = generate_fn
+
+    def predict(self, input: str) -> Any:
+        # img = mx.read_image(input)
+        from mlx_vlm.prompt_utils import apply_chat_template
+        image = [input]
+        formatted_prompt = apply_chat_template(self._processor, self._config, self._prompt, num_images=len(image))
+        result = self._generate(
+            self._model,
+            self._processor,
+            formatted_prompt,
+            image,
+            verbose=False,
+        )
+        return [MlxVlmResult(result, input)]
+
+
+def create_mlx_vlm_pipeline() -> Any:
+    from mlx_vlm import load, generate
+    from mlx_vlm.prompt_utils import apply_chat_template
+    from mlx_vlm.utils import load_config
+
+    model_path = "mlx-community/PaddleOCR-VL-1.5-bf16"
+    model, processor = load(model_path)
+    config = load_config(model_path)
+    prompt = "OCR:" #  | Table Recognition: | Formula Recognition: | Chart Recognition:
+    #formatted_prompt = apply_chat_template(processor, config, prompt)
+
+    return MlxVlmPipeline(model, processor, config, prompt, generate)
+
 
 
 # ---------- Idle watchdog ----------
@@ -72,21 +137,34 @@ _pipeline = None
 _pipeline_lock = threading.Lock()
 _pipeline_device = None  # track what device current pipeline uses
 
-def get_pipeline(device: str) -> Any:
+def get_pipeline(device: str, mode: str ) -> Any:
     """
     Lazily create or recreate pipeline if device changed.
     """
-    global _pipeline, _pipeline_device
+    global _pipeline, _pipeline_device, _mode
     device = (device or DEFAULT_DEVICE).lower().strip()
     hasGPU = paddle.is_compiled_with_cuda()
 
     with _pipeline_lock:
-        if _pipeline is not None and _pipeline_device == device:
+        if _pipeline is not None and _pipeline_device == device and _mode == mode:
             return _pipeline
 
         # Recreate pipeline when first time or device changed
         # You can add other args here: lang="en", use_doc_orientation_classify=True, etc.
-        _pipeline = PPStructureV3(device="gpu" if hasGPU else device)
+
+        if mode == "default" or mode == "paddleocr-vl":
+            print("Using PaddleOCRVL...")
+            if sys.platform == "darwin":
+                # On macOS, use CPU only for now
+                _pipeline = create_mlx_vlm_pipeline()
+            else:
+                _pipeline = PaddleOCRVL(device="gpu" if hasGPU else device)
+        elif mode == "pp-structurev3":
+            print("Using PPStructureV3...")
+            _pipeline = PPStructureV3(device="gpu" if hasGPU else device)
+        else:
+            raise ValueError(f"unknown mode: {mode}")
+        _mode = mode
         _pipeline_device = device
         return _pipeline
 
@@ -120,6 +198,7 @@ def method_predict(params: Dict[str, Any]) -> Dict[str, Any]:
         raise ValueError("params.image_path is required")
 
     device = (params.get("device") or DEFAULT_DEVICE).lower().strip()
+    mode = params.get("mode", "default").lower().strip()
     save_json = bool(params.get("save_json", True))
     save_markdown = bool(params.get("save_markdown", True))
 
@@ -132,10 +211,10 @@ def method_predict(params: Dict[str, Any]) -> Dict[str, Any]:
     if not img_path.exists():
         raise FileNotFoundError(f"image not found: {image_path}")
 
-    pipeline = get_pipeline(device=device)
+    pipeline = get_pipeline(device=device, mode=mode)
 
     # Run inference
-    output = pipeline.predict(str(img_path))
+    output = pipeline.predict(input=str(img_path))
 
     items = []
     # Each res can be printed/saved. We'll save into req_dir/res_{i}
@@ -178,6 +257,7 @@ def method_predict(params: Dict[str, Any]) -> Dict[str, Any]:
 def handle_request(req: Dict[str, Any]) -> Dict[str, Any]:
     method = req.get("method")
     params = req.get("params") or {}
+    print(params)
 
     if method == "ping":
         return method_ping(params)
@@ -198,10 +278,11 @@ def main() -> None:
 
     # Optional: prewarm pipeline on startup (load model once)
     # You can disable by setting env PPSTRUCTURE_PREWARM=0
+
     prewarm = os.environ.get("PPSTRUCTURE_PREWARM", "1").strip() != "0"
     if prewarm:
         try:
-            get_pipeline(DEFAULT_DEVICE)
+            get_pipeline(DEFAULT_DEVICE, "default")
         except Exception:
             # Don't crash boot; report to stderr only
             traceback.print_exc(file=sys.stderr)

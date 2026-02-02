@@ -119,5 +119,6 @@ export interface RuntimeInfo {
     path?: string;
     dir?: string;
     version?: string;
+    mode: 'default' | 'pp-structurev3' | 'paddleocr-vl';
   };
 }

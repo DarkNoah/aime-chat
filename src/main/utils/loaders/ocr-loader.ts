@@ -10,6 +10,7 @@ import { spawn, ChildProcess } from 'child_process';
 import { createHash, randomUUID } from 'crypto';
 import readline from 'readline';
 import fg from 'fast-glob';
+import { RuntimeInfo } from '@/types/app';
 
 export type OcrLoaderOptions = {
   mode: 'auto' | 'system' | 'paddleocr' | 'mineru-api';
@@ -193,7 +194,11 @@ async function ensureRuntimeFile(): Promise<string> {
 async function getPaddleOcrPythonService(): Promise<{
   recognize: (
     buffer: ArrayBufferLike,
-    options?: { noCache?: boolean; ext?: string },
+    options?: {
+      noCache?: boolean;
+      ext?: string;
+      mode?: RuntimeInfo['paddleOcr']['mode'];
+    },
   ) => Promise<{ text: string; result: any }>;
 }> {
   if (paddleOcrService) {
@@ -233,9 +238,14 @@ async function getPaddleOcrPythonService(): Promise<{
   paddleOcrService = {
     recognize: async (
       buffer: ArrayBufferLike,
-      options: { noCache?: boolean; ext?: string } = {
+      options: {
+        noCache?: boolean;
+        ext?: string;
+        mode?: RuntimeInfo['paddleOcr']['mode'];
+      } = {
         noCache: false,
         ext: '',
+        mode: 'default',
       },
     ): Promise<{ text: string; result: any }> => {
       // 计算 buffer 的 MD5 作为文件名
@@ -287,6 +297,7 @@ async function getPaddleOcrPythonService(): Promise<{
         save_json: true,
         save_markdown: true,
         device: 'cpu',
+        mode: options?.mode || 'default',
       });
 
       // 读取生成的 markdown 文件
@@ -331,8 +342,8 @@ export class OcrLoader extends BaseLoader {
 
   async parse(raw: Buffer, metadata: Record<string, any>): Promise<any> {
     let mode = this.options.mode;
+    const paddleOcrRuntime = await getPaddleOcrRuntime();
     if (this.options.mode === 'auto') {
-      const paddleOcrRuntime = await getPaddleOcrRuntime();
       if (paddleOcrRuntime.status === 'installed') {
         mode = 'paddleocr';
       } else {
@@ -349,6 +360,7 @@ export class OcrLoader extends BaseLoader {
       const result = await service.recognize(raw.buffer, {
         noCache: false,
         ext: path.extname(metadata['source']).toLowerCase(),
+        mode: paddleOcrRuntime.mode,
       });
       return result.text;
     }
