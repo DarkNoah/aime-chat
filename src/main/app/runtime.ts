@@ -520,7 +520,11 @@ export async function getSTTRuntime(refresh = false) {
     }
     console.log(stt);
 
-    const sttDir = path.join(app.getPath('userData'), '.runtime', 'qwen-asr');
+    const sttDir = path.join(
+      app.getPath('userData'),
+      '.runtime',
+      'qwen-asr-runtime',
+    );
     if (!fs.existsSync(sttDir)) {
       stt.status = 'not_installed';
       stt.installed = false;
@@ -536,12 +540,9 @@ export async function getSTTRuntime(refresh = false) {
     const uvPreCommand = isWindows ? 'uv.exe' : './uv';
 
     const result2 = await runCommand(
-      `${uvPreCommand}  run --project "${sttDir}" qwen-asr -v`,
+      `${uvPreCommand} --project "${sttDir}" run python -c "from importlib import metadata; print(metadata.version('qwen-asr'))"`,
       {
         cwd: uvRuntime?.dir,
-        env: {
-          DISABLE_MODEL_SOURCE_CHECK: 'true',
-        },
         timeout: 1000 * 30,
       },
     );
@@ -550,7 +551,7 @@ export async function getSTTRuntime(refresh = false) {
       stt.installed = true;
       stt.path = sttDir;
       stt.dir = sttDir;
-      stt.version = result2.stdout.trim().split(' ')[1];
+      stt.version = result2.stdout.trim();
       return stt;
     } else {
       stt.status = 'not_installed';
@@ -577,69 +578,32 @@ export async function installSTTRuntime() {
   }
   const isWindows = process.platform === 'win32';
   const uvPreCommand = isWindows ? 'uv.exe' : './uv';
-  const qwenasrDir = path.join(app.getPath('userData'), '.runtime', 'qwen-asr');
-  stt.status = 'installing';
-  if (fs.existsSync(qwenasrDir)) {
-    await fs.promises.rm(qwenasrDir, { recursive: true });
-  }
-  fs.mkdirSync(qwenasrDir, { recursive: true });
-  const uv_source = `set UV_PYPI_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple`;
-
-  let resultInit = await runCommand(
-    // `${uv_source} && ${uvPreCommand} init "${paddleOcrDir}" --python=3.10 && ${uvPreCommand} venv "${path.join(paddleOcrDir, '.venv')}" --python=3.10`,
-    `${uv_source} && ${uvPreCommand} init "${qwenasrDir}" --python=3.12 && ${uvPreCommand} venv "${path.join(qwenasrDir, '.venv')}" --python=3.12`,
-    {
-      cwd: uvRuntime?.dir,
-    },
+  const qwenasrDir = path.join(
+    app.getPath('userData'),
+    '.runtime',
+    'qwen-asr-runtime',
   );
-  if (
-    resultInit.code !== 0 ||
-    !resultInit.output.includes('Initialized project')
-  ) {
-    // throw new Error('Failed to initialize PaddleOCR project');
-    stt.status = 'not_installed';
-    stt.installed = false;
-    stt.path = undefined;
-    stt.dir = undefined;
-    stt.version = undefined;
-    return stt;
-  }
+  stt.status = 'installing';
 
-  const activateSourcePython = isWindows
-    ? path.join(qwenasrDir, '.venv', 'Scripts', 'python.exe')
-    : path.join(qwenasrDir, '.venv', 'bin', 'python');
-
-  let hasGPU = false;
-
-  if (isWindows) {
-    const hasGPUResult = await runCommand(`nvidia-smi`, {
-      cwd: uvRuntime?.dir,
-    });
-    if (hasGPUResult.code === 0 && hasGPUResult.stdout.includes('NVIDIA-SMI')) {
-      hasGPU = true;
+  try {
+    if (fs.existsSync(qwenasrDir)) {
+      await fs.promises.rm(qwenasrDir, { recursive: true });
     }
-    const result_install_qwenasr = await runCommand(
-      `${uvPreCommand} --project "${qwenasrDir}" add qwen-asr[vllm] --python "${activateSourcePython}"`,
+    fs.mkdirSync(qwenasrDir, { recursive: true });
+    const uv_source = `set UV_PYPI_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple`;
+
+    let resultInit = await runCommand(
+      // `${uv_source} && ${uvPreCommand} init "${paddleOcrDir}" --python=3.10 && ${uvPreCommand} venv "${path.join(paddleOcrDir, '.venv')}" --python=3.10`,
+      `${uv_source} && ${uvPreCommand} init "${qwenasrDir}" --python=3.12 && ${uvPreCommand} venv "${path.join(qwenasrDir, '.venv')}" --python=3.12`,
       {
         cwd: uvRuntime?.dir,
       },
     );
-    if (result_install_qwenasr.code === 0) {
-      const result2 = await runCommand(
-        `${uvPreCommand}  run --project "${qwenasrDir}" qwen-asr -v`,
-        {
-          cwd: uvRuntime?.dir,
-          timeout: 1000 * 30,
-        },
-      );
-
-      stt.status = 'installed';
-      stt.installed = true;
-      stt.path = qwenasrDir;
-      stt.dir = qwenasrDir;
-      stt.version = result2.stdout.trim().split(' ')[1];
-      return stt;
-    } else {
+    if (
+      resultInit.code !== 0 ||
+      !resultInit.output.includes('Initialized project')
+    ) {
+      // throw new Error('Failed to initialize PaddleOCR project');
       stt.status = 'not_installed';
       stt.installed = false;
       stt.path = undefined;
@@ -647,12 +611,99 @@ export async function installSTTRuntime() {
       stt.version = undefined;
       return stt;
     }
-  } else {
+
+    const activateSourcePython = isWindows
+      ? path.join(qwenasrDir, '.venv', 'Scripts', 'python.exe')
+      : path.join(qwenasrDir, '.venv', 'bin', 'python');
+
+    let hasGPU = false;
+
+    if (isWindows) {
+      const hasGPUResult = await runCommand(`nvidia-smi`, {
+        cwd: uvRuntime?.dir,
+      });
+      if (
+        hasGPUResult.code === 0 &&
+        hasGPUResult.stdout.includes('NVIDIA-SMI')
+      ) {
+        hasGPU = true;
+      }
+      const result_install_qwenasr = await runCommand(
+        `${uvPreCommand} --project "${qwenasrDir}" add qwen-asr --python "${activateSourcePython}"`,
+        {
+          cwd: uvRuntime?.dir,
+        },
+      );
+      if (result_install_qwenasr.code === 0) {
+        const result2 = await runCommand(
+          `${uvPreCommand} --project "${qwenasrDir}" run python -c "from importlib import metadata; print(metadata.version('qwen-asr'))"`,
+          {
+            cwd: uvRuntime?.dir,
+            timeout: 1000 * 30,
+          },
+        );
+
+        stt.status = 'installed';
+        stt.installed = true;
+        stt.path = qwenasrDir;
+        stt.dir = qwenasrDir;
+        stt.version = result2.stdout.trim().split(' ')[1];
+        return stt;
+      } else {
+        stt.status = 'not_installed';
+        stt.installed = false;
+        stt.path = undefined;
+        stt.dir = undefined;
+        stt.version = undefined;
+        return stt;
+      }
+    } else {
+      const result_install_qwenasr = await runCommand(
+        `${uvPreCommand} --project "${qwenasrDir}" add mlx-audio --prerelease=allow`,
+        {
+          cwd: uvRuntime?.dir,
+        },
+      );
+      if (result_install_qwenasr.code === 0) {
+        const result2 = await runCommand(
+          `${uvPreCommand} --project "${qwenasrDir}" run python -c "from importlib import metadata; print(metadata.version('mlx-audio'))"`,
+          {
+            cwd: uvRuntime?.dir,
+            timeout: 1000 * 30,
+          },
+        );
+
+        stt.status = 'installed';
+        stt.installed = true;
+        stt.path = qwenasrDir;
+        stt.dir = qwenasrDir;
+        stt.version = result2.stdout.trim().split(' ')[1];
+        return stt;
+      } else {
+        stt.status = 'not_installed';
+        stt.installed = false;
+        stt.path = undefined;
+        stt.dir = undefined;
+        stt.version = undefined;
+        return stt;
+      }
+    }
+  } catch {
+    stt.status = 'not_installed';
+    stt.installed = false;
+    stt.path = undefined;
+    stt.dir = undefined;
+    stt.version = undefined;
+    return stt;
   }
 }
 
 export async function uninstallSTTRuntime() {
-  const qwenAsrDir = path.join(app.getPath('userData'), '.runtime', 'qwen-asr');
+  const qwenAsrDir = path.join(
+    app.getPath('userData'),
+    '.runtime',
+    'qwen-asr-runtime',
+  );
   if (fs.existsSync(qwenAsrDir)) {
     await fs.promises.rm(qwenAsrDir, { recursive: true });
   }
