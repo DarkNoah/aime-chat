@@ -234,5 +234,9 @@
     "upToDate": "已是最新版本",
     "downloading": "下载中...",
     "downloadNew": "下载新版本"
+  },
+  "providers": {
+    "chat_provider": "对话模型",
+    "other_provider": "其他供应商"
   }
 }

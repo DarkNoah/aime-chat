@@ -11,9 +11,9 @@ import {
   TranscriptionModelV2,
 } from '@ai-sdk/provider';
 
-export class TavilyProvider extends BaseProvider {
-  name: string = 'tavily';
-  type: ProviderType = ProviderType.TAVILY;
+export class SerpapiProvider extends BaseProvider {
+  name: string = 'serpapi';
+  type: ProviderType = ProviderType.SERPAPI;
   tags: ProviderTag[] = [ProviderTag.WEB_SEARCH];
   description: string;
   defaultApiBase?: string;

@@ -234,5 +234,9 @@
     "upToDate": "Up to Date",
     "downloading": "Downloading...",
     "downloadNew": "Download New"
+  },
+  "providers": {
+    "chat_provider": "Chat Provider",
+    "other_provider": "Other Provider"
   }
 }

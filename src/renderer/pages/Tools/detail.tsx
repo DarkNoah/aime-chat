@@ -340,7 +340,7 @@ function ToolDetail() {
             className={`h-full flex-1 `}
           >
             <div className="p-2 w-full h-full">
-              <div className=" w-full h-full border rounded-2xl ">
+              <div className=" w-full h-full border rounded-2xl overflow-y-auto">
                 <ChatToolResultPreview
                   className="overflow-y-auto"
                   title={toolResultPreview?.title}

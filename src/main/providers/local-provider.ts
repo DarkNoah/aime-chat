@@ -75,10 +75,9 @@ export class LocalEmbeddingModel implements EmbeddingModelV2<string> {
 
     let embeddings: Float32Array[] = [];
     if (library == 'openvino') {
-      throw new Error('Openvino not implemented.')
+      throw new Error('Openvino not implemented.');
       // const { TextEmbeddingPipeline, PoolingType } = await import('openvino-genai-node')
 
-      
       // const pipeline = await TextEmbeddingPipeline(modelPath);
       // embeddings = (await pipeline.embedDocuments(values)) as Float32Array[];
     } else if (library == 'transformers') {
@@ -235,6 +234,7 @@ export class LocalProvider extends BaseProvider {
   name: string = 'Local';
   description: string;
   defaultApiBase?: string;
+  hasChatModel?: boolean = false;
 
   tags: ProviderTag[] = [ProviderTag.WEB_READER];
   constructor() {

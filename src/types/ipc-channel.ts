@@ -1,4 +1,5 @@
 export enum ProviderChannel {
+  GetProviderTypeList = 'providers:getProviderTypeList',
   GetAvailableModels = 'providers:getAvailableModels',
   GetModelList = 'providers:getModelList',
   GetList = 'providers:getList',

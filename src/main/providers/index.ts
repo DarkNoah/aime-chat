@@ -11,6 +11,7 @@ import {
   ProviderModel,
   ProviderTag,
   ProviderType,
+  ProviderTypeList,
 } from '@/types/provider';
 import { v4 as uuidv4 } from 'uuid';
 import { ProviderChannel } from '@/types/ipc-channel';
@@ -42,6 +43,7 @@ import { JinaAIProvider } from './jinaai-provider';
 import { BraveSearchProvider } from './brave-search-provider';
 import { TavilyProvider } from './tavily-provider';
 import { appManager } from '../app';
+import { SerpapiProvider } from './serpapi-provider';
 const modelsData = require('../../../assets/models.json');
 class ProvidersManager extends BaseManager {
   repository: Repository<Providers>;
@@ -57,6 +59,46 @@ class ProvidersManager extends BaseManager {
     return;
   }
 
+  @channel(ProviderChannel.GetProviderTypeList)
+  public async getProviderTypeList(): Promise<ProviderTypeList[]> {
+    const providerTypes = Object.values(modelsData)
+      .sort((x: any, y: any) => x.name.localeCompare(y.name))
+      .map((m: any) => ({
+        id: m.id,
+        name: m.name,
+      }));
+    return [
+      {
+        groupId: 'chat_provider',
+        providers: providerTypes.map((m) => ({
+          id: m.id,
+          name: m.name,
+        })),
+      },
+      {
+        groupId: 'other_provider',
+        providers: [
+          {
+            id: ProviderType.BRAVE_SEARCH,
+            name: 'Brave Search',
+          },
+          {
+            id: ProviderType.SERPAPI,
+            name: 'SerpAPI',
+          },
+          {
+            id: ProviderType.TAVILY,
+            name: 'Tavily',
+          },
+          {
+            id: ProviderType.JINA_AI,
+            name: 'Jina.ai',
+          },
+        ],
+      },
+    ];
+  }
+
   @channel(ProviderChannel.Get)
   public async get(id: string): Promise<Provider> {
     const provider = await this.repository.findOne({ where: { id } });
@@ -64,34 +106,63 @@ class ProvidersManager extends BaseManager {
   }
 
   @channel(ProviderChannel.GetList)
-  public async getList(filter?: { tags?: ProviderTag[] }): Promise<Provider[]> {
-    if (!filter?.tags?.length) {
-      return this.repository.find();
-    }
-    const proviers = await this.repository
-      .createQueryBuilder('p')
-      .where(
-        `EXISTS (
+  public async getList(filter?: {
+    tags?: ProviderTag[];
+    onlyChatModel?: boolean;
+  }): Promise<Provider[]> {
+    // if (!filter?.tags?.length) {
+    //   return this.repository.find();
+    // }
+    const proviers = [];
+    let provierEntities;
+    if (filter?.tags?.length) {
+      provierEntities = await this.repository
+        .createQueryBuilder('p')
+        .where(
+          `EXISTS (
           SELECT 1
           FROM json_each(COALESCE(p.tags, '[]')) AS je
           WHERE je.value IN (:...tags)
         )`,
-        { tags: filter.tags },
-      )
-      .getMany();
+          { tags: filter?.tags },
+        )
+        .getMany();
+    } else {
+      provierEntities = await this.repository.find();
+    }
+
+    for (const provider of provierEntities) {
+      const providerData = await this.getProvider(provider.id);
+      const _provider: Provider = {
+        ...provider,
+        hasChatModel: providerData?.hasChatModel,
+      };
+      proviers.push(_provider);
+    }
     const localProvider = await this.getProvider(ProviderType.LOCAL);
-    if (
-      localProvider &&
-      localProvider.tags.filter((t) => filter.tags.includes(t)).length > 0
-    ) {
-      proviers.push({
-        id: localProvider.id,
-        name: localProvider.name,
-        type: localProvider.type,
-        models: [],
-        tags: localProvider.tags,
-        isActive: true,
-      });
+    if (localProvider && filter?.tags?.length) {
+      if (
+        filter?.tags?.length &&
+        localProvider.tags.filter((t) => filter.tags.includes(t)).length > 0
+      ) {
+        proviers.push({
+          id: localProvider.id,
+          name: localProvider.name,
+          type: localProvider.type,
+          models: [],
+          tags: localProvider.tags,
+          isActive: true,
+        });
+      } else {
+        proviers.push({
+          id: localProvider.id,
+          name: localProvider.name,
+          type: localProvider.type,
+          models: [],
+          tags: localProvider.tags,
+          isActive: true,
+        });
+      }
     }
     return proviers;
   }
@@ -497,6 +568,8 @@ class ProvidersManager extends BaseManager {
         return new BraveSearchProvider(provider);
       case ProviderType.TAVILY:
         return new TavilyProvider(provider);
+      case ProviderType.SERPAPI:
+        return new SerpapiProvider(provider);
     }
   }
 
