@@ -17,6 +17,17 @@ export type AudioLoaderOptions = {
   outputType?: 'asr' | 'txt';
 };
 
+export type TTSOptions = {
+  text: string;
+  language?: string;
+  voice?: string;
+  instruct?: string;
+  ref_audio?: string;
+  ref_text?: string;
+  model?: string;
+  outputPath: string;
+};
+
 interface PythonClientOptions {
   command: string;
   args: string[];
@@ -124,7 +135,7 @@ export async function destroyQwenAsrService(): Promise<void> {
 
 async function ensureRuntimeFile(runtimeDir: string): Promise<string> {
   const runtimeFile = path.join(runtimeDir, 'main.py');
-  const assetRuntimeFile = getAssetPath('runtime', 'qwen-asr', 'main.py');
+  const assetRuntimeFile = getAssetPath('runtime', 'qwen-audio', 'main.py');
 
   await fs.promises.mkdir(runtimeDir, { recursive: true });
   if (!fs.existsSync(runtimeFile)) {
@@ -144,15 +155,25 @@ async function ensureRuntimeFile(runtimeDir: string): Promise<string> {
   return runtimeFile;
 }
 
-async function getQwenAsrPythonService(): Promise<{
+export type QwenAudioService = {
   transcribe: (
     buffer: Buffer,
     options?: AudioLoaderOptions & {
       ext?: string;
     },
   ) => Promise<{ text: string; result: any }>;
+  synthesize: (
+    options: TTSOptions,
+  ) => Promise<{
+    outputPath: string;
+    sampleRate: number;
+    duration: number;
+    model: string;
+  }>;
   ping: () => Promise<any>;
-}> {
+};
+
+export async function getQwenAsrPythonService(): Promise<QwenAudioService> {
   if (qwenAsrService) {
     return qwenAsrService;
   }
@@ -237,6 +258,33 @@ async function getQwenAsrPythonService(): Promise<{
             await fs.promises.rm(audioPath);
           }
         }
+      },
+      synthesize: async (
+        options: TTSOptions,
+      ): Promise<{
+        outputPath: string;
+        sampleRate: number;
+        duration: number;
+        model: string;
+      }> => {
+        const response = await pythonClient!.call('tts', {
+          text: options.text,
+          language: options.language ?? 'English',
+          voice: options.voice ?? undefined,
+          instruct: options.instruct ?? undefined,
+          ref_audio: options.ref_audio ?? undefined,
+          ref_text: options.ref_text ?? undefined,
+          model: options.model ?? undefined,
+          output_path: options.outputPath,
+        });
+
+        const result = response.result || {};
+        return {
+          outputPath: result.output_path || options.outputPath,
+          sampleRate: result.sample_rate || 24000,
+          duration: result.duration || 0,
+          model: result.model || '',
+        };
       },
       ping: async () => {
         const response = await pythonClient!.call('ping', {});

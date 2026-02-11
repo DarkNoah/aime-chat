@@ -44,6 +44,7 @@ import { Extract } from './work/extract';
 import { GenerateImage } from './image/generate-image';
 import { EditImage } from './image/edit-image';
 import { Translation } from './work/translation';
+import { AudioToolkit } from './audio';
 import { runCommand } from '../utils/shell';
 import os from 'os';
 import matter from 'gray-matter';
@@ -176,6 +177,7 @@ class ToolsManager extends BaseManager {
     await this.registerBuiltInTool(MemoryToolkit);
     await this.registerBuiltInTool(Extract);
     await this.registerBuiltInTool(Translation);
+    await this.registerBuiltInTool(AudioToolkit);
 
     if (!app.isPackaged) {
       await this.registerBuiltInTool(ExpenseManagementToolkit);

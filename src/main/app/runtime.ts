@@ -523,7 +523,7 @@ export async function getSTTRuntime(refresh = false) {
     const sttDir = path.join(
       app.getPath('userData'),
       '.runtime',
-      'qwen-asr-runtime',
+      'qwen-audio-runtime',
     );
     if (!fs.existsSync(sttDir)) {
       stt.status = 'not_installed';
@@ -540,7 +540,7 @@ export async function getSTTRuntime(refresh = false) {
     const uvPreCommand = isWindows ? 'uv.exe' : './uv';
 
     const result2 = await runCommand(
-      `${uvPreCommand} --project "${sttDir}" run python -c "from importlib import metadata; print(metadata.version('qwen-asr'))"`,
+      `${uvPreCommand} --project "${sttDir}" run python -c "from importlib import metadata; print(metadata.version('${isWindows ? 'qwen-asr' : 'mlx-audio'}'))"`,
       {
         cwd: uvRuntime?.dir,
         timeout: 1000 * 30,
@@ -581,7 +581,7 @@ export async function installSTTRuntime() {
   const qwenasrDir = path.join(
     app.getPath('userData'),
     '.runtime',
-    'qwen-asr-runtime',
+    'qwen-audio-runtime',
   );
   stt.status = 'installing';
 
@@ -647,7 +647,7 @@ export async function installSTTRuntime() {
         stt.installed = true;
         stt.path = qwenasrDir;
         stt.dir = qwenasrDir;
-        stt.version = result2.stdout.trim().split(' ')[1];
+        stt.version = result2.stdout.trim();
         return stt;
       } else {
         stt.status = 'not_installed';
@@ -677,7 +677,7 @@ export async function installSTTRuntime() {
         stt.installed = true;
         stt.path = qwenasrDir;
         stt.dir = qwenasrDir;
-        stt.version = result2.stdout.trim().split(' ')[1];
+        stt.version = result2.stdout.trim();
         return stt;
       } else {
         stt.status = 'not_installed';
@@ -702,7 +702,7 @@ export async function uninstallSTTRuntime() {
   const qwenAsrDir = path.join(
     app.getPath('userData'),
     '.runtime',
-    'qwen-asr-runtime',
+    'qwen-audio-runtime',
   );
   if (fs.existsSync(qwenAsrDir)) {
     await fs.promises.rm(qwenAsrDir, { recursive: true });

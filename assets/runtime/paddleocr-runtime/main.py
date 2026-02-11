@@ -152,14 +152,14 @@ def get_pipeline(device: str, mode: str ) -> Any:
         # Recreate pipeline when first time or device changed
         # You can add other args here: lang="en", use_doc_orientation_classify=True, etc.
 
-        if mode == "default" or mode == "paddleocr-vl":
+        if  mode == "paddleocr-vl":
             print("Using PaddleOCRVL...")
             if sys.platform == "darwin":
                 # On macOS, use CPU only for now
                 _pipeline = create_mlx_vlm_pipeline()
             else:
                 _pipeline = PaddleOCRVL(device="gpu" if hasGPU else device)
-        elif mode == "pp-structurev3":
+        elif mode == "default" or mode == "pp-structurev3":
             print("Using PPStructureV3...")
             _pipeline = PPStructureV3(device="gpu" if hasGPU else device)
         else:

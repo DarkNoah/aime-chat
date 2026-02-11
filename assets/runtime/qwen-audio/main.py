@@ -2,11 +2,14 @@
 # -*- coding: utf-8 -*-
 
 """
-Qwen3-ASR persistent service (stdin/stdout JSON protocol)
+Qwen3 Audio persistent service (stdin/stdout JSON protocol)
 
-Request (one JSON per line):
+Supports both ASR (speech-to-text) and TTS (text-to-speech).
+
+--- ASR ---
+Request:
 {"id":"uuid","method":"predict","params":{
-  "audio_path":"C:/Users/Administrator/Downloads/asr_zh.wav",
+  "audio_path":"...",
   "model":"Qwen/Qwen3-ASR-1.7B",
   "backend":"transformers|mlx-audio",
   "device":"cuda:0",
@@ -14,9 +17,22 @@ Request (one JSON per line):
   "language": null,
   "return_time_stamps": false
 }}
-
-Response (one JSON per line):
+Response:
 {"id":"...","ok":true,"result":{"text":"...","items":[...]}}
+
+--- TTS ---
+Request:
+{"id":"uuid","method":"tts","params":{
+  "text":"Hello world",
+  "language":"English",
+  "voice":"Chelsie",
+  "instruct":null,
+  "ref_audio":null,
+  "ref_text":null,
+  "output_path":"/tmp/output.wav"
+}}
+Response:
+{"id":"...","ok":true,"result":{"output_path":"...","sample_rate":24000,"duration":1.5}}
 """
 
 import json
@@ -59,6 +75,36 @@ DEFAULT_MLX_ALIGNER_MODEL = os.environ.get(
 
 DEFAULT_MODEL = os.environ.get(
     "QWEN_ASR_MODEL", DEFAULT_MLX_MODEL if IS_DARWIN else DEFAULT_QWEN_MODEL
+)
+
+# TTS model defaults (see: https://github.com/Blaizzy/mlx-audio/tree/main/mlx_audio/tts/models/qwen3_tts)
+#
+# Available models and their capabilities:
+#   Base models (generate): predefined voices + voice cloning via ref_audio/ref_text
+#     - mlx-community/Qwen3-TTS-12Hz-0.6B-Base-bf16         (fast)
+#     - mlx-community/Qwen3-TTS-12Hz-1.7B-Base-bf16         (higher quality)
+#   CustomVoice models (generate_custom_voice): predefined voices + emotion/style via instruct
+#     - mlx-community/Qwen3-TTS-12Hz-0.6B-CustomVoice-bf16  (fast)
+#     - mlx-community/Qwen3-TTS-12Hz-1.7B-CustomVoice-bf16  (better emotion control)
+#   VoiceDesign model (generate_voice_design): create any voice from text description
+#     - mlx-community/Qwen3-TTS-12Hz-1.7B-VoiceDesign-bf16
+#
+# Speakers (Base/CustomVoice):
+#   Chinese: Vivian, Serena, Uncle_Fu, Dylan (Beijing Dialect), Eric (Sichuan Dialect)
+#   English: Ryan, Aiden
+#
+# The unified model.generate() API auto-routes based on tts_model_type in config.
+
+DEFAULT_MLX_TTS_MODEL = os.environ.get(
+    "QWEN_TTS_MLX_MODEL", "mlx-community/Qwen3-TTS-12Hz-1.7B-Base-bf16"
+)
+DEFAULT_MLX_TTS_VOICEDESIGN_MODEL = os.environ.get(
+    "QWEN_TTS_MLX_VOICEDESIGN_MODEL",
+    "mlx-community/Qwen3-TTS-12Hz-1.7B-VoiceDesign-bf16",
+)
+DEFAULT_MLX_TTS_CUSTOM_MODEL = os.environ.get(
+    "QWEN_TTS_MLX_CUSTOM_MODEL",
+    "mlx-community/Qwen3-TTS-12Hz-1.7B-CustomVoice-bf16",
 )
 
 
@@ -300,6 +346,118 @@ def get_mlx_models(model_name: str, aligner_model_name: str) -> Tuple[Any, Any]:
         _mlx_aligner_model = load_stt_model(aligner_model_name)
         _mlx_model_key = key
         return _mlx_asr_model, _mlx_aligner_model
+
+
+# ---------- MLX TTS model management ----------
+_mlx_tts_model = None
+_mlx_tts_model_key: Optional[str] = None
+_mlx_tts_model_lock = threading.Lock()
+
+
+def _get_sample_rate(result: Any, model: Any) -> int:
+    """Best-effort sampling rate inference."""
+    for attr in ("sample_rate", "sr", "sampling_rate"):
+        if hasattr(result, attr):
+            return int(getattr(result, attr))
+    for attr in ("sample_rate", "sr", "sampling_rate"):
+        if hasattr(model, attr):
+            return int(getattr(model, attr))
+    return 24000
+
+
+def get_mlx_tts_model(model_name: str) -> Any:
+    global _mlx_tts_model, _mlx_tts_model_key
+
+    model_name = (model_name or DEFAULT_MLX_TTS_MODEL).strip()
+    key = model_name
+
+    with _mlx_tts_model_lock:
+        if _mlx_tts_model is not None and _mlx_tts_model_key == key:
+            return _mlx_tts_model
+
+        _ensure_mlx_audio()
+        from mlx_audio.tts.utils import load_model as load_tts_model  # type: ignore
+
+        _mlx_tts_model = load_tts_model(model_name)
+        _mlx_tts_model_key = key
+        return _mlx_tts_model
+
+
+def _run_mlx_tts(
+    text: str,
+    language: str,
+    output_path: str,
+    model_name: Optional[str] = None,
+    voice: Optional[str] = None,
+    instruct: Optional[str] = None,
+    ref_audio: Optional[str] = None,
+    ref_text: Optional[str] = None,
+) -> Dict[str, Any]:
+    import soundfile as sf  # type: ignore
+    import numpy as np  # type: ignore
+
+    lang = language.lower() if language else "auto"
+
+    # Routing logic:
+    #   1. voice (speaker) provided → CustomVoice model, generate_custom_voice()
+    #   2. instruct without voice  → VoiceDesign model, generate_voice_design()
+    #   3. ref_audio + ref_text    → Base model, generate() (ICL voice cloning)
+    #   4. otherwise               → Base model, generate() (default voice)
+
+    if voice:
+        # ── CustomVoice: speaker + optional emotion/style instruct ──
+        effective_model = model_name or DEFAULT_MLX_TTS_CUSTOM_MODEL
+        model = get_mlx_tts_model(effective_model)
+        kwargs: Dict[str, Any] = {
+            "text": text,
+            "speaker": voice,
+            "language": lang,
+        }
+        if instruct:
+            kwargs["instruct"] = instruct
+        results = list(model.generate_custom_voice(**kwargs))
+
+    elif instruct:
+        # ── VoiceDesign: create any voice from text description ──
+        effective_model = model_name or DEFAULT_MLX_TTS_VOICEDESIGN_MODEL
+        model = get_mlx_tts_model(effective_model)
+        results = list(model.generate_voice_design(
+            text=text,
+            language=lang,
+            instruct=instruct,
+        ))
+
+    else:
+        # ── Base model: predefined voice or voice cloning ──
+        effective_model = model_name or DEFAULT_MLX_TTS_MODEL
+        model = get_mlx_tts_model(effective_model)
+        kwargs = {
+            "text": text,
+            "lang_code": lang,
+        }
+        if ref_audio:
+            kwargs["ref_audio"] = ref_audio
+        if ref_text:
+            kwargs["ref_text"] = ref_text
+        results = list(model.generate(**kwargs))
+
+    if not results:
+        raise RuntimeError("TTS generation failed: no audio output returned")
+
+    result = results[0]
+    sample_rate = _get_sample_rate(result, model)
+    audio = result.audio
+    audio_np = np.array(audio, dtype=np.float32)
+    duration = float(len(audio_np)) / float(sample_rate) if sample_rate else 0.0
+
+    sf.write(output_path, audio_np, sample_rate)
+
+    return {
+        "output_path": output_path,
+        "sample_rate": sample_rate,
+        "duration": duration,
+        "model": effective_model,
+    }
 
 
 # ---------- Helpers ----------
@@ -687,13 +845,17 @@ def method_ping(_params: Dict[str, Any]) -> Dict[str, Any]:
         "ts": time.time(),
         "platform": sys.platform,
         "loaded": (_model is not None) or (_mlx_asr_model is not None),
+        "tts_loaded": _mlx_tts_model is not None,
         "model_key": _model_key if _model_key is not None else _mlx_model_key,
+        "tts_model_key": _mlx_tts_model_key,
         "default_model": DEFAULT_MODEL,
         "default_backend": DEFAULT_BACKEND,
         "default_device": DEFAULT_DEVICE,
         "default_dtype": DEFAULT_DTYPE,
         "default_qwen_aligner_model": DEFAULT_QWEN_ALIGNER_MODEL,
         "default_mlx_aligner_model": DEFAULT_MLX_ALIGNER_MODEL,
+        "default_tts_model": DEFAULT_MLX_TTS_MODEL,
+        "default_tts_voicedesign_model": DEFAULT_MLX_TTS_VOICEDESIGN_MODEL,
     }
 
 
@@ -834,6 +996,38 @@ def method_predict(params: Dict[str, Any]) -> Dict[str, Any]:
     return _predict_qwen(params, backend=backend)
 
 
+def method_tts(params: Dict[str, Any]) -> Dict[str, Any]:
+    text = params.get("text")
+    if not text:
+        raise ValueError("params.text is required for TTS")
+
+    output_path = params.get("output_path")
+    if not output_path:
+        raise ValueError("params.output_path is required for TTS")
+
+    language = params.get("language", "English")
+    model_name = params.get("model")
+    voice = params.get("voice")
+    instruct = params.get("instruct")
+    ref_audio = params.get("ref_audio")
+    ref_text = params.get("ref_text")
+
+    # Validate ref_audio exists if provided
+    if ref_audio and not os.path.exists(ref_audio):
+        raise FileNotFoundError(f"reference audio not found: {ref_audio}")
+
+    return _run_mlx_tts(
+        text=text,
+        language=language,
+        output_path=output_path,
+        model_name=model_name,
+        voice=voice,
+        instruct=instruct,
+        ref_audio=ref_audio,
+        ref_text=ref_text,
+    )
+
+
 # ---------- Main loop ----------
 def handle_request(req: Dict[str, Any]) -> Dict[str, Any]:
     method = req.get("method")
@@ -843,6 +1037,8 @@ def handle_request(req: Dict[str, Any]) -> Dict[str, Any]:
         return method_ping(params)
     if method == "predict":
         return method_predict(params)
+    if method == "tts":
+        return method_tts(params)
 
     raise ValueError(f"unknown method: {method}")
 
