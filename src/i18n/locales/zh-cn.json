@@ -225,5 +225,14 @@
       "tip_agents": "在助手页面探索预置助手或创建自己的助手。",
       "start_chatting": "开始对话"
     }
+  },
+  "update": {
+    "checking": "检查中...",
+    "installNow": "立即安装",
+    "retry": "重试",
+    "checkUpdate": "检查更新",
+    "upToDate": "已是最新版本",
+    "downloading": "下载中...",
+    "downloadNew": "下载新版本"
   }
 }

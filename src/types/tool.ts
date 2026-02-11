@@ -160,7 +160,7 @@ export const ToolConfig = {
     }),
     uiSchema: {
       modelName: {
-        'ui:title': t('common.model_name'),
+        'ui:title': t('common.model'),
       },
     },
   },

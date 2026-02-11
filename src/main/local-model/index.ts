@@ -76,12 +76,15 @@ class LocalModelManager extends BaseManager {
 
     const modelPath = path.join(appInfo.modelPath, data.type, modelName);
     const isWindows = process.platform === 'win32';
-    const preCommand = isWindows ? 'uvx.exe' : './uvx';
+    const preCommand = isWindows ? './uvx.exe' : './uvx';
+
+    fs.mkdirSync(modelPath, { recursive: true });
     if (data.source === 'modelscope') {
       const res = await runCommand(
-        `${preCommand} modelscope download --model ${modelInfo.repo} --local_dir "${modelPath}"`,
+        `${preCommand} --with "setuptools<81" modelscope download --model ${modelInfo.repo} --local_dir "${modelPath}"`,
         {
           cwd: uv.dir,
+          usePowerShell: isWindows,
         },
       );
       if (res.code !== 0) {
@@ -93,6 +96,7 @@ class LocalModelManager extends BaseManager {
         `${preCommand} hf download ${modelInfo.repo} --local-dir "${modelPath}"`,
         {
           cwd: uv.dir,
+          usePowerShell: isWindows,
         },
       );
       if (res.code !== 0) {

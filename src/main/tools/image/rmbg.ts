@@ -56,11 +56,24 @@ export class RemoveBackground extends BaseTool {
     // env.localModelPath = path.dirname(modelPath);
     // env.allowRemoteModels = false;
     // env.allowLocalModels = true;
+    let modelName = this.modelName;
+    if (!modelName) {
+      if (fs.existsSync(path.join(appInfo.modelPath, 'other', 'rmbg-1.4'))) {
+        modelName = 'rmbg-1.4';
+      } else if (
+        fs.existsSync(path.join(appInfo.modelPath, 'other', 'rmbg-2.0'))
+      ) {
+        modelName = 'rmbg-2.0';
+      }
+    }
+    if (!modelName) {
+      throw new Error('No background removal model available');
+    }
 
-    const modelPath = path.join(appInfo.modelPath, 'other', this.modelName);
+    const modelPath = path.join(appInfo.modelPath, 'other', modelName);
     const cacheEntry = await localModelManager.ensureModelLoaded(
       'background-removal',
-      this.modelName,
+      modelName,
       modelPath,
     );
     const { model, processor } = cacheEntry;
@@ -83,9 +96,9 @@ export class RemoveBackground extends BaseTool {
       const { pixel_values } = await processor(image);
 
       let output;
-      if (this.modelName == 'rmbg-1.4') {
+      if (modelName == 'rmbg-1.4') {
         output = (await model({ input: pixel_values })).output;
-      } else if (this.modelName == 'rmbg-2.0') {
+      } else if (modelName == 'rmbg-2.0') {
         output = (await model({ pixel_values })).alphas;
       }
 

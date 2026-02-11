@@ -44,12 +44,15 @@ import {
   getBunRuntime,
   getNodeRuntime,
   getPaddleOcrRuntime,
+  getSTTRuntime,
   getUVRuntime,
   installBunRuntime,
   installPaddleOcrRuntime,
+  installSTTRuntime,
   installUVRuntime,
   uninstallBunRuntime,
   uninstallPaddleOcrRuntime,
+  uninstallSTTRuntime,
   unInstallUVRuntime,
 } from './runtime';
 import { fstat } from 'fs';
@@ -77,6 +80,7 @@ import { ToolType } from '@/types/tool';
 import { Translation } from '../tools/work/translation';
 import { nanoid } from '@/utils/nanoid';
 import { HookAgent, HookProxyAgent } from './hook-agent';
+import { get } from 'core-js/core/dict';
 class AppManager extends BaseManager {
   repository: Repository<Providers>;
   settingsRepository: Repository<Settings>;
@@ -640,6 +644,8 @@ class AppManager extends BaseManager {
       await installPaddleOcrRuntime();
     } else if (pkg == 'bun') {
       await installBunRuntime();
+    } else if (pkg == 'stt') {
+      await installSTTRuntime();
     }
   }
 
@@ -651,6 +657,8 @@ class AppManager extends BaseManager {
       await uninstallPaddleOcrRuntime();
     } else if (pkg == 'bun') {
       await uninstallBunRuntime();
+    } else if (pkg == 'stt') {
+      await uninstallSTTRuntime();
     }
   }
 
@@ -660,11 +668,13 @@ class AppManager extends BaseManager {
     const bun = await getBunRuntime();
     const node = await getNodeRuntime();
     const paddleOcr = await getPaddleOcrRuntime();
+    const stt = await getSTTRuntime();
     return {
       uv: uv,
       bun: bun,
       node: node,
       paddleOcr: paddleOcr,
+      stt: stt,
     };
   }
 

@@ -225,5 +225,14 @@
       "tip_agents": "Explore pre-built agents or create your own in the Agents section.",
       "start_chatting": "Start Chatting"
     }
+  },
+  "update": {
+    "checking": "Checking...",
+    "installNow": "Install Now",
+    "retry": "Retry",
+    "checkUpdate": "Check Update",
+    "upToDate": "Up to Date",
+    "downloading": "Downloading...",
+    "downloadNew": "Download New"
   }
 }

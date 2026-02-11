@@ -158,7 +158,7 @@ class ToolsManager extends BaseManager {
 
   async registerBuiltInTools() {
     // this.registerBuiltInTool(PythonExecute);
-    await this.registerBuiltInTool(NodejsExecute);
+    // await this.registerBuiltInTool(NodejsExecute);
     await this.registerBuiltInTool(CodeExecution);
     await this.registerBuiltInTool(TodoWrite);
     await this.registerBuiltInTool(BashToolkit);
@@ -176,8 +176,9 @@ class ToolsManager extends BaseManager {
     await this.registerBuiltInTool(MemoryToolkit);
     await this.registerBuiltInTool(Extract);
     await this.registerBuiltInTool(Translation);
-    await this.registerBuiltInTool(ExpenseManagementToolkit);
+
     if (!app.isPackaged) {
+      await this.registerBuiltInTool(ExpenseManagementToolkit);
       await this.registerBuiltInTool(StreamTest);
     }
 

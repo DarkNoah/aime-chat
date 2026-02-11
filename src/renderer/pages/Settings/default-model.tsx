@@ -88,6 +88,21 @@ export default function DefaultModel() {
           />
         </ItemActions>
       </Item>
+      <Item variant="outline">
+        <ItemContent>
+          <ItemTitle>{t('settings.default_ocr')}</ItemTitle>
+          <ItemDescription></ItemDescription>
+        </ItemContent>
+        <ItemActions>
+          <Select
+            className="w-[200px] border"
+            value={appInfo?.defaultModel?.model}
+            onChange={(model) => {
+              onChangeDefaultModel(model, 'model');
+            }}
+          />
+        </ItemActions>
+      </Item>
     </div>
   );
 }

@@ -20,6 +20,9 @@ export class AppInfo {
     model: string;
     fastModel: string;
     visionModel: string;
+    ocrModel: string;
+    ttsModel: string;
+    sttModel: string;
   };
   proxy: AppProxy;
   apiServer: {
@@ -114,6 +117,13 @@ export interface RuntimeInfo {
     version?: string;
   };
   paddleOcr: {
+    status: 'installed' | 'not_installed' | 'installing';
+    installed: boolean;
+    path?: string;
+    dir?: string;
+    version?: string;
+  };
+  stt: {
     status: 'installed' | 'not_installed' | 'installing';
     installed: boolean;
     path?: string;
