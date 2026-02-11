@@ -44,15 +44,15 @@ import {
   getBunRuntime,
   getNodeRuntime,
   getPaddleOcrRuntime,
-  getSTTRuntime,
+  getQwenAudioRuntime,
   getUVRuntime,
   installBunRuntime,
   installPaddleOcrRuntime,
-  installSTTRuntime,
+  installQwenAudioRuntime,
   installUVRuntime,
   uninstallBunRuntime,
   uninstallPaddleOcrRuntime,
-  uninstallSTTRuntime,
+  uninstallQwenAudioRuntime,
   unInstallUVRuntime,
 } from './runtime';
 import { fstat } from 'fs';
@@ -644,8 +644,8 @@ class AppManager extends BaseManager {
       await installPaddleOcrRuntime();
     } else if (pkg == 'bun') {
       await installBunRuntime();
-    } else if (pkg == 'stt') {
-      await installSTTRuntime();
+    } else if (pkg == 'qwenAudio') {
+      await installQwenAudioRuntime();
     }
   }
 
@@ -657,8 +657,8 @@ class AppManager extends BaseManager {
       await uninstallPaddleOcrRuntime();
     } else if (pkg == 'bun') {
       await uninstallBunRuntime();
-    } else if (pkg == 'stt') {
-      await uninstallSTTRuntime();
+    } else if (pkg == 'qwenAudio') {
+      await uninstallQwenAudioRuntime();
     }
   }
 
@@ -668,13 +668,13 @@ class AppManager extends BaseManager {
     const bun = await getBunRuntime();
     const node = await getNodeRuntime();
     const paddleOcr = await getPaddleOcrRuntime();
-    const stt = await getSTTRuntime();
+    const qwenAudio = await getQwenAudioRuntime();
     return {
       uv: uv,
       bun: bun,
       node: node,
       paddleOcr: paddleOcr,
-      stt: stt,
+      qwenAudio: qwenAudio,
     };
   }
 

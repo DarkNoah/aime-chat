@@ -37,7 +37,7 @@ export const bun: RuntimeInfo['bun'] = {
   dir: undefined,
   version: undefined,
 };
-export const stt: RuntimeInfo['stt'] = {
+export const qwenAudio: RuntimeInfo['qwenAudio'] = {
   status: 'not_installed' as 'installed' | 'not_installed' | 'installing',
   installed: undefined,
   path: undefined,
@@ -504,21 +504,21 @@ export async function uninstallBunRuntime() {
   await getBunRuntime(true);
 }
 
-export async function getSTTRuntime(refresh = false) {
-  if (stt.status === 'installing' && refresh == false) {
-    return stt;
+export async function getQwenAudioRuntime(refresh = false) {
+  if (qwenAudio.status === 'installing' && refresh == false) {
+    return qwenAudio;
   }
   try {
     const uvRuntime = await getUVRuntime();
     if (uvRuntime.status !== 'installed') {
-      stt.status = 'not_installed';
-      stt.installed = false;
-      stt.path = undefined;
-      stt.dir = undefined;
-      stt.version = undefined;
-      return stt;
+      qwenAudio.status = 'not_installed';
+      qwenAudio.installed = false;
+      qwenAudio.path = undefined;
+      qwenAudio.dir = undefined;
+      qwenAudio.version = undefined;
+      return qwenAudio;
     }
-    console.log(stt);
+    console.log(qwenAudio);
 
     const sttDir = path.join(
       app.getPath('userData'),
@@ -526,15 +526,15 @@ export async function getSTTRuntime(refresh = false) {
       'qwen-audio-runtime',
     );
     if (!fs.existsSync(sttDir)) {
-      stt.status = 'not_installed';
-      stt.installed = false;
-      stt.path = undefined;
-      stt.dir = undefined;
-      stt.version = undefined;
-      return stt;
+      qwenAudio.status = 'not_installed';
+      qwenAudio.installed = false;
+      qwenAudio.path = undefined;
+      qwenAudio.dir = undefined;
+      qwenAudio.version = undefined;
+      return qwenAudio;
     }
-    if (stt.status === 'installed' && refresh == false) {
-      return stt;
+    if (qwenAudio.status === 'installed' && refresh == false) {
+      return qwenAudio;
     }
     const isWindows = process.platform === 'win32';
     const uvPreCommand = isWindows ? 'uv.exe' : './uv';
@@ -547,31 +547,24 @@ export async function getSTTRuntime(refresh = false) {
       },
     );
     if (result2.code === 0) {
-      stt.status = 'installed';
-      stt.installed = true;
-      stt.path = sttDir;
-      stt.dir = sttDir;
-      stt.version = result2.stdout.trim();
-      return stt;
-    } else {
-      stt.status = 'not_installed';
-      stt.installed = false;
-      stt.path = undefined;
-      stt.dir = undefined;
-      stt.version = undefined;
-      return stt;
+      qwenAudio.status = 'installed';
+      qwenAudio.installed = true;
+      qwenAudio.path = sttDir;
+      qwenAudio.dir = sttDir;
+      qwenAudio.version = result2.stdout.trim();
+      return qwenAudio;
     }
   } catch (e) {
-    stt.status = 'not_installed';
-    stt.installed = false;
-    stt.path = undefined;
-    stt.dir = undefined;
-    stt.version = undefined;
-    return stt;
+    qwenAudio.status = 'not_installed';
+    qwenAudio.installed = false;
+    qwenAudio.path = undefined;
+    qwenAudio.dir = undefined;
+    qwenAudio.version = undefined;
+    return qwenAudio;
   }
 }
 
-export async function installSTTRuntime() {
+export async function installQwenAudioRuntime() {
   const uvRuntime = await getUVRuntime();
   if (uvRuntime.status !== 'installed') {
     throw new Error('UV runtime is not installed');
@@ -583,7 +576,7 @@ export async function installSTTRuntime() {
     '.runtime',
     'qwen-audio-runtime',
   );
-  stt.status = 'installing';
+  qwenAudio.status = 'installing';
 
   try {
     if (fs.existsSync(qwenasrDir)) {
@@ -604,12 +597,12 @@ export async function installSTTRuntime() {
       !resultInit.output.includes('Initialized project')
     ) {
       // throw new Error('Failed to initialize PaddleOCR project');
-      stt.status = 'not_installed';
-      stt.installed = false;
-      stt.path = undefined;
-      stt.dir = undefined;
-      stt.version = undefined;
-      return stt;
+      qwenAudio.status = 'not_installed';
+      qwenAudio.installed = false;
+      qwenAudio.path = undefined;
+      qwenAudio.dir = undefined;
+      qwenAudio.version = undefined;
+      return qwenAudio;
     }
 
     const activateSourcePython = isWindows
@@ -643,19 +636,19 @@ export async function installSTTRuntime() {
           },
         );
 
-        stt.status = 'installed';
-        stt.installed = true;
-        stt.path = qwenasrDir;
-        stt.dir = qwenasrDir;
-        stt.version = result2.stdout.trim();
-        return stt;
+        qwenAudio.status = 'installed';
+        qwenAudio.installed = true;
+        qwenAudio.path = qwenasrDir;
+        qwenAudio.dir = qwenasrDir;
+        qwenAudio.version = result2.stdout.trim();
+        return qwenAudio;
       } else {
-        stt.status = 'not_installed';
-        stt.installed = false;
-        stt.path = undefined;
-        stt.dir = undefined;
-        stt.version = undefined;
-        return stt;
+        qwenAudio.status = 'not_installed';
+        qwenAudio.installed = false;
+        qwenAudio.path = undefined;
+        qwenAudio.dir = undefined;
+        qwenAudio.version = undefined;
+        return qwenAudio;
       }
     } else {
       const result_install_qwenasr = await runCommand(
@@ -673,32 +666,32 @@ export async function installSTTRuntime() {
           },
         );
 
-        stt.status = 'installed';
-        stt.installed = true;
-        stt.path = qwenasrDir;
-        stt.dir = qwenasrDir;
-        stt.version = result2.stdout.trim();
-        return stt;
+        qwenAudio.status = 'installed';
+        qwenAudio.installed = true;
+        qwenAudio.path = qwenasrDir;
+        qwenAudio.dir = qwenasrDir;
+        qwenAudio.version = result2.stdout.trim();
+        return qwenAudio;
       } else {
-        stt.status = 'not_installed';
-        stt.installed = false;
-        stt.path = undefined;
-        stt.dir = undefined;
-        stt.version = undefined;
-        return stt;
+        qwenAudio.status = 'not_installed';
+        qwenAudio.installed = false;
+        qwenAudio.path = undefined;
+        qwenAudio.dir = undefined;
+        qwenAudio.version = undefined;
+        return qwenAudio;
       }
     }
   } catch {
-    stt.status = 'not_installed';
-    stt.installed = false;
-    stt.path = undefined;
-    stt.dir = undefined;
-    stt.version = undefined;
-    return stt;
+    qwenAudio.status = 'not_installed';
+    qwenAudio.installed = false;
+    qwenAudio.path = undefined;
+    qwenAudio.dir = undefined;
+    qwenAudio.version = undefined;
+    return qwenAudio;
   }
 }
 
-export async function uninstallSTTRuntime() {
+export async function uninstallQwenAudioRuntime() {
   const qwenAsrDir = path.join(
     app.getPath('userData'),
     '.runtime',
@@ -707,9 +700,9 @@ export async function uninstallSTTRuntime() {
   if (fs.existsSync(qwenAsrDir)) {
     await fs.promises.rm(qwenAsrDir, { recursive: true });
   }
-  stt.status = 'not_installed';
-  stt.installed = false;
-  stt.path = undefined;
-  stt.dir = undefined;
-  stt.version = undefined;
+  qwenAudio.status = 'not_installed';
+  qwenAudio.installed = false;
+  qwenAudio.path = undefined;
+  qwenAudio.dir = undefined;
+  qwenAudio.version = undefined;
 }

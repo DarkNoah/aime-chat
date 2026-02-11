@@ -3,6 +3,7 @@
 import { Agent } from '@/types/agent';
 import {
   AppProxy,
+  RuntimeInfo,
   ScreenCaptureOptions,
   ScreenCaptureResult,
   ScreenSource,
@@ -109,7 +110,8 @@ const electronHandler = {
       ipcRenderer.invoke(AppChannel.InstasllRumtime, pkg),
     uninstallRuntime: (pkg: string) =>
       ipcRenderer.invoke(AppChannel.UninstallRumtime, pkg),
-    getRuntimeInfo: () => ipcRenderer.invoke(AppChannel.GetRuntimeInfo),
+    getRuntimeInfo: (): Promise<RuntimeInfo> =>
+      ipcRenderer.invoke(AppChannel.GetRuntimeInfo),
     setApiServerPort: (port: number) =>
       ipcRenderer.invoke(AppChannel.SetApiServerPort, port),
     toggleApiServerEnable: (enabled: boolean) =>

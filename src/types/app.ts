@@ -124,7 +124,7 @@ export interface RuntimeInfo {
     version?: string;
     mode: 'default' | 'pp-structurev3' | 'paddleocr-vl';
   };
-  stt: {
+  qwenAudio: {
     status: 'installed' | 'not_installed' | 'installing';
     installed: boolean;
     path?: string;

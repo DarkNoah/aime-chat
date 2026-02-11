@@ -27,13 +27,14 @@ import { IconFolder, IconLoader2 } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
+import { RuntimeInfo } from '@/types/app';
 
 function Runtime() {
   const { appInfo, getAppInfo } = useGlobal();
   const { setTitle } = useHeader();
   const { t } = useTranslation();
   setTitle(t('runtime'));
-  const [runtimeInfo, setRuntimeInfo] = useState<any>(null);
+  const [runtimeInfo, setRuntimeInfo] = useState<RuntimeInfo>(null);
   const [loading, setLoading] = useState(false);
   const getRuntimeInfo = async () => {
     const data = await window.electron.app.getRuntimeInfo();
@@ -229,39 +230,41 @@ function Runtime() {
       <Item variant="outline">
         <ItemContent className="min-w-0">
           <ItemTitle>
-            STT{' '}
-            {runtimeInfo?.stt?.version && (
-              <Badge>{runtimeInfo?.stt?.version}</Badge>
+            QwenAudio{' '}
+            {runtimeInfo?.qwenAudio?.version && (
+              <Badge>{runtimeInfo?.qwenAudio?.version}</Badge>
             )}
           </ItemTitle>
-          {runtimeInfo?.stt?.path && (
+          {runtimeInfo?.qwenAudio?.path && (
             <ItemDescription>
               <Button
                 variant="link"
                 size="sm"
                 onClick={() =>
-                  window.electron.app.openPath(runtimeInfo?.stt?.path)
+                  window.electron.app.openPath(runtimeInfo?.qwenAudio?.path)
                 }
               >
                 <IconFolder />
-                <span className="truncate">{runtimeInfo?.stt?.path}</span>
+                <span className="truncate">{runtimeInfo?.qwenAudio?.path}</span>
               </Button>
             </ItemDescription>
           )}
         </ItemContent>
         <ItemActions>
-          {runtimeInfo?.stt?.status === 'not_installed' && (
-            <Button onClick={() => handleInstallRuntime('stt')}>Install</Button>
+          {runtimeInfo?.qwenAudio?.status === 'not_installed' && (
+            <Button onClick={() => handleInstallRuntime('qwenAudio')}>
+              Install
+            </Button>
           )}
-          {runtimeInfo?.stt?.status === 'installed' && (
+          {runtimeInfo?.qwenAudio?.status === 'installed' && (
             <Button
-              onClick={() => handleUninstallRuntime('stt')}
+              onClick={() => handleUninstallRuntime('qwenAudio')}
               variant="destructive"
             >
               Uninstall
             </Button>
           )}
-          {runtimeInfo?.stt?.status === 'installing' && (
+          {runtimeInfo?.qwenAudio?.status === 'installing' && (
             <Button disabled>
               <Spinner />
               Installing...
