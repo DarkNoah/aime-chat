@@ -345,16 +345,17 @@ function Providers() {
                   checked={(p as any).isActive as boolean}
                   onCheckedChange={(v) => toggleActive(p.id, !!v)}
                 />
-                {p.hasChatModel && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => openModels(p)}
-                  >
-                    <Package />
-                    {t('common.model')}
-                  </Button>
-                )}
+
+                <Button
+                  className="cursor-pointer"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => openModels(p)}
+                  disabled={p.hasChatModel === false}
+                >
+                  <Package />
+                  {t('common.model')}
+                </Button>
 
                 <Button variant="outline" size="sm" onClick={() => openEdit(p)}>
                   <Edit></Edit>

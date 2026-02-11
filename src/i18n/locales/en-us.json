@@ -210,7 +210,7 @@
       "title": "Install Runtime",
       "description": "Install optional runtimes to enable advanced features like MCP servers and code execution.",
       "uv_desc": "Python package manager for running MCP servers and Python tools.",
-      "node_desc": "JavaScript runtime for running Node.js-based MCP servers.",
+      "node_desc": "JavaScript runtime for running Bun-based MCP servers.",
       "installed": "Installed",
       "not_installed": "Not Installed",
       "install": "Install",

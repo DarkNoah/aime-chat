@@ -725,12 +725,16 @@ class AppManager extends BaseManager {
     const settings = await this.settingsRepository.find();
     const hasDefaultModel = !!settings.find((x) => x.id === 'defaultModel')
       ?.value?.model;
-    const runtimeInfo = await this.getRuntimeInfo();
-    const hasRuntime =
-      runtimeInfo?.uv?.installed || runtimeInfo?.node?.installed;
+
     const setupCompleted = settings.find(
       (x) => x.id === 'setupCompleted',
     )?.value;
+    let hasRuntime;
+
+    if (!setupCompleted) {
+      const runtimeInfo = await this.getRuntimeInfo();
+      hasRuntime = runtimeInfo?.uv?.installed || runtimeInfo?.bun?.installed;
+    }
 
     return {
       needsSetup: !setupCompleted,

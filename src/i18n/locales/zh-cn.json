@@ -210,7 +210,7 @@
       "title": "安装运行环境",
       "description": "安装可选的运行环境以启用高级功能，如 MCP 服务器和代码执行。",
       "uv_desc": "Python 包管理器，用于运行 MCP 服务器和 Python 工具。",
-      "node_desc": "JavaScript 运行时，用于运行基于 Node.js 的 MCP 服务器。",
+      "node_desc": "JavaScript 运行时，用于运行基于 Bun 的 MCP 服务器。",
       "installed": "已安装",
       "not_installed": "未安装",
       "install": "安装",
