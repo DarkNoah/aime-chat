@@ -44,8 +44,12 @@ if hasattr(sys.stderr, "reconfigure"):
 
 # ---------- Config ----------
 IS_DARWIN = sys.platform == "darwin"
+IS_WINDOWS = sys.platform == "win32"
 
 DEFAULT_QWEN_MODEL = os.environ.get("QWEN_ASR_QWEN_MODEL", "Qwen/Qwen3-ASR-1.7B")
+DEFAULT_QWEN_ALIGNER_MODEL = os.environ.get(
+    "QWEN_ASR_QWEN_ALIGNER_MODEL", "Qwen/Qwen3-ForcedAligner-0.6B"
+)
 DEFAULT_MLX_MODEL = os.environ.get(
     "QWEN_ASR_MLX_MODEL", "mlx-community/Qwen3-ASR-1.7B-bf16"
 )
@@ -56,7 +60,26 @@ DEFAULT_MLX_ALIGNER_MODEL = os.environ.get(
 DEFAULT_MODEL = os.environ.get(
     "QWEN_ASR_MODEL", DEFAULT_MLX_MODEL if IS_DARWIN else DEFAULT_QWEN_MODEL
 )
-DEFAULT_DEVICE = os.environ.get("QWEN_ASR_DEVICE", "cpu")
+
+
+def _resolve_default_device() -> str:
+    configured = os.environ.get("QWEN_ASR_DEVICE")
+    if configured and configured.strip():
+        return configured.strip()
+
+    if IS_WINDOWS:
+        try:
+            import torch  # type: ignore
+
+            if torch.cuda.is_available():
+                return "cuda:0"
+        except Exception:
+            pass
+
+    return "cpu"
+
+
+DEFAULT_DEVICE = _resolve_default_device()
 DEFAULT_DTYPE = os.environ.get("QWEN_ASR_DTYPE", "float32")
 DEFAULT_BACKEND = os.environ.get(
     "QWEN_ASR_BACKEND", "mlx-audio" if IS_DARWIN else "transformers"
@@ -669,6 +692,7 @@ def method_ping(_params: Dict[str, Any]) -> Dict[str, Any]:
         "default_backend": DEFAULT_BACKEND,
         "default_device": DEFAULT_DEVICE,
         "default_dtype": DEFAULT_DTYPE,
+        "default_qwen_aligner_model": DEFAULT_QWEN_ALIGNER_MODEL,
         "default_mlx_aligner_model": DEFAULT_MLX_ALIGNER_MODEL,
     }
 
@@ -682,7 +706,11 @@ def _predict_qwen(params: Dict[str, Any], backend: str) -> Dict[str, Any]:
     dtype = params.get("dtype") or DEFAULT_DTYPE
     max_batch = int(params.get("max_inference_batch_size", DEFAULT_MAX_BATCH))
     max_new_tokens = int(params.get("max_new_tokens", DEFAULT_MAX_NEW_TOKENS))
-    forced_aligner = params.get("forced_aligner")
+    forced_aligner = (
+        params.get("aligner_model")
+        or params.get("forced_aligner")
+        or DEFAULT_QWEN_ALIGNER_MODEL
+    )
     forced_aligner_kwargs = _normalize_dtype_in_dict(
         params.get("forced_aligner_kwargs") or {}
     )
@@ -726,6 +754,7 @@ def _predict_qwen(params: Dict[str, Any], backend: str) -> Dict[str, Any]:
         "device": device,
         "dtype": dtype,
         "language": language,
+        "aligner_model": forced_aligner,
         "return_time_stamps": return_time_stamps,
         "count": len(items),
         "text": text,
@@ -840,7 +869,7 @@ def main() -> None:
                     dtype=DEFAULT_DTYPE,
                     max_batch=DEFAULT_MAX_BATCH,
                     max_new_tokens=DEFAULT_MAX_NEW_TOKENS,
-                    forced_aligner=None,
+                    forced_aligner=DEFAULT_QWEN_ALIGNER_MODEL,
                     forced_aligner_kwargs=None,
                 )
         except Exception:

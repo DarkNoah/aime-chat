@@ -218,7 +218,7 @@ async function getQwenAsrPythonService(): Promise<{
             device: options.device,
             dtype: options.dtype,
             language: options.language ?? null,
-            return_time_stamps: options.returnTimeStamps ?? false,
+            return_time_stamps: true,
             output_type: options.outputType ?? 'txt',
           });
 
