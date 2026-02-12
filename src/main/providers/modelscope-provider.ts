@@ -16,6 +16,10 @@ import {
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import { createZhipu } from 'zhipu-ai-provider';
 
+
+export type ModelScopeEmbeddingModelId = 'Qwen/Qwen3-Embedding-8B' | "Qwen/Qwen3-Embedding-0.6B" | (string & {});
+
+
 export class ModelScopeImageModel implements ImageModelV2 {
   specificationVersion: 'v2' = 'v2';
   provider: string = 'modelscope';
@@ -34,8 +38,8 @@ export class ModelScopeImageModel implements ImageModelV2 {
   maxImagesPerCall:
     | number
     | ((options: {
-        modelId: string;
-      }) => PromiseLike<number | undefined> | number | undefined) = 1;
+      modelId: string;
+    }) => PromiseLike<number | undefined> | number | undefined) = 1;
 
   private sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
@@ -166,6 +170,64 @@ export class ModelScopeImageModel implements ImageModelV2 {
   }
 }
 
+export class ModelScopeEmbeddingModel implements EmbeddingModelV2<string> {
+  readonly specificationVersion = 'v2';
+  readonly modelId: ModelScopeEmbeddingModelId;
+  readonly maxEmbeddingsPerCall = 2048;
+  readonly supportsParallelCalls = true;
+  readonly providerEntity: Providers;
+
+  get provider(): string {
+    return 'modelscope';
+  }
+
+  constructor(modelId: ModelScopeEmbeddingModelId, provider: Providers) {
+    this.modelId = modelId;
+    this.providerEntity = provider;
+  }
+
+  async doEmbed({
+    values,
+    headers,
+    abortSignal,
+    providerOptions,
+  }: Parameters<EmbeddingModelV2<string>['doEmbed']>[0]): Promise<
+    Awaited<ReturnType<EmbeddingModelV2<string>['doEmbed']>>
+  > {
+    let embeddings: Float32Array[] = [];
+
+    const res = await fetch('https://api-inference.modelscope.cn/v1/embeddings', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${this.providerEntity.apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: this.modelId,
+        input: values,
+        encoding_format: "float"
+      }),
+    });
+    // const text = await res.text();
+
+    const data = await res.json();
+
+
+    const array = [];
+    for (const item of data.data) {
+      const data = Array.from(item.embedding);
+      array.push(data);
+    }
+
+    return {
+      embeddings: array,
+      usage: {
+        tokens: data?.usage?.total_tokens ?? 0,
+      },
+    };
+  }
+}
+
 export class ModelScopeProvider extends BaseProvider {
   name: string = 'modelscope';
   type: ProviderType = ProviderType.MODELSCOPE;
@@ -203,7 +265,10 @@ export class ModelScopeProvider extends BaseProvider {
   }
 
   async getEmbeddingModelList(): Promise<{ name: string; id: string }[]> {
-    return [];
+    return [
+      { id: 'Qwen/Qwen3-Embedding-8B', name: 'Qwen3-Embedding-8B' },
+      { id: 'Qwen/Qwen3-Embedding-0.6B', name: 'Qwen3-Embedding-0.6B' },
+    ];
   }
 
   async getImageGenerationList(): Promise<{ name: string; id: string }[]> {
@@ -221,7 +286,7 @@ export class ModelScopeProvider extends BaseProvider {
     return undefined;
   }
   textEmbeddingModel(modelId: string): EmbeddingModelV2<string> {
-    return undefined;
+    return new ModelScopeEmbeddingModel(modelId, this.provider);
   }
   imageModel(modelId: string): ImageModelV2 {
     return new ModelScopeImageModel({ modelId, provider: this.provider });

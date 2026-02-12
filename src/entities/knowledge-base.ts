@@ -94,8 +94,8 @@ export class KnowledgeBaseItem {
   @Column()
   name!: string;
 
-  @Column({ nullable: true })
-  source?: string;
+  @Column('json', { nullable: true })
+  source?: any;
 
   @Column({ enum: KnowledgeBaseSourceType })
   sourceType?: string;

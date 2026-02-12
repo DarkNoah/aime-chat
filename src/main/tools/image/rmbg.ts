@@ -28,7 +28,7 @@ export class RemoveBackground extends BaseTool {
   id: string = 'RemoveBackground';
   description = 'remove background from image, output is a png image file';
   inputSchema = z.object({
-    url_or_file_path: z.string().describe('The url or path to the image file'),
+    file_path_or_url: z.string().describe('The url or path to the image file'),
     save_path: z
       .string()
       .optional()
@@ -48,7 +48,7 @@ export class RemoveBackground extends BaseTool {
     inputData: z.infer<typeof this.inputSchema>,
     options?: ToolExecutionContext,
   ) => {
-    const { url_or_file_path, save_path } = inputData;
+    const { file_path_or_url, save_path } = inputData;
     const { requestContext } = options;
     const abortSignal = options?.abortSignal as AbortSignal;
     const appInfo = await appManager.getInfo();
@@ -81,10 +81,10 @@ export class RemoveBackground extends BaseTool {
     try {
       let image = null;
       let file_path: string;
-      if (isUrl(url_or_file_path)) {
-        file_path = await downloadFile(url_or_file_path);
+      if (isUrl(file_path_or_url)) {
+        file_path = await downloadFile(file_path_or_url);
       } else {
-        file_path = url_or_file_path;
+        file_path = file_path_or_url;
       }
 
       if (fs.statSync(file_path).isFile()) {
@@ -132,7 +132,7 @@ export class RemoveBackground extends BaseTool {
         savePath = await saveFile(buffer, `${nanoid()}.png`, workspace);
       }
 
-      return `<file>${savePath}</file>`;
+      return `Remove background success, saved to :\n<file>${savePath}</file>`;
     } finally {
     }
   };

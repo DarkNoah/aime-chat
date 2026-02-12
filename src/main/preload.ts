@@ -13,6 +13,7 @@ import {
   DirectoryTreeNode,
   FileInfo,
   PaginationInfo,
+  PaginationParams,
   SearchInDirectoryParams,
   SearchInDirectoryResult,
 } from '@/types/common';
@@ -24,6 +25,8 @@ import {
   MastraChannel,
   ProjectChannel,
   ProviderChannel,
+  TaskQueueChannel,
+  InstancesChannel,
   ToolChannel,
 } from '@/types/ipc-channel';
 import {
@@ -40,6 +43,7 @@ import {
   ProviderTypeList,
   UpdateProvider,
 } from '@/types/provider';
+import { AddTaskOptions, BackgroundTask, TaskGroupConfig } from '@/types/task-queue';
 import { AvailableTool, ToolType } from '@/types/tool';
 import { UpdateState } from '@/types/app';
 import { MastraDBMessage, StorageThreadType } from '@mastra/core/memory';
@@ -52,6 +56,7 @@ import {
   OpenDialogReturnValue,
   webUtils,
 } from 'electron';
+import { KnowledgeBaseItem } from '@/entities/knowledge-base';
 
 // export type Channels = 'ipc-example';
 
@@ -249,6 +254,9 @@ const electronHandler = {
       source: string;
       type: KnowledgeBaseSourceType;
     }) => ipcRenderer.invoke(KnowledgeBaseChannel.ImportSource, data),
+    getKnowledgeBaseItems: (id: string, params: PaginationParams): Promise<PaginationInfo<KnowledgeBaseItem>> => ipcRenderer.invoke(KnowledgeBaseChannel.GetKnowledgeBaseItems, id, params),
+    searchKnowledgeBase: (kbId: string, query: string) => ipcRenderer.invoke(KnowledgeBaseChannel.SearchKnowledgeBase, kbId, query),
+    deleteKnowledgeBaseItem: (id: string) => ipcRenderer.invoke(KnowledgeBaseChannel.DeleteKnowledgeBaseItem, id),
   },
   tools: {
     deleteTool: (id: string) => ipcRenderer.invoke(ToolChannel.DeleteTool, id),
@@ -320,6 +328,44 @@ const electronHandler = {
       ipcRenderer.invoke(ProjectChannel.CreateThread, options),
     deleteSkill: (projectId: string, skillId: string) =>
       ipcRenderer.invoke(ProjectChannel.DeleteSkill, projectId, skillId),
+  },
+  taskQueue: {
+    add: (options: AddTaskOptions): Promise<string> =>
+      ipcRenderer.invoke(TaskQueueChannel.Add, options),
+    pause: (taskId: string): Promise<void> =>
+      ipcRenderer.invoke(TaskQueueChannel.Pause, taskId),
+    resume: (taskId: string): Promise<void> =>
+      ipcRenderer.invoke(TaskQueueChannel.Resume, taskId),
+    cancel: (taskId: string): Promise<void> =>
+      ipcRenderer.invoke(TaskQueueChannel.Cancel, taskId),
+    remove: (taskId: string): Promise<void> =>
+      ipcRenderer.invoke(TaskQueueChannel.Remove, taskId),
+    getAll: (): Promise<BackgroundTask[]> =>
+      ipcRenderer.invoke(TaskQueueChannel.GetAll),
+    getByGroup: (groupId: string): Promise<BackgroundTask[]> =>
+      ipcRenderer.invoke(TaskQueueChannel.GetByGroup, groupId),
+    getGroupConfigs: (): Promise<TaskGroupConfig[]> =>
+      ipcRenderer.invoke(TaskQueueChannel.GetGroupConfigs),
+    setGroupConcurrency: (
+      groupId: string,
+      maxConcurrency: number,
+    ): Promise<void> =>
+      ipcRenderer.invoke(
+        TaskQueueChannel.SetGroupConcurrency,
+        groupId,
+        maxConcurrency,
+      ),
+    clearCompleted: (): Promise<void> =>
+      ipcRenderer.invoke(TaskQueueChannel.ClearCompleted),
+  },
+  instances: {
+    getInstances: () => ipcRenderer.invoke(InstancesChannel.GetInstances),
+    runInstance: (id: string) => ipcRenderer.invoke(InstancesChannel.RunInstance, id),
+    stopInstance: (id: string) => ipcRenderer.invoke(InstancesChannel.StopInstance, id),
+    updateInstance: (id: string, data: any) => ipcRenderer.invoke(InstancesChannel.UpdateInstance, id, data),
+    deleteInstance: (id: string) => ipcRenderer.invoke(InstancesChannel.DeleteInstance, id),
+    createInstance: (data: any) => ipcRenderer.invoke(InstancesChannel.CreateInstance, data),
+    getInstance: (id: string) => ipcRenderer.invoke(InstancesChannel.GetInstance, id),
   },
 };
 

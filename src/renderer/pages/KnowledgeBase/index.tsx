@@ -326,8 +326,13 @@ function KnowledgeBasePage() {
                       <ItemTitle className="line-clamp-1 w-auto">
                         {kb.name}
                       </ItemTitle>
+
+
+
                       {kb.description && (
-                        <ItemDescription>{kb.description}</ItemDescription>
+                        <ItemDescription>
+                          {kb.description}
+                        </ItemDescription>
                       )}
                     </ItemContent>
                     {/* <ItemDescription>
