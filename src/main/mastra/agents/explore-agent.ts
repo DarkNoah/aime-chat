@@ -22,6 +22,12 @@ import { Mastra } from '@mastra/core';
 import os from 'os';
 import fs from 'fs';
 import path from 'path';
+import {
+  TaskCreate,
+  TaskGet,
+  TaskList,
+  TaskUpdate,
+} from '@/main/tools/common/task';
 
 export class Explore extends BaseAgent {
   static readonly agentName = 'Explore';
@@ -82,7 +88,11 @@ Today's date: ${new Date().toISOString().split('T')[0]}
   isHidden = true;
   // model: string = 'openai/gpt-4o-mini';
   tools: string[] = [
-    `${ToolType.BUILD_IN}:${TodoWrite.toolName}`,
+    // `${ToolType.BUILD_IN}:${TodoWrite.toolName}`,
+    `${ToolType.BUILD_IN}:${TaskCreate.toolName}`,
+    `${ToolType.BUILD_IN}:${TaskGet.toolName}`,
+    `${ToolType.BUILD_IN}:${TaskList.toolName}`,
+    `${ToolType.BUILD_IN}:${TaskUpdate.toolName}`,
     `${ToolType.BUILD_IN}:${Bash.toolName}`,
     `${ToolType.BUILD_IN}:${Read.toolName}`,
     `${ToolType.BUILD_IN}:${Write.toolName}`,

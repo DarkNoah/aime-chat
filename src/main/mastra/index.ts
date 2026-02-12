@@ -48,6 +48,7 @@ import {
   ChatEvent,
   ChatInput,
   ChatRequestContext,
+  ChatTask,
   ChatThread,
   ChatTodo,
   DEFAULT_RESOURCE_ID,
@@ -92,6 +93,8 @@ import bashManager from '../tools/file-system/bash';
 import { DefaultAgent } from './agents/default-agent';
 import { Agents } from '@/entities/agents';
 import { Project } from '@/types/project';
+import { TodoWrite } from '../tools/common/todo-write';
+import { TaskCreate, TaskList } from '../tools/common/task';
 
 class MastraManager extends BaseManager {
   app: express.Application;
@@ -480,6 +483,8 @@ class MastraManager extends BaseManager {
       });
       const todos: ChatTodo[] =
         (currentThread.metadata?.todos as ChatTodo[]) || [];
+      const tasks: ChatTask[] =
+        (currentThread.metadata?.tasks as ChatTask[]) || [];
       const requestContext = new RequestContext<ChatRequestContext>();
       requestContext.set('model', model);
       requestContext.set('threadId', chatId);
@@ -491,6 +496,7 @@ class MastraManager extends BaseManager {
       requestContext.set('workspace', workspace);
       requestContext.set('think', think);
       requestContext.set('todos', todos);
+      requestContext.set('tasks', tasks);
       requestContext.set(
         'maxContextSize',
         modelInfo?.limit?.context ?? 64 * 1000,
@@ -941,17 +947,35 @@ class MastraManager extends BaseManager {
             createdAt: new Date(),
           } as MastraDBMessage;
           const todos = requestContext.get('todos');
-          if (todos) {
-            compressedDBMessage.content.parts.push({
-              type: 'text',
-              text: `<system-reminder>\nYour todo list has changed. DO NOT mention this explicitly to the user. Here are the latest contents of your todo list:\n\n${JSON.stringify(todos)}. Continue on with the tasks at hand if applicable.\n</system-reminder>`,
-            });
-          } else {
-            compressedDBMessage.content.parts.push({
-              type: 'text',
-              text: `<system-reminder>\nThis is a reminder that your todo list is currently empty. DO NOT mention this to the user explicitly because they are already aware. If you are working on tasks that would benefit from a todo list please use the TodoWrite tool to create one. If not, please feel free to ignore. Again do not mention this message to the user.\n</system-reminder>`,
-            });
+          const tasks = requestContext.get('tasks');
+          if (tools.includes(`${ToolType.BUILD_IN}:${TodoWrite.toolName}`)) {
+            if (todos && todos.length > 0) {
+              compressedDBMessage.content.parts.push({
+                type: 'text',
+                text: `<system-reminder>\nYour todo list has changed. DO NOT mention this explicitly to the user. Here are the latest contents of your todo list:\n\n${JSON.stringify(todos)}. Continue on with the tasks at hand if applicable.\n</system-reminder>`,
+              });
+            } else {
+              compressedDBMessage.content.parts.push({
+                type: 'text',
+                text: `<system-reminder>\nThis is a reminder that your todo list is currently empty. DO NOT mention this to the user explicitly because they are already aware. If you are working on tasks that would benefit from a todo list please use the TodoWrite tool to create one. If not, please feel free to ignore. Again do not mention this message to the user.\n</system-reminder>`,
+              });
+            }
+          } else if (
+            tools.includes(`${ToolType.BUILD_IN}:${TaskList.toolName}`)
+          ) {
+            if (tasks && tasks.length > 0) {
+              compressedDBMessage.content.parts.push({
+                type: 'text',
+                text: `<system-reminder>\nYour todo list has changed. DO NOT mention this explicitly to the user. Here are the latest contents of your todo list:\n\n${JSON.stringify(tasks)}. Continue on with the tasks at hand if applicable.\n</system-reminder>`,
+              });
+            } else {
+              compressedDBMessage.content.parts.push({
+                type: 'text',
+                text: `<system-reminder>\nThis is a reminder that your todo list is currently empty. DO NOT mention this to the user explicitly because they are already aware. If you are working on tasks that would benefit from a todo list please use the ${TaskCreate.toolName} tool to create one. If not, please feel free to ignore. Again do not mention this message to the user.\n</system-reminder>`,
+              });
+            }
           }
+
           input = [compressedDBMessage, ...keepMessages];
           if (_inputMessage) input.push(_inputMessage);
         }

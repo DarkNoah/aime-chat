@@ -15,6 +15,7 @@ import { SubAgentInfo } from '@/types/task';
 import { agentManager } from '@/main/mastra/agents';
 import { providersManager } from '@/main/providers';
 import { ChatTask, ChatTodo } from '@/types/chat';
+import BaseToolkit, { BaseToolkitParams } from '../base-toolkit';
 
 export interface TaskToolParams extends BaseToolParams {
   subAgents: SubAgentInfo[] | string[];
@@ -471,7 +472,7 @@ Returns a summary list of all tasks with:
     const tasks = (currentThread.metadata?.tasks as ChatTask[]) || [];
 
     if (tasks.length === 0) {
-      return 'No tasks found. Use TaskCreate to create new tasks.';
+      return 'No tasks found.';
     }
 
     return tasks
@@ -613,7 +614,7 @@ Set up task dependencies:
     let currentThread = await memoryStore.getThreadById({
       threadId: threadId,
     });
-    const tasks = (currentThread.metadata?.tasks as ChatTask[]) || [];
+    let tasks = (currentThread.metadata?.tasks as ChatTask[]) || [];
     const task = tasks.find((x) => x.taskId === taskId);
     if (!task) {
       return `Task #${taskId} not found`;
@@ -636,8 +637,8 @@ Set up task dependencies:
       updatedItems.push('activeForm');
     }
 
-    // metadata 采用合并策略，值为 null 则删除对应 key
     if (metadata) {
+      // metadata 采用合并策略，值为 null 则删除对应 key
       const existingMetadata = task.metadata || {};
       for (const [key, value] of Object.entries(metadata)) {
         if (value === null) {
@@ -671,6 +672,10 @@ Set up task dependencies:
       updatedItems.push('owner');
     }
 
+    if (tasks.length === tasks.filter((x) => x.status === 'completed').length) {
+      tasks = [];
+    }
+
     // 持久化更新后的任务列表到 thread metadata
     currentThread = await memoryStore.updateThread({
       id: threadId,
@@ -690,3 +695,23 @@ Set up task dependencies:
     return `Task #${taskId} updated successfully: ${updatedItems.join(', ')}`;
   };
 }
+
+export interface TodoToolkitParams extends BaseToolkitParams {}
+
+export class TodoToolkit extends BaseToolkit {
+  static readonly toolName = 'TodoToolkit';
+  id: string = 'TodoToolkit';
+
+  constructor(params?: TodoToolkitParams) {
+    super(
+      [new TaskCreate(), new TaskGet(), new TaskList(), new TaskUpdate()],
+      params,
+    );
+  }
+
+  getTools() {
+    return this.tools;
+  }
+}
+
+export default TodoToolkit;

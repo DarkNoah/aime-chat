@@ -178,6 +178,10 @@ export const ToolMessage = React.forwardRef<ToolMessageRef, ToolMessageProps>(
           return input?.url;
         case 'Extract':
           return input?.file_path_or_url;
+        case 'SpeechToText':
+          return input?.source;
+        case 'TextToSpeech':
+          return input?.text;
         default:
           return input?.description;
       }

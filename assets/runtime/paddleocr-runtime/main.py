@@ -31,8 +31,9 @@ import time
 import threading
 import signal
 import traceback
+import tempfile
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List
 
 # ---------- Config ----------
 DEFAULT_DEVICE = os.environ.get("PPSTRUCTURE_DEVICE", "cpu")  # "gpu" or "cpu"
@@ -80,16 +81,55 @@ class MlxVlmPipeline:
         # self._formatted_prompt = formatted_prompt
         self._generate = generate_fn
 
+    def _pdf_to_jpg_files(self, pdf_path: Path) -> List[str]:
+        import pypdfium2 as pdfium
+
+        pages_dir = Path(tempfile.mkdtemp(prefix=f"{pdf_path.stem}_pages_"))
+        pdf = pdfium.PdfDocument(str(pdf_path))
+        image_paths: List[str] = []
+
+        for page_index in range(len(pdf)):
+            page = pdf[page_index]
+            bitmap = page.render(scale=2)
+            pil_image = bitmap.to_pil()
+            image_path = pages_dir / f"{pdf_path.stem}_page_{page_index + 1:04d}.jpg"
+            pil_image.save(image_path, format="JPEG", quality=95)
+            image_paths.append(str(image_path))
+
+        return image_paths
+
     def predict(self, input: str) -> Any:
-        # img = mx.read_image(input)
         from mlx_vlm.prompt_utils import apply_chat_template
-        image = [input]
-        formatted_prompt = apply_chat_template(self._processor, self._config, self._prompt, num_images=len(image))
+        input_path = Path(input)
+
+        if input_path.suffix.lower() == ".pdf":
+            images = self._pdf_to_jpg_files(input_path)
+            if not images:
+                raise ValueError(f"pdf has no pages: {input}")
+
+            results = []
+            for image_path in images:
+                formatted_prompt = apply_chat_template(
+                    self._processor, self._config, self._prompt, num_images=1
+                )
+                result = self._generate(
+                    self._model,
+                    self._processor,
+                    formatted_prompt,
+                    [image_path],
+                    verbose=False,
+                )
+                results.append(MlxVlmResult(result, image_path))
+            return results
+
+        formatted_prompt = apply_chat_template(
+            self._processor, self._config, self._prompt, num_images=1
+        )
         result = self._generate(
             self._model,
             self._processor,
             formatted_prompt,
-            image,
+            [input],
             verbose=False,
         )
         return [MlxVlmResult(result, input)]
@@ -152,14 +192,14 @@ def get_pipeline(device: str, mode: str ) -> Any:
         # Recreate pipeline when first time or device changed
         # You can add other args here: lang="en", use_doc_orientation_classify=True, etc.
 
-        if  mode == "paddleocr-vl":
+        if mode == "paddleocr-vl":
             print("Using PaddleOCRVL...")
             if sys.platform == "darwin":
                 # On macOS, use CPU only for now
                 _pipeline = create_mlx_vlm_pipeline()
             else:
                 _pipeline = PaddleOCRVL(device="gpu" if hasGPU else device)
-        elif mode == "default" or mode == "pp-structurev3":
+        elif mode == "default" or  mode == "pp-structurev3":
             print("Using PPStructureV3...")
             _pipeline = PPStructureV3(device="gpu" if hasGPU else device)
         else:

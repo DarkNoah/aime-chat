@@ -115,6 +115,7 @@ export type ChatRequestContext = {
   subAgents?: string[];
   agentId?: string;
   todos?: ChatTodo[];
+  tasks?: ChatTask[];
   maxContextSize?: number;
   workspace?: string;
   think?: boolean;

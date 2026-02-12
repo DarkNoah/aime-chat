@@ -155,6 +155,7 @@ export class ZhipuAIProvider extends BaseProvider {
 
   async getLanguageModelList(): Promise<{ name: string; id: string }[]> {
     return [
+      { id: 'glm-5', name: 'GLM-5' },
       { id: 'glm-4.7', name: 'GLM-4.7' },
       { id: 'glm-4.6v', name: 'GLM-4.6V' },
       { id: 'glm-4.6v-flash', name: 'GLM-4.6V-Flash' },

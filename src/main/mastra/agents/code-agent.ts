@@ -8,7 +8,13 @@ import os from 'os';
 import { ToolType } from '@/types/tool';
 import { TodoWrite } from '@/main/tools/common/todo-write';
 import { AskUserQuestion } from '@/main/tools/common/ask-user-question';
-import { Task } from '@/main/tools/common/task';
+import {
+  Task,
+  TaskCreate,
+  TaskGet,
+  TaskList,
+  TaskUpdate,
+} from '@/main/tools/common/task';
 import { Read } from '@/main/tools/file-system/read';
 import { Write } from '@/main/tools/file-system/write';
 import { Edit } from '@/main/tools/file-system/edit';
@@ -40,7 +46,7 @@ export class CodeAgent extends BaseAgent {
   instructions: DynamicAgentInstructions = codeAgentInstructions;
   // model: string = 'openai/gpt-4o-mini';
   tools: string[] = [
-    `${ToolType.BUILD_IN}:${TodoWrite.toolName}`,
+    // `${ToolType.BUILD_IN}:${TodoWrite.toolName}`,
     `${ToolType.BUILD_IN}:${AskUserQuestion.toolName}`,
     // `${ToolType.BUILD_IN}:${Task.toolName}`,
     `${ToolType.BUILD_IN}:${Bash.toolName}`,
@@ -57,6 +63,10 @@ export class CodeAgent extends BaseAgent {
     `${ToolType.BUILD_IN}:${Skill.toolName}`,
     `${ToolType.BUILD_IN}:${Task.toolName}`,
     `${ToolType.BUILD_IN}:${SendEvent.toolName}`,
+    `${ToolType.BUILD_IN}:${TaskCreate.toolName}`,
+    `${ToolType.BUILD_IN}:${TaskGet.toolName}`,
+    `${ToolType.BUILD_IN}:${TaskList.toolName}`,
+    `${ToolType.BUILD_IN}:${TaskUpdate.toolName}`,
   ];
   subAgents: string[] = [`${Explore.agentName}`, `${Plan.agentName}`];
   constructor(params: BaseAgentParams) {

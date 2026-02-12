@@ -38,7 +38,7 @@ import ExpenseManagementToolkit from './test/expense_management';
 import ToolToolkit from './common/tool';
 import { Vision } from './vision/vision';
 import MemoryToolkit from './memory/memory';
-import { Task } from './common/task';
+import TodoToolkit, { Task } from './common/task';
 import { WebFetch } from './web/web-fetch';
 import { Extract } from './work/extract';
 import { GenerateImage } from './image/generate-image';
@@ -161,6 +161,7 @@ class ToolsManager extends BaseManager {
     // this.registerBuiltInTool(PythonExecute);
     // await this.registerBuiltInTool(NodejsExecute);
     await this.registerBuiltInTool(CodeExecution);
+    await this.registerBuiltInTool(TodoToolkit);
     await this.registerBuiltInTool(TodoWrite);
     await this.registerBuiltInTool(BashToolkit);
     await this.registerBuiltInTool(FileSystem);

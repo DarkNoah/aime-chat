@@ -19,6 +19,12 @@ import { Read } from '@/main/tools/file-system/read';
 import { WebFetch } from '@/main/tools/web/web-fetch';
 import { WebSearch } from '@/main/tools/web/web-search';
 import { Skill } from '@/main/tools/common/skill';
+import {
+  TaskCreate,
+  TaskGet,
+  TaskList,
+  TaskUpdate,
+} from '@/main/tools/common/task';
 
 export class Plan extends BaseAgent {
   static readonly agentName = 'Plan';
@@ -117,7 +123,11 @@ Today's date: ${new Date().toISOString().split('T')[0]}
     `${ToolType.BUILD_IN}:${Grep.toolName}`,
     `${ToolType.BUILD_IN}:${Read.toolName}`,
     `${ToolType.BUILD_IN}:${WebFetch.toolName}`,
-    `${ToolType.BUILD_IN}:${TodoWrite.toolName}`,
+    // `${ToolType.BUILD_IN}:${TodoWrite.toolName}`,
+    `${ToolType.BUILD_IN}:${TaskCreate.toolName}`,
+    `${ToolType.BUILD_IN}:${TaskGet.toolName}`,
+    `${ToolType.BUILD_IN}:${TaskList.toolName}`,
+    `${ToolType.BUILD_IN}:${TaskUpdate.toolName}`,
     `${ToolType.BUILD_IN}:${WebSearch.toolName}`,
     `${ToolType.BUILD_IN}:${Skill.toolName}`,
   ];
