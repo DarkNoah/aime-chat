@@ -11,10 +11,14 @@ import {
   getQwenAsrPythonService,
   AudioLoaderOptions,
   TTSOptions,
+  AudioLoader,
 } from '@/main/utils/loaders/audio-loader';
 import { downloadFile, saveFile } from '@/main/utils/file';
 import { isUrl } from '@/utils/is';
 import { nanoid } from '@/utils/nanoid';
+import { ToolConfig } from '@/types/tool';
+import { providersManager } from '@/main/providers';
+import mime from 'mime';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -302,6 +306,10 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text`
 // SpeechToText Tool
 // ---------------------------------------------------------------------------
 
+export interface SpeechToTextParams extends BaseToolParams {
+  modelId?: string;
+}
+
 export class SpeechToText extends BaseTool {
   static readonly toolName = 'SpeechToText';
   id: string = 'SpeechToText';
@@ -317,6 +325,10 @@ Output types:
 - "srt": Generates an SRT subtitle file from the transcription and returns the file path
 - "ass": Generates an ASS subtitle file from the transcription and returns the file path`;
 
+
+
+  configSchema = ToolConfig.SpeechToText.configSchema;
+
   inputSchema = z.object({
     source: z
       .string()
@@ -329,10 +341,6 @@ Output types:
       .describe(
         'Output format: "text" for plain text, "srt" for SRT subtitle file, "ass" for ASS subtitle file',
       ),
-    language: z
-      .string()
-      .optional()
-      .describe('Language hint for the ASR engine (e.g. "zh", "en")'),
     save_path: z
       .string()
       .optional()
@@ -346,12 +354,18 @@ Output types:
         'Custom ASS style in JSON (any JSON input is accepted by schema and validated in execute). Supports ASS style fields such as Fontname, Fontsize, PrimaryColour, OutlineColour, Alignment, MarginV, etc.',
       ),
   });
+  modelId?: string;
+
+  constructor(config?: SpeechToTextParams) {
+    super(config);
+    this.modelId = config?.modelId;
+  }
 
   execute = async (
     inputData: z.infer<typeof this.inputSchema>,
     context?: ToolExecutionContext,
   ) => {
-    const { source, output_type, language, save_path, ass_style } = inputData;
+    const { source, output_type, save_path, ass_style } = inputData;
     const workspace =
       (context?.requestContext?.get('workspace' as never) as string) ||
       undefined;
@@ -395,12 +409,22 @@ Output types:
       // 3. Run ASR transcription (always with timestamps for srt/ass)
       // -----------------------------------------------------------------
       const buffer = await fs.promises.readFile(audioPath);
-      const service = await getQwenAsrPythonService();
-      const asrResult = await service.transcribe(buffer, {
-        language: language ?? null,
-        outputType: 'asr',
-        ext: '.wav',
-      });
+      // const service = await getQwenAsrPythonService();
+      // const asrResult = await service.transcribe(buffer, {
+      //   outputType: 'asr',
+      //   ext: '.wav',
+      //   model: this.modelId?.split('/').pop() || undefined,
+      // });
+
+      const provider = await providersManager.getProvider(this.modelId.split('/')[0]);
+      if (provider) {
+        const transcriptionModel = provider.transcriptionModel(this.modelId.split('/').slice(1).join('/'));
+        const result = await transcriptionModel.doGenerate({
+          audio: buffer,
+          mediaType: mime.lookup(audioPath),
+        });
+        debugger;
+      }
 
       const result = asrResult.result;
       const text: string = result.text || '';
@@ -586,7 +610,7 @@ Output: Returns the path to the generated WAV audio file.`;
 
       // Cleanup temp output
       if (fs.existsSync(result.outputPath) && result.outputPath !== filePath) {
-        await fs.promises.rm(result.outputPath).catch(() => {});
+        await fs.promises.rm(result.outputPath).catch(() => { });
       }
 
       return `Generated speech audio (${result.duration.toFixed(1)}s, ${result.sampleRate}Hz) saved to: \n<file>${filePath}</file>`;
@@ -608,14 +632,14 @@ Output: Returns the path to the generated WAV audio file.`;
 // AudioToolkit
 // ---------------------------------------------------------------------------
 
-export interface AudioToolkitParams extends BaseToolkitParams {}
+export interface AudioToolkitParams extends BaseToolkitParams { }
 
 export class AudioToolkit extends BaseToolkit {
   static readonly toolName = 'AudioToolkit';
   id: string = 'AudioToolkit';
 
   constructor(params?: AudioToolkitParams) {
-    super([new SpeechToText(), new TextToSpeech()], params);
+    super([new SpeechToText(params?.[SpeechToText.toolName] ?? {}), new TextToSpeech(params?.[TextToSpeech.toolName] ?? {})], params);
   }
 
   getTools() {

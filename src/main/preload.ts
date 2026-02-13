@@ -32,6 +32,7 @@ import {
 import {
   CreateKnowledgeBase,
   KnowledgeBaseSourceType,
+  SearchKnowledgeBaseResult,
   UpdateKnowledgeBase,
 } from '@/types/knowledge-base';
 import { LocalModelItem, LocalModelType } from '@/types/local-model';
@@ -251,11 +252,11 @@ const electronHandler = {
     getList: () => ipcRenderer.invoke(KnowledgeBaseChannel.GetList),
     importSource: (data: {
       kbId: string;
-      source: string;
+      source: any;
       type: KnowledgeBaseSourceType;
     }) => ipcRenderer.invoke(KnowledgeBaseChannel.ImportSource, data),
     getKnowledgeBaseItems: (id: string, params: PaginationParams): Promise<PaginationInfo<KnowledgeBaseItem>> => ipcRenderer.invoke(KnowledgeBaseChannel.GetKnowledgeBaseItems, id, params),
-    searchKnowledgeBase: (kbId: string, query: string) => ipcRenderer.invoke(KnowledgeBaseChannel.SearchKnowledgeBase, kbId, query),
+    searchKnowledgeBase: (kbId: string, query: string): Promise<SearchKnowledgeBaseResult> => ipcRenderer.invoke(KnowledgeBaseChannel.SearchKnowledgeBase, kbId, query),
     deleteKnowledgeBaseItem: (id: string) => ipcRenderer.invoke(KnowledgeBaseChannel.DeleteKnowledgeBaseItem, id),
   },
   tools: {

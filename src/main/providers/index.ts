@@ -153,17 +153,18 @@ class ProvidersManager extends BaseManager {
           tags: localProvider.tags,
           isActive: true,
         });
-      } else {
-        proviers.push({
-          id: localProvider.id,
-          name: localProvider.name,
-          type: localProvider.type,
-          models: [],
-          tags: localProvider.tags,
-          isActive: true,
-        });
       }
     }
+    // else if (localProvider && !filter?.tags?.length) {
+    //   proviers.push({
+    //     id: localProvider.id,
+    //     name: localProvider.name,
+    //     type: localProvider.type,
+    //     models: [],
+    //     tags: localProvider.tags,
+    //     isActive: true,
+    //   });
+    // }
     return proviers;
   }
 
@@ -171,39 +172,6 @@ class ProvidersManager extends BaseManager {
   public async getAvailableModels(
     type: ModelType = ModelType.LLM,
   ): Promise<Provider[]> {
-    // const data = await this.repository.find({
-    //   where: {
-    //     isActive: true,
-    //   },
-    // });
-    // const filteredData = data.filter(
-    //   (x) =>
-    //     x.models &&
-    //     x.models.length > 0 &&
-    //     x.models.filter((m) => m.isActive === true).length > 0,
-    // );
-
-    // const output: Provider[] = [];
-    // for (const providerData of filteredData) {
-    //   // const provider = await this.getProvider(providerData.id);
-    //   output.push({
-    //     id: providerData.id,
-    //     name: providerData.name,
-    //     icon: providerData.icon,
-    //     type: providerData.type as ProviderType,
-    //     models: providerData.models
-    //       .filter((m) => m.isActive === true)
-    //       .map((y) => {
-    //         return {
-    //           id: `${providerData.id}/${y.id}`,
-    //           name: y.name || y.id,
-    //           providerType: providerData.type,
-    //         };
-    //       })
-    //       .sort((a, b) => b.name.localeCompare(a.name)),
-    //   });
-    // }
-
     if (type == ModelType.LLM) {
       return this.getAvailableLanguageModels();
     } else if (type == ModelType.EMBEDDING) {
@@ -212,6 +180,8 @@ class ProvidersManager extends BaseManager {
       return this.getAvailableRerankModels();
     } else if (type == ModelType.IMAGE_GENERATION) {
       return this.getAvailableImageGenerationModels();
+    } else if (type == ModelType.STT) {
+      return this.getAvailableTranscriptionModels();
     }
   }
 
@@ -276,6 +246,19 @@ class ProvidersManager extends BaseManager {
     });
   }
 
+
+  public findModelInfo(providerType: string, modelId: string) {
+    let modelInfo = modelsData[providerType]?.models[modelId];
+    if (modelInfo) {
+      return modelInfo;
+    }
+    modelInfo = Object.values(modelsData).find(x => x.models[modelId]);
+    if (modelInfo) {
+      return modelInfo.models[modelId];
+    }
+    return undefined;
+  }
+
   @channel(ProviderChannel.GetModelList)
   public async getModels(id: string): Promise<any> {
     const providerData = await this.repository.findOne({ where: { id } });
@@ -315,7 +298,7 @@ class ProvidersManager extends BaseManager {
       const models = await provider.getLanguageModelList();
 
       providerModels = models.map((x) => {
-        const info = modelsData[provider.type]?.models[x.id] || {};
+        let info = this.findModelInfo(provider.type, x.id) || {};
         return {
           id: x.id,
           isActive: savedModels.find((z) => z.id === x.id)?.isActive || false,
@@ -364,6 +347,16 @@ class ProvidersManager extends BaseManager {
     }
     const _modeId = modelId.substring(providerId.length + 1);
     return provider.textEmbeddingModel(_modeId);
+  }
+
+  public async getRerankModel(modelId: string,) {
+    const providerId = modelId.split('/')[0];
+    const provider = await this.getProvider(providerId);
+    if (!provider) {
+      return;
+    }
+    const _modeId = modelId.substring(providerId.length + 1);
+    return provider.rerankModel(_modeId);
   }
 
   public async getAvailableLanguageModels(): Promise<Provider[]> {
@@ -446,7 +439,7 @@ class ProvidersManager extends BaseManager {
                 .sort((a, b) => b.name.localeCompare(a.name)),
             });
           }
-        } catch {}
+        } catch { }
       }
     }
 
@@ -496,7 +489,7 @@ class ProvidersManager extends BaseManager {
                 .sort((a, b) => b.name.localeCompare(a.name)),
             });
           }
-        } catch {}
+        } catch { }
       }
     }
 
@@ -532,7 +525,58 @@ class ProvidersManager extends BaseManager {
                 .sort((a, b) => b.name.localeCompare(a.name)),
             });
           }
-        } catch {}
+        } catch { }
+      }
+    }
+
+    return data;
+  }
+
+
+  public async getAvailableTranscriptionModels(): Promise<Provider[]> {
+    const providers = await this.repository.find({
+      where: {
+        isActive: true,
+      },
+    });
+    const data: Provider[] = [];
+    const localProvider = new LocalProvider();
+    const models = await localProvider.getTranscriptionModelList();
+    if (models.length > 0) {
+      data.push({
+        id: localProvider.id,
+        name: localProvider.name,
+        type: ProviderType.LOCAL,
+        models: models.map((x) => ({
+          id: `${localProvider.id}/${x.id}`,
+          name: x.name,
+          providerType: ProviderType.LOCAL,
+          isActive: true,
+        })),
+      });
+    }
+
+    for (const providerData of providers) {
+      const provider = await this.getProvider(providerData.id);
+      if (provider) {
+        try {
+          const transcriptionModels = await provider.getTranscriptionModelList();
+          if (transcriptionModels.length > 0) {
+            data.push({
+              id: providerData.id,
+              name: providerData.name,
+              type: providerData.type,
+              models: transcriptionModels
+                .map((x) => ({
+                  id: `${providerData.id}/${x.id}`,
+                  name: x.name,
+                  providerType: providerData.type,
+                  isActive: true,
+                }))
+                .sort((a, b) => b.name.localeCompare(a.name)),
+            });
+          }
+        } catch { }
       }
     }
 
@@ -581,7 +625,7 @@ class ProvidersManager extends BaseManager {
       throw new Error('Provider not found');
     }
     const modelId = _modelId.substring(_modelId.split('/')[0].length + 1);
-    const modelInfo = modelsData[provider.type]?.models[modelId];
+    const modelInfo = this.findModelInfo(provider.type, modelId);
     return {
       providerId,
       modelId,

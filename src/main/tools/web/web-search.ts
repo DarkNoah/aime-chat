@@ -196,6 +196,8 @@ Returns:
           }),
         );
       }
+    } else {
+      throw new Error('Provider not found');
     }
     return results;
   };

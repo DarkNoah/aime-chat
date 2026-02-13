@@ -94,7 +94,8 @@
     "delete_agent": "Delete agent",
     "importing": "Importing",
     "import_success": "Import Success",
-    "ask_to_delete_skill": "Delect skill?"
+    "ask_to_delete_skill": "Delect skill?",
+    "ptc_open": "PTC Open"
   },
   "sidebar": {
     "new_chat": "New Chat",
@@ -152,7 +153,10 @@
   "knowledge-base": {
     "add_url": "Add Url",
     "add_files": "Add Files",
-    "add_text": "Add Text"
+    "add_text": "Add Text",
+    "name": "Name",
+    "description": "Description",
+    "reranker": "Reranker"
   },
   "setup": {
     "welcome": {

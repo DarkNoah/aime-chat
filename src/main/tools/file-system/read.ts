@@ -239,7 +239,7 @@ Usage:
       // 使用 paddle OCR 进行图像文字识别
       const loader = new AudioLoader(file_source);
       const content = await loader.load();
-      return content;
+      return content.text;
     }
     return content;
   };

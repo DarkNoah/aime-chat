@@ -1,5 +1,5 @@
 import { Providers } from '@/entities/providers';
-import { BaseProvider } from './base-provider';
+import { BaseProvider, RerankModel } from './base-provider';
 import fs from 'fs';
 import path from 'path';
 import OpenAI from 'openai';
@@ -17,12 +17,13 @@ import {
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import { createZhipu } from 'zhipu-ai-provider';
 
-export class ZhipuAIRerankModel {
+export class ZhipuAIRerankModel implements RerankModel {
   modelId: string;
-  provider: Providers;
+  providerEntity: Providers;
+  readonly provider: string = 'zhipuai';
 
   constructor({ modelId, provider }: { modelId: string; provider: Providers }) {
-    this.provider = provider;
+    this.providerEntity = provider;
     this.modelId = modelId;
   }
 
@@ -41,7 +42,7 @@ export class ZhipuAIRerankModel {
     const res = await fetch('https://open.bigmodel.cn/api/paas/v4/rerank', {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${this.provider.apiKey}`,
+        Authorization: `Bearer ${this.providerEntity.apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -79,8 +80,8 @@ export class ZhipuAIImageModel implements ImageModelV2 {
   maxImagesPerCall:
     | number
     | ((options: {
-        modelId: string;
-      }) => PromiseLike<number | undefined> | number | undefined) = 1;
+      modelId: string;
+    }) => PromiseLike<number | undefined> | number | undefined) = 1;
   async doGenerate(options: ImageModelV2CallOptions): Promise<{
     images: Array<string> | Array<Uint8Array>;
     warnings: Array<ImageModelV2CallWarning>;
@@ -197,6 +198,12 @@ export class ZhipuAIProvider extends BaseProvider {
   async getRerankModelList(): Promise<{ name: string; id: string }[]> {
     return [{ id: 'rerank', name: 'Rerank' }];
   }
+  async getTranscriptionModelList(): Promise<{ name: string; id: string }[]> {
+    return [{ id: 'glm-asr-2512', name: 'GLM-ASR-2512' }];
+  }
+  async getSpeechModelList(): Promise<{ name: string; id: string }[]> {
+    return [{ id: 'glm-tts', name: 'GLM-TTS' }];
+  }
 
   async getImageGenerationList(): Promise<{ name: string; id: string }[]> {
     return [{ id: 'cogview-4', name: 'cogview-4' }];
@@ -217,7 +224,7 @@ export class ZhipuAIProvider extends BaseProvider {
   speechModel?(modelId: string): SpeechModelV2 {
     return undefined;
   }
-  rerankModel(modelId: string) {
+  rerankModel?(modelId: string): RerankModel {
     return new ZhipuAIRerankModel({ modelId, provider: this.provider });
   }
 }

@@ -115,6 +115,9 @@ export class KnowledgeBaseItem {
   @Column({ nullable: true })
   chunkCount?: number;
 
+  @Column({ nullable: true })
+  error?: string;
+
   @CreateDateColumn()
   createdAt!: Date;
 

@@ -38,7 +38,7 @@
     "model": "模型",
     "delect_chat": "删除聊天",
     "no_more": "没有更多",
-    "no_data": "暂无对话",
+    "no_data": "暂无数据",
     "add": "添加",
     "loading": "加载中...",
     "active": "启用",
@@ -94,7 +94,8 @@
     "delete_agent": "删除助手",
     "importing": "导入中",
     "import_success": "导入成功",
-    "ask_to_delete_skill": "是否删除技能?"
+    "ask_to_delete_skill": "是否删除技能?",
+    "ptc_open": "启用PTC模式"
   },
   "sidebar": {
     "new_chat": "新聊天",
@@ -152,7 +153,10 @@
   "knowledge-base": {
     "add_url": "添加网址",
     "add_files": "添加文件",
-    "add_text": "添加文本"
+    "add_text": "添加文本",
+    "name": "名称",
+    "description": "描述",
+    "reranker": "重排模型"
   },
   "setup": {
     "welcome": {

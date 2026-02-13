@@ -21,8 +21,23 @@ export interface BaseImageModelV2CallOptions extends Omit<
   'prompt'
 > {
   prompt:
-    | string
-    | { text: string; images: (string | Buffer)[]; mask?: string | Buffer };
+  | string
+  | { text: string; images: (string | Buffer)[]; mask?: string | Buffer };
+}
+
+export type RerankModel = {
+  readonly provider: string;
+  readonly modelId: string;
+  // readonly maxEmbeddingsPerCall: PromiseLike<number | undefined> | number | undefined;
+  // readonly supportsParallelCalls: PromiseLike<boolean> | boolean;
+  doRerank: (options: {
+    query: string;
+    documents: string[];
+    options?: {
+      top_k?: number;
+      return_documents?: boolean;
+    };
+  }) => Promise<{ index: number; score: number; document: string }[]>;
 }
 
 export interface BaseProviderParams {
@@ -74,11 +89,23 @@ export abstract class BaseProvider implements ProviderV2 {
     throw new Error('Method not implemented.');
   }
 
+  rerankModel?(modelId: string): RerankModel {
+    throw new Error('Method not implemented.');
+  }
+
   abstract getLanguageModelList(): Promise<{ name: string; id: string }[]>;
 
   abstract getEmbeddingModelList(): Promise<{ name: string; id: string }[]>;
 
   abstract getRerankModelList(): Promise<{ name: string; id: string }[]>;
+
+  async getTranscriptionModelList(): Promise<{ name: string; id: string }[]> {
+    return Promise.resolve([]);
+  }
+
+  async getSpeechModelList(): Promise<{ name: string; id: string }[]> {
+    return Promise.resolve([]);
+  }
 
   getImageGenerationList(): Promise<{ name: string; id: string }[]> {
     throw new Error('Method not implemented.');

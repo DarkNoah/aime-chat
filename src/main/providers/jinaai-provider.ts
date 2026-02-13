@@ -1,5 +1,5 @@
 import { Providers } from '@/entities/providers';
-import { BaseProvider } from './base-provider';
+import { BaseProvider, RerankModel } from './base-provider';
 import fs from 'fs';
 import path from 'path';
 import OpenAI from 'openai';
@@ -12,12 +12,13 @@ import {
   TranscriptionModelV2,
 } from '@ai-sdk/provider';
 
-export class JinaAIRerankModel {
+export class JinaAIRerankModel implements RerankModel {
   modelId: string;
-  provider: Providers;
+  providerEntity: Providers;
+  readonly provider: string = 'jinaai';
 
   constructor({ modelId, provider }: { modelId: string; provider: Providers }) {
-    this.provider = provider;
+    this.providerEntity = provider;
     this.modelId = modelId;
   }
 
@@ -34,8 +35,8 @@ export class JinaAIRerankModel {
     };
   }): Promise<{ index: number; score: number; document: string }[]> {
     const headers = { 'Content-Type': 'application/json' };
-    if (this.provider.apiKey) {
-      headers['Authorization'] = `Bearer ${this.provider.apiKey}`;
+    if (this.providerEntity.apiKey) {
+      headers['Authorization'] = `Bearer ${this.providerEntity.apiKey}`;
     }
     const res = await fetch('https://api.jina.ai/v1/rerank', {
       method: 'POST',
@@ -106,7 +107,7 @@ export class JinaAIProvider extends BaseProvider {
   speechModel?(modelId: string): SpeechModelV2 {
     return undefined;
   }
-  rerankModel(modelId: string) {
+  rerankModel?(modelId: string): RerankModel {
     return new JinaAIRerankModel({ modelId, provider: this.provider });
   }
 }

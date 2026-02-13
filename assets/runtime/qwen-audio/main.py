@@ -49,6 +49,9 @@ import urllib.request
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Dict, List, Optional, Tuple
+import soundfile as sf
+import logging
+
 
 if hasattr(sys.stdin, "reconfigure"):
     sys.stdin.reconfigure(encoding="utf-8")
@@ -126,12 +129,12 @@ def _resolve_default_device() -> str:
 
 
 DEFAULT_DEVICE = _resolve_default_device()
-DEFAULT_DTYPE = os.environ.get("QWEN_ASR_DTYPE", "float32")
+DEFAULT_DTYPE = os.environ.get("QWEN_ASR_DTYPE", "bf16")
 DEFAULT_BACKEND = os.environ.get(
     "QWEN_ASR_BACKEND", "mlx-audio" if IS_DARWIN else "transformers"
 ).strip().lower()
-DEFAULT_MAX_BATCH = int(os.environ.get("QWEN_ASR_MAX_BATCH", "8"))
-DEFAULT_MAX_NEW_TOKENS = int(os.environ.get("QWEN_ASR_MAX_NEW_TOKENS", "256"))
+DEFAULT_MAX_BATCH = int(os.environ.get("QWEN_ASR_MAX_BATCH", "2"))
+DEFAULT_MAX_NEW_TOKENS = int(os.environ.get("QWEN_ASR_MAX_NEW_TOKENS", "8192"))
 IDLE_TIMEOUT_SEC = int(os.environ.get("QWEN_ASR_IDLE_TIMEOUT", "600"))
 
 DEFAULT_MLX_MAX_CHUNK_SEC = float(os.environ.get("QWEN_ASR_MLX_MAX_CHUNK_SEC", "120"))
@@ -272,7 +275,7 @@ def get_qwen_model(
             "max_batch": max_batch,
             "max_new_tokens": max_new_tokens,
             "forced_aligner": forced_aligner,
-            "forced_aligner_kwargs": forced_aligner_kwargs or {},
+            # "forced_aligner_kwargs": forced_aligner_kwargs or {},
         },
         sort_keys=True,
         ensure_ascii=False,
@@ -292,6 +295,8 @@ def get_qwen_model(
             init_kwargs["forced_aligner"] = forced_aligner
         if forced_aligner_kwargs:
             init_kwargs["forced_aligner_kwargs"] = forced_aligner_kwargs
+        logging.info(model_name)
+        logging.info(init_kwargs)
         _model = Qwen3ASRModel.from_pretrained(model_name, **init_kwargs)
         _model_key = key
         return _model
@@ -488,6 +493,8 @@ def _normalize_result_item(item: Any) -> Dict[str, Any]:
     for key in ["language", "text", "time_stamps"]:
         if hasattr(item, key):
             out[key] = getattr(item, key)
+        if key == "time_stamps":
+            out[key] = []
     if not out:
         out["text"] = str(item)
     return out
@@ -874,8 +881,12 @@ def _predict_qwen(params: Dict[str, Any], backend: str) -> Dict[str, Any]:
         or DEFAULT_QWEN_ALIGNER_MODEL
     )
     forced_aligner_kwargs = _normalize_dtype_in_dict(
-        params.get("forced_aligner_kwargs") or {}
+        params.get("forced_aligner_kwargs") or {
+            "dtype": dtype,
+            "device_map": device,
+        }
     )
+    forced_aligner_kwargs = dict(dtype=_resolve_dtype(dtype),device_map=device)
     language = params.get("language")
     return_time_stamps = bool(params.get("return_time_stamps", False))
     transcribe_kwargs = params.get("transcribe_kwargs") or {}
@@ -901,26 +912,32 @@ def _predict_qwen(params: Dict[str, Any], backend: str) -> Dict[str, Any]:
     if not isinstance(results, list):
         results = [results]
 
-    items: List[Dict[str, Any]] = [_normalize_result_item(x) for x in results]
-    text = "\n".join(
-        [
-            str(x.get("text", "")).strip()
-            for x in items
-            if str(x.get("text", "")).strip()
-        ]
-    ).strip()
+    # items: List[Dict[str, Any]] = [_normalize_result_item(x) for x in results]
+    text = results[0].text.strip()
+
+    items = [
+        {
+            "start": item.start_time,
+            "end": item.end_time,
+            "text": item.text,
+        }
+        for item in results[0].time_stamps.items
+    ]
+    info = sf.info(audio_input)
 
     return {
         "model": model_name,
         "backend": backend,
         "device": device,
         "dtype": dtype,
-        "language": language,
+        "language": results[0].language,
         "aligner_model": forced_aligner,
         "return_time_stamps": return_time_stamps,
-        "count": len(items),
+        "count": len(results),
         "text": text,
         "items": items,
+        "duration": info.duration,
+        "sample_rate": info.samplerate,
     }
 
 

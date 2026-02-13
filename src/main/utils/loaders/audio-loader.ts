@@ -5,7 +5,7 @@ import readline from 'readline';
 import { randomUUID } from 'crypto';
 import { BaseLoader } from './base-loader';
 import { getAssetPath } from '..';
-import { getSTTRuntime, getUVRuntime } from '@/main/app/runtime';
+import { getQwenAudioRuntime, getUVRuntime } from '@/main/app/runtime';
 
 export type AudioLoaderOptions = {
   model?: string;
@@ -185,7 +185,7 @@ export async function getQwenAsrPythonService(): Promise<QwenAudioService> {
 
   qwenAsrInitializing = (async () => {
     const [sttRuntime, uvRuntime] = await Promise.all([
-      getSTTRuntime(),
+      getQwenAudioRuntime(),
       getUVRuntime(),
     ]);
 
@@ -203,6 +203,12 @@ export async function getQwenAsrPythonService(): Promise<QwenAudioService> {
     await fs.promises.mkdir(tempDir, { recursive: true });
 
     const uvBin = uvRuntime.path;
+    const isWindows = process.platform === 'win32';
+
+
+    const activateSourcePython = isWindows
+      ? path.join(sttRuntime.dir, '.venv', 'Scripts', 'python.exe')
+      : path.join(sttRuntime.dir, '.venv', 'bin', 'python');
 
     pythonClient = createPythonClient({
       command: uvBin,
@@ -310,13 +316,13 @@ export class AudioLoader extends BaseLoader {
     this.options = options ?? {};
   }
 
-  async parse(raw: Buffer, metadata: Record<string, any>): Promise<string> {
+  async parse(raw: Buffer, metadata: Record<string, any>): Promise<any> {
     const service = await getQwenAsrPythonService();
     const result = await service.transcribe(raw, {
       ...this.options,
       ext: path.extname(metadata['source'] || '').toLowerCase() || '.wav',
     });
-    return result.text;
+    return result;
   }
 
   async getInfo(buffer: Buffer, metadata: Record<string, any>): Promise<any> {

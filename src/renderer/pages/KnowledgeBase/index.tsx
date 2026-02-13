@@ -116,6 +116,7 @@ function KnowledgeBasePage() {
     description?: string;
     vectorStoreType: VectorStoreType | string;
     embedding: string;
+    reranker?: string;
   }) => {
     if (submitting) return;
     try {
@@ -124,6 +125,7 @@ function KnowledgeBasePage() {
         await window.electron.knowledgeBase.update(currentKb.id, {
           name: values.name.trim(),
           description: values.description?.trim() || '',
+          reranker: values.reranker?.trim() || '',
         });
       } else {
         await window.electron.knowledgeBase.create({
@@ -131,6 +133,7 @@ function KnowledgeBasePage() {
           description: values.description?.trim() || '',
           vectorStoreType: values.vectorStoreType as VectorStoreType,
           embedding: values.embedding.trim(),
+          reranker: values.reranker?.trim() || '',
         });
       }
       getData();
@@ -160,6 +163,7 @@ function KnowledgeBasePage() {
     if (data) {
       form.setValue('name', data.name);
       form.setValue('description', data.description);
+      form.setValue('reranker', data.reranker);
     }
   };
 
@@ -285,6 +289,28 @@ function KnowledgeBasePage() {
                         />
                       </>
                     )}
+
+                    <FormField
+                      name="reranker"
+                      control={form.control}
+                      rules={{ required: t('common.required') as string }}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel htmlFor="kb-reranker">
+                            {t('knowledge-base.reranker')}
+                          </FormLabel>
+                          <FormControl>
+                            <ChatModelSelect
+                              clearable
+                              type={ModelType.RERANKER}
+                              {...field}
+                              className="border w-full"
+                            ></ChatModelSelect>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                   </FieldGroup>
 
                   <DialogFooter>

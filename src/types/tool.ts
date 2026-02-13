@@ -36,9 +36,23 @@ export enum ToolEvent {
   ToolListUpdated = 'tool:tool-list-updated',
 }
 export const ToolConfig = {
+  SpeechToText: {
+    configSchema: z.strictObject({
+      modelId: z.string(),
+    }),
+    uiSchema: {
+      modelId: {
+        'ui:widget': 'modelSelector',
+        'ui:title': t('common.model'),
+        'ui:options': {
+          type: ModelType.STT,
+        },
+      },
+    },
+  },
   CodeExecution: {
     configSchema: z.strictObject({
-      ptcOpen: z.boolean().optional().default(false),
+      ptcOpen: z.boolean().optional().default(true),
     }),
     uiSchema: {
       ptcOpen: {

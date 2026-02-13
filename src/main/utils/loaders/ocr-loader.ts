@@ -243,10 +243,10 @@ async function getPaddleOcrPythonService(): Promise<{
         ext?: string;
         mode?: RuntimeInfo['paddleOcr']['mode'];
       } = {
-        noCache: false,
-        ext: '',
-        mode: 'default',
-      },
+          noCache: false,
+          ext: '',
+          mode: 'default',
+        },
     ): Promise<{ text: string; result: any }> => {
       // 计算 buffer 的 MD5 作为文件名
       const bufferData = Buffer.from(buffer);
@@ -272,7 +272,8 @@ async function getPaddleOcrPythonService(): Promise<{
             );
             const mdPath = mdFiles.length > 0 ? mdFiles[0] : null;
             if (fs.existsSync(mdPath)) {
-              const mdContent = await fs.promises.readFile(mdPath, 'utf-8');
+              let mdContent = await fs.promises.readFile(mdPath, 'utf-8');
+              mdContent = mdContent.replaceAll('<img src="imgs/', '<img src="file://' + path.join(imageOutDir, dir).replaceAll('\\', '/') + '/imgs/')
               text += mdContent + '\n';
             }
           }
@@ -316,7 +317,8 @@ async function getPaddleOcrPythonService(): Promise<{
             );
             const mdPath = mdFiles.length > 0 ? mdFiles[0] : null;
             if (fs.existsSync(mdPath)) {
-              const mdContent = await fs.promises.readFile(mdPath, 'utf-8');
+              let mdContent = await fs.promises.readFile(mdPath, 'utf-8');
+              mdContent = mdContent.replaceAll('<img src="imgs/', '<img src="file://' + path.dirname(mdPath).replaceAll('\\', '/') + '/imgs/')
               text += mdContent + '\n';
             }
           }

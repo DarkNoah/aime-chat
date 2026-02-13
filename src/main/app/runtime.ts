@@ -195,7 +195,7 @@ export async function getPaddleOcrRuntime(refresh = false) {
       paddleOcr.version = undefined;
       return paddleOcr;
     }
-    console.log(paddleOcr);
+    // console.log(paddleOcr);
 
     const paddleOcrDir = path.join(
       app.getPath('userData'),
@@ -240,7 +240,7 @@ export async function getPaddleOcrRuntime(refresh = false) {
       paddleOcr.version = undefined;
       return paddleOcr;
     }
-  } catch {}
+  } catch { }
 }
 
 export async function installPaddleOcrRuntime() {
@@ -555,13 +555,14 @@ export async function getQwenAudioRuntime(refresh = false) {
       return qwenAudio;
     }
   } catch (e) {
-    qwenAudio.status = 'not_installed';
-    qwenAudio.installed = false;
-    qwenAudio.path = undefined;
-    qwenAudio.dir = undefined;
-    qwenAudio.version = undefined;
-    return qwenAudio;
+
   }
+  qwenAudio.status = 'not_installed';
+  qwenAudio.installed = false;
+  qwenAudio.path = undefined;
+  qwenAudio.dir = undefined;
+  qwenAudio.version = undefined;
+  return qwenAudio;
 }
 
 export async function installQwenAudioRuntime() {
@@ -621,15 +622,48 @@ export async function installQwenAudioRuntime() {
       ) {
         hasGPU = true;
       }
-      const result_install_qwenasr = await runCommand(
-        `${uvPreCommand} --project "${qwenasrDir}" add qwen-asr --python "${activateSourcePython}"`,
+      let pyproject = await fs.promises.readFile(path.join(qwenasrDir, 'pyproject.toml'), 'utf-8');
+      if (hasGPU) {
+        pyproject = pyproject.replace('dependencies = []', `
+dependencies = [
+    "qwen-asr",
+    "torch"
+]
+
+[tool.uv]
+extra-index-url = [
+    "https://pypi.org/simple"
+]
+
+[tool.uv.sources]
+torch = [
+    { index = "torch-gpu", marker = "platform_system == 'Windows'"},
+]
+
+[[tool.uv.index]]
+name = "torch-gpu"
+url = "https://download.pytorch.org/whl/cu121"
+explicit = true
+        `)
+      } else {
+        pyproject = pyproject.replace('dependencies = []', `
+dependencies = [
+    "qwen-asr"
+]
+        `);
+      }
+      await fs.promises.writeFile(path.join(qwenasrDir, 'pyproject.toml'), pyproject);
+
+      const result_sync = await runCommand(
+        `${uvPreCommand} --project "${qwenasrDir}" sync --no-cache`,
         {
           cwd: uvRuntime?.dir,
         },
       );
-      if (result_install_qwenasr.code === 0) {
+
+      if (result_sync.code === 0) {
         const result2 = await runCommand(
-          `${uvPreCommand} --project "${qwenasrDir}" run python -c "from importlib import metadata; print(metadata.version('qwen-asr'))"`,
+          `"${activateSourcePython}" -c "from importlib import metadata; print(metadata.version('qwen-asr'))"`,
           {
             cwd: uvRuntime?.dir,
             timeout: 1000 * 30,

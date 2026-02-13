@@ -1,3 +1,5 @@
+import { BaseProvider } from "@/main/providers/base-provider";
+
 export enum VectorStoreType {
   LibSQL = 'libsql',
 }
@@ -22,6 +24,7 @@ export type KnowledgeBase = {
   vectorStoreType?: VectorStoreType;
   vectorStoreConfig?: any;
   embedding?: string;
+  embeddingProvider?: string;
   reranker?: string;
   returnChunkCount?: number;
 };
@@ -38,4 +41,21 @@ export type UpdateKnowledgeBase = {
   tags?: string[];
   reranker?: string;
   returnChunkCount?: number;
+};
+
+
+export type SearchKnowledgeBaseResult = {
+  query: string;
+  embedding: string;
+  results: SearchKnowledgeBaseItemResult[];
+};
+
+export type SearchKnowledgeBaseItemResult = {
+  id: string;
+  itemId: string;
+  score: number;
+  rerankScore?: number;
+  metadata: any;
+  chunk?: string;
+  content?: string;
 };

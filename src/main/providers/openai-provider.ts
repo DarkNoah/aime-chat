@@ -45,7 +45,7 @@ export class OpenAIProvider extends BaseProvider {
 
   languageModel(modelId: string): LanguageModelV2 | OpenAICompatibleConfig {
     return {
-      id: "openai/"+ modelId,
+      id: "openai/" + modelId,
       apiKey: this.provider.apiKey,
       url: this.provider.apiBase || this.defaultApiBase,
     } as OpenAICompatibleConfig
@@ -89,6 +89,18 @@ export class OpenAIProvider extends BaseProvider {
 
   async getImageGenerationList(): Promise<{ name: string; id: string }[]> {
     return [{ id: 'dall-e-3', name: 'Dall-E 3' }];
+  }
+
+  async getSpeechModelList(): Promise<{ name: string; id: string }[]> {
+    return [{ id: 'tts-1', name: 'TTS-1' },
+    { id: 'tts-1-hd', name: 'TTS-1 HD' },
+    { id: 'gpt-4o-mini-tts-2025-12-15', name: 'GPT-4o Mini TTS' },
+    ];
+  }
+
+  async getTranscriptionModelList(): Promise<{ name: string; id: string }[]> {
+    return [{ id: 'whisper-1', name: 'Whisper 1' },
+    { id: "gpt-4o-transcribe", name: "GPT-4o Transcribe" }];
   }
 
   getCredits(): Promise<ProviderCredits | undefined> {
