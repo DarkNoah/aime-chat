@@ -14,7 +14,13 @@ import { Badge } from '../../ui/badge';
 import { Button } from '../../ui/button';
 import { IconFile, IconSearch } from '@tabler/icons-react';
 import { Source, Sources, SourcesContent } from '../../ai-elements/sources';
-import { Item, ItemContent, ItemDescription, ItemTitle } from '../../ui/item';
+import {
+  Item,
+  ItemContent,
+  ItemDescription,
+  ItemMedia,
+  ItemTitle,
+} from '../../ui/item';
 import ReactDiffViewer from 'react-diff-viewer';
 import { useTheme } from 'next-themes';
 import {
@@ -23,6 +29,102 @@ import {
 } from '../chat-message-attachment';
 import { ChatToolGenerateImagePreview } from './chat-tool-generate-image-preview';
 import { ChatToolBashPreview } from './chat-tool-bash-preview';
+import { FileIcon } from '../../file-icon';
+import { PhotoProvider, PhotoView } from 'react-photo-view';
+import 'react-photo-view/dist/react-photo-view.css';
+
+function FilePreview({ children }: { children?: React.ReactNode }) {
+  // children 可能是 string / array / ReactNode，做个稳妥的抽取
+  const path = Array.isArray(children)
+    ? children.join('')
+    : String(children ?? '');
+  const src = path.startsWith('file://')
+    ? path.toLowerCase().trim()
+    : `file://${path.toLowerCase().trim()}`;
+
+  const _path = path.toLowerCase().trim();
+
+  if (!src) return null;
+  const file_name = src.replaceAll('\\', '/').split('/')[
+    src.replaceAll('\\', '/').split('/').length - 1
+  ];
+
+  if (src.endsWith('.mp3') || src.endsWith('.wav') || src.endsWith('.m4a')) {
+    return (
+      <audio controls preload="none" src={src} style={{ width: '100%' }}>
+        <track kind="captions" />
+      </audio>
+    );
+  } else if (
+    src.endsWith('.mp4') ||
+    src.endsWith('.avi') ||
+    src.endsWith('.mov') ||
+    src.endsWith('.flv') ||
+    src.endsWith('.wmv') ||
+    src.endsWith('.webm') ||
+    src.endsWith('.m4v') ||
+    src.endsWith('.ts') ||
+    src.endsWith('.mts') ||
+    src.endsWith('.m2ts')
+  ) {
+    return (
+      <video controls preload="none" src={src} style={{ width: '100%' }}>
+        <track kind="captions" />
+      </video>
+    );
+  } else if (
+    src.endsWith('.jpg') ||
+    src.endsWith('.jpeg') ||
+    src.endsWith('.png') ||
+    src.endsWith('.gif') ||
+    src.endsWith('.bmp') ||
+    src.endsWith('.tiff') ||
+    src.endsWith('.ico') ||
+    src.endsWith('.webp')
+  ) {
+    return (
+      <PhotoProvider>
+        <PhotoView src={src}>
+          <img
+            alt={file_name || 'attachment'}
+            className="size-full object-cover rounded-2xl"
+            height={100}
+            src={src}
+            width={100}
+          />
+        </PhotoView>
+      </PhotoProvider>
+    );
+  } else if (src.endsWith('.pdf')) {
+    return (
+      <iframe
+        src={src}
+        style={{ width: '100%', height: '100%' }}
+        title={file_name}
+      />
+    );
+  } else {
+    return (
+      <Item
+        variant="outline"
+        className="w-fit cursor-pointer bg-secondary p-2 gap-2 items-center"
+        onClick={() => {
+          window.electron.app.openPath(_path);
+        }}
+      >
+        <ItemMedia>
+          <FileIcon filePath={_path} className="size-10" />
+        </ItemMedia>
+        <ItemContent>
+          <ItemTitle>{file_name}</ItemTitle>
+          <ItemDescription className=" ">
+            <span className="truncate max-w-[300px] block">{_path}</span>
+          </ItemDescription>
+        </ItemContent>
+      </Item>
+    );
+  }
+}
 
 export type ChatToolResultPreviewProps = {
   title?: string;
@@ -30,7 +132,7 @@ export type ChatToolResultPreviewProps = {
   className?: string;
 };
 
-export interface ChatToolResultPreviewRef { }
+export interface ChatToolResultPreviewRef {}
 
 export const ChatToolResultPreview = React.forwardRef<
   ChatToolResultPreviewRef,
@@ -121,19 +223,25 @@ export const ChatToolResultPreview = React.forwardRef<
         );
       } else if (isString(part.output)) {
         return (
-          <Tabs defaultValue="code">
+          <Tabs defaultValue="markdown">
             <TabsList>
-              <TabsTrigger value="code">Code</TabsTrigger>
+              <TabsTrigger value="markdown">Markdown</TabsTrigger>
               <TabsTrigger value="text">Text</TabsTrigger>
             </TabsList>
-            <TabsContent value="text">
-              <Streamdown className="bg-secondary p-4 rounded-2xl  text-wrap break-all"
-
+            <TabsContent value="markdown">
+              <Streamdown
+                className="bg-secondary p-4 rounded-2xl  text-wrap break-all"
+                allowedTags={{
+                  file: [],
+                }}
+                components={{
+                  file: FilePreview,
+                }}
               >
                 {part.output}
               </Streamdown>
             </TabsContent>
-            <TabsContent value="code">
+            <TabsContent value="text">
               <pre className="text-sm break-all text-wrap bg-secondary p-4 rounded-2xl">
                 {part.output}
               </pre>
@@ -265,7 +373,7 @@ export const ChatToolResultPreview = React.forwardRef<
                       fontSize: 'var(--text-sm)',
                     },
                   }}
-                // renderContent={this.highlightSyntax}
+                  // renderContent={this.highlightSyntax}
                 />
               </div>
 
