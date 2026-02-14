@@ -95,7 +95,8 @@
     "importing": "导入中",
     "import_success": "导入成功",
     "ask_to_delete_skill": "是否删除技能?",
-    "ptc_open": "启用PTC模式"
+    "ptc_open": "启用PTC模式",
+    "request_interrupted_by_user": "用户中断会话"
   },
   "sidebar": {
     "new_chat": "新聊天",
@@ -112,7 +113,20 @@
     "clear_messages_title": "清空消息",
     "clear_messages_description": "确定要清楚当前所有消息吗?",
     "file_system": "文件系统",
-    "project": "项目"
+    "project": "项目",
+    "file_preview": "文件预览",
+    "preview_file": "预览文件",
+    "open_in_explorer": "在资源管理器中打开",
+    "no_workspace": "未配置工作区",
+    "no_files_found": "未找到文件",
+    "search_files": "搜索文件... (按 Enter 搜索)",
+    "searching": "搜索中...",
+    "no_results": "未找到结果",
+    "showing_results": "显示 {{count}} 条，共 {{total}} 条结果",
+    "results_count": "{{count}} 条结果",
+    "file_too_large": "文件过大 ({{size}})，已截断显示",
+    "retry": "重试",
+    "refresh": "刷新"
   },
   "tools": {
     "mcp_command": "命令",

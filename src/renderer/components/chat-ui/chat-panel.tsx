@@ -57,7 +57,7 @@ import {
   MessageContent,
   MessageResponse,
 } from '../ai-elements/message';
-import { IconArrowDown, IconArrowUp } from '@tabler/icons-react';
+import { IconAlertCircle, IconArrowDown, IconArrowUp } from '@tabler/icons-react';
 import { Label } from '../ui/label';
 import {
   ToolApproval,
@@ -507,8 +507,8 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
                             ) {
                               return (
                                 <Alert className="w-fit bg-muted p-2">
-                                  <AlertTitle className="text-xs">
-                                    Request interrupted by user
+                                  <AlertTitle className="text-xs flex gap-1 items-center">
+                                    <IconAlertCircle size={16}></IconAlertCircle>{t('common.request_interrupted_by_user')}
                                   </AlertTitle>
                                 </Alert>
                               );

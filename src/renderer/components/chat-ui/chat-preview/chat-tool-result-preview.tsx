@@ -63,7 +63,7 @@ function FilePreview({ children }: { children?: React.ReactNode }) {
     src.endsWith('.wmv') ||
     src.endsWith('.webm') ||
     src.endsWith('.m4v') ||
-    src.endsWith('.ts') ||
+    // src.endsWith('.ts') ||
     src.endsWith('.mts') ||
     src.endsWith('.m2ts')
   ) {

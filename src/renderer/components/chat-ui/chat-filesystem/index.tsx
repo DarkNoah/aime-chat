@@ -13,31 +13,189 @@ import {
   IconRefresh,
   IconSearch,
   IconX,
+  IconEye,
+  IconFolderShare,
 } from '@tabler/icons-react';
 import { DirectoryTreeNode, SearchResult } from '@/types/common';
 import { Button } from '../../ui/button';
 import { cn } from '@/renderer/lib/utils';
 import { ScrollArea } from '../../ui/scroll-area';
 import { Input } from '../../ui/input';
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from '../../ui/context-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '../../ui/dialog';
+import { useTranslation } from 'react-i18next';
+import { set } from 'core-js/core/dict';
+import { PhotoProvider, PhotoView } from 'react-photo-view';
+import { Badge } from '../../ui/badge';
 
 export type ChatFilesystemProps = {
   workspace?: string;
   className?: string;
 };
 
-export interface ChatFilesystemRef {}
+export interface ChatFilesystemRef { }
+
+type FilePreviewState = {
+  open: boolean;
+  path: string | null;
+  content: string;
+  loading: boolean;
+  error: string | null;
+  truncated: boolean;
+  size: number;
+};
+
+// 文件预览对话框组件
+const FilePreviewDialog: React.FC<{
+  state: FilePreviewState;
+  onClose: () => void;
+}> = ({ state, onClose }) => {
+  const { t } = useTranslation();
+  const [content, setContent] = useState<string>('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [truncated, setTruncated] = useState(false);
+  const [fileSize, setFileSize] = useState(0);
+  const [mimeType, setMimeType] = useState<string>('');
+  const [isBinary, setIsBinary] = useState(false);
+  const [fileName, setFileName] = useState<string | null>(null);
+  useEffect(() => {
+    if (state.open && state.path) {
+      setLoading(true);
+      setError(null);
+      window.electron.app
+        .readFileContent(state.path, { limit: 500000 })
+        .then((result) => {
+          if (!result.isBinary) {
+            setContent(result.content);
+          }
+          setIsBinary(result.isBinary);
+          setMimeType(result.mimeType);
+          setTruncated(result.truncated);
+          setFileSize(result.size);
+          setFileName(state.path.replaceAll('\\', '/').split('/').pop());
+        })
+        .catch((err) => {
+          setError(err instanceof Error ? err.message : 'Failed to read file');
+        })
+        .finally(() => {
+          setLoading(false);
+        });
+    } else {
+      setContent('');
+      setError(null);
+      setTruncated(false);
+      setFileSize(0);
+    }
+  }, [state.open, state.path]);
+
+  const formatSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+
+  return (
+    <Dialog open={state.open} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-h-[80vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle className="text-sm font-medium truncate pr-8">
+            {t('chat.file_preview')} - {fileName}
+          </DialogTitle>
+          <DialogDescription>
+            <span className="text-xs text-muted-foreground">{state.path}</span>
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex-1 min-h-0 overflow-hidden">
+          {loading && (
+            <div className="flex items-center justify-center h-32">
+              <IconRefresh className="size-5 animate-spin text-muted-foreground" />
+              <span className="ml-2 text-sm text-muted-foreground">
+                {t('common.loading')}
+              </span>
+            </div>
+          )}
+          {error && (
+            <div className="flex flex-col items-center justify-center h-32 text-destructive">
+              <p className="text-sm">{error}</p>
+            </div>
+          )}
+          {!loading && !error && (
+            <>
+              {truncated && (
+                <div className="px-4 py-2 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 text-xs">
+                  {t('chat.file_too_large', { size: formatSize(fileSize) })}
+                </div>
+              )}
+
+
+              <div className="max-h-[60vh] overflow-y-auto">
+                {!isBinary && (
+                  <pre className="p-4 text-xs font-mono whitespace-pre-wrap break-all">
+                    {content || t('common.no_data')}
+                  </pre>
+                )}
+                {isBinary && (
+                  <div className="p-4 text-xs text-muted-foreground">
+                    {mimeType.startsWith('image/') && (
+                      <PhotoProvider>
+                        <PhotoView src={`file://${state.path}`}>
+                          <img
+                            alt={fileName || 'attachment'}
+                            className="size-full object-cover rounded-2xl"
+                            height={100}
+                            src={`file://${state.path}`}
+                            width={100}
+                          />
+                        </PhotoView>
+                      </PhotoProvider>
+                    )
+                    }
+                    {mimeType.startsWith('audio/') &&
+                      <audio src={`file://${state.path}`} controls className='w-full' />}
+                    {mimeType.startsWith('video/') &&
+                      <video src={`file://${state.path}`} controls />}
+                    {mimeType.startsWith('application/pdf') &&
+                      <iframe src={`file://${state.path}`} className="w-full h-auto" />}
+                  </div>
+                )}
+              </div>
+
+
+            </>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
 
 type TreeNodeProps = {
   node: DirectoryTreeNode;
   level: number;
   defaultOpen?: boolean;
+  onPreviewFile: (path: string) => void;
 };
 
 const TreeNode: React.FC<TreeNodeProps> = ({
   node,
   level,
   defaultOpen = false,
+  onPreviewFile,
 }) => {
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const [children, setChildren] = useState<DirectoryTreeNode[] | undefined>(
     node.children,
@@ -115,7 +273,12 @@ const TreeNode: React.FC<TreeNodeProps> = ({
         </CollapsibleTrigger>
         <CollapsibleContent>
           {children?.map((child) => (
-            <TreeNode key={child.path} node={child} level={level + 1} />
+            <TreeNode
+              key={child.path}
+              node={child}
+              level={level + 1}
+              onPreviewFile={onPreviewFile}
+            />
           ))}
         </CollapsibleContent>
       </Collapsible>
@@ -123,23 +286,37 @@ const TreeNode: React.FC<TreeNodeProps> = ({
   }
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      className="flex items-center gap-1 py-1 px-2 hover:bg-muted/50 cursor-grab active:cursor-grabbing rounded-sm select-none"
-      style={{ paddingLeft: paddingLeft + 20 }}
-      onClick={handleFileClick}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          handleFileClick();
-        }
-      }}
-      draggable
-      onDragStart={handleDragStart}
-    >
-      <IconFile className="size-4 text-muted-foreground shrink-0" />
-      <span className="text-sm truncate">{node.name}</span>
-    </div>
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <div
+          role="button"
+          tabIndex={0}
+          className="flex items-center gap-1 py-1 px-2 hover:bg-muted/50 cursor-grab active:cursor-grabbing rounded-sm select-none"
+          style={{ paddingLeft: paddingLeft + 20 }}
+          onClick={handleFileClick}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              handleFileClick();
+            }
+          }}
+          draggable
+          onDragStart={handleDragStart}
+        >
+          <IconFile className="size-4 text-muted-foreground shrink-0" />
+          <span className="text-sm truncate">{node.name}</span>
+        </div>
+      </ContextMenuTrigger>
+      <ContextMenuContent>
+        <ContextMenuItem onClick={() => onPreviewFile(node.path)}>
+          <IconEye className="size-4 mr-2" />
+          {t('chat.preview_file')}
+        </ContextMenuItem>
+        <ContextMenuItem onClick={() => window.electron.app.openPath(node.path)}>
+          <IconFolderShare className="size-4 mr-2" />
+          {t('chat.open_in_explorer')}
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   );
 };
 
@@ -147,6 +324,7 @@ type SearchResultItemProps = {
   result: SearchResult;
   workspace: string;
   searchQuery: string;
+  onPreviewFile: (path: string) => void;
 };
 
 // 高亮匹配文本的辅助函数
@@ -180,7 +358,9 @@ const SearchResultItem: React.FC<SearchResultItemProps> = ({
   result,
   workspace,
   searchQuery,
+  onPreviewFile,
 }) => {
+  const { t } = useTranslation();
   const relativePath = result.file.replace(workspace, '').replace(/^\//, '');
   const fileName = relativePath.split('/').pop() || relativePath;
   const dirPath = relativePath.substring(
@@ -234,60 +414,90 @@ const SearchResultItem: React.FC<SearchResultItemProps> = ({
   // 文件名/文件夹名匹配时的渲染
   if (result.type === 'filename' || result.type === 'folder') {
     return (
-      <div
-        role="button"
-        tabIndex={0}
-        className="px-2 py-1.5 hover:bg-muted/50 cursor-grab active:cursor-grabbing rounded-sm border-b border-border/50 last:border-b-0"
-        onClick={handleClick}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            handleClick();
-          }
-        }}
-        draggable
-        onDragStart={handleDragStart}
-      >
-        <div className="flex items-center gap-1.5 text-xs">
-          {getIcon()}
-          <span className="font-medium">
-            {highlightMatch(result.match, searchQuery)}
-          </span>
-          {getTypeLabel()}
-        </div>
-        <div className="pl-4 text-xs text-muted-foreground truncate">
-          {relativePath}
-        </div>
-      </div>
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
+          <div
+            role="button"
+            tabIndex={0}
+            className="px-2 py-1.5 hover:bg-muted/50 cursor-grab active:cursor-grabbing rounded-sm border-b border-border/50 last:border-b-0"
+            onClick={handleClick}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                handleClick();
+              }
+            }}
+            draggable
+            onDragStart={handleDragStart}
+          >
+            <div className="flex items-center gap-1.5 text-xs">
+              {getIcon()}
+              <span className="font-medium">
+                {highlightMatch(result.match, searchQuery)}
+              </span>
+              {getTypeLabel()}
+            </div>
+            <div className="pl-4 text-xs text-muted-foreground truncate">
+              {relativePath}
+            </div>
+          </div>
+        </ContextMenuTrigger>
+        <ContextMenuContent>
+          {result.type === 'filename' && (
+            <ContextMenuItem onClick={() => onPreviewFile(result.file)}>
+              <IconEye className="size-4 mr-2" />
+              {t('chat.preview_file')}
+            </ContextMenuItem>
+          )}
+          <ContextMenuItem onClick={() => window.electron.app.openPath(result.file)}>
+            <IconFolderShare className="size-4 mr-2" />
+            {t('chat.open_in_explorer')}
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
     );
   }
 
   // 内容匹配时的渲染
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      className="px-2 py-1.5 hover:bg-muted/50 cursor-grab active:cursor-grabbing rounded-sm border-b border-border/50 last:border-b-0"
-      onClick={handleClick}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          handleClick();
-        }
-      }}
-      draggable
-      onDragStart={handleDragStart}
-    >
-      <div className="flex items-center gap-1 text-xs">
-        {getIcon()}
-        <span className="font-medium">{fileName}</span>
-        <span className="text-muted-foreground shrink-0">:{result.line}</span>
-      </div>
-      <div className="pl-4 text-xs text-muted-foreground truncate">
-        {dirPath}
-      </div>
-      <div className="pl-4 text-xs mt-0.5 font-mono truncate">
-        {highlightMatch(result.context, searchQuery)}
-      </div>
-    </div>
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <div
+          role="button"
+          tabIndex={0}
+          className="px-2 py-1.5 hover:bg-muted/50 cursor-grab active:cursor-grabbing rounded-sm border-b border-border/50 last:border-b-0"
+          onClick={handleClick}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              handleClick();
+            }
+          }}
+          draggable
+          onDragStart={handleDragStart}
+        >
+          <div className="flex items-center gap-1 text-xs">
+            {getIcon()}
+            <span className="font-medium">{fileName}</span>
+            <span className="text-muted-foreground shrink-0">:{result.line}</span>
+          </div>
+          <div className="pl-4 text-xs text-muted-foreground truncate">
+            {dirPath}
+          </div>
+          <div className="pl-4 text-xs mt-0.5 font-mono truncate">
+            {highlightMatch(result.context, searchQuery)}
+          </div>
+        </div>
+      </ContextMenuTrigger>
+      <ContextMenuContent>
+        <ContextMenuItem onClick={() => onPreviewFile(result.file)}>
+          <IconEye className="size-4 mr-2" />
+          {t('chat.preview_file')}
+        </ContextMenuItem>
+        <ContextMenuItem onClick={() => window.electron.app.openPath(result.file)}>
+          <IconFolderShare className="size-4 mr-2" />
+          {t('chat.open_in_explorer')}
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   );
 };
 
@@ -295,6 +505,7 @@ export const ChatFilesystem = React.forwardRef<
   ChatFilesystemRef,
   ChatFilesystemProps
 >((props: ChatFilesystemProps, ref: ForwardedRef<ChatFilesystemRef>) => {
+  const { t } = useTranslation();
   const { workspace, className } = props;
   const [tree, setTree] = useState<DirectoryTreeNode | null>(null);
   const [loading, setLoading] = useState(false);
@@ -307,6 +518,33 @@ export const ChatFilesystem = React.forwardRef<
   const [searchTotal, setSearchTotal] = useState(0);
   const [searchTruncated, setSearchTruncated] = useState(false);
   const [isSearchMode, setIsSearchMode] = useState(false);
+
+  // 文件预览状态
+  const [previewState, setPreviewState] = useState<FilePreviewState>({
+    open: false,
+    path: null,
+    content: '',
+    loading: false,
+    error: null,
+    truncated: false,
+    size: 0,
+  });
+
+  const handlePreviewFile = useCallback((path: string) => {
+    setPreviewState({
+      open: true,
+      path,
+      content: '',
+      loading: true,
+      error: null,
+      truncated: false,
+      size: 0,
+    });
+  }, []);
+
+  const handleClosePreview = useCallback(() => {
+    setPreviewState((prev) => ({ ...prev, open: false }));
+  }, []);
 
   const loadTree = useCallback(async () => {
     if (!workspace) {
@@ -383,7 +621,7 @@ export const ChatFilesystem = React.forwardRef<
           className,
         )}
       >
-        <p className="text-sm">No workspace configured</p>
+        <p className="text-sm">{t('chat.no_workspace')}</p>
       </div>
     );
   }
@@ -407,7 +645,7 @@ export const ChatFilesystem = React.forwardRef<
         <p className="text-sm text-destructive">{error}</p>
         <Button variant="outline" size="sm" onClick={loadTree}>
           <IconRefresh className="size-4 mr-1" />
-          Retry
+          {t('common.retry')}
         </Button>
       </div>
     );
@@ -421,107 +659,118 @@ export const ChatFilesystem = React.forwardRef<
           className,
         )}
       >
-        <p className="text-sm">No files found</p>
+        <p className="text-sm">{t('chat.no_files_found')}</p>
       </div>
     );
   }
 
   return (
-    <div className={cn('h-full flex flex-col ', className)}>
-      {/* 头部：路径和刷新按钮 */}
-      <div className="flex items-center justify-between px-2 py-1 border-b">
-        <div className="flex-1 min-w-0">
+    <>
+      <div className={cn('h-full flex flex-col ', className)}>
+        {/* 头部：路径和刷新按钮 */}
+        <div className="flex items-center justify-between px-2 py-1 border-b">
+          <div className="flex-1 min-w-0">
+            <Button
+              variant="link"
+              size="sm"
+              className="text-xs text-muted-foreground truncate justify-start w-full"
+              title={workspace}
+              onClick={() => {
+                window.electron.app.openPath(workspace);
+              }}
+            >
+              {workspace}
+            </Button>
+          </div>
+
           <Button
-            variant="link"
-            size="sm"
-            className="text-xs text-muted-foreground truncate justify-start w-full"
-            title={workspace}
-            onClick={() => {
-              window.electron.app.openPath(workspace);
-            }}
+            variant="ghost"
+            size="icon-sm"
+            onClick={loadTree}
+            title={t('common.refresh')}
           >
-            {workspace}
+            <IconRefresh className="size-3" />
           </Button>
         </div>
 
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={loadTree}
-          title="Refresh"
-        >
-          <IconRefresh className="size-3" />
-        </Button>
-      </div>
-
-      {/* 搜索框 */}
-      <div className="px-2 py-1.5 border-b">
-        <div className="relative">
-          <IconSearch className="absolute left-2 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
-          <Input
-            className="h-7 pl-7 pr-7 text-xs"
-            placeholder="Search files... (Enter to search)"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyDown={handleKeyDown}
-          />
-          {searchQuery && (
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              className="absolute right-1 top-1/2 -translate-y-1/2 rounded-full w-5 h-5"
-              onClick={handleClearSearch}
-            >
-              <IconX className="size-3" />
-            </Button>
-          )}
-        </div>
-      </div>
-
-      {/* 内容区域 */}
-      <ScrollArea className="flex-1 h-[calc(100%-82px)]">
-        {searching && (
-          <div className="flex items-center justify-center py-8">
-            <IconRefresh className="size-4 animate-spin text-muted-foreground" />
-            <span className="ml-2 text-xs text-muted-foreground">
-              Searching...
-            </span>
-          </div>
-        )}
-        {!searching && isSearchMode && (
-          <div className="py-1">
-            {searchResults.length > 0 ? (
-              <>
-                <div className="px-2 py-1 text-xs text-muted-foreground">
-                  {searchTruncated
-                    ? `Showing 50 of ${searchTotal} results`
-                    : `${searchTotal} result${searchTotal !== 1 ? 's' : ''}`}
-                </div>
-                {searchResults.map((result, index) => (
-                  <SearchResultItem
-                    key={`${result.file}:${result.line}:${index}`}
-                    result={result}
-                    workspace={workspace}
-                    searchQuery={searchQuery}
-                  />
-                ))}
-              </>
-            ) : (
-              <div className="flex items-center justify-center py-8 text-muted-foreground">
-                <p className="text-xs">No results found</p>
-              </div>
+        {/* 搜索框 */}
+        <div className="px-2 py-1.5 border-b">
+          <div className="relative">
+            <IconSearch className="absolute left-2 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+            <Input
+              className="h-7 pl-7 pr-7 text-xs"
+              placeholder={t('chat.search_files')}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={handleKeyDown}
+            />
+            {searchQuery && (
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="absolute right-1 top-1/2 -translate-y-1/2 rounded-full w-5 h-5"
+                onClick={handleClearSearch}
+              >
+                <IconX className="size-3" />
+              </Button>
             )}
           </div>
-        )}
-        {!searching && !isSearchMode && (
-          <div className="p-1">
-            {tree.children?.map((child) => (
-              <TreeNode key={child.path} node={child} level={0} />
-            ))}
-          </div>
-        )}
-      </ScrollArea>
-    </div>
+        </div>
+
+        {/* 内容区域 */}
+        <ScrollArea className="flex-1 h-[calc(100%-82px)]">
+          {searching && (
+            <div className="flex items-center justify-center py-8">
+              <IconRefresh className="size-4 animate-spin text-muted-foreground" />
+              <span className="ml-2 text-xs text-muted-foreground">
+                {t('chat.searching')}
+              </span>
+            </div>
+          )}
+          {!searching && isSearchMode && (
+            <div className="py-1">
+              {searchResults.length > 0 ? (
+                <>
+                  <div className="px-2 py-1 text-xs text-muted-foreground">
+                    {searchTruncated
+                      ? t('chat.showing_results', { count: 50, total: searchTotal })
+                      : t('chat.results_count', { count: searchTotal })}
+                  </div>
+                  {searchResults.map((result, index) => (
+                    <SearchResultItem
+                      key={`${result.file}:${result.line}:${index}`}
+                      result={result}
+                      workspace={workspace}
+                      searchQuery={searchQuery}
+                      onPreviewFile={handlePreviewFile}
+                    />
+                  ))}
+                </>
+              ) : (
+                <div className="flex items-center justify-center py-8 text-muted-foreground">
+                  <p className="text-xs">{t('chat.no_results')}</p>
+                </div>
+              )}
+            </div>
+          )}
+          {!searching && !isSearchMode && (
+            <div className="p-1">
+              {tree.children?.map((child) => (
+                <TreeNode
+                  key={child.path}
+                  node={child}
+                  level={0}
+                  onPreviewFile={handlePreviewFile}
+                />
+              ))}
+            </div>
+          )}
+        </ScrollArea>
+      </div>
+
+      {/* 文件预览对话框 */}
+      <FilePreviewDialog state={previewState} onClose={handleClosePreview} />
+    </>
   );
 });
 

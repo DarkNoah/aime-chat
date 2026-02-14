@@ -95,7 +95,8 @@
     "importing": "Importing",
     "import_success": "Import Success",
     "ask_to_delete_skill": "Delect skill?",
-    "ptc_open": "PTC Open"
+    "ptc_open": "PTC Open",
+    "request_interrupted_by_user": "Request interrupted by user"
   },
   "sidebar": {
     "new_chat": "New Chat",
@@ -112,7 +113,20 @@
     "clear_messages_title": "Clear Messages",
     "clear_messages_description": "Are you sure you want to clear all current messages?",
     "file_system": "File System",
-    "project": "Project"
+    "project": "Project",
+    "file_preview": "File Preview",
+    "preview_file": "Preview File",
+    "open_in_explorer": "Open in Explorer",
+    "no_workspace": "No workspace configured",
+    "no_files_found": "No files found",
+    "search_files": "Search files... (Enter to search)",
+    "searching": "Searching...",
+    "no_results": "No results found",
+    "showing_results": "Showing {{count}} of {{total}} results",
+    "results_count": "{{count}} result(s)",
+    "file_too_large": "File is too large ({{size}}), content truncated",
+    "retry": "Retry",
+    "refresh": "Refresh"
   },
   "tools": {
     "mcp_command": "Command",

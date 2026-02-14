@@ -52,13 +52,9 @@ Returns:
 `;
   inputSchema = z.strictObject({
     fields: z.string().describe('Extract JsonSchema'),
-    file_path_or_url: z
+    source: z
       .string()
       .describe('The absolute path to the file to extract or the url'),
-    // save_path: z
-    //   .string()
-    //   .optional()
-    //   .describe('The path to save the extracted data'),
   });
 
   configSchema = ToolConfig.Extract.configSchema;
@@ -72,7 +68,24 @@ Returns:
     options?: ToolExecutionContext,
   ) => {
     const mode = options.requestContext.get('model' as never) as string;
-    const { fields, file_path_or_url } = inputData;
+    const { fields, source } = inputData;
+
+
+    // if((save_format && !save_path) || (!save_format && save_path)) {
+    //   throw new Error('save_format and save_path must be provided together');
+    // }
+    // if(save_format == 'json' && !save_path.endsWith('.json')) {
+    //   throw new Error('save_path must end with .json');
+    // }
+    // if(save_format == 'csv' && !save_path.endsWith('.csv')) {
+    //   throw new Error('save_path must end with .csv');
+    // }
+    // if(save_format == 'excel' && !save_path.endsWith('.xlsx')) {
+    //   throw new Error('save_path must end with .xlsx');
+    // }
+
+
+
     let fieldsSchema;
     try {
       fieldsSchema = JSON.parse(fields);
@@ -96,27 +109,27 @@ Returns:
     });
     let content = '';
 
-    if (isUrl(file_path_or_url)) {
+    if (isUrl(source)) {
       const webFetch = await toolsManager.buildTool(
         `${ToolType.BUILD_IN}:${WebFetch.toolName}`,
       );
       content = await (webFetch as WebFetch).execute(
         {
-          url: file_path_or_url,
+          url: source,
         },
         options,
       );
     } else if (
-      fs.existsSync(file_path_or_url) &&
-      fs.statSync(file_path_or_url).isFile()
+      fs.existsSync(source) &&
+      fs.statSync(source).isFile()
     ) {
       const readBinaryFile = await toolsManager.buildTool(
         `${ToolType.BUILD_IN}:${ReadBinaryFile.toolName}`,
       );
-      console.log('准备OCR文件:', file_path_or_url);
+      console.log('准备OCR文件:', source);
       content = await (readBinaryFile as ReadBinaryFile).execute(
         {
-          file_source: file_path_or_url,
+          file_source: source,
         },
         options,
       );
@@ -143,6 +156,6 @@ ${content}
     );
     const o = response.object;
     console.log('提取结果:', o);
-    return JSON.stringify(o, null, 2);
+    return `${JSON.stringify(o, null, 2)}`;
   };
 }

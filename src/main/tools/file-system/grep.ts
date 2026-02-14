@@ -144,9 +144,9 @@ export class Grep extends BaseTool {
       cwd = requestContext.get('workspace' as never) as string;
     }
 
-    if (cwd && fs.existsSync(cwd) && !fs.statSync(cwd).isDirectory()) {
-      throw new Error(`Directory ${cwd} is not a directory`);
-    }
+    // if (cwd && fs.existsSync(cwd) && !fs.statSync(cwd).isDirectory()) {
+    //   throw new Error(`Directory ${cwd} is not a directory`);
+    // }
 
     const args: string[] = [];
 

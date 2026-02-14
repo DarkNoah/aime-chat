@@ -81,6 +81,8 @@ import { Translation } from '../tools/work/translation';
 import { nanoid } from '@/utils/nanoid';
 import { HookAgent, HookProxyAgent } from './hook-agent';
 import { get } from 'core-js/core/dict';
+import { isBinaryFile } from 'isbinaryfile';
+import mime from 'mime';
 class AppManager extends BaseManager {
   repository: Repository<Providers>;
   settingsRepository: Repository<Settings>;
@@ -205,6 +207,55 @@ class AppManager extends BaseManager {
       ext,
       size,
       sizeStr,
+    };
+  }
+
+  @channel(AppChannel.ReadFileContent)
+  public async readFileContent(
+    filePath: string,
+    options?: { limit?: number },
+  ): Promise<{ content: string; truncated: boolean; size: number, mimeType: string, isBinary: boolean }> {
+    const limit = options?.limit || 100000; // 默认限制 100KB
+
+    if (!fs.existsSync(filePath)) {
+      throw new Error('File not found');
+    }
+
+    const stat = fs.statSync(filePath);
+    if (!stat.isFile()) {
+      throw new Error('Not a file');
+    }
+    const mimeType = mime.lookup(filePath);
+    const size = stat.size;
+    if (await isBinaryFile(filePath)) {
+      return {
+        content: undefined,
+        truncated: false,
+        size,
+        mimeType,
+        isBinary: true,
+      };
+    }
+
+
+    // 检查文件大小
+
+    const truncated = size > limit;
+
+    // 读取文件内容（限制大小）
+    const buffer = Buffer.alloc(Math.min(size, limit));
+    const fd = fs.openSync(filePath, 'r');
+    fs.readSync(fd, buffer, 0, buffer.length, 0);
+    fs.closeSync(fd);
+
+    const content = buffer.toString('utf-8');
+
+    return {
+      content,
+      truncated,
+      size,
+      mimeType,
+      isBinary: false,
     };
   }
 
@@ -554,8 +605,8 @@ class AppManager extends BaseManager {
       setGlobalDispatcher(
         systemProxy.proxyEnable
           ? new ProxyAgent({
-              uri: systemProxy.proxyServer,
-            })
+            uri: systemProxy.proxyServer,
+          })
           : new Agent(),
       );
       if (systemProxy.proxyEnable) {
@@ -606,7 +657,7 @@ class AppManager extends BaseManager {
           port: data.port,
         };
         await this.settingsRepository.upsert(settingData, ['id']);
-      } catch {}
+      } catch { }
     } else if (data.mode == 'noproxy') {
       proxyConfig = {};
       setGlobalDispatcher(new Agent());

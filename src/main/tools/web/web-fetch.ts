@@ -93,7 +93,7 @@ Usage notes:
       try {
         await page.goto(url, { timeout: 5000 });
         await page.waitForLoadState('networkidle');
-      } catch {}
+      } catch { }
 
       //await page.waitForLoadState('domcontentloaded', { timeout: 3000 });
       // html = await page.content();
@@ -217,7 +217,9 @@ ${prompt}
 ${content}
 </web_content>`,
         },
-      ]);
+      ], {
+        abortSignal: options?.abortSignal,
+      });
       return result.text;
     }
     return content;

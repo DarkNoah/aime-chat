@@ -153,6 +153,11 @@ const electronHandler = {
       params: SearchInDirectoryParams,
     ): Promise<SearchInDirectoryResult> =>
       ipcRenderer.invoke(AppChannel.SearchInDirectory, params),
+    readFileContent: (
+      filePath: string,
+      options?: { limit?: number },
+    ): Promise<{ content: string; truncated: boolean; size: number, mimeType: string, isBinary: boolean }> =>
+      ipcRenderer.invoke(AppChannel.ReadFileContent, filePath, options),
     screenCapture: (
       options: ScreenCaptureOptions,
     ): Promise<ScreenCaptureResult> =>
