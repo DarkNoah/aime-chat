@@ -33,7 +33,7 @@ import {
   ConversationEmptyState,
   ConversationScrollButton,
 } from '../ai-elements/conversation';
-import { ChevronsUpDown, MessageSquareIcon } from 'lucide-react';
+import { ChevronsUpDown, CopyIcon, MessageSquareIcon } from 'lucide-react';
 import { Agent } from '@/types/agent';
 import toast from 'react-hot-toast';
 import { useChat as useAiSdkChat } from '@ai-sdk/react';
@@ -52,6 +52,7 @@ import {
 } from '../ai-elements/reasoning';
 import {
   Message,
+  MessageAction,
   MessageActions,
   MessageContent,
   MessageResponse,
@@ -529,6 +530,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
                                       </MessageResponse>
                                     </MessageContent>
                                   </Message>
+
                                   <MessageActions
                                     className={
                                       message.role === 'user'
@@ -536,14 +538,19 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
                                         : 'justify-start'
                                     }
                                   >
-                                    {/* <MessageAction
-                                    onClick={() =>
-                                      navigator.clipboard.writeText(part.text)
-                                    }
-                                    label="Copy"
-                                  >
-                                    <CopyIcon className="size-3" />
-                                  </MessageAction> */}
+                                    {message.role === 'user' && (
+                                      <MessageAction
+                                        onClick={() =>
+                                          navigator.clipboard.writeText(
+                                            part.text,
+                                          )
+                                        }
+                                        label="Copy"
+                                      >
+                                        <CopyIcon className="size-3" />
+                                      </MessageAction>
+                                    )}
+
                                     {message?.parts.length === i + 1 &&
                                       message.role === 'assistant' &&
                                       message.metadata?.usage?.inputTokens &&

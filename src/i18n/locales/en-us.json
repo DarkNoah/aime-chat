@@ -94,7 +94,8 @@
     "delete_agent": "Delete agent",
     "importing": "Importing",
     "import_success": "Import Success",
-    "ask_to_delete_skill": "Delect skill?"
+    "ask_to_delete_skill": "Delect skill?",
+    "ptc_open": "PTC Open"
   },
   "sidebar": {
     "new_chat": "New Chat",
@@ -152,7 +153,10 @@
   "knowledge-base": {
     "add_url": "Add Url",
     "add_files": "Add Files",
-    "add_text": "Add Text"
+    "add_text": "Add Text",
+    "name": "Name",
+    "description": "Description",
+    "reranker": "Reranker"
   },
   "setup": {
     "welcome": {
@@ -210,7 +214,7 @@
       "title": "Install Runtime",
       "description": "Install optional runtimes to enable advanced features like MCP servers and code execution.",
       "uv_desc": "Python package manager for running MCP servers and Python tools.",
-      "node_desc": "JavaScript runtime for running Node.js-based MCP servers.",
+      "node_desc": "JavaScript runtime for running Bun-based MCP servers.",
       "installed": "Installed",
       "not_installed": "Not Installed",
       "install": "Install",
@@ -225,5 +229,18 @@
       "tip_agents": "Explore pre-built agents or create your own in the Agents section.",
       "start_chatting": "Start Chatting"
     }
+  },
+  "update": {
+    "checking": "Checking...",
+    "installNow": "Install Now",
+    "retry": "Retry",
+    "checkUpdate": "Check Update",
+    "upToDate": "Up to Date",
+    "downloading": "Downloading...",
+    "downloadNew": "Download New"
+  },
+  "providers": {
+    "chat_provider": "Chat Provider",
+    "other_provider": "Other Provider"
   }
 }

@@ -17,7 +17,7 @@ export abstract class BaseLoader {
 
   abstract getInfo(buffer: Buffer, metadata: Record<string, any>): Promise<any>;
 
-  async load(): Promise<string> {
+  async load(): Promise<string | any> {
     let buffer;
     let metadata;
     if (typeof this.filePathOrBlob === 'string') {

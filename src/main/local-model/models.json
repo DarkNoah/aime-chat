@@ -112,11 +112,6 @@
   ],
   "tts": [
     {
-      "id": "kokoro-int8-multi-lang-v1_1",
-      "type": "github",
-      "download": "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/kokoro-int8-multi-lang-v1_1.tar.bz2"
-    },
-    {
       "id": "kokoro-multi-lang-v1_1",
       "type": "github",
       "download": "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/kokoro-multi-lang-v1_1.tar.bz2"

@@ -15,6 +15,7 @@ import { BrowserContext, chromium } from 'playwright';
 import { appManager } from '@/main/app';
 import { instancesManager } from '@/main/instances';
 import { JinaAIProvider } from '@/main/providers/jinaai-provider';
+import { Agent } from '@mastra/core/agent';
 export interface WebFetchParams extends BaseToolParams {
   providerId?: string;
 }
@@ -62,6 +63,7 @@ Usage notes:
     const config = this.config;
     const providerId = config?.providerId || ProviderType.LOCAL;
     const provider = await providersManager.getProvider(providerId);
+    let content = '';
     if (provider.type === ProviderType.LOCAL) {
       // const userDataDir = path.join(
       //   app.getPath('userData'),
@@ -128,7 +130,7 @@ Usage notes:
 
       const html = await page.content();
       await page.close();
-      return docs;
+      content = docs;
     } else if (provider.type === ProviderType.ZHIPUAI) {
       const zhipuaiProvider = (await providersManager.getProvider(
         config?.providerId,
@@ -158,9 +160,9 @@ Usage notes:
       );
       const data = await res.json();
       if (data.error) {
-        return data.error.message;
+        throw new Error(data.error.message);
       }
-      return data.reader_result.content;
+      content = data.reader_result.content;
     } else if (provider.type === ProviderType.JINA_AI) {
       const jinaaiProvider = (await providersManager.getProvider(
         config?.providerId,
@@ -174,8 +176,50 @@ Usage notes:
       };
       const res = await fetch(`https://r.jina.ai/${url}`, options);
       const data = await res.text();
-      return data;
+      content = data;
     }
-    return '';
+
+    if (!content) {
+      throw new Error('Failed to fetch content');
+    }
+
+    if (prompt) {
+      const model = options.requestContext.get('model' as never) as string;
+      const appInfo = await appManager.getInfo();
+      const fastModel = appInfo.defaultModel?.fastModel;
+      const defaultModel = appInfo.defaultModel?.model;
+      const languageModel = await providersManager.getLanguageModel(
+        fastModel || model || defaultModel,
+      );
+      const summaryAgent = new Agent({
+        id: 'web-content-agent',
+        name: 'WebContentAgent',
+        instructions: `You are an assistant specialized in analyzing and extracting information from web content.
+
+Your task:
+- Carefully read the provided web page content
+- Follow the user's instructions to extract, summarize, or analyze the content
+- Provide accurate, relevant, and well-organized responses
+- If the requested information is not found in the content, clearly state that
+- Respond in the same language as the user's request`,
+        model: languageModel,
+      });
+      const result = await summaryAgent.generate([
+        {
+          role: 'user',
+          content: `Please analyze the following web page content and respond to my request.
+
+<request>
+${prompt}
+</request>
+
+<web_content>
+${content}
+</web_content>`,
+        },
+      ]);
+      return result.text;
+    }
+    return content;
   };
 }

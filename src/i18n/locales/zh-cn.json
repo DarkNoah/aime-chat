@@ -38,7 +38,7 @@
     "model": "模型",
     "delect_chat": "删除聊天",
     "no_more": "没有更多",
-    "no_data": "暂无对话",
+    "no_data": "暂无数据",
     "add": "添加",
     "loading": "加载中...",
     "active": "启用",
@@ -94,7 +94,8 @@
     "delete_agent": "删除助手",
     "importing": "导入中",
     "import_success": "导入成功",
-    "ask_to_delete_skill": "是否删除技能?"
+    "ask_to_delete_skill": "是否删除技能?",
+    "ptc_open": "启用PTC模式"
   },
   "sidebar": {
     "new_chat": "新聊天",
@@ -152,7 +153,10 @@
   "knowledge-base": {
     "add_url": "添加网址",
     "add_files": "添加文件",
-    "add_text": "添加文本"
+    "add_text": "添加文本",
+    "name": "名称",
+    "description": "描述",
+    "reranker": "重排模型"
   },
   "setup": {
     "welcome": {
@@ -210,7 +214,7 @@
       "title": "安装运行环境",
       "description": "安装可选的运行环境以启用高级功能，如 MCP 服务器和代码执行。",
       "uv_desc": "Python 包管理器，用于运行 MCP 服务器和 Python 工具。",
-      "node_desc": "JavaScript 运行时，用于运行基于 Node.js 的 MCP 服务器。",
+      "node_desc": "JavaScript 运行时，用于运行基于 Bun 的 MCP 服务器。",
       "installed": "已安装",
       "not_installed": "未安装",
       "install": "安装",
@@ -225,5 +229,18 @@
       "tip_agents": "在助手页面探索预置助手或创建自己的助手。",
       "start_chatting": "开始对话"
     }
+  },
+  "update": {
+    "checking": "检查中...",
+    "installNow": "立即安装",
+    "retry": "重试",
+    "checkUpdate": "检查更新",
+    "upToDate": "已是最新版本",
+    "downloading": "下载中...",
+    "downloadNew": "下载新版本"
+  },
+  "providers": {
+    "chat_provider": "对话模型",
+    "other_provider": "其他供应商"
   }
 }

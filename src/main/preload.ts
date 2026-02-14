@@ -3,6 +3,7 @@
 import { Agent } from '@/types/agent';
 import {
   AppProxy,
+  RuntimeInfo,
   ScreenCaptureOptions,
   ScreenCaptureResult,
   ScreenSource,
@@ -12,6 +13,7 @@ import {
   DirectoryTreeNode,
   FileInfo,
   PaginationInfo,
+  PaginationParams,
   SearchInDirectoryParams,
   SearchInDirectoryResult,
 } from '@/types/common';
@@ -23,11 +25,14 @@ import {
   MastraChannel,
   ProjectChannel,
   ProviderChannel,
+  TaskQueueChannel,
+  InstancesChannel,
   ToolChannel,
 } from '@/types/ipc-channel';
 import {
   CreateKnowledgeBase,
   KnowledgeBaseSourceType,
+  SearchKnowledgeBaseResult,
   UpdateKnowledgeBase,
 } from '@/types/knowledge-base';
 import { LocalModelItem, LocalModelType } from '@/types/local-model';
@@ -36,8 +41,10 @@ import {
   ModelType,
   ProviderModel,
   ProviderTag,
+  ProviderTypeList,
   UpdateProvider,
 } from '@/types/provider';
+import { AddTaskOptions, BackgroundTask, TaskGroupConfig } from '@/types/task-queue';
 import { AvailableTool, ToolType } from '@/types/tool';
 import { UpdateState } from '@/types/app';
 import { MastraDBMessage, StorageThreadType } from '@mastra/core/memory';
@@ -50,6 +57,7 @@ import {
   OpenDialogReturnValue,
   webUtils,
 } from 'electron';
+import { KnowledgeBaseItem } from '@/entities/knowledge-base';
 
 // export type Channels = 'ipc-example';
 
@@ -108,7 +116,8 @@ const electronHandler = {
       ipcRenderer.invoke(AppChannel.InstasllRumtime, pkg),
     uninstallRuntime: (pkg: string) =>
       ipcRenderer.invoke(AppChannel.UninstallRumtime, pkg),
-    getRuntimeInfo: () => ipcRenderer.invoke(AppChannel.GetRuntimeInfo),
+    getRuntimeInfo: (): Promise<RuntimeInfo> =>
+      ipcRenderer.invoke(AppChannel.GetRuntimeInfo),
     setApiServerPort: (port: number) =>
       ipcRenderer.invoke(AppChannel.SetApiServerPort, port),
     toggleApiServerEnable: (enabled: boolean) =>
@@ -152,11 +161,13 @@ const electronHandler = {
       ipcRenderer.invoke(AppChannel.GetScreenSources),
   },
   providers: {
-    getList: (filter?: { tags?: ProviderTag[] }) =>
+    getList: (filter?: { tags?: ProviderTag[]; onlyChatModel?: boolean }) =>
       ipcRenderer.invoke(ProviderChannel.GetList, filter),
     get: (id: string) => ipcRenderer.invoke(ProviderChannel.Get, id),
     getAvailableModels: (type: ModelType) =>
       ipcRenderer.invoke(ProviderChannel.GetAvailableModels, type),
+    getProviderTypeList: (): Promise<ProviderTypeList[]> =>
+      ipcRenderer.invoke(ProviderChannel.GetProviderTypeList),
     create: (data: CreateProvider) =>
       ipcRenderer.invoke(ProviderChannel.Create, data),
     update: (id: string, data: UpdateProvider) =>
@@ -241,9 +252,12 @@ const electronHandler = {
     getList: () => ipcRenderer.invoke(KnowledgeBaseChannel.GetList),
     importSource: (data: {
       kbId: string;
-      source: string;
+      source: any;
       type: KnowledgeBaseSourceType;
     }) => ipcRenderer.invoke(KnowledgeBaseChannel.ImportSource, data),
+    getKnowledgeBaseItems: (id: string, params: PaginationParams): Promise<PaginationInfo<KnowledgeBaseItem>> => ipcRenderer.invoke(KnowledgeBaseChannel.GetKnowledgeBaseItems, id, params),
+    searchKnowledgeBase: (kbId: string, query: string): Promise<SearchKnowledgeBaseResult> => ipcRenderer.invoke(KnowledgeBaseChannel.SearchKnowledgeBase, kbId, query),
+    deleteKnowledgeBaseItem: (id: string) => ipcRenderer.invoke(KnowledgeBaseChannel.DeleteKnowledgeBaseItem, id),
   },
   tools: {
     deleteTool: (id: string) => ipcRenderer.invoke(ToolChannel.DeleteTool, id),
@@ -270,10 +284,10 @@ const electronHandler = {
     importSkill: (data: { files: string[] }) =>
       ipcRenderer.invoke(ToolChannel.ImportSkill, data),
     importSkills: (data: {
-      repo_or_url: string;
+      repo_or_url?: string;
       files?: string[];
       path?: string;
-      selectedSkills: string[];
+      selectedSkills?: string[];
     }) => ipcRenderer.invoke(ToolChannel.ImportSkills, data),
     previewGitSkill: (data: { gitUrl: string }) =>
       ipcRenderer.invoke(ToolChannel.PreviewGitSkill, data),
@@ -315,6 +329,44 @@ const electronHandler = {
       ipcRenderer.invoke(ProjectChannel.CreateThread, options),
     deleteSkill: (projectId: string, skillId: string) =>
       ipcRenderer.invoke(ProjectChannel.DeleteSkill, projectId, skillId),
+  },
+  taskQueue: {
+    add: (options: AddTaskOptions): Promise<string> =>
+      ipcRenderer.invoke(TaskQueueChannel.Add, options),
+    pause: (taskId: string): Promise<void> =>
+      ipcRenderer.invoke(TaskQueueChannel.Pause, taskId),
+    resume: (taskId: string): Promise<void> =>
+      ipcRenderer.invoke(TaskQueueChannel.Resume, taskId),
+    cancel: (taskId: string): Promise<void> =>
+      ipcRenderer.invoke(TaskQueueChannel.Cancel, taskId),
+    remove: (taskId: string): Promise<void> =>
+      ipcRenderer.invoke(TaskQueueChannel.Remove, taskId),
+    getAll: (): Promise<BackgroundTask[]> =>
+      ipcRenderer.invoke(TaskQueueChannel.GetAll),
+    getByGroup: (groupId: string): Promise<BackgroundTask[]> =>
+      ipcRenderer.invoke(TaskQueueChannel.GetByGroup, groupId),
+    getGroupConfigs: (): Promise<TaskGroupConfig[]> =>
+      ipcRenderer.invoke(TaskQueueChannel.GetGroupConfigs),
+    setGroupConcurrency: (
+      groupId: string,
+      maxConcurrency: number,
+    ): Promise<void> =>
+      ipcRenderer.invoke(
+        TaskQueueChannel.SetGroupConcurrency,
+        groupId,
+        maxConcurrency,
+      ),
+    clearCompleted: (): Promise<void> =>
+      ipcRenderer.invoke(TaskQueueChannel.ClearCompleted),
+  },
+  instances: {
+    getInstances: () => ipcRenderer.invoke(InstancesChannel.GetInstances),
+    runInstance: (id: string) => ipcRenderer.invoke(InstancesChannel.RunInstance, id),
+    stopInstance: (id: string) => ipcRenderer.invoke(InstancesChannel.StopInstance, id),
+    updateInstance: (id: string, data: any) => ipcRenderer.invoke(InstancesChannel.UpdateInstance, id, data),
+    deleteInstance: (id: string) => ipcRenderer.invoke(InstancesChannel.DeleteInstance, id),
+    createInstance: (data: any) => ipcRenderer.invoke(InstancesChannel.CreateInstance, data),
+    getInstance: (id: string) => ipcRenderer.invoke(InstancesChannel.GetInstance, id),
   },
 };
 

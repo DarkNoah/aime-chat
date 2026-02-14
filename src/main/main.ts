@@ -25,6 +25,7 @@ import { agentManager } from './mastra/agents';
 import { projectManager } from './project';
 import { updateManager } from './app/update';
 import { instancesManager } from './instances';
+import { taskQueueManager } from './task-queue';
 
 async function init() {
   try {
@@ -39,6 +40,7 @@ async function init() {
     await projectManager.init();
     await updateManager.init();
     await instancesManager.init();
+    await taskQueueManager.init();
   } catch (err) {
     dialog.showErrorBox('Mastra Init Error', String(err));
   }

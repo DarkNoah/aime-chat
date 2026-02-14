@@ -62,6 +62,8 @@ import {
 import ProjectsPage from './pages/projects';
 import { ChatProvider } from './hooks/use-chat';
 import SetupPage from './pages/Setup';
+import { TaskBadge, TaskManagerPanel } from './components/task-manager';
+import { initTaskQueueIpcListeners } from './store/use-task-queue-store';
 
 function Hello() {
   const { setTitle } = useHeader();
@@ -148,6 +150,10 @@ export function SiteHeader() {
 function MainLayout(props: { children: ReactNode }) {
   const { children } = props;
 
+  useEffect(() => {
+    initTaskQueueIpcListeners();
+  }, []);
+
   return (
     <ChatProvider>
       <SidebarProvider
@@ -170,6 +176,8 @@ function MainLayout(props: { children: ReactNode }) {
           </SidebarInset>
         </HeaderProvider>
         <Toaster />
+        <TaskBadge />
+        <TaskManagerPanel />
       </SidebarProvider>
     </ChatProvider>
   );

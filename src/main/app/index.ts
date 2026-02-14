@@ -44,12 +44,15 @@ import {
   getBunRuntime,
   getNodeRuntime,
   getPaddleOcrRuntime,
+  getQwenAudioRuntime,
   getUVRuntime,
   installBunRuntime,
   installPaddleOcrRuntime,
+  installQwenAudioRuntime,
   installUVRuntime,
   uninstallBunRuntime,
   uninstallPaddleOcrRuntime,
+  uninstallQwenAudioRuntime,
   unInstallUVRuntime,
 } from './runtime';
 import { fstat } from 'fs';
@@ -77,6 +80,7 @@ import { ToolType } from '@/types/tool';
 import { Translation } from '../tools/work/translation';
 import { nanoid } from '@/utils/nanoid';
 import { HookAgent, HookProxyAgent } from './hook-agent';
+import { get } from 'core-js/core/dict';
 class AppManager extends BaseManager {
   repository: Repository<Providers>;
   settingsRepository: Repository<Settings>;
@@ -640,6 +644,8 @@ class AppManager extends BaseManager {
       await installPaddleOcrRuntime();
     } else if (pkg == 'bun') {
       await installBunRuntime();
+    } else if (pkg == 'qwenAudio') {
+      await installQwenAudioRuntime();
     }
   }
 
@@ -651,6 +657,8 @@ class AppManager extends BaseManager {
       await uninstallPaddleOcrRuntime();
     } else if (pkg == 'bun') {
       await uninstallBunRuntime();
+    } else if (pkg == 'qwenAudio') {
+      await uninstallQwenAudioRuntime();
     }
   }
 
@@ -660,11 +668,13 @@ class AppManager extends BaseManager {
     const bun = await getBunRuntime();
     const node = await getNodeRuntime();
     const paddleOcr = await getPaddleOcrRuntime();
+    const qwenAudio = await getQwenAudioRuntime();
     return {
       uv: uv,
       bun: bun,
       node: node,
       paddleOcr: paddleOcr,
+      qwenAudio: qwenAudio,
     };
   }
 
@@ -715,12 +725,16 @@ class AppManager extends BaseManager {
     const settings = await this.settingsRepository.find();
     const hasDefaultModel = !!settings.find((x) => x.id === 'defaultModel')
       ?.value?.model;
-    const runtimeInfo = await this.getRuntimeInfo();
-    const hasRuntime =
-      runtimeInfo?.uv?.installed || runtimeInfo?.node?.installed;
+
     const setupCompleted = settings.find(
       (x) => x.id === 'setupCompleted',
     )?.value;
+    let hasRuntime;
+
+    if (!setupCompleted) {
+      const runtimeInfo = await this.getRuntimeInfo();
+      hasRuntime = runtimeInfo?.uv?.installed || runtimeInfo?.bun?.installed;
+    }
 
     return {
       needsSetup: !setupCompleted,

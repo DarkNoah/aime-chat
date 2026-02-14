@@ -15,6 +15,7 @@ import { SubAgentInfo } from '@/types/task';
 import { agentManager } from '@/main/mastra/agents';
 import { providersManager } from '@/main/providers';
 import { ChatTask, ChatTodo } from '@/types/chat';
+import BaseToolkit, { BaseToolkitParams } from '../base-toolkit';
 
 export interface TaskToolParams extends BaseToolParams {
   subAgents: SubAgentInfo[] | string[];
@@ -314,23 +315,46 @@ NOTE that you should not use this tool if there is only one trivial task to do. 
     const { subject, description, activeForm, metadata } = inputData;
 
     const { requestContext, mastra, agent } = context;
-    const todos = (requestContext.get('todos' as never) as ChatTask[]) ?? [];
     const threadId = requestContext.get('threadId' as never);
     const storage = mastra.getStorage();
     const memoryStore = await storage.getStore('memory');
     let currentThread = await memoryStore.getThreadById({
       threadId: threadId,
     });
+    const tasks = (currentThread.metadata?.tasks as ChatTask[]) || [];
+
+    // 生成自增 ID
+    const maxId = tasks.reduce(
+      (max, t) => Math.max(max, parseInt(t.taskId, 10) || 0),
+      0,
+    );
+    const newTaskId = String(maxId + 1);
+
+    const newTask: ChatTask = {
+      taskId: newTaskId,
+      subject,
+      description,
+      status: 'pending',
+      activeForm,
+      metadata,
+    };
+
+    tasks.push(newTask);
+
+    // 持久化到 thread metadata
     currentThread = await memoryStore.updateThread({
       id: threadId,
       title: currentThread.title,
       metadata: {
         ...(currentThread.metadata || {}),
-        todos: todos,
+        tasks,
       },
     });
 
-    return `Task #1 created successfully: ${subject}`;
+    // 同步到 requestContext 方便同一请求内后续工具读取
+    requestContext.set('tasks' as never, tasks as never);
+
+    return `Task #${newTaskId} created successfully: ${subject}`;
   };
 }
 
@@ -381,12 +405,12 @@ Returns full task details:
     const threadId = requestContext.get('threadId' as never);
     const storage = mastra.getStorage();
     const memoryStore = await storage.getStore('memory');
-    let currentThread = await memoryStore.getThreadById({
+    const currentThread = await memoryStore.getThreadById({
       threadId: threadId,
     });
-    const todos = (currentThread.metadata?.todos as ChatTask[]) || [];
+    const tasks = (currentThread.metadata?.tasks as ChatTask[]) || [];
 
-    const task = todos.find((x) => x.taskId === taskId);
+    const task = tasks.find((x) => x.taskId === taskId);
     if (!task) {
       return `Task #${taskId} not found`;
     }
@@ -394,36 +418,37 @@ Returns full task details:
     return `Task #${task.taskId}: ${task.subject}
 Status: ${task.status}
 Description: ${task.description}
+${task.activeForm ? `Active Form: ${task.activeForm}` : ''}
 ${task.metadata ? `Metadata: ${JSON.stringify(task.metadata, null, 2)}` : ''}
-${task.blockedBy ? `Blocked by: ${task.blockedBy.map((b) => '#' + b).join(', ')}` : ''}
-${task.blocks ? `Blocks: ${task.blocks.map((b) => '#' + b).join(', ')}` : ''}
-`;
+${task.blockedBy?.length ? `Blocked by: ${task.blockedBy.map((b) => '#' + b).join(', ')}` : ''}
+${task.blocks?.length ? `Blocks: ${task.blocks.map((b) => '#' + b).join(', ')}` : ''}
+${task.owner ? `Owner: ${task.owner}` : ''}`;
   };
 }
 export class TaskList extends BaseTool {
   static readonly toolName = 'TaskList';
   id: string = 'TaskList';
-  description = `Use this tool to retrieve a task by its ID from the task list.
+  description = `Use this tool to list all tasks in the current task list.
 
 ## When to Use This Tool
 
-- When you need the full description and context before starting work on a task
-- To understand task dependencies (what it blocks, what blocks it)
-- After being assigned a task, to get complete requirements
+- To see an overview of all tasks and their current statuses
+- Before creating new tasks, to check for duplicates
+- After completing a task, to find the next task to work on
+- To understand the overall progress of the current session
 
 ## Output
 
-Returns full task details:
-- **subject**: Task title
-- **description**: Detailed requirements and context
+Returns a summary list of all tasks with:
+- **taskId**: Unique identifier for each task
 - **status**: 'pending', 'in_progress', or 'completed'
-- **blocks**: Tasks waiting on this one to complete
-- **blockedBy**: Tasks that must complete before this one can start
+- **subject**: Brief task title
+- **blockedBy**: Tasks that must complete before this one can start (if any)
 
 ## Tips
 
-- After fetching a task, verify its blockedBy list is empty before beginning work.
-- Use TaskList to see all tasks in summary form.
+- Use TaskGet for full task details including description and metadata.
+- Look for tasks with status 'pending' and no blockers to find your next task.
 `;
 
   inputSchema = z.object({}).strict();
@@ -436,23 +461,25 @@ Returns full task details:
     inputData: z.infer<typeof this.inputSchema>,
     context: ToolExecutionContext<z.ZodSchema, any>,
   ) => {
-    // const { } = inputData;
-
     const { requestContext, mastra, agent } = context;
 
     const threadId = requestContext.get('threadId' as never);
     const storage = mastra.getStorage();
     const memoryStore = await storage.getStore('memory');
-    let currentThread = await memoryStore.getThreadById({
+    const currentThread = await memoryStore.getThreadById({
       threadId: threadId,
     });
-    const todos = (currentThread.metadata?.todos as ChatTask[]) || [];
-    return todos
+    const tasks = (currentThread.metadata?.tasks as ChatTask[]) || [];
+
+    if (tasks.length === 0) {
+      return 'No tasks found.';
+    }
+
+    return tasks
       .map((x) => {
-        return `#${x.taskId} [${x.status}] ${x.subject} ${x.blockedBy ? `[blocked by ${x.blockedBy.map((b) => '#' + b).join(', ')}]` : ''}`;
+        return `#${x.taskId} [${x.status}] ${x.subject}${x.blockedBy?.length ? ` [blocked by ${x.blockedBy.map((b) => '#' + b).join(', ')}]` : ''}`;
       })
       .join('\n');
-    // return `#1 [pending] aime-chat 项目研究`;
   };
 }
 
@@ -587,12 +614,12 @@ Set up task dependencies:
     let currentThread = await memoryStore.getThreadById({
       threadId: threadId,
     });
-    const todos = (currentThread.metadata?.todos as ChatTask[]) || [];
-    const task = todos.find((x) => x.taskId === taskId);
+    let tasks = (currentThread.metadata?.tasks as ChatTask[]) || [];
+    const task = tasks.find((x) => x.taskId === taskId);
     if (!task) {
       return `Task #${taskId} not found`;
     }
-    const updatedItems = [];
+    const updatedItems: string[] = [];
     if (status) {
       task.status = status;
       updatedItems.push('status');
@@ -609,27 +636,82 @@ Set up task dependencies:
       task.activeForm = activeForm;
       updatedItems.push('activeForm');
     }
+
     if (metadata) {
-      task.metadata = metadata;
+      // metadata 采用合并策略，值为 null 则删除对应 key
+      const existingMetadata = task.metadata || {};
+      for (const [key, value] of Object.entries(metadata)) {
+        if (value === null) {
+          delete existingMetadata[key];
+        } else {
+          existingMetadata[key] = value;
+        }
+      }
+      task.metadata = existingMetadata;
       updatedItems.push('metadata');
     }
 
-    // 被阻塞
+    // 被阻塞 - 追加到已有列表（去重）
     if (addBlockedBy) {
-      task.blockedBy = addBlockedBy;
+      const existing = task.blockedBy || [];
+      const merged = [...new Set([...existing, ...addBlockedBy])];
+      task.blockedBy = merged;
       updatedItems.push('blockedBy');
     }
-    // 添加阻塞谁
+
+    // 阻塞谁 - 追加到已有列表（去重）
     if (addBlocks) {
-      task.blocks = addBlocks;
+      const existing = task.blocks || [];
+      const merged = [...new Set([...existing, ...addBlocks])];
+      task.blocks = merged;
       updatedItems.push('blocks');
     }
+
     if (owner) {
       task.owner = owner;
       updatedItems.push('owner');
     }
-    if (status == 'completed') {
+
+    if (tasks.length === tasks.filter((x) => x.status === 'completed').length) {
+      tasks = [];
+    }
+
+    // 持久化更新后的任务列表到 thread metadata
+    currentThread = await memoryStore.updateThread({
+      id: threadId,
+      title: currentThread.title,
+      metadata: {
+        ...(currentThread.metadata || {}),
+        tasks,
+      },
+    });
+
+    // 同步到 requestContext
+    requestContext.set('tasks' as never, tasks as never);
+
+    if (updatedItems.length === 0) {
+      return `Task #${taskId}: no fields were updated.`;
     }
     return `Task #${taskId} updated successfully: ${updatedItems.join(', ')}`;
   };
 }
+
+export interface TodoToolkitParams extends BaseToolkitParams {}
+
+export class TodoToolkit extends BaseToolkit {
+  static readonly toolName = 'TodoToolkit';
+  id: string = 'TodoToolkit';
+
+  constructor(params?: TodoToolkitParams) {
+    super(
+      [new TaskCreate(), new TaskGet(), new TaskList(), new TaskUpdate()],
+      params,
+    );
+  }
+
+  getTools() {
+    return this.tools;
+  }
+}
+
+export default TodoToolkit;

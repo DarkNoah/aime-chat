@@ -118,7 +118,7 @@ export default function About() {
         return (
           <Button size="sm" disabled>
             <IconLoader2 className="w-4 h-4 mr-1 animate-spin" />
-            {t('update.checking', '检查中...')}
+            {t('update.checking')}
           </Button>
         );
 
@@ -126,8 +126,7 @@ export default function About() {
         return (
           <Button size="sm" onClick={handleDownloadUpdate}>
             <IconDownload className="w-4 h-4 mr-1" />
-            {t('update.downloadNew', '下载新版本')} v
-            {updateState.updateInfo?.version}
+            {t('update.downloadNew')} v{updateState.updateInfo?.version}
           </Button>
         );
 
@@ -137,7 +136,7 @@ export default function About() {
             <div className="flex items-center gap-2">
               <IconLoader2 className="w-4 h-4 animate-spin" />
               <span className="text-sm">
-                {t('update.downloading', '下载中...')}{' '}
+                {t('update.downloading')}{' '}
                 {updateState.progress?.percent.toFixed(1)}%
               </span>
             </div>
@@ -155,7 +154,7 @@ export default function About() {
         return (
           <Button size="sm" onClick={handleInstallUpdate} variant="default">
             <IconCheck className="w-4 h-4 mr-1" />
-            {t('update.installNow', '立即安装')}
+            {t('update.installNow')}
           </Button>
         );
 
@@ -163,7 +162,7 @@ export default function About() {
         return (
           <Button size="sm" variant="outline" onClick={handleCheckForUpdates}>
             <IconCheck className="w-4 h-4 mr-1" />
-            {t('update.upToDate', '已是最新版本')}
+            {t('update.upToDate')}
           </Button>
         );
 
@@ -176,7 +175,7 @@ export default function About() {
               onClick={handleCheckForUpdates}
             >
               <IconX className="w-4 h-4 mr-1" />
-              {t('update.retry', '重试')}
+              {t('update.retry')}
             </Button>
             {updateState.error && (
               <span className="text-xs text-destructive">
@@ -190,7 +189,7 @@ export default function About() {
         return (
           <Button size="sm" onClick={handleCheckForUpdates}>
             <IconRefresh className="w-4 h-4 mr-1" />
-            {t('update.checkUpdate', '检查更新')}
+            {t('update.checkUpdate')}
           </Button>
         );
     }

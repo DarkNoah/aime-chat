@@ -6,7 +6,7 @@ import {
 import log from 'electron-log';
 import { BaseManager } from '../BaseManager';
 import { channel } from '../ipc/IpcController';
-import { AppChannel } from '@/types/ipc-channel';
+import { AppChannel, InstancesChannel } from '@/types/ipc-channel';
 import {
   UpdateInfo,
   UpdateProgress,
@@ -37,8 +37,9 @@ class InstancesManager extends BaseManager {
   instanceInfos: Map<string, InstanceInfo> = new Map();
   repository: Repository<Instances>;
 
-  init(): Promise<void> {
+  async init(): Promise<void> {
     this.repository = dbManager.dataSource.getRepository(Instances);
+    await this.createDefaultInstance();
     return Promise.resolve();
   }
 
@@ -128,6 +129,23 @@ class InstancesManager extends BaseManager {
     }
     instance.static = true;
     return await this.repository.save(instance);
+  }
+
+  @channel(InstancesChannel.GetInstances)
+  public async getInstances(): Promise<Instances[]> {
+    return await this.repository.find();
+  }
+
+  @channel(InstancesChannel.RunInstance)
+  public async runInstance(id: string) {
+    const instance = await this.repository.findOneBy({ id });
+    if (!instance) {
+      throw new Error('Instance not found');
+    }
+    if (instance.type === 'browser') {
+      const browserInstance = new BrowserInstance({ instances: instance });
+      await browserInstance.run();
+    }
   }
 }
 

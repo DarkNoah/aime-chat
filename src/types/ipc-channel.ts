@@ -1,4 +1,15 @@
+export enum InstancesChannel {
+  GetInstances = 'instances:getInstances',
+  UpdateInstance = 'instances:updateInstance',
+  DeleteInstance = 'instances:deleteInstance',
+  CreateInstance = 'instances:createInstance',
+  GetInstance = 'instances:getInstance',
+  RunInstance = 'instances:runInstance',
+  StopInstance = 'instances:stopInstance',
+}
+
 export enum ProviderChannel {
+  GetProviderTypeList = 'providers:getProviderTypeList',
   GetAvailableModels = 'providers:getAvailableModels',
   GetModelList = 'providers:getModelList',
   GetList = 'providers:getList',
@@ -72,6 +83,9 @@ export enum KnowledgeBaseChannel {
   Get = 'knowledge-base:get',
   GetList = 'knowledge-base:getList',
   ImportSource = 'knowledge-base:importSource',
+  GetKnowledgeBaseItems = 'knowledge-base:getKnowledgeBaseItems',
+  DeleteKnowledgeBaseItem = 'knowledge-base:deleteKnowledgeBaseItem',
+  SearchKnowledgeBase = 'knowledge-base:searchKnowledgeBase',
 }
 
 export enum ToolChannel {
@@ -116,4 +130,21 @@ export enum ProjectChannel {
   DeleteProject = 'project:deleteProject',
   CreateThread = 'project:createThread',
   DeleteSkill = 'project:deleteSkill',
+}
+
+export enum TaskQueueChannel {
+  Add = 'task-queue:add',
+  Pause = 'task-queue:pause',
+  Resume = 'task-queue:resume',
+  Cancel = 'task-queue:cancel',
+  Remove = 'task-queue:remove',
+  GetAll = 'task-queue:getAll',
+  GetByGroup = 'task-queue:getByGroup',
+  GetGroupConfigs = 'task-queue:getGroupConfigs',
+  SetGroupConcurrency = 'task-queue:setGroupConcurrency',
+  ClearCompleted = 'task-queue:clearCompleted',
+  // 事件通道 (main -> renderer)
+  TaskUpdated = 'task-queue:taskUpdated',
+  TaskAdded = 'task-queue:taskAdded',
+  TaskRemoved = 'task-queue:taskRemoved',
 }

@@ -4,13 +4,17 @@ import {
   EmbeddingModelV2,
   EmbeddingModelV2Embedding,
   ImageModelV2,
+  JSONValue,
   LanguageModelV2,
   ProviderV2,
+  SharedV2Headers,
   SpeechModelV2,
   TranscriptionModelV2,
+  TranscriptionModelV2CallOptions,
+  TranscriptionModelV2CallWarning,
 } from '@ai-sdk/provider';
 // import { TextEmbeddingPipeline, PoolingType } from 'openvino-genai-node';
-import { BaseProvider } from './base-provider';
+import { BaseProvider, RerankModel } from './base-provider';
 import { Providers } from '@/entities/providers';
 import { ProviderCredits, ProviderTag, ProviderType } from '@/types/provider';
 import fs from 'fs';
@@ -30,6 +34,8 @@ import {
   cos_sim,
   FeatureExtractionPipeline,
 } from '@huggingface/transformers';
+import { AudioLoader } from '../utils/loaders/audio-loader';
+import { isString } from '@/utils/is';
 
 export type LocalEmbeddingModelId = 'Qwen/Qwen3-Embedding-0.6B' | (string & {});
 
@@ -75,10 +81,9 @@ export class LocalEmbeddingModel implements EmbeddingModelV2<string> {
 
     let embeddings: Float32Array[] = [];
     if (library == 'openvino') {
-      throw new Error('Openvino not implemented.')
+      throw new Error('Openvino not implemented.');
       // const { TextEmbeddingPipeline, PoolingType } = await import('openvino-genai-node')
 
-      
       // const pipeline = await TextEmbeddingPipeline(modelPath);
       // embeddings = (await pipeline.embedDocuments(values)) as Float32Array[];
     } else if (library == 'transformers') {
@@ -119,9 +124,9 @@ export class LocalEmbeddingModel implements EmbeddingModelV2<string> {
     };
   }
 }
-export class LocalRerankModel {
+export class LocalRerankModel implements RerankModel {
   modelId: string;
-
+  readonly provider: string = 'local';
   constructor(modelId: string) {
     this.modelId = modelId;
   }
@@ -222,6 +227,54 @@ export class LocalClipModel {
   }
 }
 
+
+export class LocalTranscriptionModel implements TranscriptionModelV2 {
+  specificationVersion: 'v2';
+  provider: string = 'local';
+  modelId: string;
+
+  constructor(modelId: string) {
+    this.modelId = modelId;
+  }
+
+
+  async doGenerate(options: TranscriptionModelV2CallOptions): Promise<{ text: string; segments: Array<{ text: string; startSecond: number; endSecond: number; }>; language: string | undefined; durationInSeconds: number | undefined; warnings: Array<TranscriptionModelV2CallWarning>; request?: { body?: string; }; response: { timestamp: Date; modelId: string; headers?: SharedV2Headers; body?: unknown; }; providerMetadata?: Record<string, Record<string, JSONValue>>; }> {
+    let audio: Uint8Array<ArrayBufferLike>;
+    if (isString(options.audio)) {
+      audio = Buffer.from(options.audio, 'base64');
+    } else {
+      audio = options.audio
+    }
+    const audioLoader = new AudioLoader(new Blob([audio], { type: "application/octet-stream" }), {
+      model: this.modelId,
+      backend: process.platform !== "darwin" ? 'transformers' : 'mlx-audio',
+      returnTimeStamps: true,
+      outputType: 'txt',
+    });
+    const result = await audioLoader.load();
+    return {
+      text: result.text,
+      segments: result.result.items.map(item => {
+        return {
+          text: item.text,
+          startSecond: item.start,
+          endSecond: item.end,
+        }
+      }),
+      language: result.result.language,
+      durationInSeconds: result.result.duration,
+      warnings: [],
+      response: {
+        timestamp: new Date(),
+        modelId: this.modelId,
+        headers: options.headers,
+        body: result,
+      },
+    };
+  }
+
+}
+
 // export const localProvider = customProvider({
 //   textEmbeddingModels: {
 //     embedding: new LocalEmbeddingModel('Qwen/Qwen3-Embedding-0.6B'),
@@ -235,8 +288,9 @@ export class LocalProvider extends BaseProvider {
   name: string = 'Local';
   description: string;
   defaultApiBase?: string;
+  hasChatModel?: boolean = false;
 
-  tags: ProviderTag[] = [ProviderTag.WEB_READER];
+  tags: ProviderTag[] = [ProviderTag.WEB_READER, ProviderTag.EMBEDDING, ProviderTag.RERANKER];
   constructor() {
     super();
   }
@@ -272,13 +326,33 @@ export class LocalProvider extends BaseProvider {
     return models;
   }
 
+  async getTranscriptionModelList(): Promise<{ name: string; id: string }[]> {
+    if (process.platform !== "darwin") {
+      return [{ id: 'Qwen/Qwen3-ASR-1.7B', name: 'Qwen3-ASR-1.7B' },
+      { id: 'Qwen/Qwen3-ASR-0.6B', name: 'Qwen3-ASR-0.6B' }];
+    } else {
+      return [{ id: 'mlx-community/Qwen3-ASR-1.7B-bf16', name: 'Qwen3-ASR-1.7B-bf16' },
+      { id: 'mlx-community/Qwen3-ASR-0.6B-bf16', name: 'Qwen3-ASR-0.6B-bf16' }];
+    }
+  }
+
+  // async getSpeechModelList(): Promise<{ name: string; id: string }[]> {
+  //   if (process.platform !== "darwin") {
+  //     return [{ id: 'Qwen/Qwen3-TTS-1.7B', name: 'Qwen3-TTS-1.7B' },
+  //     { id: 'Qwen/Qwen3-TTS-0.6B', name: 'Qwen3-TTS-0.6B' }];
+  //   } else {
+  //     return [{ id: 'mlx-community/Qwen3-TTS-1.7B-bf16', name: 'Qwen3-TTS-1.7B-bf16' },
+  //     { id: 'mlx-community/Qwen3-TTS-0.6B-bf16', name: 'Qwen3-TTS-0.6B-bf16' }];
+  //   }
+  // }
+
   getCredits(): Promise<ProviderCredits | undefined> {
     return undefined;
   }
   textEmbeddingModel(modelId: string): EmbeddingModelV2<string> {
     return new LocalEmbeddingModel(modelId);
   }
-  rerankModel(modelId: string) {
+  rerankModel(modelId: string): RerankModel {
     return new LocalRerankModel(modelId);
   }
   clipModel(modelId: string) {
@@ -288,7 +362,7 @@ export class LocalProvider extends BaseProvider {
     throw new Error('Method not implemented.');
   }
   transcriptionModel?(modelId: string): TranscriptionModelV2 {
-    throw new Error('Method not implemented.');
+    return new LocalTranscriptionModel(modelId);
   }
   speechModel?(modelId: string): SpeechModelV2 {
     throw new Error('Method not implemented.');

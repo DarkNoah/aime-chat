@@ -17,6 +17,7 @@ export class BraveSearchProvider extends BaseProvider {
   tags: ProviderTag[] = [ProviderTag.WEB_SEARCH];
   description: string;
   defaultApiBase?: string;
+  hasChatModel?: boolean = false;
 
   constructor(provider: Providers) {
     super({ provider });

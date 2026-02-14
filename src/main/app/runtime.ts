@@ -28,6 +28,7 @@ export const paddleOcr: RuntimeInfo['paddleOcr'] = {
   path: undefined,
   dir: undefined,
   version: undefined,
+  mode: 'default',
 };
 export const bun: RuntimeInfo['bun'] = {
   status: 'not_installed' as 'installed' | 'not_installed' | 'installing',
@@ -36,6 +37,14 @@ export const bun: RuntimeInfo['bun'] = {
   dir: undefined,
   version: undefined,
 };
+export const qwenAudio: RuntimeInfo['qwenAudio'] = {
+  status: 'not_installed' as 'installed' | 'not_installed' | 'installing',
+  installed: undefined,
+  path: undefined,
+  dir: undefined,
+  version: undefined,
+};
+
 export async function installUVRuntime() {
   const uvPath = path.join(app.getPath('userData'), '.runtime', 'bin', 'uv');
   if (fs.existsSync(uvPath)) return;
@@ -186,7 +195,7 @@ export async function getPaddleOcrRuntime(refresh = false) {
       paddleOcr.version = undefined;
       return paddleOcr;
     }
-    console.log(paddleOcr);
+    // console.log(paddleOcr);
 
     const paddleOcrDir = path.join(
       app.getPath('userData'),
@@ -231,7 +240,7 @@ export async function getPaddleOcrRuntime(refresh = false) {
       paddleOcr.version = undefined;
       return paddleOcr;
     }
-  } catch {}
+  } catch { }
 }
 
 export async function installPaddleOcrRuntime() {
@@ -321,7 +330,7 @@ export async function installPaddleOcrRuntime() {
   }
 
   const result1 = await runCommand(
-    `${uvPreCommand} --project "${paddleOcrDir}" --no-cache pip install "paddleocr[all]" "paddlex[ocr]" --python "${activateSourcePython}"`,
+    `${uvPreCommand} --project "${paddleOcrDir}" --no-cache pip install "paddleocr[all]" "paddlex[ocr]" ${process.platform === 'darwin' ? 'mlx-vlm' : ''} --python "${activateSourcePython}"`,
     {
       cwd: uvRuntime?.dir,
       // usePowerShell: isWindows,
@@ -336,6 +345,16 @@ export async function installPaddleOcrRuntime() {
     return paddleOcr;
   }
 
+  if (process.platform === 'darwin') {
+    const resultInstallMLX = await runCommand(
+      `${uvPreCommand} --project "${paddleOcrDir}" --no-cache add mlx-vlm --prerelease=allow `,
+      {
+        cwd: uvRuntime?.dir,
+        // usePowerShell: isWindows,
+      },
+    );
+    debugger;
+  }
   const result2 = await runCommand(
     `${uvPreCommand} run --project "${paddleOcrDir}" paddleocr -v`,
     {
@@ -436,7 +455,7 @@ export async function installBunRuntime() {
           '-ExecutionPolicy',
           'ByPass',
           '-Command',
-          'irm bun.sh/install.ps1 | iex | iex',
+          'irm bun.sh/install.ps1 | iex',
         ],
 
         {
@@ -472,5 +491,267 @@ export async function uninstallBunRuntime() {
   if (fs.existsSync(bunPath)) {
     await fs.promises.rm(bunPath, { recursive: true });
   }
+  const bunxPath = path.join(
+    app.getPath('userData'),
+    '.runtime',
+    'bin',
+    isWindows ? 'bunx.exe' : 'bunx',
+  );
+  if (fs.existsSync(bunxPath)) {
+    await fs.promises.rm(bunxPath, { recursive: true });
+  }
+
   await getBunRuntime(true);
+}
+
+export async function getQwenAudioRuntime(refresh = false) {
+  if (qwenAudio.status === 'installing' && refresh == false) {
+    return qwenAudio;
+  }
+  try {
+    const uvRuntime = await getUVRuntime();
+    if (uvRuntime.status !== 'installed') {
+      qwenAudio.status = 'not_installed';
+      qwenAudio.installed = false;
+      qwenAudio.path = undefined;
+      qwenAudio.dir = undefined;
+      qwenAudio.version = undefined;
+      return qwenAudio;
+    }
+    console.log(qwenAudio);
+
+    const sttDir = path.join(
+      app.getPath('userData'),
+      '.runtime',
+      'qwen-audio-runtime',
+    );
+    if (!fs.existsSync(sttDir)) {
+      qwenAudio.status = 'not_installed';
+      qwenAudio.installed = false;
+      qwenAudio.path = undefined;
+      qwenAudio.dir = undefined;
+      qwenAudio.version = undefined;
+      return qwenAudio;
+    }
+    if (qwenAudio.status === 'installed' && refresh == false) {
+      return qwenAudio;
+    }
+    const isWindows = process.platform === 'win32';
+    const uvPreCommand = isWindows ? 'uv.exe' : './uv';
+
+    const result2 = await runCommand(
+      `${uvPreCommand} --project "${sttDir}" run python -c "from importlib import metadata; print(metadata.version('${isWindows ? 'qwen-asr' : 'mlx-audio'}'))"`,
+      {
+        cwd: uvRuntime?.dir,
+        timeout: 1000 * 30,
+      },
+    );
+    if (result2.code === 0) {
+      qwenAudio.status = 'installed';
+      qwenAudio.installed = true;
+      qwenAudio.path = sttDir;
+      qwenAudio.dir = sttDir;
+      qwenAudio.version = result2.stdout.trim();
+      return qwenAudio;
+    }
+  } catch (e) {
+
+  }
+  qwenAudio.status = 'not_installed';
+  qwenAudio.installed = false;
+  qwenAudio.path = undefined;
+  qwenAudio.dir = undefined;
+  qwenAudio.version = undefined;
+  return qwenAudio;
+}
+
+export async function installQwenAudioRuntime() {
+  const uvRuntime = await getUVRuntime();
+  if (uvRuntime.status !== 'installed') {
+    throw new Error('UV runtime is not installed');
+  }
+  const isWindows = process.platform === 'win32';
+  const uvPreCommand = isWindows ? 'uv.exe' : './uv';
+  const qwenasrDir = path.join(
+    app.getPath('userData'),
+    '.runtime',
+    'qwen-audio-runtime',
+  );
+  qwenAudio.status = 'installing';
+
+  try {
+    if (fs.existsSync(qwenasrDir)) {
+      await fs.promises.rm(qwenasrDir, { recursive: true });
+    }
+    fs.mkdirSync(qwenasrDir, { recursive: true });
+    const uv_source = `set UV_PYPI_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple`;
+
+    let resultInit = await runCommand(
+      // `${uv_source} && ${uvPreCommand} init "${paddleOcrDir}" --python=3.10 && ${uvPreCommand} venv "${path.join(paddleOcrDir, '.venv')}" --python=3.10`,
+      `${uv_source} && ${uvPreCommand} init "${qwenasrDir}" --python=3.12 && ${uvPreCommand} venv "${path.join(qwenasrDir, '.venv')}" --python=3.12`,
+      {
+        cwd: uvRuntime?.dir,
+      },
+    );
+    if (
+      resultInit.code !== 0 ||
+      !resultInit.output.includes('Initialized project')
+    ) {
+      // throw new Error('Failed to initialize PaddleOCR project');
+      qwenAudio.status = 'not_installed';
+      qwenAudio.installed = false;
+      qwenAudio.path = undefined;
+      qwenAudio.dir = undefined;
+      qwenAudio.version = undefined;
+      return qwenAudio;
+    }
+
+    const activateSourcePython = isWindows
+      ? path.join(qwenasrDir, '.venv', 'Scripts', 'python.exe')
+      : path.join(qwenasrDir, '.venv', 'bin', 'python');
+
+    let hasGPU = false;
+
+    if (isWindows) {
+      const hasGPUResult = await runCommand(`nvidia-smi`, {
+        cwd: uvRuntime?.dir,
+      });
+      if (
+        hasGPUResult.code === 0 &&
+        hasGPUResult.stdout.includes('NVIDIA-SMI')
+      ) {
+        hasGPU = true;
+      }
+      let pyproject = await fs.promises.readFile(path.join(qwenasrDir, 'pyproject.toml'), 'utf-8');
+      if (hasGPU) {
+        pyproject = pyproject.replace('dependencies = []', `
+dependencies = [
+    "qwen-asr",
+    "qwen-tts>=0.1.1",
+    "torch"
+]
+
+[tool.uv]
+extra-index-url = [
+    "https://pypi.org/simple"
+]
+override-dependencies = ["transformers==4.57.6"]
+
+[tool.uv.sources]
+torch = [
+    { index = "torch-gpu", marker = "platform_system == 'Windows'"},
+]
+
+[[tool.uv.index]]
+name = "torch-gpu"
+url = "https://download.pytorch.org/whl/cu121"
+explicit = true
+        `)
+      } else {
+        pyproject = pyproject.replace('dependencies = []', `
+dependencies = [
+    "qwen-asr",
+    "qwen-tts>=0.1.1"
+]
+[tool.uv]
+override-dependencies = ["transformers==4.57.6"]
+        `);
+      }
+      await fs.promises.writeFile(path.join(qwenasrDir, 'pyproject.toml'), pyproject);
+
+      const result_sync = await runCommand(
+        `${uvPreCommand} --project "${qwenasrDir}" sync --no-cache`,
+        {
+          cwd: uvRuntime?.dir,
+        },
+      );
+
+      if (result_sync.code === 0) {
+
+
+        const result_qwen_tts = await runCommand(
+          `${uvPreCommand} --project "${qwenasrDir}" add qwen-tts --no-cache --python "${activateSourcePython}"`,
+          {
+            cwd: uvRuntime?.dir,
+            timeout: 1000 * 30,
+          },
+        );
+
+        const result2 = await runCommand(
+          `"${activateSourcePython}" -c "from importlib import metadata; print(metadata.version('qwen-asr'))"`,
+          {
+            cwd: uvRuntime?.dir,
+            timeout: 1000 * 30,
+          },
+        );
+
+        qwenAudio.status = 'installed';
+        qwenAudio.installed = true;
+        qwenAudio.path = qwenasrDir;
+        qwenAudio.dir = qwenasrDir;
+        qwenAudio.version = result2.stdout.trim();
+        return qwenAudio;
+      } else {
+        qwenAudio.status = 'not_installed';
+        qwenAudio.installed = false;
+        qwenAudio.path = undefined;
+        qwenAudio.dir = undefined;
+        qwenAudio.version = undefined;
+        return qwenAudio;
+      }
+    } else {
+      const result_install_qwenasr = await runCommand(
+        `${uvPreCommand} --project "${qwenasrDir}" add mlx-audio --prerelease=allow`,
+        {
+          cwd: uvRuntime?.dir,
+        },
+      );
+      if (result_install_qwenasr.code === 0) {
+        const result2 = await runCommand(
+          `${uvPreCommand} --project "${qwenasrDir}" run python -c "from importlib import metadata; print(metadata.version('mlx-audio'))"`,
+          {
+            cwd: uvRuntime?.dir,
+            timeout: 1000 * 30,
+          },
+        );
+
+        qwenAudio.status = 'installed';
+        qwenAudio.installed = true;
+        qwenAudio.path = qwenasrDir;
+        qwenAudio.dir = qwenasrDir;
+        qwenAudio.version = result2.stdout.trim();
+        return qwenAudio;
+      } else {
+        qwenAudio.status = 'not_installed';
+        qwenAudio.installed = false;
+        qwenAudio.path = undefined;
+        qwenAudio.dir = undefined;
+        qwenAudio.version = undefined;
+        return qwenAudio;
+      }
+    }
+  } catch {
+    qwenAudio.status = 'not_installed';
+    qwenAudio.installed = false;
+    qwenAudio.path = undefined;
+    qwenAudio.dir = undefined;
+    qwenAudio.version = undefined;
+    return qwenAudio;
+  }
+}
+
+export async function uninstallQwenAudioRuntime() {
+  const qwenAsrDir = path.join(
+    app.getPath('userData'),
+    '.runtime',
+    'qwen-audio-runtime',
+  );
+  if (fs.existsSync(qwenAsrDir)) {
+    await fs.promises.rm(qwenAsrDir, { recursive: true });
+  }
+  qwenAudio.status = 'not_installed';
+  qwenAudio.installed = false;
+  qwenAudio.path = undefined;
+  qwenAudio.dir = undefined;
+  qwenAudio.version = undefined;
 }

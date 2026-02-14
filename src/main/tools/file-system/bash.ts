@@ -49,7 +49,7 @@ Usage notes:
 - If the output exceeds 30000 characters, output will be truncated before being returned to you.
 - You can use the \`run_in_background\` parameter to run the command in the background, which allows you to continue working while the command runs. You can monitor the output using the Bash tool as it becomes available. Never use \`run_in_background\` to run 'sleep' as it will return immediately. You do not need to use '&' at the end of the command when using this parameter.
 - VERY IMPORTANT: You MUST avoid using search commands like \`find\` and \`grep\`. Instead use Grep, Glob, or Task to search. You MUST avoid read tools like \`cat\`, \`head\`, \`tail\`, and \`ls\`, and use Read and LS to read files.
-- If you _still_ need to run \`grep\`, STOP. ALWAYS USE ripgrep at \`rg\` first, which all Claude Code users have pre-installed.
+- If you _still_ need to run \`grep\`, STOP. ALWAYS USE ripgrep at \`rg\` first.
 - When issuing multiple commands, use the ';' or '&&' operator to separate them. DO NOT use newlines (newlines are ok in quoted strings).
 - Try to maintain your current working directory throughout the session by using absolute paths and avoiding usage of \`cd\`. You may use \`cd\` if the User explicitly requests it.
   <good-example>
@@ -159,6 +159,10 @@ Output: Creates directory 'foo'`),
       .string()
       .optional()
       .describe('The directory to run the command in (must be absolute path)'),
+    // env: z
+    //   .record(z.string(), z.string())
+    //   .optional()
+    //   .describe('Optional the environment variables to set'),
     timeout: z
       .number()
       .optional()
@@ -206,12 +210,13 @@ Output: Creates directory 'foo'`),
     }
     const runtimeInfo = await appManager.getRuntimeInfo();
 
-    const env = {
+    const _env = {
       PATH: '',
+      // ...(env ? env : {}),
     };
 
     if (runtimeInfo.uv.installed || runtimeInfo.bun.installed) {
-      env['PATH'] +=
+      _env['PATH'] +=
         `${runtimeInfo.uv.dir || runtimeInfo.bun.dir}` +
         (process.platform === 'win32' ? ';' : ':');
     }
@@ -222,7 +227,7 @@ Output: Creates directory 'foo'`),
         { command: inputData.command, description: inputData.description },
         shell_id,
         cwd,
-        env,
+        _env,
         timeout,
         undefined,
         threadId,
@@ -247,7 +252,12 @@ Output: Creates directory 'foo'`),
       backgroundPIDs,
       tempFilePath,
       pid,
-    } = await runCommand(inputData.command, { cwd, timeout, abortSignal, env });
+    } = await runCommand(inputData.command, {
+      cwd,
+      timeout,
+      abortSignal,
+      env: _env,
+    });
     console.log(tempFilePath, inputData.command);
     let llmContent = '';
     if (abortSignal?.aborted) {

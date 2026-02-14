@@ -19,7 +19,7 @@
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
   "[typescript]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
+    "editor.defaultFormatter": "vscode.typescript-language-features"
   },
   "[typescriptreact]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
@@ -36,9 +36,6 @@
     "*.{css,sass,scss}.d.ts": true
   },
   "i18next.i18nPaths": "src/i18n/locales",
-  "i18n-ally.localesPaths": [
-    "src/i18n",
-    "src/i18n/locales"
-  ],
+  "i18n-ally.localesPaths": ["src/i18n", "src/i18n/locales"],
   "i18n-ally.keystyle": "nested"
 }

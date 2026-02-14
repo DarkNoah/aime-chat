@@ -44,7 +44,7 @@ export type ToolSuspended = {
   runId: string;
 };
 
-export interface ToolMessageRef {}
+export interface ToolMessageRef { }
 
 export type ToolMessageProps = ComponentProps<typeof Badge> & {
   threadId?: string;
@@ -172,6 +172,18 @@ export const ToolMessage = React.forwardRef<ToolMessageRef, ToolMessageProps>(
         case 'GenerateImage':
         case 'EditImage':
           return input?.prompt ?? '';
+        case 'WebSearch':
+          return input?.query;
+        case 'WebFetch':
+          return input?.url;
+        case 'Extract':
+          return input?.file_path_or_url;
+        case 'RemoveBackground':
+          return input?.file_path_or_url;
+        case 'SpeechToText':
+          return input?.source;
+        case 'TextToSpeech':
+          return input?.text;
         default:
           return input?.description;
       }

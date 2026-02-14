@@ -76,6 +76,6 @@ Usage:
 
     await updateFileModTime(file_path, requestContext);
 
-    return `The file was successfully written and saved in:\n<filepaths>${file_path.replaceAll('\\', '/')}</filepaths>`;
+    return `The file was successfully written and saved in:\n<file>${file_path.replaceAll('\\', '/')}</file>`;
   };
 }

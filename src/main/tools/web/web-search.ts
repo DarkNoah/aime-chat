@@ -15,6 +15,7 @@ import { GoogleProvider } from '@/main/providers/google-provider';
 import { OpenAIProvider } from '@/main/providers/openai-provider';
 import { ZhipuAIProvider } from '@/main/providers/zhipuai-provider';
 import { tavily } from '@tavily/core';
+import { getJson } from 'serpapi';
 export interface WebSearchParams extends BaseToolParams {
   providerId?: string;
   numResults?: number;
@@ -177,7 +178,26 @@ Returns:
             };
           }),
         );
+      } else if (provider.type === ProviderType.SERPAPI) {
+        const response = await getJson({
+          engine: 'google',
+          api_key: provider.apiKey, // Get your API_KEY from https://serpapi.com/manage-api-key
+          q: query,
+
+          // location: 'Austin, Texas',
+        });
+        results.push(
+          ...response.organic_results.map((x) => {
+            return {
+              title: x.title,
+              href: x.link,
+              snippet: x.snippet,
+            };
+          }),
+        );
       }
+    } else {
+      throw new Error('Provider not found');
     }
     return results;
   };

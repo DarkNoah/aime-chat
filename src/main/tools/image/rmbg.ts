@@ -28,7 +28,7 @@ export class RemoveBackground extends BaseTool {
   id: string = 'RemoveBackground';
   description = 'remove background from image, output is a png image file';
   inputSchema = z.object({
-    url_or_file_path: z.string().describe('The url or path to the image file'),
+    file_path_or_url: z.string().describe('The url or path to the image file'),
     save_path: z
       .string()
       .optional()
@@ -48,7 +48,7 @@ export class RemoveBackground extends BaseTool {
     inputData: z.infer<typeof this.inputSchema>,
     options?: ToolExecutionContext,
   ) => {
-    const { url_or_file_path, save_path } = inputData;
+    const { file_path_or_url, save_path } = inputData;
     const { requestContext } = options;
     const abortSignal = options?.abortSignal as AbortSignal;
     const appInfo = await appManager.getInfo();
@@ -56,11 +56,24 @@ export class RemoveBackground extends BaseTool {
     // env.localModelPath = path.dirname(modelPath);
     // env.allowRemoteModels = false;
     // env.allowLocalModels = true;
+    let modelName = this.modelName;
+    if (!modelName) {
+      if (fs.existsSync(path.join(appInfo.modelPath, 'other', 'rmbg-1.4'))) {
+        modelName = 'rmbg-1.4';
+      } else if (
+        fs.existsSync(path.join(appInfo.modelPath, 'other', 'rmbg-2.0'))
+      ) {
+        modelName = 'rmbg-2.0';
+      }
+    }
+    if (!modelName) {
+      throw new Error('No background removal model available');
+    }
 
-    const modelPath = path.join(appInfo.modelPath, 'other', this.modelName);
+    const modelPath = path.join(appInfo.modelPath, 'other', modelName);
     const cacheEntry = await localModelManager.ensureModelLoaded(
       'background-removal',
-      this.modelName,
+      modelName,
       modelPath,
     );
     const { model, processor } = cacheEntry;
@@ -68,10 +81,10 @@ export class RemoveBackground extends BaseTool {
     try {
       let image = null;
       let file_path: string;
-      if (isUrl(url_or_file_path)) {
-        file_path = await downloadFile(url_or_file_path);
+      if (isUrl(file_path_or_url)) {
+        file_path = await downloadFile(file_path_or_url);
       } else {
-        file_path = url_or_file_path;
+        file_path = file_path_or_url;
       }
 
       if (fs.statSync(file_path).isFile()) {
@@ -83,9 +96,9 @@ export class RemoveBackground extends BaseTool {
       const { pixel_values } = await processor(image);
 
       let output;
-      if (this.modelName == 'rmbg-1.4') {
+      if (modelName == 'rmbg-1.4') {
         output = (await model({ input: pixel_values })).output;
-      } else if (this.modelName == 'rmbg-2.0') {
+      } else if (modelName == 'rmbg-2.0') {
         output = (await model({ pixel_values })).alphas;
       }
 
@@ -119,7 +132,7 @@ export class RemoveBackground extends BaseTool {
         savePath = await saveFile(buffer, `${nanoid()}.png`, workspace);
       }
 
-      return `<file>${savePath}</file>`;
+      return `Remove background success, saved to :\n<file>${savePath}</file>`;
     } finally {
     }
   };

@@ -94,8 +94,8 @@ export class KnowledgeBaseItem {
   @Column()
   name!: string;
 
-  @Column({ nullable: true })
-  source?: string;
+  @Column('json', { nullable: true })
+  source?: any;
 
   @Column({ enum: KnowledgeBaseSourceType })
   sourceType?: string;
@@ -114,6 +114,9 @@ export class KnowledgeBaseItem {
 
   @Column({ nullable: true })
   chunkCount?: number;
+
+  @Column({ nullable: true })
+  error?: string;
 
   @CreateDateColumn()
   createdAt!: Date;

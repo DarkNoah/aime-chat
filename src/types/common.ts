@@ -6,6 +6,14 @@ export type PaginationInfo<TItem> = {
   hasMore: boolean;
 };
 
+export type PaginationParams = {
+  page: number;
+  size: number;
+  filter?: string;
+  sort?: string;
+  order?: string;
+};
+
 export type FileInfo = {
   isExist: boolean;
   isFile?: boolean;

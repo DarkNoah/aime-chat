@@ -22,6 +22,7 @@ import { PowerPointLoader } from '@/main/utils/loaders/power-point-loader';
 import { ExcelLoader } from '@/main/utils/loaders/excel-loader';
 import { OcrLoader } from '@/main/utils/loaders/ocr-loader';
 import { ToolConfig } from '@/types/tool';
+import { AudioLoader } from '@/main/utils/loaders/audio-loader';
 
 const DEFAULT_MAX_LINES_TEXT_FILE = 2000;
 const MAX_LINE_LENGTH_TEXT_FILE = 2000;
@@ -215,7 +216,9 @@ Usage:
         return content;
       }
     } else if (ext === '.docx' || ext === '.doc') {
-      const loader = new WordLoader(file_source);
+      const loader = new WordLoader(file_source, {
+        type: ext === '.docx' ? 'docx' : 'doc',
+      });
       // const info = await loader.info();
       const content = await loader.load();
       return content;
@@ -232,6 +235,11 @@ Usage:
       const loader = new OcrLoader(file_source, { mode: this.mode });
       const content = await loader.load();
       return content;
+    } else if (mimeType.startsWith('audio/')) {
+      // 使用 paddle OCR 进行图像文字识别
+      const loader = new AudioLoader(file_source);
+      const content = await loader.load();
+      return content.text;
     }
     return content;
   };

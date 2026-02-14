@@ -38,12 +38,13 @@ import ExpenseManagementToolkit from './test/expense_management';
 import ToolToolkit from './common/tool';
 import { Vision } from './vision/vision';
 import MemoryToolkit from './memory/memory';
-import { Task } from './common/task';
+import TodoToolkit, { Task } from './common/task';
 import { WebFetch } from './web/web-fetch';
 import { Extract } from './work/extract';
 import { GenerateImage } from './image/generate-image';
 import { EditImage } from './image/edit-image';
 import { Translation } from './work/translation';
+import { AudioToolkit } from './audio';
 import { runCommand } from '../utils/shell';
 import os from 'os';
 import matter from 'gray-matter';
@@ -158,8 +159,9 @@ class ToolsManager extends BaseManager {
 
   async registerBuiltInTools() {
     // this.registerBuiltInTool(PythonExecute);
-    await this.registerBuiltInTool(NodejsExecute);
+    // await this.registerBuiltInTool(NodejsExecute);
     await this.registerBuiltInTool(CodeExecution);
+    await this.registerBuiltInTool(TodoToolkit);
     await this.registerBuiltInTool(TodoWrite);
     await this.registerBuiltInTool(BashToolkit);
     await this.registerBuiltInTool(FileSystem);
@@ -176,8 +178,10 @@ class ToolsManager extends BaseManager {
     await this.registerBuiltInTool(MemoryToolkit);
     await this.registerBuiltInTool(Extract);
     await this.registerBuiltInTool(Translation);
-    await this.registerBuiltInTool(ExpenseManagementToolkit);
+    await this.registerBuiltInTool(AudioToolkit);
+
     if (!app.isPackaged) {
+      await this.registerBuiltInTool(ExpenseManagementToolkit);
       await this.registerBuiltInTool(StreamTest);
     }
 
@@ -1139,125 +1143,173 @@ class ToolsManager extends BaseManager {
     const tmpDir = path.join(os.tmpdir(), `git-clone-${crypto.randomUUID()}`);
     let repoUrl: string;
     let gitPath: string = '';
-    const { repo_or_url } = data;
-
-    if (repo_or_url.includes('github.com')) {
-      // Parse full GitHub URL
-      const parsed = this.parseGitHubUrl(repo_or_url);
-      repoUrl = `https://github.com/${parsed.owner}/${parsed.repo}.git`;
-      gitPath = parsed.path;
-    } else {
-      // Assume it's owner/repo[/path] or owner/repo/tree|blob/branch/path
-      const parts = repo_or_url.split('/').filter(Boolean);
-      if (parts.length < 2) {
-        return {
-          success: false,
-          error: 'Invalid path format. Use owner/repo/path or full GitHub URL',
-        };
-      }
-      repoUrl = `https://github.com/${parts[0]}/${parts[1]}.git`;
-      if (parts.length <= 2) {
-        gitPath = '';
-      } else if (parts[2] === 'tree' || parts[2] === 'blob') {
-        if (parts.length < 5) {
+    const { repo_or_url, files } = data;
+    if (repo_or_url) {
+      if (repo_or_url.includes('github.com')) {
+        // Parse full GitHub URL
+        const parsed = this.parseGitHubUrl(repo_or_url);
+        repoUrl = `https://github.com/${parsed.owner}/${parsed.repo}.git`;
+        gitPath = parsed.path;
+      } else {
+        // Assume it's owner/repo[/path] or owner/repo/tree|blob/branch/path
+        const parts = repo_or_url.split('/').filter(Boolean);
+        if (parts.length < 2) {
           return {
             success: false,
             error:
-              'Invalid path format. Use owner/repo/tree/branch/path or full GitHub URL',
+              'Invalid path format. Use owner/repo/path or full GitHub URL',
           };
         }
-        gitPath = parts.slice(4).join('/');
-      } else {
-        gitPath = parts.slice(2).join('/');
-      }
-    }
-
-    // Shallow clone for speed
-    const result = await runCommand(
-      `git clone --depth 1 ${repoUrl} "${tmpDir}"`,
-    );
-    if (result.code !== 0) {
-      return {
-        success: false,
-        error: result.stderr,
-      };
-    }
-    // Find skills in the cloned repo
-    let skillsToScan: string[] = [];
-
-    if (gitPath) {
-      // Specific path provided
-      const targetPath = path.join(tmpDir, gitPath);
-      if (
-        await fs.promises
-          .access(targetPath)
-          .then(() => true)
-          .catch(() => false)
-      ) {
-        const skillDir = await this.findSkillDirectory(targetPath);
-        if (skillDir) {
-          skillsToScan.push(skillDir);
+        repoUrl = `https://github.com/${parts[0]}/${parts[1]}.git`;
+        if (parts.length <= 2) {
+          gitPath = '';
+        } else if (parts[2] === 'tree' || parts[2] === 'blob') {
+          if (parts.length < 5) {
+            return {
+              success: false,
+              error:
+                'Invalid path format. Use owner/repo/tree/branch/path or full GitHub URL',
+            };
+          }
+          gitPath = parts.slice(4).join('/');
+        } else {
+          gitPath = parts.slice(2).join('/');
         }
       }
-    }
 
-    // If no specific path or no skill found at path, scan entire repo
-    if (skillsToScan.length === 0) {
-      skillsToScan = await this.getSkillsInDir(tmpDir);
-    }
-
-    // Extract skill info
-    const skills = await Promise.all(
-      skillsToScan.map(async (skillPath) => {
-        const skillMdPath = path.join(skillPath, 'SKILL.md');
-        const skillMd = await fs.promises
-          .readFile(skillMdPath, 'utf-8')
-          .catch(() => '');
-        const relativePath = path.relative(tmpDir, skillPath);
-        const data = matter(skillMd);
-        return {
-          id: path.basename(path.dirname(skillMdPath)),
-          name: data.data.name,
-          path: relativePath,
-          description: data.data.description,
-        };
-      }),
-    );
-    const selectedSkills = skills.filter((x) =>
-      data.selectedSkills.includes(x.path),
-    );
-
-    for (const selectedSkill of selectedSkills) {
-      await fs.promises.cp(
-        path.join(tmpDir, selectedSkill.path),
-        path.join(skillsPath, selectedSkill.id),
-        {
-          recursive: true,
-        },
+      // Shallow clone for speed
+      const result = await runCommand(
+        `git clone --depth 1 ${repoUrl} "${tmpDir}"`,
       );
-      if (!data.path) {
-        const tool = new Tools(
-          `${ToolType.SKILL}:local:${selectedSkill.id}`,
-          selectedSkill.id,
-          ToolType.SKILL,
-        );
-        tool.isActive = true;
-        tool.value = {
-          path: path.join(skillsPath, selectedSkill.id),
+      if (result.code !== 0) {
+        return {
+          success: false,
+          error: result.stderr,
         };
-        await this.toolsRepository.save(tool);
-        await appManager.sendEvent(ToolEvent.ToolListUpdated, {
-          id: `${ToolType.SKILL}:local:${selectedSkill.id}`,
-          status: 'created',
-        });
       }
-    }
+      // Find skills in the cloned repo
+      let skillsToScan: string[] = [];
 
-    await fs.promises.rmdir(tmpDir, { recursive: true });
-    return {
-      success: true,
-    };
-    console.log(data);
+      if (gitPath) {
+        // Specific path provided
+        const targetPath = path.join(tmpDir, gitPath);
+        if (
+          await fs.promises
+            .access(targetPath)
+            .then(() => true)
+            .catch(() => false)
+        ) {
+          const skillDir = await this.findSkillDirectory(targetPath);
+          if (skillDir) {
+            skillsToScan.push(skillDir);
+          }
+        }
+      }
+
+      // If no specific path or no skill found at path, scan entire repo
+      if (skillsToScan.length === 0) {
+        skillsToScan = await this.getSkillsInDir(tmpDir);
+      }
+
+      // Extract skill info
+      const skills = await Promise.all(
+        skillsToScan.map(async (skillPath) => {
+          const skillMdPath = path.join(skillPath, 'SKILL.md');
+          const skillMd = await fs.promises
+            .readFile(skillMdPath, 'utf-8')
+            .catch(() => '');
+          const relativePath = path.relative(tmpDir, skillPath);
+          const data = matter(skillMd);
+          return {
+            id: path.basename(path.dirname(skillMdPath)),
+            name: data.data.name,
+            path: relativePath,
+            description: data.data.description,
+          };
+        }),
+      );
+      const selectedSkills = skills.filter((x) =>
+        data.selectedSkills.includes(x.path),
+      );
+
+      for (const selectedSkill of selectedSkills) {
+        await fs.promises.cp(
+          path.join(tmpDir, selectedSkill.path),
+          path.join(skillsPath, selectedSkill.id),
+          {
+            recursive: true,
+          },
+        );
+        if (!data.path) {
+          const tool = new Tools(
+            `${ToolType.SKILL}:local:${selectedSkill.id}`,
+            selectedSkill.id,
+            ToolType.SKILL,
+          );
+          tool.isActive = true;
+          tool.value = {
+            path: path.join(skillsPath, selectedSkill.id),
+          };
+          await this.toolsRepository.save(tool);
+          await appManager.sendEvent(ToolEvent.ToolListUpdated, {
+            id: `${ToolType.SKILL}:local:${selectedSkill.id}`,
+            status: 'created',
+          });
+        }
+      }
+
+      await fs.promises.rmdir(tmpDir, { recursive: true });
+      return {
+        success: true,
+      };
+    } else if (files && files.length > 0) {
+      const skills = [];
+      for (const file of files) {
+        const fileName = path.basename(file);
+        const skill = await skillManager.parseSkill(file);
+        const skillName = skill.name.toLowerCase().replaceAll(' ', '-');
+        if (!data.path) {
+          const id = `${ToolType.SKILL}:${skillName}`;
+          if (await this.toolsRepository.findOne({ where: { id } })) {
+            throw new Error(`Skill ${skillName} already exists`);
+          }
+          const tool = new Tools(
+            `${ToolType.SKILL}:local:${skillName}`,
+            skillName,
+            ToolType.SKILL,
+          );
+          // tool.description = skill.description;
+          const savePath = path.join(
+            app.getPath('userData'),
+            'skills',
+            skillName,
+          );
+          tool.value = {
+            path: savePath,
+          };
+          // await this.toolsRepository.save(localSkill);
+          skills.push({ tool, importPath: file, savePath });
+          const skill = await skillManager.parseSkill(file, savePath);
+          // tool.name = skill.name;
+          await this.toolsRepository.save(tool);
+          await appManager.sendEvent(ToolEvent.ToolListUpdated, {
+            id: skill.id,
+            status: 'created',
+          });
+        } else {
+          await skillManager.parseSkill(file, path.join(skillsPath, skillName));
+        }
+      }
+
+      return {
+        success: true,
+      };
+    } else {
+      return {
+        success: false,
+        error: 'Invalid input',
+      };
+    }
   }
 
   async buildTool(
