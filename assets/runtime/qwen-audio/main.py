@@ -98,17 +98,17 @@ DEFAULT_MODEL = os.environ.get(
 #
 # The unified model.generate() API auto-routes based on tts_model_type in config.
 
-DEFAULT_MLX_TTS_MODEL = os.environ.get(
-    "QWEN_TTS_MLX_MODEL", "mlx-community/Qwen3-TTS-12Hz-1.7B-Base-bf16"
-)
-DEFAULT_MLX_TTS_VOICEDESIGN_MODEL = os.environ.get(
-    "QWEN_TTS_MLX_VOICEDESIGN_MODEL",
+DEFAULT_QWEN_TTS_MODEL = os.environ.get(
+    "QWEN_TTS_MODEL", "mlx-community/Qwen3-TTS-12Hz-1.7B-Base-bf16"
+) if IS_DARWIN else "Qwen/Qwen3-TTS-12Hz-1.7B-Base"
+DEFAULT_QWEN_TTS_VOICEDESIGN_MODEL = os.environ.get(
+    "QWEN_TTS_VOICEDESIGN_MODEL",
     "mlx-community/Qwen3-TTS-12Hz-1.7B-VoiceDesign-bf16",
-)
-DEFAULT_MLX_TTS_CUSTOM_MODEL = os.environ.get(
-    "QWEN_TTS_MLX_CUSTOM_MODEL",
+) if IS_DARWIN else "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign"
+DEFAULT_QWEN_TTS_CUSTOM_MODEL = os.environ.get(
+    "QWEN_TTS_CUSTOM_MODEL",
     "mlx-community/Qwen3-TTS-12Hz-1.7B-CustomVoice-bf16",
-)
+) if IS_DARWIN else "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice"
 
 
 def _resolve_default_device() -> str:
@@ -358,6 +358,14 @@ _mlx_tts_model = None
 _mlx_tts_model_key: Optional[str] = None
 _mlx_tts_model_lock = threading.Lock()
 
+# ---------- Qwen TTS model management ----------
+_qwen_tts_model = None
+_qwen_tts_model_key: Optional[str] = None
+_qwen_tts_model_lock = threading.Lock()
+_qwen_tts_backend_ready = False
+_Qwen3TTSModel = None
+_qwen_tts_torch = None
+
 
 def _get_sample_rate(result: Any, model: Any) -> int:
     """Best-effort sampling rate inference."""
@@ -373,7 +381,7 @@ def _get_sample_rate(result: Any, model: Any) -> int:
 def get_mlx_tts_model(model_name: str) -> Any:
     global _mlx_tts_model, _mlx_tts_model_key
 
-    model_name = (model_name or DEFAULT_MLX_TTS_MODEL).strip()
+    model_name = (model_name or DEFAULT_QWEN_TTS_MODEL).strip()
     key = model_name
 
     with _mlx_tts_model_lock:
@@ -386,6 +394,112 @@ def get_mlx_tts_model(model_name: str) -> Any:
         _mlx_tts_model = load_tts_model(model_name)
         _mlx_tts_model_key = key
         return _mlx_tts_model
+
+
+def _ensure_qwen_tts_backend() -> Tuple[Any, Any]:
+    global _qwen_tts_backend_ready, _Qwen3TTSModel, _qwen_tts_torch
+    if _qwen_tts_backend_ready and _Qwen3TTSModel is not None and _qwen_tts_torch is not None:
+        return _qwen_tts_torch, _Qwen3TTSModel
+
+    try:
+        import torch  # type: ignore
+        from qwen_tts import Qwen3TTSModel  # type: ignore
+    except Exception:
+        print("qwen-tts is missing, trying to install it with uv add...", file=sys.stderr)
+        code = os.system("uv add qwen-tts")
+        if code != 0:
+            raise RuntimeError("qwen-tts is not installed and auto-install failed")
+        import torch  # type: ignore
+        from qwen_tts import Qwen3TTSModel  # type: ignore
+
+    _qwen_tts_torch = torch
+    _Qwen3TTSModel = Qwen3TTSModel
+    _qwen_tts_backend_ready = True
+    return _qwen_tts_torch, _Qwen3TTSModel
+
+
+def _resolve_torch_dtype(dtype: str, torch: Any) -> Any:
+    norm = (dtype or DEFAULT_DTYPE).lower().strip()
+    table = {
+        "float16": torch.float16,
+        "fp16": torch.float16,
+        "half": torch.float16,
+        "bfloat16": torch.bfloat16,
+        "bf16": torch.bfloat16,
+        "float32": torch.float32,
+        "fp32": torch.float32,
+    }
+    if norm not in table:
+        raise ValueError(f"unsupported dtype: {dtype}")
+    return table[norm]
+
+
+def _normalize_tts_device(device: str) -> str:
+    resolved = (device or DEFAULT_DEVICE).strip().lower()
+    if resolved in {"cuda", "gpu"}:
+        return "cuda:0"
+    return resolved
+
+
+def get_qwen_tts_model(
+    model_name: Optional[str],
+    device: Optional[str] = None,
+    dtype: Optional[str] = None,
+) -> Any:
+    global _qwen_tts_model, _qwen_tts_model_key
+
+    torch, Qwen3TTSModel = _ensure_qwen_tts_backend()
+    resolved_model_name = (model_name or DEFAULT_QWEN_TTS_MODEL).strip()
+    resolved_device = _normalize_tts_device(device or DEFAULT_DEVICE)
+    resolved_dtype = (dtype or DEFAULT_DTYPE).strip()
+    key = json.dumps(
+        {
+            "model": resolved_model_name,
+            "device": resolved_device,
+            "dtype": resolved_dtype,
+        },
+        sort_keys=True,
+        ensure_ascii=False,
+    )
+
+    with _qwen_tts_model_lock:
+        if _qwen_tts_model is not None and _qwen_tts_model_key == key:
+            return _qwen_tts_model
+
+        load_kwargs: Dict[str, Any] = {
+            "device_map": resolved_device,
+            "dtype": _resolve_torch_dtype(resolved_dtype, torch),
+        }
+
+        # Flash attention is optional. If unavailable, retry without it.
+        if resolved_device.startswith("cuda"):
+            load_kwargs["attn_implementation"] = "flash_attention_2"
+        try:
+            logging.info(f"Loading qwen-tts model from {resolved_model_name} with kwargs {load_kwargs}")
+            _qwen_tts_model = Qwen3TTSModel.from_pretrained(
+                resolved_model_name, **load_kwargs
+            )
+        except Exception:
+            if "attn_implementation" not in load_kwargs:
+                raise
+            load_kwargs.pop("attn_implementation", None)
+            _qwen_tts_model = Qwen3TTSModel.from_pretrained(
+                resolved_model_name, **load_kwargs
+            )
+
+        _qwen_tts_model_key = key
+        return _qwen_tts_model
+
+
+def _default_qwen_speaker(language: Optional[str]) -> str:
+    lang = (language or "").strip().lower()
+    if "en" in lang:
+        return "Ryan"
+    if "japanese" in lang or "jp" in lang:
+        return "Ono_Anna"
+    if "korean" in lang or "ko" in lang:
+        return "Sohee"
+    return "Vivian"
 
 
 def _run_mlx_tts(
@@ -411,7 +525,7 @@ def _run_mlx_tts(
 
     if voice:
         # ── CustomVoice: speaker + optional emotion/style instruct ──
-        effective_model = model_name or DEFAULT_MLX_TTS_CUSTOM_MODEL
+        effective_model = model_name or DEFAULT_QWEN_TTS_CUSTOM_MODEL
         model = get_mlx_tts_model(effective_model)
         kwargs: Dict[str, Any] = {
             "text": text,
@@ -424,7 +538,7 @@ def _run_mlx_tts(
 
     elif instruct:
         # ── VoiceDesign: create any voice from text description ──
-        effective_model = model_name or DEFAULT_MLX_TTS_VOICEDESIGN_MODEL
+        effective_model = model_name or DEFAULT_QWEN_TTS_VOICEDESIGN_MODEL
         model = get_mlx_tts_model(effective_model)
         results = list(model.generate_voice_design(
             text=text,
@@ -434,7 +548,7 @@ def _run_mlx_tts(
 
     else:
         # ── Base model: predefined voice or voice cloning ──
-        effective_model = model_name or DEFAULT_MLX_TTS_MODEL
+        effective_model = model_name or DEFAULT_QWEN_TTS_MODEL
         model = get_mlx_tts_model(effective_model)
         kwargs = {
             "text": text,
@@ -464,7 +578,90 @@ def _run_mlx_tts(
         "model": effective_model,
     }
 
+def _run_qwen_tts(
+    text: str,
+    language: str,
+    output_path: str,
+    model_name: Optional[str] = None,
+    voice: Optional[str] = None,
+    instruct: Optional[str] = None,
+    ref_audio: Optional[str] = None,
+    ref_text: Optional[str] = None,
+) -> Dict[str, Any]:
+    import numpy as np  # type: ignore
+    import soundfile as sf  # type: ignore
 
+    lang = language if language else "English"
+
+    # Routing aligns with _run_mlx_tts:
+    # 1. voice -> CustomVoice model
+    # 2. instruct (without voice) -> VoiceDesign model
+    # 3. ref_audio + ref_text -> Base model voice clone
+    # 4. no mode params -> CustomVoice default speaker
+    logging.info(f"Running qwen-tts with voice {voice}, instruct {instruct}, ref_audio {ref_audio}, ref_text {ref_text}")
+    if voice:
+        effective_model = model_name or DEFAULT_QWEN_TTS_CUSTOM_MODEL
+        model = get_qwen_tts_model(effective_model)
+        kwargs: Dict[str, Any] = {
+            "text": text,
+            "language": lang,
+            "speaker": voice,
+        }
+        if instruct:
+            kwargs["instruct"] = instruct
+        wavs, sample_rate = model.generate_custom_voice(**kwargs)
+    elif instruct:
+        effective_model = model_name or DEFAULT_QWEN_TTS_VOICEDESIGN_MODEL
+        model = get_qwen_tts_model(effective_model)
+        wavs, sample_rate = model.generate_voice_design(
+            text=text,
+            language=lang,
+            instruct=instruct,
+        )
+    elif ref_audio or ref_text:
+        if not ref_audio or not ref_text:
+            raise ValueError("ref_audio and ref_text must be provided together")
+        effective_model = model_name or DEFAULT_QWEN_TTS_MODEL
+        model = get_qwen_tts_model(effective_model)
+        wavs, sample_rate = model.generate_voice_clone(
+            text=text,
+            language=lang,
+            ref_audio=ref_audio,
+            ref_text=ref_text,
+        )
+    else:
+        effective_model = model_name or DEFAULT_QWEN_TTS_CUSTOM_MODEL
+        model = get_qwen_tts_model(effective_model)
+        wavs, sample_rate = model.generate_custom_voice(
+            text=text,
+            language=lang,
+            speaker=_default_qwen_speaker(lang),
+        )
+
+    if wavs is None:
+        raise RuntimeError("TTS generation failed: no audio output returned")
+
+    if isinstance(wavs, (list, tuple)):
+        if not wavs:
+            raise RuntimeError("TTS generation failed: empty audio output")
+        audio = wavs[0]
+    else:
+        audio = wavs
+
+    audio_np = np.array(audio, dtype=np.float32)
+    if audio_np.ndim > 1:
+        audio_np = audio_np.reshape(-1)
+    sample_rate = int(sample_rate) if sample_rate else 24000
+    duration = float(len(audio_np)) / float(sample_rate) if sample_rate else 0.0
+
+    sf.write(output_path, audio_np, sample_rate)
+
+    return {
+        "output_path": output_path,
+        "sample_rate": sample_rate,
+        "duration": duration,
+        "model": effective_model,
+    }
 # ---------- Helpers ----------
 def _json_write(obj: Dict[str, Any]) -> None:
     sys.stdout.write(json.dumps(obj, ensure_ascii=False) + "\n")
@@ -861,8 +1058,8 @@ def method_ping(_params: Dict[str, Any]) -> Dict[str, Any]:
         "default_dtype": DEFAULT_DTYPE,
         "default_qwen_aligner_model": DEFAULT_QWEN_ALIGNER_MODEL,
         "default_mlx_aligner_model": DEFAULT_MLX_ALIGNER_MODEL,
-        "default_tts_model": DEFAULT_MLX_TTS_MODEL,
-        "default_tts_voicedesign_model": DEFAULT_MLX_TTS_VOICEDESIGN_MODEL,
+        "default_tts_model": DEFAULT_QWEN_TTS_MODEL,
+        "default_tts_voicedesign_model": DEFAULT_QWEN_TTS_VOICEDESIGN_MODEL,
     }
 
 
@@ -1032,17 +1229,30 @@ def method_tts(params: Dict[str, Any]) -> Dict[str, Any]:
     # Validate ref_audio exists if provided
     if ref_audio and not os.path.exists(ref_audio):
         raise FileNotFoundError(f"reference audio not found: {ref_audio}")
+    if IS_DARWIN:
+        return _run_mlx_tts(
+            text=text,
+            language=language,
+            output_path=output_path,
+            model_name=model_name,
+            voice=voice,
+            instruct=instruct,
+            ref_audio=ref_audio,
+            ref_text=ref_text,
+        )
+    else:
+        return _run_qwen_tts(
+            text=text,
+            language=language,
+            output_path=output_path,
+            model_name=model_name,
+            voice=voice,
+            instruct=instruct,
+            ref_audio=ref_audio,
+            ref_text=ref_text,
+        )
 
-    return _run_mlx_tts(
-        text=text,
-        language=language,
-        output_path=output_path,
-        model_name=model_name,
-        voice=voice,
-        instruct=instruct,
-        ref_audio=ref_audio,
-        ref_text=ref_text,
-    )
+
 
 
 # ---------- Main loop ----------

@@ -627,6 +627,7 @@ export async function installQwenAudioRuntime() {
         pyproject = pyproject.replace('dependencies = []', `
 dependencies = [
     "qwen-asr",
+    "qwen-tts>=0.1.1",
     "torch"
 ]
 
@@ -634,6 +635,7 @@ dependencies = [
 extra-index-url = [
     "https://pypi.org/simple"
 ]
+override-dependencies = ["transformers==4.57.6"]
 
 [tool.uv.sources]
 torch = [
@@ -648,8 +650,11 @@ explicit = true
       } else {
         pyproject = pyproject.replace('dependencies = []', `
 dependencies = [
-    "qwen-asr"
+    "qwen-asr",
+    "qwen-tts>=0.1.1"
 ]
+[tool.uv]
+override-dependencies = ["transformers==4.57.6"]
         `);
       }
       await fs.promises.writeFile(path.join(qwenasrDir, 'pyproject.toml'), pyproject);
@@ -662,6 +667,16 @@ dependencies = [
       );
 
       if (result_sync.code === 0) {
+
+
+        const result_qwen_tts = await runCommand(
+          `${uvPreCommand} --project "${qwenasrDir}" add qwen-tts --no-cache --python "${activateSourcePython}"`,
+          {
+            cwd: uvRuntime?.dir,
+            timeout: 1000 * 30,
+          },
+        );
+
         const result2 = await runCommand(
           `"${activateSourcePython}" -c "from importlib import metadata; print(metadata.version('qwen-asr'))"`,
           {

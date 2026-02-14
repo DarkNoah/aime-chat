@@ -30,7 +30,7 @@ export type ChatToolResultPreviewProps = {
   className?: string;
 };
 
-export interface ChatToolResultPreviewRef {}
+export interface ChatToolResultPreviewRef { }
 
 export const ChatToolResultPreview = React.forwardRef<
   ChatToolResultPreviewRef,
@@ -127,7 +127,9 @@ export const ChatToolResultPreview = React.forwardRef<
               <TabsTrigger value="text">Text</TabsTrigger>
             </TabsList>
             <TabsContent value="text">
-              <Streamdown className="bg-secondary p-4 rounded-2xl  text-wrap break-all">
+              <Streamdown className="bg-secondary p-4 rounded-2xl  text-wrap break-all"
+
+              >
                 {part.output}
               </Streamdown>
             </TabsContent>
@@ -263,7 +265,7 @@ export const ChatToolResultPreview = React.forwardRef<
                       fontSize: 'var(--text-sm)',
                     },
                   }}
-                  // renderContent={this.highlightSyntax}
+                // renderContent={this.highlightSyntax}
                 />
               </div>
 

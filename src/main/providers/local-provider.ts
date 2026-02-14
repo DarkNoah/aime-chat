@@ -254,7 +254,13 @@ export class LocalTranscriptionModel implements TranscriptionModelV2 {
     const result = await audioLoader.load();
     return {
       text: result.text,
-      segments: result.result.sentence_segments,
+      segments: result.result.items.map(item => {
+        return {
+          text: item.text,
+          startSecond: item.start,
+          endSecond: item.end,
+        }
+      }),
       language: result.result.language,
       durationInSeconds: result.result.duration,
       warnings: [],

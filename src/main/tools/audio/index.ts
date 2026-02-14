@@ -19,6 +19,7 @@ import { nanoid } from '@/utils/nanoid';
 import { ToolConfig } from '@/types/tool';
 import { providersManager } from '@/main/providers';
 import mime from 'mime';
+import { TranscriptionModelV2 } from '@mastra/core/_types/@internal_ai-sdk-v5/dist';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -103,13 +104,13 @@ function formatSrtTime(seconds: number): string {
  * Generate SRT subtitle content from sentence segments.
  */
 function generateSrtContent(
-  segments: Array<{ start: number; end: number; text: string }>,
+  segments: Array<{ startSecond: number; endSecond: number; text: string }>,
 ): string {
   return (
     segments
       .map((seg, idx) => {
-        const start = formatSrtTime(seg.start);
-        const end = formatSrtTime(seg.end);
+        const start = formatSrtTime(seg.startSecond);
+        const end = formatSrtTime(seg.endSecond);
         return `${idx + 1}\n${start} --> ${end}\n${seg.text}`;
       })
       .join('\n\n') + '\n'
@@ -264,7 +265,7 @@ function normalizeAssStyleInput(assStyle: unknown): AssStyleValues {
  * Generate ASS subtitle content from sentence segments.
  */
 function generateAssContent(
-  segments: Array<{ start: number; end: number; text: string }>,
+  segments: Array<{ startSecond: number; endSecond: number; text: string }>,
   styleOptions: AssStyleValues = DEFAULT_ASS_STYLE_VALUES,
 ): string {
   const styleValues: AssStyleValues = {
@@ -293,8 +294,8 @@ Style: ${styleLine}
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text`;
 
   const dialogueLines = segments.map((seg) => {
-    const start = formatAssTime(seg.start);
-    const end = formatAssTime(seg.end);
+    const start = formatAssTime(seg.startSecond);
+    const end = formatAssTime(seg.endSecond);
     const text = seg.text.replace(/\n/g, '\\N');
     return `Dialogue: 0,${start},${end},${styleName},,0,0,0,,${text}`;
   });
@@ -417,22 +418,29 @@ Output types:
       // });
 
       const provider = await providersManager.getProvider(this.modelId.split('/')[0]);
+      let result: Awaited<ReturnType<TranscriptionModelV2['doGenerate']>>;
       if (provider) {
         const transcriptionModel = provider.transcriptionModel(this.modelId.split('/').slice(1).join('/'));
-        const result = await transcriptionModel.doGenerate({
+        result = await transcriptionModel.doGenerate({
           audio: buffer,
           mediaType: mime.lookup(audioPath),
+          providerOptions: {
+            "openai": {
+              "timestampGranularities": ["word"]
+            }
+          }
         });
-        debugger;
+      } else {
+        throw new Error('Provider not found');
       }
 
-      const result = asrResult.result;
+      //const result = asrResult.result;
       const text: string = result.text || '';
-      const sentenceSegments: Array<{
-        start: number;
-        end: number;
-        text: string;
-      }> = result.sentence_segments || result.items || [];
+      // const sentenceSegments: Array<{
+      //   start: number;
+      //   end: number;
+      //   text: string;
+      // }> = result. || result.segments || [];
 
       // -----------------------------------------------------------------
       // 4. Format output based on output_type
@@ -442,13 +450,13 @@ Output types:
       }
 
       if (output_type === 'srt') {
-        if (sentenceSegments.length === 0) {
+        if (result.segments.length === 0) {
           return (
             'No timed segments available for SRT generation. Transcribed text: ' +
             text
           );
         }
-        const srtContent = generateSrtContent(sentenceSegments);
+        const srtContent = generateSrtContent(result.segments);
         const fileName = save_path || `${nanoid()}.srt`;
         const filePath = await saveFile(
           Buffer.from(srtContent, 'utf-8'),
@@ -459,7 +467,7 @@ Output types:
       }
 
       if (output_type === 'ass') {
-        if (sentenceSegments.length === 0) {
+        if (result.segments.length === 0) {
           return (
             'No timed segments available for ASS generation. Transcribed text: ' +
             text
@@ -467,7 +475,7 @@ Output types:
         }
         const assStyleOptions = normalizeAssStyleInput(ass_style);
         const assContent = generateAssContent(
-          sentenceSegments,
+          result.segments,
           assStyleOptions,
         );
         const fileName = save_path || `${nanoid()}.ass`;

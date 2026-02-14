@@ -13,9 +13,11 @@ import {
   LanguageModelV2,
   SpeechModelV2,
   TranscriptionModelV2,
+  TranscriptionModelV2CallOptions,
 } from '@ai-sdk/provider';
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import { createZhipu } from 'zhipu-ai-provider';
+import { isString } from '@/utils/is';
 
 export class ZhipuAIRerankModel implements RerankModel {
   modelId: string;
@@ -127,6 +129,72 @@ export class ZhipuAIImageModel implements ImageModelV2 {
     };
   }
 }
+
+
+export class ZhipuAITranscriptionModel implements TranscriptionModelV2 {
+  specificationVersion: 'v2';
+  provider: string = 'zhipuai';
+  modelId: string;
+  providerEntity: Providers;
+
+  constructor({ modelId, provider }: { modelId: string; provider: Providers }) {
+    this.providerEntity = provider;
+    this.modelId = modelId;
+  }
+
+
+  async doGenerate(options: TranscriptionModelV2CallOptions): Promise<{ text: string; segments: Array<{ text: string; startSecond: number; endSecond: number; }>; language: string | undefined; durationInSeconds: number | undefined; warnings: Array<TranscriptionModelV2CallWarning>; request?: { body?: string; }; response: { timestamp: Date; modelId: string; headers?: SharedV2Headers; body?: unknown; }; providerMetadata?: Record<string, Record<string, JSONValue>>; }> {
+    let audio: Uint8Array<ArrayBufferLike>;
+    if (isString(options.audio)) {
+      audio = Buffer.from(options.audio, 'base64');
+    } else {
+      audio = options.audio
+    }
+
+    const form = new FormData();
+    form.append('model', 'glm-asr-2512');
+    form.append('stream', 'false');
+    form.append('file', new Blob([audio], { type: options.mediaType }), 'audio.wav');
+
+
+    const res = await fetch('https://open.bigmodel.cn/api/paas/v4/audio/transcriptions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${this.providerEntity.apiKey}`,
+      },
+      body: form,
+      signal: options.abortSignal,
+    });
+    const data = await res.json();
+    if (data.error) {
+      throw new Error(data.error.message);
+    }
+    return {
+      text: result.text,
+      segments: result.result.items.map(item => {
+        return {
+          text: item.text,
+          startSecond: item.start,
+          endSecond: item.end,
+        }
+      }),
+      language: result.result.language,
+      durationInSeconds: result.result.duration,
+      warnings: [],
+      response: {
+        timestamp: new Date(),
+        modelId: this.modelId,
+        headers: options.headers,
+        body: result,
+      },
+    };
+  }
+
+}
+
+
+
+
 export class ZhipuAIProvider extends BaseProvider {
   name: string = 'zhipuai';
   type: ProviderType = ProviderType.ZHIPUAI;
@@ -219,7 +287,7 @@ export class ZhipuAIProvider extends BaseProvider {
     return new ZhipuAIImageModel({ modelId, provider: this.provider });
   }
   transcriptionModel?(modelId: string): TranscriptionModelV2 {
-    return undefined;
+    return new ZhipuAITranscriptionModel({ modelId, provider: this.provider });
   }
   speechModel?(modelId: string): SpeechModelV2 {
     return undefined;
