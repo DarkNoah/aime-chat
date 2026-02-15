@@ -184,7 +184,7 @@ function Tools() {
     };
   }, []);
 
-  const handleDelete = (id: string) => {};
+  const handleDelete = (id: string) => { };
 
   const openMcpDialog = async () => {
     setOpen(true);
@@ -296,15 +296,15 @@ function Tools() {
                     >
                       <ItemContent className="min-w-0 ">
                         <ItemTitle className="line-clamp-1 w-auto">
-                          {tool.name}
+                          {t(`tool_name.${tool.name.toLowerCase()}`, tool.name)}
                         </ItemTitle>
                         {tool.status === 'running' && (
                           <IconToggleRightFilled className="text-green-500/50"></IconToggleRightFilled>
                         )}
                         {(tool.status === 'stopped' ||
                           tool.status === 'error') && (
-                          <IconToggleLeft className="text-red-500/50"></IconToggleLeft>
-                        )}
+                            <IconToggleLeft className="text-red-500/50"></IconToggleLeft>
+                          )}
                         {tool.status === 'starting' && (
                           <IconLoader2 className="text-yellow-400/50 animate-spin"></IconLoader2>
                         )}
@@ -322,18 +322,18 @@ function Tools() {
             {tools[view]?.filter((kb) =>
               kb.name.toLowerCase().includes(search.toLowerCase()),
             ).length === 0 && (
-              <div className="flex items-center space-x-4 w-[calc(var(--sidebar-width))]">
-                <Empty className="bg-secondary/50">
-                  <EmptyHeader>
-                    {/* <EmptyMedia variant="icon"></EmptyMedia> */}
-                    <EmptyDescription className="flex flex-col items-center gap-2">
-                      <IconBox />
-                      No Result
-                    </EmptyDescription>
-                  </EmptyHeader>
-                </Empty>
-              </div>
-            )}
+                <div className="flex items-center space-x-4 w-[calc(var(--sidebar-width))]">
+                  <Empty className="bg-secondary/50">
+                    <EmptyHeader>
+                      {/* <EmptyMedia variant="icon"></EmptyMedia> */}
+                      <EmptyDescription className="flex flex-col items-center gap-2">
+                        <IconBox />
+                        No Result
+                      </EmptyDescription>
+                    </EmptyHeader>
+                  </Empty>
+                </div>
+              )}
           </SidebarMenu>
         </ScrollArea>
       </div>

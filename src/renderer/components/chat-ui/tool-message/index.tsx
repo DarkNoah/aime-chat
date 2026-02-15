@@ -184,6 +184,17 @@ export const ToolMessage = React.forwardRef<ToolMessageRef, ToolMessageProps>(
           return input?.source;
         case 'TextToSpeech':
           return input?.text;
+        case 'TaskUpdate':
+          return '#' + input?.taskId;
+        case 'Vision':
+          return input?.prompt;
+        case 'LibSQLListTable':
+        case 'LibSQLDatabaseInfo':
+          return input?.scope;
+        case 'LibSQLDescribeTable':
+          return input?.table;
+        case 'LibSQLRun':
+          return input?.sql;
         default:
           return input?.description;
       }

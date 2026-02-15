@@ -48,6 +48,7 @@ import { AudioToolkit } from './audio';
 import { runCommand } from '../utils/shell';
 import os from 'os';
 import matter from 'gray-matter';
+import { LibSQLToolkit } from './database/libsql';
 interface BuiltInToolContext {
   tool: BaseTool;
   abortController: AbortController;
@@ -78,7 +79,7 @@ class ToolsManager extends BaseManager {
     super();
   }
 
-  pushMcpClient(id: string) {}
+  pushMcpClient(id: string) { }
 
   async sendMcpClientUpdatedEvent(
     id: string,
@@ -179,6 +180,7 @@ class ToolsManager extends BaseManager {
     await this.registerBuiltInTool(Extract);
     await this.registerBuiltInTool(Translation);
     await this.registerBuiltInTool(AudioToolkit);
+    await this.registerBuiltInTool(LibSQLToolkit);
 
     if (!app.isPackaged) {
       await this.registerBuiltInTool(ExpenseManagementToolkit);
@@ -464,7 +466,7 @@ class ToolsManager extends BaseManager {
       if (existingTools.length > 0) {
         throw new Error(
           'Tools already exist: ' +
-            existingTools.map((tool) => tool.name).join(', '),
+          existingTools.map((tool) => tool.name).join(', '),
         );
       }
     } else {
@@ -728,8 +730,8 @@ class ToolsManager extends BaseManager {
     } else if (tool.type === ToolType.BUILD_IN) {
       const _tool = tool.toolkitId
         ? this.builtInTools
-            .find((x) => x.id === tool.toolkitId)
-            ?.tools.find((x) => x.id == tool.name)
+          .find((x) => x.id === tool.toolkitId)
+          ?.tools.find((x) => x.id == tool.name)
         : this.builtInTools.find((x) => x.id === tool.id);
       if (!_tool?.isToolkit) {
         const __tool = _tool as BaseTool;
@@ -1027,7 +1029,7 @@ class ToolsManager extends BaseManager {
     } finally {
       await fs.promises
         .rm(tmpDir, { recursive: true, force: true })
-        .catch(() => {});
+        .catch(() => { });
     }
   }
 

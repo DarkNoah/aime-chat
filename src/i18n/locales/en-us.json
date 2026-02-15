@@ -26,7 +26,22 @@
     "apiServer": "API Server",
     "apiServerStop": "Stop",
     "apiServerPort": "Server Port",
-    "apiServerTRunningips": "Server is running on "
+    "apiServerTRunningips": "Server is running on ",
+    "instances": "Instances",
+    "instances_user_data": "Browser User Data Directory",
+    "instances_select_browser": "Select browser profile",
+    "instances_browse": "Browse...",
+    "instances_current_path": "Current Path",
+    "instances_custom_dir": "Custom Directory",
+    "instances_executable": "Browser Executable",
+    "instances_run": "Run",
+    "instances_stop": "Stop",
+    "instances_running": "Running",
+    "instances_started": "Instance started",
+    "instances_stopped": "Instance stopped",
+    "instances_start_failed": "Failed to start instance",
+    "instances_config_saved": "Configuration saved",
+    "instances_empty": "No instances"
   },
   "common": {
     "edit": "Edit",

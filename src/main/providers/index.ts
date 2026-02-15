@@ -182,6 +182,8 @@ class ProvidersManager extends BaseManager {
       return this.getAvailableImageGenerationModels();
     } else if (type == ModelType.STT) {
       return this.getAvailableTranscriptionModels();
+    } else if (type == ModelType.TTS) {
+      return this.getAvailableSpeechModels();
     }
   }
 
@@ -582,6 +584,57 @@ class ProvidersManager extends BaseManager {
 
     return data;
   }
+
+  public async getAvailableSpeechModels(): Promise<Provider[]> {
+    const providers = await this.repository.find({
+      where: {
+        isActive: true,
+      },
+    });
+    const data: Provider[] = [];
+    const localProvider = new LocalProvider();
+    const models = await localProvider.getSpeechModelList();
+    if (models.length > 0) {
+      data.push({
+        id: localProvider.id,
+        name: localProvider.name,
+        type: ProviderType.LOCAL,
+        models: models.map((x) => ({
+          id: `${localProvider.id}/${x.id}`,
+          name: x.name,
+          providerType: ProviderType.LOCAL,
+          isActive: true,
+        })),
+      });
+    }
+
+    for (const providerData of providers) {
+      const provider = await this.getProvider(providerData.id);
+      if (provider) {
+        try {
+          const transcriptionModels = await provider.getSpeechModelList();
+          if (transcriptionModels.length > 0) {
+            data.push({
+              id: providerData.id,
+              name: providerData.name,
+              type: providerData.type,
+              models: transcriptionModels
+                .map((x) => ({
+                  id: `${providerData.id}/${x.id}`,
+                  name: x.name,
+                  providerType: providerData.type,
+                  isActive: true,
+                }))
+                .sort((a, b) => b.name.localeCompare(a.name)),
+            });
+          }
+        } catch { }
+      }
+    }
+
+    return data;
+  }
+
 
   public async getProvider(id: string): Promise<BaseProvider | undefined> {
     const provider = await this.repository.findOneBy({ id });

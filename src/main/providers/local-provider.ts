@@ -9,6 +9,8 @@ import {
   ProviderV2,
   SharedV2Headers,
   SpeechModelV2,
+  SpeechModelV2CallOptions,
+  SpeechModelV2CallWarning,
   TranscriptionModelV2,
   TranscriptionModelV2CallOptions,
   TranscriptionModelV2CallWarning,
@@ -34,7 +36,7 @@ import {
   cos_sim,
   FeatureExtractionPipeline,
 } from '@huggingface/transformers';
-import { AudioLoader } from '../utils/loaders/audio-loader';
+import { AudioLoader, getQwenAsrPythonService } from '../utils/loaders/audio-loader';
 import { isString } from '@/utils/is';
 
 export type LocalEmbeddingModelId = 'Qwen/Qwen3-Embedding-0.6B' | (string & {});
@@ -274,7 +276,44 @@ export class LocalTranscriptionModel implements TranscriptionModelV2 {
   }
 
 }
+export class LocalSpeechModel implements SpeechModelV2 {
+  specificationVersion: 'v2';
+  provider: string = 'local';
+  modelId: string;
 
+  constructor(modelId: string) {
+    this.modelId = modelId;
+  }
+  async doGenerate(options: SpeechModelV2CallOptions): Promise<{ audio: string | Uint8Array; warnings: Array<SpeechModelV2CallWarning>; request?: { body?: unknown; }; response: { timestamp: Date; modelId: string; headers?: SharedV2Headers; body?: unknown; }; providerMetadata?: Record<string, Record<string, JSONValue>>; }> {
+    const service = await getQwenAsrPythonService();
+    const result = await service.synthesize({
+      text: options.text,
+      language: options.language,
+      voice: options.voice,
+      instruct: options.instructions,
+      ref_audio: options.providerOptions?.['local']?.ref_audio as string | undefined,
+      ref_text: options.providerOptions?.['local']?.ref_text as string | undefined,
+      outputPath: options.providerOptions?.['local']?.outputPath as string | undefined,
+    });
+    return {
+      audio: await fs.promises.readFile(result.outputPath),
+      warnings: [],
+      response: {
+        timestamp: new Date(),
+        modelId: this.modelId,
+        headers: options.headers,
+        body: result,
+      },
+      providerMetadata: {
+        "local": {
+          "outputPath": result.outputPath,
+          "sampleRate": result.sampleRate,
+          "duration": result.duration,
+        }
+      }
+    };
+  }
+}
 // export const localProvider = customProvider({
 //   textEmbeddingModels: {
 //     embedding: new LocalEmbeddingModel('Qwen/Qwen3-Embedding-0.6B'),
@@ -336,15 +375,15 @@ export class LocalProvider extends BaseProvider {
     }
   }
 
-  // async getSpeechModelList(): Promise<{ name: string; id: string }[]> {
-  //   if (process.platform !== "darwin") {
-  //     return [{ id: 'Qwen/Qwen3-TTS-1.7B', name: 'Qwen3-TTS-1.7B' },
-  //     { id: 'Qwen/Qwen3-TTS-0.6B', name: 'Qwen3-TTS-0.6B' }];
-  //   } else {
-  //     return [{ id: 'mlx-community/Qwen3-TTS-1.7B-bf16', name: 'Qwen3-TTS-1.7B-bf16' },
-  //     { id: 'mlx-community/Qwen3-TTS-0.6B-bf16', name: 'Qwen3-TTS-0.6B-bf16' }];
-  //   }
-  // }
+  async getSpeechModelList(): Promise<{ name: string; id: string }[]> {
+    if (process.platform !== "darwin") {
+      return [{ id: 'Qwen/Qwen3-TTS-1.7B', name: 'Qwen3-TTS-1.7B' },
+      { id: 'Qwen/Qwen3-TTS-0.6B', name: 'Qwen3-TTS-0.6B' }];
+    } else {
+      return [{ id: 'mlx-community/Qwen3-TTS-1.7B-bf16', name: 'Qwen3-TTS-1.7B-bf16' },
+      { id: 'mlx-community/Qwen3-TTS-0.6B-bf16', name: 'Qwen3-TTS-0.6B-bf16' }];
+    }
+  }
 
   getCredits(): Promise<ProviderCredits | undefined> {
     return undefined;
@@ -365,6 +404,6 @@ export class LocalProvider extends BaseProvider {
     return new LocalTranscriptionModel(modelId);
   }
   speechModel?(modelId: string): SpeechModelV2 {
-    throw new Error('Method not implemented.');
+    return new LocalSpeechModel(modelId);
   }
 }

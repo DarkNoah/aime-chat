@@ -92,6 +92,9 @@ import {
   AccordionTrigger,
 } from '../ui/accordion';
 
+
+const DEFAULT_AGENT_ID = 'CodeAgent';
+
 export type ChatPanelProps = {
   children?: React.ReactNode;
   projectId?: string;
@@ -142,11 +145,11 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
     const [runId, setRunId] = useState<string | undefined>();
     const [usage, setUsage] = useState<
       | {
-          usage: LanguageModelUsage;
-          model: string;
-          modelId?: string;
-          maxTokens: number;
-        }
+        usage: LanguageModelUsage;
+        model: string;
+        modelId?: string;
+        maxTokens: number;
+      }
       | undefined
     >();
     const [agent, setAgent] = useState<Agent | undefined>();
@@ -162,9 +165,9 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
       ) => {
         const inputMessage = message
           ? {
-              text: message.text || 'Sent with attachments',
-              files: message.files,
-            }
+            text: message.text || 'Sent with attachments',
+            files: message.files,
+          }
           : undefined;
         const body = {
           model: options?.model,
@@ -225,10 +228,10 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
       }
       if (_agent?.subAgents) {
         chatInputRef.current?.setSubAgents(_agent?.subAgents || []);
+      } else {
+        chatInputRef.current?.setSubAgents([]);
       }
-      if (_agent?.suggestions) {
-        setSuggestions(_agent?.suggestions || []);
-      }
+      setSuggestions(_agent?.suggestions || []);
       if (
         _agent?.greeting &&
         (!threadState || threadState?.messages.length === 0)
@@ -345,7 +348,6 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
 
     useEffect(() => {
       resetChat();
-
       if (threadId) {
         eventBus.on(`chat:onData:${threadId}`, (event: any) => {
           console.log('chat:onData', event);
@@ -384,7 +386,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
 
           setModelId(
             (_thread?.metadata?.model as string) ??
-              appInfo?.defaultModel?.model,
+            appInfo?.defaultModel?.model,
           );
           setUsage(
             _thread?.metadata as {
@@ -418,7 +420,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
       } else {
         setModelId(appInfo?.defaultModel?.model);
       }
-      return () => {};
+      return () => { };
     }, [threadId]);
 
     return (
@@ -559,29 +561,29 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
                                           <Label>tokens: </Label>
                                           {message.metadata?.usage
                                             ?.inputTokens && (
-                                            <span className="flex flex-row gap-1 items-center">
-                                              <IconArrowUp
-                                                size={10}
-                                              ></IconArrowUp>
-                                              {
-                                                message.metadata?.usage
-                                                  ?.inputTokens
-                                              }
-                                            </span>
-                                          )}
+                                              <span className="flex flex-row gap-1 items-center">
+                                                <IconArrowUp
+                                                  size={10}
+                                                ></IconArrowUp>
+                                                {
+                                                  message.metadata?.usage
+                                                    ?.inputTokens
+                                                }
+                                              </span>
+                                            )}
 
                                           {message.metadata?.usage
                                             ?.outputTokens && (
-                                            <span className="flex flex-row gap-1 items-center">
-                                              <IconArrowDown
-                                                size={10}
-                                              ></IconArrowDown>
-                                              {
-                                                message.metadata?.usage
-                                                  ?.outputTokens
-                                              }
-                                            </span>
-                                          )}
+                                              <span className="flex flex-row gap-1 items-center">
+                                                <IconArrowDown
+                                                  size={10}
+                                                ></IconArrowDown>
+                                                {
+                                                  message.metadata?.usage
+                                                    ?.outputTokens
+                                                }
+                                              </span>
+                                            )}
                                         </small>
                                       )}
                                   </MessageActions>
@@ -598,11 +600,11 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
                             if (_part.state === 'input-available') {
                               const pendingToolApproval =
                                 metadata?.pendingToolApprovals?.[
-                                  _part.type.substring('tool-'.length)
+                                _part.type.substring('tool-'.length)
                                 ];
                               const suspendedTool =
                                 metadata?.suspendedTools?.[
-                                  _part.type.substring('tool-'.length)
+                                _part.type.substring('tool-'.length)
                                 ];
                               approvalData = message.parts.find(
                                 (p) =>
@@ -613,7 +615,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
                                 !approvalData &&
                                 pendingToolApproval &&
                                 pendingToolApproval.toolCallId ===
-                                  _part?.toolCallId
+                                _part?.toolCallId
                               ) {
                                 approvalData = pendingToolApproval;
                               }
@@ -735,8 +737,10 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
         <div className="w-full px-4 pb-4 flex flex-col gap-2 justify-start relative">
           <div className="flex flex-row gap-2 justify-between absolute w-full left-0 -top-10 px-4 h-8">
             <ChatAgentSelector
+              key={threadId}
               value={agentId}
               mode="single"
+              defaultAgentId={DEFAULT_AGENT_ID}
               onSelectedAgent={handleAgentChange}
               clearable
             ></ChatAgentSelector>
@@ -754,7 +758,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
           <ChatInput
             onClearMessages={handleClearMessages}
             showModelSelect
-            showWebSearch
+            // showWebSearch
             showToolSelector
             showAgentSelector
             showThink

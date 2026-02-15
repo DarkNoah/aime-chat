@@ -62,6 +62,11 @@ export class JinaAIRerankModel implements RerankModel {
   }
 }
 
+
+
+
+
+
 export class JinaAIProvider extends BaseProvider {
   name: string = 'jinaai';
   type: ProviderType = ProviderType.JINA_AI;

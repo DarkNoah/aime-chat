@@ -87,6 +87,7 @@ export type ChatPreviewData = {
     status: 'pending' | 'in_progress' | 'completed';
     activeForm: string;
   }[];
+  tasks?: ChatTask[];
 };
 
 export type ChatTask = {

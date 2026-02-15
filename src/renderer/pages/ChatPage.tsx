@@ -104,6 +104,7 @@ import {
   ChatPreviewData,
   ChatPreviewType,
   ChatSubmitOptions,
+  ChatTask,
   ChatTodo,
 } from '@/types/chat';
 import { ChatPreview } from '../components/chat-ui/chat-preview';
@@ -243,7 +244,7 @@ function ChatPage() {
         }, 100);
       }
     }
-    return () => {};
+    return () => { };
   }, [threadId]);
 
   useEffect(() => {
@@ -368,6 +369,7 @@ function ChatPage() {
       return {
         ...data,
         todos: (threadState?.metadata?.todos as ChatTodo[]) || [],
+        tasks: (threadState?.metadata?.tasks as ChatTask[]) || [],
       };
     });
   }, [threadState]);

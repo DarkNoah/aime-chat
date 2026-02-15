@@ -372,6 +372,7 @@ const electronHandler = {
     deleteInstance: (id: string) => ipcRenderer.invoke(InstancesChannel.DeleteInstance, id),
     createInstance: (data: any) => ipcRenderer.invoke(InstancesChannel.CreateInstance, data),
     getInstance: (id: string) => ipcRenderer.invoke(InstancesChannel.GetInstance, id),
+    detectBrowserProfiles: () => ipcRenderer.invoke(InstancesChannel.DetectBrowserProfiles),
   },
 };
 

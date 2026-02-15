@@ -11,6 +11,7 @@ import {
   AgentConfig,
   DynamicAgentInstructions,
 } from '@mastra/core/agent';
+import { LibSQLDatabaseInfo, LibSQLDescribeTable, LibSQLListTable, LibSQLRun } from '@/main/tools/database/libsql';
 
 export const codeAgentInstructions: DynamicAgentInstructions = ({
   requestContext,
@@ -24,6 +25,8 @@ export const codeAgentInstructions: DynamicAgentInstructions = ({
   workspace = requestContext.get('workspace');
   const tools = requestContext.get('tools') ?? [];
   const hasTaskTool = tools.includes(`${ToolType.BUILD_IN}:${Task.toolName}`);
+  const hasLibSQLTool = tools.includes(`${ToolType.BUILD_IN}:${LibSQLRun.toolName}`);
+
   if (workspace) {
     isGitRepo = fs.existsSync(path.join(workspace, '.git'));
   }
@@ -103,9 +106,8 @@ The user will primarily request you perform software engineering tasks. This inc
 
 - Tool results and user messages may include <system-reminder> tags. <system-reminder> tags contain useful information and reminders. They are automatically added by the system, and bear no direct relation to the specific tool results or user messages in which they appear.
 
-${
-  hasTaskTool
-    ? `
+${hasTaskTool
+        ? `
 # Tool usage policy
 - When doing file search, prefer to use the Task tool in order to reduce context usage.
 - You should proactively use the Task tool with specialized agents when the task at hand matches the agent's description.
@@ -123,9 +125,22 @@ assistant: [Uses the Task tool with subagent_type=Explore to find the files that
 user: What is the codebase structure?
 assistant: [Uses the Task tool with subagent_type=Explore]
 </example>`
-    : ''
-}
+        : ''
+      }
 
+${hasLibSQLTool
+        ? `
+# Database Management (LibSQL)
+- You have access to the LibSQL tools (libsql_database_info, libsql_list_table, libsql_describe_table, libsql_run) for persistent data storage. Use these tools to:
+  1. **Task & Progress Tracking**: Store task data and progress records in the database. Create and maintain tables to track task status, milestones, and completion history, so that progress is never lost across sessions.
+  2. **Context & Memory Persistence**: Persist important context, conversation summaries, user preferences, and key decisions into the database. This allows you to recall prior context and maintain continuity across conversations.
+  3. **Structured Data Management**: Use the database to store and query any structured data the user needs, such as project metadata, configuration snapshots, or analytical results.
+- Before writing data, use libsql_list_table and libsql_describe_table to understand the existing schema. Create tables as needed with appropriate schemas.
+- Use libsql_run to execute SQL statements (CREATE TABLE, INSERT, UPDATE, SELECT, DELETE) for all database operations.
+- Proactively save important context and progress to the database so that information survives across sessions and can be retrieved later.
+`
+        : ''
+      }
 Here is useful information about the environment you are running in:
 <env>
 ${workspace ? 'Working directory: ' + workspace : 'No working directory specified'}

@@ -14,12 +14,12 @@ import {
   AudioLoader,
 } from '@/main/utils/loaders/audio-loader';
 import { downloadFile, saveFile } from '@/main/utils/file';
-import { isUrl } from '@/utils/is';
+import { isString, isUrl } from '@/utils/is';
 import { nanoid } from '@/utils/nanoid';
 import { ToolConfig } from '@/types/tool';
 import { providersManager } from '@/main/providers';
 import mime from 'mime';
-import { TranscriptionModelV2 } from '@mastra/core/_types/@internal_ai-sdk-v5/dist';
+import { SpeechModelV2, TranscriptionModelV2 } from '@mastra/core/_types/@internal_ai-sdk-v5/dist';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -885,6 +885,10 @@ Output types:
 // TextToSpeech Tool
 // ---------------------------------------------------------------------------
 
+export interface TextToSpeechParams extends BaseToolParams {
+  modelId?: string;
+}
+
 export class TextToSpeech extends BaseTool {
   static readonly toolName = 'TextToSpeech';
   id: string = 'TextToSpeech';
@@ -937,6 +941,13 @@ Output: Returns the path to the generated WAV audio file.`;
         'Custom file name or path for the output audio file. If not provided, a random name will be generated.',
       ),
   });
+  configSchema = ToolConfig.TextToSpeech.configSchema;
+  modelId?: string;
+
+  constructor(config?: TextToSpeechParams) {
+    super(config);
+    this.modelId = config?.modelId;
+  }
 
   execute = async (
     inputData: z.infer<typeof this.inputSchema>,
@@ -976,28 +987,63 @@ Output: Returns the path to the generated WAV audio file.`;
         `tts-${randomUUID()}.wav`,
       );
 
-      const service = await getQwenAsrPythonService();
-      const result = await service.synthesize({
-        text,
-        language,
-        voice,
-        instruct,
-        ref_audio: resolvedRefAudio,
-        ref_text,
-        outputPath: tempOutputPath,
-      });
+      const provider = await providersManager.getProvider(this.modelId.split('/')[0]);
+      let _result: Awaited<ReturnType<SpeechModelV2['doGenerate']>>;
+      if (provider) {
+        const speechModel = provider.speechModel(this.modelId.split('/').slice(1).join('/'));
+        _result = await speechModel.doGenerate({
+          text,
+          language,
+          voice,
+          instructions: instruct,
+          providerOptions: {
+            "local": {
+              "ref_audio": resolvedRefAudio,
+              "ref_text": ref_text,
+              "outputPath": tempOutputPath,
+            },
+            "openai": {
+              "speed": 1.0,
+              "response_format": "wav",
+            }
+          }
+          // outputPath: tempOutputPath,
+        });
+      } else {
+        throw new Error('Provider not found');
+      }
+
+      // const service = await getQwenAsrPythonService();
+      // const result = await service.synthesize({
+      //   text,
+      //   language,
+      //   voice,
+      //   instruct,
+      //   ref_audio: resolvedRefAudio,
+      //   ref_text,
+      //   outputPath: tempOutputPath,
+      // });
 
       // Move to final save location
       const fileName = save_path || `${nanoid()}.wav`;
-      const buffer = await fs.promises.readFile(result.outputPath);
-      const filePath = await saveFile(buffer, fileName, workspace);
+      let buffer: Uint8Array;
+      if (isString(_result.audio)) {
+        buffer = await fs.promises.readFile(_result.audio);
+      } else {
+        buffer = _result.audio as Uint8Array;
+      }
+      const filePath = await saveFile(Buffer.from(buffer), fileName, workspace);
 
       // Cleanup temp output
-      if (fs.existsSync(result.outputPath) && result.outputPath !== filePath) {
-        await fs.promises.rm(result.outputPath).catch(() => { });
+      const outputPath: string = _result.providerMetadata?.['local']?.outputPath as string;
+
+      if (fs.existsSync(outputPath) && outputPath !== filePath) {
+        await fs.promises.rm(outputPath).catch(() => { });
       }
 
-      return `Generated speech audio (${result.duration.toFixed(1)}s, ${result.sampleRate}Hz) saved to: \n<file>${filePath}</file>`;
+      const sampleRate: number = Object.values(_result.providerMetadata ?? {})[0]?.['sampleRate'] as number || 24000;
+      const duration: number = Object.values(_result.providerMetadata ?? {})[0]?.['duration'] as number || (buffer.byteLength / sampleRate);
+      return `Generated speech audio (${duration?.toFixed(1)}s, ${sampleRate}Hz) saved to: \n<file>${filePath}</file>`;
     } finally {
       for (const tempFile of tempFiles) {
         try {

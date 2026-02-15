@@ -12,6 +12,8 @@ import {
   ImageModelV2ProviderMetadata,
   LanguageModelV2,
   SpeechModelV2,
+  SpeechModelV2CallOptions,
+  SpeechModelV2CallWarning,
   TranscriptionModelV2,
   TranscriptionModelV2CallOptions,
 } from '@ai-sdk/provider';
@@ -192,8 +194,79 @@ export class ZhipuAITranscriptionModel implements TranscriptionModelV2 {
 
 }
 
+export class ZhipuAISpeechModel implements SpeechModelV2 {
+  specificationVersion: 'v2';
+  provider: string = 'zhipuai';
+  modelId: string;
+  providerEntity: Providers;
 
+  constructor({ modelId, provider }: { modelId: string; provider: Providers }) {
+    this.providerEntity = provider;
+    this.modelId = modelId;
+  }
 
+  async doGenerate(options: SpeechModelV2CallOptions): Promise<{ audio: Uint8Array; warnings: Array<SpeechModelV2CallWarning>; request?: { body?: string; }; response: { timestamp: Date; modelId: string; headers?: SharedV2Headers; body?: unknown; }; providerMetadata?: Record<string, Record<string, JSONValue>>; }> {
+    const providerOptions = (options.providerOptions?.zhipuai ?? {}) as {
+      voice?: string;
+      speed?: number;
+      volume?: number;
+      response_format?: 'wav' | 'pcm';
+      watermark_enabled?: boolean;
+    };
+
+    const body = {
+      model: this.modelId || 'glm-tts',
+      input: options.text,
+      voice: providerOptions?.voice || 'tongtong',
+      response_format: providerOptions?.response_format || 'wav',
+      speed: providerOptions?.speed,
+      volume: providerOptions?.volume,
+      watermark_enabled: providerOptions?.watermark_enabled || false,
+    };
+
+    const res = await fetch('https://open.bigmodel.cn/api/paas/v4/audio/speech', {
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer ' + this.providerEntity.apiKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+      signal: options.abortSignal,
+    });
+
+    if (!res.ok) {
+      let errorMessage = 'ZhipuAI speech generation failed with status ' + res.status;
+      try {
+        const errorData = await res.json();
+        errorMessage = errorData?.error?.message || errorData?.message || errorMessage;
+      } catch {
+        // ignore non-json errors
+      }
+      throw new Error(errorMessage);
+    }
+
+    const audioBuffer = await res.arrayBuffer();
+
+    return {
+      audio: new Uint8Array(audioBuffer),
+      warnings: [],
+      request: {
+        body: JSON.stringify(body),
+      },
+      response: {
+        timestamp: new Date(),
+        modelId: this.modelId,
+        headers: Object.fromEntries(res.headers.entries()),
+      },
+      providerMetadata: {
+        "zhipuai": {
+          "sampleRate": 24000,
+          "duration": audioBuffer.byteLength / 24000,
+        }
+      }
+    };
+  }
+}
 
 export class ZhipuAIProvider extends BaseProvider {
   name: string = 'zhipuai';
@@ -290,7 +363,7 @@ export class ZhipuAIProvider extends BaseProvider {
     return new ZhipuAITranscriptionModel({ modelId, provider: this.provider });
   }
   speechModel?(modelId: string): SpeechModelV2 {
-    return undefined;
+    return new ZhipuAISpeechModel({ modelId, provider: this.provider });
   }
   rerankModel?(modelId: string): RerankModel {
     return new ZhipuAIRerankModel({ modelId, provider: this.provider });

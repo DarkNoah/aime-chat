@@ -42,6 +42,7 @@ import { ToolUIPart } from 'ai';
 import {
   ChatPreviewData,
   ChatPreviewType,
+  ChatTask,
   ChatTodo,
   ThreadState,
 } from '@/types/chat';
@@ -177,6 +178,7 @@ function ProjectsPage() {
       return {
         ...data,
         todos: thread.metadata?.todos as ChatTodo[],
+        tasks: thread.metadata?.tasks as ChatTask[],
       };
     });
   };

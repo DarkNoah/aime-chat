@@ -172,6 +172,7 @@ Usage notes:
       const options = {
         headers: {
           Authorization: token,
+          'X-With-Generated-Alt': 'true'
         },
       };
       const res = await fetch(`https://r.jina.ai/${url}`, options);
@@ -201,6 +202,7 @@ Your task:
 - Follow the user's instructions to extract, summarize, or analyze the content
 - Provide accurate, relevant, and well-organized responses
 - If the requested information is not found in the content, clearly state that
+- Preserve all relevant image information found in the content, including the image description (alt text) and the complete image URL, formatted as: ![description](url)
 - Respond in the same language as the user's request`,
         model: languageModel,
       });
