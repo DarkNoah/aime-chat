@@ -27,6 +27,7 @@ import Runtime from './Settings/runtime';
 import { Item } from '../components/ui/item';
 import LocalModel from './Settings/local-model';
 import DefaultModel from './Settings/default-model';
+import Instances from './Settings/instances';
 
 function Settings() {
   const { setTitle } = useHeader();
@@ -57,6 +58,10 @@ function Settings() {
     {
       key: 'default-model',
       label: t('settings.default_model'),
+    },
+    {
+      key: 'instances',
+      label: t('settings.instances'),
     },
     {
       key: 'about',
@@ -96,6 +101,7 @@ function Settings() {
           <Route path="runtime" element={<Runtime />} />
           <Route path="local-model" element={<LocalModel />} />
           <Route path="default-model" element={<DefaultModel />} />
+          <Route path="instances" element={<Instances />} />
         </Routes>
       </div>
     </div>

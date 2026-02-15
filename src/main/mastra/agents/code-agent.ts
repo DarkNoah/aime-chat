@@ -39,6 +39,7 @@ import { Explore } from './explore-agent';
 import { codeAgentInstructions } from './prompts/code-agent-prompt';
 import { Plan } from './plan-agent';
 import { SendEvent } from '@/main/tools/common/send-event';
+import { LibSQLDatabaseInfo, LibSQLDescribeTable, LibSQLListTable, LibSQLRun } from '@/main/tools/database/libsql';
 export class CodeAgent extends BaseAgent {
   id: string = 'CodeAgent';
   name: string = 'Code Agent';
@@ -67,6 +68,10 @@ export class CodeAgent extends BaseAgent {
     `${ToolType.BUILD_IN}:${TaskGet.toolName}`,
     `${ToolType.BUILD_IN}:${TaskList.toolName}`,
     `${ToolType.BUILD_IN}:${TaskUpdate.toolName}`,
+    `${ToolType.BUILD_IN}:${LibSQLListTable.toolName}`,
+    `${ToolType.BUILD_IN}:${LibSQLDescribeTable.toolName}`,
+    `${ToolType.BUILD_IN}:${LibSQLDatabaseInfo.toolName}`,
+    `${ToolType.BUILD_IN}:${LibSQLRun.toolName}`,
   ];
   subAgents: string[] = [`${Explore.agentName}`, `${Plan.agentName}`];
   constructor(params: BaseAgentParams) {

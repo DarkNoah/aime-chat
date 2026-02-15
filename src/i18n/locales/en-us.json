@@ -26,7 +26,24 @@
     "apiServer": "API Server",
     "apiServerStop": "Stop",
     "apiServerPort": "Server Port",
-    "apiServerTRunningips": "Server is running on "
+    "apiServerTRunningips": "Server is running on ",
+    "instances": "Instances",
+    "instances_user_data": "Browser User Data Directory",
+    "instances_select_browser": "Select browser profile",
+    "instances_browse": "Browse...",
+    "instances_current_path": "Current Path",
+    "instances_custom_dir": "Custom Directory",
+    "instances_executable": "Browser Executable",
+    "instances_run": "Run",
+    "instances_stop": "Stop",
+    "instances_running": "Running",
+    "instances_started": "Instance started",
+    "instances_stopped": "Instance stopped",
+    "instances_start_failed": "Failed to start instance",
+    "instances_config_saved": "Configuration saved",
+    "instances_empty": "No instances",
+    "instances_websocketurl": "WebSocketUrl",
+    "vision_model": "Vision Model"
   },
   "common": {
     "edit": "Edit",
@@ -95,7 +112,8 @@
     "importing": "Importing",
     "import_success": "Import Success",
     "ask_to_delete_skill": "Delect skill?",
-    "ptc_open": "PTC Open"
+    "ptc_open": "PTC Open",
+    "request_interrupted_by_user": "Request interrupted by user"
   },
   "sidebar": {
     "new_chat": "New Chat",
@@ -112,7 +130,20 @@
     "clear_messages_title": "Clear Messages",
     "clear_messages_description": "Are you sure you want to clear all current messages?",
     "file_system": "File System",
-    "project": "Project"
+    "project": "Project",
+    "file_preview": "File Preview",
+    "preview_file": "Preview File",
+    "open_in_explorer": "Open in Explorer",
+    "no_workspace": "No workspace configured",
+    "no_files_found": "No files found",
+    "search_files": "Search files... (Enter to search)",
+    "searching": "Searching...",
+    "no_results": "No results found",
+    "showing_results": "Showing {{count}} of {{total}} results",
+    "results_count": "{{count}} result(s)",
+    "file_too_large": "File is too large ({{size}}), content truncated",
+    "retry": "Retry",
+    "refresh": "Refresh"
   },
   "tools": {
     "mcp_command": "Command",

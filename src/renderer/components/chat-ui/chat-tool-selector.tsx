@@ -17,6 +17,7 @@ import {
   IconSquareAsterisk,
   IconSquareCheck,
 } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
 
 export type ChatToolSelectorProps = ComponentProps<typeof Dialog> & {
   children: React.ReactNode;
@@ -31,6 +32,7 @@ export const ChatToolSelector = ({
 }: ChatToolSelectorProps) => {
   const { value = [], onChange } = props;
   const [loading, setLoading] = useState(false);
+  const { t } = useTranslation();
   const [data, setData] = useState<{
     [ToolType.MCP]: Tool[];
     [ToolType.SKILL]: Tool[];
@@ -144,7 +146,7 @@ export const ChatToolSelector = ({
                       value={tool.id}
                       onSelect={() => handleSelect(tool)}
                     >
-                      {tool.name} {renderCheckIcon(tool)}
+                      {t(`tool_name.${tool.name.toLowerCase()}`, tool.name)} {renderCheckIcon(tool)}
                     </CommandItem>
                     {tool.isToolkit && (
                       <div className="my-2">
@@ -200,7 +202,7 @@ export const ChatToolSelector = ({
                       value={tool.id}
                       onSelect={() => handleSelect(tool)}
                     >
-                      {tool.name} {renderCheckIcon(tool)}
+                      {t(`tool_name.${tool.name.toLowerCase()}`, tool.name)} {renderCheckIcon(tool)}
                     </CommandItem>
                     {tool.isToolkit && (
                       <div className="my-2">
@@ -234,7 +236,7 @@ export const ChatToolSelector = ({
                                 aria-label={subtool.name}
                                 className=""
                               >
-                                {subtool.name}
+                                {t(`tool_name.${subtool.name.toLowerCase()}`, subtool.name)}
                               </ToggleGroupItem>
                             );
                           })}

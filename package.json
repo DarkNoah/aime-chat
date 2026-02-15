@@ -1,7 +1,7 @@
 {
   "name": "aime-chat",
   "description": "A foundation for scalable desktop apps",
-  "version": "0.3.16",
+  "version": "0.3.17",
   "keywords": [
     "electron",
     "boilerplate",
@@ -327,6 +327,7 @@
     "use-stick-to-bottom": "^1.1.1",
     "uuid": "^13.0.0",
     "vaul": "^1.1.2",
+    "vercel-minimax-ai-provider": "^0.0.2",
     "webpack": "^5.98.0",
     "webpack-bundle-analyzer": "^4.10.2",
     "webpack-cli": "^6.0.1",

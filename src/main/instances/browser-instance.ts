@@ -8,6 +8,7 @@ import { AISdkClient, Stagehand } from '@browserbasehq/stagehand';
 import { appManager } from '../app';
 import { providersManager } from '../providers';
 import { getDataPath } from '../utils';
+import { ChildProcess } from 'child_process';
 
 export class BrowserInstance extends BaseInstance {
   browser_context?: BrowserContext;
@@ -17,6 +18,10 @@ export class BrowserInstance extends BaseInstance {
   runWithLLM: boolean = false;
 
   private eventEmitter = new EventEmitter();
+
+  private browserProcess?: ChildProcess;
+
+  private webSocketUrl?: string;
 
   constructor(params?: BaseInstanceParams) {
     super(params ?? { instances: undefined });
@@ -51,8 +56,8 @@ export class BrowserInstance extends BaseInstance {
           userDataDir: this.instances?.config?.userDataPath,
           proxy: httpProxy
             ? {
-                server: `${httpProxy}`,
-              }
+              server: `${httpProxy}`,
+            }
             : undefined,
           executablePath: this.instances?.config?.executablePath,
           headless: false,
@@ -80,8 +85,8 @@ export class BrowserInstance extends BaseInstance {
             headless: false,
             proxy: httpProxy
               ? {
-                  server: `${httpProxy}`,
-                }
+                server: `${httpProxy}`,
+              }
               : undefined,
             args: [
               '--disable-blink-features=AutomationControlled',
@@ -104,8 +109,8 @@ export class BrowserInstance extends BaseInstance {
           headless: false,
           proxy: httpProxy
             ? {
-                server: `${httpProxy}`,
-              }
+              server: `${httpProxy}`,
+            }
             : undefined,
           args: [
             '--disable-blink-features=AutomationControlled',
@@ -125,6 +130,29 @@ export class BrowserInstance extends BaseInstance {
     return this.browser_context;
   };
 
+  /**
+   * Set a browser context externally (e.g. from CDP connection)
+   */
+  setBrowserContext(context: BrowserContext) {
+    this.browser_context = context;
+    this.runWithLLM = false;
+
+    this.browser_context.on('close', () => {
+      this.eventEmitter.emit('close');
+    });
+  }
+
+  /**
+   * Set a browser process reference (for cleanup on stop)
+   */
+  setBrowserProcess(proc: ChildProcess) {
+    this.browserProcess = proc;
+  }
+
+  setWebSocketUrl(url: string) {
+    this.webSocketUrl = url;
+  }
+
   getEnhancedContext = (modelProvider?: string) => {
     if (this.stagehand) {
       return this.stagehand.context;
@@ -138,12 +166,31 @@ export class BrowserInstance extends BaseInstance {
       this.stagehand = undefined;
       this.eventEmitter.emit('close');
     } else if (this.browser_context) {
-      await this.browser_context.close();
-      const b = this.browser_context.browser();
-      if (b) {
-        await b.close();
+
+      if (!this.webSocketUrl) {
+        try {
+          await this.browser_context.close();
+          const b = this.browser_context.browser();
+          if (b) {
+            await b.close();
+          }
+        } catch {
+          // ignore close errors
+        }
       }
+
       this.browser_context = undefined;
+
+      // Kill the spawned browser process if any
+      if (this.browserProcess) {
+        try {
+          this.browserProcess.kill();
+        } catch {
+          // ignore kill errors
+        }
+        this.browserProcess = undefined;
+      }
+
       this.eventEmitter.emit('close');
     }
   };

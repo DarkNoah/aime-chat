@@ -690,6 +690,9 @@ importers:
       vaul:
         specifier: ^1.1.2
         version: 1.1.2(@types/react-dom@19.2.3(@types/react@19.2.7))(@types/react@19.2.7)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      vercel-minimax-ai-provider:
+        specifier: ^0.0.2
+        version: 0.0.2(zod@3.25.76)
       webpack:
         specifier: ^5.98.0
         version: 5.103.0(@swc/core@1.15.7)(webpack-cli@6.0.1)
@@ -753,6 +756,12 @@ packages:
 
   '@ai-sdk/anthropic@3.0.0':
     resolution: {integrity: sha512-4BnxkXwRkvh+OB1ze0mHbskT90HL4MNrg6JUsRDkIsU9w5vitvGzxwc/XwlByUGMap/5I8/LZ3XZDzv6KViCuQ==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
+  '@ai-sdk/anthropic@3.0.6':
+    resolution: {integrity: sha512-Ns5OOPHXbODzitvqCySnAFZCAm9ldpx+fdbC0c/f9QwX5b4MQtQJIQ0xZyKm+tB/ynBoeV6zhtyWDXjYeVEWIw==}
     engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
@@ -892,6 +901,18 @@ packages:
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
+  '@ai-sdk/provider-utils@4.0.3':
+    resolution: {integrity: sha512-Vo2p61dDld8Dy/O66zKQpE4nqHojiEEYEjZcSbICjE7h8Z6QmHzBfd+ss/paIDdyXyS0yHmC1GoRYYKo89cqZQ==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
+  '@ai-sdk/provider-utils@4.0.4':
+    resolution: {integrity: sha512-VxhX0B/dWGbpNHxrKCWUAJKXIXV015J4e7qYjdIU9lLWeptk0KMLGcqkB4wFxff5Njqur8dt8wRi1MN9lZtDqg==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
   '@ai-sdk/provider@1.0.9':
     resolution: {integrity: sha512-jie6ZJT2ZR0uVOVCDc9R2xCX5I/Dum/wEK28lx21PJx6ZnFAN9EzD2WsPhcDWfCgGx3OAZZ0GyM3CEobXpa9LA==}
     engines: {node: '>=18'}
@@ -910,6 +931,14 @@ packages:
 
   '@ai-sdk/provider@3.0.0':
     resolution: {integrity: sha512-m9ka3ptkPQbaHHZHqDXDF9C9B5/Mav0KTdky1k2HZ3/nrW2t1AgObxIVPyGDWQNS9FXT/FS6PIoSjpcP/No8rQ==}
+    engines: {node: '>=18'}
+
+  '@ai-sdk/provider@3.0.1':
+    resolution: {integrity: sha512-2lR4w7mr9XrydzxBSjir4N6YMGdXD+Np1Sh0RXABh7tWdNFFwIeRI1Q+SaYZMbfL8Pg8RRLcrxQm51yxTLhokg==}
+    engines: {node: '>=18'}
+
+  '@ai-sdk/provider@3.0.2':
+    resolution: {integrity: sha512-HrEmNt/BH/hkQ7zpi2o6N3k1ZR1QTb7z85WYhYygiTxOQuaml4CMtHCWRbric5WPU+RNsYI7r1EpyVQMKO1pYw==}
     engines: {node: '>=18'}
 
   '@ai-sdk/react@2.0.105':
@@ -10111,6 +10140,7 @@ packages:
   next@16.0.6:
     resolution: {integrity: sha512-2zOZ/4FdaAp5hfCU/RnzARlZzBsjaTZ/XjNQmuyYLluAPM7kcrbIkdeO2SL0Ysd1vnrSgU+GwugfeWX1cUCgCg==}
     engines: {node: '>=20.9.0'}
+    deprecated: This version has a security vulnerability. Please upgrade to a patched version. See https://nextjs.org/blog/CVE-2025-66478 for more details.
     hasBin: true
     peerDependencies:
       '@opentelemetry/api': ^1.1.0
@@ -12828,6 +12858,12 @@ packages:
       react: ^16.8 || ^17.0 || ^18.0 || ^19.0.0 || ^19.0.0-rc
       react-dom: ^16.8 || ^17.0 || ^18.0 || ^19.0.0 || ^19.0.0-rc
 
+  vercel-minimax-ai-provider@0.0.2:
+    resolution: {integrity: sha512-h9QzLL7RBmOreqWfr2fcoFVNTJgusENJVagVm8vAi+DBfd+1t+sVJZ/hAhKrtuCKCrm33BlOSWVdJehQFju5jQ==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
   verror@1.10.1:
     resolution: {integrity: sha512-veufcmxri4e3XSrT0xwfUR7kguIkaxBeosDg00yDWhk49wdwkSUrvvsm7nc75e1PUyvIeZj6nS8VQRYz2/S4Xg==}
     engines: {node: '>=0.6.0'}
@@ -13263,6 +13299,12 @@ snapshots:
       '@ai-sdk/provider-utils': 4.0.0(zod@3.25.76)
       zod: 3.25.76
 
+  '@ai-sdk/anthropic@3.0.6(zod@3.25.76)':
+    dependencies:
+      '@ai-sdk/provider': 3.0.1
+      '@ai-sdk/provider-utils': 4.0.3(zod@3.25.76)
+      zod: 3.25.76
+
   '@ai-sdk/azure@2.0.91(zod@3.25.76)':
     dependencies:
       '@ai-sdk/openai': 2.0.89(zod@3.25.76)
@@ -13422,6 +13464,20 @@ snapshots:
       eventsource-parser: 3.0.6
       zod: 3.25.76
 
+  '@ai-sdk/provider-utils@4.0.3(zod@3.25.76)':
+    dependencies:
+      '@ai-sdk/provider': 3.0.1
+      '@standard-schema/spec': 1.1.0
+      eventsource-parser: 3.0.6
+      zod: 3.25.76
+
+  '@ai-sdk/provider-utils@4.0.4(zod@3.25.76)':
+    dependencies:
+      '@ai-sdk/provider': 3.0.2
+      '@standard-schema/spec': 1.1.0
+      eventsource-parser: 3.0.6
+      zod: 3.25.76
+
   '@ai-sdk/provider@1.0.9':
     dependencies:
       json-schema: 0.4.0
@@ -13440,6 +13496,14 @@ snapshots:
     optional: true
 
   '@ai-sdk/provider@3.0.0':
+    dependencies:
+      json-schema: 0.4.0
+
+  '@ai-sdk/provider@3.0.1':
+    dependencies:
+      json-schema: 0.4.0
+
+  '@ai-sdk/provider@3.0.2':
     dependencies:
       json-schema: 0.4.0
 
@@ -27961,6 +28025,13 @@ snapshots:
     transitivePeerDependencies:
       - '@types/react'
       - '@types/react-dom'
+
+  vercel-minimax-ai-provider@0.0.2(zod@3.25.76):
+    dependencies:
+      '@ai-sdk/anthropic': 3.0.6(zod@3.25.76)
+      '@ai-sdk/provider': 3.0.2
+      '@ai-sdk/provider-utils': 4.0.4(zod@3.25.76)
+      zod: 3.25.76
 
   verror@1.10.1:
     dependencies:

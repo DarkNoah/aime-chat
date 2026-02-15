@@ -6,6 +6,7 @@ export enum InstancesChannel {
   GetInstance = 'instances:getInstance',
   RunInstance = 'instances:runInstance',
   StopInstance = 'instances:stopInstance',
+  DetectBrowserProfiles = 'instances:detectBrowserProfiles',
 }
 
 export enum ProviderChannel {
@@ -54,6 +55,7 @@ export enum AppChannel {
   GetDirectoryTree = 'app:getDirectoryTree',
   GetDirectoryChildren = 'app:getDirectoryChildren',
   SearchInDirectory = 'app:searchInDirectory',
+  ReadFileContent = 'app:readFileContent',
   // 屏幕截图
   ScreenCapture = 'app:screenCapture',
   GetScreenSources = 'app:getScreenSources',

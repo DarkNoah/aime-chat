@@ -23,11 +23,88 @@ export function ChatMessageAttachment({
   const mediaType =
     (data.mediaType?.startsWith('image/') ||
       data.mimeType?.startsWith('image/')) &&
-    (data.url || data.data)
+      (data.url || data.data)
       ? 'image'
       : 'file';
-  const isImage = mediaType === 'image';
+  const isImage = data.mediaType?.startsWith('image/') || data.mimeType?.startsWith('image/')
+  const isVideo = data.mediaType?.startsWith('video/') || data.mimeType?.startsWith('image/');
+  const isAudio = data.mediaType?.startsWith('audio/') || data.mimeType?.startsWith('image/')
   const attachmentLabel = filename || (isImage ? 'Image' : 'Attachment');
+
+  if (isVideo) {
+    return (
+      <div
+        className={cn(
+          'group max-w-[300px] relative overflow-hidden rounded-lg',
+          className,
+        )}
+        {...props}
+      >
+        <video src={data.url} controls>
+          <track kind="captions" />
+        </video>
+      </div>
+    );
+  }
+  if (isAudio) {
+    return (
+      <div
+        className={cn(
+          'group max-w-[300px] relative overflow-hidden rounded-lg',
+          className,
+        )}
+        {...props}
+      >
+        <audio src={data.url} controls>
+          <track kind="captions" />
+        </audio>
+      </div>
+    );
+  }
+  if (isImage) {
+    return (
+      <div
+        className={cn(
+          'group relative size-30 overflow-hidden rounded-lg',
+          className,
+        )}
+        {...props}
+      >
+        <PhotoView
+          src={
+            data.url ??
+            `data:${data.mediaType || data.mimeType};base64,${data.data}`
+          }
+        >
+          <img
+            alt={filename || 'attachment'}
+            className="size-full object-cover"
+            height={100}
+            src={
+              data.url ??
+              `data:${data.mediaType || data.mimeType};base64,${data.data}`
+            }
+            width={100}
+          />
+        </PhotoView>
+        {onRemove && (
+          <Button
+            aria-label="Remove attachment"
+            className="absolute top-2 right-2 size-6 rounded-full bg-background/80 p-0 opacity-0 backdrop-blur-sm transition-opacity hover:bg-background group-hover:opacity-100 [&>svg]:size-3"
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemove();
+            }}
+            type="button"
+            variant="ghost"
+          >
+            <XIcon />
+            <span className="sr-only">Remove</span>
+          </Button>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div
@@ -37,76 +114,30 @@ export function ChatMessageAttachment({
       )}
       {...props}
     >
-      {isImage ? (
-        <>
-          {/* <img
-            alt={filename || 'attachment'}
-            className="size-full object-cover"
-            height={100}
-            src={data.url}
-            width={100}
-          /> */}
-          <PhotoView
-            src={
-              data.url ??
-              `data:${data.mediaType || data.mimeType};base64,${data.data}`
-            }
-          >
-            <img
-              alt={filename || 'attachment'}
-              className="size-full object-cover"
-              height={100}
-              src={
-                data.url ??
-                `data:${data.mediaType || data.mimeType};base64,${data.data}`
-              }
-              width={100}
-            />
-          </PhotoView>
-          {onRemove && (
-            <Button
-              aria-label="Remove attachment"
-              className="absolute top-2 right-2 size-6 rounded-full bg-background/80 p-0 opacity-0 backdrop-blur-sm transition-opacity hover:bg-background group-hover:opacity-100 [&>svg]:size-3"
-              onClick={(e) => {
-                e.stopPropagation();
-                onRemove();
-              }}
-              type="button"
-              variant="ghost"
-            >
-              <XIcon />
-              <span className="sr-only">Remove</span>
-            </Button>
-          )}
-        </>
-      ) : (
-        <>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div className="flex size-full shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                <PaperclipIcon className="size-4" />
-              </div>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>{attachmentLabel}</p>
-            </TooltipContent>
-          </Tooltip>
-          {onRemove && (
-            <Button
-              aria-label="Remove attachment"
-              className="size-6 shrink-0 rounded-full p-0 opacity-0 transition-opacity hover:bg-accent group-hover:opacity-100 [&>svg]:size-3"
-              onClick={(e) => {
-                e.stopPropagation();
-                onRemove();
-              }}
-              type="button"
-              variant="ghost"
-            >
-              <XIcon />
-              <span className="sr-only">Remove</span>
-            </Button>
-          )}
-        </>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className="flex size-full shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+            <PaperclipIcon className="size-4" />
+          </div>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>{attachmentLabel}</p>
+        </TooltipContent>
+      </Tooltip>
+      {onRemove && (
+        <Button
+          aria-label="Remove attachment"
+          className="size-6 shrink-0 rounded-full p-0 opacity-0 transition-opacity hover:bg-accent group-hover:opacity-100 [&>svg]:size-3"
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemove();
+          }}
+          type="button"
+          variant="ghost"
+        >
+          <XIcon />
+          <span className="sr-only">Remove</span>
+        </Button>
       )}
     </div>
   );

@@ -14,12 +14,12 @@ import {
   AudioLoader,
 } from '@/main/utils/loaders/audio-loader';
 import { downloadFile, saveFile } from '@/main/utils/file';
-import { isUrl } from '@/utils/is';
+import { isString, isUrl } from '@/utils/is';
 import { nanoid } from '@/utils/nanoid';
 import { ToolConfig } from '@/types/tool';
 import { providersManager } from '@/main/providers';
 import mime from 'mime';
-import { TranscriptionModelV2 } from '@mastra/core/_types/@internal_ai-sdk-v5/dist';
+import { SpeechModelV2, TranscriptionModelV2 } from '@mastra/core/_types/@internal_ai-sdk-v5/dist';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -100,11 +100,380 @@ function formatSrtTime(seconds: number): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(sFloor).padStart(2, '0')},${String(ms).padStart(3, '0')}`;
 }
 
+type SubtitleSegment = {
+  startSecond: number;
+  endSecond: number;
+  text: string;
+};
+
+function toFiniteNumber(value: unknown): number | undefined {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string') {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return undefined;
+}
+
+function normalizeTimedSegments(rawSegments: unknown): SubtitleSegment[] {
+  if (!Array.isArray(rawSegments)) return [];
+
+  return rawSegments
+    .map((item) => {
+      if (!item || typeof item !== 'object') return undefined;
+      const record = item as Record<string, unknown>;
+      const text = String(record.text ?? '').trim();
+      const startSecond = toFiniteNumber(
+        record.startSecond ?? record.start ?? record.start_time,
+      );
+      const endSecond = toFiniteNumber(
+        record.endSecond ?? record.end ?? record.end_time,
+      );
+
+      if (!text || startSecond === undefined || endSecond === undefined) {
+        return undefined;
+      }
+      return { startSecond, endSecond, text };
+    })
+    .filter((seg): seg is SubtitleSegment => Boolean(seg));
+}
+
+/**
+ * Build subtitle-level segments from word-level alignments.
+ *
+ * Input assumptions:
+ * - `asrText` is the full transcription **with punctuation** (e.g. "你好，世界。")
+ * - `alignmentSegments` are word-level tokens **without punctuation**, each
+ *   carrying `startSecond` / `endSecond` / `text`.
+ *
+ * Two-pass strategy:
+ *
+ * Pass 1 — "punctuation split":
+ *   Greedy-match alignment tokens to ASR text, detect punctuation boundaries,
+ *   split at every strong punct (.!?。！？) and every weak punct (,;:、，；：…).
+ *   This produces fine-grained "clause" segments that respect natural language
+ *   boundaries. Display text is extracted from the raw ASR string so commas,
+ *   question marks, etc. are preserved; trailing periods/。 are stripped.
+ *
+ * Pass 2 — "merge small / split large":
+ *   Walk the clause segments and merge consecutive ones that are too short
+ *   (< MIN_UNITS or < MIN_DURATION) into the next clause. Then split any
+ *   segment that is still too long (> MAX_UNITS or > MAX_DURATION) at the
+ *   best interior punctuation point, or at a word boundary near the midpoint.
+ *
+ * This ensures every subtitle line is a complete phrase/clause, never cuts
+ * in the middle of a word, and stays within comfortable reading length.
+ */
+function buildSentenceSegments(
+  asrText: string,
+  alignmentSegments: SubtitleSegment[],
+): SubtitleSegment[] {
+  if (alignmentSegments.length === 0) return [];
+
+  // -- Punctuation sets --
+  const STRONG_END = new Set('.!?\u3002\uff01\uff1f');
+  const WEAK_BREAK = new Set(',;:\u3001\uff0c\uff1b\uff1a\u2026');
+  const ALL_PUNCT = new Set([...STRONG_END, ...WEAK_BREAK]);
+  const TRAILING_PERIOD = new Set('.\u3002');
+
+  // -- Sizing constants --
+  const MIN_UNITS = 6;
+  const MAX_UNITS = 30;
+  const MIN_DURATION = 0.8;
+  const MAX_DURATION = 8.0;
+  const GAP_BREAK_SEC = 0.5;
+
+  const normChar = (ch: string): string =>
+    ch >= 'A' && ch <= 'Z' ? ch.toLowerCase() : ch;
+
+  const isSkippable = (ch: string): boolean =>
+    /\s/.test(ch) || ALL_PUNCT.has(ch);
+
+  /** Estimate display width: CJK=1, latin/digit=0.5, other=0.7 */
+  const estimateUnits = (text: string): number => {
+    let u = 0;
+    for (const ch of text) {
+      if (/\s/.test(ch)) continue;
+      if (
+        /[\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff\u3040-\u30ff\uac00-\ud7af]/.test(ch)
+      )
+        u += 1;
+      else if (/[a-zA-Z0-9]/.test(ch)) u += 0.5;
+      else if (ALL_PUNCT.has(ch)) u += 0.2;
+      else u += 0.7;
+    }
+    return u;
+  };
+
+  // =====================================================================
+  // Step 1: Map each alignment token → raw ASR string range
+  // =====================================================================
+  const asrChars = Array.from(asrText);
+
+  const asrClean: string[] = [];
+  const asrCleanToRaw: number[] = [];
+  for (let i = 0; i < asrChars.length; i += 1) {
+    const ch = asrChars[i];
+    if (isSkippable(ch)) continue;
+    asrClean.push(normChar(ch));
+    asrCleanToRaw.push(i);
+  }
+
+  const tokenRawStart: Array<number | undefined> = new Array(
+    alignmentSegments.length,
+  ).fill(undefined);
+  const tokenRawEnd: Array<number | undefined> = new Array(
+    alignmentSegments.length,
+  ).fill(undefined);
+
+  let asrPtr = 0;
+  for (let tokenIdx = 0; tokenIdx < alignmentSegments.length; tokenIdx += 1) {
+    for (const ch of alignmentSegments[tokenIdx].text) {
+      if (isSkippable(ch)) continue;
+      const target = normChar(ch);
+      while (asrPtr < asrClean.length && asrClean[asrPtr] !== target) {
+        asrPtr += 1;
+      }
+      if (asrPtr >= asrClean.length) break;
+      const rawIdx = asrCleanToRaw[asrPtr];
+      if (tokenRawStart[tokenIdx] === undefined) tokenRawStart[tokenIdx] = rawIdx;
+      tokenRawEnd[tokenIdx] = rawIdx;
+      asrPtr += 1;
+    }
+  }
+
+  // =====================================================================
+  // Step 2: Classify boundary type after each token
+  // =====================================================================
+  type BoundaryType = 'none' | 'weak' | 'strong';
+
+  const tokenBoundary: BoundaryType[] = new Array(
+    alignmentSegments.length,
+  ).fill('none');
+
+  for (let i = 0; i < alignmentSegments.length; i += 1) {
+    const endRaw = tokenRawEnd[i];
+    if (endRaw === undefined) continue;
+
+    let upperRaw = asrChars.length;
+    for (let j = i + 1; j < alignmentSegments.length; j += 1) {
+      if (tokenRawStart[j] !== undefined) {
+        upperRaw = tokenRawStart[j] as number;
+        break;
+      }
+    }
+
+    let found: BoundaryType = 'none';
+    for (let r = endRaw + 1; r < upperRaw; r += 1) {
+      const ch = asrChars[r];
+      if (/\s/.test(ch)) continue;
+      if (STRONG_END.has(ch)) { found = 'strong'; break; }
+      if (WEAK_BREAK.has(ch)) found = 'weak';
+    }
+    tokenBoundary[i] = found;
+  }
+
+  // =====================================================================
+  // Step 3: Extract display text from raw ASR for a token range
+  // =====================================================================
+  const extractText = (startTok: number, endTok: number): string => {
+    let rawStart: number | undefined;
+    let rawEnd: number | undefined;
+    for (let t = startTok; t <= endTok; t += 1) {
+      if (tokenRawStart[t] !== undefined && rawStart === undefined) {
+        rawStart = tokenRawStart[t];
+      }
+      if (tokenRawEnd[t] !== undefined) rawEnd = tokenRawEnd[t];
+    }
+    if (rawStart === undefined || rawEnd === undefined) {
+      // Fallback: join token texts
+      const hasCjk = alignmentSegments
+        .slice(startTok, endTok + 1)
+        .some((s) => /[\u4e00-\u9fff]/.test(s.text));
+      return alignmentSegments
+        .slice(startTok, endTok + 1)
+        .map((s) => s.text)
+        .join(hasCjk ? '' : ' ')
+        .trim();
+    }
+
+    // Extend rawEnd to absorb trailing punct (not into next token's chars)
+    let upperRaw = asrChars.length;
+    for (let j = endTok + 1; j < alignmentSegments.length; j += 1) {
+      if (tokenRawStart[j] !== undefined) {
+        upperRaw = tokenRawStart[j] as number;
+        break;
+      }
+    }
+    while (rawEnd + 1 < upperRaw) {
+      const ch = asrChars[rawEnd + 1];
+      if (/\s/.test(ch) || ALL_PUNCT.has(ch)) rawEnd += 1;
+      else break;
+    }
+
+    let text = asrChars.slice(rawStart, rawEnd + 1).join('').trim();
+
+    // Strip trailing periods / 。 (keep ! ? etc.)
+    while (text.length > 0 && TRAILING_PERIOD.has(text[text.length - 1])) {
+      text = text.slice(0, -1).trimEnd();
+    }
+    return text;
+  };
+
+  // =====================================================================
+  // Pass 1: Split at every punctuation boundary + gap → clause segments
+  // =====================================================================
+  type ClauseSegment = {
+    startTok: number;
+    endTok: number;
+    startSecond: number;
+    endSecond: number;
+  };
+
+  const clauses: ClauseSegment[] = [];
+  let clauseStart = 0;
+
+  for (let i = 0; i < alignmentSegments.length; i += 1) {
+    const isLast = i === alignmentSegments.length - 1;
+    const boundary = tokenBoundary[i];
+    const gapToNext = isLast
+      ? 0
+      : alignmentSegments[i + 1].startSecond - alignmentSegments[i].endSecond;
+
+    const shouldSplit =
+      isLast ||
+      boundary === 'strong' ||
+      boundary === 'weak' ||
+      gapToNext >= GAP_BREAK_SEC;
+
+    if (shouldSplit) {
+      clauses.push({
+        startTok: clauseStart,
+        endTok: i,
+        startSecond: alignmentSegments[clauseStart].startSecond,
+        endSecond: alignmentSegments[i].endSecond,
+      });
+      clauseStart = i + 1;
+    }
+  }
+
+  if (clauses.length === 0) {
+    return alignmentSegments.map((seg) => ({ ...seg, text: seg.text.trim() }));
+  }
+
+  // =====================================================================
+  // Pass 2a: Merge small clauses forward
+  // =====================================================================
+  const merged: ClauseSegment[] = [];
+  let acc: ClauseSegment | undefined;
+
+  for (const clause of clauses) {
+    if (!acc) {
+      acc = { ...clause };
+      continue;
+    }
+
+    // Compute accumulated units & duration
+    const accText = extractText(acc.startTok, acc.endTok);
+    const accUnits = estimateUnits(accText);
+    const accDuration = acc.endSecond - acc.startSecond;
+
+    if (accUnits < MIN_UNITS && accDuration < MIN_DURATION) {
+      // Too small — merge with next clause
+      acc.endTok = clause.endTok;
+      acc.endSecond = clause.endSecond;
+    } else {
+      merged.push(acc);
+      acc = { ...clause };
+    }
+  }
+  if (acc) merged.push(acc);
+
+  // =====================================================================
+  // Pass 2b: Split oversized segments at best interior boundary
+  // =====================================================================
+  const finalSegments: SubtitleSegment[] = [];
+
+  for (const seg of merged) {
+    const text = extractText(seg.startTok, seg.endTok);
+    const units = estimateUnits(text);
+    const duration = seg.endSecond - seg.startSecond;
+
+    if (units <= MAX_UNITS && duration <= MAX_DURATION) {
+      if (text) {
+        finalSegments.push({
+          startSecond: seg.startSecond,
+          endSecond: seg.endSecond,
+          text,
+        });
+      }
+      continue;
+    }
+
+    // Need to split — find best split point among interior tokens
+    // Prefer: 1) punctuation boundary nearest to midpoint, 2) any token nearest midpoint
+    const midUnits = units / 2;
+    let runUnits = 0;
+    let bestPunctSplit = -1;
+    let bestPunctDist = Infinity;
+    let bestAnySplit = -1;
+    let bestAnyDist = Infinity;
+
+    for (let t = seg.startTok; t < seg.endTok; t += 1) {
+      const tokText = alignmentSegments[t].text;
+      runUnits += estimateUnits(tokText);
+
+      const dist = Math.abs(runUnits - midUnits);
+
+      if (tokenBoundary[t] !== 'none' && dist < bestPunctDist) {
+        bestPunctDist = dist;
+        bestPunctSplit = t;
+      }
+      if (dist < bestAnyDist) {
+        bestAnyDist = dist;
+        bestAnySplit = t;
+      }
+    }
+
+    const splitAt = bestPunctSplit >= 0 ? bestPunctSplit : bestAnySplit;
+
+    if (splitAt >= 0 && splitAt < seg.endTok) {
+      const text1 = extractText(seg.startTok, splitAt);
+      const text2 = extractText(splitAt + 1, seg.endTok);
+      if (text1) {
+        finalSegments.push({
+          startSecond: seg.startSecond,
+          endSecond: alignmentSegments[splitAt].endSecond,
+          text: text1,
+        });
+      }
+      if (text2) {
+        finalSegments.push({
+          startSecond: alignmentSegments[splitAt + 1].startSecond,
+          endSecond: seg.endSecond,
+          text: text2,
+        });
+      }
+    } else {
+      // Can't split further, emit as-is
+      if (text) {
+        finalSegments.push({
+          startSecond: seg.startSecond,
+          endSecond: seg.endSecond,
+          text,
+        });
+      }
+    }
+  }
+
+  return finalSegments.length > 0 ? finalSegments : alignmentSegments;
+}
+
 /**
  * Generate SRT subtitle content from sentence segments.
  */
 function generateSrtContent(
-  segments: Array<{ startSecond: number; endSecond: number; text: string }>,
+  segments: SubtitleSegment[],
 ): string {
   return (
     segments
@@ -265,7 +634,7 @@ function normalizeAssStyleInput(assStyle: unknown): AssStyleValues {
  * Generate ASS subtitle content from sentence segments.
  */
 function generateAssContent(
-  segments: Array<{ startSecond: number; endSecond: number; text: string }>,
+  segments: SubtitleSegment[],
   styleOptions: AssStyleValues = DEFAULT_ASS_STYLE_VALUES,
 ): string {
   const styleValues: AssStyleValues = {
@@ -371,6 +740,9 @@ Output types:
       (context?.requestContext?.get('workspace' as never) as string) ||
       undefined;
 
+    if (!this.modelId) {
+      throw new Error('Model is not set');
+    }
     const tempFiles: string[] = [];
 
     try {
@@ -399,7 +771,7 @@ Output types:
         audioPath = await convertToWav(localPath);
         tempFiles.push(audioPath);
       } else if (AUDIO_EXTENSIONS.has(ext) && ext !== '.wav') {
-        // Non-WAV audio – convert for best ASR compatibility
+        // Non-WAV audio �?convert for best ASR compatibility
         audioPath = await convertToWav(localPath);
         tempFiles.push(audioPath);
       } else {
@@ -436,6 +808,10 @@ Output types:
 
       //const result = asrResult.result;
       const text: string = result.text || '';
+      const timedSegments = normalizeTimedSegments(
+        (result as { segments?: unknown }).segments,
+      );
+      const subtitleSegments = buildSentenceSegments(text, timedSegments);
       // const sentenceSegments: Array<{
       //   start: number;
       //   end: number;
@@ -450,13 +826,13 @@ Output types:
       }
 
       if (output_type === 'srt') {
-        if (result.segments.length === 0) {
+        if (subtitleSegments.length === 0) {
           return (
             'No timed segments available for SRT generation. Transcribed text: ' +
             text
           );
         }
-        const srtContent = generateSrtContent(result.segments);
+        const srtContent = generateSrtContent(subtitleSegments);
         const fileName = save_path || `${nanoid()}.srt`;
         const filePath = await saveFile(
           Buffer.from(srtContent, 'utf-8'),
@@ -467,7 +843,7 @@ Output types:
       }
 
       if (output_type === 'ass') {
-        if (result.segments.length === 0) {
+        if (subtitleSegments.length === 0) {
           return (
             'No timed segments available for ASS generation. Transcribed text: ' +
             text
@@ -475,7 +851,7 @@ Output types:
         }
         const assStyleOptions = normalizeAssStyleInput(ass_style);
         const assContent = generateAssContent(
-          result.segments,
+          subtitleSegments,
           assStyleOptions,
         );
         const fileName = save_path || `${nanoid()}.ass`;
@@ -509,6 +885,10 @@ Output types:
 // TextToSpeech Tool
 // ---------------------------------------------------------------------------
 
+export interface TextToSpeechParams extends BaseToolParams {
+  modelId?: string;
+}
+
 export class TextToSpeech extends BaseTool {
   static readonly toolName = 'TextToSpeech';
   id: string = 'TextToSpeech';
@@ -516,7 +896,7 @@ export class TextToSpeech extends BaseTool {
 
 Supports multiple modes (selected automatically based on parameters):
 1. Custom Voice (voice provided): Uses a predefined speaker with optional emotion/style control via "instruct".
-   Available speakers — Chinese: Vivian, Serena, Uncle_Fu, Dylan, Eric; English: Ryan, Aiden
+   Available speakers Chinese: Vivian, Serena, Uncle_Fu, Dylan, Eric; English: Ryan, Aiden
 2. Voice Design (instruct provided, NO voice): Creates any voice from a text description (e.g. "a calm, deep male voice with a British accent").
 3. Voice Cloning (ref_audio + ref_text provided, NO voice): Clones a voice from a reference audio sample and its transcript.
 
@@ -561,6 +941,13 @@ Output: Returns the path to the generated WAV audio file.`;
         'Custom file name or path for the output audio file. If not provided, a random name will be generated.',
       ),
   });
+  configSchema = ToolConfig.TextToSpeech.configSchema;
+  modelId?: string;
+
+  constructor(config?: TextToSpeechParams) {
+    super(config);
+    this.modelId = config?.modelId;
+  }
 
   execute = async (
     inputData: z.infer<typeof this.inputSchema>,
@@ -600,28 +987,63 @@ Output: Returns the path to the generated WAV audio file.`;
         `tts-${randomUUID()}.wav`,
       );
 
-      const service = await getQwenAsrPythonService();
-      const result = await service.synthesize({
-        text,
-        language,
-        voice,
-        instruct,
-        ref_audio: resolvedRefAudio,
-        ref_text,
-        outputPath: tempOutputPath,
-      });
+      const provider = await providersManager.getProvider(this.modelId.split('/')[0]);
+      let _result: Awaited<ReturnType<SpeechModelV2['doGenerate']>>;
+      if (provider) {
+        const speechModel = provider.speechModel(this.modelId.split('/').slice(1).join('/'));
+        _result = await speechModel.doGenerate({
+          text,
+          language,
+          voice,
+          instructions: instruct,
+          providerOptions: {
+            "local": {
+              "ref_audio": resolvedRefAudio,
+              "ref_text": ref_text,
+              "outputPath": tempOutputPath,
+            },
+            "openai": {
+              "speed": 1.0,
+              "response_format": "wav",
+            }
+          }
+          // outputPath: tempOutputPath,
+        });
+      } else {
+        throw new Error('Provider not found');
+      }
+
+      // const service = await getQwenAsrPythonService();
+      // const result = await service.synthesize({
+      //   text,
+      //   language,
+      //   voice,
+      //   instruct,
+      //   ref_audio: resolvedRefAudio,
+      //   ref_text,
+      //   outputPath: tempOutputPath,
+      // });
 
       // Move to final save location
       const fileName = save_path || `${nanoid()}.wav`;
-      const buffer = await fs.promises.readFile(result.outputPath);
-      const filePath = await saveFile(buffer, fileName, workspace);
+      let buffer: Uint8Array;
+      if (isString(_result.audio)) {
+        buffer = await fs.promises.readFile(_result.audio);
+      } else {
+        buffer = _result.audio as Uint8Array;
+      }
+      const filePath = await saveFile(Buffer.from(buffer), fileName, workspace);
 
       // Cleanup temp output
-      if (fs.existsSync(result.outputPath) && result.outputPath !== filePath) {
-        await fs.promises.rm(result.outputPath).catch(() => { });
+      const outputPath: string = _result.providerMetadata?.['local']?.outputPath as string;
+
+      if (fs.existsSync(outputPath) && outputPath !== filePath) {
+        await fs.promises.rm(outputPath).catch(() => { });
       }
 
-      return `Generated speech audio (${result.duration.toFixed(1)}s, ${result.sampleRate}Hz) saved to: \n<file>${filePath}</file>`;
+      const sampleRate: number = Object.values(_result.providerMetadata ?? {})[0]?.['sampleRate'] as number || 24000;
+      const duration: number = Object.values(_result.providerMetadata ?? {})[0]?.['duration'] as number || (buffer.byteLength / sampleRate);
+      return `Generated speech audio (${duration?.toFixed(1)}s, ${sampleRate}Hz) saved to: \n<file>${filePath}</file>`;
     } finally {
       for (const tempFile of tempFiles) {
         try {
@@ -656,3 +1078,4 @@ export class AudioToolkit extends BaseToolkit {
 }
 
 export default AudioToolkit;
+

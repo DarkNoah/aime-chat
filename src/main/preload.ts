@@ -58,6 +58,8 @@ import {
   webUtils,
 } from 'electron';
 import { KnowledgeBaseItem } from '@/entities/knowledge-base';
+import { InstanceInfo } from '@/types/instance';
+
 
 // export type Channels = 'ipc-example';
 
@@ -153,6 +155,11 @@ const electronHandler = {
       params: SearchInDirectoryParams,
     ): Promise<SearchInDirectoryResult> =>
       ipcRenderer.invoke(AppChannel.SearchInDirectory, params),
+    readFileContent: (
+      filePath: string,
+      options?: { limit?: number },
+    ): Promise<{ content: string; truncated: boolean; size: number, mimeType: string, isBinary: boolean }> =>
+      ipcRenderer.invoke(AppChannel.ReadFileContent, filePath, options),
     screenCapture: (
       options: ScreenCaptureOptions,
     ): Promise<ScreenCaptureResult> =>
@@ -360,13 +367,14 @@ const electronHandler = {
       ipcRenderer.invoke(TaskQueueChannel.ClearCompleted),
   },
   instances: {
-    getInstances: () => ipcRenderer.invoke(InstancesChannel.GetInstances),
+    getInstances: (): Promise<InstanceInfo[]> => ipcRenderer.invoke(InstancesChannel.GetInstances),
     runInstance: (id: string) => ipcRenderer.invoke(InstancesChannel.RunInstance, id),
     stopInstance: (id: string) => ipcRenderer.invoke(InstancesChannel.StopInstance, id),
     updateInstance: (id: string, data: any) => ipcRenderer.invoke(InstancesChannel.UpdateInstance, id, data),
     deleteInstance: (id: string) => ipcRenderer.invoke(InstancesChannel.DeleteInstance, id),
     createInstance: (data: any) => ipcRenderer.invoke(InstancesChannel.CreateInstance, data),
     getInstance: (id: string) => ipcRenderer.invoke(InstancesChannel.GetInstance, id),
+    detectBrowserProfiles: () => ipcRenderer.invoke(InstancesChannel.DetectBrowserProfiles),
   },
 };
 

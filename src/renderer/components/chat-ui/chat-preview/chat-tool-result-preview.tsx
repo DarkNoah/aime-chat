@@ -63,7 +63,7 @@ function FilePreview({ children }: { children?: React.ReactNode }) {
     src.endsWith('.wmv') ||
     src.endsWith('.webm') ||
     src.endsWith('.m4v') ||
-    src.endsWith('.ts') ||
+    // src.endsWith('.ts') ||
     src.endsWith('.mts') ||
     src.endsWith('.m2ts')
   ) {
@@ -132,7 +132,7 @@ export type ChatToolResultPreviewProps = {
   className?: string;
 };
 
-export interface ChatToolResultPreviewRef {}
+export interface ChatToolResultPreviewRef { }
 
 export const ChatToolResultPreview = React.forwardRef<
   ChatToolResultPreviewRef,
@@ -143,7 +143,7 @@ export const ChatToolResultPreview = React.forwardRef<
     ref: ForwardedRef<ChatToolResultPreviewRef>,
   ) => {
     const toolName = part?.type?.split('-').slice(1).join('-');
-    const { theme } = useTheme();
+    const { theme, resolvedTheme } = useTheme();
     const renderResult = () => {
       if (!part?.output) return null;
       if (toolName === 'WebSearch') {
@@ -365,7 +365,7 @@ export const ChatToolResultPreview = React.forwardRef<
                   splitView={false}
                   disableWordDiff
                   hideLineNumbers
-                  useDarkTheme={theme === 'dark'}
+                  useDarkTheme={resolvedTheme === 'dark'}
                   styles={{
                     variables: {},
                     line: {
@@ -373,7 +373,7 @@ export const ChatToolResultPreview = React.forwardRef<
                       fontSize: 'var(--text-sm)',
                     },
                   }}
-                  // renderContent={this.highlightSyntax}
+                // renderContent={this.highlightSyntax}
                 />
               </div>
 

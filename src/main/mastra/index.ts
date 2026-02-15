@@ -392,11 +392,23 @@ class MastraManager extends BaseManager {
     const memoryStore = await storage.getStore('memory');
     const messages = await memoryStore.listMessages({ threadId: id });
     await memoryStore.deleteMessages(messages.messages.map((x) => x.id));
+    const thread = await memoryStore.getThreadById({ threadId: id });
+    if (thread.metadata?.tasks && thread.metadata?.tasks.length > 0) {
+      await memoryStore.updateThread({
+        id: id,
+        title: thread.title,
+        metadata: {
+          ...(thread.metadata || {}),
+          tasks: [],
+          usage: {}
+        },
+      });
+    }
   }
 
   @channel(MastraChannel.Chat, { mode: 'on' })
   public async chat(event: IpcMainEvent, data: ChatInput): Promise<void> {
-    const {
+    let {
       agentId,
       messageId,
       trigger,
@@ -884,10 +896,10 @@ class MastraManager extends BaseManager {
       let _inputMessage = inputMessage;
       let resume = toolCallId
         ? {
-            toolCallId,
-            approved,
-            resumeData,
-          }
+          toolCallId,
+          approved,
+          resumeData,
+        }
         : undefined;
       while (true) {
         const historyMessages = await memoryStore.listMessages({
@@ -1701,7 +1713,7 @@ When you are using compact - please focus on test output and code changes. Inclu
       .addSelect('SUM(COALESCE(u.total_costs_usd, 0))', 'totalCostsUsd')
       .where(
         base.expressionMap.wheres.map((w) => w.condition).join(' AND ') ||
-          '1=1',
+        '1=1',
         base.getParameters(),
       )
       .groupBy(dayExpr)
@@ -1720,7 +1732,7 @@ When you are using compact - please focus on test output and code changes. Inclu
       .addSelect('SUM(COALESCE(u.total_costs_usd, 0))', 'totalCostsUsd')
       .where(
         base.expressionMap.wheres.map((w) => w.condition).join(' AND ') ||
-          '1=1',
+        '1=1',
         base.getParameters(),
       )
       .groupBy('resourceId')

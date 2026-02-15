@@ -50,6 +50,20 @@ export const ToolConfig = {
       },
     },
   },
+  TextToSpeech: {
+    configSchema: z.strictObject({
+      modelId: z.string(),
+    }),
+    uiSchema: {
+      modelId: {
+        'ui:widget': 'modelSelector',
+        'ui:title': t('common.model'),
+        'ui:options': {
+          type: ModelType.TTS,
+        },
+      },
+    },
+  },
   CodeExecution: {
     configSchema: z.strictObject({
       ptcOpen: z.boolean().optional().default(true),

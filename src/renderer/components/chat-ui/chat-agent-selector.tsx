@@ -34,6 +34,7 @@ type BaseProps = ComponentProps<typeof Dialog> & {
   children?: React.ReactNode;
   className?: string;
   clearable?: boolean;
+  defaultAgentId?: string;
 };
 interface SingleModeProps extends BaseProps {
   mode: 'single';
@@ -46,6 +47,7 @@ interface SingleModeProps extends BaseProps {
 interface MultipleModeProps extends BaseProps {
   mode: 'multiple';
   value?: string[] | undefined;
+
   onChange?: (value: string[] | undefined) => void;
   onSelectedAgent?: (agent?: Agent[]) => void;
 }
@@ -63,6 +65,7 @@ export const ChatAgentSelector = ({
     onSelectedAgent,
     mode = 'single',
     clearable = false,
+    defaultAgentId,
   } = props;
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<Agent[]>([]);
@@ -89,6 +92,14 @@ export const ChatAgentSelector = ({
       const agents = await window.electron.agents.getAvailableAgents();
       console.log(agents);
       setData(agents);
+      if (!selectedAgent && defaultAgentId && mode == 'single') {
+        const agent = agents?.find((agent) => agent.id === defaultAgentId);
+        if (agent) {
+          setSelectedAgent(agent);
+          (onChange as (value: string | undefined) => void)?.(defaultAgentId as string);
+          onSelectedAgent?.(agent as Agent);
+        }
+      }
       setLoading(false);
       return agents;
     } catch (error) {

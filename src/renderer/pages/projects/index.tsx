@@ -42,6 +42,7 @@ import { ToolUIPart } from 'ai';
 import {
   ChatPreviewData,
   ChatPreviewType,
+  ChatTask,
   ChatTodo,
   ThreadState,
 } from '@/types/chat';
@@ -60,6 +61,15 @@ function ProjectsPage() {
     console.log(data);
     setProject(data);
     setTitle(data?.title || '');
+    const res = await window.electron.mastra.getThreads({
+      page: 0,
+      size: 1,
+      resourceId: `project:${id}`,
+    });
+    if (res.items.length > 0) {
+      setThreadId(res.items[0].id);
+    }
+
   }, [id, setTitle]);
 
   useEffect(() => {
@@ -118,6 +128,7 @@ function ProjectsPage() {
           title: item.title ?? 'New Thread',
         })),
       );
+
     } catch (e) {
       setThreadsError(e instanceof Error ? e.message : String(e));
       setThreads([]);
@@ -167,6 +178,7 @@ function ProjectsPage() {
       return {
         ...data,
         todos: thread.metadata?.todos as ChatTodo[],
+        tasks: thread.metadata?.tasks as ChatTask[],
       };
     });
   };
@@ -188,7 +200,7 @@ function ProjectsPage() {
         eventBus.off(`chat:onEvent:${threadId}`);
       };
     }
-    return () => {};
+    return () => { };
   }, [threadId]);
   return (
     <div className="h-full w-full flex flex-row @container relative">

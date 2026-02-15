@@ -511,6 +511,7 @@ def _run_mlx_tts(
     instruct: Optional[str] = None,
     ref_audio: Optional[str] = None,
     ref_text: Optional[str] = None,
+    temperature: Optional[float] = None,
 ) -> Dict[str, Any]:
     import soundfile as sf  # type: ignore
     import numpy as np  # type: ignore
@@ -534,6 +535,8 @@ def _run_mlx_tts(
         }
         if instruct:
             kwargs["instruct"] = instruct
+        if temperature:
+            kwargs["temperature"] = temperature
         results = list(model.generate_custom_voice(**kwargs))
 
     elif instruct:
@@ -544,6 +547,7 @@ def _run_mlx_tts(
             text=text,
             language=lang,
             instruct=instruct,
+            temperature=temperature,
         ))
 
     else:
@@ -558,6 +562,8 @@ def _run_mlx_tts(
             kwargs["ref_audio"] = ref_audio
         if ref_text:
             kwargs["ref_text"] = ref_text
+        if temperature:
+            kwargs["temperature"] = temperature
         results = list(model.generate(**kwargs))
 
     if not results:
@@ -1239,6 +1245,7 @@ def method_tts(params: Dict[str, Any]) -> Dict[str, Any]:
             instruct=instruct,
             ref_audio=ref_audio,
             ref_text=ref_text,
+            temperature=0.0
         )
     else:
         return _run_qwen_tts(
