@@ -58,6 +58,8 @@ import {
   webUtils,
 } from 'electron';
 import { KnowledgeBaseItem } from '@/entities/knowledge-base';
+import { InstanceInfo } from '@/types/instance';
+
 
 // export type Channels = 'ipc-example';
 
@@ -365,7 +367,7 @@ const electronHandler = {
       ipcRenderer.invoke(TaskQueueChannel.ClearCompleted),
   },
   instances: {
-    getInstances: () => ipcRenderer.invoke(InstancesChannel.GetInstances),
+    getInstances: (): Promise<InstanceInfo[]> => ipcRenderer.invoke(InstancesChannel.GetInstances),
     runInstance: (id: string) => ipcRenderer.invoke(InstancesChannel.RunInstance, id),
     stopInstance: (id: string) => ipcRenderer.invoke(InstancesChannel.StopInstance, id),
     updateInstance: (id: string, data: any) => ipcRenderer.invoke(InstancesChannel.UpdateInstance, id, data),

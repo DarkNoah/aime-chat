@@ -41,7 +41,8 @@
     "instances_stopped": "实例已停止",
     "instances_start_failed": "启动实例失败",
     "instances_config_saved": "配置已保存",
-    "instances_empty": "暂无实例"
+    "instances_empty": "暂无实例",
+    "vision_model": "视觉模型"
   },
   "common": {
     "edit": "编辑",

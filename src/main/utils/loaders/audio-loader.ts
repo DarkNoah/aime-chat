@@ -274,7 +274,7 @@ export async function getQwenAsrPythonService(): Promise<QwenAudioService> {
         model: string;
       }> => {
         const response = await pythonClient!.call('tts', {
-          text: options.text,
+          text: options.text.replaceAll('\r\n', '\n').replaceAll('\n', ''),
           language: options.language ?? 'English',
           voice: options.voice ?? undefined,
           instruct: options.instruct ?? undefined,

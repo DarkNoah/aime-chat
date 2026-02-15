@@ -1,3 +1,4 @@
+/* eslint-disable no-nested-ternary */
 import { Badge } from '@/renderer/components/ui/badge';
 import { Button } from '@/renderer/components/ui/button';
 import {
@@ -25,6 +26,8 @@ import {
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
+import { InstanceInfo } from '@/types/instance';
+
 
 interface BrowserProfile {
   name: string;
@@ -40,20 +43,13 @@ interface InstanceConfig {
   wssUrl?: string;
 }
 
-interface InstanceData {
-  id: string;
-  name: string;
-  type: string;
-  config?: InstanceConfig;
-  static: boolean;
-}
 
 function Instances() {
   const { setTitle } = useHeader();
   const { t } = useTranslation();
   setTitle(t('settings.instances'));
 
-  const [instances, setInstances] = useState<InstanceData[]>([]);
+  const [instances, setInstances] = useState<InstanceInfo[]>([]);
   const [profiles, setProfiles] = useState<BrowserProfile[]>([]);
   const [loading, setLoading] = useState<Record<string, boolean>>({});
   const [runningStatus, setRunningStatus] = useState<Record<string, string>>(
@@ -64,6 +60,13 @@ function Instances() {
     try {
       const data = await window.electron.instances.getInstances();
       setInstances(data);
+      console.log(data);
+      data.forEach((instance) => {
+        setRunningStatus((prev) => ({
+          ...prev,
+          [instance.id]: instance.status,
+        }));
+      });
     } catch (err) {
       console.error('Failed to load instances', err);
     }
@@ -129,15 +132,10 @@ function Instances() {
     setLoading((prev) => ({ ...prev, [instanceId]: true }));
     try {
       const result = await window.electron.instances.runInstance(instanceId);
-      setRunningStatus((prev) => ({
-        ...prev,
-        [instanceId]: result?.status || 'running',
-      }));
+      await loadInstances();
       toast.success(result?.message || t('settings.instances_started'));
     } catch (err) {
-      toast.error(
-        err.message || t('settings.instances_start_failed'),
-      );
+      toast.error(err.message || t('settings.instances_start_failed'));
     } finally {
       setLoading((prev) => ({ ...prev, [instanceId]: false }));
     }
@@ -147,10 +145,7 @@ function Instances() {
     setLoading((prev) => ({ ...prev, [instanceId]: true }));
     try {
       await window.electron.instances.stopInstance(instanceId);
-      setRunningStatus((prev) => ({
-        ...prev,
-        [instanceId]: 'stop',
-      }));
+      await loadInstances();
       toast.success(t('settings.instances_stopped'));
     } catch (err) {
       toast.error(err.message || 'Failed to stop instance');
@@ -159,7 +154,7 @@ function Instances() {
     }
   };
 
-  const getSelectedProfile = (instance: InstanceData) => {
+  const getSelectedProfile = (instance: InstanceInfo) => {
     if (!instance.config?.userDataPath) return undefined;
     const profile = profiles.find(
       (p) => p.userDataPath === instance.config?.userDataPath,
@@ -167,10 +162,11 @@ function Instances() {
     return profile ? profile.userDataPath : undefined;
   };
 
-  const isCustomDir = (instance: InstanceData) => {
+  const isCustomDir = (instance: InstanceInfo) => {
     if (!instance.config?.userDataPath) return false;
     return !profiles.find(
-      (p) => p.userDataPath === instance.config?.userDataPath,
+      (p) =>
+        p.userDataPath === instance.config?.userDataPath,
     );
   };
 
@@ -204,9 +200,7 @@ function Instances() {
                     >
                       <SelectTrigger className="w-64 h-8 text-xs">
                         <SelectValue
-                          placeholder={t(
-                            'settings.instances_select_browser',
-                          )}
+                          placeholder={t('settings.instances_select_browser')}
                         />
                       </SelectTrigger>
                       <SelectContent>
@@ -259,6 +253,16 @@ function Instances() {
                     </span>
                   </div>
                 )}
+                {instance.webSocketUrl && (
+                  <div className="flex flex-col gap-1">
+                    <span className="text-xs text-muted-foreground">
+                      {t('settings.instances_websocketurl', 'WebSocketUrl')}
+                    </span>
+                    <span className="text-xs font-mono truncate">
+                      {instance.webSocketUrl}
+                    </span>
+                  </div>
+                )}
               </div>
             </ItemDescription>
           </ItemContent>
@@ -277,10 +281,7 @@ function Instances() {
                 {t('settings.instances_stop')}
               </Button>
             ) : (
-              <Button
-                size="sm"
-                onClick={() => handleRunInstance(instance.id)}
-              >
+              <Button size="sm" onClick={() => handleRunInstance(instance.id)}>
                 <IconPlayerPlay className="size-4" />
                 {t('settings.instances_run')}
               </Button>

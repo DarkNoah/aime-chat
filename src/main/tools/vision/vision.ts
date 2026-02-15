@@ -18,6 +18,7 @@ import { providersManager } from '@/main/providers';
 import { Agent } from '@mastra/core/agent';
 import { OcrLoader } from '@/main/utils/loaders/ocr-loader';
 import { MessagePart } from '@mastra/core/processors';
+import { appManager } from '@/main/app';
 
 const inputSchema = z.strictObject({
   url_or_file_path: z.string(),
@@ -125,7 +126,7 @@ Args:
             - Relative path: "images/photo.png"
             - Absolute path: "/Users/username/Documents/image.jpg"
         Supported formats: JPEG, PNG, WebP
-    
+
 Returns:
     A text description of the image analysis result.
 `;
@@ -151,7 +152,11 @@ Returns:
     const { requestContext } = options;
     const workspace = requestContext.get('workspace' as never) as string;
     const config = this.config;
+    const appInfo = await appManager.getInfo();
 
+    if (!this.modelId) {
+      this.modelId = appInfo.defaultModel.visionModel;
+    }
     if (!this.modelId) {
       throw new Error('Model is not set');
     }
@@ -170,27 +175,6 @@ Returns:
     const mimeType = mime.lookup(file_path);
     const provider = await providersManager.getProvider(this.modelId?.split('/')[0]);
     if (mimeType.startsWith('image/')) {
-      const model = provider.languageModel(this.modelId?.split('/').slice(1).join('/'));
-      const understandImageAgent = new Agent({
-        id: 'understand-image-agent',
-        name: 'UnderstandImageAgent',
-        instructions: `You are an expert image analysis assistant with exceptional visual perception and interpretation skills.
-
-Your task is to carefully analyze the provided image and respond to the user's prompt accurately and thoroughly.
-
-Guidelines:
-- Provide detailed, precise, and well-structured responses based on what you observe in the image.
-- If the user asks you to extract text (OCR), reproduce the text exactly as it appears, preserving formatting where possible.
-- If the user asks for a description, be comprehensive: cover subjects, objects, colors, layout, context, and any notable details.
-- If the image contains a flowchart or process diagram, represent it using Mermaid syntax.
-- If the image contains charts, tables, or any tabular data, represent the data using Markdown tables.
-- If the image contains code, transcribe it accurately and explain it if requested.
-- If something in the image is ambiguous or unclear, state your best interpretation and note the uncertainty.
-- Always respond in the same language as the user's prompt.
-- Do NOT hallucinate or fabricate details that are not visible in the image.
-- Only output the analysis result directly. Do NOT include extra suggestions, recommendations, or explanations beyond what is asked.`,
-        model: model,
-      });
       let ocr
       try {
         const loader = new OcrLoader(file_path, { mode: 'auto' });
@@ -199,44 +183,81 @@ Guidelines:
       } catch {
 
       }
-      const input: MessagePart[] = [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'image',
-              image: fs.readFileSync(file_path).toString('base64'),
-              mimeType: mimeType,
-            } as ImagePart,
-          ],
-        },
-      ];
-      if (prompt) {
-        input.push({
-          role: 'user',
-          content: prompt,
+      try {
+        const model = provider.languageModel(this.modelId?.split('/').slice(1).join('/'));
+        const understandImageAgent = new Agent({
+          id: 'understand-image-agent',
+          name: 'UnderstandImageAgent',
+          instructions: `You are an expert image analysis assistant with exceptional visual perception and interpretation skills.
+
+Your task is to carefully analyze the provided image and respond to the user's prompt accurately and thoroughly.
+
+Guidelines:
+- Provide detailed, precise, and well-structured responses based on what you observe in the image.
+- If OCR result is already provided in the context, DO NOT repeat or transcribe the text content. Focus on analyzing other visual aspects instead.
+- If the user asks you to extract text (OCR) and no OCR result is provided, reproduce the text exactly as it appears, preserving formatting where possible.
+- If the user asks for a description, be comprehensive: cover subjects, objects, colors, layout, context, and any notable details.
+- If the image contains a flowchart or process diagram, represent it using Mermaid syntax.
+- If the image contains charts, tables, or any tabular data, represent the data using Markdown tables.
+- If the image contains code, transcribe it accurately and explain it if requested.
+- If something in the image is ambiguous or unclear, state your best interpretation and note the uncertainty.
+- Always respond in the same language as the user's prompt.
+- Do NOT hallucinate or fabricate details that are not visible in the image.
+- Only output the analysis result directly. Do NOT include extra suggestions, recommendations, or explanations beyond what is asked.`,
+          model: model,
         });
-      }
-      if (ocr) {
-        input.push({
-          role: 'user',
-          content: `OCR Result:
+
+        const input: MessagePart[] = [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'image',
+                image: fs.readFileSync(file_path).toString('base64'),
+                mimeType: mimeType,
+              } as ImagePart,
+            ],
+          },
+        ];
+        if (prompt) {
+          input.push({
+            role: 'user',
+            content: prompt,
+          });
+        }
+        if (ocr) {
+          input.push({
+            role: 'user',
+            content: `OCR Result:
 ${ocr}
 `,
+          });
+        }
+        const result = await understandImageAgent.generate(input, {
+          abortSignal: options?.abortSignal,
         });
+        return `File: <file>${file_path}</file>
+
+<analysis-result>
+${result.text}
+</analysis-result>
+
+${ocr ? `<ocr-result>
+${ocr}
+</ocr-result>` : ''}
+`;
+      } catch {
+
+
       }
-
-
-
-      const result = await understandImageAgent.generate(input, {
-        abortSignal: options?.abortSignal,
-      });
-      return `File: <file>${file_path}</file>
-
-Analysis Result:
-${result.text}`;
-
-
+      if (ocr) {
+        return `File: <file>${file_path} </file>
+<ocr-result>
+${ocr}
+</ocr-result>
+`
+      }
+      throw new Error('Failed to analyze image');
     }
     return {
       content: [

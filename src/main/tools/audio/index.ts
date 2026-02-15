@@ -896,7 +896,7 @@ export class TextToSpeech extends BaseTool {
 
 Supports multiple modes (selected automatically based on parameters):
 1. Custom Voice (voice provided): Uses a predefined speaker with optional emotion/style control via "instruct".
-   Available speakers �?Chinese: Vivian, Serena, Uncle_Fu, Dylan, Eric; English: Ryan, Aiden
+   Available speakers Chinese: Vivian, Serena, Uncle_Fu, Dylan, Eric; English: Ryan, Aiden
 2. Voice Design (instruct provided, NO voice): Creates any voice from a text description (e.g. "a calm, deep male voice with a British accent").
 3. Voice Cloning (ref_audio + ref_text provided, NO voice): Clones a voice from a reference audio sample and its transcript.
 

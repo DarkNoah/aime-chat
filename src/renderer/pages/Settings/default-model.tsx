@@ -90,6 +90,22 @@ export default function DefaultModel() {
       </Item>
       <Item variant="outline">
         <ItemContent>
+          <ItemTitle>{t('settings.vision_model')}</ItemTitle>
+          <ItemDescription></ItemDescription>
+        </ItemContent>
+        <ItemActions>
+          <ChatModelSelect
+            clearable
+            className="w-[200px] border"
+            value={appInfo?.defaultModel?.visionModel}
+            onChange={(model) => {
+              onChangeDefaultModel(model, 'visionModel');
+            }}
+          />
+        </ItemActions>
+      </Item>
+      {/* <Item variant="outline">
+        <ItemContent>
           <ItemTitle>{t('settings.default_ocr')}</ItemTitle>
           <ItemDescription></ItemDescription>
         </ItemContent>
@@ -102,7 +118,7 @@ export default function DefaultModel() {
             }}
           />
         </ItemActions>
-      </Item>
+      </Item> */}
     </div>
   );
 }

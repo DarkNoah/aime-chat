@@ -21,6 +21,8 @@ export class BrowserInstance extends BaseInstance {
 
   private browserProcess?: ChildProcess;
 
+  private webSocketUrl?: string;
+
   constructor(params?: BaseInstanceParams) {
     super(params ?? { instances: undefined });
   }
@@ -54,8 +56,8 @@ export class BrowserInstance extends BaseInstance {
           userDataDir: this.instances?.config?.userDataPath,
           proxy: httpProxy
             ? {
-                server: `${httpProxy}`,
-              }
+              server: `${httpProxy}`,
+            }
             : undefined,
           executablePath: this.instances?.config?.executablePath,
           headless: false,
@@ -83,8 +85,8 @@ export class BrowserInstance extends BaseInstance {
             headless: false,
             proxy: httpProxy
               ? {
-                  server: `${httpProxy}`,
-                }
+                server: `${httpProxy}`,
+              }
               : undefined,
             args: [
               '--disable-blink-features=AutomationControlled',
@@ -107,8 +109,8 @@ export class BrowserInstance extends BaseInstance {
           headless: false,
           proxy: httpProxy
             ? {
-                server: `${httpProxy}`,
-              }
+              server: `${httpProxy}`,
+            }
             : undefined,
           args: [
             '--disable-blink-features=AutomationControlled',
@@ -147,6 +149,10 @@ export class BrowserInstance extends BaseInstance {
     this.browserProcess = proc;
   }
 
+  setWebSocketUrl(url: string) {
+    this.webSocketUrl = url;
+  }
+
   getEnhancedContext = (modelProvider?: string) => {
     if (this.stagehand) {
       return this.stagehand.context;
@@ -160,15 +166,19 @@ export class BrowserInstance extends BaseInstance {
       this.stagehand = undefined;
       this.eventEmitter.emit('close');
     } else if (this.browser_context) {
-      try {
-        await this.browser_context.close();
-        const b = this.browser_context.browser();
-        if (b) {
-          await b.close();
+
+      if (!this.webSocketUrl) {
+        try {
+          await this.browser_context.close();
+          const b = this.browser_context.browser();
+          if (b) {
+            await b.close();
+          }
+        } catch {
+          // ignore close errors
         }
-      } catch {
-        // ignore close errors
       }
+
       this.browser_context = undefined;
 
       // Kill the spawned browser process if any

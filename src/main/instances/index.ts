@@ -28,7 +28,8 @@ import { Repository } from 'typeorm';
 import { BaseInstance } from './base-instance';
 import { BrowserInstance } from './browser-instance';
 import { spawn, ChildProcess } from 'child_process';
-
+import os from 'os';
+import { InstanceInfo as InstanceInfoType } from '@/types/instance';
 export interface BrowserProfile {
   name: string;
   userDataPath: string;
@@ -141,8 +142,26 @@ class InstancesManager extends BaseManager {
   }
 
   @channel(InstancesChannel.GetInstances)
-  public async getInstances(): Promise<Instances[]> {
-    return await this.repository.find();
+  public async getInstances(): Promise<InstanceInfoType[]> {
+    const list = await this.repository.find();
+    return list.map((item) => {
+      const instance = this.instanceInfos.get(item.id);
+      if (!instance) {
+        return {
+          ...item,
+          // instance: new BrowserInstance({ instances: item }),
+          // browserContext: null,
+          status: 'stop',
+        }
+      }
+      return {
+        ...item,
+        // instance: instance,
+        // browserContext: instance.browserContext,
+        webSocketUrl: instance.instance?.webSocketUrl,
+        status: instance.status,
+      }
+    });
   }
 
   @channel(InstancesChannel.GetInstance)
@@ -185,17 +204,54 @@ class InstancesManager extends BaseManager {
       browser: 'chrome',
       executablePath: defaultExePath || undefined,
     });
+    if (process.platform === 'win32') {
+      const localAppData = process.env.LOCALAPPDATA;
 
-    const localAppData = process.env.LOCALAPPDATA;
+      if (localAppData) {
+        // Chrome: %LOCALAPPDATA%\Google\Chrome\User Data
+        const chromeUserData = path.join(
+          localAppData,
+          'Google',
+          'Chrome',
+          'User Data',
+        );
+        if (fs.existsSync(chromeUserData)) {
+          profiles.push({
+            name: 'Google Chrome',
+            userDataPath: chromeUserData,
+            browser: 'chrome',
+            executablePath: chromePath?.chrome || undefined,
+          });
+        }
 
-    if (localAppData) {
-      // Chrome: %LOCALAPPDATA%\Google\Chrome\User Data
-      const chromeUserData = path.join(
-        localAppData,
-        'Google',
-        'Chrome',
-        'User Data',
-      );
+        // Edge: %LOCALAPPDATA%\Microsoft\Edge\User Data
+        const edgeUserData = path.join(
+          localAppData,
+          'Microsoft',
+          'Edge',
+          'User Data',
+        );
+        if (fs.existsSync(edgeUserData)) {
+          let edgeExePath: string | undefined;
+          try {
+            edgeExePath = getEdgePath();
+          } catch {
+            edgeExePath = undefined;
+          }
+          profiles.push({
+            name: 'Microsoft Edge',
+            userDataPath: edgeUserData,
+            browser: 'edge',
+            executablePath: edgeExePath,
+          });
+        }
+      }
+    } else if (process.platform === 'darwin') {
+      const home = os.homedir();
+      const applicationSupport = path.join(home, 'Library', 'Application Support');
+
+      // Chrome: ~/Library/Application Support/Google/Chrome
+      const chromeUserData = path.join(applicationSupport, 'Google', 'Chrome');
       if (fs.existsSync(chromeUserData)) {
         profiles.push({
           name: 'Google Chrome',
@@ -205,13 +261,8 @@ class InstancesManager extends BaseManager {
         });
       }
 
-      // Edge: %LOCALAPPDATA%\Microsoft\Edge\User Data
-      const edgeUserData = path.join(
-        localAppData,
-        'Microsoft',
-        'Edge',
-        'User Data',
-      );
+      // Edge: ~/Library/Application Support/Microsoft Edge
+      const edgeUserData = path.join(applicationSupport, 'Microsoft Edge');
       if (fs.existsSync(edgeUserData)) {
         let edgeExePath: string | undefined;
         try {
@@ -299,6 +350,7 @@ class InstancesManager extends BaseManager {
 
           const browserInstance = new BrowserInstance({ instances: instance });
           browserInstance.setBrowserContext(browserContext);
+          browserInstance.setWebSocketUrl(wsUrl);
 
           this.instanceInfos.set(id, {
             ...instance,
@@ -363,6 +415,7 @@ class InstancesManager extends BaseManager {
           const browserInstance = new BrowserInstance({ instances: instance });
           browserInstance.setBrowserContext(browserContext);
           browserInstance.setBrowserProcess(browserProcess);
+          browserInstance.setWebSocketUrl(wsUrl);
 
           this.instanceInfos.set(id, {
             ...instance,

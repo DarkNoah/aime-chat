@@ -41,7 +41,9 @@
     "instances_stopped": "Instance stopped",
     "instances_start_failed": "Failed to start instance",
     "instances_config_saved": "Configuration saved",
-    "instances_empty": "No instances"
+    "instances_empty": "No instances",
+    "instances_websocketurl": "WebSocketUrl",
+    "vision_model": "Vision Model"
   },
   "common": {
     "edit": "Edit",

@@ -23,6 +23,8 @@ import { ExcelLoader } from '@/main/utils/loaders/excel-loader';
 import { OcrLoader } from '@/main/utils/loaders/ocr-loader';
 import { ToolConfig } from '@/types/tool';
 import { AudioLoader } from '@/main/utils/loaders/audio-loader';
+import { Vision } from '../vision/vision';
+import { appManager } from '@/main/app';
 
 const DEFAULT_MAX_LINES_TEXT_FILE = 2000;
 const MAX_LINE_LENGTH_TEXT_FILE = 2000;
@@ -69,6 +71,10 @@ Usage:
     context: ToolExecutionContext<z.ZodSchema, any>,
   ) => {
     const { file_path, offset, limit } = inputData;
+    const appInfo = await appManager.getInfo();
+    const visionModelId = appInfo.defaultModel.visionModel || context.requestContext?.get('modelId' as never) as string | undefined;
+
+
     if (!fs.existsSync(file_path))
       throw new Error(`File '${file_path}' does not exist.`);
 
@@ -89,6 +95,24 @@ Usage:
     }
 
     if (await isBinaryFile(file_path)) {
+      if (mime.lookup(file_path).startsWith('image/')) {
+        const result = await new Vision({
+          modelId: visionModelId,
+        }).execute({
+          source: file_path,
+          prompt: 'Please describe the image in detail.',
+        }, context);
+        return result;
+      } else {
+        const content = await new ReadBinaryFile({
+          mode: 'auto',
+          forcePDFOcr: true,
+        }).execute({
+          file_source: file_path,
+        }, context);
+        return content;
+      }
+
       throw new Error(
         `The file '${file_path}' is a binary file. please use ReadBinaryFile tool to read the file.`,
       );
