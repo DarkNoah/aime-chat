@@ -121,6 +121,7 @@ export type ChatRequestContext = {
   workspace?: string;
   think?: boolean;
   chunks?: { runId: string; text: string };
+  additionalInstructions?: string;
 };
 
 export const DEFAULT_RESOURCE_ID = 'default';

@@ -12,6 +12,7 @@ import {
   DynamicAgentInstructions,
 } from '@mastra/core/agent';
 import { LibSQLDatabaseInfo, LibSQLDescribeTable, LibSQLListTable, LibSQLRun } from '@/main/tools/database/libsql';
+import { Message } from '@/main/tools/common/message';
 
 export const codeAgentInstructions: DynamicAgentInstructions = ({
   requestContext,
@@ -23,9 +24,12 @@ export const codeAgentInstructions: DynamicAgentInstructions = ({
   let workspace;
   let isGitRepo;
   workspace = requestContext.get('workspace');
+
+  let additionalInstructions = requestContext.get('additionalInstructions');
   const tools = requestContext.get('tools') ?? [];
   const hasTaskTool = tools.includes(`${ToolType.BUILD_IN}:${Task.toolName}`);
   const hasLibSQLTool = tools.includes(`${ToolType.BUILD_IN}:${LibSQLRun.toolName}`);
+  const hasMessageTool = tools.includes(`${ToolType.BUILD_IN}:${Message.toolName}`);
 
   if (workspace) {
     isGitRepo = fs.existsSync(path.join(workspace, '.git'));
@@ -159,6 +163,11 @@ When referencing specific functions or pieces of code include the pattern \`file
 <example>
 user: Where are errors from the client handled?
 assistant: Clients are marked as failed in the \`connectToServer\` function in src/services/process.ts:712.
-</example>`,
+</example>
+
+${additionalInstructions ? `
+${additionalInstructions}
+` : ''}
+`,
   };
 };

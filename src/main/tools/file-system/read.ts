@@ -21,13 +21,22 @@ import { OcrAccuracy, recognize } from '@napi-rs/system-ocr';
 import { PowerPointLoader } from '@/main/utils/loaders/power-point-loader';
 import { ExcelLoader } from '@/main/utils/loaders/excel-loader';
 import { OcrLoader } from '@/main/utils/loaders/ocr-loader';
-import { ToolConfig } from '@/types/tool';
+import { ToolConfig, ToolType } from '@/types/tool';
 import { AudioLoader } from '@/main/utils/loaders/audio-loader';
 import { Vision } from '../vision/vision';
 import { appManager } from '@/main/app';
+import { providersManager } from '@/main/providers';
+import { SpeechToText } from '../audio';
+import { toolsManager } from '..';
 
 const DEFAULT_MAX_LINES_TEXT_FILE = 2000;
 const MAX_LINE_LENGTH_TEXT_FILE = 2000;
+
+
+export interface ReadParams extends BaseToolParams {
+  forcePDFOcr?: boolean;
+  forceWordOcr?: boolean;
+}
 export class Read extends BaseTool {
   static readonly toolName = 'Read';
   id: string = 'Read';
@@ -41,8 +50,9 @@ Usage:
 - You can optionally specify a line offset and limit (especially handy for long files), but it's recommended to read the whole file by not providing these parameters
 - Any lines longer than ${MAX_LINE_LENGTH_TEXT_FILE} characters will be truncated
 - Results are returned using cat -n format, with line numbers starting at 1
-- This tool allows to read images (eg PNG, JPG, etc). When reading an image file the contents are presented visually as Claude Code is a multimodal LLM.
+- This tool allows to read images (eg PNG, JPG, etc). When reading an image file the contents are presented visually by a multimodal LLM.
 - This tool can read PDF files (.pdf). PDFs are processed page by page, extracting both text and visual content for analysis.
+- this tool can read audio files (.wav, .mp3 etc), and returns the audio transcription content (.srt format).
 - This tool can read Jupyter notebooks (.ipynb files) and returns all cells with their outputs, combining code, text, and visualizations.
 - You have the capability to call multiple tools in a single response. It is always better to speculatively read multiple files as a batch that are potentially useful.
 - You will regularly be asked to read screenshots. If the user provides a path to a screenshot ALWAYS use this tool to view the file at the path. This tool will work with all temporary file paths like /var/folders/123/abc/T/TemporaryItems/NSIRD_screencaptureui_ZfB1tD/Screenshot.png
@@ -64,7 +74,22 @@ Usage:
         ),
     })
     .strict();
+
+
+
+  configSchema = ToolConfig.Read.configSchema;
+  forcePDFOcr?: ReadParams['forcePDFOcr'];
+  forceWordOcr?: ReadParams['forceWordOcr'];
+
   outputSchema = z.string();
+
+
+  constructor(config?: ReadParams) {
+    super(config);
+    this.forcePDFOcr = config?.forcePDFOcr ?? true;
+    this.forceWordOcr = config?.forceWordOcr ?? true;
+  }
+
   // requireApproval: true,
   execute = async (
     inputData: z.infer<typeof this.inputSchema>,
@@ -95,23 +120,28 @@ Usage:
     }
 
     if (await isBinaryFile(file_path)) {
-      if (mime.lookup(file_path).startsWith('image/')) {
-        const result = await new Vision({
-          modelId: visionModelId,
-        }).execute({
-          source: file_path,
-          prompt: 'Please describe the image in detail.',
-        }, context);
-        return result;
-      } else {
-        const content = await new ReadBinaryFile({
-          mode: 'auto',
-          forcePDFOcr: true,
-        }).execute({
-          file_source: file_path,
-        }, context);
-        return content;
+      try {
+        if (mime.lookup(file_path).startsWith('image/')) {
+          const result = await new Vision({
+            modelId: visionModelId,
+          }).execute({
+            source: file_path,
+            prompt: 'Please describe the image in detail.',
+          }, context);
+          return result;
+        }
+      } catch {
+
       }
+
+      const content = await new ReadBinaryFile({
+        forcePDFOcr: this.forcePDFOcr,
+        forceWordOcr: this.forceWordOcr,
+      }).execute({
+        file_source: file_path,
+      }, context);
+      return content;
+
 
       throw new Error(
         `The file '${file_path}' is a binary file. please use ReadBinaryFile tool to read the file.`,
@@ -205,11 +235,13 @@ Usage:
   configSchema = ToolConfig.ReadBinaryFile.configSchema;
   mode?: ReadBinaryFileParams['mode'];
   forcePDFOcr?: ReadBinaryFileParams['forcePDFOcr'];
+  forceWordOcr?: ReadBinaryFileParams['forceWordOcr'];
 
   constructor(config?: ReadBinaryFileParams) {
     super(config);
     this.mode = config?.mode ?? 'auto';
-    this.forcePDFOcr = config?.forcePDFOcr ?? false;
+    this.forcePDFOcr = config?.forcePDFOcr ?? true;
+    this.forceWordOcr = config?.forceWordOcr ?? true;
   }
 
   execute = async (
@@ -224,6 +256,12 @@ Usage:
       throw new Error(`File '${file_source}' is not a file.`);
     if (stats.size === 0)
       return `<system-reminder>The file '${file_source}' is empty.</system-reminder>`;
+
+
+
+    const appInfo = await appManager.getInfo();
+    const defaultOcr = appInfo?.defaultModel?.ocrModel;
+
 
     const ext = path.extname(file_source).toLowerCase();
 
@@ -240,6 +278,11 @@ Usage:
         return content;
       }
     } else if (ext === '.docx' || ext === '.doc') {
+      if (this.forceWordOcr) {
+        const loader = new OcrLoader(file_source);
+        const content = await loader.load();
+        return content;
+      }
       const loader = new WordLoader(file_source, {
         type: ext === '.docx' ? 'docx' : 'doc',
       });
@@ -255,15 +298,37 @@ Usage:
       const content = await loader.load();
       return content;
     } else if (mimeType.startsWith('image/')) {
+
+
+      const provider = await providersManager.getProvider(defaultOcr);
+      if (provider) {
+        const result = await provider.ocrModel(defaultOcr.split('/').slice(1).join('/')).doOCR({ image: file_source });
+        return result;
+      }
+
+
+
+
       // 使用 paddle OCR 进行图像文字识别
-      const loader = new OcrLoader(file_source, { mode: this.mode });
+      const loader = new OcrLoader(file_source);
       const content = await loader.load();
       return content;
     } else if (mimeType.startsWith('audio/')) {
-      // 使用 paddle OCR 进行图像文字识别
-      const loader = new AudioLoader(file_source);
-      const content = await loader.load();
-      return content.text;
+      let speechToText = await toolsManager.buildTool(
+        `${ToolType.BUILD_IN}:${SpeechToText.toolName}` as `${ToolType.BUILD_IN}:${string}`,
+        // toolEntity.value ?? {},
+      );
+
+
+      //const speechToText = new SpeechToText();
+      const content = await speechToText.execute({
+        source: file_source,
+        output_type: 'srt',
+      }, context);
+      return content
+      // const loader = new AudioLoader(file_source, { outputType: 'asr' });
+      // const content = await loader.load();
+      // return content.text;
     }
     return content;
   };

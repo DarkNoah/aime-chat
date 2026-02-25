@@ -43,7 +43,8 @@
     "instances_config_saved": "Configuration saved",
     "instances_empty": "No instances",
     "instances_websocketurl": "WebSocketUrl",
-    "vision_model": "Vision Model"
+    "vision_model": "Vision Model",
+    "default_ocr": "Ocr Model"
   },
   "common": {
     "edit": "Edit",
@@ -108,6 +109,7 @@
     "screen_capture": "Screen Capture",
     "required": "This field is required",
     "enter_git_url": "Enter git url or repo",
+    "enter_git_url_or_skill_url": "Enter git url, repo or SKILL.md url",
     "delete_agent": "Delete agent",
     "importing": "Importing",
     "import_success": "Import Success",

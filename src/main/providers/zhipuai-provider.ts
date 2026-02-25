@@ -1,5 +1,5 @@
 import { Providers } from '@/entities/providers';
-import { BaseProvider, RerankModel } from './base-provider';
+import { BaseProvider, OCRModel, RerankModel } from './base-provider';
 import fs from 'fs';
 import path from 'path';
 import OpenAI from 'openai';
@@ -19,7 +19,8 @@ import {
 } from '@ai-sdk/provider';
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import { createZhipu } from 'zhipu-ai-provider';
-import { isString } from '@/utils/is';
+import { isString, isUrl } from '@/utils/is';
+import mime from 'mime';
 
 export class ZhipuAIRerankModel implements RerankModel {
   modelId: string;
@@ -268,7 +269,58 @@ export class ZhipuAISpeechModel implements SpeechModelV2 {
   }
 }
 
+
+export class ZhipuAIOCRModel implements OCRModel {
+  specificationVersion: 'v2';
+  provider: string = 'zhipuai';
+  modelId: string;
+  providerEntity: Providers;
+  defaultApiBase?: string = 'https://open.bigmodel.cn/api/paas/v4';
+
+  constructor({ modelId, provider }: { modelId: string; provider: Providers }) {
+    this.providerEntity = provider;
+    this.modelId = modelId;
+  }
+
+  async doOCR(options: { image: string; }): Promise<string> {
+
+
+
+    let file: string;
+    if (isUrl(options.image)) {
+      file = options.image;
+    } else if (fs.existsSync(options.image) && fs.statSync(options.image).isFile()) {
+      const base64 = (await fs.promises.readFile(options.image)).toString('base64');
+      file = `data:${mime.lookup(options.image) || 'image/jpeg'};base64,${base64}`;
+    } else {
+      throw new Error('Invalid image');
+    }
+
+    const res = await fetch(`${this.providerEntity.apiBase || this.defaultApiBase}/layout_parsing`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${this.providerEntity.apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: this.modelId,
+        file
+      }),
+    });
+    if (!res.ok) {
+      throw new Error(await res.text());
+    }
+    const data = await res.json();
+    if (data.error) {
+      throw new Error(data.error.message);
+    }
+    return data.md_results;
+  }
+}
+
+
 export class ZhipuAIProvider extends BaseProvider {
+
   name: string = 'zhipuai';
   type: ProviderType = ProviderType.ZHIPUAI;
   description: string;
@@ -350,6 +402,10 @@ export class ZhipuAIProvider extends BaseProvider {
     return [{ id: 'cogview-4', name: 'cogview-4' }];
   }
 
+  async getOCRModelList(): Promise<{ name: string; id: string; }[]> {
+    return [{ id: 'glm-ocr', name: 'GLM-OCR' }];
+  }
+
   getCredits(): Promise<ProviderCredits | undefined> {
     return undefined;
   }
@@ -367,5 +423,9 @@ export class ZhipuAIProvider extends BaseProvider {
   }
   rerankModel?(modelId: string): RerankModel {
     return new ZhipuAIRerankModel({ modelId, provider: this.provider });
+  }
+
+  ocrModel?(modelId: string): OCRModel {
+    return new ZhipuAIOCRModel({ modelId, provider: this.provider });
   }
 }

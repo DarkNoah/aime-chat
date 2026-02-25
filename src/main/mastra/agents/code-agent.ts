@@ -32,14 +32,12 @@ import {
 import { Skill } from '@/main/tools/common/skill';
 import fs from 'fs';
 import path from 'path';
-import { RequestContext } from '@mastra/core/request-context';
-import { ChatRequestContext } from '@/types/chat';
-import { Mastra } from '@mastra/core';
 import { Explore } from './explore-agent';
 import { codeAgentInstructions } from './prompts/code-agent-prompt';
 import { Plan } from './plan-agent';
-import { SendEvent } from '@/main/tools/common/send-event';
 import { LibSQLDatabaseInfo, LibSQLDescribeTable, LibSQLListTable, LibSQLRun } from '@/main/tools/database/libsql';
+import { Message } from '@/main/tools/common/message';
+
 export class CodeAgent extends BaseAgent {
   id: string = 'CodeAgent';
   name: string = 'Code Agent';
@@ -63,7 +61,7 @@ export class CodeAgent extends BaseAgent {
     `${ToolType.BUILD_IN}:${CodeExecution.toolName}`,
     `${ToolType.BUILD_IN}:${Skill.toolName}`,
     `${ToolType.BUILD_IN}:${Task.toolName}`,
-    `${ToolType.BUILD_IN}:${SendEvent.toolName}`,
+    `${ToolType.BUILD_IN}:${Message.toolName}`,
     `${ToolType.BUILD_IN}:${TaskCreate.toolName}`,
     `${ToolType.BUILD_IN}:${TaskGet.toolName}`,
     `${ToolType.BUILD_IN}:${TaskList.toolName}`,

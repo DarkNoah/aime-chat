@@ -24,7 +24,6 @@ import { AskUserQuestion } from './common/ask-user-question';
 import { NodejsExecute } from './code/nodejs-execute';
 import { Skill, skillManager } from './common/skill';
 import { BashToolkit } from './file-system/bash';
-import { SendEvent } from './common/send-event';
 import { WebSearch } from './web/web-search';
 import { RemoveBackground } from './image/rmbg';
 import {
@@ -49,6 +48,7 @@ import { runCommand } from '../utils/shell';
 import os from 'os';
 import matter from 'gray-matter';
 import { LibSQLToolkit } from './database/libsql';
+import { Message } from './common/message';
 interface BuiltInToolContext {
   tool: BaseTool;
   abortController: AbortController;
@@ -167,7 +167,7 @@ class ToolsManager extends BaseManager {
     await this.registerBuiltInTool(BashToolkit);
     await this.registerBuiltInTool(FileSystem);
     await this.registerBuiltInTool(AskUserQuestion);
-    await this.registerBuiltInTool(SendEvent);
+    await this.registerBuiltInTool(Message);
     await this.registerBuiltInTool(WebSearch);
     await this.registerBuiltInTool(WebFetch);
     await this.registerBuiltInTool(RemoveBackground);
@@ -1147,7 +1147,48 @@ class ToolsManager extends BaseManager {
     let gitPath: string = '';
     const { repo_or_url, files } = data;
     if (repo_or_url) {
-      if (repo_or_url.includes('github.com')) {
+      const isDirectSkillUrl =
+        /^https?:\/\//i.test(repo_or_url) &&
+        !repo_or_url.includes('github.com') &&
+        /\.md$/i.test(new URL(repo_or_url).pathname);
+
+      if (isDirectSkillUrl) {
+        const response = await fetch(repo_or_url);
+        if (!response.ok) {
+          return {
+            success: false,
+            error: `Failed to fetch SKILL.md: ${response.status} ${response.statusText}`,
+          };
+        }
+        const skillMdContent = await response.text();
+        const parsed = matter(skillMdContent);
+        const skillName = (
+          parsed.data.name ||
+          path.basename(new URL(repo_or_url).pathname, '.md')
+        )
+          .toLowerCase()
+          .replaceAll(' ', '-');
+        const skillDir = path.join(skillsPath, skillName);
+        await fs.promises.mkdir(skillDir, { recursive: true });
+        await fs.promises.writeFile(
+          path.join(skillDir, 'SKILL.md'),
+          skillMdContent,
+        );
+
+        if (!data.path) {
+          const toolId = `${ToolType.SKILL}:local:${skillName}`;
+          const tool = new Tools(toolId, skillName, ToolType.SKILL);
+          tool.isActive = true;
+          tool.value = { path: skillDir, source: repo_or_url };
+          await this.toolsRepository.save(tool);
+          await appManager.sendEvent(ToolEvent.ToolListUpdated, {
+            id: toolId,
+            status: 'created',
+          });
+        }
+
+        return { success: true };
+      } else if (repo_or_url.includes('github.com')) {
         // Parse full GitHub URL
         const parsed = this.parseGitHubUrl(repo_or_url);
         repoUrl = `https://github.com/${parsed.owner}/${parsed.repo}.git`;
@@ -1251,6 +1292,7 @@ class ToolsManager extends BaseManager {
           tool.isActive = true;
           tool.value = {
             path: path.join(skillsPath, selectedSkill.id),
+            source: repo_or_url,
           };
           await this.toolsRepository.save(tool);
           await appManager.sendEvent(ToolEvent.ToolListUpdated, {

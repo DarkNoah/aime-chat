@@ -1,3 +1,4 @@
+/* eslint-disable no-nested-ternary */
 import { Badge } from '@/renderer/components/ui/badge';
 import { Button } from '@/renderer/components/ui/button';
 import {
@@ -25,15 +26,27 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from '@/renderer/components/ui/input-group';
-import { Item, ItemActions, ItemContent, ItemDescription, ItemHeader, ItemTitle } from '@/renderer/components/ui/item';
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemHeader,
+  ItemTitle,
+} from '@/renderer/components/ui/item';
 import { useHeader } from '@/renderer/hooks/use-title';
-import { KnowledgeBase, KnowledgeBaseSourceType, SearchKnowledgeBaseItemResult } from '@/types/knowledge-base';
+import {
+  KnowledgeBase,
+  KnowledgeBaseItemState,
+  KnowledgeBaseSourceType,
+  SearchKnowledgeBaseItemResult,
+} from '@/types/knowledge-base';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Form, FormField } from '@/renderer/components/ui/form';
 import {
-  Form,
-  FormField,
-} from '@/renderer/components/ui/form';
-import {
+  IconAlertCircle,
+  IconCheck,
+  IconClock,
   IconFile,
   IconNetwork,
   IconSearch,
@@ -64,7 +77,12 @@ import {
   SheetTitle,
 } from '@/renderer/components/ui/sheet';
 import { Streamdown } from '@/renderer/components/ai-elements/streamdown';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/renderer/components/ui/tabs';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/renderer/components/ui/tabs';
 
 const PAGE_SIZE = 10;
 
@@ -87,7 +105,10 @@ const formatFileSize = (size: number) => {
     return '0 B';
   }
   const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-  const index = Math.min(Math.floor(Math.log(size) / Math.log(1024)), units.length - 1);
+  const index = Math.min(
+    Math.floor(Math.log(size) / Math.log(1024)),
+    units.length - 1,
+  );
   const value = size / 1024 ** index;
   return `${value.toFixed(index === 0 ? 0 : 1)} ${units[index]}`;
 };
@@ -104,9 +125,13 @@ function KnowledgeBaseDetail() {
   const [page, setPage] = useState(1);
   const [size, setSize] = useState(PAGE_SIZE);
   const [hasMore, setHasMore] = useState(false);
-  const [selectedItem, setSelectedItem] = useState<KnowledgeBaseItem | null>(null);
+  const [selectedItem, setSelectedItem] = useState<KnowledgeBaseItem | null>(
+    null,
+  );
   const [search, setSearch] = useState('');
-  const [searchResults, setSearchResults] = useState<SearchKnowledgeBaseItemResult[]>([]);
+  const [searchResults, setSearchResults] = useState<
+    SearchKnowledgeBaseItemResult[]
+  >([]);
   const [searchDialogOpen, setSearchDialogOpen] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState('');
@@ -115,9 +140,12 @@ function KnowledgeBaseDetail() {
   const [importingFiles, setImportingFiles] = useState(false);
   const [fileImportError, setFileImportError] = useState('');
   const [selectedFiles, setSelectedFiles] = useState<SelectedImportFile[]>([]);
-  const [pendingDeleteItem, setPendingDeleteItem] = useState<KnowledgeBaseItem | null>(null);
+  const [pendingDeleteItem, setPendingDeleteItem] =
+    useState<KnowledgeBaseItem | null>(null);
   const [deletingItem, setDeletingItem] = useState(false);
-  const getStateVariant = (state?: string): 'default' | 'secondary' | 'destructive' | 'outline' => {
+  const getStateVariant = (
+    state?: string,
+  ): 'default' | 'secondary' | 'destructive' | 'outline' => {
     if (state === 'completed') {
       return 'default';
     }
@@ -152,12 +180,15 @@ function KnowledgeBaseDetail() {
     }
     setItemsLoading(true);
     try {
-      const data = await window.electron.knowledgeBase.getKnowledgeBaseItems(id, {
-        page: targetPage,
-        size: PAGE_SIZE,
-        sort: 'updatedAt',
-        order: 'DESC',
-      });
+      const data = await window.electron.knowledgeBase.getKnowledgeBaseItems(
+        id,
+        {
+          page: targetPage,
+          size: PAGE_SIZE,
+          sort: 'updatedAt',
+          order: 'DESC',
+        },
+      );
       setItems(data.items || []);
       setTotal(data.total || 0);
       setPage(data.page || targetPage);
@@ -219,11 +250,16 @@ function KnowledgeBaseDetail() {
     setSearchError('');
     setSearchDialogOpen(true);
     try {
-      const data = await window.electron.knowledgeBase.searchKnowledgeBase(id, trimmedQuery);
+      const data = await window.electron.knowledgeBase.searchKnowledgeBase(
+        id,
+        trimmedQuery,
+      );
       setSearchResults(data.results);
     } catch (error) {
       setSearchResults([]);
-      setSearchError(error instanceof Error ? error.message : t('common.error'));
+      setSearchError(
+        error instanceof Error ? error.message : t('common.error'),
+      );
     } finally {
       setSearchLoading(false);
     }
@@ -282,14 +318,16 @@ function KnowledgeBaseDetail() {
     try {
       await window.electron.knowledgeBase.importSource({
         kbId: id,
-        source: { files: selectedFiles.map(x => x.path) },
+        source: { files: selectedFiles.map((x) => x.path) },
         type: KnowledgeBaseSourceType.File,
       });
       setFileDialogOpen(false);
       resetFileImportDialog();
       await loadItems(1);
     } catch (error) {
-      setFileImportError(error instanceof Error ? error.message : t('common.error'));
+      setFileImportError(
+        error instanceof Error ? error.message : t('common.error'),
+      );
     } finally {
       setImportingFiles(false);
     }
@@ -301,7 +339,9 @@ function KnowledgeBaseDetail() {
     }
     setDeletingItem(true);
     try {
-      await window.electron.knowledgeBase.deleteKnowledgeBaseItem(pendingDeleteItem.id);
+      await window.electron.knowledgeBase.deleteKnowledgeBaseItem(
+        pendingDeleteItem.id,
+      );
       if (selectedItem?.id === pendingDeleteItem.id) {
         setSelectedItem(null);
       }
@@ -317,7 +357,9 @@ function KnowledgeBaseDetail() {
 
   return (
     <div className="p-4 flex flex-col gap-2 flex-1 min-h-0">
-      <Badge variant="secondary">@{kb?.embeddingModel}[{kb?.vectorLength}]</Badge>
+      <Badge variant="secondary">
+        @{kb?.embeddingModel}[{kb?.vectorLength}]
+      </Badge>
       <div className="flex flex-row gap-2">
         <Dialog>
           <DialogTrigger asChild>
@@ -376,7 +418,7 @@ function KnowledgeBaseDetail() {
               <ItemContent>{t('knowledge-base.add_text')}</ItemContent>
             </Item>
           </DialogTrigger>
-          <DialogContent >
+          <DialogContent>
             <DialogHeader>
               <DialogTitle>{t('knowledge-base.add_text')}</DialogTitle>
             </DialogHeader>
@@ -395,7 +437,12 @@ function KnowledgeBaseDetail() {
                       render={({ field }) => (
                         <Field>
                           <FieldContent className="">
-                            <Textarea id="content" name="content" {...field} className='whitespace-pre-wrap break-all  max-h-[300px] overflow-y-auto' />
+                            <Textarea
+                              id="content"
+                              name="content"
+                              {...field}
+                              className="whitespace-pre-wrap break-all  max-h-[300px] overflow-y-auto"
+                            />
                           </FieldContent>
                         </Field>
                       )}
@@ -444,10 +491,11 @@ function KnowledgeBaseDetail() {
               }}
             />
             <div
-              className={`rounded-md border border-dashed p-6 text-center cursor-pointer transition-colors ${draggingFiles
-                ? 'border-primary bg-primary/5'
-                : 'border-muted-foreground/40 hover:border-primary/60'
-                }`}
+              className={`rounded-md border border-dashed p-6 text-center cursor-pointer transition-colors ${
+                draggingFiles
+                  ? 'border-primary bg-primary/5'
+                  : 'border-muted-foreground/40 hover:border-primary/60'
+              }`}
               onClick={() => fileInputRef.current?.click()}
               onDragEnter={(event) => {
                 event.preventDefault();
@@ -469,13 +517,19 @@ function KnowledgeBaseDetail() {
             >
               <div className="flex flex-col items-center gap-2">
                 <IconFile className="size-6 text-muted-foreground" />
-                <div className="text-sm font-medium">Drag files here or click to choose</div>
-                <div className="text-xs text-muted-foreground">You can select multiple files at once</div>
+                <div className="text-sm font-medium">
+                  Drag files here or click to choose
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  You can select multiple files at once
+                </div>
               </div>
             </div>
             <div className="space-y-2 max-h-[220px] overflow-y-auto">
               {selectedFiles.length === 0 ? (
-                <div className="text-xs text-muted-foreground">{t('common.no_data')}</div>
+                <div className="text-xs text-muted-foreground">
+                  {t('common.no_data')}
+                </div>
               ) : (
                 selectedFiles.map((file) => (
                   <div
@@ -484,16 +538,22 @@ function KnowledgeBaseDetail() {
                   >
                     <div className="flex min-w-0 flex-col">
                       <span className="truncate text-sm">{file.name}</span>
-                      <span className="truncate text-xs text-muted-foreground">{file.path}</span>
+                      <span className="truncate text-xs text-muted-foreground">
+                        {file.path}
+                      </span>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-xs text-muted-foreground">{formatFileSize(file.size)}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {formatFileSize(file.size)}
+                      </span>
                       <Button
                         type="button"
                         size="sm"
                         variant="ghost"
                         onClick={() => {
-                          setSelectedFiles((prev) => prev.filter((x) => x.path !== file.path));
+                          setSelectedFiles((prev) =>
+                            prev.filter((x) => x.path !== file.path),
+                          );
                         }}
                       >
                         {t('common.delete')}
@@ -504,7 +564,9 @@ function KnowledgeBaseDetail() {
               )}
             </div>
             {fileImportError && (
-              <div className="text-sm text-destructive break-all">{fileImportError}</div>
+              <div className="text-sm text-destructive break-all">
+                {fileImportError}
+              </div>
             )}
             <DialogFooter>
               <Button
@@ -546,16 +608,19 @@ function KnowledgeBaseDetail() {
         </InputGroup>
       </div>
       <div className="flex flex-col gap-2 mt-2 flex-1 overflow-y-auto">
-
         {itemsLoading ? (
-          <div className="text-sm text-muted-foreground">{t('common.loading')}</div>
+          <div className="text-sm text-muted-foreground">
+            {t('common.loading')}
+          </div>
         ) : items.length === 0 ? (
-          <div className="text-sm text-muted-foreground">{t('common.no_data')}</div>
+          <div className="text-sm text-muted-foreground">
+            {t('common.no_data')}
+          </div>
         ) : (
           items.map((item) => (
             <Item key={item.id} variant="outline" className="">
               {/* <ItemHeader className="w-full">
-                
+
                 <div className="flex items-center gap-2">
                   <Badge variant="outline">{getSourceTypeLabel(item.sourceType)}</Badge>
                   <Badge variant={getStateVariant(item.state)}>{item.state || '-'}</Badge>
@@ -563,17 +628,28 @@ function KnowledgeBaseDetail() {
               </ItemHeader> */}
               <ItemContent className="w-full gap-2">
                 <ItemTitle className="max-w-[60%] truncate flex items-center gap-2">
-                  <Badge variant="outline">{getSourceTypeLabel(item.sourceType)}</Badge>
-                  <button
-                    type="button"
-                    className="truncate cursor-pointer hover:underline text-left"
+                  {item.state === KnowledgeBaseItemState.Completed && (
+                    <IconCheck className="size-4 text-green-500" />
+                  )}
+                  {item.state === KnowledgeBaseItemState.Fail && (
+                    <IconAlertCircle className="size-4 text-red-500" />
+                  )}
+                  {item.state === KnowledgeBaseItemState.Pending && (
+                    <IconClock className="size-4 text-yellow-500" />
+                  )}
+                  <Badge variant="outline">
+                    {getSourceTypeLabel(item.sourceType)}
+                  </Badge>
+                  <Button
+                    variant="link"
+                    className="truncate cursor-pointer text-left"
                     onClick={() => {
-                      console.log(item)
-                      setSelectedItem(item)
+                      console.log(item);
+                      setSelectedItem(item);
                     }}
                   >
                     {item.name || item.source || '-'}
-                  </button>
+                  </Button>
                 </ItemTitle>
                 <ItemDescription className="line-clamp-2 break-all text-xs">
                   {item.content || item.source || '-'}
@@ -603,13 +679,17 @@ function KnowledgeBaseDetail() {
         <span className="text-xs text-muted-foreground text-center">
           total {total} items
         </span>
-        <div className='flex-1'>
-          <Pagination className='justify-end'>
+        <div className="flex-1">
+          <Pagination className="justify-end">
             <PaginationContent>
               <PaginationItem>
                 <PaginationPrevious
                   href="#"
-                  className={itemsLoading || page <= 1 ? 'pointer-events-none opacity-50' : ''}
+                  className={
+                    itemsLoading || page <= 1
+                      ? 'pointer-events-none opacity-50'
+                      : ''
+                  }
                   onClick={(event) => {
                     event.preventDefault();
                     if (itemsLoading || page <= 1) {
@@ -620,14 +700,22 @@ function KnowledgeBaseDetail() {
                 />
               </PaginationItem>
               <PaginationItem>
-                <PaginationLink href="#" isActive onClick={(event) => event.preventDefault()}>
+                <PaginationLink
+                  href="#"
+                  isActive
+                  onClick={(event) => event.preventDefault()}
+                >
                   {page}
                 </PaginationLink>
               </PaginationItem>
               <PaginationItem>
                 <PaginationNext
                   href="#"
-                  className={itemsLoading || !hasMore ? 'pointer-events-none opacity-50' : ''}
+                  className={
+                    itemsLoading || !hasMore
+                      ? 'pointer-events-none opacity-50'
+                      : ''
+                  }
                   onClick={(event) => {
                     event.preventDefault();
                     if (itemsLoading || !hasMore) {
@@ -640,7 +728,6 @@ function KnowledgeBaseDetail() {
             </PaginationContent>
           </Pagination>
         </div>
-
       </div>
       <AlertDialog
         open={Boolean(pendingDeleteItem)}
@@ -658,7 +745,9 @@ function KnowledgeBaseDetail() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deletingItem}>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogCancel disabled={deletingItem}>
+              {t('common.cancel')}
+            </AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive hover:bg-destructive/90"
               onClick={async (event) => {
@@ -678,11 +767,17 @@ function KnowledgeBaseDetail() {
           </DialogHeader>
           <div className="max-h-[60vh] space-y-2 overflow-y-auto">
             {searchLoading ? (
-              <div className="text-sm text-muted-foreground">{t('common.loading')}</div>
+              <div className="text-sm text-muted-foreground">
+                {t('common.loading')}
+              </div>
             ) : searchError ? (
-              <div className="text-sm text-destructive break-all">{searchError}</div>
+              <div className="text-sm text-destructive break-all">
+                {searchError}
+              </div>
             ) : searchResults.length === 0 ? (
-              <div className="text-sm text-muted-foreground">{t('common.no_data')}</div>
+              <div className="text-sm text-muted-foreground">
+                {t('common.no_data')}
+              </div>
             ) : (
               searchResults.map((result, index) => (
                 <Item
@@ -695,16 +790,16 @@ function KnowledgeBaseDetail() {
                       <ItemTitle className="text-sm break-all">
                         {String(result.itemId || result.id || '-')}
                       </ItemTitle>
-                      <div className='flex items-center gap-2'>
+                      <div className="flex items-center gap-2">
                         <Badge variant="secondary">
                           score: {formatSearchScore(result.score)}
                         </Badge>
                         {result.rerankScore && (
                           <Badge variant="secondary">
                             score: {formatSearchScore(result.rerankScore)}
-                          </Badge>)}
+                          </Badge>
+                        )}
                       </div>
-
                     </div>
                     <pre className="bg-secondary rounded-md p-2 text-xs whitespace-pre-wrap break-all">
                       {formatSearchResult(result)}
@@ -735,13 +830,29 @@ function KnowledgeBaseDetail() {
               </Badge>
             </SheetTitle>
             <SheetDescription>
-              {selectedItem?.sourceType === KnowledgeBaseSourceType.Web && <Button variant="link" onClick={() => {
-                window.open(selectedItem?.source?.url, '_blank');
-              }}>{selectedItem?.source?.url}</Button>}
-              {selectedItem?.sourceType === KnowledgeBaseSourceType.File && selectedItem?.source && <Button variant="link" onClick={() => {
-                window.electron.app.openPath(selectedItem?.source as string);
-              }}>{selectedItem?.source}</Button>}
-
+              {selectedItem?.sourceType === KnowledgeBaseSourceType.Web && (
+                <Button
+                  variant="link"
+                  onClick={() => {
+                    window.open(selectedItem?.source?.url, '_blank');
+                  }}
+                >
+                  {selectedItem?.source?.url}
+                </Button>
+              )}
+              {selectedItem?.sourceType === KnowledgeBaseSourceType.File &&
+                selectedItem?.source && (
+                  <Button
+                    variant="link"
+                    onClick={() => {
+                      window.electron.app.openPath(
+                        selectedItem?.source as string,
+                      );
+                    }}
+                  >
+                    {selectedItem?.source}
+                  </Button>
+                )}
             </SheetDescription>
           </SheetHeader>
           <div className="space-y-2 px-4 pb-4 overflow-y-auto ">
@@ -754,9 +865,7 @@ function KnowledgeBaseDetail() {
                 <TabsTrigger value="text">Text</TabsTrigger>
               </TabsList>
               <TabsContent value="markdown">
-                <Streamdown
-                  className="bg-secondary p-4 rounded-2xl text-wrap break-all whitespace-pre-wrap text-sm"
-                >
+                <Streamdown className="bg-secondary p-4 rounded-2xl text-wrap break-all whitespace-pre-wrap text-sm">
                   {selectedItem?.content}
                 </Streamdown>
               </TabsContent>
@@ -766,8 +875,6 @@ function KnowledgeBaseDetail() {
                 </pre>
               </TabsContent>
             </Tabs>
-
-
           </div>
         </SheetContent>
       </Sheet>

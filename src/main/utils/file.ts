@@ -84,3 +84,4 @@ export const imageToBase64 = async (filePath: string): Promise<string> => {
   const data = await fs.promises.readFile(filePath);
   return data.toString('base64');
 };
+

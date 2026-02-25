@@ -44,6 +44,7 @@ import { BraveSearchProvider } from './brave-search-provider';
 import { TavilyProvider } from './tavily-provider';
 import { appManager } from '../app';
 import { SerpapiProvider } from './serpapi-provider';
+import { MineruProvider } from './mineru-provider';
 const modelsData = require('../../../assets/models.json');
 class ProvidersManager extends BaseManager {
   repository: Repository<Providers>;
@@ -93,7 +94,10 @@ class ProvidersManager extends BaseManager {
           {
             id: ProviderType.JINA_AI,
             name: 'Jina.ai',
-          },
+          }, {
+            id: ProviderType.MINERU,
+            name: 'MinerU',
+          }
         ],
       },
     ];
@@ -184,6 +188,8 @@ class ProvidersManager extends BaseManager {
       return this.getAvailableTranscriptionModels();
     } else if (type == ModelType.TTS) {
       return this.getAvailableSpeechModels();
+    } else if (type == ModelType.OCR) {
+      return this.getAvailableOcrModels();
     }
   }
 
@@ -635,11 +641,69 @@ class ProvidersManager extends BaseManager {
     return data;
   }
 
+  public async getAvailableOcrModels(): Promise<Provider[]> {
+    const providers = await this.repository.find({
+      where: {
+        isActive: true,
+      },
+    });
+    const data: Provider[] = [];
+    const localProvider = new LocalProvider();
+    const models = await localProvider.getOCRModelList();
+    if (models.length > 0) {
+      data.push({
+        id: localProvider.id,
+        name: localProvider.name,
+        type: ProviderType.LOCAL,
+        models: models.map((x) => ({
+          id: `${localProvider.id}/${x.id}`,
+          name: x.name,
+          providerType: ProviderType.LOCAL,
+          isActive: true,
+        })),
+      });
+    }
+
+    for (const providerData of providers) {
+      const provider = await this.getProvider(providerData.id);
+      if (provider) {
+        try {
+          const ocrModels = await provider.getOCRModelList();
+          if (ocrModels.length > 0) {
+            data.push({
+              id: providerData.id,
+              name: providerData.name,
+              type: providerData.type,
+              models: ocrModels
+                .map((x) => ({
+                  id: `${providerData.id}/${x.id}`,
+                  name: x.name,
+                  providerType: providerData.type,
+                  isActive: true,
+                }))
+                .sort((a, b) => b.name.localeCompare(a.name)),
+            });
+          }
+        } catch { }
+      }
+    }
+
+    return data;
+  }
+
 
   public async getProvider(id: string): Promise<BaseProvider | undefined> {
-    const provider = await this.repository.findOneBy({ id });
+
+    let _id = id
+    if (id.includes('/')) {
+      _id = id.split('/')[0];
+
+    }
+
+
+    const provider = await this.repository.findOneBy({ id: _id });
     if (!provider) {
-      if (id === ProviderType.LOCAL) {
+      if (_id === ProviderType.LOCAL) {
         return new LocalProvider();
       }
       return;
@@ -667,6 +731,8 @@ class ProvidersManager extends BaseManager {
         return new TavilyProvider(provider);
       case ProviderType.SERPAPI:
         return new SerpapiProvider(provider);
+      case ProviderType.MINERU:
+        return new MineruProvider(provider);
     }
   }
 

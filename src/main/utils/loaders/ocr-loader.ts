@@ -11,9 +11,11 @@ import { createHash, randomUUID } from 'crypto';
 import readline from 'readline';
 import fg from 'fast-glob';
 import { RuntimeInfo } from '@/types/app';
+import { providersManager } from '@/main/providers';
 
 export type OcrLoaderOptions = {
-  mode: 'auto' | 'system' | 'paddleocr' | 'mineru-api';
+  modelId?: string;
+  // mode: 'auto' | 'system' | 'paddleocr' | 'mineru-api';
   splitPages?: boolean;
 };
 
@@ -191,13 +193,13 @@ async function ensureRuntimeFile(): Promise<string> {
   return runtimeFile;
 }
 
-async function getPaddleOcrPythonService(): Promise<{
+export async function getPaddleOcrPythonService(): Promise<{
   recognize: (
     buffer: ArrayBufferLike,
     options?: {
       noCache?: boolean;
       ext?: string;
-      mode?: RuntimeInfo['paddleOcr']['mode'];
+      modelId?: string;
     },
   ) => Promise<{ text: string; result: any }>;
 }> {
@@ -227,12 +229,20 @@ async function getPaddleOcrPythonService(): Promise<{
 
   const isWindows = process.platform === 'win32';
   const uvBin = path.join(uvRuntime.dir, isWindows ? 'uv.exe' : 'uv');
+  const env = {}
 
+  if (appManager.appProxy?.host && appManager.appProxy?.port) {
+    env['HTTP_PROXY'] =
+      `http://${appManager.appProxy.host}:${appManager.appProxy.port}`;
+    env['HTTPS_PROXY'] =
+      `http://${appManager.appProxy.host}:${appManager.appProxy.port}`;
+  }
   // 创建 Python 客户端
   pythonClient = createPythonClient({
     command: uvBin,
     args: ['run', '--project', runtimeDir, 'python', 'main.py'],
     cwd: runtimeDir,
+    env: env
   });
 
   paddleOcrService = {
@@ -241,11 +251,11 @@ async function getPaddleOcrPythonService(): Promise<{
       options: {
         noCache?: boolean;
         ext?: string;
-        mode?: RuntimeInfo['paddleOcr']['mode'];
+        modelId: string;
       } = {
           noCache: false,
           ext: '',
-          mode: 'default',
+          modelId: 'paddleocr-vl',
         },
     ): Promise<{ text: string; result: any }> => {
       // 计算 buffer 的 MD5 作为文件名
@@ -298,7 +308,7 @@ async function getPaddleOcrPythonService(): Promise<{
         save_json: true,
         save_markdown: true,
         device: 'cpu',
-        mode: options?.mode || 'default',
+        model_id: options?.modelId || 'paddleocr-vl',
       });
 
       // 读取生成的 markdown 文件
@@ -339,25 +349,29 @@ export class OcrLoader extends BaseLoader {
 
   constructor(filePathOrBlob: string | Blob, options?: OcrLoaderOptions) {
     super(filePathOrBlob);
-    this.options = { mode: 'auto', ...(options ?? {}) };
+    this.options = { ...(options ?? {}) };
   }
 
   async parse(raw: Buffer, metadata: Record<string, any>): Promise<any> {
-    let mode = this.options.mode;
+    let modelId = this.options.modelId;
+    const appInfo = await appManager.getInfo();
+    const defaultOcr = appInfo.defaultModel.ocrModel;
+    const provider = await providersManager.getProvider(modelId || defaultOcr);
+
     const paddleOcrRuntime = await getPaddleOcrRuntime();
-    if (this.options.mode === 'auto') {
+    if (!modelId) {
       if (paddleOcrRuntime.status === 'installed') {
-        mode = 'paddleocr';
+        modelId = 'paddleocr';
       } else {
-        mode = 'system';
+        modelId = 'system';
       }
     }
-    if (mode === 'system') {
+    if (modelId === 'system') {
       const result = await recognize(raw, OcrAccuracy.Accurate);
       return result.text;
     }
 
-    if (mode === 'paddleocr') {
+    if (modelId === 'paddleocr') {
       const service = await getPaddleOcrPythonService();
       const result = await service.recognize(raw.buffer, {
         noCache: false,

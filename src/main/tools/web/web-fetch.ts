@@ -16,6 +16,7 @@ import { appManager } from '@/main/app';
 import { instancesManager } from '@/main/instances';
 import { JinaAIProvider } from '@/main/providers/jinaai-provider';
 import { Agent } from '@mastra/core/agent';
+import { saveFile } from '@/main/utils/file';
 export interface WebFetchParams extends BaseToolParams {
   providerId?: string;
 }
@@ -61,6 +62,8 @@ Usage notes:
   ) => {
     const { url, prompt } = inputData;
     const config = this.config;
+    const { requestContext } = options;
+    const workspace = requestContext.get('workspace' as never) as string;
     const providerId = config?.providerId || ProviderType.LOCAL;
     const provider = await providersManager.getProvider(providerId);
     let content = '';
@@ -192,6 +195,7 @@ Usage notes:
       const languageModel = await providersManager.getLanguageModel(
         fastModel || model || defaultModel,
       );
+      const filePath = await saveFile(Buffer.from(content, 'utf-8'), path.join('.aime-chat', 'web-fetch-results', `${nanoid()}.txt`), workspace);
       const summaryAgent = new Agent({
         id: 'web-content-agent',
         name: 'WebContentAgent',
@@ -222,7 +226,8 @@ ${content}
       ], {
         abortSignal: options?.abortSignal,
       });
-      return result.text;
+      return `<system-reminder>This web fetch result full text is saved to: ${filePath}</system-reminder>
+${result.text}`;
     }
     return content;
   };

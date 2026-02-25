@@ -143,6 +143,7 @@ export const AskUserQuestionMessage = React.forwardRef<
                             value={option.label}
                             id={option.label}
                             aria-label={option.label}
+                            className="flex flex-row gap-1 flex-wrap whitespace-pre-wrap text-left h-auto items-center justify-start"
                           >
                             {selectedOptions[question.question]?.includes(
                               option?.label,
@@ -155,7 +156,7 @@ export const AskUserQuestionMessage = React.forwardRef<
                             ) && <IconSquare></IconSquare>}
 
                             {option?.label}
-                            <small className="text-muted-foreground text-xs">
+                            <small className="text-muted-foreground text-xs whitespace-pre-wrap text-left">
                               {option?.description}
                             </small>
                           </ToggleGroupItem>

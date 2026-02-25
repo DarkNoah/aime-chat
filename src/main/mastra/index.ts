@@ -95,6 +95,7 @@ import { Agents } from '@/entities/agents';
 import { Project } from '@/types/project';
 import { TodoWrite } from '../tools/common/todo-write';
 import { TaskCreate, TaskList } from '../tools/common/task';
+import { formatCodeWithLineNumbers } from '../utils/format';
 
 class MastraManager extends BaseManager {
   app: express.Application;
@@ -513,6 +514,20 @@ class MastraManager extends BaseManager {
         'maxContextSize',
         modelInfo?.limit?.context ?? 64 * 1000,
       );
+
+      let additionalInstructions;
+      const agentsMdPath = path.join(workspace, `AGENTS.md`);
+      if (fs.existsSync(agentsMdPath) && fs.statSync(agentsMdPath).isFile()) {
+        const agentsMd = fs.readFileSync(agentsMdPath, 'utf-8');
+        if (agentsMd) {
+          additionalInstructions = `
+<system-reminder>
+Note: ${agentsMdPath} was modified, either by the user or by a linter. Don't tell the user this, since they are already aware. This change was intentional, so make sure to take it into account as you proceed (ie. don't revert it unless the user asks you to). So that you don't need to re-read the file, here's the result of running \`cat - n\` on a snippet of the edited file:
+${formatCodeWithLineNumbers({ content: agentsMd, startLine: 0 })}
+</system-reminder>`;
+          requestContext.set('additionalInstructions', additionalInstructions);
+        }
+      }
 
       agent = await agentManager.buildAgent(agentId, {
         modelId: model,

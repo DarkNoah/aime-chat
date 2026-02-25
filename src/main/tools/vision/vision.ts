@@ -1,4 +1,4 @@
-import { ImagePart, TextPart, tool } from 'ai';
+import { ImagePart, TextPart, tool, ToolCallOptions } from 'ai';
 import { z } from 'zod';
 import { isUrl } from '@/utils/is';
 import { downloadFile, saveFile } from '@/main/utils/file';
@@ -19,6 +19,11 @@ import { Agent } from '@mastra/core/agent';
 import { OcrLoader } from '@/main/utils/loaders/ocr-loader';
 import { MessagePart } from '@mastra/core/processors';
 import { appManager } from '@/main/app';
+import { AudioLoader } from '@/main/utils/loaders/audio-loader';
+import { SpeechToText } from '../audio';
+import { convertToWav } from '@/main/utils/convertToWav';
+import { randomUUID } from 'crypto';
+import { app } from 'electron';
 
 const inputSchema = z.strictObject({
   url_or_file_path: z.string(),
@@ -135,6 +140,16 @@ Returns:
     prompt: z.string().optional().describe('A text prompt describing what you want to analyze or extract from the image.'),
   });
 
+  // outputSchema = z.array(
+  //   z.object({
+  //     type: z.enum(['image_url', 'text']),
+  //     text: z.string().optional(),
+  //     image_url: z.object({
+  //       url: z.string(),
+  //     }).optional(),
+  //   }),
+  // )
+
   format: 'ai-sdk' = 'ai-sdk';
   configSchema = ToolConfig.Vision.configSchema;
   modelId?: string;
@@ -173,6 +188,12 @@ Returns:
 
 
     const mimeType = mime.lookup(file_path);
+    // return [{
+    //   type: 'image_url',
+    //   image_url: {
+    //     url: `data:${mimeType};base64,${fs.readFileSync(file_path).toString('base64')}`,
+    //   },
+    // }]
     const provider = await providersManager.getProvider(this.modelId?.split('/')[0]);
     if (mimeType.startsWith('image/')) {
       let ocr
@@ -258,6 +279,24 @@ ${ocr}
 `
       }
       throw new Error('Failed to analyze image');
+    }
+    else if (mimeType.startsWith('video/')) {
+      let asr
+      let tempAudioPath
+      try {
+        const outputPath = path.join(app.getPath('temp'), `stt-${randomUUID()}.wav`);
+        const tempAudioPath = await convertToWav(source, outputPath);
+
+        const loader = new AudioLoader(tempAudioPath, { outputType: 'asr' });
+        const content = await loader.load();
+        asr = content;
+      } catch {
+
+      } finally {
+        await fs.promises.rm(tempAudioPath, { recursive: true })
+      }
+    } else {
+      throw new Error('Unsupported file type');
     }
     return {
       content: [

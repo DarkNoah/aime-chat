@@ -27,6 +27,8 @@ import { appManager } from '@/main/app';
 import fs from 'fs';
 import path from 'path';
 import { getSkills } from '@/main/utils/skills';
+import { formatCodeWithLineNumbers } from '@/main/utils/format';
+import { isString } from '@/utils/is';
 
 type BuiltInAgent = BaseAgent & {
   classType: any;
@@ -170,10 +172,22 @@ class AgentManager extends BaseManager {
 
     const storage = getStorage();
 
+    let instructions = builtInAgent?.instructions ?? agentEntity.instructions;
+
+
+    const additionalInstructions = params?.requestContext?.get('additionalInstructions')
+    if (isString(instructions) && additionalInstructions) {
+      instructions = instructions + `\n\n
+<system-reminder>
+${additionalInstructions}
+</system-reminder>`;
+    }
+
+
     const agent = new MastraAgent({
       id: builtInAgent?.id ?? agentEntity.id,
       name: builtInAgent?.name ?? agentEntity.name,
-      instructions: builtInAgent?.instructions ?? agentEntity.instructions,
+      instructions: instructions,
       description: builtInAgent?.description ?? agentEntity.description,
       model: await providersManager.getLanguageModel(params?.modelId),
       memory: new Memory({

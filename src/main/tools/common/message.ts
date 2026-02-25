@@ -10,10 +10,10 @@ import { appManager } from '@/main/app';
 import { ChatEvent } from '@/types/chat';
 import { isArray, isString } from '@/utils/is';
 
-export class SendEvent extends BaseTool {
-  static readonly toolName = 'SendEvent';
-  id: string = 'SendEvent';
-  description = `Send an event to the user interface, used to display files, folders, or web preview in the chat message.
+export class Message extends BaseTool {
+  static readonly toolName = 'Message';
+  id: string = 'Message';
+  description = `Send a message event to the user, used to display files, folders, or web preview, get use select result in the chat message.
 
 Usage notes:
  - Use "web_preview" event to send a web preview url event to the web preview panel, example: {"url": "http://localhost:3000"}
@@ -21,7 +21,7 @@ Usage notes:
  - Use this tool when you want to display generated files, created files, or any file results to the user in the chat message.
   `;
   inputSchema = z.object({
-    event: z.enum(['canvas', 'web_preview', 'files_preview']),
+    event: z.enum(['web_preview', 'files_preview', 'get_user_result']),
     data: z.string().describe('must be a JSON string'),
   });
 
