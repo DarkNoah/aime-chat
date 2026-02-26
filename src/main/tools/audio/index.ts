@@ -821,8 +821,15 @@ Output types:
       // -----------------------------------------------------------------
       // 4. Format output based on output_type
       // -----------------------------------------------------------------
+      let system_reminder = '';
+      if (result.durationInSeconds) {
+        system_reminder = `<system-reminder>This audio file duration is ${result.durationInSeconds?.toFixed(2)}s.</system-reminder>`;
+      }
       if (output_type === 'text') {
-        return text;
+        return `${system_reminder}
+<transcription-text>
+${text}
+</transcription-text>`;
       }
 
       if (output_type === 'srt') {
@@ -839,7 +846,8 @@ Output types:
           fileName,
           workspace,
         );
-        return `<file>${filePath}</file>`;
+        return `${system_reminder}
+File saved to: <file>${filePath}</file>`;
       }
 
       if (output_type === 'ass') {
@@ -860,7 +868,8 @@ Output types:
           fileName,
           workspace,
         );
-        return `<file>${filePath}</file>`;
+        return `${system_reminder}
+File saved to: <file>${filePath}</file>`;
       }
 
       return text;
