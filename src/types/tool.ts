@@ -36,6 +36,20 @@ export enum ToolEvent {
   ToolListUpdated = 'tool:tool-list-updated',
 }
 export const ToolConfig = {
+  Read: {
+    configSchema: z.strictObject({
+      forcePDFOcr: z.boolean().optional().default(true),
+      forceWordOcr: z.boolean().optional().default(true),
+    }),
+    uiSchema: {
+      forcePDFOcr: {
+        'ui:title': t('common.force_pdf_ocr'),
+      },
+      forceWordOcr: {
+        'ui:title': t('common.force_word_ocr'),
+      },
+    },
+  },
   SpeechToText: {
     configSchema: z.strictObject({
       modelId: z.string(),

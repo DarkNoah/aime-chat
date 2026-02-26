@@ -27,7 +27,7 @@ import type {
 } from '@ai-sdk/provider';
 // import { toAISdkV5Messages } from '@mastra/ai-sdk';
 
-import { toAISdkFormat } from '@mastra/ai-sdk';
+import { toAISdkFormat, toAISdkStream } from '@mastra/ai-sdk';
 // import { RuntimeContext } from '@mastra/core';
 import { RequestContext } from '@mastra/core/request-context';
 import { providersManager } from '../providers';
@@ -63,6 +63,7 @@ import { ToolType } from '@/types/tool';
 import {
   convertMastraChunkToAISDKv5,
   MastraModelOutput,
+  //MastraModelOutput,
   WorkflowRunOutput,
 } from '@mastra/core/stream';
 import { chatWorkflow, claudeCodeWorkflow } from './workflow';
@@ -95,6 +96,7 @@ import { Agents } from '@/entities/agents';
 import { Project } from '@/types/project';
 import { TodoWrite } from '../tools/common/todo-write';
 import { TaskCreate, TaskList } from '../tools/common/task';
+import { formatCodeWithLineNumbers } from '../utils/format';
 
 class MastraManager extends BaseManager {
   app: express.Application;
@@ -228,10 +230,12 @@ class MastraManager extends BaseManager {
     const storage = this.mastra.getStorage();
     const memory = await storage.getStore('memory');
 
-    const threads = await memory?.listThreadsByResourceId({
+    const threads = await memory?.listThreads({
       page: page,
       perPage: size,
-      resourceId: resourceId,
+      filter: {
+        resourceId: resourceId,
+      },
       orderBy: { field: 'updatedAt', direction: 'DESC' },
     });
     return {
@@ -249,18 +253,18 @@ class MastraManager extends BaseManager {
     const memoryStore = await storage.getStore('memory');
     const thread = await memoryStore?.getThreadById({ threadId: id });
 
-    const memory = new Memory({
-      storage: storage,
-      options: {
-        generateTitle: false,
-        semanticRecall: false,
-        workingMemory: {
-          enabled: false,
-        },
-        lastMessages: false,
-      },
-      vector: getVectorStore(),
-    });
+    // const memory = new Memory({
+    //   storage: storage,
+    //   options: {
+    //     generateTitle: false,
+    //     semanticRecall: false,
+    //     workingMemory: {
+    //       enabled: false,
+    //     },
+    //     lastMessages: false,
+    //   },
+    //   vector: getVectorStore(),
+    // });
     // const messagesDb = await memory.recall({ threadId: id, resourceId: '123' });
 
     const messages = await memoryStore.listMessages({
@@ -427,6 +431,7 @@ class MastraManager extends BaseManager {
       resumeData,
     } = data;
     let { model } = data;
+    console.log('Chat Input', data);
     const storage = this.mastra.getStorage();
 
     let resourceId = DEFAULT_RESOURCE_ID;
@@ -469,7 +474,7 @@ class MastraManager extends BaseManager {
     const { providerId, modelId, providerType, modelInfo } =
       await providersManager.getModelInfo(model);
 
-    let stream: MastraModelOutput;
+    let stream: MastraModelOutput<unknown>;
     let agent: Agent;
     try {
       // const info = modelsData[provider.type]?.models[_modeId] || {};
@@ -513,6 +518,20 @@ class MastraManager extends BaseManager {
         'maxContextSize',
         modelInfo?.limit?.context ?? 64 * 1000,
       );
+
+      let additionalInstructions;
+      const agentsMdPath = path.join(workspace, `AGENTS.md`);
+      if (fs.existsSync(agentsMdPath) && fs.statSync(agentsMdPath).isFile()) {
+        const agentsMd = fs.readFileSync(agentsMdPath, 'utf-8');
+        if (agentsMd) {
+          additionalInstructions = `
+<system-reminder>
+Note: ${agentsMdPath} was modified, either by the user or by a linter. Don't tell the user this, since they are already aware. This change was intentional, so make sure to take it into account as you proceed (ie. don't revert it unless the user asks you to). So that you don't need to re-read the file, here's the result of running \`cat - n\` on a snippet of the edited file:
+${formatCodeWithLineNumbers({ content: agentsMd, startLine: 0 })}
+</system-reminder>`;
+          requestContext.set('additionalInstructions', additionalInstructions);
+        }
+      }
 
       agent = await agentManager.buildAgent(agentId, {
         modelId: model,
@@ -571,7 +590,9 @@ class MastraManager extends BaseManager {
           },
         },
       };
-      let streamOptions: AgentExecutionOptions = {
+      let streamOptions: AgentExecutionOptions<undefined> = {
+        includeRawChunks: false,
+        structuredOutput: undefined,
         runId: runId,
         providerOptions: providerOptions,
         modelSettings: options?.modelSettings,
@@ -587,7 +608,7 @@ class MastraManager extends BaseManager {
             readOnly: false,
             lastMessages: false,
           },
-          readOnly: false,
+          // readOnly: false,
         },
         abortSignal: signal,
         savePerStep: true,
@@ -698,160 +719,7 @@ class MastraManager extends BaseManager {
           //const maxContextSize = requestContext.get('maxContextSize');
         },
         requireToolApproval: requireToolApproval,
-        prepareStep: async (options) => {
-          // const { messageList, systemMessages, messages } = options;
 
-          // const m = [];
-          // messages.forEach(message => {
-          //   console.log(message.createdAt.getTime())
-          //   if(message.content.parts.find(p=>p?.providerMetadata?.openai?.itemId)){
-          //     message.content.parts = message.content.parts.map(p => {
-          //       if (p?.providerMetadata?.openai?.itemId) {
-          //         return {
-          //           ...p,
-          //           providerMetadata: {
-          //             ...p.providerMetadata,
-          //             openai: {
-          //               ...p.providerMetadata?.openai,
-          //               itemId: undefined,
-          //             },
-          //           },
-          //         }
-          //       }
-          //       else if (p?.callProviderMetadata?.openai?.itemId) {
-          //         // return {
-          //         //   ...p,
-          //         //   callProviderMetadata: {
-          //         //     ...p.callProviderMetadata,
-          //         //     openai: {
-          //         //       ...p.callProviderMetadata?.openai,
-          //         //       itemId: undefined,
-          //         //     },
-          //         //   },
-          //         // }
-
-          //       }
-          //       return p;
-          //     });
-          //   }
-          //   m.push(message);
-          // });
-
-          //           inputMessage.forEach(message => {
-          //   if(message.parts.find(p=>p?.providerMetadata?.openai?.itemId)){
-          //     message.parts = message.parts.map(p=>{
-          //       if(p?.providerMetadata?.openai?.itemId){
-          //         return {
-          //           ...p,
-          //           providerMetadata: {
-          //             ...p.providerMetadata,
-          //             openai: undefined,
-          //           },
-          //         }
-          //       }
-          //       return p;
-          //     });
-          //   }
-          // });
-          return {};
-        },
-        // prepareStep: async (options) => {
-        //   // console.log('Prepare step:', options);
-        //   const instructions = await agent.getInstructions({
-        //     requestContext,
-        //   });
-        //   const system = await convertToInstructionContent(instructions);
-        //   let d = new Date();
-        //   const messages = [
-        //     { role: 'system', content: system } as SystemModelMessage,
-        //     ...options.messages,
-        //   ];
-        //   const maxContextSize = requestContext.get('maxContextSize');
-        //   const thresholdTokenCount = Math.floor(maxContextSize * 0.1);
-        //   const tools = await agent.listTools({ requestContext });
-
-        //   const { messages: compressedMessages, hasCompressed } =
-        //     await this.compressMessages(messages, tools, {
-        //       thresholdTokenCount,
-        //       requestContext,
-        //       model: fastLanguageModel,
-        //     });
-        //   if (hasCompressed) {
-        //     const lastUserMessageIndex = await getLastMessageIndex(
-        //       compressedMessages,
-        //       'user',
-        //     );
-        //     const compressedMessage = compressedMessages[1];
-        //     const lastUserMessage = compressedMessages[lastUserMessageIndex];
-
-        //     let todos: ChatTodo[] = [];
-        //     if (requestContext) {
-        //       todos = requestContext.get('todos');
-        //     }
-        //     if (isString(compressedMessage.content)) {
-        //       compressedMessage.content = [
-        //         { type: 'text', text: compressedMessage.content },
-        //       ];
-        //     }
-        //     let todosPart;
-        //     if (todos.length > 0) {
-        //       todosPart = {
-        //         type: 'text',
-        //         text: `<system-reminder>\nYour todo list has changed. DO NOT mention this explicitly to the user. Here are the latest contents of your todo list:\n\n${JSON.stringify(todos)}\n</system-reminder>`,
-        //       } as TextPart;
-        //     } else {
-        //       todosPart = {
-        //         type: 'text',
-        //         text: `<system-reminder>\nThis is a reminder that your todo list is currently empty. DO NOT mention this to the user explicitly because they are already aware. If you are working on tasks that would benefit from a todo list please use the TodoWrite tool to create one. If not, please feel free to ignore. Again do not mention this message to the user.\n</system-reminder>`,
-        //       };
-        //     }
-        //     (lastUserMessage.content as TextPart[]).push(todosPart);
-        //     const lastMessages = await storage.listMessages({
-        //       threadId: chatId,
-        //       resourceId: resourceId,
-        //       orderBy: {
-        //         field: 'createdAt',
-        //         direction: 'DESC',
-        //       },
-        //       page: 0,
-        //       perPage: 10,
-        //     });
-        //     const lastMessage =
-        //       lastMessages.messages.length > 0
-        //         ? lastMessages.messages[0]
-        //         : null;
-        //     await storage.saveMessages({
-        //       messages: [
-        //         {
-        //           id: nanoid(),
-        //           role: 'user',
-        //           threadId: chatId,
-        //           resourceId: resourceId,
-        //           createdAt: new Date(
-        //             (lastMessage?.createdAt?.getTime() ??
-        //               new Date().getTime()) - 1,
-        //           ),
-        //           type: 'v2',
-        //           content: {
-        //             format: 2,
-        //             parts: [
-        //               ...compressedMessage.content.map((x) => {
-        //                 return x;
-        //               }),
-        //             ],
-        //             metadata: {
-        //               compress: true,
-        //             },
-        //           },
-        //         },
-        //       ],
-        //     });
-        //   }
-        //   return {
-        //     system,
-        //     messages: compressedMessages.filter((x) => x.role != 'system'),
-        //   };
-        // },
       };
       // if (runId && (approved !== undefined || resumeData !== undefined)) {
       //   if (approved === true) {
@@ -1197,7 +1065,7 @@ class MastraManager extends BaseManager {
       'threadId' as never,
     ) as string;
     const runId = streamOptions.runId;
-    let stream: MastraModelOutput;
+    let stream: MastraModelOutput<unknown>;
 
     if (
       runId &&
@@ -1230,9 +1098,12 @@ class MastraManager extends BaseManager {
       console.log(inputMessage);
       stream = await agent.stream(inputMessage, streamOptions);
     }
-    const uiStream = toAISdkFormat(stream, {
+    const uiStream = toAISdkStream(stream, {
       from: 'agent',
       sendReasoning: false,
+      sendStart: false,
+      sendFinish: false
+      // lastMessageId: inputMessage[inputMessage.length - 1].id,
     });
 
     const uiStreamReader = uiStream.getReader();
@@ -1247,6 +1118,11 @@ class MastraManager extends BaseManager {
         data: JSON.stringify(value),
       });
     }
+
+    // appManager.sendEvent(`chat:event:${chatId}`, {
+    //   type: ChatEvent.ChatStepFinish,
+    //   data: undefined,
+    // });
     return stream;
   }
 

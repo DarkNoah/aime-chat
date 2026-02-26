@@ -91,6 +91,7 @@ export class BrowserInstance extends BaseInstance {
             args: [
               '--disable-blink-features=AutomationControlled',
               '--enable-webgl',
+              '--webrtc-ip-handling-policy=disable_non_proxied_udp'
             ],
             // channel: 'msedge',
             executablePath: this.instances?.config?.executablePath,

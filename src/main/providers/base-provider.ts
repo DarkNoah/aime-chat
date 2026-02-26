@@ -40,6 +40,14 @@ export type RerankModel = {
   }) => Promise<{ index: number; score: number; document: string }[]>;
 }
 
+export interface OCRModel {
+  readonly provider: string;
+  readonly modelId: string;
+  doOCR: (options: {
+    image: string
+  }) => Promise<string>;
+}
+
 export interface BaseProviderParams {
   provider: Providers;
 }
@@ -88,10 +96,15 @@ export abstract class BaseProvider implements ProviderV2 {
   speechModel?(modelId: string): SpeechModelV2 {
     throw new Error('Method not implemented.');
   }
-
   rerankModel?(modelId: string): RerankModel {
     throw new Error('Method not implemented.');
   }
+
+  ocrModel?(modelId: string): OCRModel {
+    throw new Error('Method not implemented.');
+  }
+
+
 
   abstract getLanguageModelList(): Promise<{ name: string; id: string }[]>;
 
@@ -99,6 +112,9 @@ export abstract class BaseProvider implements ProviderV2 {
 
   abstract getRerankModelList(): Promise<{ name: string; id: string }[]>;
 
+  async getOCRModelList(): Promise<{ name: string; id: string }[]> {
+    return Promise.resolve([]);
+  }
   async getTranscriptionModelList(): Promise<{ name: string; id: string }[]> {
     return Promise.resolve([]);
   }
@@ -110,6 +126,8 @@ export abstract class BaseProvider implements ProviderV2 {
   getImageGenerationList(): Promise<{ name: string; id: string }[]> {
     throw new Error('Method not implemented.');
   }
+
+
 
   abstract getCredits(): Promise<ProviderCredits | undefined>;
 }

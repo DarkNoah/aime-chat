@@ -86,6 +86,9 @@ export const ChatSession = React.forwardRef<ChatSessionRef, ChatSessionProps>(
         if (dataPart.type === 'data-usage') {
           onUsageChange?.(dataPart.data);
         }
+        if (dataPart.type === 'data-step-finish') {
+          onFinish?.(dataPart.data);
+        }
       },
       onError: (err) => {
         onError?.(err);
@@ -279,15 +282,26 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
   const onFinish = useCallback((threadId, event) => {
     eventBus.emit(`chat:onFinish:${threadId}`, event);
+    // const chatSessionRef = chatSessionRefs.current.get(threadId);
     window.electron.mastra
-      .getThreadMessages({ threadId })
-      .then((data) => {
-        setMessages(threadId, data.messages);
-        return data;
+      .getThread(threadId)
+      .then((_thread) => {
+        registerThread(threadId, _thread);
+        setMessages(threadId, _thread.messages);
+        return _thread;
       })
       .catch((err) => {
         toast.error(err.message);
       });
+    // window.electron.mastra
+    //   .getThreadMessages({ threadId })
+    //   .then((data) => {
+    //     setMessages(threadId, data.messages);
+    //     return data;
+    //   })
+    //   .catch((err) => {
+    //     toast.error(err.message);
+    //   });
   }, []);
 
   const onData = useCallback((threadId, event) => {

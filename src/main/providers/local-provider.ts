@@ -16,7 +16,7 @@ import {
   TranscriptionModelV2CallWarning,
 } from '@ai-sdk/provider';
 // import { TextEmbeddingPipeline, PoolingType } from 'openvino-genai-node';
-import { BaseProvider, RerankModel } from './base-provider';
+import { BaseProvider, OCRModel, RerankModel } from './base-provider';
 import { Providers } from '@/entities/providers';
 import { ProviderCredits, ProviderTag, ProviderType } from '@/types/provider';
 import fs from 'fs';
@@ -38,6 +38,9 @@ import {
 } from '@huggingface/transformers';
 import { AudioLoader, getQwenAsrPythonService } from '../utils/loaders/audio-loader';
 import { isString } from '@/utils/is';
+import { getPaddleOcrPythonService, OcrLoader } from '../utils/loaders/ocr-loader';
+import { OcrAccuracy, recognize } from '@napi-rs/system-ocr';
+import { getPaddleOcrRuntime } from '../app/runtime';
 
 export type LocalEmbeddingModelId = 'Qwen/Qwen3-Embedding-0.6B' | (string & {});
 
@@ -256,15 +259,15 @@ export class LocalTranscriptionModel implements TranscriptionModelV2 {
     const result = await audioLoader.load();
     return {
       text: result.text,
-      segments: result.result.items.map(item => {
+      segments: result.items.map(item => {
         return {
           text: item.text,
           startSecond: item.start,
           endSecond: item.end,
         }
       }),
-      language: result.result.language,
-      durationInSeconds: result.result.duration,
+      language: result.language,
+      durationInSeconds: result.duration,
       warnings: [],
       response: {
         timestamp: new Date(),
@@ -320,8 +323,42 @@ export class LocalSpeechModel implements SpeechModelV2 {
 //   },
 //   // no fallback provider
 // });
+export class LocalOcrModel implements OCRModel {
+  provider: string = 'local';
+  modelId: string;
+  constructor(modelId: string) {
+    this.modelId = modelId;
+  }
+  async doOCR(options: { image: string }): Promise<string> {
+    const image = fs.readFileSync(options.image);
+    let result;
+    if (this.modelId === 'system') {
+      result = await recognize(image, OcrAccuracy.Accurate);
+      return result.text;
+    }
+    const paddleOcrRuntime = await getPaddleOcrRuntime();
+    if (paddleOcrRuntime.status !== 'installed') {
+      throw new Error('PaddleOCR Runtime is not installed');
+    }
+    const service = await getPaddleOcrPythonService();
+    result = await service.recognize(image.buffer, {
+      noCache: false,
+      ext: path.extname(options.image).toLowerCase(),
+      modelId: this.modelId,
+    });
+    return result.text;
 
+
+    // const ocrLoader = new OcrLoader(options.image, {
+    //   modelId: this.modelId,
+    //   // mode: 'auto',
+    // });
+    // const result = await ocrLoader.load();
+    // return result.text;
+  }
+}
 export class LocalProvider extends BaseProvider {
+
   id: string = ProviderType.LOCAL;
   type: ProviderType = ProviderType.LOCAL;
   name: string = 'Local';
@@ -329,7 +366,7 @@ export class LocalProvider extends BaseProvider {
   defaultApiBase?: string;
   hasChatModel?: boolean = false;
 
-  tags: ProviderTag[] = [ProviderTag.WEB_READER, ProviderTag.EMBEDDING, ProviderTag.RERANKER];
+  tags: ProviderTag[] = [ProviderTag.WEB_READER, ProviderTag.EMBEDDING, ProviderTag.RERANKER, ProviderTag.OCR];
   constructor() {
     super();
   }
@@ -385,6 +422,22 @@ export class LocalProvider extends BaseProvider {
     }
   }
 
+  async getOCRModelList(): Promise<{ name: string; id: string; }[]> {
+    if (process.platform == "darwin") {
+      return [{ id: 'system', name: 'System OCR' },
+      { id: 'paddleocr-vl', name: 'PaddleOCR-V1.5' },
+      { id: 'pp-structurev3', name: 'PP-StructureV3' },
+      { id: 'mlx-community/GLM-OCR-bf16', name: 'GLM-OCR' }
+      ];
+    } else {
+      return [{ id: 'system', name: 'System OCR' }, {
+        id: 'paddleocr-vl', name: 'PaddleOCR-V1.5'
+      }, { id: 'pp-structurev3', name: 'PP-StructureV3' }
+      ]
+    }
+
+  }
+
   getCredits(): Promise<ProviderCredits | undefined> {
     return undefined;
   }
@@ -405,5 +458,8 @@ export class LocalProvider extends BaseProvider {
   }
   speechModel?(modelId: string): SpeechModelV2 {
     return new LocalSpeechModel(modelId);
+  }
+  ocrModel(modelId: string): OCRModel {
+    return new LocalOcrModel(modelId);
   }
 }

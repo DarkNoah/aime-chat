@@ -95,15 +95,15 @@ Important:
 
 <available_skills>
 ${_skills
-  .map(
-    (skill) => `
+        .map(
+          (skill) => `
   <skill>
     <id>${skill.id}</id>
     <name>${skill.name}</name>
     <description>${skill.description}</description>
   </skill>`,
-  )
-  .join('\n')}
+        )
+        .join('\n')}
 </available_skills>
 `;
   };
@@ -220,7 +220,7 @@ export class SkillManager {
           } as SkillInfo;
           skillList.push(skill);
         }
-      } catch {}
+      } catch { }
     }
 
     return skillList;
@@ -286,8 +286,9 @@ export class SkillManager {
       if (!localSkill) {
         return undefined;
       }
+      const skillPath = localSkill.value?.path;
       try {
-        const skillPath = localSkill.value?.path;
+
         const skillContent = await fs.promises.readFile(
           path.join(skillPath, 'SKILL.md'),
           { encoding: 'utf8' },
@@ -304,7 +305,15 @@ export class SkillManager {
         };
       } catch (err) {
         console.error(`Error reading skill file: ${err}`);
-        return undefined;
+        return {
+          id: localSkill.id,
+          name: undefined,
+          description: undefined,
+          content: undefined,
+          path: skillPath,
+          type: ToolType.SKILL,
+          isActive: localSkill.isActive,
+        };
       }
     }
   }

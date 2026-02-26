@@ -23,12 +23,15 @@ export function ChatMessageAttachment({
   const mediaType =
     (data.mediaType?.startsWith('image/') ||
       data.mimeType?.startsWith('image/')) &&
-      (data.url || data.data)
+    (data.url || data.data)
       ? 'image'
       : 'file';
-  const isImage = data.mediaType?.startsWith('image/') || data.mimeType?.startsWith('image/')
-  const isVideo = data.mediaType?.startsWith('video/') || data.mimeType?.startsWith('image/');
-  const isAudio = data.mediaType?.startsWith('audio/') || data.mimeType?.startsWith('image/')
+  const isImage =
+    data.mediaType?.startsWith('image/') || data.mimeType?.startsWith('image/');
+  const isVideo =
+    data.mediaType?.startsWith('video/') || data.mimeType?.startsWith('video/');
+  const isAudio =
+    data.mediaType?.startsWith('audio/') || data.mimeType?.startsWith('audio/');
   const attachmentLabel = filename || (isImage ? 'Image' : 'Attachment');
 
   if (isVideo) {

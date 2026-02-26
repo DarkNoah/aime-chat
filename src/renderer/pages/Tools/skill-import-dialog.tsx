@@ -69,6 +69,20 @@ export function SkillImportDialog({
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [importing, setImporting] = useState(false);
+
+  const isDirectSkillUrl = (url: string) => {
+    try {
+      const u = new URL(url);
+      return (
+        /^https?:$/i.test(u.protocol) &&
+        !u.hostname.includes('github.com') &&
+        /\.md$/i.test(u.pathname)
+      );
+    } catch {
+      return false;
+    }
+  };
+
   const reset = () => {
     setSkills([]);
     setSelectedSkills([]);
@@ -122,6 +136,15 @@ export function SkillImportDialog({
           files: droppedFiles.map((x) => x.path),
           path: importPath,
         });
+      } else if (isDirectSkillUrl(gitUrl)) {
+        const result = await window.electron.tools.importSkills({
+          repo_or_url: gitUrl,
+          selectedSkills: [],
+          path: importPath,
+        });
+        if (result && !result.success) {
+          throw new Error(result.error);
+        }
       } else if (selectedSkills.length > 0) {
         const result = await window.electron.tools.importSkills({
           repo_or_url: gitUrl,
@@ -213,23 +236,25 @@ export function SkillImportDialog({
             value={gitUrl}
             onChange={(e) => setGitUrl(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') {
+              if (e.key === 'Enter' && !isDirectSkillUrl(gitUrl)) {
                 handlePreviewGitSkill();
               }
             }}
-            placeholder={t('common.enter_git_url')}
+            placeholder={t('common.enter_git_url_or_skill_url')}
           />
-          <InputGroupAddon align="inline-end">
-            <InputGroupButton
-              variant="ghost"
-              className="rounded-full"
-              onClick={() => handlePreviewGitSkill()}
-              disabled={loading}
-            >
-              {loading && <IconLoader className="w-4 h-4 animate-spin" />}
-              {!loading && <IconSearch className="w-4 h-4" />}
-            </InputGroupButton>
-          </InputGroupAddon>
+          {!isDirectSkillUrl(gitUrl) && (
+            <InputGroupAddon align="inline-end">
+              <InputGroupButton
+                variant="ghost"
+                className="rounded-full"
+                onClick={() => handlePreviewGitSkill()}
+                disabled={loading}
+              >
+                {loading && <IconLoader className="w-4 h-4 animate-spin" />}
+                {!loading && <IconSearch className="w-4 h-4" />}
+              </InputGroupButton>
+            </InputGroupAddon>
+          )}
         </InputGroup>
 
         {/* 已拖入的文件列表 */}
@@ -290,7 +315,9 @@ export function SkillImportDialog({
         <Button
           onClick={handleSubmit}
           disabled={
-            (selectedSkills.length === 0 && droppedFiles.length === 0) ||
+            (selectedSkills.length === 0 &&
+              droppedFiles.length === 0 &&
+              !isDirectSkillUrl(gitUrl)) ||
             importing
           }
         >

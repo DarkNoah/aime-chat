@@ -22,6 +22,7 @@ export type FileInfo = {
   ext?: string;
   size?: number;
   sizeStr?: string;
+  mimeType?: string;
 };
 
 export type DirectoryTreeNode = {

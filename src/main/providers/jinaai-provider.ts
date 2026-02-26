@@ -78,6 +78,7 @@ export class JinaAIProvider extends BaseProvider {
     ProviderTag.EMBEDDING,
     ProviderTag.RERANKER,
   ];
+  hasChatModel = false;
   constructor(provider: Providers) {
     super({ provider });
   }

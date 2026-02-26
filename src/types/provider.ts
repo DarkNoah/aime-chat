@@ -83,6 +83,7 @@ export enum ModelType {
   VIDEO_GENERATION = 'video_generation',
   STT = 'stt',
   TTS = 'tts',
+  OCR = 'ocr'
 }
 
 export enum ProviderTag {

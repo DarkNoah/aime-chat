@@ -458,6 +458,8 @@ export class KnowledgeBaseManager extends BaseManager {
         try {
           const file = _item.source as string;
           let content = '';
+          item.state = KnowledgeBaseItemState.Processing;
+          await this.knowledgeBaseItemRepository.save(item);
           if (await isBinaryFile(file)) {
             content = await new ReadBinaryFile().execute({
               file_source: file,
@@ -476,6 +478,7 @@ export class KnowledgeBaseManager extends BaseManager {
             overlap: 50,
             separators: ["\n"],
           });
+          item.chunkCount = chunks.length;
           const { embeddings } = await embedMany({
             model: await providersManager.getEmbeddingModel(kb.embedding),
             values: chunks.map((chunk) => chunk.text),
@@ -493,7 +496,7 @@ export class KnowledgeBaseManager extends BaseManager {
             ],
           }));
           await this.libSQLClient.batch(insertStatements);
-          item.chunkCount = chunks.length;
+
           item.state = KnowledgeBaseItemState.Completed;
           item.isEnable = true;
           // item.sha256 = crypto.createHash('sha256').update(content).digest('hex');

@@ -196,16 +196,19 @@ export const ChatInput = React.forwardRef<ChatInputRef, ChatInputProps>(
     return (
       <PromptInputProvider>
         <PromptInput
-          onSubmit={(e) =>
-            onSubmit(e, {
-              model,
-              webSearch,
-              think,
-              tools,
-              subAgents,
-              requireToolApproval,
-            })
-          }
+          onSubmit={(e) => {
+            // console.log('status', status);
+            if (status === 'ready' || status === 'error' || !status) {
+              onSubmit(e, {
+                model,
+                webSearch,
+                think,
+                tools,
+                subAgents,
+                requireToolApproval,
+              });
+            }
+          }}
           className={cn('flex flex-col relative', className)}
           globalDrop
           multiple

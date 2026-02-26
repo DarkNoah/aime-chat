@@ -5,7 +5,7 @@
 PPStructureV3 persistent service (stdin/stdout JSON protocol)
 
 Request (one JSON per line):
-{"id": "uuid", "method": "predict", "params": { "image_path": "/Volumes/Data/workspace/ppu-paddle-ocr-node/long.jpg",   "out_dir": "/Volumes/Data/workspace/ppu-paddle-ocr-node/output2",    "save_json": true,    "save_markdown": true,       "device": "cpu"   }}
+{"id": "uuid", "method": "predict", "params": { "model_id":"mlx-community/GLM-OCR-bf16", "image_path": "/Volumes/Data/workspace/ppu-paddle-ocr-node/long.jpg",   "out_dir": "/Volumes/Data/workspace/ppu-paddle-ocr-node/output2",    "save_json": true,    "save_markdown": true,       "device": "cpu"   }}
 
 Response (one JSON per line):
 {
@@ -40,7 +40,8 @@ DEFAULT_DEVICE = os.environ.get("PPSTRUCTURE_DEVICE", "cpu")  # "gpu" or "cpu"
 IDLE_TIMEOUT_SEC = int(os.environ.get("PPSTRUCTURE_IDLE_TIMEOUT", "600"))  # 10 min
 BASE_OUT_DIR = os.environ.get("PPSTRUCTURE_OUT_DIR", "output")
 os.environ["DISABLE_MODEL_SOURCE_CHECK"] ="True"
-
+os.environ["PPSTRUCTURE_PREWARM"] ="0"
+os.environ["FLAGS_use_mkldnn"] = "0"
 # PaddleOCR import (heavy)
 from paddleocr import PPStructureV3  # noqa: E402
 from paddleocr import PaddleOCRVL
@@ -135,15 +136,22 @@ class MlxVlmPipeline:
         return [MlxVlmResult(result, input)]
 
 
-def create_mlx_vlm_pipeline() -> Any:
+def create_mlx_vlm_pipeline(model_id: str = "paddleocr-vl") -> Any:
     from mlx_vlm import load, generate
     from mlx_vlm.prompt_utils import apply_chat_template
     from mlx_vlm.utils import load_config
 
-    model_path = "mlx-community/PaddleOCR-VL-1.5-bf16"
+    if model_id.startswith("mlx-community/"):
+        model_path = model_id
+    elif model_id == "paddleocr-vl":
+        model_path = "mlx-community/PaddleOCR-VL-1.5-bf16"
+    else:
+        raise ValueError(f"unknown model_id: {model_id}")
     model, processor = load(model_path)
     config = load_config(model_path)
     prompt = "OCR:" #  | Table Recognition: | Formula Recognition: | Chart Recognition:
+    if model_id.startswith("mlx-community/GLM-OCR"):
+        prompt = "Text Recognition:"
     #formatted_prompt = apply_chat_template(processor, config, prompt)
 
     return MlxVlmPipeline(model, processor, config, prompt, generate)
@@ -177,37 +185,38 @@ _pipeline = None
 _pipeline_lock = threading.Lock()
 _pipeline_device = None  # track what device current pipeline uses
 
-def get_pipeline(device: str, mode: str ) -> Any:
+def get_pipeline(device: str, model_id: str = "paddleocr-vl") -> Any:
     """
     Lazily create or recreate pipeline if device changed.
     """
-    global _pipeline, _pipeline_device, _mode
+    global _pipeline, _pipeline_device, _model_id
     device = (device or DEFAULT_DEVICE).lower().strip()
     hasGPU = paddle.is_compiled_with_cuda()
 
     with _pipeline_lock:
-        if _pipeline is not None and _pipeline_device == device and _mode == mode:
+        if _pipeline is not None and _pipeline_device == device and _model_id == model_id :
             return _pipeline
 
         # Recreate pipeline when first time or device changed
         # You can add other args here: lang="en", use_doc_orientation_classify=True, etc.
 
-        if mode == "paddleocr-vl":
-            print("Using PaddleOCRVL...")
+        if model_id == "paddleocr-vl" or model_id.startswith("mlx-community/"):
+
+            print("Using " + model_id + "...")
             if sys.platform == "darwin":
                 # On macOS, use CPU only for now
-                _pipeline = create_mlx_vlm_pipeline()
+                _pipeline = create_mlx_vlm_pipeline(model_id)
             else:
                 _pipeline = PaddleOCRVL(device="gpu" if hasGPU else device)
-        elif mode == "default" or  mode == "pp-structurev3":
+        elif model_id == "pp-structurev3":
             print("Using PPStructureV3...")
             logging.info("Using PPStructureV3...")
             logging.info(f"Device: {device}")
             logging.info(f"Has GPU: {hasGPU}")
             _pipeline = PPStructureV3(device="gpu" if hasGPU else device)
         else:
-            raise ValueError(f"unknown mode: {mode}")
-        _mode = mode
+            raise ValueError(f"unknown model_id: {model_id}")
+        _model_id = model_id
         _pipeline_device = device
         return _pipeline
 
@@ -242,6 +251,7 @@ def method_predict(params: Dict[str, Any]) -> Dict[str, Any]:
 
     device = (params.get("device") or DEFAULT_DEVICE).lower().strip()
     mode = params.get("mode", "default").lower().strip()
+    model_id = params.get("model_id", "paddleocr-vl").lower().strip()
     save_json = bool(params.get("save_json", True))
     save_markdown = bool(params.get("save_markdown", True))
 
@@ -254,7 +264,7 @@ def method_predict(params: Dict[str, Any]) -> Dict[str, Any]:
     if not img_path.exists():
         raise FileNotFoundError(f"image not found: {image_path}")
 
-    pipeline = get_pipeline(device=device, mode=mode)
+    pipeline = get_pipeline(device=device, model_id=model_id)
 
     # Run inference
     output = pipeline.predict(input=str(img_path))
@@ -325,7 +335,7 @@ def main() -> None:
     prewarm = os.environ.get("PPSTRUCTURE_PREWARM", "1").strip() != "0"
     if prewarm:
         try:
-            get_pipeline(DEFAULT_DEVICE, "default")
+            get_pipeline(DEFAULT_DEVICE, "paddleocr-vl")
         except Exception:
             # Don't crash boot; report to stderr only
             traceback.print_exc(file=sys.stderr)
@@ -337,6 +347,7 @@ def main() -> None:
         touch()
 
         try:
+            logging.info(f"Request: {line}")
             req = json.loads(line)
             req_id = req.get("id")
             result = handle_request(req)
@@ -348,6 +359,9 @@ def main() -> None:
             except Exception:
                 pass
             _err(req_id, str(e), traceback.format_exc())
+        finally:
+            # Refresh activity timestamp again when one request cycle finishes.
+            touch()
 
 if __name__ == "__main__":
     main()

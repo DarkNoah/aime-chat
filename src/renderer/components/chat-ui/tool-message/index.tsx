@@ -44,7 +44,7 @@ export type ToolSuspended = {
   runId: string;
 };
 
-export interface ToolMessageRef { }
+export interface ToolMessageRef {}
 
 export type ToolMessageProps = ComponentProps<typeof Badge> & {
   threadId?: string;
@@ -144,7 +144,7 @@ export const ToolMessage = React.forwardRef<ToolMessageRef, ToolMessageProps>(
         toolName === 'RemoveBackground'
       ) {
         return <GenerateImageMessage part={part}></GenerateImageMessage>;
-      } else if (toolName === 'SendEvent') {
+      } else if (toolName === 'Message') {
         return (
           <SendEventMessage threadId={threadId} part={part}></SendEventMessage>
         );

@@ -28,7 +28,7 @@ import {
   ScreenSource,
 } from '@/types/app';
 import { app } from 'electron';
-import { getDbPath, getDefaultModelPath } from '../utils';
+import { getAssetPath, getDbPath, getDefaultModelPath } from '../utils';
 import { platform } from 'os';
 import { Agent, ProxyAgent, setGlobalDispatcher } from 'undici';
 import { isUrl } from '@/utils/is';
@@ -107,9 +107,30 @@ class AppManager extends BaseManager {
     this.appProxy = (proxySetting?.value || { mode: 'noproxy' }) as AppProxy;
     await this.setProxy(this.appProxy);
 
-    // const uv = await getUVRuntime();
-    // const node = await getNodeRuntime();
-    // const paddleOcr = await getPaddleOcrRuntime();
+    this.updateModelsJson().catch((err) =>
+      console.error('Failed to update models.json:', err),
+    );
+  }
+
+  private async updateModelsJson(): Promise<void> {
+    const MODELS_API_URL = 'https://models.dev/api.json';
+    const modelsJsonPath = getAssetPath('models.json');
+
+    const res = await fetch(MODELS_API_URL, { redirect: 'follow' });
+    if (!res.ok) {
+      throw new Error(`Request failed: ${res.status} ${res.statusText}`);
+    }
+    const remoteData = (await res.json()) as Record<string, any>;
+
+    let localData: Record<string, any> = {};
+    if (fs.existsSync(modelsJsonPath)) {
+      localData = JSON.parse(fs.readFileSync(modelsJsonPath, 'utf-8'));
+    }
+
+    const merged = { ...localData, ...remoteData };
+
+    fs.writeFileSync(modelsJsonPath, JSON.stringify(merged, null, 2));
+    console.log('Models JSON updated successfully');
   }
 
   public getMainWindow() {
@@ -200,6 +221,7 @@ class AppManager extends BaseManager {
     }
 
     return {
+      mimeType: mime.lookup(_path),
       path: _path,
       isExist,
       isFile,
@@ -642,7 +664,7 @@ class AppManager extends BaseManager {
       try {
         const url = new URL(proxyConfig.proxyRules);
         setGlobalDispatcher(
-          new HookProxyAgent({
+          new ProxyAgent({
             uri: proxyConfig.proxyRules,
           }),
         );

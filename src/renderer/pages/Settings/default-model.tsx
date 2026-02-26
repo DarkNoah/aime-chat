@@ -30,6 +30,7 @@ import {
 import { Select } from '@/renderer/components/ui/select';
 import { ChatModelSelect } from '@/renderer/components/chat-ui/chat-model-select';
 import { AppInfo } from '@/types/app';
+import { ModelType } from '@/types/provider';
 
 export default function DefaultModel() {
   const { t } = useTranslation();
@@ -104,21 +105,23 @@ export default function DefaultModel() {
           />
         </ItemActions>
       </Item>
-      {/* <Item variant="outline">
+      <Item variant="outline">
         <ItemContent>
           <ItemTitle>{t('settings.default_ocr')}</ItemTitle>
           <ItemDescription></ItemDescription>
         </ItemContent>
         <ItemActions>
-          <Select
+          <ChatModelSelect
+            clearable
+            type={ModelType.OCR}
             className="w-[200px] border"
-            value={appInfo?.defaultModel?.model}
+            value={appInfo?.defaultModel?.ocrModel}
             onChange={(model) => {
-              onChangeDefaultModel(model, 'model');
+              onChangeDefaultModel(model, 'ocrModel');
             }}
           />
         </ItemActions>
-      </Item> */}
+      </Item>
     </div>
   );
 }

@@ -132,7 +132,7 @@ export type ChatToolResultPreviewProps = {
   className?: string;
 };
 
-export interface ChatToolResultPreviewRef { }
+export interface ChatToolResultPreviewRef {}
 
 export const ChatToolResultPreview = React.forwardRef<
   ChatToolResultPreviewRef,
@@ -230,6 +230,7 @@ export const ChatToolResultPreview = React.forwardRef<
             </TabsList>
             <TabsContent value="markdown">
               <Streamdown
+                key={`${part.toolCallId}-markdown`}
                 className="bg-secondary p-4 rounded-2xl  text-wrap break-all"
                 allowedTags={{
                   file: [],
@@ -373,7 +374,7 @@ export const ChatToolResultPreview = React.forwardRef<
                       fontSize: 'var(--text-sm)',
                     },
                   }}
-                // renderContent={this.highlightSyntax}
+                  // renderContent={this.highlightSyntax}
                 />
               </div>
 

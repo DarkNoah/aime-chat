@@ -47,6 +47,7 @@ import {
 } from '../chat-message-attachment';
 import { FileInfo } from '@/types/common';
 import { useChat } from '@/renderer/hooks/use-chat';
+import { PhotoProvider, PhotoView } from 'react-photo-view';
 
 export interface SendEventMessageRef {}
 
@@ -103,32 +104,79 @@ export const SendEventMessage = React.forwardRef<
       )}
       {event === 'files_preview' && (
         <div className="flex flex-row flex-wrap gap-2">
-          {files.map((file, i) => (
-            <div
-              key={`${file.path}-${i}`}
-              className="flex flex-col min-w-0 gap-2"
-            >
-              <Item
-                variant="outline"
-                className="w-fit cursor-pointer bg-secondary p-2 gap-2 items-center"
-                onClick={() => {
-                  window.electron.app.openPath(file.path);
-                }}
-              >
-                <ItemMedia>
-                  <FileIcon filePath={file.path} className="size-10" />
-                </ItemMedia>
-                <ItemContent>
-                  <ItemTitle>{file.name}</ItemTitle>
-                  <ItemDescription className=" ">
-                    <span className="truncate max-w-[300px] block">
-                      {file.path}
-                    </span>
-                  </ItemDescription>
-                </ItemContent>
-              </Item>
-            </div>
-          ))}
+          <PhotoProvider>
+            {files.map((file, i) => {
+              if (file.mimeType?.startsWith('image/')) {
+                return (
+                  <PhotoView
+                    src={`file://${file.path}`}
+                    key={`${file.path}-${i}`}
+                  >
+                    <img
+                      alt={file.name || 'attachment'}
+                      className="size-full object-cover rounded-2xl"
+                      height={100}
+                      src={`file://${file.path}`}
+                      width={100}
+                    />
+                  </PhotoView>
+                );
+              } else if (file.mimeType?.startsWith('video/')) {
+                return (
+                  <video
+                    src={`file://${file.path}`}
+                    controls
+                    className="w-full rounded-2xl"
+                    key={`${file.path}-${i}`}
+                  >
+                    <track kind="captions" />
+                  </video>
+                );
+              } else if (file.mimeType?.startsWith('audio/')) {
+                return (
+                  <audio
+                    src={`file://${file.path}`}
+                    controls
+                    className="w-full"
+                    key={`${file.path}-${i}`}
+                  >
+                    <track kind="captions" />
+                  </audio>
+                );
+              } else if (file.mimeType?.startsWith('application/pdf')) {
+                return (
+                  <iframe
+                    src={`file://${file.path}`}
+                    className="w-full h-auto"
+                    key={`${file.path}-${i}`}
+                    title={file.name}
+                  />
+                );
+              } else {
+                return (
+                  <Item
+                    variant="outline"
+                    className="w-fit cursor-pointer bg-secondary p-2 gap-2 items-center"
+                    onClick={() => {
+                      window.electron.app.openPath(file.path);
+                    }}
+                  >
+                    <ItemMedia>
+                      <FileIcon filePath={file.path} className="size-10" />
+                    </ItemMedia>
+                    <ItemContent>
+                      <ItemTitle>{file.name}</ItemTitle>
+                      <ItemDescription className=" ">
+                        <span className="truncate max-w-[300px] block">
+                          {file.path}
+                        </span>
+                      </ItemDescription>
+                    </ItemContent>
+                  </Item>
+                );
+              }
+            })}
+          </PhotoProvider>
         </div>
       )}
     </>

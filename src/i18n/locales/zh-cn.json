@@ -42,7 +42,8 @@
     "instances_start_failed": "启动实例失败",
     "instances_config_saved": "配置已保存",
     "instances_empty": "暂无实例",
-    "vision_model": "视觉模型"
+    "vision_model": "视觉模型",
+    "default_ocr": "默认Ocr模型"
   },
   "common": {
     "edit": "编辑",
@@ -107,6 +108,7 @@
     "screen_capture": "屏幕截图",
     "required": "必须项",
     "enter_git_url": "输入git连接或仓库",
+    "enter_git_url_or_skill_url": "输入git链接、仓库或SKILL.md网址",
     "delete_agent": "删除助手",
     "importing": "导入中",
     "import_success": "导入成功",
@@ -180,7 +182,7 @@
     "vision": "视觉",
     "task": "任务",
     "askuserquestion": "询问用户问题",
-    "sendevent": "发送事件",
+    "message": "消息",
     "taskcreate": "任务创建",
     "taskget": "任务获取",
     "tasklist": "任务列表",

@@ -44,7 +44,7 @@ export type ChatFilesystemProps = {
   className?: string;
 };
 
-export interface ChatFilesystemRef { }
+export interface ChatFilesystemRef {}
 
 type FilePreviewState = {
   open: boolean;
@@ -106,15 +106,14 @@ const FilePreviewDialog: React.FC<{
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-
   return (
     <Dialog open={state.open} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-h-[80vh] flex flex-col">
+      <DialogContent className="max-h-[80vh] flex flex-col ">
         <DialogHeader>
           <DialogTitle className="text-sm font-medium truncate pr-8">
             {t('chat.file_preview')} - {fileName}
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="">
             <span className="text-xs text-muted-foreground">{state.path}</span>
           </DialogDescription>
         </DialogHeader>
@@ -140,7 +139,6 @@ const FilePreviewDialog: React.FC<{
                 </div>
               )}
 
-
               <div className="max-h-[60vh] overflow-y-auto">
                 {!isBinary && (
                   <pre className="p-4 text-xs font-mono whitespace-pre-wrap break-all">
@@ -161,19 +159,26 @@ const FilePreviewDialog: React.FC<{
                           />
                         </PhotoView>
                       </PhotoProvider>
-                    )
-                    }
-                    {mimeType.startsWith('audio/') &&
-                      <audio src={`file://${state.path}`} controls className='w-full' />}
-                    {mimeType.startsWith('video/') &&
-                      <video src={`file://${state.path}`} controls />}
-                    {mimeType.startsWith('application/pdf') &&
-                      <iframe src={`file://${state.path}`} className="w-full h-auto" />}
+                    )}
+                    {mimeType.startsWith('audio/') && (
+                      <audio
+                        src={`file://${state.path}`}
+                        controls
+                        className="w-full"
+                      />
+                    )}
+                    {mimeType.startsWith('video/') && (
+                      <video src={`file://${state.path}`} controls />
+                    )}
+                    {mimeType.startsWith('application/pdf') && (
+                      <iframe
+                        src={`file://${state.path}`}
+                        className="w-full h-auto"
+                      />
+                    )}
                   </div>
                 )}
               </div>
-
-
             </>
           )}
         </div>
@@ -311,7 +316,9 @@ const TreeNode: React.FC<TreeNodeProps> = ({
           <IconEye className="size-4 mr-2" />
           {t('chat.preview_file')}
         </ContextMenuItem>
-        <ContextMenuItem onClick={() => window.electron.app.openPath(node.path)}>
+        <ContextMenuItem
+          onClick={() => window.electron.app.openPath(node.path)}
+        >
           <IconFolderShare className="size-4 mr-2" />
           {t('chat.open_in_explorer')}
         </ContextMenuItem>
@@ -448,7 +455,9 @@ const SearchResultItem: React.FC<SearchResultItemProps> = ({
               {t('chat.preview_file')}
             </ContextMenuItem>
           )}
-          <ContextMenuItem onClick={() => window.electron.app.openPath(result.file)}>
+          <ContextMenuItem
+            onClick={() => window.electron.app.openPath(result.file)}
+          >
             <IconFolderShare className="size-4 mr-2" />
             {t('chat.open_in_explorer')}
           </ContextMenuItem>
@@ -477,7 +486,9 @@ const SearchResultItem: React.FC<SearchResultItemProps> = ({
           <div className="flex items-center gap-1 text-xs">
             {getIcon()}
             <span className="font-medium">{fileName}</span>
-            <span className="text-muted-foreground shrink-0">:{result.line}</span>
+            <span className="text-muted-foreground shrink-0">
+              :{result.line}
+            </span>
           </div>
           <div className="pl-4 text-xs text-muted-foreground truncate">
             {dirPath}
@@ -492,7 +503,9 @@ const SearchResultItem: React.FC<SearchResultItemProps> = ({
           <IconEye className="size-4 mr-2" />
           {t('chat.preview_file')}
         </ContextMenuItem>
-        <ContextMenuItem onClick={() => window.electron.app.openPath(result.file)}>
+        <ContextMenuItem
+          onClick={() => window.electron.app.openPath(result.file)}
+        >
           <IconFolderShare className="size-4 mr-2" />
           {t('chat.open_in_explorer')}
         </ContextMenuItem>
@@ -733,7 +746,10 @@ export const ChatFilesystem = React.forwardRef<
                 <>
                   <div className="px-2 py-1 text-xs text-muted-foreground">
                     {searchTruncated
-                      ? t('chat.showing_results', { count: 50, total: searchTotal })
+                      ? t('chat.showing_results', {
+                          count: 50,
+                          total: searchTotal,
+                        })
                       : t('chat.results_count', { count: searchTotal })}
                   </div>
                   {searchResults.map((result, index) => (

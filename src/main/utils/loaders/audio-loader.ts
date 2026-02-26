@@ -6,6 +6,7 @@ import { randomUUID } from 'crypto';
 import { BaseLoader } from './base-loader';
 import { getAssetPath } from '..';
 import { getQwenAudioRuntime, getUVRuntime } from '@/main/app/runtime';
+import { appManager } from '@/main/app';
 
 export type AudioLoaderOptions = {
   model?: string;
@@ -210,6 +211,15 @@ export async function getQwenAsrPythonService(): Promise<QwenAudioService> {
       ? path.join(sttRuntime.dir, '.venv', 'Scripts', 'python.exe')
       : path.join(sttRuntime.dir, '.venv', 'bin', 'python');
 
+    const env = {}
+
+    if (appManager.appProxy?.host && appManager.appProxy?.port) {
+      env['HTTP_PROXY'] =
+        `http://${appManager.appProxy.host}:${appManager.appProxy.port}`;
+      env['HTTPS_PROXY'] =
+        `http://${appManager.appProxy.host}:${appManager.appProxy.port}`;
+    }
+
     pythonClient = createPythonClient({
       command: uvBin,
       args: ['run', '--project', runtimeDir, 'python', 'main.py'],
@@ -218,6 +228,7 @@ export async function getQwenAsrPythonService(): Promise<QwenAudioService> {
         PYTHONUNBUFFERED: '1',
         PYTHONUTF8: '1',
         PYTHONIOENCODING: 'utf-8',
+        ...env
       },
     });
 
@@ -322,7 +333,7 @@ export class AudioLoader extends BaseLoader {
       ...this.options,
       ext: path.extname(metadata['source'] || '').toLowerCase() || '.wav',
     });
-    return result;
+    return result.result;
   }
 
   async getInfo(buffer: Buffer, metadata: Record<string, any>): Promise<any> {

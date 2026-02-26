@@ -199,6 +199,7 @@ export async function getPaddleOcrRuntime(refresh = false) {
 
     const paddleOcrDir = path.join(
       app.getPath('userData'),
+      '.runtime',
       'paddleocr-runtime',
     );
     if (!fs.existsSync(paddleOcrDir)) {
@@ -250,7 +251,7 @@ export async function installPaddleOcrRuntime() {
   }
   const isWindows = process.platform === 'win32';
   const uvPreCommand = isWindows ? 'uv.exe' : './uv';
-  const paddleOcrDir = path.join(app.getPath('userData'), 'paddleocr-runtime');
+  const paddleOcrDir = path.join(app.getPath('userData'), ".runtime", 'paddleocr-runtime');
   paddleOcr.status = 'installing';
   if (fs.existsSync(paddleOcrDir)) {
     await fs.promises.rm(paddleOcrDir, { recursive: true });
@@ -313,7 +314,7 @@ export async function installPaddleOcrRuntime() {
   );
 
   const result_install_paddle = await runCommand(
-    `${uvPreCommand} --project "${paddleOcrDir}" --no-cache pip install paddlepaddle${hasGPU ? '-gpu==3.2.0 -i https://www.paddlepaddle.org.cn/packages/stable/cu126/' : ''} --python "${activateSourcePython}"`,
+    `${uvPreCommand} --project "${paddleOcrDir}" --no-cache pip install paddlepaddle${hasGPU ? '-gpu==3.2.0 -i https://www.paddlepaddle.org.cn/packages/stable/cu126/' : '==3.2.2'} --python "${activateSourcePython}"`,
     {
       cwd: uvRuntime?.dir,
       // usePowerShell: isWindows,s
@@ -385,7 +386,7 @@ export async function installPaddleOcrRuntime() {
   }
 }
 export async function uninstallPaddleOcrRuntime() {
-  const paddleOcrDir = path.join(app.getPath('userData'), 'paddleocr-runtime');
+  const paddleOcrDir = path.join(app.getPath('userData'), ".runtime", 'paddleocr-runtime');
   if (fs.existsSync(paddleOcrDir)) {
     await fs.promises.rm(paddleOcrDir, { recursive: true });
   }
