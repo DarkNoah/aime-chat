@@ -24,7 +24,7 @@ import { m } from 'motion/react';
 
 export class MiniMaxImageModel implements ImageModelV2 {
   specificationVersion: 'v2' = 'v2';
-  provider: string = 'zhipuai';
+  provider: string = 'minimax';
   modelId: string;
   providerEntity: Providers;
 
@@ -86,7 +86,7 @@ export class MiniMaxImageModel implements ImageModelV2 {
 
 export class MiniMaxTranscriptionModel implements TranscriptionModelV2 {
   specificationVersion: 'v2';
-  provider: string = 'zhipuai';
+  provider: string = 'minimax';
   modelId: string;
   providerEntity: Providers;
 
@@ -147,7 +147,7 @@ export class MiniMaxTranscriptionModel implements TranscriptionModelV2 {
 
 export class MiniMaxSpeechModel implements SpeechModelV2 {
   specificationVersion: 'v2';
-  provider: string = 'zhipuai';
+  provider: string = 'minimax';
   modelId: string;
   providerEntity: Providers;
 
@@ -193,7 +193,7 @@ export class MiniMaxSpeechModel implements SpeechModelV2 {
     });
 
     if (!res.ok) {
-      let errorMessage = 'ZhipuAI speech generation failed with status ' + res.status;
+      let errorMessage = 'MiniMax speech generation failed with status ' + res.status;
       try {
         const errorData = await res.json();
         errorMessage = errorData?.error?.message || errorData?.message || errorMessage;
@@ -202,11 +202,13 @@ export class MiniMaxSpeechModel implements SpeechModelV2 {
       }
       throw new Error(errorMessage);
     }
-
-    const audioBuffer = await res.arrayBuffer();
+    const data = await res.json();
+    const url = data.data.url;
+    const extra_info = data.data.extra_info;
+    const audioBuffer = new Uint8Array(await (await fetch(url)).arrayBuffer());
 
     return {
-      audio: new Uint8Array(audioBuffer),
+      audio: audioBuffer,
       warnings: [],
       request: {
         body: JSON.stringify(body),
@@ -215,11 +217,12 @@ export class MiniMaxSpeechModel implements SpeechModelV2 {
         timestamp: new Date(),
         modelId: this.modelId,
         headers: Object.fromEntries(res.headers.entries()),
+        body: data
       },
       providerMetadata: {
-        "zhipuai": {
-          "sampleRate": 24000,
-          "duration": audioBuffer.byteLength / 24000,
+        "minimax": {
+          "sampleRate": extra_info.audio_sample_rate,
+          "duration": extra_info.audio_size / extra_info.audio_sample_rate,
         }
       }
     };
@@ -271,7 +274,10 @@ export class MiniMaxProvider extends BaseProvider {
     return [];
   }
   async getSpeechModelList(): Promise<{ name: string; id: string }[]> {
-    return [];
+    return [{ id: 'speech-2.8-hd', name: 'Speech 2.8 HD' },
+    { id: 'speech-2.8-turbo', name: 'Speech 2.8 Turbo' }
+
+    ];
   }
 
   async getImageGenerationList(): Promise<{ name: string; id: string }[]> {
@@ -291,7 +297,7 @@ export class MiniMaxProvider extends BaseProvider {
     return undefined;
   }
   speechModel?(modelId: string): SpeechModelV2 {
-    return undefined;
+    return new MiniMaxSpeechModel({ modelId, provider: this.provider });
   }
   rerankModel?(modelId: string): RerankModel {
     return undefined;

@@ -41,6 +41,7 @@ IDLE_TIMEOUT_SEC = int(os.environ.get("PPSTRUCTURE_IDLE_TIMEOUT", "600"))  # 10 
 BASE_OUT_DIR = os.environ.get("PPSTRUCTURE_OUT_DIR", "output")
 os.environ["DISABLE_MODEL_SOURCE_CHECK"] ="True"
 os.environ["PPSTRUCTURE_PREWARM"] ="0"
+os.environ["FLAGS_use_mkldnn"] = "0"
 # PaddleOCR import (heavy)
 from paddleocr import PPStructureV3  # noqa: E402
 from paddleocr import PaddleOCRVL

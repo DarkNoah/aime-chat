@@ -169,6 +169,7 @@ export async function destroyPaddleOcrService(): Promise<void> {
 async function ensureRuntimeFile(): Promise<string> {
   const runtimeFile = path.join(
     app.getPath('userData'),
+    '.runtime',
     'paddleocr-runtime',
     'main.py',
   );
