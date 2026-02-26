@@ -457,7 +457,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
 
             {threadState?.messages.length > 0 && (
               <div className="mt-6">
-                {/* <pre className="text-xs whitespace-pre-wrap break-all bg-secondary p-2 rounded-2xl">
+                {/* <pre className="text-xs whitespace-pre-wrap break-all bg-secondary p-2 rounded-2xl mb-2">
                   {JSON.stringify(threadState?.messages, null, 2)}
                 </pre> */}
                 {threadState?.messages.map((message) => {

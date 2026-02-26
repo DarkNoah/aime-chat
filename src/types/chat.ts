@@ -43,6 +43,7 @@ export enum ChatEvent {
   ChatUsageChanged = 'chat:chat-usage-changed',
   ChatError = 'chat:chat-error',
   ChatAbort = 'chat:chat-abort',
+  ChatStepFinish = 'chat:chat-step-finish',
 }
 
 export enum ThreadEvent {

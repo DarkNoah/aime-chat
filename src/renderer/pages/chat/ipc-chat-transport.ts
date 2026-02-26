@@ -323,6 +323,15 @@ export class IpcChatTransport implements ChatTransport<UIMessage> {
             );
             controller.enqueue(chunkUint8Array);
             return;
+          } else if (event.type === ChatEvent.ChatStepFinish) {
+            const chunk = {
+              type: 'data-step-finish',
+              data: event.data,
+            };
+            const chunkUint8Array = encoder.encode(
+              `data: ${JSON.stringify(chunk)}\n\n`,
+            );
+            controller.enqueue(chunkUint8Array);
           }
         };
 

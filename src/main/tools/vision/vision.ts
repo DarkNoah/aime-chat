@@ -1,6 +1,6 @@
-import { ImagePart, TextPart, tool, ToolCallOptions } from 'ai';
+import { FilePart, ImagePart, TextPart, tool, ToolCallOptions } from 'ai';
 import { z } from 'zod';
-import { isUrl } from '@/utils/is';
+import { isObject, isUrl } from '@/utils/is';
 import { downloadFile, saveFile } from '@/main/utils/file';
 import fs from 'fs';
 import BaseTool, { BaseToolParams } from '../base-tool';
@@ -25,6 +25,7 @@ import { convertToWav } from '@/main/utils/convertToWav';
 import { randomUUID } from 'crypto';
 import { app } from 'electron';
 import { MessageInput } from '@mastra/core/agent/message-list';
+import { ContentPart } from '@mastra/core/_types/@internal_ai-sdk-v5/dist';
 
 const inputSchema = z.strictObject({
   url_or_file_path: z.string(),
@@ -199,11 +200,21 @@ Returns:
     if (mimeType.startsWith('image/')) {
       const modelInfo = await providersManager.getModelInfo(this.modelId);
       if (modelInfo.modelInfo?.modalities?.input?.includes('image')) {
-        return {
-          type: 'image',
-          value: fs.readFileSync(file_path).toString('base64'),
-          mimeType: mimeType,
-        }
+        // return {
+        //   type: 'content',
+        //   value: [
+        //     {
+        //       type: 'file',
+        //       file: {
+        //         base64: fs.readFileSync(file_path).toString('base64'),
+        //         mediaType: mimeType,
+        //       },
+
+        //     }] as ContentPart[],
+
+
+        //   // mimeType: mimeType,
+        // }
       }
 
 
@@ -322,13 +333,13 @@ ${ocr}
     };
   };
 
-  toModelOutput = (output: any) => {
-    if (output.type === 'image') {
-      return output
-    }
-    return {
-      type: 'text',
-      value: output,
-    }
-  }
+  // toModelOutput = (output: any) => {
+  //   if (isObject(output)) {
+  //     return output
+  //   }
+  //   return {
+  //     type: 'text',
+  //     value: output,
+  //   }
+  // }
 }

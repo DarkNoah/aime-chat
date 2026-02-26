@@ -321,7 +321,7 @@ Usage:
 
 
       //const speechToText = new SpeechToText();
-      const content = await speechToText.execute({
+      const content = await (speechToText as SpeechToText).execute({
         source: file_source,
         output_type: 'srt',
       }, context);

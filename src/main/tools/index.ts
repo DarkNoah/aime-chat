@@ -163,7 +163,7 @@ class ToolsManager extends BaseManager {
     // await this.registerBuiltInTool(NodejsExecute);
     await this.registerBuiltInTool(CodeExecution);
     await this.registerBuiltInTool(TodoToolkit);
-    await this.registerBuiltInTool(TodoWrite);
+    // await this.registerBuiltInTool(TodoWrite);
     await this.registerBuiltInTool(BashToolkit);
     await this.registerBuiltInTool(FileSystem);
     await this.registerBuiltInTool(AskUserQuestion);

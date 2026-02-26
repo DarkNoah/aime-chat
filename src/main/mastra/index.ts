@@ -63,6 +63,7 @@ import { ToolType } from '@/types/tool';
 import {
   convertMastraChunkToAISDKv5,
   MastraModelOutput,
+  //MastraModelOutput,
   WorkflowRunOutput,
 } from '@mastra/core/stream';
 import { chatWorkflow, claudeCodeWorkflow } from './workflow';
@@ -430,6 +431,7 @@ class MastraManager extends BaseManager {
       resumeData,
     } = data;
     let { model } = data;
+    console.log('Chat Input', data);
     const storage = this.mastra.getStorage();
 
     let resourceId = DEFAULT_RESOURCE_ID;
@@ -472,7 +474,7 @@ class MastraManager extends BaseManager {
     const { providerId, modelId, providerType, modelInfo } =
       await providersManager.getModelInfo(model);
 
-    let stream: MastraModelOutput;
+    let stream: MastraModelOutput<unknown>;
     let agent: Agent;
     try {
       // const info = modelsData[provider.type]?.models[_modeId] || {};
@@ -588,7 +590,9 @@ ${formatCodeWithLineNumbers({ content: agentsMd, startLine: 0 })}
           },
         },
       };
-      let streamOptions: AgentExecutionOptions = {
+      let streamOptions: AgentExecutionOptions<undefined> = {
+        includeRawChunks: false,
+        structuredOutput: undefined,
         runId: runId,
         providerOptions: providerOptions,
         modelSettings: options?.modelSettings,
@@ -715,160 +719,7 @@ ${formatCodeWithLineNumbers({ content: agentsMd, startLine: 0 })}
           //const maxContextSize = requestContext.get('maxContextSize');
         },
         requireToolApproval: requireToolApproval,
-        prepareStep: async (options) => {
-          // const { messageList, systemMessages, messages } = options;
 
-          // const m = [];
-          // messages.forEach(message => {
-          //   console.log(message.createdAt.getTime())
-          //   if(message.content.parts.find(p=>p?.providerMetadata?.openai?.itemId)){
-          //     message.content.parts = message.content.parts.map(p => {
-          //       if (p?.providerMetadata?.openai?.itemId) {
-          //         return {
-          //           ...p,
-          //           providerMetadata: {
-          //             ...p.providerMetadata,
-          //             openai: {
-          //               ...p.providerMetadata?.openai,
-          //               itemId: undefined,
-          //             },
-          //           },
-          //         }
-          //       }
-          //       else if (p?.callProviderMetadata?.openai?.itemId) {
-          //         // return {
-          //         //   ...p,
-          //         //   callProviderMetadata: {
-          //         //     ...p.callProviderMetadata,
-          //         //     openai: {
-          //         //       ...p.callProviderMetadata?.openai,
-          //         //       itemId: undefined,
-          //         //     },
-          //         //   },
-          //         // }
-
-          //       }
-          //       return p;
-          //     });
-          //   }
-          //   m.push(message);
-          // });
-
-          //           inputMessage.forEach(message => {
-          //   if(message.parts.find(p=>p?.providerMetadata?.openai?.itemId)){
-          //     message.parts = message.parts.map(p=>{
-          //       if(p?.providerMetadata?.openai?.itemId){
-          //         return {
-          //           ...p,
-          //           providerMetadata: {
-          //             ...p.providerMetadata,
-          //             openai: undefined,
-          //           },
-          //         }
-          //       }
-          //       return p;
-          //     });
-          //   }
-          // });
-          return {};
-        },
-        // prepareStep: async (options) => {
-        //   // console.log('Prepare step:', options);
-        //   const instructions = await agent.getInstructions({
-        //     requestContext,
-        //   });
-        //   const system = await convertToInstructionContent(instructions);
-        //   let d = new Date();
-        //   const messages = [
-        //     { role: 'system', content: system } as SystemModelMessage,
-        //     ...options.messages,
-        //   ];
-        //   const maxContextSize = requestContext.get('maxContextSize');
-        //   const thresholdTokenCount = Math.floor(maxContextSize * 0.1);
-        //   const tools = await agent.listTools({ requestContext });
-
-        //   const { messages: compressedMessages, hasCompressed } =
-        //     await this.compressMessages(messages, tools, {
-        //       thresholdTokenCount,
-        //       requestContext,
-        //       model: fastLanguageModel,
-        //     });
-        //   if (hasCompressed) {
-        //     const lastUserMessageIndex = await getLastMessageIndex(
-        //       compressedMessages,
-        //       'user',
-        //     );
-        //     const compressedMessage = compressedMessages[1];
-        //     const lastUserMessage = compressedMessages[lastUserMessageIndex];
-
-        //     let todos: ChatTodo[] = [];
-        //     if (requestContext) {
-        //       todos = requestContext.get('todos');
-        //     }
-        //     if (isString(compressedMessage.content)) {
-        //       compressedMessage.content = [
-        //         { type: 'text', text: compressedMessage.content },
-        //       ];
-        //     }
-        //     let todosPart;
-        //     if (todos.length > 0) {
-        //       todosPart = {
-        //         type: 'text',
-        //         text: `<system-reminder>\nYour todo list has changed. DO NOT mention this explicitly to the user. Here are the latest contents of your todo list:\n\n${JSON.stringify(todos)}\n</system-reminder>`,
-        //       } as TextPart;
-        //     } else {
-        //       todosPart = {
-        //         type: 'text',
-        //         text: `<system-reminder>\nThis is a reminder that your todo list is currently empty. DO NOT mention this to the user explicitly because they are already aware. If you are working on tasks that would benefit from a todo list please use the TodoWrite tool to create one. If not, please feel free to ignore. Again do not mention this message to the user.\n</system-reminder>`,
-        //       };
-        //     }
-        //     (lastUserMessage.content as TextPart[]).push(todosPart);
-        //     const lastMessages = await storage.listMessages({
-        //       threadId: chatId,
-        //       resourceId: resourceId,
-        //       orderBy: {
-        //         field: 'createdAt',
-        //         direction: 'DESC',
-        //       },
-        //       page: 0,
-        //       perPage: 10,
-        //     });
-        //     const lastMessage =
-        //       lastMessages.messages.length > 0
-        //         ? lastMessages.messages[0]
-        //         : null;
-        //     await storage.saveMessages({
-        //       messages: [
-        //         {
-        //           id: nanoid(),
-        //           role: 'user',
-        //           threadId: chatId,
-        //           resourceId: resourceId,
-        //           createdAt: new Date(
-        //             (lastMessage?.createdAt?.getTime() ??
-        //               new Date().getTime()) - 1,
-        //           ),
-        //           type: 'v2',
-        //           content: {
-        //             format: 2,
-        //             parts: [
-        //               ...compressedMessage.content.map((x) => {
-        //                 return x;
-        //               }),
-        //             ],
-        //             metadata: {
-        //               compress: true,
-        //             },
-        //           },
-        //         },
-        //       ],
-        //     });
-        //   }
-        //   return {
-        //     system,
-        //     messages: compressedMessages.filter((x) => x.role != 'system'),
-        //   };
-        // },
       };
       // if (runId && (approved !== undefined || resumeData !== undefined)) {
       //   if (approved === true) {
@@ -1214,7 +1065,7 @@ ${formatCodeWithLineNumbers({ content: agentsMd, startLine: 0 })}
       'threadId' as never,
     ) as string;
     const runId = streamOptions.runId;
-    let stream: MastraModelOutput;
+    let stream: MastraModelOutput<unknown>;
 
     if (
       runId &&
@@ -1249,7 +1100,10 @@ ${formatCodeWithLineNumbers({ content: agentsMd, startLine: 0 })}
     }
     const uiStream = toAISdkStream(stream, {
       from: 'agent',
-      sendReasoning: true,
+      sendReasoning: false,
+      sendStart: false,
+      sendFinish: false
+      // lastMessageId: inputMessage[inputMessage.length - 1].id,
     });
 
     const uiStreamReader = uiStream.getReader();
@@ -1264,6 +1118,11 @@ ${formatCodeWithLineNumbers({ content: agentsMd, startLine: 0 })}
         data: JSON.stringify(value),
       });
     }
+
+    // appManager.sendEvent(`chat:event:${chatId}`, {
+    //   type: ChatEvent.ChatStepFinish,
+    //   data: undefined,
+    // });
     return stream;
   }
 
