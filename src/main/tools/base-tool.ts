@@ -48,8 +48,8 @@ abstract class BaseTool<
     this.config = config;
   }
 
-  execute?: ToolAction['execute'];
-  toModelOutput?: (output: any) => LanguageModelV2ToolResultPart['output'];
+  // execute?: ToolAction['execute'];
+  // toModelOutput?: (output: any) => LanguageModelV2ToolResultPart['output'];
   mastra?: Mastra;
   requireApproval?: boolean;
 

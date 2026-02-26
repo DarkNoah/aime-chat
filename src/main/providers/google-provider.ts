@@ -109,7 +109,9 @@ export class GoogleProvider extends BaseProvider {
   }
 
   async getImageGenerationList(): Promise<{ name: string; id: string }[]> {
-    return [{ id: 'gemini-3-pro-image-preview', name: 'Nano Banana Pro' }];
+    return [{ id: 'gemini-3-pro-image-preview', name: 'Nano Banana Pro' }, {
+      id: "gemini-3.1-flash-image-preview", name: "Nano Banana 2"
+    }];
   }
   getCredits(): Promise<ProviderCredits | undefined> {
     return undefined;

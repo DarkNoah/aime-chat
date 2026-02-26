@@ -1,6 +1,6 @@
-import { ImagePart, TextPart, tool, ToolCallOptions } from 'ai';
+import { FilePart, ImagePart, TextPart, tool, ToolCallOptions } from 'ai';
 import { z } from 'zod';
-import { isUrl } from '@/utils/is';
+import { isObject, isUrl } from '@/utils/is';
 import { downloadFile, saveFile } from '@/main/utils/file';
 import fs from 'fs';
 import BaseTool, { BaseToolParams } from '../base-tool';
@@ -24,6 +24,8 @@ import { SpeechToText } from '../audio';
 import { convertToWav } from '@/main/utils/convertToWav';
 import { randomUUID } from 'crypto';
 import { app } from 'electron';
+import { MessageInput } from '@mastra/core/agent/message-list';
+import { ContentPart } from '@mastra/core/_types/@internal_ai-sdk-v5/dist';
 
 const inputSchema = z.strictObject({
   url_or_file_path: z.string(),
@@ -196,9 +198,31 @@ Returns:
     // }]
     const provider = await providersManager.getProvider(this.modelId?.split('/')[0]);
     if (mimeType.startsWith('image/')) {
+      const modelInfo = await providersManager.getModelInfo(this.modelId);
+      if (modelInfo.modelInfo?.modalities?.input?.includes('image')) {
+        // return {
+        //   type: 'content',
+        //   value: [
+        //     {
+        //       type: 'file',
+        //       file: {
+        //         base64: fs.readFileSync(file_path).toString('base64'),
+        //         mediaType: mimeType,
+        //       },
+
+        //     }] as ContentPart[],
+
+
+        //   // mimeType: mimeType,
+        // }
+      }
+
+
+
+
       let ocr
       try {
-        const loader = new OcrLoader(file_path, { mode: 'auto' });
+        const loader = new OcrLoader(file_path, { modelId: 'auto' });
         const content = await loader.load();
         ocr = content;
       } catch {
@@ -228,7 +252,7 @@ Guidelines:
           model: model,
         });
 
-        const input: MessagePart[] = [
+        const input: MessageInput[] = [
           {
             role: 'user',
             content: [
@@ -308,4 +332,14 @@ ${ocr}
       ],
     };
   };
+
+  // toModelOutput = (output: any) => {
+  //   if (isObject(output)) {
+  //     return output
+  //   }
+  //   return {
+  //     type: 'text',
+  //     value: output,
+  //   }
+  // }
 }
