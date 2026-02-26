@@ -11,6 +11,6 @@ export const getStorage = () => {
 export const getVectorStore = () => {
   return new LibSQLVector({
     id: 'libsql-agent-vector',
-    connectionUrl: `file:${getDbPath()}`,
+    url: `file:${getDbPath()}`,
   });
 };

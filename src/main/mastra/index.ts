@@ -27,7 +27,7 @@ import type {
 } from '@ai-sdk/provider';
 // import { toAISdkV5Messages } from '@mastra/ai-sdk';
 
-import { toAISdkFormat } from '@mastra/ai-sdk';
+import { toAISdkFormat, toAISdkStream } from '@mastra/ai-sdk';
 // import { RuntimeContext } from '@mastra/core';
 import { RequestContext } from '@mastra/core/request-context';
 import { providersManager } from '../providers';
@@ -229,10 +229,12 @@ class MastraManager extends BaseManager {
     const storage = this.mastra.getStorage();
     const memory = await storage.getStore('memory');
 
-    const threads = await memory?.listThreadsByResourceId({
+    const threads = await memory?.listThreads({
       page: page,
       perPage: size,
-      resourceId: resourceId,
+      filter: {
+        resourceId: resourceId,
+      },
       orderBy: { field: 'updatedAt', direction: 'DESC' },
     });
     return {
@@ -250,18 +252,18 @@ class MastraManager extends BaseManager {
     const memoryStore = await storage.getStore('memory');
     const thread = await memoryStore?.getThreadById({ threadId: id });
 
-    const memory = new Memory({
-      storage: storage,
-      options: {
-        generateTitle: false,
-        semanticRecall: false,
-        workingMemory: {
-          enabled: false,
-        },
-        lastMessages: false,
-      },
-      vector: getVectorStore(),
-    });
+    // const memory = new Memory({
+    //   storage: storage,
+    //   options: {
+    //     generateTitle: false,
+    //     semanticRecall: false,
+    //     workingMemory: {
+    //       enabled: false,
+    //     },
+    //     lastMessages: false,
+    //   },
+    //   vector: getVectorStore(),
+    // });
     // const messagesDb = await memory.recall({ threadId: id, resourceId: '123' });
 
     const messages = await memoryStore.listMessages({
@@ -602,7 +604,7 @@ ${formatCodeWithLineNumbers({ content: agentsMd, startLine: 0 })}
             readOnly: false,
             lastMessages: false,
           },
-          readOnly: false,
+          // readOnly: false,
         },
         abortSignal: signal,
         savePerStep: true,
@@ -1245,9 +1247,9 @@ ${formatCodeWithLineNumbers({ content: agentsMd, startLine: 0 })}
       console.log(inputMessage);
       stream = await agent.stream(inputMessage, streamOptions);
     }
-    const uiStream = toAISdkFormat(stream, {
+    const uiStream = toAISdkStream(stream, {
       from: 'agent',
-      sendReasoning: false,
+      sendReasoning: true,
     });
 
     const uiStreamReader = uiStream.getReader();

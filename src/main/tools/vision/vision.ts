@@ -24,6 +24,7 @@ import { SpeechToText } from '../audio';
 import { convertToWav } from '@/main/utils/convertToWav';
 import { randomUUID } from 'crypto';
 import { app } from 'electron';
+import { MessageInput } from '@mastra/core/agent/message-list';
 
 const inputSchema = z.strictObject({
   url_or_file_path: z.string(),
@@ -196,9 +197,21 @@ Returns:
     // }]
     const provider = await providersManager.getProvider(this.modelId?.split('/')[0]);
     if (mimeType.startsWith('image/')) {
+      const modelInfo = await providersManager.getModelInfo(this.modelId);
+      if (modelInfo.modelInfo?.modalities?.input?.includes('image')) {
+        return {
+          type: 'image',
+          value: fs.readFileSync(file_path).toString('base64'),
+          mimeType: mimeType,
+        }
+      }
+
+
+
+
       let ocr
       try {
-        const loader = new OcrLoader(file_path, { mode: 'auto' });
+        const loader = new OcrLoader(file_path, { modelId: 'auto' });
         const content = await loader.load();
         ocr = content;
       } catch {
@@ -228,7 +241,7 @@ Guidelines:
           model: model,
         });
 
-        const input: MessagePart[] = [
+        const input: MessageInput[] = [
           {
             role: 'user',
             content: [
@@ -308,4 +321,14 @@ ${ocr}
       ],
     };
   };
+
+  toModelOutput = (output: any) => {
+    if (output.type === 'image') {
+      return output
+    }
+    return {
+      type: 'text',
+      value: output,
+    }
+  }
 }
