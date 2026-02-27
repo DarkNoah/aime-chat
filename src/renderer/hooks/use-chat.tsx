@@ -196,8 +196,13 @@ export function useChat() {
 export function ChatProvider({ children }: { children: ReactNode }) {
   const { threadStates } = useThreadStore();
 
-  const { registerThread, removeThread, updateMessages, updateThreadState } =
-    useThreadStore();
+  const {
+    registerThread,
+    removeThread,
+    updateMessages,
+    updateThreadState,
+    updateThreadMeatadata,
+  } = useThreadStore();
 
   const chatSessionRefs = useRef(new Map<string, ChatSessionRef>());
   const getThread = useCallback(async (threadId: string) => {
@@ -320,7 +325,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     window.electron.mastra
       .getThread(threadId, true)
       .then((_thread) => {
-        updateThreadState(threadId, _thread);
+        updateThreadMeatadata(threadId, _thread?.metadata || {});
         return _thread;
       })
       .catch((err) => {
