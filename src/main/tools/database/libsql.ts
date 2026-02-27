@@ -2,12 +2,11 @@ import { ToolExecutionContext } from '@mastra/core/tools';
 import BaseTool, { BaseToolParams } from '../base-tool';
 import z from 'zod';
 import BaseToolkit, { BaseToolkitParams } from '../base-toolkit';
-import { createClient, Client as LibSQLClient } from '@libsql/client';
+import { createClient, Client as LibSQLClient, Row } from '@libsql/client';
 import { getDataPath } from '@/main/utils';
 import path from 'path';
 import fs from 'fs';
 import * as xlsx from 'xlsx';
-import { Row } from '@libsql/client';
 import { app } from 'electron';
 import { nanoid } from '@/utils/nanoid';
 

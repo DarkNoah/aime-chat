@@ -3,7 +3,14 @@ import { Skeleton } from '@/renderer/components/ui/skeleton';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { StorageThreadType } from '@mastra/core/memory';
 import { Button } from '@/renderer/components/ui/button';
-import { IconDots, IconEdit, IconShare, IconTrashX } from '@tabler/icons-react';
+import {
+  IconBriefcase,
+  IconCode,
+  IconDots,
+  IconEdit,
+  IconShare,
+  IconTrashX,
+} from '@tabler/icons-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -243,7 +250,14 @@ export default function ProjectsList({ className }: ProjectsListProps) {
               )}
             ></div>
             <ItemContent className="min-w-0">
-              <ItemTitle className="line-clamp-1 w-auto">
+              <ItemTitle className="line-clamp-1 w-auto flex flex-row items-center gap-1">
+                {item.tag && (
+                  <div className="flex-1">
+                    {item.tag === 'code' && <IconCode size={16} />}
+                    {item.tag === 'work' && <IconBriefcase size={16} />}
+                  </div>
+                )}
+
                 {item?.status === 'streaming' && (
                   <Shimmer>{item.title}</Shimmer>
                 )}
