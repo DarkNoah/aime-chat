@@ -111,7 +111,7 @@ import { InputPassword } from '@/renderer/components/ui/input-password';
 function Providers() {
   const { setTitle } = useHeader();
   const { t } = useTranslation();
-  setTitle(t('providers'));
+  setTitle(t('settings.providers'));
   const [providers, setProviders] = useState<Provider[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [loadingModels, setLoadingModels] = useState<boolean>(false);

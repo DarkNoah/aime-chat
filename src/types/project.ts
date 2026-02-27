@@ -7,6 +7,7 @@ export type Project = {
   tag?: string;
   createdAt?: Date;
   skills?: SkillInfo[];
+  agentsMd?: string;
 };
 
 export enum ProjectEvent {

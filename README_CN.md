@@ -8,7 +8,7 @@
   </p>
 
   <p>
-    <img src="https://img.shields.io/badge/version-0.3.14-blue.svg" alt="Version">
+    <img src="https://img.shields.io/badge/version-0.3.17-blue.svg" alt="Version">
     <img src="https://img.shields.io/badge/platform-macOS%20|%20Windows%20|%20Linux-lightgrey.svg" alt="Platform">
     <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License">
   </p>
@@ -30,11 +30,13 @@
 
 ## ✨ 功能特性
 
-- 🤖 **多 AI 提供商支持** - 集成 OpenAI、DeepSeek、Google、智谱 AI、Ollama、LMStudio、ModelScope 等多个主流 AI 提供商
+- 🤖 **多 AI 提供商支持** - 集成 OpenAI、DeepSeek、Google、智谱 AI、Ollama、LMStudio、ModelScope、MiniMax 等多个主流 AI 提供商
 - 💬 **智能对话** - 基于 Mastra 框架的强大 AI Agent 系统，支持流式响应和工具调用
 - 🤝 **Open CoWork 能力** - AI 不只是聊天，还能执行实际操作，如文件编辑、代码执行、网络搜索等
 - 📚 **知识库管理** - 内置向量数据库，支持文档检索和知识问答
 - 🛠️ **工具集成** - 支持 MCP（Model Context Protocol）客户端，可扩展各类工具能力
+- 🎙️ **语音处理** - 内置语音转文字（STT）和文字转语音（TTS）能力，基于 Qwen3-TTS 模型
+- 🔍 **Skill 技能系统** - 支持从 Git 仓库或在线技能市场搜索、导入和管理 AI 技能
 - 🎨 **现代化 UI** - 使用 shadcn/ui 组件库，支持亮色/暗色主题切换
 - 🌍 **国际化支持** - 内置中文和英文界面
 - 🔒 **本地优先** - 数据存储在本地，保护隐私安全
@@ -128,9 +130,11 @@ aime-chat/
 | DeepSeek | 云端 | DeepSeek 系列模型 |
 | Google | 云端 | Gemini 系列模型 |
 | 智谱 AI | 云端 | GLM 系列模型 |
+| MiniMax | 云端 | MiniMax 系列模型 |
 | Ollama | 本地 | 本地运行开源模型 |
 | LMStudio | 本地 | 本地模型管理工具 |
 | ModelScope | 云端 | 魔搭社区模型 |
+| SerpAPI | 云端 | Google 搜索 API 服务 |
 
 ### 知识库功能
 
@@ -146,16 +150,20 @@ aime-chat/
 | 类别 | 工具 | 说明 |
 |------|------|------|
 | 文件系统 | Bash, Read, Write, Edit, Grep, Glob | 文件读写、搜索、编辑等操作 |
-| 代码执行 | Python, Node.js | 执行 Python 和 Node.js 代码 |
-| 网络工具 | Web Fetch, Web Search | 网页抓取和网络搜索 |
-| 图像处理 | RMBG | 图像背景移除 |
-| 视觉分析 | Vision | 图像识别和分析 |
+| 代码执行 | CodeExecution | 执行 Python 和 Node.js 代码 |
+| 网络工具 | Web Fetch, Web Search | 网页抓取和网络搜索（支持 AI 内容摘要） |
+| 图像处理 | GenerateImage, EditImage, RMBG | 图像生成、编辑和背景移除 |
+| 视觉分析 | Vision | LLM 驱动的图像识别和分析（集成 OCR） |
 | OCR 识别 | PaddleOCR | 文档和图片文字识别（支持 PDF/图片） |
-| 数据库 | LibSQL | 数据库操作 |
-| 任务管理 | Todo, Task | 任务创建和管理 |
+| 语音处理 | SpeechToText, TextToSpeech | 语音转文字和文字转语音（基于 Qwen3-TTS） |
+| 数据库 | LibSQL | 数据库查询和管理 |
+| 翻译 | Translation | 多语言文本翻译 |
+| 任务管理 | TaskCreate, TaskGet, TaskList, TaskUpdate | 结构化任务创建、查询和状态管理 |
+| 信息提取 | Extract | 从文档中提取结构化信息 |
 
 - 🔌 **MCP 协议支持** - 可扩展第三方工具
 - ⚙️ **工具配置界面** - 可视化管理和配置工具
+- 🔍 **Skill 技能市场** - 从 Git 仓库或在线技能市场（skills.sh）搜索和导入技能
 
 ## 🛠️ 技术栈
 
@@ -201,6 +209,7 @@ AIME Chat 支持可选的运行库，可以在设置页面中安装：
 | 运行库 | 说明 |
 |--------|------|
 | PaddleOCR | 基于 PaddlePaddle 的 OCR 识别引擎，支持文档结构分析和从 PDF/图片中提取文字 |
+| Qwen Audio | 基于 Qwen3-TTS 的语音处理引擎，支持语音识别（ASR）和语音合成（TTS） |
 
 这些运行库通过内置的 uv 包管理器进行管理，将安装在应用数据目录中。
 

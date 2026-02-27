@@ -49,6 +49,7 @@ import os from 'os';
 import matter from 'gray-matter';
 import { LibSQLToolkit } from './database/libsql';
 import { Message } from './common/message';
+import { ImageToolkit } from './image';
 interface BuiltInToolContext {
   tool: BaseTool;
   abortController: AbortController;
@@ -170,11 +171,15 @@ class ToolsManager extends BaseManager {
     await this.registerBuiltInTool(Message);
     await this.registerBuiltInTool(WebSearch);
     await this.registerBuiltInTool(WebFetch);
-    await this.registerBuiltInTool(RemoveBackground);
+
     await this.registerBuiltInTool(Vision);
     await this.registerBuiltInTool(ToolToolkit);
-    await this.registerBuiltInTool(GenerateImage);
-    await this.registerBuiltInTool(EditImage);
+    await this.registerBuiltInTool(ImageToolkit);
+
+
+    // await this.registerBuiltInTool(GenerateImage);
+    // await this.registerBuiltInTool(EditImage);
+    // await this.registerBuiltInTool(RemoveBackground);
     await this.registerBuiltInTool(Task);
     await this.registerBuiltInTool(MemoryToolkit);
     await this.registerBuiltInTool(Extract);

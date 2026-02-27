@@ -8,7 +8,7 @@
   </p>
 
   <p>
-    <img src="https://img.shields.io/badge/version-0.3.14-blue.svg" alt="Version">
+    <img src="https://img.shields.io/badge/version-0.3.17-blue.svg" alt="Version">
     <img src="https://img.shields.io/badge/platform-macOS%20|%20Windows%20|%20Linux-lightgrey.svg" alt="Platform">
     <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License">
   </p>
@@ -30,11 +30,13 @@
 
 ## ✨ Features
 
-- 🤖 **Multiple AI Provider Support** - Integrated with mainstream AI providers including OpenAI, DeepSeek, Google, Zhipu AI, Ollama, LMStudio, ModelScope, and more
+- 🤖 **Multiple AI Provider Support** - Integrated with mainstream AI providers including OpenAI, DeepSeek, Google, Zhipu AI, MiniMax, Ollama, LMStudio, ModelScope, and more
 - 💬 **Intelligent Conversations** - Powerful AI Agent system based on Mastra framework, supporting streaming responses and tool calling
 - 🤝 **Open CoWork Capability** - AI is not just for chatting, it can perform actual operations like file editing, code execution, web searching, and more
 - 📚 **Knowledge Base Management** - Built-in vector database with support for document retrieval and knowledge Q&A
 - 🛠️ **Tool Integration** - Support for MCP (Model Context Protocol) client with extensible tool capabilities
+- 🎙️ **Audio Processing** - Built-in Speech-to-Text (STT) and Text-to-Speech (TTS) powered by Qwen3-TTS models
+- 🔍 **Skill System** - Search, import, and manage AI skills from Git repositories or the online skill marketplace
 - 🎨 **Modern UI** - Built with shadcn/ui component library, supports light/dark theme switching
 - 🌍 **Internationalization** - Built-in Chinese and English interfaces
 - 🔒 **Local First** - Data stored locally for privacy protection
@@ -128,9 +130,11 @@ Supported providers include:
 | DeepSeek | Cloud | DeepSeek series models |
 | Google | Cloud | Gemini series models |
 | Zhipu AI | Cloud | GLM series models |
+| MiniMax | Cloud | MiniMax series models |
 | Ollama | Local | Run open-source models locally |
 | LMStudio | Local | Local model management tool |
 | ModelScope | Cloud | ModelScope community models |
+| SerpAPI | Cloud | Google Search API service |
 
 ### Knowledge Base Features
 
@@ -146,16 +150,20 @@ Rich built-in tools that AI Agents can call autonomously:
 | Category | Tools | Description |
 |----------|-------|-------------|
 | File System | Bash, Read, Write, Edit, Grep, Glob | File read/write, search, edit operations |
-| Code Execution | Python, Node.js | Execute Python and Node.js code |
-| Web Tools | Web Fetch, Web Search | Web scraping and search |
-| Image Processing | RMBG | Image background removal |
-| Vision Analysis | Vision | Image recognition and analysis |
+| Code Execution | CodeExecution | Execute Python and Node.js code |
+| Web Tools | Web Fetch, Web Search | Web scraping and search (with AI content summarization) |
+| Image Processing | GenerateImage, EditImage, RMBG | Image generation, editing, and background removal |
+| Vision Analysis | Vision | LLM-powered image recognition and analysis (with OCR integration) |
 | OCR Recognition | PaddleOCR | Document and image text recognition (supports PDF/images) |
-| Database | LibSQL | Database operations |
-| Task Management | Todo, Task | Task creation and management |
+| Audio Processing | SpeechToText, TextToSpeech | Speech-to-text and text-to-speech (powered by Qwen3-TTS) |
+| Database | LibSQL | Database query and management |
+| Translation | Translation | Multi-language text translation |
+| Task Management | TaskCreate, TaskGet, TaskList, TaskUpdate | Structured task creation, query, and status management |
+| Information Extraction | Extract | Extract structured information from documents |
 
 - 🔌 **MCP Protocol Support** - Extensible third-party tools
 - ⚙️ **Tool Configuration UI** - Visual tool management and configuration
+- 🔍 **Skill Marketplace** - Search and import skills from Git repositories or online marketplace (skills.sh)
 
 ## 🛠️ Tech Stack
 
@@ -202,6 +210,7 @@ AIME Chat supports optional runtime libraries that can be installed from the Set
 | Runtime | Description |
 |---------|-------------|
 | PaddleOCR | OCR recognition engine based on PaddlePaddle, supports document structure analysis and text extraction from PDF/images |
+| Qwen Audio | Audio processing engine based on Qwen3-TTS, supports speech recognition (ASR) and text-to-speech (TTS) |
 
 These runtimes are managed via the built-in uv package manager and will be installed in the application data directory.
 

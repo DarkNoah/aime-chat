@@ -48,6 +48,15 @@ class ProjectManager extends BaseManager {
         }
       }
     }
+    const agentsMdPath = path.join(project?.path, `AGENTS.md`);
+    if (fs.existsSync(agentsMdPath) && fs.statSync(agentsMdPath).isFile()) {
+      const agentsMd = fs.readFileSync(agentsMdPath, 'utf-8');
+      if (agentsMd) {
+        project.agentsMd = agentsMd;
+      }
+    }
+
+
     return project as Project;
   }
 
