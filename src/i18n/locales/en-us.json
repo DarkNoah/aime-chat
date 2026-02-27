@@ -160,7 +160,8 @@
     "mcp_headers": "Headers",
     "create_skill": "Create Skill",
     "import_skill": "Import Skill",
-    "import_skill_tips": "Only packaged skill files (*.skill) are supported for import."
+    "import_skill_tips": "Only packaged skill files (*.skill) are supported for import.",
+    "search_skills": "Search Skills"
   },
   "agents": {
     "instructions": "System Prompt",

@@ -43,6 +43,7 @@ class ProjectManager extends BaseManager {
             name: skillData.data.name,
             description: skillData.data.description,
             path: skillPath,
+            skillmd: skillData.content,
           });
         }
       }

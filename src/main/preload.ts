@@ -298,6 +298,11 @@ const electronHandler = {
     }) => ipcRenderer.invoke(ToolChannel.ImportSkills, data),
     previewGitSkill: (data: { gitUrl: string }) =>
       ipcRenderer.invoke(ToolChannel.PreviewGitSkill, data),
+    searchSkills: (query: string, limit?: number): Promise<{
+      success: boolean;
+      skills: Array<{ name: string; slug: string; source: string; installs: number }>;
+      error?: string;
+    }> => ipcRenderer.invoke(ToolChannel.SearchSkills, query, limit),
   },
   localModel: {
     getList: (): Promise<Record<LocalModelType, LocalModelItem[]>> =>

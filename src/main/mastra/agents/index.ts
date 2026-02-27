@@ -287,7 +287,7 @@ ${additionalInstructions}
   @channel(AgentChannel.GetAvailableAgents)
   public async getAvailableAgents(): Promise<Agent[]> {
     const agentEntities = await this.agentsRepository.find({
-      where: { isActive: true, isHidden: false },
+      where: { isActive: true },
     });
     return agentEntities.map((agentEntity) => {
       const builtInAgent = this.builtInAgents.find(

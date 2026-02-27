@@ -106,6 +106,7 @@ export enum ToolChannel {
   ExecuteTool = 'tool:executeTool',
   AbortTool = 'tool:abortTool',
   UpdateToolConfig = 'tool:updateToolConfig',
+  SearchSkills = 'tool:searchSkills',
 }
 
 export enum LocalModelChannel {
