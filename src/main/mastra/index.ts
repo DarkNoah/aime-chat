@@ -248,7 +248,7 @@ class MastraManager extends BaseManager {
   }
 
   @channel(MastraChannel.GetThread)
-  public async getThread(id: string): Promise<ThreadState> {
+  public async getThread(id: string, onlyThread: boolean = false): Promise<ThreadState> {
     const storage = this.mastra.getStorage();
     const memoryStore = await storage.getStore('memory');
     const thread = await memoryStore?.getThreadById({ threadId: id });
@@ -266,6 +266,13 @@ class MastraManager extends BaseManager {
     //   vector: getVectorStore(),
     // });
     // const messagesDb = await memory.recall({ threadId: id, resourceId: '123' });
+
+    if (onlyThread) {
+      return {
+        ...thread,
+        status: this.threadChats.find((x) => x.id == id) ? 'streaming' : 'ready',
+      };
+    }
 
     const messages = await memoryStore.listMessages({
       threadId: id,
@@ -497,6 +504,10 @@ class MastraManager extends BaseManager {
           workspace,
           think,
         },
+      });
+      appManager.sendEvent(`chat:event:${chatId}`, {
+        type: ChatEvent.ChatThreadChanged,
+        data: {},
       });
       const todos: ChatTodo[] =
         (currentThread.metadata?.todos as ChatTodo[]) || [];
@@ -878,6 +889,36 @@ ${formatCodeWithLineNumbers({ content: agentsMd, startLine: 0 })}
         }
 
         delete streamOptions.context;
+        tools = requestContext.get('tools') as string[];
+        function isSameArray(arr1, arr2) {
+          if (arr1.length !== arr2.length) return false;
+          const sorted1 = [...arr1].sort();
+          const sorted2 = [...arr2].sort();
+          return sorted1.every((v, i) => v === sorted2[i]);
+        }
+
+        if (!isSameArray(currentThread.metadata?.tools, tools)) {
+          currentThread = await memoryStore.updateThread({
+            id: chatId,
+            title: currentThread.title,
+            metadata: {
+              ...(currentThread.metadata || {}),
+              tools: tools,
+            },
+          });
+          appManager.sendEvent(`chat:event:${chatId}`, {
+            type: ChatEvent.ChatThreadChanged,
+            data: {},
+          });
+        }
+
+
+        agent = await agentManager.buildAgent(agentId, {
+          modelId: model,
+          tools: tools,
+          subAgents: subAgents,
+          requestContext,
+        });
 
         stream = await this.nextStep(
           agent,

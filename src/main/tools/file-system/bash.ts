@@ -16,9 +16,14 @@ import { ChildProcessByStdio, spawn } from 'child_process';
 import iconv from 'iconv-lite';
 import Stream from 'stream';
 import { appManager } from '@/main/app';
+import { ToolConfig } from '@/types/tool';
 const MAX_OUTPUT_LENGTH = 30000;
 
-export class Bash extends BaseTool {
+export interface BashToolParams extends BaseToolParams {
+  env?: string;
+}
+
+export class Bash extends BaseTool<BashToolParams> {
   static readonly toolName = 'Bash';
   id: string = 'Bash';
   description: string = `Executes a given bash command in a persistent shell session with optional timeout, ensuring proper handling and security measures.
@@ -175,9 +180,12 @@ Output: Creates directory 'foo'`),
       ),
   });
   outputSchema = z.string();
+  configSchema = ToolConfig.Bash.configSchema;
+  env?: string;
 
-  constructor(config?: BaseToolParams) {
+  constructor(config?: BashToolParams) {
     super(config);
+    this.env = config?.env;
   }
   execute = async (
     inputData: z.infer<typeof this.inputSchema>,
@@ -210,10 +218,18 @@ Output: Creates directory 'foo'`),
     }
     const runtimeInfo = await appManager.getRuntimeInfo();
 
+
+
     const _env = {
       PATH: '',
       // ...(env ? env : {}),
     };
+    if (this.env) {
+      this.env.split('\n').map(x => x.trim()).filter(x => x).forEach(x => {
+        const [key, value] = x.split('=');
+        _env[key.trim()] = value.trim();
+      });
+    }
 
     if (runtimeInfo.uv.installed || runtimeInfo.bun.installed) {
       _env['PATH'] +=
@@ -440,25 +456,31 @@ export class ListBash extends BaseTool {
     return bashes.length == 0
       ? `No running bash sessions found`
       : bashes
-          .map(
-            (x) =>
-              `Shell ID: ${x.bashId}
+        .map(
+          (x) =>
+            `Shell ID: ${x.bashId}
 Command: ${x.command}
 Description: ${x.description ?? '(no description)'}
 IsRunning: ${x.isExited ? 'No' : 'Yes'}`,
-          )
-          .join('\n\n---\n\n');
+        )
+        .join('\n\n---\n\n');
   };
 }
 
-export interface BashToolParams extends BaseToolkitParams {}
+export interface BashToolParams extends BaseToolkitParams {
+  //env?: string;
+}
 
 export class BashToolkit extends BaseToolkit {
   static readonly toolName = 'BashToolkit';
   id: string = 'BashToolkit';
+
+
+
+
   constructor(params?: BashToolParams) {
     super(
-      [new Bash(), new KillBash(), new BashOutput(), new ListBash()],
+      [new Bash(params?.[Bash.toolName] ?? {}), new KillBash(), new BashOutput(), new ListBash()],
       params,
     );
   }

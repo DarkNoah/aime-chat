@@ -36,6 +36,17 @@ export enum ToolEvent {
   ToolListUpdated = 'tool:tool-list-updated',
 }
 export const ToolConfig = {
+  Bash: {
+    configSchema: z.strictObject({
+      env: z.string().optional(),
+    }),
+    uiSchema: {
+      env: {
+        'ui:widget': 'textarea',
+        'ui:title': t('common.env'),
+      },
+    },
+  },
   Read: {
     configSchema: z.strictObject({
       forcePDFOcr: z.boolean().optional().default(true),

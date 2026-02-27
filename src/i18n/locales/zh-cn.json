@@ -114,7 +114,8 @@
     "import_success": "导入成功",
     "ask_to_delete_skill": "是否删除技能?",
     "ptc_open": "启用PTC模式",
-    "request_interrupted_by_user": "用户中断会话"
+    "request_interrupted_by_user": "用户中断会话",
+    "env": "环境变量"
   },
   "sidebar": {
     "new_chat": "新聊天",

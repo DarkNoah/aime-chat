@@ -252,7 +252,7 @@ export default function ProjectsList({ className }: ProjectsListProps) {
             <ItemContent className="min-w-0">
               <ItemTitle className="line-clamp-1 w-auto flex flex-row items-center gap-1">
                 {item.tag && (
-                  <div className="flex-1">
+                  <div>
                     {item.tag === 'code' && <IconCode size={16} />}
                     {item.tag === 'work' && <IconBriefcase size={16} />}
                   </div>

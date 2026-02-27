@@ -1001,7 +1001,7 @@ class ToolsManager extends BaseManager {
       }
       // If no specific path or no skill found at path, scan entire repo
       if (skillsToScan.length === 0) {
-        skillsToScan = await this.getSkillsInDir(tmpDir);
+        skillsToScan = await this.getSkillsInDir(tmpDir, true);
       }
 
       // Extract skill info
@@ -1078,13 +1078,13 @@ class ToolsManager extends BaseManager {
     throw new Error('Invalid GitHub URL format');
   }
 
-  private async getSkillsInDir(dirPath: string): Promise<string[]> {
+  private async getSkillsInDir(dirPath: string, includeDotFiles: boolean = false): Promise<string[]> {
     const skills: string[] = [];
 
     const entries = await fs.promises.readdir(dirPath, { withFileTypes: true });
     for (const entry of entries) {
       // Skip hidden directories like .git
-      if (entry.name.startsWith('.')) continue;
+      if (entry.name.startsWith('.') && !includeDotFiles) continue;
 
       if (entry.isDirectory()) {
         const skillPath = path.join(dirPath, entry.name);
@@ -1256,7 +1256,7 @@ class ToolsManager extends BaseManager {
 
       // If no specific path or no skill found at path, scan entire repo
       if (skillsToScan.length === 0) {
-        skillsToScan = await this.getSkillsInDir(tmpDir);
+        skillsToScan = await this.getSkillsInDir(tmpDir, true);
       }
 
       // Extract skill info

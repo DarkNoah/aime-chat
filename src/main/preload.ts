@@ -196,8 +196,8 @@ const electronHandler = {
       resourceId?: string;
     }): Promise<PaginationInfo<StorageThreadType>> =>
       ipcRenderer.invoke(MastraChannel.GetThreads, { page, size, resourceId }),
-    getThread: (id: string): Promise<ThreadState> =>
-      ipcRenderer.invoke(MastraChannel.GetThread, id),
+    getThread: (id: string, onlyThread: boolean = false): Promise<ThreadState> =>
+      ipcRenderer.invoke(MastraChannel.GetThread, id, onlyThread),
     updateThread: (id: string, data: any) =>
       ipcRenderer.invoke(MastraChannel.UpdateThread, id, data),
     createThread: (options?: any) =>
