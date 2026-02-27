@@ -177,6 +177,7 @@ export const ChatAgentSelector = ({
                 <CommandItem
                   key={agent.id}
                   value={agent.id}
+                  disabled={agent.isHidden}
                   onSelect={() => {
                     if (mode === 'single') {
                       (onChange as (value: string | undefined) => void)?.(
@@ -206,7 +207,7 @@ export const ChatAgentSelector = ({
                 >
                   <div className="flex flex-col gap-1 items-start">
                     {agent.name}
-                    <small className="text-xs text-muted-foreground">
+                    <small className="text-xs text-muted-foreground line-clamp-2">
                       {agent.description}
                     </small>
                   </div>

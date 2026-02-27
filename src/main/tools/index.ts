@@ -1356,6 +1356,36 @@ class ToolsManager extends BaseManager {
     }
   }
 
+  @channel(ToolChannel.SearchSkills)
+  public async searchSkills(query: string, limit: number = 10) {
+    try {
+      const url = `https://skills.sh/api/search?q=${encodeURIComponent(query)}&limit=${limit}`;
+      const res = await fetch(url);
+      if (!res.ok) {
+        return { success: false, skills: [], error: `API error: ${res.status}` };
+      }
+      const data = (await res.json()) as {
+        skills: Array<{
+          id: string;
+          name: string;
+          installs: number;
+          source: string;
+        }>;
+      };
+      return {
+        success: true,
+        skills: (data.skills || []).map((skill) => ({
+          name: skill.name,
+          slug: skill.id,
+          source: skill.source || '',
+          installs: skill.installs,
+        })),
+      };
+    } catch (err) {
+      return { success: false, skills: [], error: err.message };
+    }
+  }
+
   async buildTool(
     toolId?: string,
     config?: any,

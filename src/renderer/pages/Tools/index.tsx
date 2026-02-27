@@ -100,6 +100,7 @@ import {
 import { nanoid } from '@/utils/nanoid';
 import { ToolEditDialog } from './tool-edit-dialog';
 import { SkillImportDialog } from './skill-import-dialog';
+import { SkillSearch } from '@/renderer/components/skills-ui/skill-search';
 
 function Tools() {
   const { setTitle } = useHeader();
@@ -116,6 +117,7 @@ function Tools() {
   });
   const [open, setOpen] = useState(false);
   const [openSkillCreateDialog, setOpenSkillCreateDialog] = useState(false);
+  const [openSkillSearchDialog, setOpenSkillSearchDialog] = useState(false);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -212,6 +214,11 @@ function Tools() {
                   onClick={() => setOpenSkillCreateDialog(true)}
                 >
                   {t('tools.import_skill')}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setOpenSkillSearchDialog(true)}
+                >
+                  {t('tools.search_skills', 'Search Skills')}
                 </DropdownMenuItem>
               </DropdownMenuGroup>
             </DropdownMenuContent>
@@ -342,6 +349,10 @@ function Tools() {
         open={openSkillCreateDialog}
         onOpenChange={setOpenSkillCreateDialog}
       ></SkillImportDialog>
+      <SkillSearch
+        open={openSkillSearchDialog}
+        onOpenChange={setOpenSkillSearchDialog}
+      />
       <div className="flex flex-col flex-1 w-full min-w-0">
         <Routes>
           <Route path=":id" element={<ToolDetail />} />

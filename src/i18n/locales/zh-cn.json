@@ -159,7 +159,8 @@
     "mcp_headers": "请求头",
     "create_skill": "创建技能",
     "import_skill": "导入技能",
-    "import_skill_tips": "只能导入打包后的skill包如 *.skill"
+    "import_skill_tips": "只能导入打包后的skill包如 *.skill",
+    "search_skills": "搜索技能"
   },
   "tool_name": {
     "codeexecution": "代码执行",
