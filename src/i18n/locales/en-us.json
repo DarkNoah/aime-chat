@@ -115,7 +115,8 @@
     "import_success": "Import Success",
     "ask_to_delete_skill": "Delect skill?",
     "ptc_open": "PTC Open",
-    "request_interrupted_by_user": "Request interrupted by user"
+    "request_interrupted_by_user": "Request interrupted by user",
+    "env": "ENV"
   },
   "sidebar": {
     "new_chat": "New Chat",

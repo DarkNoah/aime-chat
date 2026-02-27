@@ -44,6 +44,7 @@ export enum ChatEvent {
   ChatError = 'chat:chat-error',
   ChatAbort = 'chat:chat-abort',
   ChatStepFinish = 'chat:chat-step-finish',
+  ChatThreadChanged = 'chat:chat-thread-changed',
 }
 
 export enum ThreadEvent {
@@ -51,7 +52,7 @@ export enum ThreadEvent {
 }
 
 export type ThreadState = StorageThreadType & {
-  messages: UIMessage[];
+  messages?: UIMessage[];
   //mastraDBMessages: MastraDBMessage[];
   status: ChatStatus;
   error?: Error;

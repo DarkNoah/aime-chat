@@ -332,6 +332,15 @@ export class IpcChatTransport implements ChatTransport<UIMessage> {
               `data: ${JSON.stringify(chunk)}\n\n`,
             );
             controller.enqueue(chunkUint8Array);
+          } else if (event.type === ChatEvent.ChatThreadChanged) {
+            const chunk = {
+              type: 'data-thread-changed',
+              data: event.data,
+            };
+            const chunkUint8Array = encoder.encode(
+              `data: ${JSON.stringify(chunk)}\n\n`,
+            );
+            controller.enqueue(chunkUint8Array);
           }
         };
 

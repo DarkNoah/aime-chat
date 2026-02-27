@@ -34,6 +34,7 @@ export type ChatSessionProps = {
   onUsageChange?: (usage: any) => void;
   onError?: (err: Error) => void;
   onFinish?: (event: any) => void;
+  onThreadChanged?: (event: any) => void;
 };
 
 export type ChatSessionRef = {
@@ -49,7 +50,14 @@ export type ChatSessionRef = {
 
 export const ChatSession = React.forwardRef<ChatSessionRef, ChatSessionProps>(
   (props: ChatSessionProps, ref: ForwardedRef<ChatSessionRef>) => {
-    const { threadId, onError, onUsageChange, onData, onFinish } = props;
+    const {
+      threadId,
+      onError,
+      onUsageChange,
+      onData,
+      onFinish,
+      onThreadChanged,
+    } = props;
 
     const threadState = useThreadStore(
       useShallow((s) => s.threadStates[threadId]),
@@ -88,6 +96,9 @@ export const ChatSession = React.forwardRef<ChatSessionRef, ChatSessionProps>(
         }
         if (dataPart.type === 'data-step-finish') {
           onFinish?.(dataPart.data);
+        }
+        if (dataPart.type === 'data-thread-changed') {
+          onThreadChanged?.(dataPart.data);
         }
       },
       onError: (err) => {
@@ -304,6 +315,19 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     //   });
   }, []);
 
+  const onThreadChanged = useCallback((threadId, event) => {
+    eventBus.emit(`chat:onThreadChanged:${threadId}`, event);
+    window.electron.mastra
+      .getThread(threadId, true)
+      .then((_thread) => {
+        updateThreadState(threadId, _thread);
+        return _thread;
+      })
+      .catch((err) => {
+        toast.error(err.message);
+      });
+  }, []);
+
   const onData = useCallback((threadId, event) => {
     eventBus.emit(`chat:onData:${threadId}`, event);
   }, []);
@@ -383,6 +407,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
             }}
             onFinish={(event) => onFinish(threadId, event)}
             onData={(event) => onData(threadId, event)}
+            onThreadChanged={(event) => onThreadChanged(threadId, event)}
           />
         ))}
       </div>

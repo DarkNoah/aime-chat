@@ -426,6 +426,16 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
       return () => {};
     }, [threadId]);
 
+    useEffect(() => {
+
+
+      if(threadState?.metadata?.tools && threadState?.metadata?.tools.length > 0) {
+        console.log('threadState?.metadata?.tools', threadState?.metadata?.tools);
+        chatInputRef.current?.setTools(threadState?.metadata?.tools as string[]);
+      }
+
+    }, [threadState]);
+
     return (
       <div className={cn('flex flex-col h-full', className)}>
         <Conversation className="h-full w-full flex-1 flex items-center justify-center overflow-y-hidden">

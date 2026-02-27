@@ -1,11 +1,5 @@
-# AIME Chat
-
 <div align="center">
-  <img src="assets/icon.png" alt="AIME Chat Logo" width="120" />
-  
-  <p>
-    <strong>一个功能强大的 AI 桌面聊天应用</strong>
-  </p>
+  <img src="assets/banner.png" alt="AIME Chat" width="100%" />
 
   <p>
     <img src="https://img.shields.io/badge/version-0.3.17-blue.svg" alt="Version">
@@ -14,11 +8,7 @@
   </p>
 
   <p>
-    🌐 <a href="https://darknoah.github.io/aime-chat/">官方网站</a>
-  </p>
-
-  <p>
-    <strong>中文</strong> | <a href="README.md">English</a>
+    <a href="https://darknoah.github.io/aime-chat/">官方网站</a> • <a href="README.md">English</a>
   </p>
 </div>
 

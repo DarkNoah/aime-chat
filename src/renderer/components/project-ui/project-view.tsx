@@ -26,7 +26,13 @@ import {
   AlertDialogTrigger,
 } from '../ui/alert-dialog';
 import { ButtonGroup } from '../ui/button-group';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../ui/dropdown-menu';
 import { ChevronDownIcon } from 'lucide-react';
 import { SkillSearch } from '../skills-ui/skill-search';
 import { SkillDetailDialog } from '../skills-ui/skill-detail';
@@ -83,7 +89,9 @@ export const ProjectView = React.forwardRef<ProjectViewRef, ProjectViewProps>(
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-44">
                   <DropdownMenuGroup>
-                    <DropdownMenuItem onClick={() => setOpenSkillSearchDialog(true)}>
+                    <DropdownMenuItem
+                      onClick={() => setOpenSkillSearchDialog(true)}
+                    >
                       <IconSearch />
                       {t('tools.search_skills')}
                     </DropdownMenuItem>
@@ -113,14 +121,18 @@ export const ProjectView = React.forwardRef<ProjectViewRef, ProjectViewProps>(
                     <Item
                       key={skill.id}
                       variant="outline"
-                      className="w-full cursor-pointer hover:bg-accent/50 transition-colors"
-                      onClick={() => {
-                        setSelectedSkill(skill);
-                        setOpenSkillDetail(true);
-                      }}
+                      className="w-full hover:bg-accent/50 transition-colors"
                     >
                       <ItemContent>
-                        <ItemTitle>{skill.name}</ItemTitle>
+                        <ItemTitle
+                          onClick={() => {
+                            setSelectedSkill(skill);
+                            setOpenSkillDetail(true);
+                          }}
+                          className="cursor-pointer"
+                        >
+                          {skill.name}
+                        </ItemTitle>
                         <ItemDescription className="line-clamp-2 text-xs text-muted-foreground">
                           {skill.description}
                         </ItemDescription>
