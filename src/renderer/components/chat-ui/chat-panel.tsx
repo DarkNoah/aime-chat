@@ -427,13 +427,14 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
     }, [threadId]);
 
     useEffect(() => {
-
-
-      if(threadState?.metadata?.tools && threadState?.metadata?.tools.length > 0) {
-        console.log('threadState?.metadata?.tools', threadState?.metadata?.tools);
-        chatInputRef.current?.setTools(threadState?.metadata?.tools as string[]);
+      if (
+        threadState?.metadata?.tools &&
+        threadState?.metadata?.tools.length > 0
+      ) {
+        chatInputRef.current?.setTools(
+          threadState?.metadata?.tools as string[],
+        );
       }
-
     }, [threadState]);
 
     return (

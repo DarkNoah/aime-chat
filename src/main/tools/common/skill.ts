@@ -287,6 +287,7 @@ export class SkillManager {
         return undefined;
       }
       const skillPath = localSkill.value?.path;
+      const source = localSkill.value?.source;
       try {
 
         const skillContent = await fs.promises.readFile(
@@ -300,6 +301,7 @@ export class SkillManager {
           description: skillInfo.data.description,
           content: skillInfo.content,
           path: skillPath,
+          source: source,
           type: ToolType.SKILL,
           isActive: localSkill.isActive,
         };
@@ -311,6 +313,7 @@ export class SkillManager {
           description: undefined,
           content: undefined,
           path: skillPath,
+          source,
           type: ToolType.SKILL,
           isActive: localSkill.isActive,
         };

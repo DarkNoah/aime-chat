@@ -302,7 +302,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     window.electron.mastra
       .getThread(threadId)
       .then((_thread) => {
-        registerThread(threadId, _thread);
+        // registerThread(threadId, _thread);
         setMessages(threadId, _thread.messages);
         return _thread;
       })

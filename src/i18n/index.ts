@@ -11,8 +11,8 @@ import { LanguageCode } from '@/types/languages';
 
 const option = {
   fallbackLng: 'zh-cn',
-  debug: process.env.NODE_ENV !== 'production',
-
+  // debug: process.env.NODE_ENV !== 'production',
+  debug: false,
   resources: {
     'en-US': {
       translation: enUs,

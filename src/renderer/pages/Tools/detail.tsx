@@ -135,7 +135,7 @@ function ToolDetail() {
     if (!toolExecuting[toolName]) return;
     try {
       await window.electron.tools.abortTool(tool.id, toolName);
-    } catch (err) { }
+    } catch (err) {}
   };
 
   const handleDelete = async (toolId: string) => {
@@ -198,6 +198,7 @@ function ToolDetail() {
             <ItemDescription>
               <div className="flex items-center gap-2">
                 <Badge variant="outline">{tool?.type}</Badge>
+                <small>{tool?.source}</small>
               </div>
             </ItemDescription>
           </ItemContent>
@@ -279,7 +280,9 @@ function ToolDetail() {
                 <Accordion type="multiple" defaultValue={[]} className="w-full">
                   {tool?.tools?.map((_tool) => (
                     <AccordionItem value={_tool.id} key={_tool.id}>
-                      <AccordionTrigger>{t(`tool_name.${_tool.name.toLowerCase()}`, _tool.name)}</AccordionTrigger>
+                      <AccordionTrigger>
+                        {t(`tool_name.${_tool.name.toLowerCase()}`, _tool.name)}
+                      </AccordionTrigger>
                       <AccordionContent className="flex flex-col gap-4 text-balance">
                         {/* <pre className="text-xs break-all text-wrap bg-secondary p-4 rounded-2xl">
                           {_tool?.description}
