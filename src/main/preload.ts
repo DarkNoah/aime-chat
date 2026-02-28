@@ -59,6 +59,7 @@ import {
 } from 'electron';
 import { KnowledgeBaseItem } from '@/entities/knowledge-base';
 import { InstanceInfo } from '@/types/instance';
+import { MarketChannel } from '@/types/market';
 
 
 // export type Channels = 'ipc-example';
@@ -380,6 +381,9 @@ const electronHandler = {
     createInstance: (data: any) => ipcRenderer.invoke(InstancesChannel.CreateInstance, data),
     getInstance: (id: string) => ipcRenderer.invoke(InstancesChannel.GetInstance, id),
     detectBrowserProfiles: () => ipcRenderer.invoke(InstancesChannel.DetectBrowserProfiles),
+  },
+  market: {
+    getMarketData: (type: ToolType.SKILL | ToolType.MCP) => ipcRenderer.invoke(MarketChannel.GetMarketData, type),
   },
 };
 

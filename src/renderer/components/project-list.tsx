@@ -57,7 +57,7 @@ export type ProjectsListProps = {
 
 export default function ProjectsList({ className }: ProjectsListProps) {
   const [items, setItems] = useState<
-    (Project & { status?: 'idle' | 'streaming' })[]
+    (Project & { status?: 'idle' | 'streaming'; runningThreads?: string[] })[]
   >([]);
   const {
     state,
@@ -161,6 +161,60 @@ export default function ProjectsList({ className }: ProjectsListProps) {
       loadMore(true);
     }
 
+    const handleChatChanged = (event) => {
+      if (event.data.type === ChatChangedType.Start) {
+        setItems((prev) => {
+          const index = prev.findIndex(
+            (item) => item.id === event.data.resourceId.split(':')[1],
+          );
+
+          if (index === -1) {
+            return prev;
+          }
+          const next = [...prev];
+
+          const runningThreads = next[index].runningThreads ?? [];
+          runningThreads.push(event.data.chatId);
+          next[index] = {
+            ...next[index],
+            status: 'streaming',
+            runningThreads: [...runningThreads],
+          };
+          return next;
+        });
+      } else if (event.data.type === ChatChangedType.Finish) {
+        setItems((prev) => {
+          const index = prev.findIndex(
+            (item) => item.id === event.data.resourceId.split(':')[1],
+          );
+          if (index === -1) {
+            return prev;
+          }
+          const next = [...prev];
+          let runningThreads = next[index].runningThreads ?? [];
+          runningThreads = runningThreads.filter(
+            (thread) => thread !== event.data.chatId,
+          );
+          next[index] = {
+            ...next[index],
+            status: runningThreads.length > 0 ? 'streaming' : 'idle',
+            runningThreads: [...runningThreads],
+          };
+          return next;
+        });
+      } else if (event.data.type === ChatChangedType.TitleUpdated) {
+        setItems((prev) =>
+          prev.map((item) =>
+            item.id === event.data.chatId
+              ? { ...item, title: event.data.title }
+              : item,
+          ),
+        );
+      }
+    };
+
+    window.electron.ipcRenderer.on(ChatEvent.ChatChanged, handleChatChanged);
+
     return () => {
       window.electron.ipcRenderer.removeListener(
         ProjectEvent.ProjectCreated,
@@ -169,6 +223,10 @@ export default function ProjectsList({ className }: ProjectsListProps) {
       window.electron.ipcRenderer.removeListener(
         ProjectEvent.ProjectUpdated,
         handleProjectUpdated,
+      );
+      window.electron.ipcRenderer.removeListener(
+        ChatEvent.ChatChanged,
+        handleChatChanged,
       );
     };
   }, [loadMore]);

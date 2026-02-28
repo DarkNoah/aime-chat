@@ -23,6 +23,8 @@ import {
   IconRobot,
   IconFolderPlus,
   IconBrandGithub,
+  IconShoppingCart,
+  IconCategory,
 } from '@tabler/icons-react';
 // import { NavMain } from '@/app/(pages)/nav-main';
 // import { NavSecondary } from '@/app/dashboard/nav-secondary';
@@ -101,6 +103,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       title: t('sidebar.tools'),
       url: '/tools',
       icon: IconTools,
+    },
+    {
+      title: t('sidebar.market'),
+      url: '/market',
+      icon: IconCategory,
+      hidden: appInfo?.isPackaged,
     },
     {
       title: t('sidebar.knowledge_base'),

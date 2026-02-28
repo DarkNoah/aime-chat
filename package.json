@@ -121,6 +121,7 @@
     "@clerk/nextjs": "^6.35.0",
     "@clerk/themes": "^2.4.35",
     "@electron/rebuild": "^3.7.1",
+    "@elevenlabs/elevenlabs-js": "^2.37.0",
     "@emotion/is-prop-valid": "^1.4.0",
     "@excalidraw/excalidraw": "^0.18.0-a18b139",
     "@google/genai": "^1.29.0",

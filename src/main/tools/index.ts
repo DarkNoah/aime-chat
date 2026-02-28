@@ -1298,6 +1298,7 @@ class ToolsManager extends BaseManager {
           tool.value = {
             path: path.join(skillsPath, selectedSkill.id),
             source: repo_or_url,
+            skill: selectedSkill.path
           };
           await this.toolsRepository.save(tool);
           await appManager.sendEvent(ToolEvent.ToolListUpdated, {
@@ -1476,6 +1477,7 @@ class ToolsManager extends BaseManager {
     }
     return tools;
   }
+
 }
 
 export const toolsManager = new ToolsManager();

@@ -229,6 +229,21 @@
           "url": "https://www.modelscope.cn/models/briaai/RMBG-2.0"
         }
       ]
+    },
+    {
+      "id": "ben2",
+      "library": "transformers",
+      "repo": "onnx-community/BEN2-ONNX",
+      "download": [
+        {
+          "source": "huggingface",
+          "url": "https://huggingface.co/onnx-community/BEN2-ONNX"
+        },
+        {
+          "source": "modelscope",
+          "url": "https://www.modelscope.cn/models/onnx-community/BEN2-ONNX"
+        }
+      ]
     }
   ]
 }

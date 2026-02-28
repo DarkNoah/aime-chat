@@ -61,6 +61,20 @@ export const ToolConfig = {
       },
     },
   },
+  MusicGeneration: {
+    configSchema: z.strictObject({
+      modelId: z.string(),
+    }),
+    uiSchema: {
+      modelId: {
+        'ui:widget': 'modelSelector',
+        'ui:title': t('common.model'),
+        'ui:options': {
+          type: ModelType.MUSIC,
+        },
+      },
+    },
+  },
   SpeechToText: {
     configSchema: z.strictObject({
       modelId: z.string(),
@@ -209,7 +223,7 @@ export const ToolConfig = {
   },
   RemoveBackground: {
     configSchema: z.strictObject({
-      modelName: z.enum(['rmbg-1.4', 'rmbg-2.0']),
+      modelName: z.enum(['rmbg-1.4', 'rmbg-2.0', 'ben2']),
     }),
     uiSchema: {
       modelName: {

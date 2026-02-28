@@ -58,7 +58,9 @@ export class RemoveBackground extends BaseTool {
     // env.allowLocalModels = true;
     let modelName = this.modelName;
     if (!modelName) {
-      if (fs.existsSync(path.join(appInfo.modelPath, 'other', 'rmbg-1.4'))) {
+      if (fs.existsSync(path.join(appInfo.modelPath, 'other', 'ben2'))) {
+        modelName = 'ben2';
+      } else if (fs.existsSync(path.join(appInfo.modelPath, 'other', 'rmbg-1.4'))) {
         modelName = 'rmbg-1.4';
       } else if (
         fs.existsSync(path.join(appInfo.modelPath, 'other', 'rmbg-2.0'))

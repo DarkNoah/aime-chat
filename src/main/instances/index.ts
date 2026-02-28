@@ -342,15 +342,19 @@ class InstancesManager extends BaseManager {
       if (wsUrl) {
         // CDP port is already open, connect via webSocketDebuggerUrl
         try {
-          const browser = await chromium.connectOverCDP(wsUrl);
+          const browser = await chromium.connectOverCDP("http://localhost:9222");
           const browserContext =
             browser.contexts().length > 0
               ? browser.contexts()[0]
               : await browser.newContext();
 
+
+          const cdp = await browser.newBrowserCDPSession();
+          await cdp.send("Browser.setDownloadBehavior", { behavior: "default" });
           const browserInstance = new BrowserInstance({ instances: instance });
           browserInstance.setBrowserContext(browserContext);
           browserInstance.setWebSocketUrl(wsUrl);
+          // browserInstance.setBrowserProcess
 
           this.instanceInfos.set(id, {
             ...instance,
@@ -406,7 +410,9 @@ class InstancesManager extends BaseManager {
           }
 
           // Connect via webSocketDebuggerUrl
-          const browser = await chromium.connectOverCDP(wsUrl);
+          const browser = await chromium.connectOverCDP("http://localhost:9222");
+          const cdp = await browser.newBrowserCDPSession();
+          await cdp.send("Browser.setDownloadBehavior", { behavior: "default" });
           const browserContext =
             browser.contexts().length > 0
               ? browser.contexts()[0]

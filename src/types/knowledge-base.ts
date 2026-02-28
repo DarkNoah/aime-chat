@@ -59,3 +59,7 @@ export type SearchKnowledgeBaseItemResult = {
   chunk?: string;
   content?: string;
 };
+
+export enum KnowledgeBaseEvent {
+  KnowledgeBaseItemsUpdated = 'knowledge-base:knowledge-base-items-updated',
+}

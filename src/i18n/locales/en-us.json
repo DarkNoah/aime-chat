@@ -44,7 +44,8 @@
     "instances_empty": "No instances",
     "instances_websocketurl": "WebSocketUrl",
     "vision_model": "Vision Model",
-    "default_ocr": "Ocr Model"
+    "default_ocr": "Ocr Model",
+    "usage": "Usage"
   },
   "common": {
     "edit": "Edit",
@@ -126,7 +127,8 @@
     "knowledge_base": "Knowledge Base",
     "agents": "Agents",
     "knowledge-base": "Knowledge Base",
-    "new_project": "New Project"
+    "new_project": "New Project",
+    "market": "Market"
   },
   "chat": {
     "new_chat": "New Chat",

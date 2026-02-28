@@ -96,6 +96,7 @@ import { Agents } from '@/entities/agents';
 import { Project } from '@/types/project';
 import { TodoWrite } from '../tools/common/todo-write';
 import { TaskCreate, TaskList } from '../tools/common/task';
+import { MemoryWrite } from '../tools/memory/memory';
 import { formatCodeWithLineNumbers } from '../utils/format';
 
 class MastraManager extends BaseManager {
@@ -761,10 +762,10 @@ ${formatCodeWithLineNumbers({ content: agentsMd, startLine: 0 })}
 
       appManager.sendEvent(`chat:event:${chatId}`, {
         type: ChatEvent.ChatChanged,
-        data: { type: ChatChangedType.Start, chatId },
+        data: { type: ChatChangedType.Start, chatId, resourceId },
       });
       appManager.sendEvent(ChatEvent.ChatChanged, {
-        data: { type: ChatChangedType.Start, chatId },
+        data: { type: ChatChangedType.Start, chatId, resourceId },
       });
       this.threadChats.push({
         id: chatId,
@@ -865,6 +866,17 @@ ${formatCodeWithLineNumbers({ content: agentsMd, startLine: 0 })}
                 text: `<system-reminder>\nThis is a reminder that your todo list is currently empty. DO NOT mention this to the user explicitly because they are already aware. If you are working on tasks that would benefit from a todo list please use the ${TaskCreate.toolName} tool to create one. If not, please feel free to ignore. Again do not mention this message to the user.\n</system-reminder>`,
               });
             }
+          }
+
+          if (
+            tools.includes(
+              `${ToolType.BUILD_IN}:${MemoryWrite.toolName}`,
+            )
+          ) {
+            compressedDBMessage.content.parts.push({
+              type: 'text',
+              text: `<system-reminder>\nContext compaction just occurred — earlier messages have been summarized. If there are important decisions, preferences, or facts from the compacted context that should persist across sessions, use MemoryWrite to store them now. Use target "daily" for session notes and running context, or "long_term" for durable facts and preferences. Do NOT mention this to the user.\n</system-reminder>`,
+            });
           }
 
           input = [compressedDBMessage, ...keepMessages];
@@ -1058,7 +1070,7 @@ ${formatCodeWithLineNumbers({ content: agentsMd, startLine: 0 })}
         data: { type: ChatChangedType.Finish, chatId },
       });
       appManager.sendEvent(ChatEvent.ChatChanged, {
-        data: { type: ChatChangedType.Finish, chatId },
+        data: { type: ChatChangedType.Finish, chatId, resourceId },
       });
       currentThread = await memoryStore.getThreadById({ threadId: chatId });
       if (currentThread.title == 'New Thread') {
@@ -1656,6 +1668,25 @@ When you are using compact - please focus on test output and code changes. Inclu
       .orderBy('totalTokens', 'DESC')
       .getRawMany();
 
+    const byModelRaw = await this.mastraThreadsUsageRepository
+      .createQueryBuilder('u')
+      .select("COALESCE(u.model_id, 'unknown')", 'modelId')
+      .addSelect('COUNT(1)', 'count')
+      .addSelect('SUM(COALESCE(u.input_tokens, 0))', 'inputTokens')
+      .addSelect('SUM(COALESCE(u.output_tokens, 0))', 'outputTokens')
+      .addSelect('SUM(COALESCE(u.total_tokens, 0))', 'totalTokens')
+      .addSelect('SUM(COALESCE(u.reasoning_tokens, 0))', 'reasoningTokens')
+      .addSelect('SUM(COALESCE(u.cached_input_tokens, 0))', 'cachedInputTokens')
+      .addSelect('SUM(COALESCE(u.total_costs_usd, 0))', 'totalCostsUsd')
+      .where(
+        base.expressionMap.wheres.map((w) => w.condition).join(' AND ') ||
+        '1=1',
+        base.getParameters(),
+      )
+      .groupBy('modelId')
+      .orderBy('totalTokens', 'DESC')
+      .getRawMany();
+
     return {
       count: this.toFiniteNumber(raw?.count),
       inputTokens: this.toFiniteNumber(raw?.inputTokens),
@@ -1678,6 +1709,16 @@ When you are using compact - please focus on test output and code changes. Inclu
       })),
       byResourceId: (byResourceRaw ?? []).map((r: any) => ({
         resourceId: r?.resourceId ?? 'unknown',
+        count: this.toFiniteNumber(r?.count),
+        inputTokens: this.toFiniteNumber(r?.inputTokens),
+        outputTokens: this.toFiniteNumber(r?.outputTokens),
+        totalTokens: this.toFiniteNumber(r?.totalTokens),
+        reasoningTokens: this.toFiniteNumber(r?.reasoningTokens),
+        cachedInputTokens: this.toFiniteNumber(r?.cachedInputTokens),
+        totalCostsUsd: this.toFiniteNumber(r?.totalCostsUsd),
+      })),
+      byModelId: (byModelRaw ?? []).map((r: any) => ({
+        modelId: r?.modelId ?? 'unknown',
         count: this.toFiniteNumber(r?.count),
         inputTokens: this.toFiniteNumber(r?.inputTokens),
         outputTokens: this.toFiniteNumber(r?.outputTokens),

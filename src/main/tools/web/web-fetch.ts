@@ -62,8 +62,8 @@ Usage notes:
   ) => {
     const { url, prompt } = inputData;
     const config = this.config;
-    const { requestContext } = options;
-    const workspace = requestContext.get('workspace' as never) as string;
+    const { requestContext } = options ?? {};
+    const workspace = requestContext?.get('workspace' as never) as string;
     const providerId = config?.providerId || ProviderType.LOCAL;
     const provider = await providersManager.getProvider(providerId);
     let content = '';

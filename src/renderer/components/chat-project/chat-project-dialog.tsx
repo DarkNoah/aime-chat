@@ -146,6 +146,12 @@ export function ChatProjectDialog(props: ChatProjectDialogProps) {
                           if (filePaths.length !== 1) return;
                           const path = filePaths[0];
                           field.onChange(path);
+                          if (!formValues.title) {
+                            form.setValue(
+                              'title',
+                              path.replaceAll('\\', '/').split('/').pop() || '',
+                            );
+                          }
                         }}
                       >
                         <Folder></Folder>

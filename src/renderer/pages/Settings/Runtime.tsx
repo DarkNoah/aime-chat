@@ -33,7 +33,7 @@ function Runtime() {
   const { appInfo, getAppInfo } = useGlobal();
   const { setTitle } = useHeader();
   const { t } = useTranslation();
-  setTitle(t('runtime'));
+  setTitle(t('settings.runtime'));
   const [runtimeInfo, setRuntimeInfo] = useState<RuntimeInfo>(null);
   const [loading, setLoading] = useState(false);
   const getRuntimeInfo = async () => {

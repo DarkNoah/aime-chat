@@ -17,7 +17,7 @@ import {
   InputGroupInput,
   InputGroupButton,
 } from '@/renderer/components/ui/input-group';
-import { ArrowUpIcon } from 'lucide-react';
+import { ArrowUpIcon, Brain, Eye, ScanEye, Zap } from 'lucide-react';
 import { Input } from '@/renderer/components/ui/input';
 import { IconFolder } from '@tabler/icons-react';
 import {
@@ -59,7 +59,10 @@ export default function DefaultModel() {
     <div className="flex flex-col gap-2 p-4">
       <Item variant="outline">
         <ItemContent>
-          <ItemTitle>{t('settings.default_fast_model')}</ItemTitle>
+          <ItemTitle>
+            <Zap className="w-5 h-5" />
+            {t('settings.default_fast_model')}
+          </ItemTitle>
           <ItemDescription></ItemDescription>
         </ItemContent>
         <ItemActions>
@@ -75,7 +78,10 @@ export default function DefaultModel() {
       </Item>
       <Item variant="outline">
         <ItemContent>
-          <ItemTitle>{t('settings.default_model')}</ItemTitle>
+          <ItemTitle>
+            <Brain className="w-5 h-5" />
+            {t('settings.default_model')}
+          </ItemTitle>
           <ItemDescription></ItemDescription>
         </ItemContent>
         <ItemActions>
@@ -91,7 +97,10 @@ export default function DefaultModel() {
       </Item>
       <Item variant="outline">
         <ItemContent>
-          <ItemTitle>{t('settings.vision_model')}</ItemTitle>
+          <ItemTitle>
+            <Eye className="w-5 h-5" />
+            {t('settings.vision_model')}
+          </ItemTitle>
           <ItemDescription></ItemDescription>
         </ItemContent>
         <ItemActions>
@@ -107,7 +116,10 @@ export default function DefaultModel() {
       </Item>
       <Item variant="outline">
         <ItemContent>
-          <ItemTitle>{t('settings.default_ocr')}</ItemTitle>
+          <ItemTitle>
+            <ScanEye className="w-5 h-5" />
+            {t('settings.default_ocr')}
+          </ItemTitle>
           <ItemDescription></ItemDescription>
         </ItemContent>
         <ItemActions>

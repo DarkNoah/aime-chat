@@ -37,6 +37,7 @@ import {
 import { useHeader } from '@/renderer/hooks/use-title';
 import {
   KnowledgeBase,
+  KnowledgeBaseEvent,
   KnowledgeBaseItemState,
   KnowledgeBaseSourceType,
   SearchKnowledgeBaseItemResult,
@@ -143,6 +144,8 @@ function KnowledgeBaseDetail() {
   const [pendingDeleteItem, setPendingDeleteItem] =
     useState<KnowledgeBaseItem | null>(null);
   const [deletingItem, setDeletingItem] = useState(false);
+  const [textDialogOpen, setTextDialogOpen] = useState(false);
+
   const getStateVariant = (
     state?: string,
   ): 'default' | 'secondary' | 'destructive' | 'outline' => {
@@ -174,11 +177,11 @@ function KnowledgeBaseDetail() {
     return '-';
   };
 
-  const loadItems = async (targetPage = 1) => {
+  const loadItems = async (targetPage = 1, loading = true) => {
     if (!id) {
       return;
     }
-    setItemsLoading(true);
+    if (loading) setItemsLoading(true);
     try {
       const data = await window.electron.knowledgeBase.getKnowledgeBaseItems(
         id,
@@ -229,6 +232,34 @@ function KnowledgeBaseDetail() {
     getData();
   }, [id]);
 
+  useEffect(() => {
+    const handleKnowledgeBaseItemsUpdatedEvent = (data: {
+      kbId: string;
+      items: KnowledgeBaseItem[];
+    }) => {
+      if (data.kbId !== id) return;
+      if (page === 1) {
+        loadItems(1, false);
+        return;
+      }
+      for (const item of data.items) {
+        if (items.find((x) => x.id === item.id)) {
+          setItems((prev) => [...prev, item]);
+        }
+      }
+    };
+    window.electron.ipcRenderer.on(
+      KnowledgeBaseEvent.KnowledgeBaseItemsUpdated,
+      handleKnowledgeBaseItemsUpdatedEvent,
+    );
+    return () => {
+      window.electron.ipcRenderer.removeListener(
+        KnowledgeBaseEvent.KnowledgeBaseItemsUpdated,
+        handleKnowledgeBaseItemsUpdatedEvent,
+      );
+    };
+  }, []);
+
   const handleSubmit = async (data: any, type: KnowledgeBaseSourceType) => {
     if (!id) {
       return;
@@ -238,7 +269,7 @@ function KnowledgeBaseDetail() {
       source: data,
       type,
     });
-    await loadItems(1);
+    await loadItems(1, false);
   };
 
   const searchKnowledgeBase = async (query: string) => {
@@ -409,7 +440,15 @@ function KnowledgeBaseDetail() {
           </DialogContent>
         </Dialog>
 
-        <Dialog>
+        <Dialog
+          open={textDialogOpen}
+          onOpenChange={(open) => {
+            setTextDialogOpen(open);
+            if (!open) {
+              textForm.reset();
+            }
+          }}
+        >
           <DialogTrigger asChild>
             <Item variant="outline" className="cursor-pointer">
               <ItemHeader>
@@ -424,9 +463,10 @@ function KnowledgeBaseDetail() {
             </DialogHeader>
             <Form {...textForm}>
               <form
-                onSubmit={textForm.handleSubmit((data) =>
-                  handleSubmit(data, KnowledgeBaseSourceType.Text),
-                )}
+                onSubmit={textForm.handleSubmit((data) => {
+                  handleSubmit(data, KnowledgeBaseSourceType.Text);
+                  setTextDialogOpen(false);
+                })}
               >
                 <div className="grid gap-4 ">
                   <div className="grid gap-3">

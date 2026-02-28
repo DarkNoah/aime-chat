@@ -45,6 +45,8 @@ import { TavilyProvider } from './tavily-provider';
 import { appManager } from '../app';
 import { SerpapiProvider } from './serpapi-provider';
 import { MineruProvider } from './mineru-provider';
+import { ElevenlabsProvider } from './elevenlabs-provider';
+import { MiniMaxProvider } from './minimax-provider';
 const modelsData = require('../../../assets/models.json');
 class ProvidersManager extends BaseManager {
   repository: Repository<Providers>;
@@ -97,6 +99,9 @@ class ProvidersManager extends BaseManager {
           }, {
             id: ProviderType.MINERU,
             name: 'MinerU',
+          }, {
+            id: ProviderType.ELEVENLABS,
+            name: 'Elevenlabs'
           }
         ],
       },
@@ -190,6 +195,8 @@ class ProvidersManager extends BaseManager {
       return this.getAvailableSpeechModels();
     } else if (type == ModelType.OCR) {
       return this.getAvailableOcrModels();
+    } else if (type == ModelType.MUSIC) {
+      return this.getAvailableMusicModels();
     }
   }
 
@@ -691,6 +698,41 @@ class ProvidersManager extends BaseManager {
     return data;
   }
 
+  public async getAvailableMusicModels(): Promise<Provider[]> {
+    const providers = await this.repository.find({
+      where: {
+        isActive: true,
+      },
+    });
+    const data: Provider[] = [];
+    for (const providerData of providers) {
+      const provider = await this.getProvider(providerData.id);
+      if (provider) {
+        try {
+          const ocrModels = await provider.getMusicModelList();
+          if (ocrModels.length > 0) {
+            data.push({
+              id: providerData.id,
+              name: providerData.name,
+              type: providerData.type,
+              models: ocrModels
+                .map((x) => ({
+                  id: `${providerData.id}/${x.id}`,
+                  name: x.name,
+                  providerType: providerData.type,
+                  isActive: true,
+                }))
+                .sort((a, b) => b.name.localeCompare(a.name)),
+            });
+          }
+        } catch { }
+      }
+    }
+
+    return data;
+
+  }
+
 
   public async getProvider(id: string): Promise<BaseProvider | undefined> {
 
@@ -733,6 +775,12 @@ class ProvidersManager extends BaseManager {
         return new SerpapiProvider(provider);
       case ProviderType.MINERU:
         return new MineruProvider(provider);
+      case ProviderType.ELEVENLABS:
+        return new ElevenlabsProvider(provider);
+      case ProviderType.MINIMAX_CN:
+        return new MiniMaxProvider(provider, ProviderType.MINIMAX_CN);
+      case ProviderType.MINIMAX:
+        return new MiniMaxProvider(provider, ProviderType.MINIMAX);
     }
   }
 

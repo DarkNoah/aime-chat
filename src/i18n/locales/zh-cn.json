@@ -43,7 +43,9 @@
     "instances_config_saved": "配置已保存",
     "instances_empty": "暂无实例",
     "vision_model": "视觉模型",
-    "default_ocr": "默认Ocr模型"
+    "default_ocr": "默认Ocr模型",
+    "usage": "模型用量",
+    "setup": "配置向导"
   },
   "common": {
     "edit": "编辑",
@@ -125,7 +127,8 @@
     "knowledge_base": "知识库",
     "agents": "智能体",
     "knowledge-base": "知识库",
-    "new_project": "新项目"
+    "new_project": "新项目",
+    "market": "市场"
   },
   "chat": {
     "new_chat": "新聊天",
@@ -310,5 +313,10 @@
   "providers": {
     "chat_provider": "对话模型",
     "other_provider": "其他供应商"
+  },
+  "market": {
+    "skills": "技能",
+    "installed": "已安装",
+    "recommended": "推荐"
   }
 }

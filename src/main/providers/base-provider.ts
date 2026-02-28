@@ -48,6 +48,16 @@ export interface OCRModel {
   }) => Promise<string>;
 }
 
+export interface MusicModel {
+  readonly provider: string;
+  readonly modelId: string;
+  doGenerate: (options: {
+    prompt: string;
+    sample_rate?: number;
+    format?: 'mp3' | 'wav' | 'pcm'
+  }) => Promise<string>;
+}
+
 export interface BaseProviderParams {
   provider: Providers;
 }
@@ -72,6 +82,7 @@ export abstract class BaseProvider implements ProviderV2 {
   languageModel(modelId: string): LanguageModelV2 | OpenAICompatibleConfig {
     throw new Error('Method not implemented.');
   }
+
   textEmbeddingModel(modelId: string): EmbeddingModelV2<string> {
     throw new Error('Method not implemented.');
   }
@@ -103,6 +114,9 @@ export abstract class BaseProvider implements ProviderV2 {
   ocrModel?(modelId: string): OCRModel {
     throw new Error('Method not implemented.');
   }
+  musicModel?(modelId: string): MusicModel {
+    throw new Error('Method not implemented.');
+  }
 
 
 
@@ -118,7 +132,9 @@ export abstract class BaseProvider implements ProviderV2 {
   async getTranscriptionModelList(): Promise<{ name: string; id: string }[]> {
     return Promise.resolve([]);
   }
-
+  async getMusicModelList(): Promise<{ name: string; id: string }[]> {
+    return Promise.resolve([]);
+  }
   async getSpeechModelList(): Promise<{ name: string; id: string }[]> {
     return Promise.resolve([]);
   }

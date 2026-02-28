@@ -1067,6 +1067,48 @@ Output: Returns the path to the generated WAV audio file.`;
   };
 }
 
+export interface MusicGenerationParams extends BaseToolParams {
+  modelId?: string;
+}
+export class MusicGeneration extends BaseTool {
+  static readonly toolName = 'MusicGeneration';
+  id: string = 'MusicGeneration';
+  description = `Generate music from a text prompt.`;
+  inputSchema = z.object({
+    prompt: z.string().describe('The text prompt to generate music from'),
+  });
+  configSchema = ToolConfig.MusicGeneration.configSchema;
+  modelId?: string;
+
+  constructor(config?: MusicGenerationParams) {
+    super(config);
+    this.modelId = config?.modelId;
+  }
+  execute = async (
+    inputData: z.infer<typeof this.inputSchema>,
+    context?: ToolExecutionContext,
+  ) => {
+    const { prompt } = inputData;
+    const workspace =
+      (context?.requestContext?.get('workspace' as never) as string) ||
+      undefined;
+    if (!this.modelId) {
+      throw new Error('Model is not set');
+    }
+    const provider = await providersManager.getProvider(this.modelId);
+    if (provider) {
+      const musicModel = provider.musicModel(this.modelId.split('/').slice(1).join('/'));
+      const result = await musicModel.doGenerate({ prompt });
+      return `Generated music saved to: \n<file>${result}</file>`;
+    }
+  }
+
+}
+
+
+
+
+
 // ---------------------------------------------------------------------------
 // AudioToolkit
 // ---------------------------------------------------------------------------
@@ -1078,7 +1120,10 @@ export class AudioToolkit extends BaseToolkit {
   id: string = 'AudioToolkit';
 
   constructor(params?: AudioToolkitParams) {
-    super([new SpeechToText(params?.[SpeechToText.toolName] ?? {}), new TextToSpeech(params?.[TextToSpeech.toolName] ?? {})], params);
+    super([
+      new SpeechToText(params?.[SpeechToText.toolName] ?? {}),
+      new TextToSpeech(params?.[TextToSpeech.toolName] ?? {}),
+      new MusicGeneration(params?.[MusicGeneration.toolName] ?? {})], params);
   }
 
   getTools() {

@@ -5,6 +5,7 @@ import { channel } from '../ipc/IpcController';
 import { KnowledgeBaseChannel } from '@/types/ipc-channel';
 import {
   CreateKnowledgeBase,
+  KnowledgeBaseEvent,
   KnowledgeBaseItemState,
   KnowledgeBaseSourceType,
   SearchKnowledgeBaseItemResult,
@@ -29,6 +30,9 @@ import { PaginationInfo, PaginationParams } from '@/types/common';
 import path from 'path';
 import { isBinaryFile } from 'isbinaryfile';
 import { ReadBinaryFile } from '../tools/file-system/read';
+import { appManager } from '../app';
+import { toolsManager } from '../tools';
+import { ToolType } from '@/types/tool';
 
 export class KnowledgeBaseManager extends BaseManager {
   knowledgeBaseRepository: Repository<KnowledgeBase>;
@@ -244,7 +248,7 @@ export class KnowledgeBaseManager extends BaseManager {
     if (kb.vectorStoreType == VectorStoreType.LibSQL) {
       return new LibSQLVector({
         id: `kb_${kb.id}_${kb.vectorLength}`,
-        connectionUrl: `file:${getDbPath()}`,
+        url: `file:${getDbPath()}`,
       });
     }
     throw new Error('Vector store type not supported');
@@ -328,7 +332,7 @@ export class KnowledgeBaseManager extends BaseManager {
     if (type == KnowledgeBaseSourceType.Text && source?.content?.trim()) {
       await ctx.waitIfPaused();
       if (ctx.isCancelled()) return;
-      const item = new KnowledgeBaseItem(nanoid(), kbId, undefined, type);
+      let item = new KnowledgeBaseItem(nanoid(), kbId, undefined, type);
       item.source = source;
       item.isEnable = false;
       item.state = KnowledgeBaseItemState.Pending;
@@ -339,97 +343,128 @@ export class KnowledgeBaseManager extends BaseManager {
 
 
       ctx.updateProgress(50, '保存数据...');
-      await this.knowledgeBaseItemRepository.save(item);
-      const doc = MDocument.fromText(content);
-      const chunks = await doc.chunk({
-        strategy: "markdown",
-        maxSize: 512,
-        overlap: 50,
+      item = await this.knowledgeBaseItemRepository.save(item);
+      await appManager.sendEvent(KnowledgeBaseEvent.KnowledgeBaseItemsUpdated, {
+        kbId: kbId,
+        items: [item]
       });
-      const { embeddings } = await embedMany({
-        model: await providersManager.getEmbeddingModel(kb.embedding),
-        values: chunks.map((chunk) => chunk.text),
-      });
+      try {
+        const doc = MDocument.fromText(content);
+        const chunks = await doc.chunk({
+          strategy: "markdown",
+          maxSize: 512,
+          overlap: 50,
+        });
+        const { embeddings } = await embedMany({
+          model: await providersManager.getEmbeddingModel(kb.embedding),
+          values: chunks.map((chunk) => chunk.text),
+        });
 
-      const insertStatements = chunks.map((chunk, index) => ({
-        sql: `INSERT INTO [kb_${kbId}_${kb.vectorLength}] (id, item_id, chunk, is_enable, embedding, metadata)
+        const insertStatements = chunks.map((chunk, index) => ({
+          sql: `INSERT INTO [kb_${kbId}_${kb.vectorLength}] (id, item_id, chunk, is_enable, embedding, metadata)
         VALUES (?, ?, ?, ?, vector32(?), ?)`,
-        args: [
-          nanoid(),
-          item.id,
-          chunk.text,
-          true,
-          JSON.stringify(embeddings[index]),
-          JSON.stringify(chunk.metadata ?? {}),
-        ],
-      }));
-      await this.libSQLClient.batch(insertStatements);
-      item.chunkCount = chunks.length;
-      item.state = KnowledgeBaseItemState.Completed;
-      item.isEnable = true;
-      // item.sha256 = crypto.createHash('sha256').update(content).digest('hex');
-      item.updatedAt = new Date();
-      await this.knowledgeBaseItemRepository.save(item);
-
-
+          args: [
+            nanoid(),
+            item.id,
+            chunk.text,
+            true,
+            JSON.stringify(embeddings[index]),
+            JSON.stringify(chunk.metadata ?? {}),
+          ],
+        }));
+        await this.libSQLClient.batch(insertStatements);
+        item.chunkCount = chunks.length;
+        item.state = KnowledgeBaseItemState.Completed;
+        item.isEnable = true;
+        // item.sha256 = crypto.createHash('sha256').update(content).digest('hex');
+        item.updatedAt = new Date();
+        item = await this.knowledgeBaseItemRepository.save(item);
+        await appManager.sendEvent(KnowledgeBaseEvent.KnowledgeBaseItemsUpdated, {
+          kbId: kbId,
+          items: [item]
+        });
+      } catch (error) {
+        item.state = KnowledgeBaseItemState.Fail;
+        item.error = error.message;
+        item = await this.knowledgeBaseItemRepository.save(item);
+        await appManager.sendEvent(KnowledgeBaseEvent.KnowledgeBaseItemsUpdated, {
+          kbId: kbId,
+          items: [item]
+        });
+      }
 
       ctx.updateProgress(100, '导入完成');
     } else if (type == KnowledgeBaseSourceType.Web && isUrl(source.url)) {
       await ctx.waitIfPaused();
       if (ctx.isCancelled()) return;
-      const item = new KnowledgeBaseItem(nanoid(), kbId, undefined, type);
+      let item = new KnowledgeBaseItem(nanoid(), kbId, undefined, type);
       item.source = source;
       item.isEnable = false;
       item.state = KnowledgeBaseItemState.Pending;
-      // TODO: 网页导入逻辑
-      const content = await new WebFetch().execute({
-        url: source.url
+      const webFetch = await toolsManager.buildTool(`${ToolType.BUILD_IN}:${WebFetch.toolName}`);
+
+      const content = await webFetch.execute({
+        url: source.url,
+        // prompt: '请将网页内容转换为markdown格式'
       });
       item.name = content.substring(0, 10);
       item.content = content;
-      await this.knowledgeBaseItemRepository.save(item);
-      const doc = MDocument.fromText(content);
-      const chunks = await doc.chunk({
-        strategy: "recursive",
-        maxSize: 512,
-        overlap: 50,
-        separators: ["\n"],
-        extract: {
-          metadata: true, // Optionally extract metadata
-        },
+      item = await this.knowledgeBaseItemRepository.save(item);
+      await appManager.sendEvent(KnowledgeBaseEvent.KnowledgeBaseItemsUpdated, {
+        kbId: kbId,
+        items: [item]
       });
+      try {
+        const doc = MDocument.fromText(content);
+        const chunks = await doc.chunk({
+          strategy: "recursive",
+          maxSize: 512,
+          overlap: 50,
+          separators: ["\n"],
+          extract: {
+            metadata: true, // Optionally extract metadata
+          },
+        });
 
-      const { embeddings } = await embedMany({
-        model: await providersManager.getEmbeddingModel(kb.embedding),
-        values: chunks.map((chunk) => chunk.text),
-      });
+        const { embeddings } = await embedMany({
+          model: await providersManager.getEmbeddingModel(kb.embedding),
+          values: chunks.map((chunk) => chunk.text.replaceAll(/\0/g, '')),
+        });
 
-      const insertStatements = chunks.map((chunk, index) => ({
-        sql: `INSERT INTO [kb_${kbId}_${kb.vectorLength}] (id, item_id, chunk, is_enable, embedding, metadata)
+        const insertStatements = chunks.map((chunk, index) => ({
+          sql: `INSERT INTO [kb_${kbId}_${kb.vectorLength}] (id, item_id, chunk, is_enable, embedding, metadata)
         VALUES (?, ?, ?, ?, vector32(?), ?)`,
-        args: [
-          nanoid(),
-          item.id,
-          chunk.text,
-          true,
-          JSON.stringify(embeddings[index]),
-          JSON.stringify(chunk.metadata ?? {}),
-        ],
-      }));
-      await this.libSQLClient.batch(insertStatements);
-      item.chunkCount = chunks.length;
-      item.state = KnowledgeBaseItemState.Completed;
-      item.isEnable = true;
-      // item.sha256 = crypto.createHash('sha256').update(content).digest('hex');
-      item.updatedAt = new Date();
-      await this.knowledgeBaseItemRepository.save(item);
+          args: [
+            nanoid(),
+            item.id,
+            chunk.text,
+            true,
+            JSON.stringify(embeddings[index]),
+            JSON.stringify(chunk.metadata ?? {}),
+          ],
+        }));
+        await this.libSQLClient.batch(insertStatements);
+        item.chunkCount = chunks.length;
+        item.state = KnowledgeBaseItemState.Completed;
+        item.isEnable = true;
+        // item.sha256 = crypto.createHash('sha256').update(content).digest('hex');
+        item.updatedAt = new Date();
+        item = await this.knowledgeBaseItemRepository.save(item);
 
-      // await store.upsert({
-      //   indexName: "myCollection",
-      //   vectors: embeddings,
-      //   metadata: chunks.map((chunk) => ({ text: chunk.text })),
-      // });
-      debugger;
+        await appManager.sendEvent(KnowledgeBaseEvent.KnowledgeBaseItemsUpdated, {
+          kbId: kbId,
+          items: [item]
+        });
+      } catch (error) {
+        item.state = KnowledgeBaseItemState.Fail;
+        item.error = error.message;
+        item = await this.knowledgeBaseItemRepository.save(item);
+        await appManager.sendEvent(KnowledgeBaseEvent.KnowledgeBaseItemsUpdated, {
+          kbId: kbId,
+          items: [item]
+        });
+      }
+
       ctx.updateProgress(100, '导入完成');
     } else if (
       type == KnowledgeBaseSourceType.File &&
@@ -447,19 +482,27 @@ export class KnowledgeBaseManager extends BaseManager {
         item.state = KnowledgeBaseItemState.Pending;
         items.push(await this.knowledgeBaseItemRepository.save(item));
       }
+      await appManager.sendEvent(KnowledgeBaseEvent.KnowledgeBaseItemsUpdated, {
+        kbId: kbId,
+        items: items
+      });
 
 
 
       for (const [index, _item] of items.entries()) {
         await ctx.waitIfPaused();
         if (ctx.isCancelled()) return;
-        const item = await this.knowledgeBaseItemRepository.findOneBy({ id: _item.id });
+        let item = await this.knowledgeBaseItemRepository.findOneBy({ id: _item.id });
 
         try {
           const file = _item.source as string;
           let content = '';
           item.state = KnowledgeBaseItemState.Processing;
-          await this.knowledgeBaseItemRepository.save(item);
+          item = await this.knowledgeBaseItemRepository.save(item);
+          await appManager.sendEvent(KnowledgeBaseEvent.KnowledgeBaseItemsUpdated, {
+            kbId: kbId,
+            items: [item]
+          });
           if (await isBinaryFile(file)) {
             content = await new ReadBinaryFile().execute({
               file_source: file,
@@ -470,7 +513,11 @@ export class KnowledgeBaseManager extends BaseManager {
           }
           item.content = content;
 
-          await this.knowledgeBaseItemRepository.save(item);
+          item = await this.knowledgeBaseItemRepository.save(item);
+          await appManager.sendEvent(KnowledgeBaseEvent.KnowledgeBaseItemsUpdated, {
+            kbId: kbId,
+            items: [item]
+          });
           const doc = MDocument.fromText(content);
           const chunks = await doc.chunk({
             strategy: "recursive",
@@ -501,13 +548,21 @@ export class KnowledgeBaseManager extends BaseManager {
           item.isEnable = true;
           // item.sha256 = crypto.createHash('sha256').update(content).digest('hex');
           item.updatedAt = new Date();
-          await this.knowledgeBaseItemRepository.save(item);
+          item = await this.knowledgeBaseItemRepository.save(item);
+          await appManager.sendEvent(KnowledgeBaseEvent.KnowledgeBaseItemsUpdated, {
+            kbId: kbId,
+            items: [item]
+          });
 
         } catch (error) {
 
           item.state = KnowledgeBaseItemState.Fail;
           item.error = error.message;
-          await this.knowledgeBaseItemRepository.save(item);
+          item = await this.knowledgeBaseItemRepository.save(item);
+          await appManager.sendEvent(KnowledgeBaseEvent.KnowledgeBaseItemsUpdated, {
+            kbId: kbId,
+            items: [item]
+          });
 
         }
 

@@ -132,6 +132,15 @@ function Tools() {
   }, [setTitle, t]);
 
   useEffect(() => {
+    if (location.pathname.startsWith(`/tools/${ToolType.BUILD_IN}:`)) {
+      setView(ToolType.BUILD_IN);
+    } else if (location.pathname.startsWith(`/tools/${ToolType.MCP}:`)) {
+      setView(ToolType.MCP);
+    } else if (location.pathname.startsWith(`/tools/${ToolType.SKILL}:`)) {
+      setView(ToolType.SKILL);
+    }
+  }, [location]);
+  useEffect(() => {
     const getList = async () => {
       try {
         const data = await window.electron.tools.getList();
@@ -256,7 +265,7 @@ function Tools() {
             Skills
           </ToggleGroupItem>
         </ToggleGroup>
-        {view === ToolType.BUILD_IN && (
+        {/* {view === ToolType.BUILD_IN && (
           <div className="flex flex-row items-center gap-2">
             {' '}
             <IconFilter size="10"></IconFilter>
@@ -273,7 +282,7 @@ function Tools() {
               ))}
             </ToggleGroup>
           </div>
-        )}
+        )} */}
 
         <ScrollArea className="h-full flex-1 min-h-0">
           <SidebarMenu className="pr-3">

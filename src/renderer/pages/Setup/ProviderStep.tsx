@@ -155,7 +155,7 @@ function ProviderStep({ onNext, onBack, onSkip }: SetupStepProps) {
       'claude-ops-4.5',
       'gemini-3',
       'deepseek-chat',
-      'glm-4.7',
+      'glm-5',
     ];
     setModels((list) =>
       list.map((m) => ({
