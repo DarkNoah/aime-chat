@@ -8,8 +8,9 @@ import { ToolConfig, ToolType } from '@/types/tool';
 import { providersManager } from '@/main/providers';
 import { isUrl } from '@/utils/is';
 import { toolsManager } from '..';
-import { ReadBinaryFile } from '../file-system/read';
+import { Read, ReadBinaryFile } from '../file-system/read';
 import { WebFetch } from '../web/web-fetch';
+import { appManager } from '@/main/app';
 
 export interface ExtractParams extends BaseToolParams {
   modelId?: string;
@@ -67,8 +68,13 @@ Returns:
     inputData: z.infer<typeof this.inputSchema>,
     options?: ToolExecutionContext,
   ) => {
-    const mode = options.requestContext.get('model' as never) as string;
+    let modeId = options.requestContext.get('model' as never) as string;
     const { fields, source } = inputData;
+    const appInfo = await appManager.getInfo();
+    modeId = this.config?.modelId || modeId || appInfo.defaultModel.model;
+    if (!modeId) {
+      throw new Error('Model is not set');
+    }
 
 
     // if((save_format && !save_path) || (!save_format && save_path)) {
@@ -96,7 +102,7 @@ Returns:
     }
 
     const model = await providersManager.getLanguageModel(
-      this.config?.modelId ?? mode,
+      modeId
     );
     const config = this.config;
 
@@ -123,13 +129,13 @@ Returns:
       fs.existsSync(source) &&
       fs.statSync(source).isFile()
     ) {
-      const readBinaryFile = await toolsManager.buildTool(
-        `${ToolType.BUILD_IN}:${ReadBinaryFile.toolName}`,
+      const read = await toolsManager.buildTool(
+        `${ToolType.BUILD_IN}:${Read.toolName}`,
       );
       console.log('准备OCR文件:', source);
-      content = await (readBinaryFile as ReadBinaryFile).execute(
+      content = await (read as Read).execute(
         {
-          file_source: source,
+          file_path: source,
         },
         options,
       );

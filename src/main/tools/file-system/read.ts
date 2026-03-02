@@ -282,18 +282,25 @@ Usage:
     const ocrModel = defaultOcr.split('/').slice(1).join('/')
 
     if (ext === '.pdf') {
-      if (this.forcePDFOcr) {
-        const result = await provider.ocrModel(ocrModel).doOCR({ image: file_source });
-        return result;
-      } else {
-        const loader = new PDFLoader(file_source);
-        const content = await loader.load();
-        return content;
+      try {
+        if (this.forcePDFOcr === true) {
+          const result = await provider.ocrModel(ocrModel).doOCR({ image: file_source });
+          return result;
+        }
+      } catch {
+
       }
+      const loader = new PDFLoader(file_source);
+      const content = await loader.load();
+      return content;
     } else if (ext === '.docx' || ext === '.doc') {
-      if (this.forceWordOcr) {
-        const result = await provider.ocrModel(ocrModel).doOCR({ image: file_source });
-        return result;
+      try {
+        if (this.forceWordOcr === true) {
+          const result = await provider.ocrModel(ocrModel).doOCR({ image: file_source });
+          return result;
+        }
+      } catch {
+
       }
       const loader = new WordLoader(file_source, {
         type: ext === '.docx' ? 'docx' : 'doc',

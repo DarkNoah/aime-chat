@@ -333,6 +333,9 @@ export class LocalOcrModel implements OCRModel {
     const image = fs.readFileSync(options.image);
     let result;
     if (this.modelId === 'system') {
+      if (path.extname(options.image).toLowerCase() === '.pdf') {
+        return await this.ocrPdf(image);
+      }
       result = await recognize(image, OcrAccuracy.Accurate);
       return result.text;
     }
@@ -355,6 +358,31 @@ export class LocalOcrModel implements OCRModel {
     // });
     // const result = await ocrLoader.load();
     // return result.text;
+  }
+
+  private async ocrPdf(raw: Buffer): Promise<string> {
+    const pdfjs = await import('pdf-parse');
+    const pdf = new pdfjs.PDFParse({
+      data: new Uint8Array(raw.buffer),
+      useWorkerFetch: false,
+      isEvalSupported: false,
+      useSystemFonts: true,
+    });
+
+    const images = await pdf.getImage({ imageBuffer: true });
+    const texts: string[] = [];
+
+    for (const page of images.pages) {
+      let pageText = '';
+      for (const image of page.images) {
+        const result = await recognize(image.data, OcrAccuracy.Accurate);
+        pageText += result.text;
+      }
+      texts.push(pageText);
+    }
+
+    await pdf.destroy();
+    return texts.join('\n\n');
   }
 }
 export class LocalProvider extends BaseProvider {
