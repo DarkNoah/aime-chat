@@ -41,15 +41,18 @@ import { Settings } from '@/entities/settings';
 import { getMainWindow } from '../main';
 import { HttpsProxyAgent } from 'https-proxy-agent';
 import {
+  getAgentBrowserRuntime,
   getBunRuntime,
   getNodeRuntime,
   getPaddleOcrRuntime,
   getQwenAudioRuntime,
   getUVRuntime,
+  installAgentBrowserRuntime,
   installBunRuntime,
   installPaddleOcrRuntime,
   installQwenAudioRuntime,
   installUVRuntime,
+  uninstallAgentBrowserRuntime,
   uninstallBunRuntime,
   uninstallPaddleOcrRuntime,
   uninstallQwenAudioRuntime,
@@ -664,7 +667,7 @@ class AppManager extends BaseManager {
       try {
         const url = new URL(proxyConfig.proxyRules);
         setGlobalDispatcher(
-          new ProxyAgent({
+          new HookProxyAgent({
             uri: proxyConfig.proxyRules,
           }),
         );
@@ -719,6 +722,8 @@ class AppManager extends BaseManager {
       await installBunRuntime();
     } else if (pkg == 'qwenAudio') {
       await installQwenAudioRuntime();
+    } else if (pkg == 'agentBrowser') {
+      await installAgentBrowserRuntime();
     }
   }
 
@@ -732,6 +737,8 @@ class AppManager extends BaseManager {
       await uninstallBunRuntime();
     } else if (pkg == 'qwenAudio') {
       await uninstallQwenAudioRuntime();
+    } else if (pkg == 'agentBrowser') {
+      await uninstallAgentBrowserRuntime();
     }
   }
 
@@ -742,12 +749,14 @@ class AppManager extends BaseManager {
     const node = await getNodeRuntime();
     const paddleOcr = await getPaddleOcrRuntime();
     const qwenAudio = await getQwenAudioRuntime();
+    const agentBrowser = await getAgentBrowserRuntime();
     return {
       uv: uv,
       bun: bun,
       node: node,
       paddleOcr: paddleOcr,
       qwenAudio: qwenAudio,
+      agentBrowser: agentBrowser,
     };
   }
 

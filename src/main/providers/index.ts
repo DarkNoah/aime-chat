@@ -785,6 +785,7 @@ class ProvidersManager extends BaseManager {
   }
 
   public async getModelInfo(_modelId: string) {
+    if (!_modelId) return undefined;
     const providerId = _modelId.split('/')[0];
 
     const provider = await providersManager.get(_modelId.split('/')[0]);

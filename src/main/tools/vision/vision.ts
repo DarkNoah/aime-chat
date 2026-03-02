@@ -4,7 +4,7 @@ import { isObject, isUrl } from '@/utils/is';
 import { downloadFile, saveFile } from '@/main/utils/file';
 import fs from 'fs';
 import BaseTool, { BaseToolParams } from '../base-tool';
-import { ToolConfig } from '@/types/tool';
+import { ToolConfig, ToolType } from '@/types/tool';
 import { LanguageModelV2ToolResultPart } from '@ai-sdk/provider';
 import { nanoid } from '@/utils/nanoid';
 import {
@@ -26,6 +26,7 @@ import { randomUUID } from 'crypto';
 import { app } from 'electron';
 import { MessageInput } from '@mastra/core/agent/message-list';
 import { ContentPart } from '@mastra/core/_types/@internal_ai-sdk-v5/dist';
+import { toolsManager } from '..';
 
 const inputSchema = z.strictObject({
   url_or_file_path: z.string(),
@@ -197,29 +198,9 @@ Returns:
     //   },
     // }]
     const provider = await providersManager.getProvider(this.modelId?.split('/')[0]);
+    const currentModel = requestContext.get('model' as never) as string;
+    const modelInfo = await providersManager.getModelInfo(currentModel);
     if (mimeType.startsWith('image/')) {
-      const modelInfo = await providersManager.getModelInfo(this.modelId);
-      if (modelInfo.modelInfo?.modalities?.input?.includes('image')) {
-        // return {
-        //   type: 'content',
-        //   value: [
-        //     {
-        //       type: 'file',
-        //       file: {
-        //         base64: fs.readFileSync(file_path).toString('base64'),
-        //         mediaType: mimeType,
-        //       },
-
-        //     }] as ContentPart[],
-
-
-        //   // mimeType: mimeType,
-        // }
-      }
-
-
-
-
       let ocr
       try {
         const loader = new OcrLoader(file_path, { modelId: 'auto' });
@@ -227,6 +208,26 @@ Returns:
         ocr = content;
       } catch {
 
+      }
+
+      if (modelInfo?.modelInfo?.modalities?.input?.includes('image')) {
+        const data = [
+          {
+            type: 'image',
+            data: fs.readFileSync(file_path).toString('base64'),
+            mimeType: mimeType,
+          }] as any[];
+        if (ocr) {
+          data.push({
+            type: 'text',
+            text: `<system-reminder>OCR result is provided in the context.</system-reminder>
+${ocr}`,
+          });
+        }
+        return {
+          content: data
+          // mimeType: mimeType,
+        }
       }
       try {
         const model = provider.languageModel(this.modelId?.split('/').slice(1).join('/'));
@@ -306,18 +307,49 @@ ${ocr}
     }
     else if (mimeType.startsWith('video/')) {
       let asr
-      let tempAudioPath
+      let tempAudioPath;
+      let tempsrtOutputPath
       try {
         const outputPath = path.join(app.getPath('temp'), `stt-${randomUUID()}.wav`);
+        tempsrtOutputPath = path.join(app.getPath('temp'), `stt-${randomUUID()}.srt`);
         const tempAudioPath = await convertToWav(source, outputPath);
 
-        const loader = new AudioLoader(tempAudioPath, { outputType: 'asr' });
-        const content = await loader.load();
+
+        const speechToTextTool = await toolsManager.buildTool(`${ToolType.BUILD_IN}:${SpeechToText.toolName}`);
+
+        const speechToTextResult = await (speechToTextTool as SpeechToText).execute({
+          source: tempAudioPath,
+          output_type: 'srt',
+          save_path: tempsrtOutputPath
+        }, options);
+        const content = await fs.promises.readFile(tempsrtOutputPath, 'utf-8');
         asr = content;
       } catch {
 
       } finally {
-        await fs.promises.rm(tempAudioPath, { recursive: true })
+        await fs.promises.rm(tempAudioPath, { recursive: true });
+        await fs.promises.rm(tempsrtOutputPath, { recursive: true });
+      }
+
+      if (modelInfo.modelInfo?.modalities?.input?.includes('video')) {
+        const data = [
+          {
+            type: 'video',
+            data: fs.readFileSync(file_path).toString('base64'),
+            mimeType: mimeType,
+          },
+        ] as any[];
+        if (asr) {
+          data.push({
+            type: 'text',
+            text: `<system-reminder>SRT result is provided in the context.</system-reminder>
+${asr}`,
+          });
+        }
+        return {
+          content: data,
+        };
+
       }
     } else {
       throw new Error('Unsupported file type');
@@ -332,6 +364,8 @@ ${ocr}
       ],
     };
   };
+
+
 
   // toModelOutput = (output: any) => {
   //   if (isObject(output)) {

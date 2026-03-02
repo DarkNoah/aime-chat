@@ -405,17 +405,17 @@ class MastraManager extends BaseManager {
     const messages = await memoryStore.listMessages({ threadId: id });
     await memoryStore.deleteMessages(messages.messages.map((x) => x.id));
     const thread = await memoryStore.getThreadById({ threadId: id });
-    if (thread.metadata?.tasks && thread.metadata?.tasks.length > 0) {
-      await memoryStore.updateThread({
-        id: id,
-        title: thread.title,
-        metadata: {
-          ...(thread.metadata || {}),
-          tasks: [],
-          usage: {}
-        },
-      });
-    }
+    await memoryStore.updateThread({
+      id: id,
+      title: thread.title,
+      metadata: {
+        ...(thread.metadata || {}),
+        tasks: [],
+        todos: [],
+        skillsLoaded: [],
+        usage: {},
+      },
+    });
   }
 
   @channel(MastraChannel.Chat, { mode: 'on' })
@@ -514,7 +514,10 @@ class MastraManager extends BaseManager {
         (currentThread.metadata?.todos as ChatTodo[]) || [];
       const tasks: ChatTask[] =
         (currentThread.metadata?.tasks as ChatTask[]) || [];
+      const skillsLoaded: string[] =
+        (currentThread.metadata?.skillsLoaded as string[]) || [];
       const requestContext = new RequestContext<ChatRequestContext>();
+      requestContext.set('skillsLoaded', skillsLoaded);
       requestContext.set('model', model);
       requestContext.set('threadId', chatId);
       requestContext.set('tools', tools);
@@ -881,6 +884,7 @@ ${formatCodeWithLineNumbers({ content: agentsMd, startLine: 0 })}
 
           input = [compressedDBMessage, ...keepMessages];
           if (_inputMessage) input.push(_inputMessage);
+          requestContext.set('skillsLoaded', []);
         }
 
         const bashSessions = bashManager.getBashSessions(chatId);
@@ -901,7 +905,19 @@ ${formatCodeWithLineNumbers({ content: agentsMd, startLine: 0 })}
         }
 
         delete streamOptions.context;
+
+
+        stream = await this.nextStep(
+          agent,
+          input,
+          streamOptions,
+          resume,
+          think,
+        );
+
+
         tools = requestContext.get('tools') as string[];
+        const skillsLoaded = requestContext.get('skillsLoaded') as string[] || [];
         function isSameArray(arr1, arr2) {
           if (arr1.length !== arr2.length) return false;
           const sorted1 = [...arr1].sort();
@@ -909,13 +925,14 @@ ${formatCodeWithLineNumbers({ content: agentsMd, startLine: 0 })}
           return sorted1.every((v, i) => v === sorted2[i]);
         }
 
-        if (!isSameArray(currentThread.metadata?.tools, tools)) {
+        if (!isSameArray(currentThread.metadata?.tools, tools) || !isSameArray(currentThread.metadata?.skillsLoaded ?? [], skillsLoaded)) {
           currentThread = await memoryStore.updateThread({
             id: chatId,
             title: currentThread.title,
             metadata: {
               ...(currentThread.metadata || {}),
               tools: tools,
+              skillsLoaded: skillsLoaded,
             },
           });
           appManager.sendEvent(`chat:event:${chatId}`, {
@@ -932,13 +949,6 @@ ${formatCodeWithLineNumbers({ content: agentsMd, startLine: 0 })}
           requestContext,
         });
 
-        stream = await this.nextStep(
-          agent,
-          input,
-          streamOptions,
-          resume,
-          think,
-        );
 
         const core = stream.messageList.get.all.core();
         const db = stream.messageList.get.all.db();
@@ -1036,8 +1046,13 @@ ${formatCodeWithLineNumbers({ content: agentsMd, startLine: 0 })}
         const db = stream.messageList.get.input.db();
         // const core = stream.messageList.get.input.core();
         let messages: MastraDBMessage[] = [];
+        const parts = [];
+        if (chunks?.text) {
+          parts.push({ type: 'text', text: chunks?.text });
+        }
+        parts.push({ type: 'text', text: `[Request interrupted by user]` });
         messages.push({
-          id: chunks.runId,
+          id: chunks?.runId ?? nanoid(),
           role: 'assistant',
           threadId: chatId,
           resourceId: resourceId,
@@ -1045,10 +1060,7 @@ ${formatCodeWithLineNumbers({ content: agentsMd, startLine: 0 })}
           createdAt: new Date(),
           content: {
             format: 2,
-            parts: [
-              { type: 'text', text: chunks.text },
-              { type: 'text', text: `[Request interrupted by user]` },
-            ],
+            parts: parts,
             metadata: {
               aborted: true,
             },

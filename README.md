@@ -2,7 +2,7 @@
   <img src="assets/banner.png" alt="AIME Chat" width="100%" />
 
   <p>
-    <img src="https://img.shields.io/badge/version-0.3.17-blue.svg" alt="Version">
+    <img src="https://img.shields.io/badge/version-0.3.19-blue.svg" alt="Version">
     <img src="https://img.shields.io/badge/platform-macOS%20|%20Windows%20|%20Linux-lightgrey.svg" alt="Platform">
     <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License">
   </p>

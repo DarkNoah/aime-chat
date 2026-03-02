@@ -30,6 +30,7 @@ import { BrowserInstance } from './browser-instance';
 import { spawn, ChildProcess } from 'child_process';
 import os from 'os';
 import { InstanceInfo as InstanceInfoType } from '@/types/instance';
+import { getAgentBrowserRuntime } from '../app/runtime';
 export interface BrowserProfile {
   name: string;
   userDataPath: string;
@@ -42,6 +43,8 @@ export interface InstanceInfo extends Instances {
   browserContext?: BrowserContext;
   status: 'running' | 'stop';
 }
+
+export const DEFAULT_BROWSER_INSTANCE_ID = 'default_browser';
 class InstancesManager extends BaseManager {
   DEFAULT_BROWSER_INSTANCE_ID = 'default_browser';
   instanceInfos: Map<string, InstanceInfo> = new Map();
@@ -313,6 +316,24 @@ class InstancesManager extends BaseManager {
     return null;
   }
 
+  private async connectViaCdp(): Promise<{ browserContext: BrowserContext; wsUrl: string }> {
+    const wsUrl = await this.getCdpWebSocketUrl();
+    if (!wsUrl) {
+      throw new Error('CDP WebSocket URL not available');
+    }
+
+    const browser = await chromium.connectOverCDP("http://localhost:9222");
+    const browserContext =
+      browser.contexts().length > 0
+        ? browser.contexts()[0]
+        : await browser.newContext();
+
+    const cdp = await browser.newBrowserCDPSession();
+    await cdp.send("Browser.setDownloadBehavior", { behavior: "default" });
+
+    return { browserContext, wsUrl };
+  }
+
   @channel(InstancesChannel.RunInstance)
   public async runInstance(id: string) {
     const instance = await this.repository.findOneBy({ id });
@@ -335,44 +356,14 @@ class InstancesManager extends BaseManager {
       config.userDataPath &&
       !config.userDataPath.includes(app.getPath('userData'));
 
-    if (isSystemUserData) {
+
+
+    if (isSystemUserData || true) {
       // System browser user data mode: use CDP port 9222
       let wsUrl = await this.getCdpWebSocketUrl();
 
-      if (wsUrl) {
-        // CDP port is already open, connect via webSocketDebuggerUrl
-        try {
-          const browser = await chromium.connectOverCDP("http://localhost:9222");
-          const browserContext =
-            browser.contexts().length > 0
-              ? browser.contexts()[0]
-              : await browser.newContext();
 
-
-          const cdp = await browser.newBrowserCDPSession();
-          await cdp.send("Browser.setDownloadBehavior", { behavior: "default" });
-          const browserInstance = new BrowserInstance({ instances: instance });
-          browserInstance.setBrowserContext(browserContext);
-          browserInstance.setWebSocketUrl(wsUrl);
-          // browserInstance.setBrowserProcess
-
-          this.instanceInfos.set(id, {
-            ...instance,
-            instance: browserInstance,
-            browserContext,
-            status: 'running',
-          });
-
-          browserInstance.on('close', () => {
-            this.instanceInfos.delete(id);
-          });
-
-          return { status: 'running', message: 'Connected via CDP' };
-        } catch (err) {
-          throw new Error(`Failed to connect via CDP: ${err.message}`);
-        }
-      } else {
-        // CDP port not open, launch browser with remote debugging
+      if (!wsUrl) {
         const executablePath =
           config.executablePath || chromePath?.chrome || getEdgePath();
 
@@ -392,60 +383,81 @@ class InstancesManager extends BaseManager {
               stdio: 'ignore',
             },
           );
-
           browserProcess.unref();
-
-          // Wait for CDP port and get webSocketDebuggerUrl
           wsUrl = await this.waitForCdpReady(15, 1000);
-          if (!wsUrl) {
-            // Kill the spawned browser process since CDP is not available
-            try {
-              browserProcess.kill();
-            } catch {
-              // ignore kill errors
-            }
-            throw new Error(
-              'Browser started but CDP port did not become available. Please close all browser windows and try again.',
-            );
-          }
-
-          // Connect via webSocketDebuggerUrl
-          const browser = await chromium.connectOverCDP("http://localhost:9222");
-          const cdp = await browser.newBrowserCDPSession();
-          await cdp.send("Browser.setDownloadBehavior", { behavior: "default" });
-          const browserContext =
-            browser.contexts().length > 0
-              ? browser.contexts()[0]
-              : await browser.newContext();
-
-          const browserInstance = new BrowserInstance({ instances: instance });
-          browserInstance.setBrowserContext(browserContext);
-          browserInstance.setBrowserProcess(browserProcess);
-          browserInstance.setWebSocketUrl(wsUrl);
-
-          this.instanceInfos.set(id, {
-            ...instance,
-            instance: browserInstance,
-            browserContext,
-            status: 'running',
-          });
-
-          browserInstance.on('close', () => {
-            this.instanceInfos.delete(id);
-          });
-
-          return { status: 'running', message: 'Browser launched with CDP' };
         } catch (err) {
-          if (
-            err.message?.includes('locked') ||
-            err.message?.includes('already')
-          ) {
-            throw new Error(
-              'User data directory is locked. Please close the browser and try again.',
-            );
-          }
-          throw err;
+          throw new Error(`Failed to start browser: ${err.message}`);
         }
+      }
+      if (!wsUrl) {
+        throw new Error('Failed to start browser');
+      }
+
+      const agentBrowserRuntime = await getAgentBrowserRuntime(true);
+      if (agentBrowserRuntime.installed) {
+        const httpProxy = await appManager.getProxy();
+        let agentBrowserConfig = {
+          "headed": true,
+          // "profile": config.userDataPath,
+          "cdp": wsUrl
+        }
+        if (httpProxy) {
+          agentBrowserConfig['proxy'] = `http://${httpProxy}`;
+        }
+        await fs.promises.mkdir(path.join(app.getPath('home'), '.agent-browser'), { recursive: true });
+        await fs.promises.writeFile(path.join(app.getPath('home'), '.agent-browser', 'config.json'), JSON.stringify(agentBrowserConfig, null, 2));
+      }
+
+
+      try {
+        const { browserContext, wsUrl: cdpWsUrl } = await this.connectViaCdp();
+        const browserInstance = new BrowserInstance({ instances: instance });
+        browserInstance.setBrowserContext(browserContext);
+        browserInstance.setWebSocketUrl(cdpWsUrl);
+
+        this.instanceInfos.set(id, {
+          ...instance,
+          instance: browserInstance,
+          browserContext,
+          status: 'running',
+        });
+
+        let hasReconnected = false;
+        browserInstance.on('close', async (e) => {
+          if (e?.reason === 'manual_stop') {
+            this.instanceInfos.delete(id);
+            return;
+          }
+
+          if (hasReconnected) {
+            this.instanceInfos.delete(id);
+            return;
+          }
+
+          hasReconnected = true;
+          try {
+            console.log('reconnecting...');
+            await this.waitForCdpReady(5, 1000);
+            const { browserContext: newContext, wsUrl: newWsUrl } = await this.connectViaCdp();
+
+            browserInstance.setBrowserContext(newContext);
+            browserInstance.setWebSocketUrl(newWsUrl);
+
+            console.log('reconnected...');
+            this.instanceInfos.set(id, {
+              ...instance,
+              instance: browserInstance,
+              browserContext: newContext,
+              status: 'running',
+            });
+          } catch {
+            this.instanceInfos.delete(id);
+          }
+        });
+
+        return { status: 'running', message: 'Connected via CDP' };
+      } catch (err) {
+        throw new Error(`Failed to connect via CDP: ${err.message}`);
       }
     } else {
       // Default mode: use playwright launchPersistentContext

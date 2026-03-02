@@ -81,7 +81,7 @@ Usage:
   forcePDFOcr?: ReadParams['forcePDFOcr'];
   forceWordOcr?: ReadParams['forceWordOcr'];
 
-  outputSchema = z.string();
+  // outputSchema = z.string();
 
 
   constructor(config?: ReadParams) {

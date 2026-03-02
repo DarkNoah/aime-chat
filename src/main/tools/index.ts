@@ -50,6 +50,7 @@ import matter from 'gray-matter';
 import { LibSQLToolkit } from './database/libsql';
 import { Message } from './common/message';
 import { ImageToolkit } from './image';
+import { AgentBrowser } from './browser';
 interface BuiltInToolContext {
   tool: BaseTool;
   abortController: AbortController;
@@ -176,7 +177,7 @@ class ToolsManager extends BaseManager {
     await this.registerBuiltInTool(ToolToolkit);
     await this.registerBuiltInTool(ImageToolkit);
 
-
+    await this.registerBuiltInTool(AgentBrowser);
     // await this.registerBuiltInTool(GenerateImage);
     // await this.registerBuiltInTool(EditImage);
     // await this.registerBuiltInTool(RemoveBackground);
@@ -1133,10 +1134,11 @@ class ToolsManager extends BaseManager {
 
   @channel(ToolChannel.ImportSkills)
   public async importSkills(data: {
-    repo_or_url: string;
+    repo_or_url?: string;
     files: string[];
     path?: string;
-    selectedSkills: string[];
+    selectedSkills?: string[];
+    isActive?: boolean;
   }) {
     let skillsPath;
     if (data.path) {
@@ -1337,9 +1339,14 @@ class ToolsManager extends BaseManager {
           tool.value = {
             path: savePath,
           };
+          if (data.isActive === true) {
+            tool.isActive = true;
+          }
           // await this.toolsRepository.save(localSkill);
           skills.push({ tool, importPath: file, savePath });
           const skill = await skillManager.parseSkill(file, savePath);
+
+
           // tool.name = skill.name;
           await this.toolsRepository.save(tool);
           await appManager.sendEvent(ToolEvent.ToolListUpdated, {

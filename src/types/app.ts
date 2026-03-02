@@ -131,4 +131,9 @@ export interface RuntimeInfo {
     dir?: string;
     version?: string;
   };
+  agentBrowser: {
+    status: 'installed' | 'not_installed' | 'installing';
+    installed: boolean;
+    version?: string;
+  }
 }

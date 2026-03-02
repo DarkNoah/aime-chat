@@ -3,7 +3,7 @@ import { generateText } from 'ai';
 import z from 'zod';
 import BaseTool, { BaseToolParams } from '../base-tool';
 import { createShell, decodeBuffer, runCommand } from '@/main/utils/shell';
-import { getUVRuntime } from '@/main/app/runtime';
+import { getBunRuntime, getUVRuntime } from '@/main/app/runtime';
 import { app } from 'electron';
 import fs from 'fs';
 import path from 'path';
@@ -216,10 +216,6 @@ Output: Creates directory 'foo'`),
     if (cwd && fs.existsSync(cwd) && !fs.statSync(cwd).isDirectory()) {
       throw new Error(`Directory ${cwd} is not a directory`);
     }
-    const runtimeInfo = await appManager.getRuntimeInfo();
-
-
-
     const _env = {
       PATH: '',
       // ...(env ? env : {}),
@@ -231,9 +227,12 @@ Output: Creates directory 'foo'`),
       });
     }
 
-    if (runtimeInfo.uv.installed || runtimeInfo.bun.installed) {
+    const uv = await getUVRuntime();
+    const bun = await getBunRuntime();
+
+    if (uv.installed || bun.installed) {
       _env['PATH'] +=
-        `${runtimeInfo.uv.dir || runtimeInfo.bun.dir}` +
+        `${uv.dir || bun.dir}` +
         (process.platform === 'win32' ? ';' : ':');
     }
 

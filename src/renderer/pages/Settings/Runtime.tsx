@@ -272,6 +272,37 @@ function Runtime() {
           )}
         </ItemActions>
       </Item>
+      <Item variant="outline">
+        <ItemContent className="min-w-0">
+          <ItemTitle>
+            Agent Browser{' '}
+            {runtimeInfo?.agentBrowser?.version && (
+              <Badge>{runtimeInfo?.agentBrowser?.version}</Badge>
+            )}
+          </ItemTitle>
+        </ItemContent>
+        <ItemActions>
+          {runtimeInfo?.agentBrowser?.status === 'not_installed' && (
+            <Button onClick={() => handleInstallRuntime('agentBrowser')}>
+              Install
+            </Button>
+          )}
+          {runtimeInfo?.agentBrowser?.status === 'installed' && (
+            <Button
+              onClick={() => handleUninstallRuntime('agentBrowser')}
+              variant="destructive"
+            >
+              Uninstall
+            </Button>
+          )}
+          {runtimeInfo?.agentBrowser?.status === 'installing' && (
+            <Button disabled>
+              <Spinner />
+              Installing...
+            </Button>
+          )}
+        </ItemActions>
+      </Item>
     </div>
   );
 }

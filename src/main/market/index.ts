@@ -12,9 +12,45 @@ export class MarketManager extends BaseManager {
     super();
   }
 
-  init(): Promise<void> {
-    return Promise.resolve();
+  async init(): Promise<void> {
+    await this.autoInstall();
   }
+
+  async autoInstall() {
+    const marketPath = getAssetPath('market', ToolType.SKILL);
+    const files = await fs.promises.readdir(marketPath);
+    for (const file of files) {
+      if (!file.endsWith('.json')) {
+        continue;
+      }
+      try {
+        const data = await fs.promises.readFile(path.join(marketPath, file), 'utf-8');
+        const toolData = JSON.parse(data) as {
+          name: string;
+          description: string;
+          autoInstall: boolean;
+        }
+        let skillfile = path.join(marketPath, path.basename(file, '.json')) + '.skill';
+        if (!fs.existsSync(skillfile)) {
+          skillfile = path.join(marketPath, path.basename(file, '.json')) + '.zip';
+        }
+        if (toolData.autoInstall !== true || !fs.existsSync(skillfile)) {
+          continue;
+
+        }
+        const result = await toolsManager.importSkills({
+          files: [skillfile],
+          isActive: true
+        });
+        console.log(`Skill ${toolData.name} installed`);
+      } catch {
+
+      }
+
+    }
+  }
+
+
 
   @channel(MarketChannel.GetMarketData)
   public async getMarketData(type: ToolType.SKILL | ToolType.MCP) {

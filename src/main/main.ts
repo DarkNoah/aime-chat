@@ -9,7 +9,7 @@
  * `./src/main.js` using webpack. This gives us some performance wins.
  */
 import path from 'path';
-import { app, BrowserWindow, shell, ipcMain, dialog } from 'electron';
+import { app, BrowserWindow, shell, ipcMain, dialog, session } from 'electron';
 import log from 'electron-log';
 import MenuBuilder from './menu';
 import { resolveHtmlPath } from './util';
@@ -149,6 +149,14 @@ app.on('window-all-closed', () => {
 app
   .whenReady()
   .then(() => {
+    const filter = { urls: ['https://mmbiz.qpic.cn/*'] };
+
+    session.defaultSession.webRequest.onBeforeSendHeaders(filter, (details, callback) => {
+      details.requestHeaders['Referer'] = 'https://mp.weixin.qq.com/';
+      // 有时也需要 UA 更像微信内置浏览器/Chrome
+      // details.requestHeaders['User-Agent'] = 'Mozilla/5.0 ...';
+      callback({ requestHeaders: details.requestHeaders });
+    });
     createWindow();
     app.on('activate', () => {
       // On macOS it's common to re-create a window in the app when the

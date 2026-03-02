@@ -44189,7 +44189,8 @@
         "limit": {
           "context": 262144,
           "output": 262144
-        }
+        },
+        "status": "deprecated"
       },
       "gpt-5-codex": {
         "id": "gpt-5-codex",
@@ -45071,7 +45072,8 @@
         "limit": {
           "context": 262144,
           "output": 262144
-        }
+        },
+        "status": "deprecated"
       },
       "claude-haiku-4-5": {
         "id": "claude-haiku-4-5",
@@ -67152,6 +67154,38 @@
           "output": 202752
         }
       },
+      "MiniMaxAI/MiniMax-M2.5": {
+        "id": "MiniMaxAI/MiniMax-M2.5",
+        "name": "MiniMax M2.5",
+        "family": "minimax",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "interleaved": {
+          "field": "reasoning_content"
+        },
+        "structured_output": true,
+        "temperature": true,
+        "release_date": "2026-02-12",
+        "last_updated": "2026-02-12",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 0.3,
+          "output": 1.2
+        },
+        "limit": {
+          "context": 196608,
+          "output": 196608
+        }
+      },
       "MiniMaxAI/MiniMax-M2.1": {
         "id": "MiniMaxAI/MiniMax-M2.1",
         "name": "MiniMax M2.1",
@@ -67264,64 +67298,6 @@
         "cost": {
           "input": 0.2,
           "output": 0.8
-        },
-        "limit": {
-          "context": 262144,
-          "output": 262144
-        }
-      },
-      "LGAI-EXAONE/EXAONE-4.0.1-32B": {
-        "id": "LGAI-EXAONE/EXAONE-4.0.1-32B",
-        "name": "EXAONE 4.0.1 32B",
-        "family": "exaone",
-        "attachment": false,
-        "reasoning": true,
-        "tool_call": true,
-        "structured_output": true,
-        "temperature": true,
-        "release_date": "2025-07-31",
-        "last_updated": "2025-12-23",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": true,
-        "cost": {
-          "input": 0.6,
-          "output": 1
-        },
-        "limit": {
-          "context": 131072,
-          "output": 131072
-        }
-      },
-      "LGAI-EXAONE/K-EXAONE-236B-A23B": {
-        "id": "LGAI-EXAONE/K-EXAONE-236B-A23B",
-        "name": "K EXAONE 236B A23B",
-        "family": "exaone",
-        "attachment": false,
-        "reasoning": true,
-        "tool_call": true,
-        "structured_output": true,
-        "temperature": true,
-        "release_date": "2025-12-31",
-        "last_updated": "2026-01-08",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": true,
-        "cost": {
-          "input": 0,
-          "output": 0
         },
         "limit": {
           "context": 262144,

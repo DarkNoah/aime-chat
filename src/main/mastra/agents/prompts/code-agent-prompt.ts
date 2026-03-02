@@ -145,6 +145,14 @@ ${hasLibSQLTool
 `
         : ''
       }
+
+${hasMessageTool
+        ? `
+# Message Tool
+- If you need to display files, folders, or web preview to the user, you should use the Message tool to do so.
+`: ''
+      }
+
 Here is useful information about the environment you are running in:
 <env>
 ${workspace ? 'Working directory: ' + workspace : 'No working directory specified'}

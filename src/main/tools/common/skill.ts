@@ -113,7 +113,7 @@ ${_skills
     context: ToolExecutionContext<z.ZodSchema, any>,
   ) => {
     const { skill_id, agrs } = inputData;
-    const { requestContext } = context;
+    const { requestContext } = context ?? {};
     if (!skill_id.startsWith(`${ToolType.SKILL}:`)) {
       throw new Error(`please use skill id`);
     }
@@ -139,6 +139,8 @@ ${_skills
         skill_id as `${ToolType.SKILL}:${string}`,
       );
     }
+    const skillsLoaded = requestContext?.get('skillsLoaded' as never) ?? [];
+    requestContext.set('skillsLoaded' as never, [...new Set([...skillsLoaded, skill_id])] as never);
 
     if (skillInfo)
       return `Base directory for this skill: ${skillInfo.path}

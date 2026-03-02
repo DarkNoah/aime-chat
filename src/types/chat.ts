@@ -124,6 +124,7 @@ export type ChatRequestContext = {
   think?: boolean;
   chunks?: { runId: string; text: string };
   additionalInstructions?: string;
+  skillsLoaded?: string[];
 };
 
 export const DEFAULT_RESOURCE_ID = 'default';
