@@ -117,7 +117,9 @@
     "ask_to_delete_skill": "Delect skill?",
     "ptc_open": "PTC Open",
     "request_interrupted_by_user": "Request interrupted by user",
-    "env": "ENV"
+    "env": "ENV",
+    "force_word_ocr": "Force word use ocr",
+    "disable_vision": "Disable Vision Model"
   },
   "sidebar": {
     "new_chat": "New Chat",

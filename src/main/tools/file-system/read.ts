@@ -35,6 +35,7 @@ const MAX_LINE_LENGTH_TEXT_FILE = 2000;
 export interface ReadParams extends BaseToolParams {
   forcePDFOcr?: boolean;
   forceWordOcr?: boolean;
+  disableVision?: boolean;
 }
 export class Read extends BaseTool {
   static readonly toolName = 'Read';
@@ -79,14 +80,15 @@ Usage:
   configSchema = ToolConfig.Read.configSchema;
   forcePDFOcr?: ReadParams['forcePDFOcr'];
   forceWordOcr?: ReadParams['forceWordOcr'];
-
+  disableVision?: ReadParams['disableVision'];
   // outputSchema = z.string();
 
 
   constructor(config?: ReadParams) {
     super(config);
     this.forcePDFOcr = config?.forcePDFOcr ?? true;
-    this.forceWordOcr = config?.forceWordOcr ?? true;
+    this.forceWordOcr = config?.forceWordOcr ?? false;
+    this.disableVision = config?.disableVision ?? false;
   }
 
   // requireApproval: true,
@@ -121,6 +123,13 @@ Usage:
     if (await isBinaryFile(file_path)) {
       try {
         if (mime.lookup(file_path).startsWith('image/')) {
+          if (this.disableVision === true) {
+            const defaultOcr = appInfo?.defaultModel?.ocrModel;
+            const provider = await providersManager.getProvider(defaultOcr);
+            const ocrModel = defaultOcr.split('/').slice(1).join('/')
+            const ocr = await provider.ocrModel(ocrModel).doOCR({ image: file_path });
+            return ocr;
+          }
           const result = await new Vision({
             modelId: visionModelId,
           }).execute({

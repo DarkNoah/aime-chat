@@ -50,7 +50,8 @@ export const ToolConfig = {
   Read: {
     configSchema: z.strictObject({
       forcePDFOcr: z.boolean().optional().default(true),
-      forceWordOcr: z.boolean().optional().default(true),
+      forceWordOcr: z.boolean().optional().default(false),
+      disableVision: z.boolean().optional().default(false),
     }),
     uiSchema: {
       forcePDFOcr: {
@@ -59,6 +60,9 @@ export const ToolConfig = {
       forceWordOcr: {
         'ui:title': t('common.force_word_ocr'),
       },
+      disableVision: {
+        'ui:title': t('common.disable_vision'),
+      }
     },
   },
   MusicGeneration: {
