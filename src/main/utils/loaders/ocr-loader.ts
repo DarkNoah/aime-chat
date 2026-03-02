@@ -345,47 +345,47 @@ export async function getPaddleOcrPythonService(): Promise<{
   return paddleOcrService;
 }
 
-export class OcrLoader extends BaseLoader {
-  options: OcrLoaderOptions;
+// export class OcrLoader extends BaseLoader {
+//   options: OcrLoaderOptions;
 
-  constructor(filePathOrBlob: string | Blob, options?: OcrLoaderOptions) {
-    super(filePathOrBlob);
-    this.options = { ...(options ?? {}) };
-  }
+//   constructor(filePathOrBlob: string | Blob, options?: OcrLoaderOptions) {
+//     super(filePathOrBlob);
+//     this.options = { ...(options ?? {}) };
+//   }
 
-  async parse(raw: Buffer, metadata: Record<string, any>): Promise<any> {
-    let modelId = this.options.modelId;
-    const appInfo = await appManager.getInfo();
-    const defaultOcr = appInfo.defaultModel.ocrModel;
-    const provider = await providersManager.getProvider(modelId || defaultOcr);
+//   async parse(raw: Buffer, metadata: Record<string, any>): Promise<any> {
+//     let modelId = this.options.modelId;
+//     const appInfo = await appManager.getInfo();
+//     const defaultOcr = appInfo.defaultModel.ocrModel;
+//     const provider = await providersManager.getProvider(modelId || defaultOcr);
 
-    const paddleOcrRuntime = await getPaddleOcrRuntime();
-    if (!modelId) {
-      if (paddleOcrRuntime.status === 'installed') {
-        modelId = 'paddleocr';
-      } else {
-        modelId = 'system';
-      }
-    }
-    if (modelId === 'system') {
-      const result = await recognize(raw, OcrAccuracy.Accurate);
-      return result.text;
-    }
+//     const paddleOcrRuntime = await getPaddleOcrRuntime();
+//     if (!modelId) {
+//       if (paddleOcrRuntime.status === 'installed') {
+//         modelId = 'paddleocr';
+//       } else {
+//         modelId = 'system';
+//       }
+//     }
+//     if (modelId === 'system') {
+//       const result = await recognize(raw, OcrAccuracy.Accurate);
+//       return result.text;
+//     }
 
-    if (modelId === 'paddleocr') {
-      const service = await getPaddleOcrPythonService();
-      const result = await service.recognize(raw.buffer, {
-        noCache: false,
-        ext: path.extname(metadata['source']).toLowerCase(),
-        mode: paddleOcrRuntime.mode,
-      });
-      return result.text;
-    }
+//     if (modelId === 'paddleocr') {
+//       const service = await getPaddleOcrPythonService();
+//       const result = await service.recognize(raw.buffer, {
+//         noCache: false,
+//         ext: path.extname(metadata['source']).toLowerCase(),
+//         mode: paddleOcrRuntime.mode,
+//       });
+//       return result.text;
+//     }
 
-    throw new Error(`Unsupported OCR mode: ${mode}`);
-  }
+//     throw new Error(`Unsupported OCR mode: ${mode}`);
+//   }
 
-  getInfo(buffer: Buffer, metadata: Record<string, any>): Promise<any> {
-    return undefined;
-  }
-}
+//   getInfo(buffer: Buffer, metadata: Record<string, any>): Promise<any> {
+//     return undefined;
+//   }
+// }

@@ -516,6 +516,8 @@ class MastraManager extends BaseManager {
         (currentThread.metadata?.tasks as ChatTask[]) || [];
       const skillsLoaded: string[] =
         (currentThread.metadata?.skillsLoaded as string[]) || [];
+      const fileLastReadTime: Record<string, number> =
+        (currentThread.metadata?.fileLastReadTime as Record<string, number>) || {};
       const requestContext = new RequestContext<ChatRequestContext>();
       requestContext.set('skillsLoaded', skillsLoaded);
       requestContext.set('model', model);
@@ -529,6 +531,7 @@ class MastraManager extends BaseManager {
       requestContext.set('think', think);
       requestContext.set('todos', todos);
       requestContext.set('tasks', tasks);
+      requestContext.set('fileLastReadTime', fileLastReadTime);
       requestContext.set(
         'maxContextSize',
         modelInfo?.limit?.context ?? 64 * 1000,
@@ -918,28 +921,24 @@ ${formatCodeWithLineNumbers({ content: agentsMd, startLine: 0 })}
 
         tools = requestContext.get('tools') as string[];
         const skillsLoaded = requestContext.get('skillsLoaded') as string[] || [];
-        function isSameArray(arr1, arr2) {
-          if (arr1.length !== arr2.length) return false;
-          const sorted1 = [...arr1].sort();
-          const sorted2 = [...arr2].sort();
-          return sorted1.every((v, i) => v === sorted2[i]);
-        }
+        const tasks = requestContext.get('tasks') as string[] || [];
+        const fileLastReadTime = requestContext.get('fileLastReadTime') as Record<string, number> || {};
 
-        if (!isSameArray(currentThread.metadata?.tools, tools) || !isSameArray(currentThread.metadata?.skillsLoaded ?? [], skillsLoaded)) {
-          currentThread = await memoryStore.updateThread({
-            id: chatId,
-            title: currentThread.title,
-            metadata: {
-              ...(currentThread.metadata || {}),
-              tools: tools,
-              skillsLoaded: skillsLoaded,
-            },
-          });
-          appManager.sendEvent(`chat:event:${chatId}`, {
-            type: ChatEvent.ChatThreadChanged,
-            data: {},
-          });
-        }
+        currentThread = await memoryStore.updateThread({
+          id: chatId,
+          title: currentThread.title,
+          metadata: {
+            ...(currentThread.metadata || {}),
+            tasks,
+            tools: tools,
+            skillsLoaded: skillsLoaded,
+            fileLastReadTime: fileLastReadTime,
+          },
+        });
+        appManager.sendEvent(`chat:event:${chatId}`, {
+          type: ChatEvent.ChatThreadChanged,
+          data: {},
+        });
 
 
         agent = await agentManager.buildAgent(agentId, {

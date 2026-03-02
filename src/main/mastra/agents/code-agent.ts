@@ -37,6 +37,7 @@ import { codeAgentInstructions } from './prompts/code-agent-prompt';
 import { Plan } from './plan-agent';
 import { LibSQLDatabaseInfo, LibSQLDescribeTable, LibSQLListTable, LibSQLRun } from '@/main/tools/database/libsql';
 import { Message } from '@/main/tools/common/message';
+import { AgentBrowser } from '@/main/tools/browser';
 
 export class CodeAgent extends BaseAgent {
   id: string = 'CodeAgent';
@@ -70,6 +71,8 @@ export class CodeAgent extends BaseAgent {
     `${ToolType.BUILD_IN}:${LibSQLDescribeTable.toolName}`,
     `${ToolType.BUILD_IN}:${LibSQLDatabaseInfo.toolName}`,
     `${ToolType.BUILD_IN}:${LibSQLRun.toolName}`,
+    `${ToolType.BUILD_IN}:${AgentBrowser.toolName}`,
+    `${ToolType.SKILL}:local:agent-browser`,
   ];
   subAgents: string[] = [`${Explore.agentName}`, `${Plan.agentName}`];
   constructor(params: BaseAgentParams) {

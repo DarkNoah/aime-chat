@@ -16,7 +16,6 @@ import mime from 'mime';
 import path from 'path';
 import { providersManager } from '@/main/providers';
 import { Agent } from '@mastra/core/agent';
-import { OcrLoader } from '@/main/utils/loaders/ocr-loader';
 import { MessagePart } from '@mastra/core/processors';
 import { appManager } from '@/main/app';
 import { AudioLoader } from '@/main/utils/loaders/audio-loader';
@@ -203,9 +202,11 @@ Returns:
     if (mimeType.startsWith('image/')) {
       let ocr
       try {
-        const loader = new OcrLoader(file_path, { modelId: 'auto' });
-        const content = await loader.load();
-        ocr = content;
+        const defaultOcr = appInfo?.defaultModel?.ocrModel;
+        const provider = await providersManager.getProvider(defaultOcr);
+        const ocrModel = defaultOcr.split('/').slice(1).join('/')
+
+        ocr = await provider.ocrModel(ocrModel).doOCR({ image: file_path });
       } catch {
 
       }

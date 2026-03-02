@@ -38,7 +38,7 @@ import {
 } from '@huggingface/transformers';
 import { AudioLoader, getQwenAsrPythonService } from '../utils/loaders/audio-loader';
 import { isString } from '@/utils/is';
-import { getPaddleOcrPythonService, OcrLoader } from '../utils/loaders/ocr-loader';
+import { getPaddleOcrPythonService } from '../utils/loaders/ocr-loader';
 import { OcrAccuracy, recognize } from '@napi-rs/system-ocr';
 import { getPaddleOcrRuntime } from '../app/runtime';
 

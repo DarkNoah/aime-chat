@@ -20,7 +20,6 @@ import mime from 'mime';
 import { OcrAccuracy, recognize } from '@napi-rs/system-ocr';
 import { PowerPointLoader } from '@/main/utils/loaders/power-point-loader';
 import { ExcelLoader } from '@/main/utils/loaders/excel-loader';
-import { OcrLoader } from '@/main/utils/loaders/ocr-loader';
 import { ToolConfig, ToolType } from '@/types/tool';
 import { AudioLoader } from '@/main/utils/loaders/audio-loader';
 import { Vision } from '../vision/vision';
@@ -267,11 +266,16 @@ Usage:
 
     let content = '';
     const mimeType = mime.lookup(file_source);
+    const provider = await providersManager.getProvider(defaultOcr);
+    if (!provider) {
+      throw new Error(`OCR provider not found`);
+    }
+    const ocrModel = defaultOcr.split('/').slice(1).join('/')
+
     if (ext === '.pdf') {
       if (this.forcePDFOcr) {
-        const loader = new OcrLoader(file_source, { mode: this.mode });
-        const content = await loader.load();
-        return content;
+        const result = await provider.ocrModel(ocrModel).doOCR({ image: file_source });
+        return result;
       } else {
         const loader = new PDFLoader(file_source);
         const content = await loader.load();
@@ -279,9 +283,8 @@ Usage:
       }
     } else if (ext === '.docx' || ext === '.doc') {
       if (this.forceWordOcr) {
-        const loader = new OcrLoader(file_source);
-        const content = await loader.load();
-        return content;
+        const result = await provider.ocrModel(ocrModel).doOCR({ image: file_source });
+        return result;
       }
       const loader = new WordLoader(file_source, {
         type: ext === '.docx' ? 'docx' : 'doc',
@@ -300,19 +303,16 @@ Usage:
     } else if (mimeType.startsWith('image/')) {
 
 
-      const provider = await providersManager.getProvider(defaultOcr);
-      if (provider) {
-        const result = await provider.ocrModel(defaultOcr.split('/').slice(1).join('/')).doOCR({ image: file_source });
-        return result;
-      }
+      const result = await provider.ocrModel(ocrModel).doOCR({ image: file_source });
+      return result;
 
-
+      // throw new Error(`Unsupported file type: ${mimeType}`);
 
 
       // 使用 paddle OCR 进行图像文字识别
-      const loader = new OcrLoader(file_source);
-      const content = await loader.load();
-      return content;
+      // const loader = new OcrLoader(file_source, { modelId: defaultOcr });
+      // const content = await loader.load();
+      // return content;
     } else if (mimeType.startsWith('audio/')) {
       let speechToText = await toolsManager.buildTool(
         `${ToolType.BUILD_IN}:${SpeechToText.toolName}` as `${ToolType.BUILD_IN}:${string}`,

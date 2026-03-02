@@ -31,14 +31,15 @@ export class FileSystem extends BaseToolkit {
 
   constructor(params?: FileSystemParams) {
     const readBinaryFileConfig = params?.[ReadBinaryFile.toolName];
+    const readConfig = params?.[Read.toolName];
     super(
       [
         new Glob(),
         new Edit(),
         new Grep(),
         new Write(),
-        new Read(),
-        new ReadBinaryFile(readBinaryFileConfig),
+        new Read(readConfig),
+        // new ReadBinaryFile(readBinaryFileConfig),
       ],
       params,
     );
@@ -55,7 +56,7 @@ export const needReadFile = async (
 ): Promise<boolean> => {
   if (!requestContext) return false;
   const fileLastReadTime = requestContext.get(
-    'file_last_read_time' as never,
+    'fileLastReadTime' as never,
   ) as Record<string, number>;
   if (!fileLastReadTime[file_path]) {
     return true;
@@ -75,12 +76,12 @@ export const updateFileModTime = async (
 ): Promise<void> => {
   if (!requestContext) return;
   const fileLastReadTime =
-    (requestContext.get('file_last_read_time' as never) as Record<
+    (requestContext.get('fileLastReadTime' as never) as Record<
       string,
       number
     >) ?? {};
   fileLastReadTime[file_path] = Date.now();
-  requestContext.set('file_last_read_time' as never, fileLastReadTime as never);
+  requestContext.set('fileLastReadTime' as never, fileLastReadTime as never);
 };
 
 export const formatCodeWithLineNumbers = ({
