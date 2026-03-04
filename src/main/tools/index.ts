@@ -568,13 +568,13 @@ class ToolsManager extends BaseManager {
   }
 
   @channel(ToolChannel.GetAvailableTools)
-  public async getAvailableTools(): Promise<Record<ToolType, Tool[]>> {
+  public async getAvailableTools({ filter, isActive = true }: { filter?: string, isActive?: boolean }): Promise<Record<ToolType, Tool[]>> {
     const tools = await this.toolsRepository.find({
-      where: { isActive: true, toolkitId: IsNull() },
+      where: { isActive: isActive, toolkitId: IsNull() },
     });
 
     const subtools = await this.toolsRepository.find({
-      where: { isActive: true, toolkitId: Not(IsNull()) },
+      where: { isActive: isActive, toolkitId: Not(IsNull()) },
     });
 
     return {

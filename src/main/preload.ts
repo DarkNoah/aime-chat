@@ -272,8 +272,8 @@ const electronHandler = {
     saveMCPServer: (id: string | undefined, data: string) =>
       ipcRenderer.invoke(ToolChannel.SaveMCPServer, id, data),
     getMcp: (id: string) => ipcRenderer.invoke(ToolChannel.GetMcp, id),
-    getAvailableTools: (): Promise<Record<ToolType, Tool[]>> =>
-      ipcRenderer.invoke(ToolChannel.GetAvailableTools),
+    getAvailableTools: ({ filter, isActive }: { filter?: string, isActive?: boolean }): Promise<Record<ToolType, Tool[]>> =>
+      ipcRenderer.invoke(ToolChannel.GetAvailableTools, { filter, isActive }),
     getList: (filter?: { type: ToolType }) =>
       ipcRenderer.invoke(ToolChannel.GetList, filter),
     getTool: (id: string) => ipcRenderer.invoke(ToolChannel.GetTool, id),

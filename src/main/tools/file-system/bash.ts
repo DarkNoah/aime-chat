@@ -32,8 +32,8 @@ Before executing the command, please follow these steps:
 
 1. Directory Verification:
 
-- If the command will create new directories or files, first use the LS tool to verify the parent directory exists and is the correct location
-- For example, before running "mkdir foo/bar", first use LS to check that "foo" exists and is the intended parent directory
+- If the command will create new directories or files, first use the "ls" or "dir" command to verify the parent directory exists and is the correct location
+- For example, before running "mkdir foo/bar", first use "ls" or "dir" to check that "foo" exists and is the intended parent directory
 
 2. Command Execution:
 
@@ -47,7 +47,7 @@ Before executing the command, please follow these steps:
 - Capture the output of the command.
 
 Usage notes:
-
+- VERY IMPORTANT: If you need set environment variables using the env argument, Don't use "export MY_CUSTOM_VAR=xxx" or "set MY_CUSTOM_VAR=xxx" in the command argument.
 - The command argument is required.
 - You can specify an optional timeout in milliseconds (up to 600000ms / 10 minutes). If not specified, commands will timeout after 120000ms (2 minutes).
 - It is very helpful if you write a clear, concise description of what this command does in 5-10 words.
@@ -63,6 +63,7 @@ Usage notes:
   <bad-example>
   cd /foo/bar && pytest tests
   </bad-example>
+
 
 # Committing changes with git
 
@@ -92,7 +93,7 @@ Important notes:
 
 - NEVER update the git config
 - NEVER run additional commands to read or explore code, besides git bash commands
-- NEVER use the TodoWrite or Task tools
+- NEVER use the Task tools
 - DO NOT push to the remote repository unless the user explicitly asks you to do so
 - IMPORTANT: Never use git commands with the -i flag (like git rebase -i or git add -i) since they require interactive input which is not supported.
 - If there are no changes to commit (i.e., no untracked files and no modifications), do not create an empty commit
@@ -237,7 +238,7 @@ Output: Creates directory 'foo'`),
         (process.platform === 'win32' ? ';' : ':');
     }
 
-    if (Object.values(env).length > 0) {
+    if (env && Object.values(env).length > 0) {
       _env = {
         ..._env,
         ...env,
