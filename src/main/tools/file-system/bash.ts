@@ -17,7 +17,7 @@ import iconv from 'iconv-lite';
 import Stream from 'stream';
 import { appManager } from '@/main/app';
 import { ToolConfig } from '@/types/tool';
-const MAX_OUTPUT_LENGTH = 30000;
+const MAX_OUTPUT_LENGTH = 10000;
 
 export interface BashToolParams extends BaseToolParams {
   env?: string;
@@ -172,6 +172,7 @@ Output: Creates directory 'foo'`),
       .number()
       .optional()
       .describe(`Optional timeout in milliseconds (max 600000)`),
+    env: z.record(z.string(), z.string()).optional().describe('Optional the environment variables'),
     run_in_background: z
       .boolean()
       .optional()
@@ -191,7 +192,7 @@ Output: Creates directory 'foo'`),
     inputData: z.infer<typeof this.inputSchema>,
     context: ToolExecutionContext<z.ZodSchema, any>,
   ) => {
-    const { timeout, directory, run_in_background } = inputData;
+    const { timeout, directory, run_in_background, env } = inputData;
     const { requestContext } = context;
     const threadId = requestContext.get('threadId' as never) as string;
     const abortSignal = context?.abortSignal;
@@ -216,7 +217,7 @@ Output: Creates directory 'foo'`),
     if (cwd && fs.existsSync(cwd) && !fs.statSync(cwd).isDirectory()) {
       throw new Error(`Directory ${cwd} is not a directory`);
     }
-    const _env = {
+    let _env = {
       PATH: '',
       // ...(env ? env : {}),
     };
@@ -234,6 +235,13 @@ Output: Creates directory 'foo'`),
       _env['PATH'] +=
         `${uv.dir || bun.dir}` +
         (process.platform === 'win32' ? ';' : ':');
+    }
+
+    if (Object.values(env).length > 0) {
+      _env = {
+        ..._env,
+        ...env,
+      };
     }
 
     if (run_in_background) {

@@ -134,6 +134,46 @@ export default function DefaultModel() {
           />
         </ItemActions>
       </Item>
+      <Item variant="outline">
+        <ItemContent>
+          <ItemTitle>
+            <ScanEye className="w-5 h-5" />
+            {t('settings.default_transcription', 'Default Transcription Model')}
+          </ItemTitle>
+          <ItemDescription></ItemDescription>
+        </ItemContent>
+        <ItemActions>
+          <ChatModelSelect
+            clearable
+            type={ModelType.TRANSCRIPTION}
+            className="w-[200px] border"
+            value={appInfo?.defaultModel?.transcriptionModel}
+            onChange={(model) => {
+              onChangeDefaultModel(model, 'transcriptionModel');
+            }}
+          />
+        </ItemActions>
+      </Item>
+      <Item variant="outline">
+        <ItemContent>
+          <ItemTitle>
+            <ScanEye className="w-5 h-5" />
+            {t('settings.default_speech', 'Default Speech Model')}
+          </ItemTitle>
+          <ItemDescription></ItemDescription>
+        </ItemContent>
+        <ItemActions>
+          <ChatModelSelect
+            clearable
+            type={ModelType.SPEECH}
+            className="w-[200px] border"
+            value={appInfo?.defaultModel?.speechModel}
+            onChange={(model) => {
+              onChangeDefaultModel(model, 'speechModel');
+            }}
+          />
+        </ItemActions>
+      </Item>
     </div>
   );
 }

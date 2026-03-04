@@ -126,7 +126,7 @@
     "@excalidraw/excalidraw": "^0.18.0-a18b139",
     "@google/genai": "^1.29.0",
     "@hookform/resolvers": "^5.2.2",
-    "@huggingface/transformers": "^3.7.6",
+    "@huggingface/transformers": "^3.8.1",
     "@iarna/toml": "^2.2.5",
     "@libsql/client": "^0.15.15",
     "@mastra/ai-sdk": "1.1.0-alpha.0",

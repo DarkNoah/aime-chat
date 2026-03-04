@@ -20,6 +20,7 @@ import { ToolConfig } from '@/types/tool';
 import { providersManager } from '@/main/providers';
 import mime from 'mime';
 import { SpeechModelV2, TranscriptionModelV2 } from '@mastra/core/_types/@internal_ai-sdk-v5/dist';
+import { appManager } from '@/main/app';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -739,8 +740,10 @@ Output types:
     const workspace =
       (context?.requestContext?.get('workspace' as never) as string) ||
       undefined;
+    const appInfo = await appManager.getInfo();
+    const modelId = this.modelId || appInfo?.defaultModel?.transcriptionModel;
 
-    if (!this.modelId) {
+    if (!modelId) {
       throw new Error('Model is not set');
     }
     const tempFiles: string[] = [];
@@ -789,10 +792,10 @@ Output types:
       //   model: this.modelId?.split('/').pop() || undefined,
       // });
 
-      const provider = await providersManager.getProvider(this.modelId.split('/')[0]);
+      const provider = await providersManager.getProvider(modelId.split('/')[0]);
       let result: Awaited<ReturnType<TranscriptionModelV2['doGenerate']>>;
       if (provider) {
-        const transcriptionModel = provider.transcriptionModel(this.modelId.split('/').slice(1).join('/'));
+        const transcriptionModel = provider.transcriptionModel(modelId.split('/').slice(1).join('/'));
         result = await transcriptionModel.doGenerate({
           audio: buffer,
           mediaType: mime.lookup(audioPath),
@@ -846,8 +849,12 @@ ${text}
           fileName,
           workspace,
         );
+        const fileContent = await fs.promises.readFile(filePath, 'utf-8');
         return `${system_reminder}
-File saved to: <file>${filePath}</file>`;
+File saved to: <file>${filePath}</file>
+<transcription-text>
+${fileContent}
+</transcription-text>`;
       }
 
       if (output_type === 'ass') {
@@ -868,8 +875,12 @@ File saved to: <file>${filePath}</file>`;
           fileName,
           workspace,
         );
+        const fileContent = await fs.promises.readFile(filePath, 'utf-8');
         return `${system_reminder}
-File saved to: <file>${filePath}</file>`;
+File saved to: <file>${filePath}</file>
+<transcription-text>
+${fileContent}
+</transcription-text>`;
       }
 
       return text;
@@ -974,7 +985,11 @@ Output: Returns the path to the generated WAV audio file.`;
         'ref_text is required when ref_audio is provided for voice cloning.',
       );
     }
-
+    const appInfo = await appManager.getInfo();
+    const modelId = this.modelId || appInfo?.defaultModel?.speechModel;
+    if (!modelId) {
+      throw new Error('Model is not set');
+    }
     // If ref_audio is a URL, download it first
     let resolvedRefAudio: string | undefined = ref_audio;
     const tempFiles: string[] = [];
@@ -996,10 +1011,10 @@ Output: Returns the path to the generated WAV audio file.`;
         `tts-${randomUUID()}.wav`,
       );
 
-      const provider = await providersManager.getProvider(this.modelId.split('/')[0]);
+      const provider = await providersManager.getProvider(modelId.split('/')[0]);
       let _result: Awaited<ReturnType<SpeechModelV2['doGenerate']>>;
       if (provider) {
-        const speechModel = provider.speechModel(this.modelId.split('/').slice(1).join('/'));
+        const speechModel = provider.speechModel(modelId.split('/').slice(1).join('/'));
         _result = await speechModel.doGenerate({
           text,
           language,

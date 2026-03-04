@@ -32,6 +32,9 @@ class ProjectManager extends BaseManager {
     const skillsPath = path.join(project?.path, '.aime-chat', 'skills');
     if (fs.existsSync(skillsPath) && fs.statSync(skillsPath).isDirectory()) {
       const skills = await fs.promises.readdir(skillsPath);
+
+      const skillJson = await fs.promises.readFile(path.join(skillsPath, 'skills.json'), 'utf-8').catch(() => '[]');
+      const skillJsonData = JSON.parse(skillJson);
       for (const skill of skills) {
         if (fs.existsSync(path.join(skillsPath, skill, 'SKILL.md'))) {
           const skillPath = path.join(skillsPath, skill);
@@ -44,6 +47,7 @@ class ProjectManager extends BaseManager {
             description: skillData.data.description,
             path: skillPath,
             skillmd: skillData.content,
+            source: skillJsonData.find((x: any) => x.id === skill)?.source,
           });
         }
       }

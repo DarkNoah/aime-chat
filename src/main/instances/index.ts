@@ -285,13 +285,9 @@ class InstancesManager extends BaseManager {
     return profiles;
   }
 
-  /**
-   * Get the webSocketDebuggerUrl from CDP port 9222.
-   * Returns the URL string if available, or null if not.
-   */
-  private async getCdpWebSocketUrl(): Promise<string | null> {
+  private async getCdpWebSocketUrl(port: number = 9222): Promise<string | null> {
     try {
-      const response = await fetch('http://localhost:9222/json/version');
+      const response = await fetch(`http://127.0.0.1:${port}/json/version`);
       if (!response.ok) return null;
       const data = await response.json();
       return data?.webSocketDebuggerUrl || null;
@@ -307,22 +303,23 @@ class InstancesManager extends BaseManager {
   private async waitForCdpReady(
     maxRetries: number = 10,
     intervalMs: number = 1000,
+    port: number = 9222,
   ): Promise<string | null> {
     for (let i = 0; i < maxRetries; i++) {
-      const wsUrl = await this.getCdpWebSocketUrl();
+      const wsUrl = await this.getCdpWebSocketUrl(port);
       if (wsUrl) return wsUrl;
       await new Promise((resolve) => setTimeout(resolve, intervalMs));
     }
     return null;
   }
 
-  private async connectViaCdp(): Promise<{ browserContext: BrowserContext; wsUrl: string }> {
-    const wsUrl = await this.getCdpWebSocketUrl();
+  private async connectViaCdp(port: number = 9222): Promise<{ browserContext: BrowserContext; wsUrl: string }> {
+    const wsUrl = await this.getCdpWebSocketUrl(port);
     if (!wsUrl) {
       throw new Error('CDP WebSocket URL not available');
     }
 
-    const browser = await chromium.connectOverCDP("http://localhost:9222");
+    const browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`);
     const browserContext =
       browser.contexts().length > 0
         ? browser.contexts()[0]
@@ -358,9 +355,10 @@ class InstancesManager extends BaseManager {
 
 
 
+    const debugPort = config.debugPort || 9222;
+
     if (isSystemUserData || true) {
-      // System browser user data mode: use CDP port 9222
-      let wsUrl = await this.getCdpWebSocketUrl();
+      let wsUrl = await this.getCdpWebSocketUrl(debugPort);
 
 
       if (!wsUrl) {
@@ -375,7 +373,7 @@ class InstancesManager extends BaseManager {
           const browserProcess = spawn(
             executablePath,
             [
-              `--remote-debugging-port=9222`,
+              `--remote-debugging-port=${debugPort}`,
               `--user-data-dir=${config.userDataPath}`,
             ],
             {
@@ -384,7 +382,7 @@ class InstancesManager extends BaseManager {
             },
           );
           browserProcess.unref();
-          wsUrl = await this.waitForCdpReady(15, 1000);
+          wsUrl = await this.waitForCdpReady(15, 1000, debugPort);
         } catch (err) {
           throw new Error(`Failed to start browser: ${err.message}`);
         }
@@ -410,7 +408,7 @@ class InstancesManager extends BaseManager {
 
 
       try {
-        const { browserContext, wsUrl: cdpWsUrl } = await this.connectViaCdp();
+        const { browserContext, wsUrl: cdpWsUrl } = await this.connectViaCdp(debugPort);
         const browserInstance = new BrowserInstance({ instances: instance });
         browserInstance.setBrowserContext(browserContext);
         browserInstance.setWebSocketUrl(cdpWsUrl);
@@ -437,8 +435,8 @@ class InstancesManager extends BaseManager {
           hasReconnected = true;
           try {
             console.log('reconnecting...');
-            await this.waitForCdpReady(5, 1000);
-            const { browserContext: newContext, wsUrl: newWsUrl } = await this.connectViaCdp();
+            await this.waitForCdpReady(5, 1000, debugPort);
+            const { browserContext: newContext, wsUrl: newWsUrl } = await this.connectViaCdp(debugPort);
 
             browserInstance.setBrowserContext(newContext);
             browserInstance.setWebSocketUrl(newWsUrl);

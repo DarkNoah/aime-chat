@@ -43,6 +43,7 @@
     "instances_config_saved": "Configuration saved",
     "instances_empty": "No instances",
     "instances_websocketurl": "WebSocketUrl",
+    "instances_debug_port": "Remote Debugging Port",
     "vision_model": "Vision Model",
     "default_ocr": "Ocr Model",
     "usage": "Usage"

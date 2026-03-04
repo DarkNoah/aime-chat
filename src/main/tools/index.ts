@@ -934,9 +934,11 @@ class ToolsManager extends BaseManager {
   }
   @channel(ToolChannel.AbortTool)
   public async abortTool(id: string, toolName: string) {
-    this.builtInToolContexts
-      .find((x) => x.tool.id === id)
-      ?.abortController?.abort();
+    const context = this.builtInToolContexts
+      .find((x) => x.tool.id === id || id === `${ToolType.BUILD_IN}:${x.tool.id}`);
+    if (context) {
+      context.abortController?.abort();
+    }
   }
   @channel(ToolChannel.PreviewGitSkill)
   public async previewGitSkill(input: { gitUrl: string }) {
@@ -1107,13 +1109,18 @@ class ToolsManager extends BaseManager {
   }
 
   private async findSkillDirectory(dirPath: string): Promise<string | null> {
-    const skillMPath = path.join(dirPath, 'SKILL.md');
+    let skillMPath;
+    if (!dirPath.endsWith('/SKILL.md')) {
+      skillMPath = path.join(dirPath, 'SKILL.md');
+    } else {
+      skillMPath = dirPath;
+    }
     const exists = await fs.promises
       .access(skillMPath)
       .then(() => true)
       .catch(() => false);
     if (exists) {
-      return dirPath;
+      return path.dirname(skillMPath);
     }
 
     const entries = await fs.promises.readdir(dirPath, { withFileTypes: true });
@@ -1192,13 +1199,19 @@ class ToolsManager extends BaseManager {
             id: toolId,
             status: 'created',
           });
+        } else {
+          const skilljson = await fs.promises.readFile(path.join(skillsPath, 'skills.json'), 'utf-8').catch(() => '[]');
+          let skilljsonData = JSON.parse(skilljson);
+          skilljsonData = skilljsonData.filter((x: any) => x.id !== skillName);
+          skilljsonData.push({ source: repo_or_url, id: skillName });
+          await fs.promises.writeFile(path.join(skillsPath, 'skills.json'), JSON.stringify(skilljsonData, null, 2));
         }
-
+        await appManager.toast('Skills install successfully', { type: 'success' });
         return { success: true };
       } else if (repo_or_url.includes('github.com')) {
         // Parse full GitHub URL
         const parsed = this.parseGitHubUrl(repo_or_url);
-        repoUrl = `https://github.com/${parsed.owner}/${parsed.repo}.git`;
+        repoUrl = `https://github.com/${parsed.owner}/${parsed.repo}`;
         gitPath = parsed.path;
       } else {
         // Assume it's owner/repo[/path] or owner/repo/tree|blob/branch/path
@@ -1210,7 +1223,7 @@ class ToolsManager extends BaseManager {
               'Invalid path format. Use owner/repo/path or full GitHub URL',
           };
         }
-        repoUrl = `https://github.com/${parts[0]}/${parts[1]}.git`;
+        repoUrl = `https://github.com/${parts[0]}/${parts[1]}`;
         if (parts.length <= 2) {
           gitPath = '';
         } else if (parts[2] === 'tree' || parts[2] === 'blob') {
@@ -1278,9 +1291,15 @@ class ToolsManager extends BaseManager {
           };
         }),
       );
-      const selectedSkills = skills.filter((x) =>
-        data.selectedSkills.includes(x.path),
-      );
+      let selectedSkills = []
+      if (data?.selectedSkills !== undefined) {
+        selectedSkills = skills.filter((x) =>
+          data?.selectedSkills?.includes(x.path),
+        );
+      } else if (data.repo_or_url.endsWith('/SKILL.md') && skills.length == 1) {
+        selectedSkills = [skills[0]];
+      }
+
 
       for (const selectedSkill of selectedSkills) {
         await fs.promises.cp(
@@ -1290,6 +1309,7 @@ class ToolsManager extends BaseManager {
             recursive: true,
           },
         );
+        const source = path.join(repoUrl, 'tree/main', selectedSkill.path, "SKILL.md")
         if (!data.path) {
           const tool = new Tools(
             `${ToolType.SKILL}:local:${selectedSkill.id}`,
@@ -1299,18 +1319,28 @@ class ToolsManager extends BaseManager {
           tool.isActive = true;
           tool.value = {
             path: path.join(skillsPath, selectedSkill.id),
-            source: repo_or_url,
-            skill: selectedSkill.path
+            source: source,
+            // skill: selectedSkill.path
           };
           await this.toolsRepository.save(tool);
           await appManager.sendEvent(ToolEvent.ToolListUpdated, {
             id: `${ToolType.SKILL}:local:${selectedSkill.id}`,
             status: 'created',
           });
+        } else {
+          const skilljson = await fs.promises.readFile(path.join(skillsPath, 'skills.json'), 'utf-8').catch(() => '[]');
+          let skilljsonData = JSON.parse(skilljson);
+          skilljsonData = skilljsonData.filter((x: any) => x.id !== selectedSkill.id);
+          // const source = path.join(repo_or_url, 'tree/main', selectedSkill.path, "SKILL.md")
+          skilljsonData.push({
+            source, id: selectedSkill.id,
+          });
+          await fs.promises.writeFile(path.join(skillsPath, 'skills.json'), JSON.stringify(skilljsonData, null, 2));
         }
       }
 
       await fs.promises.rmdir(tmpDir, { recursive: true });
+      await appManager.toast('Skills install successfully', { type: 'success' });
       return {
         success: true,
       };

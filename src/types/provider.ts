@@ -83,8 +83,8 @@ export enum ModelType {
   RERANKER = 'reranker',
   IMAGE_GENERATION = 'image_generation',
   VIDEO_GENERATION = 'video_generation',
-  STT = 'stt',
-  TTS = 'tts',
+  TRANSCRIPTION = 'transcription',
+  SPEECH = 'speech',
   OCR = 'ocr',
   MUSIC = 'music'
 }

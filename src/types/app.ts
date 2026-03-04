@@ -21,8 +21,8 @@ export class AppInfo {
     fastModel: string;
     visionModel: string;
     ocrModel: string;
-    ttsModel: string;
-    sttModel: string;
+    transcriptionModel: string;
+    speechModel: string;
   };
   proxy: AppProxy;
   apiServer: {

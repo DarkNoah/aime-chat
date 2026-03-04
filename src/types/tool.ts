@@ -88,7 +88,7 @@ export const ToolConfig = {
         'ui:widget': 'modelSelector',
         'ui:title': t('common.model'),
         'ui:options': {
-          type: ModelType.STT,
+          type: ModelType.TRANSCRIPTION,
         },
       },
     },
@@ -102,7 +102,7 @@ export const ToolConfig = {
         'ui:widget': 'modelSelector',
         'ui:title': t('common.model'),
         'ui:options': {
-          type: ModelType.TTS,
+          type: ModelType.SPEECH,
         },
       },
     },
@@ -227,7 +227,7 @@ export const ToolConfig = {
   },
   RemoveBackground: {
     configSchema: z.strictObject({
-      modelName: z.enum(['rmbg-1.4', 'rmbg-2.0', 'ben2']),
+      modelName: z.enum(['rmbg-1.4', 'rmbg-2.0',]),
     }),
     uiSchema: {
       modelName: {

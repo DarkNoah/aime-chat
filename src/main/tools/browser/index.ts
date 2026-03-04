@@ -16,7 +16,7 @@ export class AgentBrowser extends BaseTool<BaseToolParams> {
   inputSchema = z
     .object({
       command: z.string().describe('The command to execute'),
-      description: z.string().describe('Clear, concise description of what this command does in -10 words.'),
+      description: z.string().optional().describe('Clear, concise description of what this command does in -10 words.'),
     })
     .strict();
 

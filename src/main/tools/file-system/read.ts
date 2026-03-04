@@ -72,6 +72,7 @@ Usage:
         .describe(
           'The number of lines to read. Only provide if the file is too large to read at once.',
         ),
+      useVision: z.boolean().optional().default(false).describe('Optional: only use this when the file is an image. If set to true, it will be presented visually by a multimodal LLM, default is false.'),
     })
     .strict();
 
@@ -96,7 +97,7 @@ Usage:
     inputData: z.infer<typeof this.inputSchema>,
     context: ToolExecutionContext<z.ZodSchema, any>,
   ) => {
-    const { file_path, offset, limit } = inputData;
+    const { file_path, offset, limit, useVision } = inputData;
     const appInfo = await appManager.getInfo();
     const visionModelId = appInfo.defaultModel.visionModel || context.requestContext?.get('modelId' as never) as string | undefined;
 
@@ -123,7 +124,7 @@ Usage:
     if (await isBinaryFile(file_path)) {
       try {
         if (mime.lookup(file_path).startsWith('image/')) {
-          if (this.disableVision === true) {
+          if (this.disableVision === true || useVision === false) {
             const defaultOcr = appInfo?.defaultModel?.ocrModel;
             const provider = await providersManager.getProvider(defaultOcr);
             const ocrModel = defaultOcr.split('/').slice(1).join('/')

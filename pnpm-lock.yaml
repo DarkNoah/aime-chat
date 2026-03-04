@@ -88,8 +88,8 @@ importers:
         specifier: ^5.2.2
         version: 5.2.2(react-hook-form@7.67.0(react@19.2.0))
       '@huggingface/transformers':
-        specifier: ^3.7.6
-        version: 3.8.0
+        specifier: ^3.8.1
+        version: 3.8.1
       '@iarna/toml':
         specifier: ^2.2.5
         version: 2.2.5
@@ -2080,8 +2080,8 @@ packages:
     resolution: {integrity: sha512-asqfZ4GQS0hD876Uw4qiUb7Tr/V5Q+JZuo2L+BtdrD4U40QU58nIRq3ZSgAzJgT874VLjhGVacaYfrdpXtEvtA==}
     engines: {node: '>=18'}
 
-  '@huggingface/transformers@3.8.0':
-    resolution: {integrity: sha512-bEvx9k/fnhjKtekc1pDYLGDhVwxW5mO3k4UkP/mJQtQI5dC34daCQ28O1B19lkyM0QYFwAj+RGl0qOjE9Upt/w==}
+  '@huggingface/transformers@3.8.1':
+    resolution: {integrity: sha512-tsTk4zVjImqdqjS8/AOZg2yNLd1z9S5v+7oUPpXaasDRwEDhB+xnglK1k5cad26lL5/ZIaeREgWWy0bs9y9pPA==}
 
   '@humanwhocodes/config-array@0.13.0':
     resolution: {integrity: sha512-DZLEEqFWQFiyK6h5YIeynKx7JlvCYWL0cImfSRXZ9l4Sg2efkFGTuFf6vzXjK1cq6IYkU+Eg/JizXw+TD2vRNw==}
@@ -15363,7 +15363,7 @@ snapshots:
 
   '@huggingface/jinja@0.5.3': {}
 
-  '@huggingface/transformers@3.8.0':
+  '@huggingface/transformers@3.8.1':
     dependencies:
       '@huggingface/jinja': 0.5.3
       onnxruntime-node: 1.21.0

@@ -15,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/renderer/components/ui/select';
+import { Input } from '@/renderer/components/ui/input';
 import { Spinner } from '@/renderer/components/ui/spinner';
 import { useHeader } from '@/renderer/hooks/use-title';
 import {
@@ -41,6 +42,7 @@ interface InstanceConfig {
   userDataPath?: string;
   cdpUrl?: string;
   wssUrl?: string;
+  debugPort?: number;
 }
 
 
@@ -165,9 +167,23 @@ function Instances() {
   const isCustomDir = (instance: InstanceInfo) => {
     if (!instance.config?.userDataPath) return false;
     return !profiles.find(
-      (p) =>
-        p.userDataPath === instance.config?.userDataPath,
+      (p) => p.userDataPath === instance.config?.userDataPath,
     );
+  };
+
+  const handleDebugPortChange = async (instanceId: string, value: string) => {
+    const port = value === '' ? 9222 : parseInt(value, 10);
+    if (Number.isNaN(port) || port < 1 || port > 65535) return;
+
+    try {
+      await window.electron.instances.updateInstance(instanceId, {
+        config: { debugPort: port },
+      });
+      await loadInstances();
+      toast.success(t('settings.instances_config_saved'));
+    } catch (err) {
+      toast.error(err.message || 'Failed to update instance');
+    }
   };
 
   return (
@@ -253,6 +269,30 @@ function Instances() {
                     </span>
                   </div>
                 )}
+
+                {/* Remote debugging port */}
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs text-muted-foreground">
+                    {t('settings.instances_debug_port')}
+                  </span>
+                  <Input
+                    type="number"
+                    className="w-32 h-8 text-xs"
+                    placeholder="9222"
+                    defaultValue={instance.config?.debugPort ?? 9222}
+                    min={1}
+                    max={65535}
+                    onBlur={(e) =>
+                      handleDebugPortChange(instance.id, e.target.value)
+                    }
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        (e.target as HTMLInputElement).blur();
+                      }
+                    }}
+                  />
+                </div>
+
                 {instance.webSocketUrl && (
                   <div className="flex flex-col gap-1">
                     <span className="text-xs text-muted-foreground">

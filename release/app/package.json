@@ -15,7 +15,7 @@
     "link-modules": "node -r ts-node/register ../../.erb/scripts/link-modules.ts"
   },
   "dependencies": {
-    "@huggingface/transformers": "^3.7.6",
+    "@huggingface/transformers": "^3.8.1",
     "@libsql/client": "^0.15.15",
     "@napi-rs/system-ocr": "^1.0.2",
     "@vscode/ripgrep": "^1.17.0",

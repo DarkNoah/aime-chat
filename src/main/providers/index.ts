@@ -189,9 +189,9 @@ class ProvidersManager extends BaseManager {
       return this.getAvailableRerankModels();
     } else if (type == ModelType.IMAGE_GENERATION) {
       return this.getAvailableImageGenerationModels();
-    } else if (type == ModelType.STT) {
+    } else if (type == ModelType.TRANSCRIPTION) {
       return this.getAvailableTranscriptionModels();
-    } else if (type == ModelType.TTS) {
+    } else if (type == ModelType.SPEECH) {
       return this.getAvailableSpeechModels();
     } else if (type == ModelType.OCR) {
       return this.getAvailableOcrModels();

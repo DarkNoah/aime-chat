@@ -42,10 +42,13 @@
     "instances_start_failed": "启动实例失败",
     "instances_config_saved": "配置已保存",
     "instances_empty": "暂无实例",
+    "instances_debug_port": "远程调试端口",
     "vision_model": "视觉模型",
     "default_ocr": "默认Ocr模型",
     "usage": "模型用量",
-    "setup": "配置向导"
+    "setup": "配置向导",
+    "default_transcription": "默认语音转文本模型",
+    "default_speech": "默认文本转语音模型"
   },
   "common": {
     "edit": "编辑",
