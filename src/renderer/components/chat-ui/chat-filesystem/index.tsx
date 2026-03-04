@@ -188,6 +188,7 @@ const FilePreviewDialog: React.FC<{
 };
 
 type TreeNodeProps = {
+  rootPath?: string;
   node: DirectoryTreeNode;
   level: number;
   defaultOpen?: boolean;
@@ -195,6 +196,7 @@ type TreeNodeProps = {
 };
 
 const TreeNode: React.FC<TreeNodeProps> = ({
+  rootPath,
   node,
   level,
   defaultOpen = false,
@@ -221,8 +223,13 @@ const TreeNode: React.FC<TreeNodeProps> = ({
   };
 
   const handleDragStart = (e: React.DragEvent) => {
-    e.dataTransfer.setData('text/plain', node.path);
-    e.dataTransfer.setData('application/x-file-path', node.path);
+    let relativePath = node.path;
+    if (rootPath && node.path.startsWith(`${rootPath}/`)) {
+      relativePath = `"./${node.path.substring(rootPath.length + 1)}"`;
+    }
+
+    e.dataTransfer.setData('text/plain', relativePath);
+    e.dataTransfer.setData('application/x-file-path', relativePath);
     e.dataTransfer.effectAllowed = 'copy';
   };
 
@@ -282,6 +289,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({
               key={child.path}
               node={child}
               level={level + 1}
+              rootPath={rootPath}
               onPreviewFile={onPreviewFile}
             />
           ))}
@@ -776,6 +784,7 @@ export const ChatFilesystem = React.forwardRef<
                   key={child.path}
                   node={child}
                   level={0}
+                  rootPath={workspace}
                   onPreviewFile={handlePreviewFile}
                 />
               ))}

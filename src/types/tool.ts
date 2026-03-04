@@ -227,7 +227,7 @@ export const ToolConfig = {
   },
   RemoveBackground: {
     configSchema: z.strictObject({
-      modelName: z.enum(['rmbg-1.4', 'rmbg-2.0',]),
+      modelName: z.enum(['rmbg-1.4', 'rmbg-2.0', 'ben2']),
     }),
     uiSchema: {
       modelName: {

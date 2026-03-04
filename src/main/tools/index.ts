@@ -1387,7 +1387,7 @@ class ToolsManager extends BaseManager {
           await skillManager.parseSkill(file, path.join(skillsPath, skillName));
         }
       }
-
+      await appManager.toast('Skills install successfully', { type: 'success' });
       return {
         success: true,
       };

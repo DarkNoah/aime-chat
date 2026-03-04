@@ -99,7 +99,8 @@ Usage:
   ) => {
     const { file_path, offset, limit, useVision } = inputData;
     const appInfo = await appManager.getInfo();
-    const visionModelId = appInfo.defaultModel.visionModel || context.requestContext?.get('modelId' as never) as string | undefined;
+    const currentModel = context?.requestContext?.get('model' as never) as string;
+    const visionModelId = appInfo.defaultModel.visionModel || currentModel;
 
 
     if (!fs.existsSync(file_path))
@@ -298,6 +299,7 @@ Usage:
       try {
         if (this.forceWordOcr === true) {
           const result = await provider.ocrModel(ocrModel).doOCR({ image: file_source });
+          if (!result) throw new Error('OCR result is empty');
           return result;
         }
       } catch {

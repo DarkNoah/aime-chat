@@ -504,7 +504,10 @@ export class KnowledgeBaseManager extends BaseManager {
             items: [item]
           });
           if (await isBinaryFile(file)) {
-            content = await new ReadBinaryFile().execute({
+            content = await new ReadBinaryFile({
+              forcePDFOcr: true,
+              forceWordOcr: false,
+            }).execute({
               file_source: file,
               args: {}
             });

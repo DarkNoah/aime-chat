@@ -145,3 +145,9 @@ export type ChatSubmitOptions = {
   agentId?: string;
   projectId?: string;
 };
+
+export const ChatSlashCommandConfig = [{
+  id: 'compact',
+  label: 'compact',
+  description: 'Compact the current messages',
+}]
