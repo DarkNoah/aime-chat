@@ -379,7 +379,9 @@ function ChatPage() {
       direction="horizontal"
       className="h-full w-full @container"
     >
-      <ResizablePanel className={`h-full  w-full justify-between `}>
+      <ResizablePanel
+        className={`h-full  w-full justify-between min-w-[450px]`}
+      >
         <ChatPanel
           ref={chatPanelRef}
           onSubmit={handleSubmit}
@@ -401,8 +403,8 @@ function ChatPage() {
         <>
           <ResizableHandle withHandle />
           <ResizablePanel
-            maxSize={showPreview ? 70 : 0}
-            className={`h-full flex-1 `}
+
+            className={`h-full flex-1`}
           >
             <div className="p-2 w-full h-full">
               <ChatPreview

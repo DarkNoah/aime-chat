@@ -1309,7 +1309,7 @@ class ToolsManager extends BaseManager {
             recursive: true,
           },
         );
-        const source = path.join(repoUrl, 'tree/main', selectedSkill.path, "SKILL.md")
+        const source = [repoUrl.replace(/\/+$/, ""), "tree/main", selectedSkill.path.replaceAll("\\", "/"), "SKILL.md"].join("/");
         if (!data.path) {
           const tool = new Tools(
             `${ToolType.SKILL}:local:${selectedSkill.id}`,

@@ -716,7 +716,7 @@ ${formatCodeWithLineNumbers({ content: agentsMd, startLine: 0 })}
           });
         },
         onChunk: (chunk) => {
-          console.log('Stream chunk:', chunk);
+          // console.log('Stream chunk:', chunk);
           if (chunk.type == 'text-delta') {
             const textDelta = chunk.payload.text;
             const _chunks = requestContext.get('chunks') ?? {

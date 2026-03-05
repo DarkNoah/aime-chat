@@ -141,7 +141,12 @@ class ProjectManager extends BaseManager {
     );
     const skill = skills.find((x) => x.id === skillId);
     if (skill) {
-      await fs.promises.rm(skill.path, { recursive: true });
+      try {
+        await fs.promises.rm(skill.path, { recursive: true });
+      } catch (err) {
+        appManager.toast('Failed to delete skill, ' + err.message, { type: 'error' });
+      }
+
     }
     // return result;
   }
