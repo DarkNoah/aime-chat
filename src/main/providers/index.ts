@@ -244,6 +244,7 @@ class ProvidersManager extends BaseManager {
     if (provider && provider.tags && provider.tags.length > 0) {
       data['tags'] = provider.tags;
     }
+    const existingProvider = await this.repository.findOne({ where: { id } });
     await this.repository.update(id, data);
   }
 
@@ -758,6 +759,7 @@ class ProvidersManager extends BaseManager {
       case ProviderType.DEEPSEEK:
         return new DeepSeekProvider(provider);
       case ProviderType.ZHIPUAI:
+      case "zhipuai-coding-plan":
         return new ZhipuAIProvider(provider);
       case ProviderType.GOOGLE:
         return new GoogleProvider(provider);
