@@ -51,6 +51,7 @@ import { LibSQLToolkit } from './database/libsql';
 import { Message } from './common/message';
 import { ImageToolkit } from './image';
 import { AgentBrowser } from './browser';
+import { KnowledgeBaseToolkit } from './knowledge-base';
 interface BuiltInToolContext {
   tool: BaseTool;
   abortController: AbortController;
@@ -187,6 +188,7 @@ class ToolsManager extends BaseManager {
     await this.registerBuiltInTool(Translation);
     await this.registerBuiltInTool(AudioToolkit);
     await this.registerBuiltInTool(LibSQLToolkit);
+    await this.registerBuiltInTool(KnowledgeBaseToolkit);
 
     if (!app.isPackaged) {
       await this.registerBuiltInTool(ExpenseManagementToolkit);

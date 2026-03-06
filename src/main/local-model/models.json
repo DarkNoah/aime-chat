@@ -174,14 +174,32 @@
     {
       "id": "chinese-clip-vit-large-patch14-336px",
       "repo": "Xenova/chinese-clip-vit-large-patch14-336px",
-      "type": "huggingface",
-      "download": "https://huggingface.co/Xenova/chinese-clip-vit-large-patch14-336px"
+      "library": "transformers",
+      "download": [
+        {
+          "source": "modelscope",
+          "url": "https://www.modelscope.cn/models/Xenova/chinese-clip-vit-large-patch14-336px"
+        },
+        {
+          "source": "huggingface",
+          "url": "https://huggingface.co/Xenova/chinese-clip-vit-large-patch14-336px"
+        }
+      ]
     },
     {
       "id": "clip-vit-base-patch32",
       "repo": "Xenova/clip-vit-base-patch32",
-      "type": "huggingface",
-      "download": "https://huggingface.co/Xenova/clip-vit-base-patch32"
+      "library": "transformers",
+      "download": [
+        {
+          "source": "modelscope",
+          "url": "https://www.modelscope.cn/models/Xenova/clip-vit-base-patch32"
+        },
+        {
+          "source": "huggingface",
+          "url": "https://huggingface.co/Xenova/clip-vit-base-patch32"
+        }
+      ]
     },
     {
       "id": "jina-clip-v2",

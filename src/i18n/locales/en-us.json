@@ -196,7 +196,8 @@
     "add_text": "Add Text",
     "name": "Name",
     "description": "Description",
-    "reranker": "Reranker"
+    "reranker": "Reranker",
+    "force-return-full-content": "Force Return Full Content"
   },
   "setup": {
     "welcome": {

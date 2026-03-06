@@ -16,6 +16,7 @@ import path from 'path';
 import matter from 'gray-matter';
 import { ToolType } from '@/types/tool';
 import { getSkills } from '../utils/skills';
+import { runCommand } from '../utils/shell';
 class ProjectManager extends BaseManager {
   projectsRepository: Repository<Projects>;
 
@@ -150,6 +151,26 @@ class ProjectManager extends BaseManager {
     }
     // return result;
   }
-}
 
+
+  @channel(ProjectChannel.OpenWith)
+  async openWith(projectId: string, action: string) {
+    const result = await this.getProject(projectId);
+    if (action === 'vscode') {
+      await runCommand('code .', {
+        cwd: result.path,
+      });
+    }
+    else if (action === 'cursor') {
+      await runCommand(process.platform === 'win32' ? 'start cursor .' : 'open -a Cursor .', {
+        cwd: result.path,
+      });
+    }
+    else if (action === 'terminal') {
+      await runCommand(process.platform === 'win32' ? 'cmd.exe' : 'open -a Terminal .', {
+        cwd: result.path,
+      });
+    }
+  }
+}
 export const projectManager = new ProjectManager();

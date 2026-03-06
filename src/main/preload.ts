@@ -272,7 +272,7 @@ const electronHandler = {
     saveMCPServer: (id: string | undefined, data: string) =>
       ipcRenderer.invoke(ToolChannel.SaveMCPServer, id, data),
     getMcp: (id: string) => ipcRenderer.invoke(ToolChannel.GetMcp, id),
-    getAvailableTools: ({ filter, isActive }: { filter?: string, isActive?: boolean }): Promise<Record<ToolType, Tool[]>> =>
+    getAvailableTools: ({ filter, isActive }: { filter?: string, isActive?: boolean } = { isActive: true }): Promise<Record<ToolType, Tool[]>> =>
       ipcRenderer.invoke(ToolChannel.GetAvailableTools, { filter, isActive }),
     getList: (filter?: { type: ToolType }) =>
       ipcRenderer.invoke(ToolChannel.GetList, filter),
@@ -342,6 +342,8 @@ const electronHandler = {
       ipcRenderer.invoke(ProjectChannel.CreateThread, options),
     deleteSkill: (projectId: string, skillId: string) =>
       ipcRenderer.invoke(ProjectChannel.DeleteSkill, projectId, skillId),
+    openWith: (projectId: string, action: string) =>
+      ipcRenderer.invoke(ProjectChannel.OpenWith, projectId, action),
   },
   taskQueue: {
     add: (options: AddTaskOptions): Promise<string> =>

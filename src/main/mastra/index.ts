@@ -1176,7 +1176,7 @@ ${formatCodeWithLineNumbers({ content: agentsMd, startLine: 0 })}
       if (done) {
         break;
       }
-      console.log(value);
+      // console.log(value);
       appManager.sendEvent(`chat:event:${chatId}`, {
         type: ChatEvent.ChatChunk,
         data: JSON.stringify(value),

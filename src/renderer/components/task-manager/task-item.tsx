@@ -62,8 +62,7 @@ interface TaskItemProps {
 }
 
 export function TaskItem({ task }: TaskItemProps) {
-  const { pauseTask, resumeTask, cancelTask, removeTask } =
-    useTaskQueueStore();
+  const { pauseTask, resumeTask, cancelTask, removeTask } = useTaskQueueStore();
 
   const config = statusConfig[task.status];
   const isActive = task.status === 'running' || task.status === 'paused';
@@ -98,7 +97,9 @@ export function TaskItem({ task }: TaskItemProps) {
       {/* 头部：名称 + 状态 */}
       <div className="flex items-center justify-between gap-2 mb-1">
         <div className="flex items-center gap-2 min-w-0 flex-1">
-          <span className="text-sm font-medium truncate">{task.name}</span>
+          <span className="text-sm font-medium truncate line-clamp-1">
+            {task.name}
+          </span>
         </div>
         <Badge variant={config.variant} className="shrink-0 gap-1">
           {config.icon}
@@ -119,7 +120,10 @@ export function TaskItem({ task }: TaskItemProps) {
 
       {/* 错误信息 */}
       {task.status === 'failed' && task.error && (
-        <p className="mt-1.5 text-xs text-destructive truncate" title={task.error}>
+        <p
+          className="mt-1.5 text-xs text-destructive truncate"
+          title={task.error}
+        >
           {task.error}
         </p>
       )}
@@ -129,7 +133,7 @@ export function TaskItem({ task }: TaskItemProps) {
         {isActive && (
           <>
             <Button
-              variant="ghost"
+              variant="outline"
               size="icon"
               className="size-7"
               onClick={handlePauseResume}
@@ -142,7 +146,7 @@ export function TaskItem({ task }: TaskItemProps) {
               )}
             </Button>
             <Button
-              variant="ghost"
+              variant="outline"
               size="icon"
               className="size-7 text-destructive hover:text-destructive"
               onClick={handleCancel}
@@ -154,7 +158,7 @@ export function TaskItem({ task }: TaskItemProps) {
         )}
         {task.status === 'pending' && (
           <Button
-            variant="ghost"
+            variant="outline"
             size="icon"
             className="size-7 text-destructive hover:text-destructive"
             onClick={handleCancel}
@@ -165,7 +169,7 @@ export function TaskItem({ task }: TaskItemProps) {
         )}
         {isDone && (
           <Button
-            variant="ghost"
+            variant="outline"
             size="icon"
             className="size-7"
             onClick={handleRemove}

@@ -136,6 +136,15 @@ class ProvidersManager extends BaseManager {
           { tags: filter?.tags },
         )
         .getMany();
+      provierEntities = await this.repository.find();
+      const filterProvierEntities = [];
+      for (const provider of provierEntities) {
+        const providerData = await this.getProvider(provider.id);
+        if (providerData && providerData.tags?.filter((t) => filter?.tags.includes(t)).length > 0) {
+          filterProvierEntities.push(provider);
+        }
+      }
+      provierEntities = filterProvierEntities;
     } else {
       provierEntities = await this.repository.find();
     }

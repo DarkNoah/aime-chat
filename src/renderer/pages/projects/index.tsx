@@ -211,7 +211,7 @@ function ProjectsPage() {
       className="h-full w-full @container"
     >
       <ResizablePanel className="h-full  w-full justify-between min-w-[450px]">
-        <div className="absolute top-0 left-0 p-2 z-10 flex flex-row gap-1">
+        <div className="absolute top-12 left-0 p-2 z-10 flex flex-row gap-1 ">
           <Button
             variant="ghost"
             size="icon-sm"

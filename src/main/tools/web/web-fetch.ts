@@ -130,7 +130,7 @@ Usage notes:
       const html = await page.content();
       await page.close();
       content = docs;
-    } else if (provider.type === ProviderType.ZHIPUAI) {
+    } else if (provider.type === ProviderType.ZHIPUAI || provider.type === "zhipuai-coding-plan") {
       const zhipuaiProvider = (await providersManager.getProvider(
         config?.providerId,
       )) as ZhipuAIProvider;

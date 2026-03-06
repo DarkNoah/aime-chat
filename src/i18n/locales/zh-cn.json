@@ -123,7 +123,8 @@
     "env": "环境变量",
     "force_word_ocr": "强制word使用ocr",
     "disable_vision": "不使用视觉模型",
-    "slash_commands": "快捷命令"
+    "slash_commands": "快捷命令",
+    "results": "结果"
   },
   "sidebar": {
     "new_chat": "新聊天",
@@ -233,7 +234,8 @@
     "add_text": "添加文本",
     "name": "名称",
     "description": "描述",
-    "reranker": "重排模型"
+    "reranker": "重排模型",
+    "force-return-full-content": "强制返回全文"
   },
   "setup": {
     "welcome": {

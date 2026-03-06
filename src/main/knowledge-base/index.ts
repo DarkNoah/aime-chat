@@ -115,6 +115,12 @@ export class KnowledgeBaseManager extends BaseManager {
     if (kb.embedding) {
       _kb.embeddingProvider = (await providersManager.getProvider(kb.embedding.split('/')[0]))?.name;
       _kb.embeddingModel = _kb.embeddingProvider + '/' + kb.embedding.split('/').slice(1).join('/');
+      if (_kb.reranker) {
+        _kb.rerankerProvider = (await providersManager.getProvider(kb.reranker.split('/')[0]))?.name;
+        _kb.rerankerModel = _kb.rerankerProvider + '/' + kb.reranker.split('/').slice(1).join('/');
+      }
+
+
     }
 
     return _kb;
@@ -144,12 +150,12 @@ export class KnowledgeBaseManager extends BaseManager {
     };
   }
   @channel(KnowledgeBaseChannel.SearchKnowledgeBase)
-  public async searchKnowledgeBase(kbId: string, query: string): Promise<SearchKnowledgeBaseResult> {
-    const kb = await this.knowledgeBaseRepository.findOneBy({ id: kbId });
+  public async searchKnowledgeBase(kb_id_or_name: string, query: string, top_k: number = 10): Promise<SearchKnowledgeBaseResult> {
+    const kb = await this.knowledgeBaseRepository.findOne({ where: [{ id: kb_id_or_name }, { name: kb_id_or_name }] });
     if (!kb) {
       throw new Error('Knowledge base not found');
     }
-    const store = await this.getVectorStore(kbId);
+    const store = await this.getVectorStore(kb.id);
     const { embeddings } = await embedMany({
       model: await providersManager.getEmbeddingModel(kb.embedding),
       values: [query],
@@ -167,7 +173,7 @@ export class KnowledgeBaseManager extends BaseManager {
           (1-vector_distance_cos(embedding, '${vectorStr}')) as score,
           metadata
           , vector_extract(embedding) as embedding
-        FROM [kb_${kbId}_${kb.vectorLength}]
+        FROM [kb_${kb.id}_${kb.vectorLength}]
         WHERE is_enable = 1
       )
       SELECT *
@@ -175,7 +181,7 @@ export class KnowledgeBaseManager extends BaseManager {
       WHERE score > ?
       ORDER BY score DESC
       LIMIT ?`,
-      args: [0.5, 10],
+      args: [0.5, top_k],
     });
 
 
@@ -189,15 +195,29 @@ export class KnowledgeBaseManager extends BaseManager {
         id: In(itemIds),
       },
     });
+    if (items.length == 0) {
+      return {
+        query: query,
+        embedding: kb.embedding,
+        results: [],
+      }
+    }
 
-    const _results: SearchKnowledgeBaseItemResult[] = results.rows.map(item => ({
-      id: item.id as string,
-      itemId: item.item_id as string,
-      score: item.score as number,
-      metadata: item.metadata,
-      chunk: item.chunk as string,
-      content: items.find(x => x.id === item.item_id)?.content as string
-    }));
+    const _results: SearchKnowledgeBaseItemResult[] = results.rows.map(item => {
+      const kbitem = items.find(x => x.id === item.item_id)
+      return {
+        id: item.id as string,
+        itemId: item.item_id as string,
+        score: item.score as number,
+        hybridScore: item.hybrid_score as number,
+        metadata: item.metadata,
+        chunk: item.chunk as string,
+        name: kbitem.name,
+        source: kbitem.source,
+        sourceType: kbitem.sourceType as KnowledgeBaseSourceType,
+        content: kbitem.content,
+      }
+    });
 
     if (kb.reranker) {
       const model = await providersManager.getRerankModel(kb.reranker);
@@ -205,13 +225,14 @@ export class KnowledgeBaseManager extends BaseManager {
         query: query,
         documents: results.rows.map(x => x.chunk as string),
         options: {
-          top_k: 10,
+          top_k: top_k,
         },
       });
       rereankResults.forEach(result => {
         const item = _results[result.index];
         if (item) {
           item.rerankScore = result.score;
+          item.hybridScore = (item.score + result.score) / 2;
         }
       });
     }
@@ -355,6 +376,7 @@ export class KnowledgeBaseManager extends BaseManager {
           maxSize: 512,
           overlap: 50,
         });
+        console.log(source)
         const { embeddings } = await embedMany({
           model: await providersManager.getEmbeddingModel(kb.embedding),
           values: chunks.map((chunk) => chunk.text),
@@ -415,6 +437,7 @@ export class KnowledgeBaseManager extends BaseManager {
         items: [item]
       });
       try {
+
         const doc = MDocument.fromText(content);
         const chunks = await doc.chunk({
           strategy: "recursive",
@@ -516,6 +539,7 @@ export class KnowledgeBaseManager extends BaseManager {
           }
           item.content = content;
 
+          console.log(file, content)
           item = await this.knowledgeBaseItemRepository.save(item);
           await appManager.sendEvent(KnowledgeBaseEvent.KnowledgeBaseItemsUpdated, {
             kbId: kbId,

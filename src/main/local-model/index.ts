@@ -13,6 +13,7 @@ import {
   AutoModelForSequenceClassification,
   AutoProcessor,
   AutoTokenizer,
+  pipeline,
   PreTrainedModel,
 } from '@huggingface/transformers';
 
@@ -34,7 +35,7 @@ class LocalModelManager extends BaseManager {
     super();
   }
 
-  public async init() {}
+  public async init() { }
 
   @channel(LocalModelChannel.GetList)
   public async getList(
@@ -134,6 +135,17 @@ class LocalModelManager extends BaseManager {
     modelPath: string,
     options?: {
       dtype?:
+      | 'auto'
+      | 'fp16'
+      | 'q8'
+      | 'q4'
+      | 'fp32'
+      | 'int8'
+      | 'uint8'
+      | 'bnb4'
+      | 'q4f16'
+      | Record<
+        string,
         | 'auto'
         | 'fp16'
         | 'q8'
@@ -143,18 +155,7 @@ class LocalModelManager extends BaseManager {
         | 'uint8'
         | 'bnb4'
         | 'q4f16'
-        | Record<
-            string,
-            | 'auto'
-            | 'fp16'
-            | 'q8'
-            | 'q4'
-            | 'fp32'
-            | 'int8'
-            | 'uint8'
-            | 'bnb4'
-            | 'q4f16'
-          >;
+      >;
     },
   ): Promise<CachedModel> {
     // 如果模型已缓存，更新 lastUsed 并重置计时器
@@ -176,7 +177,7 @@ class LocalModelManager extends BaseManager {
     // 开始加载模型
     this.modelLoadPromises[modelName] = (async () => {
       let entry: CachedModel;
-      if (task == 'background-removal' || task == 'image-feature-extraction') {
+      if (task == 'background-removal' || task == 'image-feature-extraction' || task == 'image-feature-extraction') {
         const [model, processor] = await Promise.all([
           AutoModel.from_pretrained(modelPath, {
             local_files_only: true,
@@ -199,6 +200,8 @@ class LocalModelManager extends BaseManager {
           model,
           tokenizer,
         };
+      } else {
+
       }
       entry.lastUsed = Date.now();
       this.models[modelName] = entry;

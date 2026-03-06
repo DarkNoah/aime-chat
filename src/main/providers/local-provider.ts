@@ -48,8 +48,8 @@ export type LocalConfig = {
   modelPath: string;
 };
 
-const localEmbeddings = {};
-const localRerankers = {};
+// const localEmbeddings = {};
+// const localRerankers = {};
 export class LocalEmbeddingModel implements EmbeddingModelV2<string> {
   readonly specificationVersion = 'v2';
   readonly modelId: LocalEmbeddingModelId;
@@ -78,11 +78,29 @@ export class LocalEmbeddingModel implements EmbeddingModelV2<string> {
     const appInfo = await appManager.getInfo();
     const modelName = this.modelId.split('/').pop();
     const localModels = await localModelManager.getList('embedding');
-    const localModel = localModels.embedding.find((x) => x.id === this.modelId);
-    const { library, isDownloaded } = localModel;
-    if (!isDownloaded)
-      throw new Error(`Model ${this.modelId} is not downloaded`);
-    const modelPath = path.join(appInfo.modelPath, 'embedding', modelName);
+    const localClipModels = await localModelManager.getList('clip');
+    const localEmbeddingModel = localModels.embedding.find((x) => x.id === this.modelId);
+    const localClipModel = localClipModels.clip.find((x) => x.id === this.modelId);
+    const { library, isDownloaded } = localEmbeddingModel;
+    const { library: clipLibrary, isDownloaded: clipIsDownloaded } = localClipModel;
+    let isEmbedModel;
+    if (localEmbeddingModel) {
+      isEmbedModel = true;
+      if (!isDownloaded)
+        throw new Error(`Model ${this.modelId} is not downloaded`);
+    }
+    if (localClipModel) {
+      isEmbedModel = false;
+      if (!clipIsDownloaded)
+        throw new Error(`Model ${this.modelId} is not downloaded`);
+    }
+
+
+
+
+
+
+    const modelPath = path.join(appInfo.modelPath, isEmbedModel ? 'embedding' : 'clip', modelName);
 
     let embeddings: Float32Array[] = [];
     if (library == 'openvino') {
@@ -92,26 +110,82 @@ export class LocalEmbeddingModel implements EmbeddingModelV2<string> {
       // const pipeline = await TextEmbeddingPipeline(modelPath);
       // embeddings = (await pipeline.embedDocuments(values)) as Float32Array[];
     } else if (library == 'transformers') {
-      if (localModels[this.modelId] == null) {
-        // const { pipeline, env } = await this.TransformersApi;
-        env.localModelPath = path.dirname(modelPath);
-        env.allowRemoteModels = false;
-        env.allowLocalModels = true;
-        localModels[this.modelId] = await pipeline(
+      let cachedModel;
+      if (isEmbedModel) {
+        cachedModel = await localModelManager.ensureModelLoaded(
           'feature-extraction',
-          path.basename(modelPath),
+          this.modelId,
+          modelPath
         );
+      } else {
+        cachedModel = await localModelManager.ensureModelLoaded(
+          'image-feature-extraction',
+          this.modelId,
+          modelPath
+        );
+
       }
 
-      const featureExtractionPipeline = localModels[
-        this.modelId
-      ] as FeatureExtractionPipeline;
 
-      const output = await featureExtractionPipeline(values, {
+
+      const { model, tokenizer, processor } = cachedModel;
+
+
+      if (!isEmbedModel) {
+
+        const sentences = values.map(x => x);
+        const images = await Promise.all(values.map(url => RawImage.read(url)));
+        const inputs = await processor(sentences, images, { padding: true, truncation: true });
+        const { l2norm_text_embeddings, l2norm_image_embeddings } = await model(inputs);
+
+      }
+
+      // if (localEmbeddings[this.modelId] == null) {
+      //   // const { pipeline, env } = await this.TransformersApi;
+      //   env.localModelPath = path.dirname(modelPath);
+      //   env.allowRemoteModels = false;
+      //   env.allowLocalModels = true;
+      //   localEmbeddings[this.modelId] = await pipeline(
+      //     'feature-extraction',
+      //     path.basename(modelPath),
+      //     {
+      //       dtype: 'q8'
+      //     }
+      //   );
+      // }
+
+      // const featureExtractionPipeline = localEmbeddings[
+      //   this.modelId
+      // ] as FeatureExtractionPipeline;
+
+      const inputs = tokenizer(values, {
+        padding: true,
+        truncation: true
+      });
+      const outputs = await model(inputs, {
         pooling: 'cls',
         normalize: true,
       });
-      const res = output.tolist();
+
+      function clsNormalize(outputs) {
+        const hidden = outputs.last_hidden_state.tolist();
+
+        return hidden.map(seq => {
+          let vec = seq[0]; // CLS pooling
+
+          const norm = Math.sqrt(vec.reduce((a, b) => a + b * b, 0));
+          return vec.map(v => v / norm);
+        });
+      }
+
+      const embeddings2 = clsNormalize(outputs);
+
+
+      // const output = await featureExtractionPipeline(values, {
+      //   pooling: 'cls',
+      //   normalize: true,
+      // });
+      const res = embeddings2;
       embeddings = res.map((x) => new Float32Array(x));
     }
 

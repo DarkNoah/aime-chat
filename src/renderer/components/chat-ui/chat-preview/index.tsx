@@ -44,7 +44,7 @@ export type ChatPreviewProps = {
   onProjectChanged?: () => void;
 };
 
-export interface ChatPreviewRef { }
+export interface ChatPreviewRef {}
 
 // type PreviewType = 'webPreview' | 'canvas' | 'tool-result';
 
@@ -222,6 +222,7 @@ export const ChatPreview = React.forwardRef<ChatPreviewRef, ChatPreviewProps>(
             className={`h-full ${previewData.previewPanel === ChatPreviewType.FILE_SYSTEM ? '' : 'hidden'}`}
           >
             <ChatFilesystem
+              projectId={project?.id}
               workspace={workspace}
               className="rounded-xl border"
             />
@@ -230,7 +231,10 @@ export const ChatPreview = React.forwardRef<ChatPreviewRef, ChatPreviewProps>(
           <div
             className={`h-full ${previewData.previewPanel === ChatPreviewType.TODO ? '' : 'hidden'}`}
           >
-            <ChatTodoList todos={previewData?.todos} tasks={previewData?.tasks}></ChatTodoList>
+            <ChatTodoList
+              todos={previewData?.todos}
+              tasks={previewData?.tasks}
+            ></ChatTodoList>
           </div>
 
           <div

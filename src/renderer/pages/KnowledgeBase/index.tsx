@@ -77,6 +77,7 @@ import {
   EmptyDescription,
   EmptyHeader,
 } from '@/renderer/components/ui/empty';
+import { Switch } from '@/renderer/components/ui/switch';
 
 function KnowledgeBasePage() {
   const { setTitle } = useHeader();
@@ -96,6 +97,7 @@ function KnowledgeBasePage() {
       description: '',
       vectorStoreType: VectorStoreType.LibSQL,
       embedding: '',
+      forceReturnFullContent: false,
     },
   });
   const getData = async () => {
@@ -117,6 +119,7 @@ function KnowledgeBasePage() {
     vectorStoreType: VectorStoreType | string;
     embedding: string;
     reranker?: string;
+    forceReturnFullContent?: boolean;
   }) => {
     if (submitting) return;
     try {
@@ -126,6 +129,7 @@ function KnowledgeBasePage() {
           name: values.name.trim(),
           description: values.description?.trim() || '',
           reranker: values.reranker?.trim() || '',
+          forceReturnFullContent: values.forceReturnFullContent || false,
         });
       } else {
         await window.electron.knowledgeBase.create({
@@ -134,6 +138,7 @@ function KnowledgeBasePage() {
           vectorStoreType: values.vectorStoreType as VectorStoreType,
           embedding: values.embedding.trim(),
           reranker: values.reranker?.trim() || '',
+          forceReturnFullContent: values.forceReturnFullContent || false,
         });
       }
       getData();
@@ -164,6 +169,10 @@ function KnowledgeBasePage() {
       form.setValue('name', data.name);
       form.setValue('description', data.description);
       form.setValue('reranker', data.reranker);
+      form.setValue(
+        'forceReturnFullContent',
+        data.forceReturnFullContent || false,
+      );
     }
   };
 
@@ -212,7 +221,6 @@ function KnowledgeBasePage() {
                         </FormItem>
                       )}
                     />
-
                     <FormField
                       name="description"
                       control={form.control}
@@ -232,7 +240,6 @@ function KnowledgeBasePage() {
                         </FormItem>
                       )}
                     />
-
                     {!currentKb && (
                       <>
                         <FormField
@@ -289,11 +296,9 @@ function KnowledgeBasePage() {
                         />
                       </>
                     )}
-
                     <FormField
                       name="reranker"
                       control={form.control}
-                      rules={{ required: t('common.required') as string }}
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel htmlFor="kb-reranker">
@@ -306,6 +311,27 @@ function KnowledgeBasePage() {
                               {...field}
                               className="border w-full"
                             ></ChatModelSelect>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      name="forceReturnFullContent"
+                      control={form.control}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel htmlFor="kb-force-return-full-content">
+                            {t('knowledge-base.force-return-full-content')}
+                          </FormLabel>
+                          <FormControl>
+                            <Switch
+                              id="kb-force-return-full-content"
+                              {...field}
+                              onCheckedChange={field.onChange}
+                              checked={field.value}
+                              value={field.value ? 'true' : 'false'}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -353,12 +379,8 @@ function KnowledgeBasePage() {
                         {kb.name}
                       </ItemTitle>
 
-
-
                       {kb.description && (
-                        <ItemDescription>
-                          {kb.description}
-                        </ItemDescription>
+                        <ItemDescription>{kb.description}</ItemDescription>
                       )}
                     </ItemContent>
                     {/* <ItemDescription>

@@ -66,6 +66,7 @@ import {
   Pagination,
   PaginationContent,
   PaginationItem,
+  PaginationEllipsis,
   PaginationLink,
   PaginationNext,
   PaginationPrevious,
@@ -84,6 +85,7 @@ import {
   TabsList,
   TabsTrigger,
 } from '@/renderer/components/ui/tabs';
+import toast from 'react-hot-toast';
 
 const PAGE_SIZE = 10;
 
@@ -136,7 +138,7 @@ function KnowledgeBaseDetail() {
   const [searchDialogOpen, setSearchDialogOpen] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState('');
-  const [fileDialogOpen, setFileDialogOpen] = useState(false);
+
   const [draggingFiles, setDraggingFiles] = useState(false);
   const [importingFiles, setImportingFiles] = useState(false);
   const [fileImportError, setFileImportError] = useState('');
@@ -144,7 +146,10 @@ function KnowledgeBaseDetail() {
   const [pendingDeleteItem, setPendingDeleteItem] =
     useState<KnowledgeBaseItem | null>(null);
   const [deletingItem, setDeletingItem] = useState(false);
+  const [fileDialogOpen, setFileDialogOpen] = useState(false);
   const [textDialogOpen, setTextDialogOpen] = useState(false);
+  const [urlDialogOpen, setUrlDialogOpen] = useState(false);
+  const [currentSearchQuery, setCurrentSearchQuery] = useState('');
 
   const getStateVariant = (
     state?: string,
@@ -207,6 +212,7 @@ function KnowledgeBaseDetail() {
       return;
     }
     const data = await window.electron.knowledgeBase.get(id);
+    console.log(data);
     setKb(data);
     setTitle(data?.name || '');
     await loadItems(1);
@@ -264,12 +270,16 @@ function KnowledgeBaseDetail() {
     if (!id) {
       return;
     }
-    await window.electron.knowledgeBase.importSource({
-      kbId: id,
-      source: data,
-      type,
-    });
-    await loadItems(1, false);
+    try {
+      await window.electron.knowledgeBase.importSource({
+        kbId: id,
+        source: data,
+        type,
+      });
+      await loadItems(1, false);
+    } catch (err) {
+      toast.error(err.message);
+    }
   };
 
   const searchKnowledgeBase = async (query: string) => {
@@ -280,12 +290,18 @@ function KnowledgeBaseDetail() {
     setSearchLoading(true);
     setSearchError('');
     setSearchDialogOpen(true);
+    setCurrentSearchQuery('');
     try {
       const data = await window.electron.knowledgeBase.searchKnowledgeBase(
         id,
         trimmedQuery,
       );
-      setSearchResults(data.results);
+      const results = data.results.sort(
+        (a, b) => b.hybridScore - a.hybridScore,
+      );
+      console.log(data);
+      setCurrentSearchQuery(data.query);
+      setSearchResults(results);
     } catch (error) {
       setSearchResults([]);
       setSearchError(
@@ -384,15 +400,45 @@ function KnowledgeBaseDetail() {
     }
   };
 
-  // const totalPages = Math.max(1, Math.ceil(total / Math.max(size, 1)));
+  const totalPages = Math.max(1, Math.ceil(total / Math.max(size, 1)));
+
+  const getPageNumbers = () => {
+    const pages: (number | 'ellipsis')[] = [];
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      if (page > 3) pages.push('ellipsis');
+      const start = Math.max(2, page - 1);
+      const end = Math.min(totalPages - 1, page + 1);
+      for (let i = start; i <= end; i++) pages.push(i);
+      if (page < totalPages - 2) pages.push('ellipsis');
+      pages.push(totalPages);
+    }
+    return pages;
+  };
 
   return (
     <div className="p-4 flex flex-col gap-2 flex-1 min-h-0">
-      <Badge variant="secondary">
-        @{kb?.embeddingModel}[{kb?.vectorLength}]
-      </Badge>
       <div className="flex flex-row gap-2">
-        <Dialog>
+        <Badge variant="secondary">
+          @{kb?.embeddingModel}[{kb?.vectorLength}]
+        </Badge>
+        {kb?.rerankerModel && (
+          <Badge variant="secondary">@{kb?.rerankerModel}</Badge>
+        )}
+      </div>
+
+      <div className="flex flex-row gap-2">
+        <Dialog
+          open={urlDialogOpen}
+          onOpenChange={(open) => {
+            setUrlDialogOpen(open);
+            if (!open) {
+              webForm.reset();
+            }
+          }}
+        >
           <DialogTrigger asChild>
             <Item variant="outline" className="cursor-pointer">
               <ItemHeader>
@@ -407,9 +453,10 @@ function KnowledgeBaseDetail() {
             </DialogHeader>
             <Form {...webForm}>
               <form
-                onSubmit={webForm.handleSubmit((data) =>
-                  handleSubmit(data, KnowledgeBaseSourceType.Web),
-                )}
+                onSubmit={webForm.handleSubmit((data) => {
+                  handleSubmit(data, KnowledgeBaseSourceType.Web);
+                  setUrlDialogOpen(false);
+                })}
               >
                 <div className="grid gap-4">
                   <div className="grid gap-3">
@@ -677,6 +724,9 @@ function KnowledgeBaseDetail() {
                   {item.state === KnowledgeBaseItemState.Pending && (
                     <IconClock className="size-4 text-yellow-500" />
                   )}
+                  {item.state === KnowledgeBaseItemState.Processing && (
+                    <IconClock className="size-4 text-yellow-500" />
+                  )}
                   <Badge variant="outline">
                     {getSourceTypeLabel(item.sourceType)}
                   </Badge>
@@ -739,26 +789,40 @@ function KnowledgeBaseDetail() {
                   }}
                 />
               </PaginationItem>
-              <PaginationItem>
-                <PaginationLink
-                  href="#"
-                  isActive
-                  onClick={(event) => event.preventDefault()}
-                >
-                  {page}
-                </PaginationLink>
-              </PaginationItem>
+              {getPageNumbers().map((p, idx) =>
+                p === 'ellipsis' ? (
+                  <PaginationItem key={`ellipsis-${idx}`}>
+                    <PaginationEllipsis />
+                  </PaginationItem>
+                ) : (
+                  <PaginationItem key={p}>
+                    <PaginationLink
+                      href="#"
+                      isActive={p === page}
+                      className={
+                        itemsLoading ? 'pointer-events-none opacity-50' : ''
+                      }
+                      onClick={(event) => {
+                        event.preventDefault();
+                        if (!itemsLoading && p !== page) loadItems(p);
+                      }}
+                    >
+                      {p}
+                    </PaginationLink>
+                  </PaginationItem>
+                ),
+              )}
               <PaginationItem>
                 <PaginationNext
                   href="#"
                   className={
-                    itemsLoading || !hasMore
+                    itemsLoading || page >= totalPages
                       ? 'pointer-events-none opacity-50'
                       : ''
                   }
                   onClick={(event) => {
                     event.preventDefault();
-                    if (itemsLoading || !hasMore) {
+                    if (itemsLoading || page >= totalPages) {
                       return;
                     }
                     loadItems(page + 1);
@@ -803,9 +867,17 @@ function KnowledgeBaseDetail() {
       <Dialog open={searchDialogOpen} onOpenChange={setSearchDialogOpen}>
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>{t('common.search')}</DialogTitle>
+            <DialogTitle>
+              {`${t('common.search')} - ${currentSearchQuery}`}
+            </DialogTitle>
           </DialogHeader>
           <div className="max-h-[60vh] space-y-2 overflow-y-auto">
+            {searchResults.length > 0 && !searchLoading && (
+              <div className="text-xs text-muted-foreground pb-1">
+                {t('common.results', 'Results')} {searchResults.length}
+              </div>
+            )}
+
             {searchLoading ? (
               <div className="text-sm text-muted-foreground">
                 {t('common.loading')}
@@ -828,15 +900,22 @@ function KnowledgeBaseDetail() {
                   <ItemContent className="w-full gap-2">
                     <div className="flex items-center justify-between gap-2">
                       <ItemTitle className="text-sm break-all">
-                        {String(result.itemId || result.id || '-')}
+                        {String(
+                          result.name || result.itemId || result.id || '-',
+                        )}
                       </ItemTitle>
                       <div className="flex items-center gap-2">
                         <Badge variant="secondary">
-                          score: {formatSearchScore(result.score)}
+                          embedding: {formatSearchScore(result.score)}
                         </Badge>
                         {result.rerankScore && (
                           <Badge variant="secondary">
-                            score: {formatSearchScore(result.rerankScore)}
+                            rerank: {formatSearchScore(result.rerankScore)}
+                          </Badge>
+                        )}
+                        {result.hybridScore && (
+                          <Badge variant="secondary">
+                            score: {formatSearchScore(result.hybridScore)}
                           </Badge>
                         )}
                       </div>
