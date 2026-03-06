@@ -177,7 +177,7 @@ class LocalModelManager extends BaseManager {
     // 开始加载模型
     this.modelLoadPromises[modelName] = (async () => {
       let entry: CachedModel;
-      if (task == 'background-removal' || task == 'image-feature-extraction' || task == 'image-feature-extraction') {
+      if (task == 'background-removal' || task == 'image-feature-extraction') {
         const [model, processor] = await Promise.all([
           AutoModel.from_pretrained(modelPath, {
             local_files_only: true,
@@ -200,8 +200,18 @@ class LocalModelManager extends BaseManager {
           model,
           tokenizer,
         };
-      } else {
-
+      } else if (task == 'feature-extraction') {
+        const [model, tokenizer] = await Promise.all([
+          AutoModel.from_pretrained(modelPath, {
+            local_files_only: true,
+            dtype: options?.dtype,
+          }),
+          AutoTokenizer.from_pretrained(modelPath),
+        ]);
+        entry = {
+          model,
+          tokenizer,
+        };
       }
       entry.lastUsed = Date.now();
       this.models[modelName] = entry;

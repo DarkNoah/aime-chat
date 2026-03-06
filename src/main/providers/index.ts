@@ -448,6 +448,7 @@ class ProvidersManager extends BaseManager {
       const provider = await this.getProvider(providerData.id);
       if (provider) {
         try {
+          console.log('provider', provider.name);
           const embeddingModels = await provider.getEmbeddingModelList();
           if (embeddingModels.length > 0) {
             data.push({

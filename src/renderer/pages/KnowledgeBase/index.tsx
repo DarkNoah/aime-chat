@@ -78,6 +78,7 @@ import {
   EmptyHeader,
 } from '@/renderer/components/ui/empty';
 import { Switch } from '@/renderer/components/ui/switch';
+import toast from 'react-hot-toast';
 
 function KnowledgeBasePage() {
   const { setTitle } = useHeader();
@@ -124,26 +125,30 @@ function KnowledgeBasePage() {
     if (submitting) return;
     try {
       setSubmitting(true);
-      if (currentKb) {
-        await window.electron.knowledgeBase.update(currentKb.id, {
-          name: values.name.trim(),
-          description: values.description?.trim() || '',
-          reranker: values.reranker?.trim() || '',
-          forceReturnFullContent: values.forceReturnFullContent || false,
-        });
-      } else {
-        await window.electron.knowledgeBase.create({
-          name: values.name.trim(),
-          description: values.description?.trim() || '',
-          vectorStoreType: values.vectorStoreType as VectorStoreType,
-          embedding: values.embedding.trim(),
-          reranker: values.reranker?.trim() || '',
-          forceReturnFullContent: values.forceReturnFullContent || false,
-        });
+      try {
+        if (currentKb) {
+          await window.electron.knowledgeBase.update(currentKb.id, {
+            name: values.name.trim(),
+            description: values.description?.trim() || '',
+            reranker: values.reranker?.trim() || '',
+            forceReturnFullContent: values.forceReturnFullContent || false,
+          });
+        } else {
+          await window.electron.knowledgeBase.create({
+            name: values.name.trim(),
+            description: values.description?.trim() || '',
+            vectorStoreType: values.vectorStoreType as VectorStoreType,
+            embedding: values.embedding.trim(),
+            reranker: values.reranker?.trim() || '',
+            forceReturnFullContent: values.forceReturnFullContent || false,
+          });
+        }
+        getData();
+        setOpen(false);
+        form.reset();
+      } catch (err) {
+        toast.error(err.message);
       }
-      getData();
-      setOpen(false);
-      form.reset();
     } finally {
       setSubmitting(false);
     }

@@ -33,7 +33,9 @@ import { ReadBinaryFile } from '../tools/file-system/read';
 import { appManager } from '../app';
 import { toolsManager } from '../tools';
 import { ToolType } from '@/types/tool';
-
+import localModels from '../local-model/models.json';
+import { LocalClipModel } from '../providers/local-provider';
+import mime from 'mime';
 export class KnowledgeBaseManager extends BaseManager {
   knowledgeBaseRepository: Repository<KnowledgeBase>;
   knowledgeBaseItemRepository: Repository<KnowledgeBaseItem>;
@@ -53,17 +55,52 @@ export class KnowledgeBaseManager extends BaseManager {
     });
   }
 
+
+  isLocalModel(modelId: string) {
+    return modelId.startsWith('local/');
+  }
+
+  isLocalClipModel(modelId: string) {
+    const _modelId = modelId.split('/').slice(1).join('/')
+    const localEmbeddingModel = localModels.embedding.find(x => x.id === _modelId);
+    const localClipModel = localModels.clip.find(x => x.id === _modelId);
+    return localClipModel !== undefined;
+  }
+  async calcEmbeddings(modeId: string, texts: string[], images?: string[]): Promise<{ text_embeddings: number[][], image_embeddings: number[][] } | undefined> {
+    try {
+      if (this.isLocalModel(modeId)) {
+        const _modelId = modeId.split('/').slice(1).join('/')
+        if (this.isLocalClipModel(modeId)) {
+          const model = new LocalClipModel(_modelId);
+          const res2 = await model.doClip({ contents: texts, images: images ? images : undefined });
+          return { text_embeddings: res2.text_embeddings, image_embeddings: [] };
+        }
+      }
+
+      const embeddingModel = await providersManager.getEmbeddingModel(modeId);
+      const res2 = await embeddingModel.doEmbed({ values: texts });
+      return { text_embeddings: res2.embeddings, image_embeddings: undefined };
+    } catch (err) {
+      console.error(err);
+    }
+    return undefined
+  }
+
+
+
+
+
+
+
+
   @channel(KnowledgeBaseChannel.Create)
   public async createKnowledgeBase(data: CreateKnowledgeBase) {
     const kbId = nanoid();
+    const { text_embeddings: embeddings } = await this.calcEmbeddings(data.embedding, ['asdasdsad']);
+    let embedding_length = embeddings?.length != 1 ? undefined : embeddings[0].length;
 
-    const embeddingModel = await providersManager.getEmbeddingModel(
-      data.embedding,
-    );
-    const res2 = await embeddingModel.doEmbed({ values: ['asdasdsad'] });
-    const embedding_length = res2.embeddings[0].length;
 
-    if (embedding_length == 0) {
+    if (!embedding_length || embedding_length == 0) {
       throw new Error('Embedding length is 0');
     }
 
@@ -71,9 +108,10 @@ export class KnowledgeBaseManager extends BaseManager {
       sql: `CREATE TABLE IF NOT EXISTS [kb_${kbId}_${embedding_length}] (
       id TEXT PRIMARY KEY,
       item_id TEXT,
-      chunk TEXT,
+      chunk TEXT NULL,
       is_enable BOOLEAN,
       [embedding] F32_BLOB(${embedding_length}) NULL,
+      [image_embedding] F32_BLOB(${embedding_length}) NULL,
       [metadata] TEXT NULL DEFAULT '{}')`,
       args: [],
     });
@@ -156,10 +194,28 @@ export class KnowledgeBaseManager extends BaseManager {
       throw new Error('Knowledge base not found');
     }
     const store = await this.getVectorStore(kb.id);
-    const { embeddings } = await embedMany({
-      model: await providersManager.getEmbeddingModel(kb.embedding),
-      values: [query],
-    });
+    let embeddings;
+    if (this.isLocalModel(kb.embedding)) {
+      const modelId = kb.embedding.split('/').slice(1).join('/')
+      if (!this.isLocalClipModel(kb.embedding)) {
+        const embeddingModel = await providersManager.getEmbeddingModel(
+          kb.embedding,
+        );
+        const res2 = await embeddingModel.doEmbed({ values: [query] });
+        embeddings = res2.embeddings[0];
+      } else {
+        const model = new LocalClipModel(modelId);
+        const res2 = await model.doClip({ contents: [query], images: [] });
+        embeddings = res2.text_embeddings[0];
+      }
+    } else {
+      const result = await embedMany({
+        model: await providersManager.getEmbeddingModel(kb.embedding),
+        values: [query],
+      });
+      embeddings = result.embeddings;
+    }
+
 
 
     const vectorStr = `[${embeddings[0].join(",")}]`;
@@ -376,24 +432,30 @@ export class KnowledgeBaseManager extends BaseManager {
           maxSize: 512,
           overlap: 50,
         });
-        console.log(source)
-        const { embeddings } = await embedMany({
-          model: await providersManager.getEmbeddingModel(kb.embedding),
-          values: chunks.map((chunk) => chunk.text),
-        });
+        console.log(source);
+        const { text_embeddings: embeddings } = await this.calcEmbeddings(kb.embedding, chunks.map((chunk) => chunk.text));
 
-        const insertStatements = chunks.map((chunk, index) => ({
-          sql: `INSERT INTO [kb_${kbId}_${kb.vectorLength}] (id, item_id, chunk, is_enable, embedding, metadata)
-        VALUES (?, ?, ?, ?, vector32(?), ?)`,
-          args: [
-            nanoid(),
-            item.id,
-            chunk.text,
-            true,
-            JSON.stringify(embeddings[index]),
-            JSON.stringify(chunk.metadata ?? {}),
-          ],
-        }));
+        // const { embeddings } = await embedMany({
+        //   model: await providersManager.getEmbeddingModel(kb.embedding),
+        //   values: chunks.map((chunk) => chunk.text),
+        // });
+
+        const insertStatements = chunks.map((chunk, index) => {
+          const embedding = embeddings[index];
+          return {
+            sql: `INSERT INTO [kb_${kbId}_${kb.vectorLength}] (id, item_id, chunk, is_enable, embedding, image_embedding, metadata)
+        VALUES (?, ?, ?, ?, vector32(?), NULL, ?)`,
+            args: [
+              nanoid(),
+              item.id,
+              chunk.text,
+              true,
+              JSON.stringify(embedding),
+              null,
+              JSON.stringify(chunk.metadata ?? {}),
+            ],
+          };
+        });
         await this.libSQLClient.batch(insertStatements);
         item.chunkCount = chunks.length;
         item.state = KnowledgeBaseItemState.Completed;
@@ -449,20 +511,21 @@ export class KnowledgeBaseManager extends BaseManager {
           },
         });
 
-        const { embeddings } = await embedMany({
-          model: await providersManager.getEmbeddingModel(kb.embedding),
-          values: chunks.map((chunk) => chunk.text.replaceAll(/\0/g, '')),
-        });
-
+        // const { embeddings } = await embedMany({
+        //   model: await providersManager.getEmbeddingModel(kb.embedding),
+        //   values: chunks.map((chunk) => chunk.text.replaceAll(/\0/g, '')),
+        // });
+        const { text_embeddings: embeddings } = await this.calcEmbeddings(kb.embedding, chunks.map((chunk) => chunk.text));
         const insertStatements = chunks.map((chunk, index) => ({
-          sql: `INSERT INTO [kb_${kbId}_${kb.vectorLength}] (id, item_id, chunk, is_enable, embedding, metadata)
-        VALUES (?, ?, ?, ?, vector32(?), ?)`,
+          sql: `INSERT INTO [kb_${kbId}_${kb.vectorLength}] (id, item_id, chunk, is_enable, type, embedding, image_embedding, metadata)
+        VALUES (?, ?, ?, ?, vector32(?), NULL, ?)`,
           args: [
             nanoid(),
             item.id,
             chunk.text,
             true,
             JSON.stringify(embeddings[index]),
+            null,
             JSON.stringify(chunk.metadata ?? {}),
           ],
         }));
@@ -553,22 +616,46 @@ export class KnowledgeBaseManager extends BaseManager {
             separators: ["\n"],
           });
           item.chunkCount = chunks.length;
-          const { embeddings } = await embedMany({
-            model: await providersManager.getEmbeddingModel(kb.embedding),
-            values: chunks.map((chunk) => chunk.text),
+          let embeddings: { text_embeddings: number[][], image_embeddings: number[][] } | undefined;
+          const isImage = mime.lookup(file).startsWith('image/')
+          if (mime.lookup(file).startsWith('image/')) {
+            embeddings = await this.calcEmbeddings(kb.embedding, chunks.map((chunk) => chunk.text), [file]);
+          } else {
+            embeddings = await this.calcEmbeddings(kb.embedding, chunks.map((chunk) => chunk.text));
+          }
+          const insertStatements = chunks.map((chunk, index) => {
+            if (!isImage) {
+              return {
+                sql: `INSERT INTO [kb_${kbId}_${kb.vectorLength}] (id, item_id, chunk, is_enable, type, embedding, image_embedding, metadata)
+              VALUES (?, ?, ?, ?, vector32(?), NULL, ?)`,
+                args: [
+                  nanoid(),
+                  item.id,
+                  chunk.text,
+                  true,
+                  JSON.stringify(embeddings.text_embeddings[index]),
+                  null,
+                  JSON.stringify(chunk.metadata ?? {}),
+                ],
+              }
+            } else {
+              const hasText = embeddings?.text_embeddings?.[index] !== undefined;
+              const hasImage = embeddings?.image_embeddings?.[index] !== undefined;
+              return {
+                sql: `INSERT INTO [kb_${kbId}_${kb.vectorLength}] (id, item_id, chunk, is_enable, type, embedding, image_embedding, metadata)
+              VALUES (?, ?, ?, ?, ${embeddings?.text_embeddings?.[index] ? 'vector32(?)' : 'NULL'}, ${embeddings?.image_embeddings?.[index] ? 'vector32(?)' : 'NULL'}, ?)`,
+                args: [
+                  nanoid(),
+                  item.id,
+                  chunk.text,
+                  true,
+                  hasText ? JSON.stringify(embeddings?.text_embeddings?.[index]) : null,
+                  hasImage ? JSON.stringify(embeddings?.image_embeddings?.[index]) : null,
+                  JSON.stringify(chunk.metadata ?? {}),
+                ],
+              }
+            }
           });
-          const insertStatements = chunks.map((chunk, index) => ({
-            sql: `INSERT INTO [kb_${kbId}_${kb.vectorLength}] (id, item_id, chunk, is_enable, embedding, metadata)
-          VALUES (?, ?, ?, ?, vector32(?), ?)`,
-            args: [
-              nanoid(),
-              item.id,
-              chunk.text,
-              true,
-              JSON.stringify(embeddings[index]),
-              JSON.stringify(chunk.metadata ?? {}),
-            ],
-          }));
           await this.libSQLClient.batch(insertStatements);
 
           item.state = KnowledgeBaseItemState.Completed;

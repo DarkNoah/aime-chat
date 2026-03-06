@@ -81,8 +81,8 @@ export class LocalEmbeddingModel implements EmbeddingModelV2<string> {
     const localClipModels = await localModelManager.getList('clip');
     const localEmbeddingModel = localModels.embedding.find((x) => x.id === this.modelId);
     const localClipModel = localClipModels.clip.find((x) => x.id === this.modelId);
-    const { library, isDownloaded } = localEmbeddingModel;
-    const { library: clipLibrary, isDownloaded: clipIsDownloaded } = localClipModel;
+    const { library, isDownloaded } = localEmbeddingModel ?? {};
+    const { library: clipLibrary, isDownloaded: clipIsDownloaded } = localClipModel ?? {};
     let isEmbedModel;
     if (localEmbeddingModel) {
       isEmbedModel = true;
@@ -260,19 +260,17 @@ export class LocalClipModel {
   }
 
   async doClip({
-    query,
-    documents,
+    contents,
     images,
     options,
   }: {
-    query: string;
-    images: string;
-    documents: string[];
+    contents?: string[];
+    images?: string[];
     options?: {
       top_k?: number;
       return_documents?: boolean;
     };
-  }): Promise<number[]> {
+  }): Promise<{ l2norm_text_embeddings: number[][]; text_embeddings: number[][] }> {
     const appInfo = await appManager.getInfo();
     const modelPath = path.join(appInfo.modelPath, 'clip', this.modelId);
 
@@ -284,25 +282,31 @@ export class LocalClipModel {
     );
     const { model, processor } = cachedModel;
 
-    const inputs = await processor(query, images, {
+    const inputs = await processor(contents, undefined, {
       padding: true,
       truncation: true,
     });
 
-    const { l2norm_text_embeddings, l2norm_image_embeddings } =
-      await model(inputs);
+    const results = await model(inputs);
+    const l2norm_text_embeddings = results.l2norm_text_embeddings.tolist();
+    const text_embeddings = results.text_embeddings.tolist();
 
-    const { logits } = await model(inputs);
-    return logits
-      .sigmoid()
-      .tolist()
-      .map(([score], i) => ({
-        index: i,
-        score,
-        document: options?.return_documents ? documents[i] : undefined,
-      }))
-      .sort((a, b) => b.score - a.score)
-      .slice(0, options?.top_k || 10);
+    return {
+      l2norm_text_embeddings,
+      text_embeddings
+    }
+
+    // const { logits } = await model(inputs);
+    // return logits
+    //   .sigmoid()
+    //   .tolist()
+    //   .map(([score], i) => ({
+    //     index: i,
+    //     score,
+    //     document: options?.return_documents ? documents[i] : undefined,
+    //   }))
+    //   .sort((a, b) => b.score - a.score)
+    //   .slice(0, options?.top_k || 10);
   }
 }
 
@@ -487,6 +491,14 @@ export class LocalProvider extends BaseProvider {
           id: x.id,
         });
       });
+    for (const model of localModels.clip) {
+      if (model.isDownloaded) {
+        models.push({
+          name: model.id,
+          id: model.id,
+        });
+      }
+    }
     return models;
   }
 
