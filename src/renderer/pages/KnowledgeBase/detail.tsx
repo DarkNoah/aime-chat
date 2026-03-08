@@ -715,18 +715,20 @@ function KnowledgeBaseDetail() {
               </ItemHeader> */}
               <ItemContent className="w-full gap-2">
                 <ItemTitle className="max-w-[60%] truncate flex items-center gap-2">
-                  {item.state === KnowledgeBaseItemState.Completed && (
-                    <IconCheck className="size-4 text-green-500" />
-                  )}
-                  {item.state === KnowledgeBaseItemState.Fail && (
-                    <IconAlertCircle className="size-4 text-red-500" />
-                  )}
-                  {item.state === KnowledgeBaseItemState.Pending && (
-                    <IconClock className="size-4 text-yellow-500" />
-                  )}
-                  {item.state === KnowledgeBaseItemState.Processing && (
-                    <IconClock className="size-4 text-yellow-500" />
-                  )}
+                  <div>
+                    {item.state === KnowledgeBaseItemState.Completed && (
+                      <IconCheck className="size-4 text-green-500" />
+                    )}
+                    {item.state === KnowledgeBaseItemState.Fail && (
+                      <IconAlertCircle className="size-4 text-red-500" />
+                    )}
+                    {item.state === KnowledgeBaseItemState.Pending && (
+                      <IconClock className="size-4 text-yellow-500" />
+                    )}
+                    {item.state === KnowledgeBaseItemState.Processing && (
+                      <IconClock className="size-4 text-yellow-500" />
+                    )}
+                  </div>
                   <Badge variant="outline">
                     {getSourceTypeLabel(item.sourceType)}
                   </Badge>

@@ -160,6 +160,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
     const [agentId, setAgentId] = useState<string | undefined>();
     const [requireToolApproval, setRequireToolApproval] = useState(false);
     const [suggestions, setSuggestions] = useState<string[] | undefined>();
+    const [historyMessages, setHistoryMessages] = useState<UIMessage[]>([]);
 
     useImperativeHandle(ref, () => ({
       sendMessage: (
@@ -251,16 +252,6 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
       }
     };
 
-    const handleClearMessages = async () => {
-      if (threadId) {
-        await clearMessages(threadId);
-        // clearError(threadId);
-        setUsage(undefined);
-        // setPreviewToolPart(undefined);
-        // setShowPreview(false);
-      }
-    };
-
     const handleSubmit = async (
       message: PromptInputMessage,
       // model?: string,
@@ -347,6 +338,17 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
       chatInputRef.current?.setThink(true);
       setSuggestions(undefined);
       setRequireToolApproval(false);
+      setHistoryMessages([]);
+    };
+
+    const handleClearMessages = async () => {
+      if (threadId) {
+        await clearMessages(threadId);
+        // clearError(threadId);
+        setUsage(undefined);
+        // setPreviewToolPart(undefined);
+        // setShowPreview(false);
+      }
     };
 
     useEffect(() => {
@@ -437,6 +439,21 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
       }
     }, [threadState]);
 
+    const handleShowHistory = async () => {
+      const data = await window.electron.mastra.getThreadMessages({
+        threadId: threadState.id,
+        resourceId: `${threadState?.resourceId}.history`,
+      });
+      if (data.messages.length > 0) {
+        setHistoryMessages(data.messages);
+        setMessages(threadState.id, [
+          ...data.messages,
+          ...threadState.messages,
+        ]);
+      }
+      console.log(data);
+    };
+
     return (
       <div className={cn('flex flex-col h-full', className)}>
         <Conversation className="h-full w-full flex-1 flex items-center justify-center overflow-y-hidden">
@@ -457,6 +474,21 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
                 </Message>
               </div>
             )}
+            {threadState?.historyMessagesCount > 0 &&
+              historyMessages.length === 0 && (
+                <div className="w-full flex flex-row justify-center">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      handleShowHistory();
+                    }}
+                  >
+                    <IconArrowUp size={16} />
+                    Show History
+                  </Button>
+                </div>
+              )}
             {!threadState && threadState?.messages.length === 0 && (
               <ConversationEmptyState
                 description="Messages will appear here as the conversation progresses."
@@ -516,7 +548,11 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
                                 </ReasoningContent>
                               </Reasoning>
                             );
-                          else if (part.type === 'text' && part.text.trim()) {
+                          else if (
+                            part.type === 'text' &&
+                            part.text.trim() &&
+                            !part.text.trim().startsWith('<system-reminder>')
+                          ) {
                             if (
                               part.text.trim() ===
                               '[Request interrupted by user]'

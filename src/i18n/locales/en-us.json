@@ -197,7 +197,10 @@
     "name": "Name",
     "description": "Description",
     "reranker": "Reranker",
-    "force-return-full-content": "Force Return Full Content"
+    "force-return-full-content": "Force Return Full Content",
+    "new_knowledge-base": "New Knowledge Base",
+    "vector-store-type": "Vector Store Type",
+    "embedding": "Embedding"
   },
   "setup": {
     "welcome": {

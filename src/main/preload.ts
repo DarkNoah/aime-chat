@@ -57,7 +57,7 @@ import {
   OpenDialogReturnValue,
   webUtils,
 } from 'electron';
-import { KnowledgeBaseItem } from '@/entities/knowledge-base';
+import { KnowledgeBase, KnowledgeBaseItem } from '@/entities/knowledge-base';
 import { InstanceInfo } from '@/types/instance';
 import { MarketChannel } from '@/types/market';
 
@@ -251,7 +251,7 @@ const electronHandler = {
       }),
   },
   knowledgeBase: {
-    create: (data: CreateKnowledgeBase) =>
+    create: (data: CreateKnowledgeBase): Promise<KnowledgeBase> =>
       ipcRenderer.invoke(KnowledgeBaseChannel.Create, data),
     update: (id: string, data: UpdateKnowledgeBase) =>
       ipcRenderer.invoke(KnowledgeBaseChannel.Update, id, data),

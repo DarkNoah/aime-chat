@@ -134,7 +134,7 @@ function KnowledgeBasePage() {
             forceReturnFullContent: values.forceReturnFullContent || false,
           });
         } else {
-          await window.electron.knowledgeBase.create({
+          const kb = await window.electron.knowledgeBase.create({
             name: values.name.trim(),
             description: values.description?.trim() || '',
             vectorStoreType: values.vectorStoreType as VectorStoreType,
@@ -142,8 +142,11 @@ function KnowledgeBasePage() {
             reranker: values.reranker?.trim() || '',
             forceReturnFullContent: values.forceReturnFullContent || false,
           });
+          console.log(kb);
+          navigate(`/knowledge-base/${kb.id}`);
         }
         getData();
+
         setOpen(false);
         form.reset();
       } catch (err) {
@@ -159,6 +162,7 @@ function KnowledgeBasePage() {
     try {
       setSubmitting(true);
       await window.electron.knowledgeBase.delete(id);
+      navigate('/knowledge-base');
       getData();
     } finally {
       setSubmitting(false);
@@ -198,7 +202,9 @@ function KnowledgeBasePage() {
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>新建知识库</DialogTitle>
+                <DialogTitle>
+                  {t('knowledge-base.new_knowledge-base')}
+                </DialogTitle>
               </DialogHeader>
               <Form {...form}>
                 <form

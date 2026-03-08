@@ -37,7 +37,7 @@ import ExpenseManagementToolkit from './test/expense_management';
 import ToolToolkit from './common/tool';
 import { Vision } from './vision/vision';
 import MemoryToolkit from './memory/memory';
-import TodoToolkit, { Task } from './common/task';
+import TodoToolkit from './common/task';
 import { WebFetch } from './web/web-fetch';
 import { Extract } from './work/extract';
 import { GenerateImage } from './image/generate-image';
@@ -52,6 +52,7 @@ import { Message } from './common/message';
 import { ImageToolkit } from './image';
 import { AgentBrowser } from './browser';
 import { KnowledgeBaseToolkit } from './knowledge-base';
+import { Agent } from './common/agent';
 interface BuiltInToolContext {
   tool: BaseTool;
   abortController: AbortController;
@@ -182,7 +183,7 @@ class ToolsManager extends BaseManager {
     // await this.registerBuiltInTool(GenerateImage);
     // await this.registerBuiltInTool(EditImage);
     // await this.registerBuiltInTool(RemoveBackground);
-    await this.registerBuiltInTool(Task);
+    await this.registerBuiltInTool(Agent);
     await this.registerBuiltInTool(MemoryToolkit);
     await this.registerBuiltInTool(Extract);
     await this.registerBuiltInTool(Translation);

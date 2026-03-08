@@ -72,8 +72,8 @@ export class KnowledgeBaseManager extends BaseManager {
         const _modelId = modeId.split('/').slice(1).join('/')
         if (this.isLocalClipModel(modeId)) {
           const model = new LocalClipModel(_modelId);
-          const res2 = await model.doClip({ contents: texts, images: images ? images : undefined });
-          return { text_embeddings: res2.text_embeddings, image_embeddings: [] };
+          const res2 = await model.doClip({ texts, images: images ? images : undefined });
+          return { text_embeddings: res2.text_embeddings, image_embeddings: res2.image_embeddings };
         }
       }
 
@@ -94,7 +94,7 @@ export class KnowledgeBaseManager extends BaseManager {
 
 
   @channel(KnowledgeBaseChannel.Create)
-  public async createKnowledgeBase(data: CreateKnowledgeBase) {
+  public async createKnowledgeBase(data: CreateKnowledgeBase): Promise<KnowledgeBase> {
     const kbId = nanoid();
     const { text_embeddings: embeddings } = await this.calcEmbeddings(data.embedding, ['asdasdsad']);
     let embedding_length = embeddings?.length != 1 ? undefined : embeddings[0].length;
@@ -110,13 +110,13 @@ export class KnowledgeBaseManager extends BaseManager {
       item_id TEXT,
       chunk TEXT NULL,
       is_enable BOOLEAN,
+      type TEXT NULL,
       [embedding] F32_BLOB(${embedding_length}) NULL,
-      [image_embedding] F32_BLOB(${embedding_length}) NULL,
       [metadata] TEXT NULL DEFAULT '{}')`,
       args: [],
     });
 
-    await this.knowledgeBaseRepository.save({
+    return await this.knowledgeBaseRepository.save({
       ...data,
       id: kbId,
       vectorLength: embedding_length,
@@ -194,31 +194,32 @@ export class KnowledgeBaseManager extends BaseManager {
       throw new Error('Knowledge base not found');
     }
     const store = await this.getVectorStore(kb.id);
-    let embeddings;
-    if (this.isLocalModel(kb.embedding)) {
-      const modelId = kb.embedding.split('/').slice(1).join('/')
-      if (!this.isLocalClipModel(kb.embedding)) {
-        const embeddingModel = await providersManager.getEmbeddingModel(
-          kb.embedding,
-        );
-        const res2 = await embeddingModel.doEmbed({ values: [query] });
-        embeddings = res2.embeddings[0];
-      } else {
-        const model = new LocalClipModel(modelId);
-        const res2 = await model.doClip({ contents: [query], images: [] });
-        embeddings = res2.text_embeddings[0];
-      }
-    } else {
-      const result = await embedMany({
-        model: await providersManager.getEmbeddingModel(kb.embedding),
-        values: [query],
-      });
-      embeddings = result.embeddings;
-    }
+    // let embeddings;
+    // if (this.isLocalModel(kb.embedding)) {
+    //   const modelId = kb.embedding.split('/').slice(1).join('/')
+    //   if (!this.isLocalClipModel(kb.embedding)) {
+    //     const embeddingModel = await providersManager.getEmbeddingModel(
+    //       kb.embedding,
+    //     );
+    //     const res2 = await embeddingModel.doEmbed({ values: [query] });
+    //     embeddings = res2.embeddings[0];
+    //   } else {
+    //     const model = new LocalClipModel(modelId);
+    //     const res2 = await model.doClip({ contents: [query], images: [] });
+    //     embeddings = res2.text_embeddings[0];
+    //   }
+    // } else {
+    //   const result = await embedMany({
+    //     model: await providersManager.getEmbeddingModel(kb.embedding),
+    //     values: [query],
+    //   });
+    //   embeddings = result.embeddings;
+    // }
+    const embeddings = await this.calcEmbeddings(kb.embedding, [query]);
 
 
 
-    const vectorStr = `[${embeddings[0].join(",")}]`;
+    const vectorStr = `[${embeddings?.text_embeddings?.[0].join(",")}]`;
     const results = await this.libSQLClient.execute({
       sql: `
       WITH vector_scores AS (
@@ -226,9 +227,10 @@ export class KnowledgeBaseManager extends BaseManager {
           id,
           item_id,
           chunk,
-          (1-vector_distance_cos(embedding, '${vectorStr}')) as score,
-          metadata
-          , vector_extract(embedding) as embedding
+          (1-vector_distance_cos(embedding, vector32(?))) as score,
+          metadata,
+          type,
+          vector_extract(embedding) as embedding
         FROM [kb_${kb.id}_${kb.vectorLength}]
         WHERE is_enable = 1
       )
@@ -237,7 +239,7 @@ export class KnowledgeBaseManager extends BaseManager {
       WHERE score > ?
       ORDER BY score DESC
       LIMIT ?`,
-      args: [0.5, top_k],
+      args: [JSON.stringify(embeddings.text_embeddings[0]), 0.5, top_k],
     });
 
 
@@ -245,7 +247,7 @@ export class KnowledgeBaseManager extends BaseManager {
 
 
 
-    const itemIds = results.rows.map(x => x.item_id);
+    const itemIds = [...new Set(results.rows.map(x => x.item_id))];
     const items = await this.knowledgeBaseItemRepository.find({
       where: {
         id: In(itemIds),
@@ -265,7 +267,7 @@ export class KnowledgeBaseManager extends BaseManager {
         id: item.id as string,
         itemId: item.item_id as string,
         score: item.score as number,
-        hybridScore: item.hybrid_score as number,
+        hybridScore: item.hybrid_score as number ?? item.score as number,
         metadata: item.metadata,
         chunk: item.chunk as string,
         name: kbitem.name,
@@ -443,15 +445,15 @@ export class KnowledgeBaseManager extends BaseManager {
         const insertStatements = chunks.map((chunk, index) => {
           const embedding = embeddings[index];
           return {
-            sql: `INSERT INTO [kb_${kbId}_${kb.vectorLength}] (id, item_id, chunk, is_enable, embedding, image_embedding, metadata)
-        VALUES (?, ?, ?, ?, vector32(?), NULL, ?)`,
+            sql: `INSERT INTO [kb_${kbId}_${kb.vectorLength}] (id, item_id, chunk, is_enable, type, embedding, metadata)
+        VALUES (?, ?, ?, ?, ?, vector32(?), ?)`,
             args: [
               nanoid(),
               item.id,
               chunk.text,
               true,
+              'text',
               JSON.stringify(embedding),
-              null,
               JSON.stringify(chunk.metadata ?? {}),
             ],
           };
@@ -517,15 +519,15 @@ export class KnowledgeBaseManager extends BaseManager {
         // });
         const { text_embeddings: embeddings } = await this.calcEmbeddings(kb.embedding, chunks.map((chunk) => chunk.text));
         const insertStatements = chunks.map((chunk, index) => ({
-          sql: `INSERT INTO [kb_${kbId}_${kb.vectorLength}] (id, item_id, chunk, is_enable, type, embedding, image_embedding, metadata)
-        VALUES (?, ?, ?, ?, vector32(?), NULL, ?)`,
+          sql: `INSERT INTO [kb_${kbId}_${kb.vectorLength}] (id, item_id, chunk, is_enable, type, embedding, metadata)
+        VALUES (?, ?, ?, ?, ?, vector32(?), ?)`,
           args: [
             nanoid(),
             item.id,
             chunk.text,
             true,
+            'text',
             JSON.stringify(embeddings[index]),
-            null,
             JSON.stringify(chunk.metadata ?? {}),
           ],
         }));
@@ -623,39 +625,49 @@ export class KnowledgeBaseManager extends BaseManager {
           } else {
             embeddings = await this.calcEmbeddings(kb.embedding, chunks.map((chunk) => chunk.text));
           }
-          const insertStatements = chunks.map((chunk, index) => {
-            if (!isImage) {
-              return {
-                sql: `INSERT INTO [kb_${kbId}_${kb.vectorLength}] (id, item_id, chunk, is_enable, type, embedding, image_embedding, metadata)
-              VALUES (?, ?, ?, ?, vector32(?), NULL, ?)`,
+          const insertStatements = [];
+          const hasText = embeddings?.text_embeddings?.[index] !== undefined;
+          const hasImage = embeddings?.image_embeddings?.[index] !== undefined;
+
+
+          if (chunks && chunks.length > 0) {
+            for (const chunk of chunks) {
+              insertStatements.push({
+                sql: `INSERT INTO [kb_${kbId}_${kb.vectorLength}] (id, item_id, chunk, is_enable, type, embedding, metadata)
+              VALUES (?, ?, ?, ?, ?, vector32(?), ?)`,
                 args: [
                   nanoid(),
                   item.id,
                   chunk.text,
                   true,
+                  'text',
                   JSON.stringify(embeddings.text_embeddings[index]),
-                  null,
                   JSON.stringify(chunk.metadata ?? {}),
                 ],
-              }
-            } else {
-              const hasText = embeddings?.text_embeddings?.[index] !== undefined;
-              const hasImage = embeddings?.image_embeddings?.[index] !== undefined;
-              return {
-                sql: `INSERT INTO [kb_${kbId}_${kb.vectorLength}] (id, item_id, chunk, is_enable, type, embedding, image_embedding, metadata)
-              VALUES (?, ?, ?, ?, ${embeddings?.text_embeddings?.[index] ? 'vector32(?)' : 'NULL'}, ${embeddings?.image_embeddings?.[index] ? 'vector32(?)' : 'NULL'}, ?)`,
-                args: [
-                  nanoid(),
-                  item.id,
-                  chunk.text,
-                  true,
-                  hasText ? JSON.stringify(embeddings?.text_embeddings?.[index]) : null,
-                  hasImage ? JSON.stringify(embeddings?.image_embeddings?.[index]) : null,
-                  JSON.stringify(chunk.metadata ?? {}),
-                ],
-              }
+              });
             }
-          });
+          }
+
+          if (hasImage) {
+            insertStatements.push({
+              sql: `INSERT INTO [kb_${kbId}_${kb.vectorLength}] (id, item_id, chunk, is_enable, type, embedding, metadata)
+              VALUES (?, ?, ?, ?, ?, vector32(?), ?)`,
+              args: [
+                nanoid(),
+                item.id,
+                null,
+                true,
+                'image',
+                JSON.stringify(embeddings?.image_embeddings?.[index]),
+                JSON.stringify({}),
+              ],
+            });
+          }
+
+
+
+
+
           await this.libSQLClient.batch(insertStatements);
 
           item.state = KnowledgeBaseItemState.Completed;

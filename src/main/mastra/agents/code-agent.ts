@@ -1,7 +1,7 @@
 import {
-  Agent,
+  //Agent,
   AgentConfig,
-  DynamicAgentInstructions,
+  AgentInstructions,
 } from '@mastra/core/agent';
 import { BaseAgent, BaseAgentParams } from './base-agent';
 import os from 'os';
@@ -9,12 +9,14 @@ import { ToolType } from '@/types/tool';
 import { TodoWrite } from '@/main/tools/common/todo-write';
 import { AskUserQuestion } from '@/main/tools/common/ask-user-question';
 import {
-  Task,
   TaskCreate,
   TaskGet,
   TaskList,
   TaskUpdate,
 } from '@/main/tools/common/task';
+import {
+  Agent
+} from '@/main/tools/common/agent';
 import { Read } from '@/main/tools/file-system/read';
 import { Write } from '@/main/tools/file-system/write';
 import { Edit } from '@/main/tools/file-system/edit';
@@ -43,7 +45,7 @@ export class CodeAgent extends BaseAgent {
   id: string = 'CodeAgent';
   name: string = 'Code Agent';
   description: string = 'A code agent that can help with code related tasks.';
-  instructions: DynamicAgentInstructions = codeAgentInstructions;
+  instructions = codeAgentInstructions;
   // model: string = 'openai/gpt-4o-mini';
   tools: string[] = [
     // `${ToolType.BUILD_IN}:${TodoWrite.toolName}`,
@@ -61,7 +63,7 @@ export class CodeAgent extends BaseAgent {
     `${ToolType.BUILD_IN}:${WebSearch.toolName}`,
     `${ToolType.BUILD_IN}:${CodeExecution.toolName}`,
     `${ToolType.BUILD_IN}:${Skill.toolName}`,
-    `${ToolType.BUILD_IN}:${Task.toolName}`,
+    `${ToolType.BUILD_IN}:${Agent.toolName}`,
     `${ToolType.BUILD_IN}:${Message.toolName}`,
     `${ToolType.BUILD_IN}:${TaskCreate.toolName}`,
     `${ToolType.BUILD_IN}:${TaskGet.toolName}`,

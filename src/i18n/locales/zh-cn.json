@@ -235,7 +235,10 @@
     "name": "名称",
     "description": "描述",
     "reranker": "重排模型",
-    "force-return-full-content": "强制返回全文"
+    "force-return-full-content": "强制返回全文",
+    "new_knowledge-base": "新建知识库",
+    "vector-store-type": "向量数据库类型",
+    "embedding": "向量模型"
   },
   "setup": {
     "welcome": {

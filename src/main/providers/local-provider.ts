@@ -260,39 +260,55 @@ export class LocalClipModel {
   }
 
   async doClip({
-    contents,
-    images,
+    texts = [],
+    images = [],
     options,
   }: {
-    contents?: string[];
+    texts?: string[];
     images?: string[];
     options?: {
       top_k?: number;
       return_documents?: boolean;
     };
-  }): Promise<{ l2norm_text_embeddings: number[][]; text_embeddings: number[][] }> {
+  }): Promise<{ image_embeddings?: number[][]; text_embeddings?: number[][] }> {
     const appInfo = await appManager.getInfo();
     const modelPath = path.join(appInfo.modelPath, 'clip', this.modelId);
 
     const cachedModel = await localModelManager.ensureModelLoaded(
-      'image-feature-extraction',
+      'zero-shot-image-classification',
       this.modelId,
-      modelPath,
-      { dtype: 'q8' },
+      modelPath
     );
-    const { model, processor } = cachedModel;
+    const { model, processor, tokenizer, textModel } = cachedModel;
+    const text_inputs = tokenizer(texts, { padding: true, truncation: true });
 
-    const inputs = await processor(contents, undefined, {
-      padding: true,
-      truncation: true,
-    });
+    const output = await textModel(text_inputs);
+    const text_embeddings = output.text_embeds.tolist();
 
-    const results = await model(inputs);
-    const l2norm_text_embeddings = results.l2norm_text_embeddings.tolist();
-    const text_embeddings = results.text_embeddings.tolist();
+
+    const rawImages = [];
+    for (const image of images) {
+      const rawImage = await RawImage.read(image);
+      rawImages.push(rawImage);
+    }
+    let image_embeddings;
+    if (rawImages.length > 0) {
+      const imageInputs = await processor(rawImages);
+      const results = await model(imageInputs);
+      image_embeddings = results.image_embeds.tolist();
+    }
+
+    // const inputs = await processor(contents, images, {
+    //   padding: true,
+    //   truncation: true,
+    // });
+
+    // const results = await model(inputs);
+    // const l2norm_text_embeddings = results.l2norm_text_embeddings.tolist();
+    // const text_embeddings = results.text_embeddings.tolist();
 
     return {
-      l2norm_text_embeddings,
+      image_embeddings,
       text_embeddings
     }
 
@@ -414,8 +430,15 @@ export class LocalOcrModel implements OCRModel {
       if (path.extname(options.image).toLowerCase() === '.pdf') {
         return await this.ocrPdf(image);
       }
-      result = await recognize(image, OcrAccuracy.Accurate);
-      return result.text;
+      try {
+        result = await recognize(image, OcrAccuracy.Accurate);
+        return result.text;
+      } catch (err) {
+        if (err.code == 'GenericFailure') {
+          return ''
+        }
+        throw err;
+      }
     }
     const paddleOcrRuntime = await getPaddleOcrRuntime();
     if (paddleOcrRuntime.status !== 'installed') {

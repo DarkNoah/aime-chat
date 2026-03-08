@@ -149,7 +149,7 @@ export const ChatToolResultPreview = React.forwardRef<
       if (toolName === 'WebSearch') {
         return (
           <div className="flex flex-col gap-2 overflow-y-auto">
-            {part.output?.map((source: any, index: number) => (
+            {part.output?.results?.map((source: any, index: number) => (
               <Item
                 variant="outline"
                 key={`${source.href}-${index}`}
@@ -165,6 +165,15 @@ export const ChatToolResultPreview = React.forwardRef<
                 </ItemContent>
               </Item>
             ))}
+            {part.output?.message && (
+              <Item variant="muted">
+                <ItemContent>
+                  <ItemTitle>
+                    <Streamdown>{part.output?.message}</Streamdown>
+                  </ItemTitle>
+                </ItemContent>
+              </Item>
+            )}
           </div>
         );
       }
@@ -321,7 +330,8 @@ export const ChatToolResultPreview = React.forwardRef<
               )}
             </div>
           );
-        case 'Task': {
+        case 'Task':
+        case 'Agent': {
           const { description, prompt, subagent_type } = part?.input as {
             description: string;
             prompt?: string;

@@ -48,6 +48,7 @@ import {
   ChatEvent,
   ChatInput,
   ChatRequestContext,
+  ChatSlashCommandConfig,
   ChatTask,
   ChatThread,
   ChatTodo,
@@ -98,6 +99,8 @@ import { TodoWrite } from '../tools/common/todo-write';
 import { TaskCreate, TaskList } from '../tools/common/task';
 import { MemoryWrite } from '../tools/memory/memory';
 import { formatCodeWithLineNumbers } from '../utils/format';
+import { getSkills } from '../utils/skills';
+import { AIV5Type } from '@mastra/core/agent/message-list';
 
 class MastraManager extends BaseManager {
   app: express.Application;
@@ -280,11 +283,22 @@ class MastraManager extends BaseManager {
       resourceId: thread?.resourceId || DEFAULT_RESOURCE_ID,
       // format: 'v2',
     });
+
+    const historyMessages = await memoryStore.listMessages({
+      threadId: id,
+      resourceId: `${thread?.resourceId || DEFAULT_RESOURCE_ID}.history`,
+      perPage: 1,
+
+      // format: 'v2',
+    });
+
+
     // const _messages = convertMessages(messages.messages || []).to('AIV5.UI');
 
     return {
       ...thread,
       messages: toAISdkV5Messages(messages.messages),
+      historyMessagesCount: historyMessages?.total ?? 0,
       // mastraDBMessages: messages.messages,
       status: this.threadChats.find((x) => x.id == id) ? 'streaming' : 'ready',
     };
@@ -416,6 +430,9 @@ class MastraManager extends BaseManager {
         usage: {},
       },
     });
+    appManager.sendEvent(ChatEvent.ChatThreadChanged, {
+      data: { chatId: id, resourceId: DEFAULT_RESOURCE_ID },
+    });
   }
 
   @channel(MastraChannel.Chat, { mode: 'on' })
@@ -518,6 +535,14 @@ class MastraManager extends BaseManager {
         (currentThread.metadata?.skillsLoaded as string[]) || [];
       const fileLastReadTime: Record<string, number> =
         (currentThread.metadata?.fileLastReadTime as Record<string, number>) || {};
+      const usage: LanguageModelUsage =
+        currentThread.metadata?.usage as LanguageModelUsage ?? {
+          inputTokens: 0,
+          outputTokens: 0,
+          totalTokens: 0,
+          reasoningTokens: 0,
+          cachedInputTokens: 0,
+        };
       const requestContext = new RequestContext<ChatRequestContext>();
       requestContext.set('skillsLoaded', skillsLoaded);
       requestContext.set('model', model);
@@ -532,24 +557,14 @@ class MastraManager extends BaseManager {
       requestContext.set('todos', todos);
       requestContext.set('tasks', tasks);
       requestContext.set('fileLastReadTime', fileLastReadTime);
+      requestContext.set('compressedMessage', undefined);
       requestContext.set(
         'maxContextSize',
         modelInfo?.limit?.context ?? 64 * 1000,
       );
+      requestContext.set('usage', usage);
 
-      let additionalInstructions;
-      const agentsMdPath = path.join(workspace, `AGENTS.md`);
-      if (fs.existsSync(agentsMdPath) && fs.statSync(agentsMdPath).isFile()) {
-        const agentsMd = fs.readFileSync(agentsMdPath, 'utf-8');
-        if (agentsMd) {
-          additionalInstructions = `
-<system-reminder>
-Note: ${agentsMdPath} was modified, either by the user or by a linter. Don't tell the user this, since they are already aware. This change was intentional, so make sure to take it into account as you proceed (ie. don't revert it unless the user asks you to). So that you don't need to re-read the file, here's the result of running \`cat - n\` on a snippet of the edited file:
-${formatCodeWithLineNumbers({ content: agentsMd, startLine: 0 })}
-</system-reminder>`;
-          requestContext.set('additionalInstructions', additionalInstructions);
-        }
-      }
+
 
       agent = await agentManager.buildAgent(agentId, {
         modelId: model,
@@ -667,15 +682,15 @@ ${formatCodeWithLineNumbers({ content: agentsMd, startLine: 0 })}
           const { usage, response, text, reasoning } = event;
           const maxContextSize = requestContext.get('maxContextSize');
 
-          const history = (requestContext.get('usage' as never) as {
-            // inputTokens: number;
-            // outputTokens: number;
-            totalTokens: number;
-          }) ?? { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
-          // history.inputTokens += usage?.inputTokens ?? 0;
-          // history.outputTokens += usage?.outputTokens ?? 0;
-          history.totalTokens += usage?.totalTokens ?? 0;
-          requestContext.set('usage' as never, history as never);
+          // const history = (requestContext.get('usage' as never) as {
+          //   // inputTokens: number;
+          //   // outputTokens: number;
+          //   totalTokens: number;
+          // }) ?? { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
+          // // history.inputTokens += usage?.inputTokens ?? 0;
+          // // history.outputTokens += usage?.outputTokens ?? 0;
+          // history.totalTokens += usage?.totalTokens ?? 0;
+          requestContext.set('usage' as never, usage as never);
           const usageRate = (usage?.totalTokens / maxContextSize) * 100;
           console.log('usage rate: ' + usageRate.toFixed(2) + '%', usage);
 
@@ -807,6 +822,17 @@ ${formatCodeWithLineNumbers({ content: agentsMd, startLine: 0 })}
         });
         const system = await convertToInstructionContent(instructions);
 
+        let slashCommand;
+        const slashCommands = ChatSlashCommandConfig.map(x => x.id)
+        if (_inputMessage && _inputMessage.role == 'user' && _inputMessage.parts.length == 1) {
+          slashCommand = slashCommands.find(x => _inputMessage.parts[0].text.startsWith("/" + x))
+        }
+
+
+
+
+
+
         const { compressedMessage, keepMessages, hasCompressed } =
           await this.compressMessages(
             [
@@ -815,79 +841,20 @@ ${formatCodeWithLineNumbers({ content: agentsMd, startLine: 0 })}
             ],
             _tools,
             {
+              abortSignal: streamOptions.abortSignal,
               thresholdTokenCount,
               requestContext,
+              force: slashCommand == 'compact',
+              disableKeepMessage: true,
               model: fastLanguageModel,
             },
           );
         if (hasCompressed) {
-          await memoryStore.updateMessages({
-            messages: historyMessages.messages.map((x) => {
-              return {
-                id: x.id,
-                resourceId: x.resourceId + '.history',
-              };
-            }),
-          });
-          const compressedDBMessage = {
-            id: nanoid(),
-            threadId: chatId,
-            resourceId: resourceId,
-            role: 'user',
-            content: {
-              format: 2,
-              parts: compressedMessage.content,
-              metadata: {
-                compressed: true,
-              },
-            },
-            type: 'v2',
-            createdAt: new Date(),
-          } as MastraDBMessage;
-          const todos = requestContext.get('todos');
-          const tasks = requestContext.get('tasks');
-          if (tools.includes(`${ToolType.BUILD_IN}:${TodoWrite.toolName}`)) {
-            if (todos && todos.length > 0) {
-              compressedDBMessage.content.parts.push({
-                type: 'text',
-                text: `<system-reminder>\nYour todo list has changed. DO NOT mention this explicitly to the user. Here are the latest contents of your todo list:\n\n${JSON.stringify(todos)}. Continue on with the tasks at hand if applicable.\n</system-reminder>`,
-              });
-            } else {
-              compressedDBMessage.content.parts.push({
-                type: 'text',
-                text: `<system-reminder>\nThis is a reminder that your todo list is currently empty. DO NOT mention this to the user explicitly because they are already aware. If you are working on tasks that would benefit from a todo list please use the TodoWrite tool to create one. If not, please feel free to ignore. Again do not mention this message to the user.\n</system-reminder>`,
-              });
-            }
-          } else if (
-            tools.includes(`${ToolType.BUILD_IN}:${TaskList.toolName}`)
-          ) {
-            if (tasks && tasks.length > 0) {
-              compressedDBMessage.content.parts.push({
-                type: 'text',
-                text: `<system-reminder>\nYour todo list has changed. DO NOT mention this explicitly to the user. Here are the latest contents of your todo list:\n\n${JSON.stringify(tasks)}. Continue on with the tasks at hand if applicable.\n</system-reminder>`,
-              });
-            } else {
-              compressedDBMessage.content.parts.push({
-                type: 'text',
-                text: `<system-reminder>\nThis is a reminder that your todo list is currently empty. DO NOT mention this to the user explicitly because they are already aware. If you are working on tasks that would benefit from a todo list please use the ${TaskCreate.toolName} tool to create one. If not, please feel free to ignore. Again do not mention this message to the user.\n</system-reminder>`,
-              });
-            }
+          const compressedMessageText = compressedMessage.content?.find(x => x.type == 'text')?.text;
+          if (compressedMessageText) {
+            requestContext.set('compressedMessage', compressedMessageText);
           }
 
-          if (
-            tools.includes(
-              `${ToolType.BUILD_IN}:${MemoryWrite.toolName}`,
-            )
-          ) {
-            compressedDBMessage.content.parts.push({
-              type: 'text',
-              text: `<system-reminder>\nContext compaction just occurred — earlier messages have been summarized. If there are important decisions, preferences, or facts from the compacted context that should persist across sessions, use MemoryWrite to store them now. Use target "daily" for session notes and running context, or "long_term" for durable facts and preferences. Do NOT mention this to the user.\n</system-reminder>`,
-            });
-          }
-
-          input = [compressedDBMessage, ...keepMessages];
-          if (_inputMessage) input.push(_inputMessage);
-          requestContext.set('skillsLoaded', []);
         }
 
         const bashSessions = bashManager.getBashSessions(chatId);
@@ -908,6 +875,72 @@ ${formatCodeWithLineNumbers({ content: agentsMd, startLine: 0 })}
         }
 
         delete streamOptions.context;
+
+        let injectedMessages = [];
+        // 注入消息
+        // if (hasCompressed || input.length == 1 && input[0].role == 'user') {
+        //   injectedMessages = await this.getInjectMessages(requestContext, hasCompressed);
+        // }
+        injectedMessages = await this.getInjectMessages(requestContext, hasCompressed);
+        if (hasCompressed) {
+          input = [{
+            id: nanoid(),
+            threadId: chatId,
+            resourceId: resourceId,
+            role: 'user',
+            content: {
+              format: 2,
+              parts: [],
+              metadata: {
+                compressed: true,
+              },
+            },
+            type: 'v2',
+            createdAt: new Date(),
+          } as MastraDBMessage];
+
+
+          if (injectedMessages.length > 0) {
+            input[0].content.parts.unshift(...injectedMessages);
+            input[0].content.metadata["injectMessage"] = true;
+          }
+          await memoryStore.updateMessages({
+            messages: historyMessages.messages.map((x) => {
+              return {
+                id: x.id,
+                resourceId: x.resourceId + '.history',
+              };
+            }),
+          });
+        } else {
+          if (injectedMessages.length > 0) {
+            const injectIndex = input.findIndex(x => x.metadata?.injectMessage === true);
+            if (injectIndex >= 0) {
+              input[injectIndex].parts = [...injectedMessages];
+            } else {
+              input = [{
+                id: nanoid(),
+                threadId: chatId,
+                resourceId: resourceId,
+                role: 'user',
+                content: {
+                  format: 2,
+                  parts: [...injectedMessages],
+                  metadata: {
+                    injectMessage: true,
+                  },
+                },
+                type: 'v2',
+                createdAt: new Date(),
+              } as MastraDBMessage, ...input]
+            }
+
+            //input[0].parts.unshift(...injectedMessages);
+          }
+        }
+
+
+
 
 
         stream = await this.nextStep(
@@ -1350,6 +1383,149 @@ ${formatCodeWithLineNumbers({ content: agentsMd, startLine: 0 })}
   //   // }
   // }
 
+  public async getInjectMessages(requestContext: RequestContext<ChatRequestContext>, hasCompressed: boolean = false) {
+
+    const injectedMessages = [];
+
+    const workspace = requestContext.get('workspace');
+    const tools = requestContext.get('tools') ?? [];
+    const skillsLoaded = requestContext.get('skillsLoaded') ?? [];
+
+
+    // 注入已载入的技能, 只有当hasCompressed为true时才注入
+    if (hasCompressed == true && skillsLoaded.length > 0) {
+      let text = `<system-reminder>\nThe following skills were invoked in this session. Continue to follow these guidelines:\n`;
+      for (const skillId of skillsLoaded) {
+        const skill = await skillManager.getSkill(skillId as `${ToolType.SKILL}:${string}`)
+        if (skill) {
+          text += `### Skill: ${skill.id}
+Base directory for this skill:  ${skill.path}
+
+${skill.content}
+
+`;
+        }
+      }
+      text += `\n</system-reminder>`;
+      injectedMessages.push({
+        type: 'text',
+        text: text,
+      });
+    }
+
+
+
+
+    // 注入Skills元数据
+    let _skills = [];
+
+    for (const tool of tools.filter((x) =>
+      x.startsWith(`${ToolType.SKILL}:`),
+    )) {
+      const skill = await skillManager.getSkill(
+        tool as `${ToolType.SKILL}:${string}`,
+      );
+      if (skill) {
+        _skills.push(skill);
+      }
+    }
+
+    if (
+      workspace &&
+      fs.existsSync(workspace) &&
+      fs.statSync(workspace).isDirectory()
+    ) {
+      const skillsPath = path.join(workspace, '.aime-chat', 'skills');
+      if (fs.existsSync(skillsPath) && fs.statSync(skillsPath).isDirectory()) {
+        // const skills = await fs.promises.readdir(skillsPath);
+        const skills = await getSkills(skillsPath);
+        for (const skill of skills) {
+          if (_skills.map((x) => x.id).includes(skill.id)) {
+            _skills = _skills.filter((x) => x.id !== skill.id);
+          }
+          _skills.push(skill);
+        }
+      }
+    }
+
+    if (_skills.length > 0) {
+      injectedMessages.push({
+        type: 'text',
+        text: `<system-reminder>
+The following skills are available for use with the Skill tool:
+
+${_skills.map((x) => `- ${x.id}: ${x.description}`).join('\n')}
+
+</system-reminder>`,
+      });
+    }
+
+    // 注入tasks, 只有当hasCompressed为true时才注入
+    // const tasks = requestContext.get('tasks') ?? [];
+    // if (
+    //   tools.includes(`${ToolType.BUILD_IN}:${TaskList.toolName}`)
+    // ) {
+    //   if (hasCompressed == true && tasks && tasks.length > 0) {
+    //     injectedMessages.push({
+    //       type: 'text',
+    //       text: `<system-reminder>\nYour todo list has changed. DO NOT mention this explicitly to the user. Here are the latest contents of your todo list:\n\n${JSON.stringify(tasks)}. Continue on with the tasks at hand if applicable.\n</system-reminder>`,
+    //     });
+    //   }
+    // }
+
+
+    // 注入AGENTS.md 和 MEMORY.md
+    const agentsMdPath = path.join(workspace, `AGENTS.md`);
+    const memoryMdPath = path.join(workspace, '.aime-chat', 'memory', `MEMORY.md`);
+    let agentsMd = '';
+    let memoryMd = '';
+    if (fs.existsSync(agentsMdPath) && fs.statSync(agentsMdPath).isFile()) {
+      agentsMd = (await fs.promises.readFile(agentsMdPath, 'utf-8')).trim();
+    }
+    if (fs.existsSync(memoryMdPath) && fs.statSync(memoryMdPath).isFile()) {
+      memoryMd = (await fs.promises.readFile(memoryMdPath, 'utf-8')).trim();
+    }
+
+    const commandContext = `<system-reminder>
+As you answer the user's questions, you can use the following context:
+${agentsMd}
+
+${memoryMd ? `Contents of ${memoryMdPath.replaceAll('\\', '/')} (user's auto-memory, persists across conversations):
+${memoryMd.split('\n').slice(0, 200).join('\n')}
+`: ''}
+# currentDate
+Today's date is ${new Date().toISOString().split('T')[0]}.
+
+IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.
+</system-reminder>`;
+    injectedMessages.push({
+      type: 'text',
+      text: commandContext,
+    });
+
+    // 注入压缩消息
+    const compressedMessage = requestContext.get('compressedMessage');
+    if (compressedMessage) {
+      injectedMessages.push({
+        type: 'text',
+        text: `This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+${compressedMessage}`,
+      });
+      requestContext.set('compressedMessage', undefined);
+    }
+
+
+
+    return injectedMessages;
+  }
+
+
+
+
+
+
+
   @channel(MastraChannel.ChatAbort)
   public async chatAbort(chatId: string): Promise<void> {
     console.info('chatAbort', chatId);
@@ -1372,9 +1548,11 @@ ${formatCodeWithLineNumbers({ content: agentsMd, startLine: 0 })}
     messages: ModelMessage[],
     tools: Record<string, BaseTool<BaseToolParams>>,
     options: {
+      abortSignal?: AbortSignal,
       requestContext?: RequestContext<ChatRequestContext>;
       thresholdTokenCount?: number;
       force?: boolean;
+      disableKeepMessage?: boolean;
       model: LanguageModelV2;
     },
   ): Promise<{
@@ -1391,15 +1569,14 @@ ${formatCodeWithLineNumbers({ content: agentsMd, startLine: 0 })}
       );
     }
     const maxContextSize = options.requestContext.get('maxContextSize');
+    const usage = options.requestContext.get('usage');
+    tokenCount = Math.max(tokenCount, usage?.totalTokens ?? 0);
     if (
       options.thresholdTokenCount &&
       tokenCount < options.thresholdTokenCount &&
       !options.force
     ) {
-      console.log('compress: not compress', {
-        tokenCount,
-        thresholdTokenCount: options.thresholdTokenCount,
-      });
+      console.log('Not Compress Now: ' + ((tokenCount / maxContextSize) * 100).toFixed(2) + '% ' + 'Total Tokens: ' + tokenCount + ' Max Size: ' + maxContextSize);
       return { keepMessages: messages, hasCompressed: false };
     }
     console.log('Compress starting: Current TokenCount:', tokenCount);
@@ -1421,7 +1598,7 @@ ${formatCodeWithLineNumbers({ content: agentsMd, startLine: 0 })}
     }
     let summaryMessages = [];
     let keepMessages = [];
-    if (lastAssistantIndex > 0) {
+    if (lastAssistantIndex > 0 && !options.disableKeepMessage) {
       summaryMessages = messages.slice(0, lastAssistantIndex);
       keepMessages = messages.slice(lastAssistantIndex);
     } else {
@@ -1431,112 +1608,164 @@ ${formatCodeWithLineNumbers({ content: agentsMd, startLine: 0 })}
 
     const inputMessages = summaryMessages.filter((x) => x.role !== 'system');
     compressAgent.model = options.model;
+
     try {
       const response = await compressAgent.generate([
         ...inputMessages,
         {
           role: 'user',
           content: `Your task is to create a detailed summary of the conversation so far, paying close attention to the user's explicit requests and your previous actions.
-  This summary should be thorough in capturing technical details, code patterns, and architectural decisions that would be essential for continuing development work without losing context.
+This summary should be thorough in capturing technical details, code patterns, and architectural decisions that would be essential for continuing development work without losing context.
 
-  Before providing your final summary, wrap your analysis in <analysis> tags to organize your thoughts and ensure you've covered all necessary points. In your analysis process:
+Before providing your final summary, wrap your analysis in <analysis> tags to organize your thoughts and ensure you've covered all necessary points. In your analysis process:
 
-  1. Chronologically analyze each message and section of the conversation. For each section thoroughly identify:
-     - The user's explicit requests and intents
-     - Your approach to addressing the user's requests
-     - Key decisions, technical concepts and code patterns
-     - Specific details like:
-       - file names
-       - full code snippets
-       - function signatures
-       - file edits
-    - Errors that you ran into and how you fixed them
-    - Pay special attention to specific user feedback that you received, especially if the user told you to do something differently.
-  2. Double-check for technical accuracy and completeness, addressing each required element thoroughly.
+1. Chronologically analyze each message and section of the conversation. For each section thoroughly identify:
+   - The user's explicit requests and intents
+   - Your approach to addressing the user's requests
+   - Key decisions, technical concepts and code patterns
+   - Specific details like:
+     - file names
+     - full code snippets
+     - function signatures
+     - file edits
+   - Errors that you ran into and how you fixed them
+   - Pay special attention to specific user feedback that you received, especially if the user told you to do something differently.
+2. Double-check for technical accuracy and completeness, addressing each required element thoroughly.
 
-  Your summary should include the following sections:
+Your summary should include the following sections:
 
-  1. Primary Request and Intent: Capture all of the user's explicit requests and intents in detail
-  2. Key Technical Concepts: List all important technical concepts, technologies, and frameworks discussed.
-  3. Files and Code Sections: Enumerate specific files and code sections examined, modified, or created. Pay special attention to the most recent messages and include full code snippets where applicable and include a summary of why this file read or edit is important.
-  4. Errors and fixes: List all errors that you ran into, and how you fixed them. Pay special attention to specific user feedback that you received, especially if the user told you to do something differently.
-  5. Problem Solving: Document problems solved and any ongoing troubleshooting efforts.
-  6. All user messages: List ALL user messages that are not tool results. These are critical for understanding the users' feedback and changing intent.
-  6. Pending Tasks: Outline any pending tasks that you have explicitly been asked to work on.
-  7. Current Work: Describe in detail precisely what was being worked on immediately before this summary request, paying special attention to the most recent messages from both user and assistant. Include file names and code snippets where applicable.
-  8. Optional Next Step: List the next step that you will take that is related to the most recent work you were doing. IMPORTANT: ensure that this step is DIRECTLY in line with the user's most recent explicit requests, and the task you were working on immediately before this summary request. If your last task was concluded, then only list next steps if they are explicitly in line with the users request. Do not start on tangential requests or really old requests that were already completed without confirming with the user first.
-                         If there is a next step, include direct quotes from the most recent conversation showing exactly what task you were working on and where you left off. This should be verbatim to ensure there's no drift in task interpretation.
+1. Primary Request and Intent: Capture all of the user's explicit requests and intents in detail
+2. Key Technical Concepts: List all important technical concepts, technologies, and frameworks discussed.
+3. Files and Code Sections: Enumerate specific files and code sections examined, modified, or created. Pay special attention to the most recent messages and include full code snippets where applicable and include a summary of why this file read or edit is important.
+4. Errors and fixes: List all errors that you ran into, and how you fixed them. Pay special attention to specific user feedback that you received, especially if the user told you to do something differently.
+5. Problem Solving: Document problems solved and any ongoing troubleshooting efforts.
+6. All user messages: List ALL user messages that are not tool results. These are critical for understanding the users' feedback and changing intent.
+7. Pending Tasks: Outline any pending tasks that you have explicitly been asked to work on.
+8. Current Work: Describe in detail precisely what was being worked on immediately before this summary request, paying special attention to the most recent messages from both user and assistant. Include file names and code snippets where applicable.
+9. Optional Next Step: List the next step that you will take that is related to the most recent work you were doing. IMPORTANT: ensure that this step is DIRECTLY in line with the user's most recent explicit requests, and the task you were working on immediately before this summary request. If your last task was concluded, then only list next steps if they are explicitly in line with the users request. Do not start on tangential requests or really old requests that were already completed without confirming with the user first.
+                       If there is a next step, include direct quotes from the most recent conversation showing exactly what task you were working on and where you left off. This should be verbatim to ensure there's no drift in task interpretation.
 
-  Here's an example of how your output should be structured:
+Here's an example of how your output should be structured:
 
-  <example>
-  <analysis>
-  [Your thought process, ensuring all points are covered thoroughly and accurately]
-  </analysis>
+<example>
+<analysis>
+[Your thought process, ensuring all points are covered thoroughly and accurately]
+</analysis>
 
-  <summary>
-  1. Primary Request and Intent:
-     [Detailed description]
+<summary>
+1. Primary Request and Intent:
+   [Detailed description]
 
-  2. Key Technical Concepts:
-     - [Concept 1]
-     - [Concept 2]
-     - [...]
+2. Key Technical Concepts:
+   - [Concept 1]
+   - [Concept 2]
+   - [...]
 
-  3. Files and Code Sections:
-     - [File Name 1]
-        - [Summary of why this file is important]
-        - [Summary of the changes made to this file, if any]
-        - [Important Code Snippet]
-     - [File Name 2]
-        - [Important Code Snippet]
-     - [...]
+3. Files and Code Sections:
+   - [File Name 1]
+      - [Summary of why this file is important]
+      - [Summary of the changes made to this file, if any]
+      - [Important Code Snippet]
+   - [File Name 2]
+      - [Important Code Snippet]
+   - [...]
 
-  4. Errors and fixes:
-      - [Detailed description of error 1]:
-        - [How you fixed the error]
-        - [User feedback on the error if any]
-      - [...]
+4. Errors and fixes:
+    - [Detailed description of error 1]:
+      - [How you fixed the error]
+      - [User feedback on the error if any]
+    - [...]
 
-  5. Problem Solving:
-     [Description of solved problems and ongoing troubleshooting]
+5. Problem Solving:
+   [Description of solved problems and ongoing troubleshooting]
 
-  6. All user messages:
-      - [Detailed non tool use user message]
-      - [...]
+6. All user messages:
+    - [Detailed non tool use user message]
+    - [...]
 
-  7. Pending Tasks:
-     - [Task 1]
-     - [Task 2]
-     - [...]
+7. Pending Tasks:
+   - [Task 1]
+   - [Task 2]
+   - [...]
 
-  8. Current Work:
-     [Precise description of current work]
+8. Current Work:
+   [Precise description of current work]
 
-  9. Optional Next Step:
-     [Optional Next step to take]
+9. Optional Next Step:
+   [Optional Next step to take]
 
-  </summary>
-  </example>
+</summary>
+</example>
 
-  Please provide your summary based on the conversation so far, following this structure and ensuring precision and thoroughness in your response.
+Please provide your summary based on the conversation so far, following this structure and ensuring precision and thoroughness in your response.
 
-  There may be additional summarization instructions provided in the included context. If so, remember to follow these instructions when creating the above summary. Examples of instructions include:
-  <example>
-  ## Compact Instructions
-  When summarizing the conversation focus on typescript code changes and also remember the mistakes you made and how you fixed them.
-  </example>
+There may be additional summarization instructions provided in the included context. If so, remember to follow these instructions when creating the above summary. Examples of instructions include:
+<example>
+## Compact Instructions
+When summarizing the conversation focus on typescript code changes and also remember the mistakes you made and how you fixed them.
+</example>
 
-  <example>
-  # Summary instructions
-  When you are using compact - please focus on test output and code changes. Include file reads verbatim.
-  </example>`,
+<example>
+# Summary instructions
+When you are using compact - please focus on test output and code changes. Include file reads verbatim.
+</example>
+
+
+IMPORTANT: Do NOT use any tools. You MUST respond with ONLY the <summary>...</summary> block as your text output.`,
         } as UserModelMessage,
-      ]);
+      ], {
+        abortSignal: options?.abortSignal,
+        providerOptions: {
+          openai: {
+            maxTokens: 20000
+          },
+          anthropic: {
+            maxTokens: 20000
+          },
+          google: {
+            maxTokens: 20000
+          },
+          azure: {
+            maxTokens: 20000
+          },
+        }
+      });
+
+      function getTagContent(text, tag) {
+        const regex = new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`, 'i');
+        const match = text.match(regex);
+        return match ? match[1] : null;
+      }
+
+      if (options?.abortSignal?.aborted === true) {
+        appManager.sendEvent(`chat:event:${chatId}`, {
+          type: ChatEvent.ChatChunk,
+          data: JSON.stringify({
+            type: 'data-compress-end',
+            data: {
+
+            },
+          }),
+        });
+        return {
+          compressedMessage: undefined,
+          keepMessages: keepMessages,
+          hasCompressed: false,
+        };
+      }
+
+      console.log('Compress Response', response.text);
+
+      const summary = getTagContent(response.text, 'summary');
+      const analysis = getTagContent(response.text, 'analysis');
+
+      const text = `
+${response.text}
+`
 
       const userMessage = {
         role: 'user',
-        content: [{ type: 'text', text: response.text }],
+        content: [{ type: 'text', text: text }],
       } as UserModelMessage;
 
       const usage = response.usage;

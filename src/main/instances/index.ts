@@ -13,7 +13,6 @@ import {
   UpdateState,
   UpdateStatus,
 } from '@/types/app';
-import { getMainWindow } from '../main';
 import { BrowserContext, chromium } from 'playwright';
 import { appManager } from '../app';
 import path from 'path';
@@ -31,6 +30,10 @@ import { spawn, ChildProcess } from 'child_process';
 import os from 'os';
 import { InstanceInfo as InstanceInfoType } from '@/types/instance';
 import { getAgentBrowserRuntime } from '../app/runtime';
+import { checkUserDataDirInUse } from '../utils/checkBrowserInUse';
+import { dialog } from 'electron';
+import { closePidGracefully, killPidForce, waitForPidExit } from '../utils/killPid';
+import { getMainWindow } from '../main';
 export interface BrowserProfile {
   name: string;
   userDataPath: string;
@@ -331,6 +334,7 @@ class InstancesManager extends BaseManager {
     return { browserContext, wsUrl };
   }
 
+
   @channel(InstancesChannel.RunInstance)
   public async runInstance(id: string) {
     const instance = await this.repository.findOneBy({ id });
@@ -367,6 +371,28 @@ class InstancesManager extends BaseManager {
 
         if (!executablePath) {
           throw new Error('No browser executable found');
+        }
+        const isBrowserInUse = await checkUserDataDirInUse(config.userDataPath, executablePath);
+        if (isBrowserInUse.inUse) {
+          if (isBrowserInUse.matchedProcesses.length == 0) {
+            throw new Error('Canot find the browser process');
+          }
+          const result = await dialog.showMessageBox(getMainWindow(), {
+            type: 'warning',
+            title: 'Browser is in use',
+            message: 'Browser is in use',
+            detail: 'The operation will close the browser and continue.',
+            buttons: ['Cancel', 'Close Browser'],
+            defaultId: 1,
+            cancelId: 0,
+          });
+          if (result.response === 0) {
+            throw new Error('Browser is in use, operation cancelled');
+          }
+          for (const process of isBrowserInUse.matchedProcesses) {
+            await closePidGracefully(process.pid);
+            await waitForPidExit(process.pid);
+          }
         }
 
         try {

@@ -18,7 +18,6 @@ import { BaseAgent } from './base-agent';
 import { convertToInstructionContent } from '@/main/utils/convertToCoreMessages';
 import { dbManager } from '@/main/db';
 import { DefaultAgent } from './default-agent';
-import { Task } from '@/main/tools/common/task';
 import { SubAgentInfo } from '@/types/task';
 import { Explore } from './explore-agent';
 import { Plan } from './plan-agent';
@@ -28,7 +27,8 @@ import fs from 'fs';
 import path from 'path';
 import { getSkills } from '@/main/utils/skills';
 import { formatCodeWithLineNumbers } from '@/main/utils/format';
-import { isString } from '@/utils/is';
+import { isArray, isString } from '@/utils/is';
+import { Agent as AgentTool } from '@/main/tools/common/agent';
 
 type BuiltInAgent = BaseAgent & {
   classType: any;
@@ -103,24 +103,6 @@ class AgentManager extends BaseManager {
       }
     }
 
-    const workspace = params?.requestContext?.get('workspace');
-    if (
-      workspace &&
-      fs.existsSync(workspace) &&
-      fs.statSync(workspace).isDirectory()
-    ) {
-      const skillsPath = path.join(workspace, '.aime-chat', 'skills');
-      if (fs.existsSync(skillsPath) && fs.statSync(skillsPath).isDirectory()) {
-        // const skills = await fs.promises.readdir(skillsPath);
-        const skills = await getSkills(skillsPath);
-        for (const skill of skills) {
-          if (_skills.map((x) => x.id).includes(skill.id)) {
-            _skills = _skills.filter((x) => x.id !== skill.id);
-          }
-          _skills.push(skill);
-        }
-      }
-    }
 
     // _skills = _skills.filter((x) => tools.includes(x.id));
 
@@ -151,9 +133,9 @@ class AgentManager extends BaseManager {
     ];
     if (
       subAgentsInfo.length > 0 &&
-      !toolIds.includes(`${ToolType.BUILD_IN}:${Task.toolName}`)
+      !toolIds.includes(`${ToolType.BUILD_IN}:${AgentTool.toolName}`)
     ) {
-      toolIds.push(`${ToolType.BUILD_IN}:${Task.toolName}`);
+      toolIds.push(`${ToolType.BUILD_IN}:${AgentTool.toolName}`);
     }
     if (
       _skills.length > 0 &&
@@ -165,7 +147,7 @@ class AgentManager extends BaseManager {
       [`${ToolType.BUILD_IN}:${Skill.toolName}`]: {
         skills: _skills,
       },
-      [`${ToolType.BUILD_IN}:${Task.toolName}`]: {
+      [`${ToolType.BUILD_IN}:${AgentTool.toolName}`]: {
         subAgents: subAgentsInfo,
       },
     });
@@ -281,7 +263,20 @@ ${additionalInstructions}
     } else {
       agentEntity = new Agents(agent.id, AgentType.CUSTOM);
     }
-    return await this.agentsRepository.save({ ...agentEntity, ...agent });
+    const tools = [];
+    for (const tool of agent.tools) {
+      if (tool.startsWith(`${ToolType.BUILD_IN}:`)) {
+        const toolBuilded = await toolsManager.buildTool(tool);
+        if (isArray(toolBuilded) && toolBuilded.length > 0) {
+          tools.push(tool);
+        } else if (!isArray(toolBuilded)) {
+          tools.push(tool);
+        }
+      } else {
+        tools.push(tool);
+      }
+    }
+    return await this.agentsRepository.save({ ...agentEntity, ...agent, tools });
   }
 
   @channel(AgentChannel.GetAvailableAgents)

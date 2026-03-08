@@ -25,31 +25,21 @@ export class Skill extends BaseTool {
   id: string = 'Skill';
   description = `Execute a skill within the main conversation
 
-<skills_instructions>
-When users ask you to perform tasks, check if any of the available skills below can help complete the task more effectively. Skills provide specialized capabilities and domain knowledge.
+When users ask you to perform tasks, check if any of the available skills match. Skills provide specialized capabilities and domain knowledge.
 
-How to use skills:
-- Invoke skills using this tool with the skill name only (no arguments)
-- When you invoke a skill, you will see <command-message>The "{name}" skill is loading</command-message>
-- The skill's prompt will expand and provide detailed instructions on how to complete the task
+How to invoke:
+- Use this tool with the skill name and optional arguments
 - Examples:
   - \`skill: "pdf"\` - invoke the pdf skill
-  - \`skill: "xlsx"\` - invoke the xlsx skill
+  - \`skill: "commit", args: "-m 'Fix bug'"\` - invoke with arguments
+  - \`skill: "review-pr", args: "123"\` - invoke with arguments
   - \`skill: "ms-office-suite:pdf"\` - invoke using fully qualified name
 
 Important:
-- Only use skills listed in <available_skills> below
+- Available skills are listed in system-reminder messages in the conversation
+- When a skill matches the user's request, this is a BLOCKING REQUIREMENT: invoke the relevant Skill tool BEFORE generating any other response about the task
+- NEVER mention a skill without actually calling this tool
 - Do not invoke a skill that is already running
-</skills_instructions>
-
-<available_skills>
-  <skill>
-    <name>document-skills:xlsx</name>
-    <description>Comprehensive spreadsheet creation, editing, and analysis with support for formulas, formatting, data analysis, and visualization. When Claude needs to work with spreadsheets (.xlsx, .xlsm, .csv, .tsv, etc) for: (1) Creating new spreadsheets with formulas and formatting, (2) Reading or analyzing data, (3) Modify existing spreadsheets while preserving formulas, (4) Data analysis and visualization in spreadsheets, or (5) Recalculating formulas (plugin:document-skills@anthropic-agent-skills)</description>
-    <location>plugin</location>
-  </skill>
-</available_skills>
-
 `;
   inputSchema = z.strictObject({
     skill_id: z
@@ -64,7 +54,7 @@ Important:
 
   constructor(config?: SkillToolParams) {
     super(config);
-    this.description = this.getDescription(config?.skills ?? []);
+    // this.description = this.getDescription(config?.skills ?? []);
   }
 
   getDescription = (skills: SkillInfo[] | string[]) => {

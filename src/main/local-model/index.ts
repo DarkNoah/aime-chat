@@ -13,6 +13,9 @@ import {
   AutoModelForSequenceClassification,
   AutoProcessor,
   AutoTokenizer,
+  CLIPModel,
+  CLIPTextModelWithProjection,
+  CLIPVisionModelWithProjection,
   pipeline,
   PreTrainedModel,
 } from '@huggingface/transformers';
@@ -23,6 +26,7 @@ type CachedModel = {
   model: Awaited<ReturnType<typeof AutoModel.from_pretrained>>;
   processor?: Awaited<ReturnType<typeof AutoProcessor.from_pretrained>>;
   tokenizer?: Awaited<ReturnType<typeof AutoTokenizer.from_pretrained>>;
+  textModel?: Awaited<ReturnType<typeof CLIPTextModelWithProjection.from_pretrained>>;
   lastUsed?: number;
   releaseTimer?: ReturnType<typeof setTimeout>;
 };
@@ -130,6 +134,7 @@ class LocalModelManager extends BaseManager {
       | 'feature-extraction'
       | 'text-classification'
       | 'image-feature-extraction'
+      | 'zero-shot-image-classification'
       | string,
     modelName: string,
     modelPath: string,
@@ -212,6 +217,23 @@ class LocalModelManager extends BaseManager {
           model,
           tokenizer,
         };
+      } else if (task == 'zero-shot-image-classification') {
+        const [model, tokenizer, processor, textModel] = await Promise.all([
+          CLIPVisionModelWithProjection.from_pretrained(modelPath, {
+            local_files_only: true,
+            dtype: options?.dtype,
+          }),
+          AutoTokenizer.from_pretrained(modelPath),
+          AutoProcessor.from_pretrained(modelPath),
+          CLIPTextModelWithProjection.from_pretrained(modelPath)
+        ]);
+        entry = {
+          model,
+          tokenizer,
+          processor,
+          textModel
+        };
+
       }
       entry.lastUsed = Date.now();
       this.models[modelName] = entry;

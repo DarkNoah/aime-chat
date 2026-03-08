@@ -104,7 +104,7 @@ Usage:
 
 
     if (!fs.existsSync(file_path))
-      throw new Error(`File '${file_path}' does not exist.`);
+      throw new Error(`<system-reminder>File does not exist. Note: your current working directory is "${path.dirname(file_path).replaceAll('\\', '/')}" </system-reminder>`);
 
     const stats = await fs.promises.stat(file_path);
 
@@ -281,7 +281,8 @@ Usage:
     if (!provider) {
       throw new Error(`OCR provider not found`);
     }
-    const ocrModel = defaultOcr.split('/').slice(1).join('/')
+    const ocrModel = defaultOcr.split('/').slice(1).join('/');
+    let result = ''
 
     if (ext === '.pdf') {
       try {
@@ -294,13 +295,12 @@ Usage:
       }
       const loader = new PDFLoader(file_source);
       const content = await loader.load();
-      return content;
+      result = content;
     } else if (ext === '.docx' || ext === '.doc') {
       try {
         if (this.forceWordOcr === true) {
-          const result = await provider.ocrModel(ocrModel).doOCR({ image: file_source });
+          result = await provider.ocrModel(ocrModel).doOCR({ image: file_source });
           if (!result) throw new Error('OCR result is empty');
-          return result;
         }
       } catch {
 
@@ -310,20 +310,20 @@ Usage:
       });
       // const info = await loader.info();
       const content = await loader.load();
-      return content;
+      result = content;
     } else if (ext === '.xls' || ext === '.xlsx') {
       const loader = new ExcelLoader(file_source);
       const content = await loader.load();
-      return content;
+      result = content;
     } else if (ext === '.ppt' || ext === '.pptx') {
       const loader = new PowerPointLoader(file_source);
       const content = await loader.load();
-      return content;
+      result = content;
     } else if (mimeType.startsWith('image/')) {
 
 
-      const result = await provider.ocrModel(ocrModel).doOCR({ image: file_source });
-      return result;
+      result = await provider.ocrModel(ocrModel).doOCR({ image: file_source });
+
 
       // throw new Error(`Unsupported file type: ${mimeType}`);
 
@@ -344,11 +344,12 @@ Usage:
         source: file_source,
         output_type: 'srt',
       }, context);
-      return content
+      result = content
       // const loader = new AudioLoader(file_source, { outputType: 'asr' });
       // const content = await loader.load();
       // return content.text;
     }
-    return content;
+    if (result.trim() === '') return `<system-reminder>The file '${file_source}' is empty.</system-reminder>`;
+    return result;
   };
 }

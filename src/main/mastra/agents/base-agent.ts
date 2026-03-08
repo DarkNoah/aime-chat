@@ -1,11 +1,13 @@
 import {
   Agent,
   AgentConfig,
-  DynamicAgentInstructions,
+  AgentInstructions
 } from '@mastra/core/agent';
 import { getStorage } from '../storage';
 import { Memory } from '@mastra/memory';
 import { LanguageModel } from 'ai';
+import { DynamicArgument } from '@mastra/core/types';
+import { ChatRequestContext } from '@/types/chat';
 
 export interface BaseAgentParams {
   tools?: string[];
@@ -16,7 +18,7 @@ export abstract class BaseAgent {
   abstract id: string;
   abstract name: string;
   description?: string;
-  abstract instructions?: DynamicAgentInstructions;
+  abstract instructions?: DynamicArgument<AgentInstructions, ChatRequestContext>;
   abstract tools?: string[];
   subAgents?: string[];
   isHidden: boolean = false;

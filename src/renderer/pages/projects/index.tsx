@@ -339,7 +339,7 @@ function ProjectsPage() {
       </ResizablePanel>
       <ResizableHandle withHandle />
       <ResizablePanel className="h-full flex-1">
-        <div className="min-w-0 p-2 flex-1">
+        <div className="min-w-0 p-2 flex-1 h-full">
           <ChatPreview
             resourceId={projectResourceId}
             workspace={project?.path}
