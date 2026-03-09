@@ -236,8 +236,8 @@ const TreeNode: React.FC<TreeNodeProps> = ({
 
   const handleDragStart = (e: React.DragEvent) => {
     let relativePath = node.path;
-    if (rootPath && node.path.startsWith(`${rootPath}/`)) {
-      relativePath = `"./${node.path.substring(rootPath.length + 1)}"`;
+    if (rootPath && node.path.replaceAll("\\", "/").startsWith(`${rootPath.replaceAll("\\", "/")}/`)) {
+      relativePath = `"./${node.path.replaceAll("\\", "/").substring(rootPath.replaceAll("\\", "/").length + 1)}"`;
     }
 
     e.dataTransfer.setData('text/plain', relativePath);
@@ -412,8 +412,12 @@ const SearchResultItem: React.FC<SearchResultItemProps> = ({
   };
 
   const handleDragStart = (e: React.DragEvent) => {
-    e.dataTransfer.setData('text/plain', result.file);
-    e.dataTransfer.setData('application/x-file-path', result.file);
+    let relativePath = result.file;
+    if (workspace && result.file.replaceAll("\\", "/").startsWith(`${workspace.replaceAll("\\", "/")}/`)) {
+      relativePath = `"./${result.file.replaceAll("\\", "/").substring(workspace.replaceAll("\\", "/").length + 1)}"`;
+    }
+    e.dataTransfer.setData('text/plain', relativePath);
+    e.dataTransfer.setData('application/x-file-path', relativePath);
     e.dataTransfer.effectAllowed = 'copy';
   };
 
