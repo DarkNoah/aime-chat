@@ -85,6 +85,13 @@ import {
   TabsList,
   TabsTrigger,
 } from '@/renderer/components/ui/tabs';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/renderer/components/ui/select';
 import toast from 'react-hot-toast';
 
 const PAGE_SIZE = 10;
@@ -150,6 +157,8 @@ function KnowledgeBaseDetail() {
   const [textDialogOpen, setTextDialogOpen] = useState(false);
   const [urlDialogOpen, setUrlDialogOpen] = useState(false);
   const [currentSearchQuery, setCurrentSearchQuery] = useState('');
+  const [filterState, setFilterState] = useState('');
+  const [filterSourceType, setFilterSourceType] = useState('');
 
   const getStateVariant = (
     state?: string,
@@ -188,6 +197,10 @@ function KnowledgeBaseDetail() {
     }
     if (loading) setItemsLoading(true);
     try {
+      const filters: Record<string, string> = {};
+      if (filterState) filters.state = filterState;
+      if (filterSourceType) filters.sourceType = filterSourceType;
+
       const data = await window.electron.knowledgeBase.getKnowledgeBaseItems(
         id,
         {
@@ -195,6 +208,7 @@ function KnowledgeBaseDetail() {
           size: PAGE_SIZE,
           sort: 'updatedAt',
           order: 'DESC',
+          filters,
         },
       );
       setItems(data.items || []);
@@ -237,6 +251,10 @@ function KnowledgeBaseDetail() {
   useEffect(() => {
     getData();
   }, [id]);
+
+  useEffect(() => {
+    loadItems(1);
+  }, [filterState, filterSourceType]);
 
   useEffect(() => {
     const handleKnowledgeBaseItemsUpdatedEvent = (data: {
@@ -667,32 +685,80 @@ function KnowledgeBaseDetail() {
           </DialogContent>
         </Dialog>
       </div>
-      <div className="flex flex-row gap-2 items-center w-full justify-center">
-        <InputGroup>
-          <InputGroupInput
-            placeholder={t('common.search')}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                if (searchLoading || !search.trim()) {
-                  return;
+      <div className="flex flex-row gap-2 items-center w-full">
+        <Select
+          value={filterState}
+          onValueChange={(value) =>
+            setFilterState(value === 'all' ? '' : value)
+          }
+        >
+          <SelectTrigger size="sm">
+            <SelectValue
+              placeholder={t('knowledge-base.filter_state', 'Status')}
+            />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t('common.all', 'All')}</SelectItem>
+            <SelectItem value={KnowledgeBaseItemState.Pending}>
+              Pending
+            </SelectItem>
+            <SelectItem value={KnowledgeBaseItemState.Processing}>
+              Processing
+            </SelectItem>
+            <SelectItem value={KnowledgeBaseItemState.Completed}>
+              Completed
+            </SelectItem>
+            <SelectItem value={KnowledgeBaseItemState.Fail}>Fail</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select
+          value={filterSourceType}
+          onValueChange={(value) =>
+            setFilterSourceType(value === 'all' ? '' : value)
+          }
+        >
+          <SelectTrigger size="sm">
+            <SelectValue
+              placeholder={t('knowledge-base.filter_source_type', 'Source')}
+            />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t('common.all', 'All')}</SelectItem>
+            <SelectItem value={KnowledgeBaseSourceType.Web}>Web</SelectItem>
+            <SelectItem value={KnowledgeBaseSourceType.File}>File</SelectItem>
+            <SelectItem value={KnowledgeBaseSourceType.Folder}>
+              Folder
+            </SelectItem>
+            <SelectItem value={KnowledgeBaseSourceType.Text}>Text</SelectItem>
+          </SelectContent>
+        </Select>
+        <div className="flex-1">
+          <InputGroup>
+            <InputGroupInput
+              placeholder={t('common.search')}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  if (searchLoading || !search.trim()) {
+                    return;
+                  }
+                  searchKnowledgeBase(search);
                 }
-                searchKnowledgeBase(search);
-              }
-            }}
-          />
-          <InputGroupAddon align="inline-end">
-            <InputGroupButton
-              size="icon-xs"
-              onClick={() => searchKnowledgeBase(search)}
-              disabled={searchLoading || !search.trim()}
-            >
-              <IconSearch />
-            </InputGroupButton>
-          </InputGroupAddon>
-        </InputGroup>
+              }}
+            />
+            <InputGroupAddon align="inline-end">
+              <InputGroupButton
+                size="icon-xs"
+                onClick={() => searchKnowledgeBase(search)}
+                disabled={searchLoading || !search.trim()}
+              >
+                <IconSearch />
+              </InputGroupButton>
+            </InputGroupAddon>
+          </InputGroup>
+        </div>
       </div>
       <div className="flex flex-col gap-2 mt-2 flex-1 overflow-y-auto">
         {itemsLoading ? (

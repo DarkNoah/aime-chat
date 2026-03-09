@@ -172,9 +172,16 @@ export class KnowledgeBaseManager extends BaseManager {
 
   @channel(KnowledgeBaseChannel.GetKnowledgeBaseItems)
   public async getKnowledgeBaseItems(id: string, params: PaginationParams): Promise<PaginationInfo<KnowledgeBaseItem>> {
-    const { page, size, filter, sort, order } = params;
+    const { page, size, filter, filters, sort, order } = params;
+    const where: Record<string, any> = { knowledgeBaseId: id };
+    if (filters?.state) {
+      where.state = filters.state;
+    }
+    if (filters?.sourceType) {
+      where.sourceType = filters.sourceType;
+    }
     const [items, total] = await this.knowledgeBaseItemRepository.findAndCount({
-      where: { knowledgeBaseId: id },
+      where,
       skip: (page - 1) * size,
       take: size,
       order: { [sort]: order },
@@ -626,12 +633,12 @@ export class KnowledgeBaseManager extends BaseManager {
             embeddings = await this.calcEmbeddings(kb.embedding, chunks.map((chunk) => chunk.text));
           }
           const insertStatements = [];
-          const hasText = embeddings?.text_embeddings?.[index] !== undefined;
-          const hasImage = embeddings?.image_embeddings?.[index] !== undefined;
+          const hasText = embeddings?.text_embeddings?.[0] !== undefined;
+          const hasImage = embeddings?.image_embeddings?.[0] !== undefined;
 
 
           if (chunks && chunks.length > 0) {
-            for (const chunk of chunks) {
+            for (const [chunkIndex, chunk] of Object.entries(chunks)) {
               insertStatements.push({
                 sql: `INSERT INTO [kb_${kbId}_${kb.vectorLength}] (id, item_id, chunk, is_enable, type, embedding, metadata)
               VALUES (?, ?, ?, ?, ?, vector32(?), ?)`,
@@ -641,7 +648,7 @@ export class KnowledgeBaseManager extends BaseManager {
                   chunk.text,
                   true,
                   'text',
-                  JSON.stringify(embeddings.text_embeddings[index]),
+                  JSON.stringify(embeddings.text_embeddings[chunkIndex]),
                   JSON.stringify(chunk.metadata ?? {}),
                 ],
               });
@@ -658,7 +665,7 @@ export class KnowledgeBaseManager extends BaseManager {
                 null,
                 true,
                 'image',
-                JSON.stringify(embeddings?.image_embeddings?.[index]),
+                JSON.stringify(embeddings?.image_embeddings?.[0]),
                 JSON.stringify({}),
               ],
             });
