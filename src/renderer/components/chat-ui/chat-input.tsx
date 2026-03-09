@@ -8,8 +8,10 @@ import {
   ImageIcon,
   MicIcon,
   SirenIcon,
+  SquareIcon,
   WrenchIcon,
 } from 'lucide-react';
+import { ChatSlashCommand } from './chat-slash-command';
 import {
   PromptInput,
   PromptInputActionAddAttachments,
@@ -82,6 +84,7 @@ import {
   ModelSelectorLogo,
   ModelSelectorName,
 } from '../ai-elements/model-selector';
+import { ChatSlashCommandConfig } from '@/types/chat';
 
 export type ChatInputProps = Omit<PromptInputProps, 'onSubmit'> & {
   onSubmit?: (
@@ -182,8 +185,8 @@ export const ChatInput = React.forwardRef<ChatInputRef, ChatInputProps>(
       setSubAgents: (subAgentIds: string[]) => {
         setSubAgents(subAgentIds ?? []);
       },
-      setThink: (think: boolean) => {
-        setThink(think);
+      setThink: (val: boolean) => {
+        setThink(val);
       },
     }));
 
@@ -195,171 +198,178 @@ export const ChatInput = React.forwardRef<ChatInputRef, ChatInputProps>(
 
     return (
       <PromptInputProvider>
-        <PromptInput
-          onSubmit={(e) => {
-            // console.log('status', status);
-            if (status === 'ready' || status === 'error' || !status) {
-              onSubmit(e, {
-                model,
-                webSearch,
-                think,
-                tools,
-                subAgents,
-                requireToolApproval,
-              });
-            }
+        <ChatSlashCommand
+          input={input ?? ''}
+          onComplete={(text) => {
+            setInput?.(text);
           }}
-          className={cn('flex flex-col relative', className)}
-          globalDrop
-          multiple
+          commands={ChatSlashCommandConfig}
         >
-          <ChatInputAttachment ref={attachmentRef} />
-          <PromptInputBody className="flex-1 h-full">
-            <PromptInputTextarea
-              rows={4}
-              onChange={(e) => setInput?.(e.target.value)}
-              value={input}
-            />
-          </PromptInputBody>
-          <PromptInputFooter>
-            <PromptInputTools>
-              <PromptInputActionMenu>
-                <PromptInputActionMenuTrigger />
-                <PromptInputActionMenuContent>
-                  <PromptInputActionAddAttachments
-                    label={t('common.add_photos_or_files')}
-                    icon={<ImageIcon className="mr-2 size-4" />}
-                    onSelect={(e) => {
-                      attachmentRef?.current?.openFileDialog();
-                    }}
-                  />
-                  <PromptInputActionAddAttachments
-                    label={t('common.screen_capture')}
-                    icon={<CameraIcon className="mr-2 size-4" />}
-                    onSelect={(e) => {
-                      attachmentRef?.current?.screenCapture();
-                    }}
-                  />
-                </PromptInputActionMenuContent>
-              </PromptInputActionMenu>
-              {showMic && (
-                <PromptInputButton
-                  size="icon-xs"
-                  onClick={() => setUseMicrophone(!useMicrophone)}
-                  variant={useMicrophone ? 'default' : 'ghost'}
-                >
-                  <MicIcon size={16} />
-                  <span className="sr-only">Microphone</span>
-                </PromptInputButton>
-              )}
-              {showThink && (
-                <PromptInputButton
-                  size="icon-xs"
-                  variant={think ? 'default' : 'ghost'}
-                  onClick={() => setThink(!think)}
-                >
-                  <BrainIcon size={16} />
-                </PromptInputButton>
-              )}
-              {showWebSearch && (
-                <PromptInputButton
-                  size="icon-xs"
-                  variant={webSearch ? 'default' : 'ghost'}
-                  onClick={() => setWebSearch(!webSearch)}
-                >
-                  <GlobeIcon size={16} />
-                </PromptInputButton>
-              )}
-              {showToolSelector && (
-                <ChatToolSelector value={tools} onChange={setTools}>
+          <PromptInput
+            onSubmit={(e) => {
+              if (status === 'ready' || status === 'error' || !status) {
+                onSubmit(e, {
+                  model,
+                  webSearch,
+                  think,
+                  tools,
+                  subAgents,
+                  requireToolApproval,
+                });
+              }
+            }}
+            className={cn('flex flex-col relative', className)}
+            globalDrop
+            multiple
+          >
+            <ChatInputAttachment ref={attachmentRef} />
+            <PromptInputBody className="flex-1 h-full">
+              <PromptInputTextarea
+                rows={4}
+                onChange={(e) => setInput?.(e.target.value)}
+                value={input}
+              />
+            </PromptInputBody>
+            <PromptInputFooter>
+              <PromptInputTools>
+                <PromptInputActionMenu>
+                  <PromptInputActionMenuTrigger />
+                  <PromptInputActionMenuContent>
+                    <PromptInputActionAddAttachments
+                      label={t('common.add_photos_or_files')}
+                      icon={<ImageIcon className="mr-2 size-4" />}
+                      onSelect={(e) => {
+                        attachmentRef?.current?.openFileDialog();
+                      }}
+                    />
+                    <PromptInputActionAddAttachments
+                      label={t('common.screen_capture')}
+                      icon={<CameraIcon className="mr-2 size-4" />}
+                      onSelect={(e) => {
+                        attachmentRef?.current?.screenCapture();
+                      }}
+                    />
+                  </PromptInputActionMenuContent>
+                </PromptInputActionMenu>
+                {showMic && (
                   <PromptInputButton
                     size="icon-xs"
-                    variant={tools.length > 0 ? 'default' : 'ghost'}
+                    onClick={() => setUseMicrophone(!useMicrophone)}
+                    variant={useMicrophone ? 'default' : 'ghost'}
                   >
-                    <WrenchIcon size={16} />
+                    <MicIcon size={16} />
+                    <span className="sr-only">Microphone</span>
                   </PromptInputButton>
-                </ChatToolSelector>
-              )}
-              {showAgentSelector && (
-                <ChatAgentSelector
-                  value={subAgents ?? []}
-                  onChange={setSubAgents}
-                  mode="multiple"
-                >
+                )}
+                {showThink && (
                   <PromptInputButton
                     size="icon-xs"
-                    variant={subAgents.length > 0 ? 'default' : 'ghost'}
+                    variant={think ? 'default' : 'ghost'}
+                    onClick={() => setThink(!think)}
                   >
-                    <BotIcon size={16} />
+                    <BrainIcon size={16} />
                   </PromptInputButton>
-                </ChatAgentSelector>
-              )}
-              <Tooltip>
-                <TooltipTrigger asChild>
+                )}
+                {showWebSearch && (
                   <PromptInputButton
                     size="icon-xs"
-                    variant={requireToolApproval ? 'default' : 'ghost'}
-                    onClick={() => {
-                      const next = !requireToolApproval;
-                      setRequireToolApproval(next);
-                      onRequireToolApprovalChange?.(next);
-                    }}
+                    variant={webSearch ? 'default' : 'ghost'}
+                    onClick={() => setWebSearch(!webSearch)}
                   >
-                    <SirenIcon size={16} />
+                    <GlobeIcon size={16} />
                   </PromptInputButton>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Require tool approval</p>
-                </TooltipContent>
-              </Tooltip>
-
-              {showModelSelect && (
-                <ChatModelSelect
-                  value={model}
-                  onChange={onModelChange}
-                  className="max-w-[200px] @lg:w-[150px] @md:w-[100px] @sm:w-[32px] w-[32px]"
-                ></ChatModelSelect>
-              )}
-              <Separator orientation="vertical" />
-              {onClearMessages && (
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <PromptInputButton>
-                      <IconTrash size={16} />
+                )}
+                {showToolSelector && (
+                  <ChatToolSelector value={tools} onChange={setTools}>
+                    <PromptInputButton
+                      size="icon-xs"
+                      variant={tools.length > 0 ? 'default' : 'ghost'}
+                    >
+                      <WrenchIcon size={16} />
                     </PromptInputButton>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>
-                        <div className="flex flex-row gap-2 items-center">
-                          <IconAlertCircle />
-                          {t('chat.clear_messages_title')}
-                        </div>
-                      </AlertDialogTitle>
-                      <AlertDialogDescription>
-                        {t('chat.clear_messages_description')}
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>
-                        {t('common.cancel')}
-                      </AlertDialogCancel>
-                      <AlertDialogAction onClick={onClearMessages}>
-                        {t('common.confirm')}
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              )}
-            </PromptInputTools>
+                  </ChatToolSelector>
+                )}
+                {showAgentSelector && (
+                  <ChatAgentSelector
+                    value={subAgents ?? []}
+                    onChange={setSubAgents}
+                    mode="multiple"
+                  >
+                    <PromptInputButton
+                      size="icon-xs"
+                      variant={subAgents.length > 0 ? 'default' : 'ghost'}
+                    >
+                      <BotIcon size={16} />
+                    </PromptInputButton>
+                  </ChatAgentSelector>
+                )}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <PromptInputButton
+                      size="icon-xs"
+                      variant={requireToolApproval ? 'default' : 'ghost'}
+                      onClick={() => {
+                        const next = !requireToolApproval;
+                        setRequireToolApproval(next);
+                        onRequireToolApprovalChange?.(next);
+                      }}
+                    >
+                      <SirenIcon size={16} />
+                    </PromptInputButton>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Require tool approval</p>
+                  </TooltipContent>
+                </Tooltip>
 
-            <PromptInputSubmit
-              disabled={!input && !status}
-              status={status === 'error' ? 'ready' : status}
-              onClick={handleSubmit}
-            />
-          </PromptInputFooter>
-        </PromptInput>
+                {showModelSelect && (
+                  <ChatModelSelect
+                    value={model}
+                    onChange={onModelChange}
+                    className="max-w-[200px] @lg:w-[150px] @md:w-[100px] @sm:w-[32px] w-[32px]"
+                  ></ChatModelSelect>
+                )}
+                <Separator orientation="vertical" />
+                {onClearMessages && (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <PromptInputButton>
+                        <IconTrash size={16} />
+                      </PromptInputButton>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>
+                          <div className="flex flex-row gap-2 items-center">
+                            <IconAlertCircle />
+                            {t('chat.clear_messages_title')}
+                          </div>
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                          {t('chat.clear_messages_description')}
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>
+                          {t('common.cancel')}
+                        </AlertDialogCancel>
+                        <AlertDialogAction onClick={onClearMessages}>
+                          {t('common.confirm')}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
+              </PromptInputTools>
+
+              <PromptInputSubmit
+                disabled={!input && !status}
+                status={status === 'error' ? 'ready' : status}
+                onClick={handleSubmit}
+              />
+            </PromptInputFooter>
+          </PromptInput>
+        </ChatSlashCommand>
         {prompts && prompts.filter((x) => x).length > 0 && (
           <div className="flex flex-wrap gap-2 w-full ">
             <Suggestions>

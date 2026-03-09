@@ -3,6 +3,7 @@ export const LocalModelTypes = [
   'reranker',
   'other',
   'ocr',
+  'clip'
 ] as const;
 export type LocalModelType = (typeof LocalModelTypes)[number];
 export type LocalModelLibrary = 'transformers' | 'openvino';

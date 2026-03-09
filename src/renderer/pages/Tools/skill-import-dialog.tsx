@@ -13,7 +13,7 @@ import { IconLoader, IconSearch, IconSettings } from '@tabler/icons-react';
 import z, { ZodSchema } from 'zod';
 import validator from '@rjsf/validator-ajv8';
 import { zodToJsonSchema } from 'zod-to-json-schema';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Checkbox } from '@/renderer/components/ui/checkbox';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
@@ -36,6 +36,22 @@ import {
   ItemDescription,
   ItemTitle,
 } from '@/renderer/components/ui/item';
+
+const SEARCH_HISTORY_KEY = 'skill-import-search-history';
+const MAX_HISTORY = 5;
+
+function loadSearchHistory(): string[] {
+  try {
+    const raw = localStorage.getItem(SEARCH_HISTORY_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveSearchHistory(history: string[]) {
+  localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(history));
+}
 
 // function formatFileSize(bytes: number): string {
 //   if (bytes === 0) return '0 B';
@@ -69,6 +85,34 @@ export function SkillImportDialog({
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [searchHistory, setSearchHistory] =
+    useState<string[]>(loadSearchHistory);
+  const [showHistory, setShowHistory] = useState(false);
+  const historyRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        historyRef.current &&
+        !historyRef.current.contains(e.target as Node)
+      ) {
+        setShowHistory(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const addToHistory = useCallback((url: string) => {
+    setSearchHistory((prev) => {
+      const next = [url, ...prev.filter((x) => x !== url)].slice(
+        0,
+        MAX_HISTORY,
+      );
+      saveSearchHistory(next);
+      return next;
+    });
+  }, []);
 
   const isDirectSkillUrl = (url: string) => {
     try {
@@ -153,7 +197,7 @@ export function SkillImportDialog({
         });
       }
 
-      toast.success(t('common.import_success'));
+      // toast.success(t('common.import_success'));
       onImportSkillsSuccess?.(skills);
       onOpenChange(false);
       reset();
@@ -178,6 +222,8 @@ export function SkillImportDialog({
       setSelectedGitUrl(result.repoUrl);
       setSkills(result.skills);
       setSelectedSkills(result.skills.map((x) => x.path));
+      addToHistory(gitUrl.trim());
+      setShowHistory(false);
     } else {
       toast.error(result.error);
     }
@@ -231,31 +277,58 @@ export function SkillImportDialog({
         <small className="text-muted-foreground text-sm">
           {t('tools.import_skill_tips')}
         </small>
-        <InputGroup>
-          <InputGroupInput
-            value={gitUrl}
-            onChange={(e) => setGitUrl(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !isDirectSkillUrl(gitUrl)) {
-                handlePreviewGitSkill();
-              }
-            }}
-            placeholder={t('common.enter_git_url_or_skill_url')}
-          />
-          {!isDirectSkillUrl(gitUrl) && (
-            <InputGroupAddon align="inline-end">
-              <InputGroupButton
-                variant="ghost"
-                className="rounded-full"
-                onClick={() => handlePreviewGitSkill()}
-                disabled={loading}
-              >
-                {loading && <IconLoader className="w-4 h-4 animate-spin" />}
-                {!loading && <IconSearch className="w-4 h-4" />}
-              </InputGroupButton>
-            </InputGroupAddon>
+        <div className="relative" ref={historyRef}>
+          <InputGroup>
+            <InputGroupInput
+              value={gitUrl}
+              onChange={(e) => setGitUrl(e.target.value)}
+              onFocus={() => {
+                if (searchHistory.length > 0) setShowHistory(true);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !isDirectSkillUrl(gitUrl)) {
+                  handlePreviewGitSkill();
+                  setShowHistory(false);
+                } else if (e.key === 'Escape') {
+                  setShowHistory(false);
+                }
+              }}
+              placeholder={t('common.enter_git_url_or_skill_url')}
+            />
+            {!isDirectSkillUrl(gitUrl) && (
+              <InputGroupAddon align="inline-end">
+                <InputGroupButton
+                  variant="ghost"
+                  className="rounded-full"
+                  onClick={() => handlePreviewGitSkill()}
+                  disabled={loading}
+                >
+                  {loading && <IconLoader className="w-4 h-4 animate-spin" />}
+                  {!loading && <IconSearch className="w-4 h-4" />}
+                </InputGroupButton>
+              </InputGroupAddon>
+            )}
+          </InputGroup>
+          {showHistory && searchHistory.length > 0 && (
+            <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-md">
+              {searchHistory.map((url) => (
+                <button
+                  key={url}
+                  type="button"
+                  className="flex w-full items-center gap-2 px-3 py-2 text-sm text-left hover:bg-accent transition-colors first:rounded-t-md last:rounded-b-md truncate"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    setGitUrl(url);
+                    setShowHistory(false);
+                  }}
+                >
+                  <IconSearch className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                  <span className="truncate">{url}</span>
+                </button>
+              ))}
+            </div>
           )}
-        </InputGroup>
+        </div>
 
         {/* 已拖入的文件列表 */}
         {droppedFiles.length > 0 && (

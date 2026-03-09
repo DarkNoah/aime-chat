@@ -16,6 +16,7 @@ import path from 'path';
 import matter from 'gray-matter';
 import { ToolType } from '@/types/tool';
 import { getSkills } from '../utils/skills';
+import { runCommand } from '../utils/shell';
 class ProjectManager extends BaseManager {
   projectsRepository: Repository<Projects>;
 
@@ -32,6 +33,9 @@ class ProjectManager extends BaseManager {
     const skillsPath = path.join(project?.path, '.aime-chat', 'skills');
     if (fs.existsSync(skillsPath) && fs.statSync(skillsPath).isDirectory()) {
       const skills = await fs.promises.readdir(skillsPath);
+
+      const skillJson = await fs.promises.readFile(path.join(skillsPath, 'skills.json'), 'utf-8').catch(() => '[]');
+      const skillJsonData = JSON.parse(skillJson);
       for (const skill of skills) {
         if (fs.existsSync(path.join(skillsPath, skill, 'SKILL.md'))) {
           const skillPath = path.join(skillsPath, skill);
@@ -44,6 +48,7 @@ class ProjectManager extends BaseManager {
             description: skillData.data.description,
             path: skillPath,
             skillmd: skillData.content,
+            source: skillJsonData.find((x: any) => x.id === skill)?.source,
           });
         }
       }
@@ -137,10 +142,35 @@ class ProjectManager extends BaseManager {
     );
     const skill = skills.find((x) => x.id === skillId);
     if (skill) {
-      await fs.promises.rm(skill.path, { recursive: true });
+      try {
+        await fs.promises.rm(skill.path, { recursive: true });
+      } catch (err) {
+        appManager.toast('Failed to delete skill, ' + err.message, { type: 'error' });
+      }
+
     }
     // return result;
   }
-}
 
+
+  @channel(ProjectChannel.OpenWith)
+  async openWith(projectId: string, action: string) {
+    const result = await this.getProject(projectId);
+    if (action === 'vscode') {
+      await runCommand('code .', {
+        cwd: result.path,
+      });
+    }
+    else if (action === 'cursor') {
+      await runCommand(process.platform === 'win32' ? 'start cursor .' : 'open -a Cursor .', {
+        cwd: result.path,
+      });
+    }
+    else if (action === 'terminal') {
+      await runCommand(process.platform === 'win32' ? 'cmd.exe' : 'open -a Terminal .', {
+        cwd: result.path,
+      });
+    }
+  }
+}
 export const projectManager = new ProjectManager();

@@ -132,6 +132,15 @@ function Tools() {
   }, [setTitle, t]);
 
   useEffect(() => {
+    if (location.pathname.startsWith(`/tools/${ToolType.BUILD_IN}:`)) {
+      setView(ToolType.BUILD_IN);
+    } else if (location.pathname.startsWith(`/tools/${ToolType.MCP}:`)) {
+      setView(ToolType.MCP);
+    } else if (location.pathname.startsWith(`/tools/${ToolType.SKILL}:`)) {
+      setView(ToolType.SKILL);
+    }
+  }, [location]);
+  useEffect(() => {
     const getList = async () => {
       try {
         const data = await window.electron.tools.getList();
@@ -186,11 +195,12 @@ function Tools() {
     };
   }, []);
 
-  const handleDelete = (id: string) => { };
+  const handleDelete = (id: string) => {};
 
   const openMcpDialog = async () => {
     setOpen(true);
   };
+
   return (
     <div className="h-full w-full flex flex-row justify-between">
       <div className="flex flex-col gap-2 h-full p-4">
@@ -256,7 +266,7 @@ function Tools() {
             Skills
           </ToggleGroupItem>
         </ToggleGroup>
-        {view === ToolType.BUILD_IN && (
+        {/* {view === ToolType.BUILD_IN && (
           <div className="flex flex-row items-center gap-2">
             {' '}
             <IconFilter size="10"></IconFilter>
@@ -273,7 +283,7 @@ function Tools() {
               ))}
             </ToggleGroup>
           </div>
-        )}
+        )} */}
 
         <ScrollArea className="h-full flex-1 min-h-0">
           <SidebarMenu className="pr-3">
@@ -310,8 +320,8 @@ function Tools() {
                         )}
                         {(tool.status === 'stopped' ||
                           tool.status === 'error') && (
-                            <IconToggleLeft className="text-red-500/50"></IconToggleLeft>
-                          )}
+                          <IconToggleLeft className="text-red-500/50"></IconToggleLeft>
+                        )}
                         {tool.status === 'starting' && (
                           <IconLoader2 className="text-yellow-400/50 animate-spin"></IconLoader2>
                         )}
@@ -329,18 +339,18 @@ function Tools() {
             {tools[view]?.filter((kb) =>
               kb.name.toLowerCase().includes(search.toLowerCase()),
             ).length === 0 && (
-                <div className="flex items-center space-x-4 w-[calc(var(--sidebar-width))]">
-                  <Empty className="bg-secondary/50">
-                    <EmptyHeader>
-                      {/* <EmptyMedia variant="icon"></EmptyMedia> */}
-                      <EmptyDescription className="flex flex-col items-center gap-2">
-                        <IconBox />
-                        No Result
-                      </EmptyDescription>
-                    </EmptyHeader>
-                  </Empty>
-                </div>
-              )}
+              <div className="flex items-center space-x-4 w-[calc(var(--sidebar-width))]">
+                <Empty className="bg-secondary/50">
+                  <EmptyHeader>
+                    {/* <EmptyMedia variant="icon"></EmptyMedia> */}
+                    <EmptyDescription className="flex flex-col items-center gap-2">
+                      <IconBox />
+                      No Result
+                    </EmptyDescription>
+                  </EmptyHeader>
+                </Empty>
+              </div>
+            )}
           </SidebarMenu>
         </ScrollArea>
       </div>

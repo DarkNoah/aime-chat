@@ -1,6 +1,6 @@
 import { UIMessage } from '@ai-sdk/react';
 import { UIMessageWithMetadata } from '@mastra/core/agent';
-import { CallSettings, ChatStatus } from 'ai';
+import { CallSettings, ChatStatus, LanguageModelUsage } from 'ai';
 import { StorageThreadType } from '@mastra/core/memory';
 import type { SharedV2ProviderOptions } from '@ai-sdk/provider';
 import type { AnthropicProviderOptions } from '@ai-sdk/anthropic';
@@ -56,6 +56,7 @@ export type ThreadState = StorageThreadType & {
   //mastraDBMessages: MastraDBMessage[];
   status: ChatStatus;
   error?: Error;
+  historyMessagesCount?: number;
 };
 
 export enum ChatChangedType {
@@ -124,6 +125,10 @@ export type ChatRequestContext = {
   think?: boolean;
   chunks?: { runId: string; text: string };
   additionalInstructions?: string;
+  skillsLoaded?: string[];
+  fileLastReadTime?: Record<string, number>;
+  compressedMessage?: string;
+  usage?: LanguageModelUsage;
 };
 
 export const DEFAULT_RESOURCE_ID = 'default';
@@ -143,3 +148,9 @@ export type ChatSubmitOptions = {
   agentId?: string;
   projectId?: string;
 };
+
+export const ChatSlashCommandConfig = [{
+  id: 'compact',
+  label: 'compact',
+  description: 'Compact the current messages',
+}]

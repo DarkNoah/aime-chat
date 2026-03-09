@@ -44,6 +44,9 @@ export class KnowledgeBase {
   @Column({ nullable: true })
   reranker?: string;
 
+  @Column({ default: false, nullable: true })
+  forceReturnFullContent?: boolean;
+
   @OneToMany((type) => KnowledgeBaseItem, (item) => item.knowledgeBase) // note: we will create author property in the Photo class below
   items?: KnowledgeBaseItem[];
 

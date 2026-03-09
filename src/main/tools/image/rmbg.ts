@@ -11,6 +11,7 @@ import {
   AutoModel,
   AutoProcessor,
   env,
+  pipeline,
   RawImage,
 } from '@huggingface/transformers';
 import { isUrl } from '@/utils/is';
@@ -58,7 +59,9 @@ export class RemoveBackground extends BaseTool {
     // env.allowLocalModels = true;
     let modelName = this.modelName;
     if (!modelName) {
-      if (fs.existsSync(path.join(appInfo.modelPath, 'other', 'rmbg-1.4'))) {
+      if (fs.existsSync(path.join(appInfo.modelPath, 'other', 'ben2'))) {
+        modelName = 'ben2';
+      } else if (fs.existsSync(path.join(appInfo.modelPath, 'other', 'rmbg-1.4'))) {
         modelName = 'rmbg-1.4';
       } else if (
         fs.existsSync(path.join(appInfo.modelPath, 'other', 'rmbg-2.0'))
@@ -78,62 +81,65 @@ export class RemoveBackground extends BaseTool {
     );
     const { model, processor } = cacheEntry;
 
-    try {
-      let image = null;
-      let file_path: string;
-      if (isUrl(file_path_or_url)) {
-        file_path = await downloadFile(file_path_or_url);
-      } else {
-        file_path = file_path_or_url;
-      }
 
-      if (fs.statSync(file_path).isFile()) {
-        const data = await fs.promises.readFile(file_path);
-        const blob = new Blob([data]);
-        image = await RawImage.fromBlob(blob);
-      }
-      const ar = image.width / image.height;
-      const { pixel_values } = await processor(image);
-
-      let output;
-      if (modelName == 'rmbg-1.4') {
-        output = (await model({ input: pixel_values })).output;
-      } else if (modelName == 'rmbg-2.0') {
-        output = (await model({ pixel_values })).alphas;
-      }
-
-      const mask = await RawImage.fromTensor(
-        output[0].mul(255).to('uint8'),
-      ).resize(image.width, image.height);
-      const png = new PNG({ width: image.width, height: image.height });
-
-      for (let y = 0; y < image.height; y++) {
-        for (let x = 0; x < image.width; x++) {
-          const maskIndex = y * image.width + x;
-          const imageIndex = (y * image.width + x) * 3;
-          const pngIndex = (y * image.width + x) * 4;
-          png.data[pngIndex] = image.data[imageIndex];
-          png.data[pngIndex + 1] = image.data[imageIndex + 1];
-          png.data[pngIndex + 2] = image.data[imageIndex + 2];
-          png.data[pngIndex + 3] = mask.data[maskIndex];
-        }
-      }
-      const encoder = new PNG();
-      encoder.data = png.data;
-      encoder.width = image.width;
-      encoder.height = image.height;
-      const buffer = PNG.sync.write(encoder);
-
-      let savePath;
-      const workspace = requestContext?.get('workspace' as never) as string;
-      if (save_path) {
-        savePath = await saveFile(buffer, save_path, workspace);
-      } else {
-        savePath = await saveFile(buffer, `${nanoid()}.png`, workspace);
-      }
-
-      return `Remove background success, saved to :\n<file>${savePath}</file>`;
-    } finally {
+    let image = null;
+    let file_path: string;
+    if (isUrl(file_path_or_url)) {
+      file_path = await downloadFile(file_path_or_url);
+    } else {
+      file_path = file_path_or_url;
     }
+
+    if (fs.statSync(file_path).isFile()) {
+      const data = await fs.promises.readFile(file_path);
+      const blob = new Blob([data]);
+      image = await RawImage.fromBlob(blob);
+    }
+    const ar = image.width / image.height;
+    const { pixel_values } = await processor(image);
+
+    let output;
+    if (modelName == 'rmbg-1.4') {
+      output = (await model({ input: pixel_values })).output;
+    } else if (modelName == 'rmbg-2.0') {
+      output = (await model({ pixel_values })).alphas;
+    } else if (modelName == 'ben2') {
+      // const segmenter = await pipeline('background-removal', modelPath, { local_files_only: true });s
+      // output = await segmenter([file_path]);
+      output = (await model({ pixel_values })).alphas;
+    }
+
+    const mask = await RawImage.fromTensor(
+      output[0].mul(255).to('uint8'),
+    ).resize(image.width, image.height);
+    const png = new PNG({ width: image.width, height: image.height });
+
+    for (let y = 0; y < image.height; y++) {
+      for (let x = 0; x < image.width; x++) {
+        const maskIndex = y * image.width + x;
+        const imageIndex = (y * image.width + x) * 3;
+        const pngIndex = (y * image.width + x) * 4;
+        png.data[pngIndex] = image.data[imageIndex];
+        png.data[pngIndex + 1] = image.data[imageIndex + 1];
+        png.data[pngIndex + 2] = image.data[imageIndex + 2];
+        png.data[pngIndex + 3] = mask.data[maskIndex];
+      }
+    }
+    const encoder = new PNG();
+    encoder.data = png.data;
+    encoder.width = image.width;
+    encoder.height = image.height;
+    const buffer = PNG.sync.write(encoder);
+
+    let savePath;
+    const workspace = requestContext?.get('workspace' as never) as string;
+    if (save_path) {
+      savePath = await saveFile(buffer, save_path, workspace);
+    } else {
+      savePath = await saveFile(buffer, `${nanoid()}.png`, workspace);
+    }
+
+    return `Remove background success, saved to :\n<file>${savePath}</file>`;
+
   };
 }

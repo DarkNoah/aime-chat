@@ -76,7 +76,10 @@ export function TaskManagerPanel() {
 
   return (
     <Sheet open={isPanelOpen} onOpenChange={setIsPanelOpen}>
-      <SheetContent side="right" className="w-[400px] sm:max-w-[400px] flex flex-col">
+      <SheetContent
+        side="right"
+        className="w-[400px] sm:max-w-[400px] flex flex-col"
+      >
         <SheetHeader>
           <div className="flex items-center gap-2">
             <SheetTitle>任务管理</SheetTitle>
@@ -131,7 +134,7 @@ export function TaskManagerPanel() {
           </TabsList>
 
           <TabsContent value={activeTab} className="flex-1 min-h-0 mt-0">
-            <ScrollArea className="h-full">
+            <div className="h-full overflow-y-auto">
               {groupIds.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
                   <InboxIcon className="size-10 mb-2 opacity-40" />
@@ -158,7 +161,7 @@ export function TaskManagerPanel() {
                   ))}
                 </div>
               )}
-            </ScrollArea>
+            </div>
           </TabsContent>
         </Tabs>
       </SheetContent>

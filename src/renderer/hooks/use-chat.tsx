@@ -196,8 +196,13 @@ export function useChat() {
 export function ChatProvider({ children }: { children: ReactNode }) {
   const { threadStates } = useThreadStore();
 
-  const { registerThread, removeThread, updateMessages, updateThreadState } =
-    useThreadStore();
+  const {
+    registerThread,
+    removeThread,
+    updateMessages,
+    updateThreadState,
+    updateThreadMeatadata,
+  } = useThreadStore();
 
   const chatSessionRefs = useRef(new Map<string, ChatSessionRef>());
   const getThread = useCallback(async (threadId: string) => {
@@ -294,10 +299,11 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const onFinish = useCallback((threadId, event) => {
     eventBus.emit(`chat:onFinish:${threadId}`, event);
     // const chatSessionRef = chatSessionRefs.current.get(threadId);
+    console.log(`chat:onFinish:${threadId}`);
     window.electron.mastra
       .getThread(threadId)
       .then((_thread) => {
-        registerThread(threadId, _thread);
+        // registerThread(threadId, _thread);
         setMessages(threadId, _thread.messages);
         return _thread;
       })
@@ -317,10 +323,11 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
   const onThreadChanged = useCallback((threadId, event) => {
     eventBus.emit(`chat:onThreadChanged:${threadId}`, event);
+    console.log('onThreadChanged', threadId, event);
     window.electron.mastra
       .getThread(threadId, true)
       .then((_thread) => {
-        updateThreadState(threadId, _thread);
+        updateThreadMeatadata(threadId, _thread?.metadata || {});
         return _thread;
       })
       .catch((err) => {
@@ -377,16 +384,36 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         updateThreadState(event.data.chatId, {
           title: event.data.title,
         });
+      } else if (event.data.type === ChatChangedType.Finish) {
+        // onFinish(event.data.chatId, event.data);
       }
+    };
+    const handleChatThreadChangedEvent = (event: {
+      data: {
+        chatId: string;
+        resourceId: string;
+      };
+    }) => {
+      console.log('handleChatThreadChangedEvent', event.data);
+      const { chatId, resourceId } = event.data;
+      onThreadChanged(chatId, event.data);
     };
     window.electron.ipcRenderer.on(
       ChatEvent.ChatChanged,
       handleChatChangedEvent,
     );
+    window.electron.ipcRenderer.on(
+      ChatEvent.ChatThreadChanged,
+      handleChatThreadChangedEvent,
+    );
     return () => {
       window.electron.ipcRenderer.removeListener(
         ChatEvent.ChatChanged,
         handleChatChangedEvent,
+      );
+      window.electron.ipcRenderer.removeListener(
+        ChatEvent.ChatThreadChanged,
+        handleChatThreadChangedEvent,
       );
     };
   }, []);

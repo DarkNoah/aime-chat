@@ -45,6 +45,12 @@ export const qwenAudio: RuntimeInfo['qwenAudio'] = {
   version: undefined,
 };
 
+export const agentBrowser: RuntimeInfo['agentBrowser'] = {
+  status: 'not_installed' as 'installed' | 'not_installed' | 'installing',
+  installed: undefined,
+  version: undefined,
+};
+
 export async function installUVRuntime() {
   const uvPath = path.join(app.getPath('userData'), '.runtime', 'bin', 'uv');
   if (fs.existsSync(uvPath)) return;
@@ -755,4 +761,60 @@ export async function uninstallQwenAudioRuntime() {
   qwenAudio.path = undefined;
   qwenAudio.dir = undefined;
   qwenAudio.version = undefined;
+}
+
+
+export async function installAgentBrowserRuntime() {
+  if (agentBrowser.status === 'installing') {
+    return;
+  }
+  agentBrowser.status = 'installing';
+  let success = false;
+  try {
+    const result = await runCommand(`npm install -g agent-browser`)
+    if (result.code === 0) {
+      const resultVersion = await runCommand(`agent-browser -V`);
+      const resultInstall = await runCommand(`agent-browser install`);
+      agentBrowser.status = 'installed';
+      agentBrowser.installed = true;
+      agentBrowser.version = resultVersion.stdout.trim().split(' ')[1];
+      appManager.toast('Agent Browser Runtime installed successfully', { type: 'success' });
+      return agentBrowser;
+    }
+  } catch {
+    appManager.toast('Failed to install Agent Browser Runtime', { type: 'error' });
+    success = false;
+  }
+  agentBrowser.status = 'not_installed';
+  agentBrowser.installed = false;
+  agentBrowser.version = undefined;
+  return agentBrowser;
+}
+
+export async function uninstallAgentBrowserRuntime() {
+  const result = await runCommand(`npm uninstall -g agent-browser`);
+  agentBrowser.status = 'not_installed';
+  agentBrowser.installed = false;
+  agentBrowser.version = undefined;
+  return agentBrowser;
+}
+
+export async function getAgentBrowserRuntime(refresh = false) {
+  if (agentBrowser.status === 'installing' && refresh == false) {
+    return agentBrowser;
+  }
+
+  const result = await runCommand(`agent-browser -V`, {
+    timeout: 1000 * 5,
+  });
+  if (result.code === 0) {
+    agentBrowser.status = 'installed';
+    agentBrowser.installed = true;
+    agentBrowser.version = result.stdout.trim().split(' ')[1];
+    return agentBrowser;
+  }
+  agentBrowser.status = 'not_installed';
+  agentBrowser.installed = false;
+  agentBrowser.version = undefined;
+  return agentBrowser;
 }

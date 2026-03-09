@@ -4,6 +4,7 @@ export interface Provider {
   icon?: string;
   type?: ProviderType | string | undefined;
   models?: ProviderModel[];
+  apiKey?: string;
   hasChatModel?: boolean;
 }
 
@@ -73,6 +74,7 @@ export enum ProviderType {
   TAVILY = 'tavily',
   SERPAPI = 'serpapi',
   MINERU = 'mineru',
+  MINIMAX_CN = 'minimax-cn',
 }
 
 export enum ModelType {
@@ -81,9 +83,10 @@ export enum ModelType {
   RERANKER = 'reranker',
   IMAGE_GENERATION = 'image_generation',
   VIDEO_GENERATION = 'video_generation',
-  STT = 'stt',
-  TTS = 'tts',
-  OCR = 'ocr'
+  TRANSCRIPTION = 'transcription',
+  SPEECH = 'speech',
+  OCR = 'ocr',
+  MUSIC = 'music'
 }
 
 export enum ProviderTag {

@@ -35,6 +35,7 @@ import { useTranslation } from 'react-i18next';
 import { TaskMessage } from './task-message';
 import { GenerateImageMessage } from './generate-image';
 import { SendEventMessage } from './send-event-message';
+import { VisionMessage } from './vision-message';
 
 export type ToolSuspended = {
   toolName: string;
@@ -148,6 +149,8 @@ export const ToolMessage = React.forwardRef<ToolMessageRef, ToolMessageProps>(
         return (
           <SendEventMessage threadId={threadId} part={part}></SendEventMessage>
         );
+      } else if (toolName === 'Vision') {
+        return <VisionMessage threadId={threadId} part={part}></VisionMessage>;
       }
       return null;
     };

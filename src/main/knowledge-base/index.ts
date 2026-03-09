@@ -5,6 +5,7 @@ import { channel } from '../ipc/IpcController';
 import { KnowledgeBaseChannel } from '@/types/ipc-channel';
 import {
   CreateKnowledgeBase,
+  KnowledgeBaseEvent,
   KnowledgeBaseItemState,
   KnowledgeBaseSourceType,
   SearchKnowledgeBaseItemResult,
@@ -29,7 +30,12 @@ import { PaginationInfo, PaginationParams } from '@/types/common';
 import path from 'path';
 import { isBinaryFile } from 'isbinaryfile';
 import { ReadBinaryFile } from '../tools/file-system/read';
-
+import { appManager } from '../app';
+import { toolsManager } from '../tools';
+import { ToolType } from '@/types/tool';
+import localModels from '../local-model/models.json';
+import { LocalClipModel } from '../providers/local-provider';
+import mime from 'mime';
 export class KnowledgeBaseManager extends BaseManager {
   knowledgeBaseRepository: Repository<KnowledgeBase>;
   knowledgeBaseItemRepository: Repository<KnowledgeBaseItem>;
@@ -49,17 +55,52 @@ export class KnowledgeBaseManager extends BaseManager {
     });
   }
 
+
+  isLocalModel(modelId: string) {
+    return modelId.startsWith('local/');
+  }
+
+  isLocalClipModel(modelId: string) {
+    const _modelId = modelId.split('/').slice(1).join('/')
+    const localEmbeddingModel = localModels.embedding.find(x => x.id === _modelId);
+    const localClipModel = localModels.clip.find(x => x.id === _modelId);
+    return localClipModel !== undefined;
+  }
+  async calcEmbeddings(modeId: string, texts: string[], images?: string[]): Promise<{ text_embeddings: number[][], image_embeddings: number[][] } | undefined> {
+    try {
+      if (this.isLocalModel(modeId)) {
+        const _modelId = modeId.split('/').slice(1).join('/')
+        if (this.isLocalClipModel(modeId)) {
+          const model = new LocalClipModel(_modelId);
+          const res2 = await model.doClip({ texts, images: images ? images : undefined });
+          return { text_embeddings: res2.text_embeddings, image_embeddings: res2.image_embeddings };
+        }
+      }
+
+      const embeddingModel = await providersManager.getEmbeddingModel(modeId);
+      const res2 = await embeddingModel.doEmbed({ values: texts });
+      return { text_embeddings: res2.embeddings, image_embeddings: undefined };
+    } catch (err) {
+      console.error(err);
+    }
+    return undefined
+  }
+
+
+
+
+
+
+
+
   @channel(KnowledgeBaseChannel.Create)
-  public async createKnowledgeBase(data: CreateKnowledgeBase) {
+  public async createKnowledgeBase(data: CreateKnowledgeBase): Promise<KnowledgeBase> {
     const kbId = nanoid();
+    const { text_embeddings: embeddings } = await this.calcEmbeddings(data.embedding, ['asdasdsad']);
+    let embedding_length = embeddings?.length != 1 ? undefined : embeddings[0].length;
 
-    const embeddingModel = await providersManager.getEmbeddingModel(
-      data.embedding,
-    );
-    const res2 = await embeddingModel.doEmbed({ values: ['asdasdsad'] });
-    const embedding_length = res2.embeddings[0].length;
 
-    if (embedding_length == 0) {
+    if (!embedding_length || embedding_length == 0) {
       throw new Error('Embedding length is 0');
     }
 
@@ -67,14 +108,15 @@ export class KnowledgeBaseManager extends BaseManager {
       sql: `CREATE TABLE IF NOT EXISTS [kb_${kbId}_${embedding_length}] (
       id TEXT PRIMARY KEY,
       item_id TEXT,
-      chunk TEXT,
+      chunk TEXT NULL,
       is_enable BOOLEAN,
+      type TEXT NULL,
       [embedding] F32_BLOB(${embedding_length}) NULL,
       [metadata] TEXT NULL DEFAULT '{}')`,
       args: [],
     });
 
-    await this.knowledgeBaseRepository.save({
+    return await this.knowledgeBaseRepository.save({
       ...data,
       id: kbId,
       vectorLength: embedding_length,
@@ -111,6 +153,12 @@ export class KnowledgeBaseManager extends BaseManager {
     if (kb.embedding) {
       _kb.embeddingProvider = (await providersManager.getProvider(kb.embedding.split('/')[0]))?.name;
       _kb.embeddingModel = _kb.embeddingProvider + '/' + kb.embedding.split('/').slice(1).join('/');
+      if (_kb.reranker) {
+        _kb.rerankerProvider = (await providersManager.getProvider(kb.reranker.split('/')[0]))?.name;
+        _kb.rerankerModel = _kb.rerankerProvider + '/' + kb.reranker.split('/').slice(1).join('/');
+      }
+
+
     }
 
     return _kb;
@@ -124,9 +172,16 @@ export class KnowledgeBaseManager extends BaseManager {
 
   @channel(KnowledgeBaseChannel.GetKnowledgeBaseItems)
   public async getKnowledgeBaseItems(id: string, params: PaginationParams): Promise<PaginationInfo<KnowledgeBaseItem>> {
-    const { page, size, filter, sort, order } = params;
+    const { page, size, filter, filters, sort, order } = params;
+    const where: Record<string, any> = { knowledgeBaseId: id };
+    if (filters?.state) {
+      where.state = filters.state;
+    }
+    if (filters?.sourceType) {
+      where.sourceType = filters.sourceType;
+    }
     const [items, total] = await this.knowledgeBaseItemRepository.findAndCount({
-      where: { knowledgeBaseId: id },
+      where,
       skip: (page - 1) * size,
       take: size,
       order: { [sort]: order },
@@ -140,19 +195,38 @@ export class KnowledgeBaseManager extends BaseManager {
     };
   }
   @channel(KnowledgeBaseChannel.SearchKnowledgeBase)
-  public async searchKnowledgeBase(kbId: string, query: string): Promise<SearchKnowledgeBaseResult> {
-    const kb = await this.knowledgeBaseRepository.findOneBy({ id: kbId });
+  public async searchKnowledgeBase(kb_id_or_name: string, query: string, top_k: number = 10): Promise<SearchKnowledgeBaseResult> {
+    const kb = await this.knowledgeBaseRepository.findOne({ where: [{ id: kb_id_or_name }, { name: kb_id_or_name }] });
     if (!kb) {
       throw new Error('Knowledge base not found');
     }
-    const store = await this.getVectorStore(kbId);
-    const { embeddings } = await embedMany({
-      model: await providersManager.getEmbeddingModel(kb.embedding),
-      values: [query],
-    });
+    const store = await this.getVectorStore(kb.id);
+    // let embeddings;
+    // if (this.isLocalModel(kb.embedding)) {
+    //   const modelId = kb.embedding.split('/').slice(1).join('/')
+    //   if (!this.isLocalClipModel(kb.embedding)) {
+    //     const embeddingModel = await providersManager.getEmbeddingModel(
+    //       kb.embedding,
+    //     );
+    //     const res2 = await embeddingModel.doEmbed({ values: [query] });
+    //     embeddings = res2.embeddings[0];
+    //   } else {
+    //     const model = new LocalClipModel(modelId);
+    //     const res2 = await model.doClip({ contents: [query], images: [] });
+    //     embeddings = res2.text_embeddings[0];
+    //   }
+    // } else {
+    //   const result = await embedMany({
+    //     model: await providersManager.getEmbeddingModel(kb.embedding),
+    //     values: [query],
+    //   });
+    //   embeddings = result.embeddings;
+    // }
+    const embeddings = await this.calcEmbeddings(kb.embedding, [query]);
 
 
-    const vectorStr = `[${embeddings[0].join(",")}]`;
+
+    const vectorStr = `[${embeddings?.text_embeddings?.[0].join(",")}]`;
     const results = await this.libSQLClient.execute({
       sql: `
       WITH vector_scores AS (
@@ -160,10 +234,11 @@ export class KnowledgeBaseManager extends BaseManager {
           id,
           item_id,
           chunk,
-          (1-vector_distance_cos(embedding, '${vectorStr}')) as score,
-          metadata
-          , vector_extract(embedding) as embedding
-        FROM [kb_${kbId}_${kb.vectorLength}]
+          (1-vector_distance_cos(embedding, vector32(?))) as score,
+          metadata,
+          type,
+          vector_extract(embedding) as embedding
+        FROM [kb_${kb.id}_${kb.vectorLength}]
         WHERE is_enable = 1
       )
       SELECT *
@@ -171,7 +246,7 @@ export class KnowledgeBaseManager extends BaseManager {
       WHERE score > ?
       ORDER BY score DESC
       LIMIT ?`,
-      args: [0.5, 10],
+      args: [JSON.stringify(embeddings.text_embeddings[0]), 0.5, top_k],
     });
 
 
@@ -179,21 +254,35 @@ export class KnowledgeBaseManager extends BaseManager {
 
 
 
-    const itemIds = results.rows.map(x => x.item_id);
+    const itemIds = [...new Set(results.rows.map(x => x.item_id))];
     const items = await this.knowledgeBaseItemRepository.find({
       where: {
         id: In(itemIds),
       },
     });
+    if (items.length == 0) {
+      return {
+        query: query,
+        embedding: kb.embedding,
+        results: [],
+      }
+    }
 
-    const _results: SearchKnowledgeBaseItemResult[] = results.rows.map(item => ({
-      id: item.id as string,
-      itemId: item.item_id as string,
-      score: item.score as number,
-      metadata: item.metadata,
-      chunk: item.chunk as string,
-      content: items.find(x => x.id === item.item_id)?.content as string
-    }));
+    const _results: SearchKnowledgeBaseItemResult[] = results.rows.map(item => {
+      const kbitem = items.find(x => x.id === item.item_id)
+      return {
+        id: item.id as string,
+        itemId: item.item_id as string,
+        score: item.score as number,
+        hybridScore: item.hybrid_score as number ?? item.score as number,
+        metadata: item.metadata,
+        chunk: item.chunk as string,
+        name: kbitem.name,
+        source: kbitem.source,
+        sourceType: kbitem.sourceType as KnowledgeBaseSourceType,
+        content: kbitem.content,
+      }
+    });
 
     if (kb.reranker) {
       const model = await providersManager.getRerankModel(kb.reranker);
@@ -201,13 +290,14 @@ export class KnowledgeBaseManager extends BaseManager {
         query: query,
         documents: results.rows.map(x => x.chunk as string),
         options: {
-          top_k: 10,
+          top_k: top_k,
         },
       });
       rereankResults.forEach(result => {
         const item = _results[result.index];
         if (item) {
           item.rerankScore = result.score;
+          item.hybridScore = (item.score + result.score) / 2;
         }
       });
     }
@@ -244,7 +334,7 @@ export class KnowledgeBaseManager extends BaseManager {
     if (kb.vectorStoreType == VectorStoreType.LibSQL) {
       return new LibSQLVector({
         id: `kb_${kb.id}_${kb.vectorLength}`,
-        connectionUrl: `file:${getDbPath()}`,
+        url: `file:${getDbPath()}`,
       });
     }
     throw new Error('Vector store type not supported');
@@ -328,7 +418,7 @@ export class KnowledgeBaseManager extends BaseManager {
     if (type == KnowledgeBaseSourceType.Text && source?.content?.trim()) {
       await ctx.waitIfPaused();
       if (ctx.isCancelled()) return;
-      const item = new KnowledgeBaseItem(nanoid(), kbId, undefined, type);
+      let item = new KnowledgeBaseItem(nanoid(), kbId, undefined, type);
       item.source = source;
       item.isEnable = false;
       item.state = KnowledgeBaseItemState.Pending;
@@ -339,97 +429,137 @@ export class KnowledgeBaseManager extends BaseManager {
 
 
       ctx.updateProgress(50, '保存数据...');
-      await this.knowledgeBaseItemRepository.save(item);
-      const doc = MDocument.fromText(content);
-      const chunks = await doc.chunk({
-        strategy: "markdown",
-        maxSize: 512,
-        overlap: 50,
+      item = await this.knowledgeBaseItemRepository.save(item);
+      await appManager.sendEvent(KnowledgeBaseEvent.KnowledgeBaseItemsUpdated, {
+        kbId: kbId,
+        items: [item]
       });
-      const { embeddings } = await embedMany({
-        model: await providersManager.getEmbeddingModel(kb.embedding),
-        values: chunks.map((chunk) => chunk.text),
-      });
+      try {
+        const doc = MDocument.fromText(content);
+        const chunks = await doc.chunk({
+          strategy: "markdown",
+          maxSize: 512,
+          overlap: 50,
+        });
+        console.log(source);
+        const { text_embeddings: embeddings } = await this.calcEmbeddings(kb.embedding, chunks.map((chunk) => chunk.text));
 
-      const insertStatements = chunks.map((chunk, index) => ({
-        sql: `INSERT INTO [kb_${kbId}_${kb.vectorLength}] (id, item_id, chunk, is_enable, embedding, metadata)
-        VALUES (?, ?, ?, ?, vector32(?), ?)`,
-        args: [
-          nanoid(),
-          item.id,
-          chunk.text,
-          true,
-          JSON.stringify(embeddings[index]),
-          JSON.stringify(chunk.metadata ?? {}),
-        ],
-      }));
-      await this.libSQLClient.batch(insertStatements);
-      item.chunkCount = chunks.length;
-      item.state = KnowledgeBaseItemState.Completed;
-      item.isEnable = true;
-      // item.sha256 = crypto.createHash('sha256').update(content).digest('hex');
-      item.updatedAt = new Date();
-      await this.knowledgeBaseItemRepository.save(item);
+        // const { embeddings } = await embedMany({
+        //   model: await providersManager.getEmbeddingModel(kb.embedding),
+        //   values: chunks.map((chunk) => chunk.text),
+        // });
 
-
+        const insertStatements = chunks.map((chunk, index) => {
+          const embedding = embeddings[index];
+          return {
+            sql: `INSERT INTO [kb_${kbId}_${kb.vectorLength}] (id, item_id, chunk, is_enable, type, embedding, metadata)
+        VALUES (?, ?, ?, ?, ?, vector32(?), ?)`,
+            args: [
+              nanoid(),
+              item.id,
+              chunk.text,
+              true,
+              'text',
+              JSON.stringify(embedding),
+              JSON.stringify(chunk.metadata ?? {}),
+            ],
+          };
+        });
+        await this.libSQLClient.batch(insertStatements);
+        item.chunkCount = chunks.length;
+        item.state = KnowledgeBaseItemState.Completed;
+        item.isEnable = true;
+        // item.sha256 = crypto.createHash('sha256').update(content).digest('hex');
+        item.updatedAt = new Date();
+        item = await this.knowledgeBaseItemRepository.save(item);
+        await appManager.sendEvent(KnowledgeBaseEvent.KnowledgeBaseItemsUpdated, {
+          kbId: kbId,
+          items: [item]
+        });
+      } catch (error) {
+        item.state = KnowledgeBaseItemState.Fail;
+        item.error = error.message;
+        item = await this.knowledgeBaseItemRepository.save(item);
+        await appManager.sendEvent(KnowledgeBaseEvent.KnowledgeBaseItemsUpdated, {
+          kbId: kbId,
+          items: [item]
+        });
+      }
 
       ctx.updateProgress(100, '导入完成');
     } else if (type == KnowledgeBaseSourceType.Web && isUrl(source.url)) {
       await ctx.waitIfPaused();
       if (ctx.isCancelled()) return;
-      const item = new KnowledgeBaseItem(nanoid(), kbId, undefined, type);
+      let item = new KnowledgeBaseItem(nanoid(), kbId, undefined, type);
       item.source = source;
       item.isEnable = false;
       item.state = KnowledgeBaseItemState.Pending;
-      // TODO: 网页导入逻辑
-      const content = await new WebFetch().execute({
-        url: source.url
+      const webFetch = await toolsManager.buildTool(`${ToolType.BUILD_IN}:${WebFetch.toolName}`);
+
+      const content = await webFetch.execute({
+        url: source.url,
+        // prompt: '请将网页内容转换为markdown格式'
       });
       item.name = content.substring(0, 10);
       item.content = content;
-      await this.knowledgeBaseItemRepository.save(item);
-      const doc = MDocument.fromText(content);
-      const chunks = await doc.chunk({
-        strategy: "recursive",
-        maxSize: 512,
-        overlap: 50,
-        separators: ["\n"],
-        extract: {
-          metadata: true, // Optionally extract metadata
-        },
+      item = await this.knowledgeBaseItemRepository.save(item);
+      await appManager.sendEvent(KnowledgeBaseEvent.KnowledgeBaseItemsUpdated, {
+        kbId: kbId,
+        items: [item]
       });
+      try {
 
-      const { embeddings } = await embedMany({
-        model: await providersManager.getEmbeddingModel(kb.embedding),
-        values: chunks.map((chunk) => chunk.text),
-      });
+        const doc = MDocument.fromText(content);
+        const chunks = await doc.chunk({
+          strategy: "recursive",
+          maxSize: 512,
+          overlap: 50,
+          separators: ["\n"],
+          extract: {
+            metadata: true, // Optionally extract metadata
+          },
+        });
 
-      const insertStatements = chunks.map((chunk, index) => ({
-        sql: `INSERT INTO [kb_${kbId}_${kb.vectorLength}] (id, item_id, chunk, is_enable, embedding, metadata)
-        VALUES (?, ?, ?, ?, vector32(?), ?)`,
-        args: [
-          nanoid(),
-          item.id,
-          chunk.text,
-          true,
-          JSON.stringify(embeddings[index]),
-          JSON.stringify(chunk.metadata ?? {}),
-        ],
-      }));
-      await this.libSQLClient.batch(insertStatements);
-      item.chunkCount = chunks.length;
-      item.state = KnowledgeBaseItemState.Completed;
-      item.isEnable = true;
-      // item.sha256 = crypto.createHash('sha256').update(content).digest('hex');
-      item.updatedAt = new Date();
-      await this.knowledgeBaseItemRepository.save(item);
+        // const { embeddings } = await embedMany({
+        //   model: await providersManager.getEmbeddingModel(kb.embedding),
+        //   values: chunks.map((chunk) => chunk.text.replaceAll(/\0/g, '')),
+        // });
+        const { text_embeddings: embeddings } = await this.calcEmbeddings(kb.embedding, chunks.map((chunk) => chunk.text));
+        const insertStatements = chunks.map((chunk, index) => ({
+          sql: `INSERT INTO [kb_${kbId}_${kb.vectorLength}] (id, item_id, chunk, is_enable, type, embedding, metadata)
+        VALUES (?, ?, ?, ?, ?, vector32(?), ?)`,
+          args: [
+            nanoid(),
+            item.id,
+            chunk.text,
+            true,
+            'text',
+            JSON.stringify(embeddings[index]),
+            JSON.stringify(chunk.metadata ?? {}),
+          ],
+        }));
+        await this.libSQLClient.batch(insertStatements);
+        item.chunkCount = chunks.length;
+        item.state = KnowledgeBaseItemState.Completed;
+        item.isEnable = true;
+        // item.sha256 = crypto.createHash('sha256').update(content).digest('hex');
+        item.updatedAt = new Date();
+        item = await this.knowledgeBaseItemRepository.save(item);
 
-      // await store.upsert({
-      //   indexName: "myCollection",
-      //   vectors: embeddings,
-      //   metadata: chunks.map((chunk) => ({ text: chunk.text })),
-      // });
-      debugger;
+        await appManager.sendEvent(KnowledgeBaseEvent.KnowledgeBaseItemsUpdated, {
+          kbId: kbId,
+          items: [item]
+        });
+      } catch (error) {
+        item.state = KnowledgeBaseItemState.Fail;
+        item.error = error.message;
+        item = await this.knowledgeBaseItemRepository.save(item);
+        await appManager.sendEvent(KnowledgeBaseEvent.KnowledgeBaseItemsUpdated, {
+          kbId: kbId,
+          items: [item]
+        });
+      }
+
       ctx.updateProgress(100, '导入完成');
     } else if (
       type == KnowledgeBaseSourceType.File &&
@@ -447,21 +577,32 @@ export class KnowledgeBaseManager extends BaseManager {
         item.state = KnowledgeBaseItemState.Pending;
         items.push(await this.knowledgeBaseItemRepository.save(item));
       }
+      await appManager.sendEvent(KnowledgeBaseEvent.KnowledgeBaseItemsUpdated, {
+        kbId: kbId,
+        items: items
+      });
 
 
 
       for (const [index, _item] of items.entries()) {
         await ctx.waitIfPaused();
         if (ctx.isCancelled()) return;
-        const item = await this.knowledgeBaseItemRepository.findOneBy({ id: _item.id });
+        let item = await this.knowledgeBaseItemRepository.findOneBy({ id: _item.id });
 
         try {
           const file = _item.source as string;
           let content = '';
           item.state = KnowledgeBaseItemState.Processing;
-          await this.knowledgeBaseItemRepository.save(item);
+          item = await this.knowledgeBaseItemRepository.save(item);
+          await appManager.sendEvent(KnowledgeBaseEvent.KnowledgeBaseItemsUpdated, {
+            kbId: kbId,
+            items: [item]
+          });
           if (await isBinaryFile(file)) {
-            content = await new ReadBinaryFile().execute({
+            content = await new ReadBinaryFile({
+              forcePDFOcr: true,
+              forceWordOcr: false,
+            }).execute({
               file_source: file,
               args: {}
             });
@@ -470,7 +611,12 @@ export class KnowledgeBaseManager extends BaseManager {
           }
           item.content = content;
 
-          await this.knowledgeBaseItemRepository.save(item);
+          console.log(file, content)
+          item = await this.knowledgeBaseItemRepository.save(item);
+          await appManager.sendEvent(KnowledgeBaseEvent.KnowledgeBaseItemsUpdated, {
+            kbId: kbId,
+            items: [item]
+          });
           const doc = MDocument.fromText(content);
           const chunks = await doc.chunk({
             strategy: "recursive",
@@ -479,35 +625,77 @@ export class KnowledgeBaseManager extends BaseManager {
             separators: ["\n"],
           });
           item.chunkCount = chunks.length;
-          const { embeddings } = await embedMany({
-            model: await providersManager.getEmbeddingModel(kb.embedding),
-            values: chunks.map((chunk) => chunk.text),
-          });
-          const insertStatements = chunks.map((chunk, index) => ({
-            sql: `INSERT INTO [kb_${kbId}_${kb.vectorLength}] (id, item_id, chunk, is_enable, embedding, metadata)
-          VALUES (?, ?, ?, ?, vector32(?), ?)`,
-            args: [
-              nanoid(),
-              item.id,
-              chunk.text,
-              true,
-              JSON.stringify(embeddings[index]),
-              JSON.stringify(chunk.metadata ?? {}),
-            ],
-          }));
+          let embeddings: { text_embeddings: number[][], image_embeddings: number[][] } | undefined;
+          const isImage = mime.lookup(file).startsWith('image/')
+          if (mime.lookup(file).startsWith('image/')) {
+            embeddings = await this.calcEmbeddings(kb.embedding, chunks.map((chunk) => chunk.text), [file]);
+          } else {
+            embeddings = await this.calcEmbeddings(kb.embedding, chunks.map((chunk) => chunk.text));
+          }
+          const insertStatements = [];
+          const hasText = embeddings?.text_embeddings?.[0] !== undefined;
+          const hasImage = embeddings?.image_embeddings?.[0] !== undefined;
+
+
+          if (chunks && chunks.length > 0) {
+            for (const [chunkIndex, chunk] of Object.entries(chunks)) {
+              insertStatements.push({
+                sql: `INSERT INTO [kb_${kbId}_${kb.vectorLength}] (id, item_id, chunk, is_enable, type, embedding, metadata)
+              VALUES (?, ?, ?, ?, ?, vector32(?), ?)`,
+                args: [
+                  nanoid(),
+                  item.id,
+                  chunk.text,
+                  true,
+                  'text',
+                  JSON.stringify(embeddings.text_embeddings[chunkIndex]),
+                  JSON.stringify(chunk.metadata ?? {}),
+                ],
+              });
+            }
+          }
+
+          if (hasImage) {
+            insertStatements.push({
+              sql: `INSERT INTO [kb_${kbId}_${kb.vectorLength}] (id, item_id, chunk, is_enable, type, embedding, metadata)
+              VALUES (?, ?, ?, ?, ?, vector32(?), ?)`,
+              args: [
+                nanoid(),
+                item.id,
+                null,
+                true,
+                'image',
+                JSON.stringify(embeddings?.image_embeddings?.[0]),
+                JSON.stringify({}),
+              ],
+            });
+          }
+
+
+
+
+
           await this.libSQLClient.batch(insertStatements);
 
           item.state = KnowledgeBaseItemState.Completed;
           item.isEnable = true;
           // item.sha256 = crypto.createHash('sha256').update(content).digest('hex');
           item.updatedAt = new Date();
-          await this.knowledgeBaseItemRepository.save(item);
+          item = await this.knowledgeBaseItemRepository.save(item);
+          await appManager.sendEvent(KnowledgeBaseEvent.KnowledgeBaseItemsUpdated, {
+            kbId: kbId,
+            items: [item]
+          });
 
         } catch (error) {
 
           item.state = KnowledgeBaseItemState.Fail;
           item.error = error.message;
-          await this.knowledgeBaseItemRepository.save(item);
+          item = await this.knowledgeBaseItemRepository.save(item);
+          await appManager.sendEvent(KnowledgeBaseEvent.KnowledgeBaseItemsUpdated, {
+            kbId: kbId,
+            items: [item]
+          });
 
         }
 

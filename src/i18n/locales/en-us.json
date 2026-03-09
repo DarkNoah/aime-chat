@@ -43,8 +43,10 @@
     "instances_config_saved": "Configuration saved",
     "instances_empty": "No instances",
     "instances_websocketurl": "WebSocketUrl",
+    "instances_debug_port": "Remote Debugging Port",
     "vision_model": "Vision Model",
-    "default_ocr": "Ocr Model"
+    "default_ocr": "Ocr Model",
+    "usage": "Usage"
   },
   "common": {
     "edit": "Edit",
@@ -116,7 +118,9 @@
     "ask_to_delete_skill": "Delect skill?",
     "ptc_open": "PTC Open",
     "request_interrupted_by_user": "Request interrupted by user",
-    "env": "ENV"
+    "env": "ENV",
+    "force_word_ocr": "Force word use ocr",
+    "disable_vision": "Disable Vision Model"
   },
   "sidebar": {
     "new_chat": "New Chat",
@@ -126,7 +130,8 @@
     "knowledge_base": "Knowledge Base",
     "agents": "Agents",
     "knowledge-base": "Knowledge Base",
-    "new_project": "New Project"
+    "new_project": "New Project",
+    "market": "Market"
   },
   "chat": {
     "new_chat": "New Chat",
@@ -191,7 +196,11 @@
     "add_text": "Add Text",
     "name": "Name",
     "description": "Description",
-    "reranker": "Reranker"
+    "reranker": "Reranker",
+    "force-return-full-content": "Force Return Full Content",
+    "new_knowledge-base": "New Knowledge Base",
+    "vector-store-type": "Vector Store Type",
+    "embedding": "Embedding"
   },
   "setup": {
     "welcome": {

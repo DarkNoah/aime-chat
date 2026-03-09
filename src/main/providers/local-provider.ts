@@ -38,7 +38,7 @@ import {
 } from '@huggingface/transformers';
 import { AudioLoader, getQwenAsrPythonService } from '../utils/loaders/audio-loader';
 import { isString } from '@/utils/is';
-import { getPaddleOcrPythonService, OcrLoader } from '../utils/loaders/ocr-loader';
+import { getPaddleOcrPythonService } from '../utils/loaders/ocr-loader';
 import { OcrAccuracy, recognize } from '@napi-rs/system-ocr';
 import { getPaddleOcrRuntime } from '../app/runtime';
 
@@ -48,8 +48,8 @@ export type LocalConfig = {
   modelPath: string;
 };
 
-const localEmbeddings = {};
-const localRerankers = {};
+// const localEmbeddings = {};
+// const localRerankers = {};
 export class LocalEmbeddingModel implements EmbeddingModelV2<string> {
   readonly specificationVersion = 'v2';
   readonly modelId: LocalEmbeddingModelId;
@@ -78,11 +78,29 @@ export class LocalEmbeddingModel implements EmbeddingModelV2<string> {
     const appInfo = await appManager.getInfo();
     const modelName = this.modelId.split('/').pop();
     const localModels = await localModelManager.getList('embedding');
-    const localModel = localModels.embedding.find((x) => x.id === this.modelId);
-    const { library, isDownloaded } = localModel;
-    if (!isDownloaded)
-      throw new Error(`Model ${this.modelId} is not downloaded`);
-    const modelPath = path.join(appInfo.modelPath, 'embedding', modelName);
+    const localClipModels = await localModelManager.getList('clip');
+    const localEmbeddingModel = localModels.embedding.find((x) => x.id === this.modelId);
+    const localClipModel = localClipModels.clip.find((x) => x.id === this.modelId);
+    const { library, isDownloaded } = localEmbeddingModel ?? {};
+    const { library: clipLibrary, isDownloaded: clipIsDownloaded } = localClipModel ?? {};
+    let isEmbedModel;
+    if (localEmbeddingModel) {
+      isEmbedModel = true;
+      if (!isDownloaded)
+        throw new Error(`Model ${this.modelId} is not downloaded`);
+    }
+    if (localClipModel) {
+      isEmbedModel = false;
+      if (!clipIsDownloaded)
+        throw new Error(`Model ${this.modelId} is not downloaded`);
+    }
+
+
+
+
+
+
+    const modelPath = path.join(appInfo.modelPath, isEmbedModel ? 'embedding' : 'clip', modelName);
 
     let embeddings: Float32Array[] = [];
     if (library == 'openvino') {
@@ -92,26 +110,82 @@ export class LocalEmbeddingModel implements EmbeddingModelV2<string> {
       // const pipeline = await TextEmbeddingPipeline(modelPath);
       // embeddings = (await pipeline.embedDocuments(values)) as Float32Array[];
     } else if (library == 'transformers') {
-      if (localModels[this.modelId] == null) {
-        // const { pipeline, env } = await this.TransformersApi;
-        env.localModelPath = path.dirname(modelPath);
-        env.allowRemoteModels = false;
-        env.allowLocalModels = true;
-        localModels[this.modelId] = await pipeline(
+      let cachedModel;
+      if (isEmbedModel) {
+        cachedModel = await localModelManager.ensureModelLoaded(
           'feature-extraction',
-          path.basename(modelPath),
+          this.modelId,
+          modelPath
         );
+      } else {
+        cachedModel = await localModelManager.ensureModelLoaded(
+          'image-feature-extraction',
+          this.modelId,
+          modelPath
+        );
+
       }
 
-      const featureExtractionPipeline = localModels[
-        this.modelId
-      ] as FeatureExtractionPipeline;
 
-      const output = await featureExtractionPipeline(values, {
+
+      const { model, tokenizer, processor } = cachedModel;
+
+
+      if (!isEmbedModel) {
+
+        const sentences = values.map(x => x);
+        const images = await Promise.all(values.map(url => RawImage.read(url)));
+        const inputs = await processor(sentences, images, { padding: true, truncation: true });
+        const { l2norm_text_embeddings, l2norm_image_embeddings } = await model(inputs);
+
+      }
+
+      // if (localEmbeddings[this.modelId] == null) {
+      //   // const { pipeline, env } = await this.TransformersApi;
+      //   env.localModelPath = path.dirname(modelPath);
+      //   env.allowRemoteModels = false;
+      //   env.allowLocalModels = true;
+      //   localEmbeddings[this.modelId] = await pipeline(
+      //     'feature-extraction',
+      //     path.basename(modelPath),
+      //     {
+      //       dtype: 'q8'
+      //     }
+      //   );
+      // }
+
+      // const featureExtractionPipeline = localEmbeddings[
+      //   this.modelId
+      // ] as FeatureExtractionPipeline;
+
+      const inputs = tokenizer(values, {
+        padding: true,
+        truncation: true
+      });
+      const outputs = await model(inputs, {
         pooling: 'cls',
         normalize: true,
       });
-      const res = output.tolist();
+
+      function clsNormalize(outputs) {
+        const hidden = outputs.last_hidden_state.tolist();
+
+        return hidden.map(seq => {
+          let vec = seq[0]; // CLS pooling
+
+          const norm = Math.sqrt(vec.reduce((a, b) => a + b * b, 0));
+          return vec.map(v => v / norm);
+        });
+      }
+
+      const embeddings2 = clsNormalize(outputs);
+
+
+      // const output = await featureExtractionPipeline(values, {
+      //   pooling: 'cls',
+      //   normalize: true,
+      // });
+      const res = embeddings2;
       embeddings = res.map((x) => new Float32Array(x));
     }
 
@@ -186,49 +260,69 @@ export class LocalClipModel {
   }
 
   async doClip({
-    query,
-    documents,
-    images,
+    texts = [],
+    images = [],
     options,
   }: {
-    query: string;
-    images: string;
-    documents: string[];
+    texts?: string[];
+    images?: string[];
     options?: {
       top_k?: number;
       return_documents?: boolean;
     };
-  }): Promise<number[]> {
+  }): Promise<{ image_embeddings?: number[][]; text_embeddings?: number[][] }> {
     const appInfo = await appManager.getInfo();
     const modelPath = path.join(appInfo.modelPath, 'clip', this.modelId);
 
     const cachedModel = await localModelManager.ensureModelLoaded(
-      'image-feature-extraction',
+      'zero-shot-image-classification',
       this.modelId,
-      modelPath,
-      { dtype: 'q8' },
+      modelPath
     );
-    const { model, processor } = cachedModel;
+    const { model, processor, tokenizer, textModel } = cachedModel;
+    const text_inputs = tokenizer(texts, { padding: true, truncation: true });
 
-    const inputs = await processor(query, images, {
-      padding: true,
-      truncation: true,
-    });
+    const output = await textModel(text_inputs);
+    const text_embeddings = output.text_embeds.tolist();
 
-    const { l2norm_text_embeddings, l2norm_image_embeddings } =
-      await model(inputs);
 
-    const { logits } = await model(inputs);
-    return logits
-      .sigmoid()
-      .tolist()
-      .map(([score], i) => ({
-        index: i,
-        score,
-        document: options?.return_documents ? documents[i] : undefined,
-      }))
-      .sort((a, b) => b.score - a.score)
-      .slice(0, options?.top_k || 10);
+    const rawImages = [];
+    for (const image of images) {
+      const rawImage = await RawImage.read(image);
+      rawImages.push(rawImage);
+    }
+    let image_embeddings;
+    if (rawImages.length > 0) {
+      const imageInputs = await processor(rawImages);
+      const results = await model(imageInputs);
+      image_embeddings = results.image_embeds.tolist();
+    }
+
+    // const inputs = await processor(contents, images, {
+    //   padding: true,
+    //   truncation: true,
+    // });
+
+    // const results = await model(inputs);
+    // const l2norm_text_embeddings = results.l2norm_text_embeddings.tolist();
+    // const text_embeddings = results.text_embeddings.tolist();
+
+    return {
+      image_embeddings,
+      text_embeddings
+    }
+
+    // const { logits } = await model(inputs);
+    // return logits
+    //   .sigmoid()
+    //   .tolist()
+    //   .map(([score], i) => ({
+    //     index: i,
+    //     score,
+    //     document: options?.return_documents ? documents[i] : undefined,
+    //   }))
+    //   .sort((a, b) => b.score - a.score)
+    //   .slice(0, options?.top_k || 10);
   }
 }
 
@@ -333,8 +427,18 @@ export class LocalOcrModel implements OCRModel {
     const image = fs.readFileSync(options.image);
     let result;
     if (this.modelId === 'system') {
-      result = await recognize(image, OcrAccuracy.Accurate);
-      return result.text;
+      if (path.extname(options.image).toLowerCase() === '.pdf') {
+        return await this.ocrPdf(image);
+      }
+      try {
+        result = await recognize(image, OcrAccuracy.Accurate);
+        return result.text;
+      } catch (err) {
+        if (err.code == 'GenericFailure') {
+          return ''
+        }
+        throw err;
+      }
     }
     const paddleOcrRuntime = await getPaddleOcrRuntime();
     if (paddleOcrRuntime.status !== 'installed') {
@@ -355,6 +459,31 @@ export class LocalOcrModel implements OCRModel {
     // });
     // const result = await ocrLoader.load();
     // return result.text;
+  }
+
+  private async ocrPdf(raw: Buffer): Promise<string> {
+    const pdfjs = await import('pdf-parse');
+    const pdf = new pdfjs.PDFParse({
+      data: new Uint8Array(raw.buffer),
+      useWorkerFetch: false,
+      isEvalSupported: false,
+      useSystemFonts: true,
+    });
+
+    const images = await pdf.getImage({ imageBuffer: true });
+    const texts: string[] = [];
+
+    for (const page of images.pages) {
+      let pageText = '';
+      for (const image of page.images) {
+        const result = await recognize(image.data, OcrAccuracy.Accurate);
+        pageText += result.text;
+      }
+      texts.push(pageText);
+    }
+
+    await pdf.destroy();
+    return texts.join('\n\n');
   }
 }
 export class LocalProvider extends BaseProvider {
@@ -385,6 +514,14 @@ export class LocalProvider extends BaseProvider {
           id: x.id,
         });
       });
+    for (const model of localModels.clip) {
+      if (model.isDownloaded) {
+        models.push({
+          name: model.id,
+          id: model.id,
+        });
+      }
+    }
     return models;
   }
 

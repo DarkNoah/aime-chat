@@ -1,7 +1,7 @@
 import {
   Agent,
   AgentConfig,
-  DynamicAgentInstructions,
+  AgentInstructions,
 } from '@mastra/core/agent';
 import { BaseAgent, BaseAgentParams } from './base-agent';
 import { ToolType } from '@/types/tool';
@@ -34,7 +34,7 @@ export class Explore extends BaseAgent {
   id: string = 'Explore';
   name: string = 'Explore';
   description?: string = `Fast agent specialized for exploring codebases. Use this when you need to quickly find files by patterns (eg. "src/components/**/*.tsx"), search code for keywords (eg. "API endpoints"), or answer questions about the codebase (eg. "how do API endpoints work?"). When calling this agent, specify the desired thoroughness level: "quick" for basic searches, "medium" for moderate exploration, or "very thorough" for comprehensive analysis across multiple locations and naming conventions.`;
-  instructions: DynamicAgentInstructions = ({
+  instructions = ({
     requestContext,
     mastra,
   }: {
@@ -48,9 +48,7 @@ export class Explore extends BaseAgent {
     if (workspace) {
       isGitRepo = fs.existsSync(path.join(workspace, '.git'));
     }
-    return {
-      role: 'system',
-      content: `You are a file search specialist. You excel at thoroughly navigating and exploring codebases.
+    return `You are a file search specialist. You excel at thoroughly navigating and exploring codebases.
 
 Your strengths:
 - Rapidly finding files using glob patterns
@@ -82,8 +80,7 @@ ${isGitRepo !== undefined ? `Is directory a git repo:${isGitRepo ? 'Yes' : 'No'}
 Platform: ${process.platform}
 OS Version: ${os.type()} ${os.release()}
 Today's date: ${new Date().toISOString().split('T')[0]}
-</env>`,
-    };
+</env>`
   };
   isHidden = true;
   // model: string = 'openai/gpt-4o-mini';

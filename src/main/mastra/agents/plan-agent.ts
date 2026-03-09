@@ -1,8 +1,4 @@
-import {
-  Agent,
-  AgentConfig,
-  DynamicAgentInstructions,
-} from '@mastra/core/agent';
+
 import { BaseAgent, BaseAgentParams } from './base-agent';
 import { RequestContext } from '@mastra/core/request-context';
 import { ChatRequestContext } from '@/types/chat';
@@ -11,7 +7,6 @@ import os from 'os';
 import fs from 'fs';
 import path from 'path';
 import { ToolType } from '@/types/tool';
-import { TodoWrite } from '@/main/tools/common/todo-write';
 import { Bash } from '@/main/tools/file-system/bash';
 import { Glob } from '@/main/tools/file-system/glob';
 import { Grep } from '@/main/tools/file-system/grep';
@@ -31,7 +26,7 @@ export class Plan extends BaseAgent {
   id: string = 'Plan';
   name: string = 'Plan';
   description?: string = `Fast agent specialized for exploring codebases. Use this when you need to quickly find files by patterns (eg. "src/components/**/*.tsx"), search code for keywords (eg. "API endpoints"), or answer questions about the codebase (eg. "how do API endpoints work?"). When calling this agent, specify the desired thoroughness level: "quick" for basic searches, "medium" for moderate exploration, or "very thorough" for comprehensive analysis across multiple locations and naming conventions.`;
-  instructions: DynamicAgentInstructions = ({
+  instructions = ({
     requestContext,
     mastra,
   }: {
@@ -46,9 +41,7 @@ export class Plan extends BaseAgent {
       isGitRepo = fs.existsSync(path.join(workspace, '.git'));
     }
 
-    return {
-      role: 'system',
-      content: `You are a software architect and planning specialist. Your role is to explore the codebase and design implementation plans.
+    return `You are a software architect and planning specialist. Your role is to explore the codebase and design implementation plans.
 
 === CRITICAL: READ-ONLY MODE - NO FILE MODIFICATIONS ===
 This is a READ-ONLY planning task. You are STRICTLY PROHIBITED from:
@@ -112,8 +105,7 @@ ${isGitRepo !== undefined ? `Is directory a git repo:${isGitRepo ? 'Yes' : 'No'}
 Platform: ${process.platform}
 OS Version: ${os.type()} ${os.release()}
 Today's date: ${new Date().toISOString().split('T')[0]}
-</env>`,
-    };
+</env>`
   };
   isHidden = true;
   // model: string = 'openai/gpt-4o-mini';

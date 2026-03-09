@@ -138,7 +138,7 @@ export class BrowserInstance extends BaseInstance {
     this.browser_context = context;
     this.runWithLLM = false;
 
-    this.browser_context.on('close', () => {
+    this.browser_context.on('close', (e) => {
       this.eventEmitter.emit('close');
     });
   }
@@ -165,15 +165,21 @@ export class BrowserInstance extends BaseInstance {
     if (this.stagehand) {
       await this.stagehand.close();
       this.stagehand = undefined;
-      this.eventEmitter.emit('close');
+      this.eventEmitter.emit('close', {
+        reason: 'manual_stop',
+      });
     } else if (this.browser_context) {
 
       if (!this.webSocketUrl) {
         try {
-          await this.browser_context.close();
+          await this.browser_context.close({
+            reason: 'manual_stop',
+          });
           const b = this.browser_context.browser();
           if (b) {
-            await b.close();
+            await b.close({
+              reason: 'manual_stop',
+            });
           }
         } catch {
           // ignore close errors
@@ -192,7 +198,9 @@ export class BrowserInstance extends BaseInstance {
         this.browserProcess = undefined;
       }
 
-      this.eventEmitter.emit('close');
+      this.eventEmitter.emit('close', {
+        reason: 'manual_stop',
+      });
     }
   };
 

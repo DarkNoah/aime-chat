@@ -13,7 +13,12 @@ import { SkillImportDialog } from '@/renderer/pages/Tools/skill-import-dialog';
 import { useTranslation } from 'react-i18next';
 import { ScrollArea } from '../ui/scroll-area';
 import { Input } from '../ui/input';
-import { IconSearch, IconTrash } from '@tabler/icons-react';
+import {
+  IconExternalLink,
+  IconReload,
+  IconSearch,
+  IconTrash,
+} from '@tabler/icons-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,6 +42,7 @@ import { ChevronDownIcon } from 'lucide-react';
 import { SkillSearch } from '../skills-ui/skill-search';
 import { SkillDetailDialog } from '../skills-ui/skill-detail';
 import { SkillInfo } from '@/types/skill';
+import { Spinner } from '../ui/spinner';
 
 export type ProjectViewProps = {
   project?: Project;
@@ -53,9 +59,21 @@ export const ProjectView = React.forwardRef<ProjectViewRef, ProjectViewProps>(
     const [openSkillSearchDialog, setOpenSkillSearchDialog] = useState(false);
     const [selectedSkill, setSelectedSkill] = useState<SkillInfo | null>(null);
     const [openSkillDetail, setOpenSkillDetail] = useState(false);
+    const [loadings, setLoadings] = useState<Record<string, boolean>>({});
     const { t } = useTranslation();
     const handleDeleteSkill = async (skillId: string) => {
       await window.electron.projects.deleteSkill(project?.id, skillId);
+      onProjectChanged?.();
+    };
+    const handleUpdateSkill = async (skill: SkillInfo) => {
+      if (!skill.source || !skill.path) return;
+      setLoadings((prev) => ({ ...prev, [skill.id]: true }));
+      await window.electron.tools.importSkills({
+        repo_or_url: skill.source,
+        // selectedSkills: [skill.path],
+        path: project?.path,
+      });
+      setLoadings((prev) => ({ ...prev, [skill.id]: false }));
       onProjectChanged?.();
     };
     return (
@@ -129,21 +147,54 @@ export const ProjectView = React.forwardRef<ProjectViewRef, ProjectViewProps>(
                             setSelectedSkill(skill);
                             setOpenSkillDetail(true);
                           }}
-                          className="cursor-pointer"
+                          className="cursor-pointer text-lg"
                         >
+                          {skill.source && (
+                            <Button
+                              variant="outline"
+                              size="icon-sm"
+                              className="p-0 mr-2 cursor-pointer"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                window.open(skill.source, '_blank');
+                              }}
+                            >
+                              <IconExternalLink />
+                            </Button>
+                          )}
                           {skill.name}
                         </ItemTitle>
+
                         <ItemDescription className="line-clamp-2 text-xs text-muted-foreground">
                           {skill.description}
                         </ItemDescription>
                       </ItemContent>
                       <ItemActions>
+                        {skill.source && (
+                          <Button
+                            variant="outline"
+                            size="icon-sm"
+                            className="cursor-pointer"
+                            disabled={loadings[skill.id]}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleUpdateSkill(skill);
+                            }}
+                          >
+                            {loadings[skill.id] ? (
+                              <Spinner className="w-4 h-4" />
+                            ) : (
+                              <IconReload className="w-4 h-4" />
+                            )}
+                          </Button>
+                        )}
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button
                               variant="destructive"
                               size="icon-sm"
                               className="cursor-pointer"
+                              disabled={loadings[skill.id]}
                               onClick={(e) => e.stopPropagation()}
                             >
                               <IconTrash></IconTrash>

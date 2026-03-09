@@ -6,4 +6,5 @@ export interface SkillInfo {
   description: string;
   path?: string;
   skillmd?: string;
+  source?: string;
 }

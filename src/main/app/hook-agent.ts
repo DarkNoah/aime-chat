@@ -1,5 +1,6 @@
 import { Agent, ProxyAgent, Dispatcher } from 'undici'
 import { Readable } from 'stream'
+import { isArray, isObject, isString } from '@/utils/is'
 
 export class HookAgent extends Agent {
   dispatch(options: Agent.DispatchOptions, handler: Dispatcher.DispatchHandler) {
@@ -63,7 +64,7 @@ export class HookProxyAgent extends ProxyAgent {
       for await (const chunk of body as AsyncIterable<Buffer>) {
         let text;
         const isBUffer = "buffer" in chunk
-        if(typeof chunk === 'string') {
+        if (typeof chunk === 'string') {
           text = chunk;
         } if (isBUffer) {
           text = decoder.decode(chunk);
@@ -86,10 +87,37 @@ export class HookProxyAgent extends ProxyAgent {
   protected modifyContent(content: string): string {
     // 默认不修改，子类可以覆盖
     // 示例：return content.replace('foo', 'bar')
-    let jsonObject= null;
+    let jsonObject = null;
     try {
       jsonObject = JSON.parse(content);
-      console.log(jsonObject.messages);
+      if (jsonObject.messages) {
+        for (let i = 0; i < jsonObject.messages.length; i++) {
+          const message = jsonObject.messages[i];
+          if (message.role == 'tool' && isString(message.content) && message.content.startsWith('{') && message.content.endsWith('}')) {
+            try {
+              const content = JSON.parse(message.content);
+              if (isObject(content) && isArray(content.content) && content.content?.length > 0 && content.content?.find(x => x.type == 'image' && x.data && x.mimeType)) {
+                const newContent = [];
+                for (const part of content.content) {
+                  if (part.type == 'image' && part.data && part.mimeType) {
+                    newContent.push({ type: 'image_url', image_url: { url: part.data.startsWith('data:') ? part.data : `data:${part.mimeType};base64,${part.data}` } });
+                  } else {
+                    newContent.push(part);
+                  }
+                }
+                jsonObject.messages[i].content = newContent;
+              } else {
+                continue;
+              }
+            } catch {
+              continue;
+            }
+          }
+        }
+
+        return JSON.stringify(jsonObject);
+      }
+
       // if ("input" in jsonObject && Array.isArray(jsonObject.input) && jsonObject.input.length > 0) {
 
       //   jsonObject.input = jsonObject.input.filter(x=>x.type != 'item_reference' || (x.type == 'item_reference' && !x?.id?.startsWith('rs_')))
@@ -100,6 +128,6 @@ export class HookProxyAgent extends ProxyAgent {
     } catch {
 
     }
-    return jsonObject ?JSON.stringify(jsonObject):content
+    return content
   }
 }

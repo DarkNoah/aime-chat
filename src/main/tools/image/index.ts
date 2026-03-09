@@ -9,8 +9,11 @@ export class ImageToolkit extends BaseToolkit {
   description = 'Image toolkit for generating, editing, and analyzing images.';
 
   constructor(params?: BaseToolkitParams) {
+    const editConfig = params?.[EditImage.toolName];
+    const generateConfig = params?.[GenerateImage.toolName];
+    const removeBackgroundConfig = params?.[RemoveBackground.toolName];
     super(
-      [new EditImage(), new GenerateImage(), new RemoveBackground()],
+      [new EditImage(editConfig), new GenerateImage(generateConfig), new RemoveBackground(removeBackgroundConfig)],
       params,
     );
   }

@@ -26,10 +26,15 @@ import { useHeader } from '@/renderer/hooks/use-title';
 import { Tool, ToolConfig, ToolType } from '@/types/tool';
 import { ItemText } from '@radix-ui/react-select';
 import { useCallback, useEffect, useState } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import Form, { Widgets } from '@rjsf/shadcn';
 import validator from '@rjsf/validator-ajv8';
-import { IconFolder } from '@tabler/icons-react';
+import {
+  IconFolder,
+  IconReload,
+  IconReload,
+  IconTrash,
+} from '@tabler/icons-react';
 import { ChatPreview } from '@/renderer/components/chat-ui/chat-preview';
 import {
   ResizableHandle,
@@ -63,6 +68,7 @@ function ToolDetail() {
     title?: string;
     part?: ToolUIPart;
   } | null>(null);
+  const [updating, setUpdating] = useState<boolean>(false);
 
   const getTool = useCallback(async () => {
     try {
@@ -132,10 +138,11 @@ function ToolDetail() {
   };
 
   const handleStop = async (toolName: string) => {
+    debugger;
     if (!toolExecuting[toolName]) return;
     try {
       await window.electron.tools.abortTool(tool.id, toolName);
-    } catch (err) { }
+    } catch (err) {}
   };
 
   const handleDelete = async (toolId: string) => {
@@ -157,6 +164,19 @@ function ToolDetail() {
     console.log(mcpConfig);
   };
 
+  const handleImportSkills = async (_tool: Tool) => {
+    setUpdating(true);
+    try {
+      await window.electron.tools.importSkills({
+        repo_or_url: tool.source,
+      });
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setUpdating(false);
+      await getTool();
+    }
+  };
   const renderForm = (_tool: Tool['tools'][number]) => {
     return (
       <Form
@@ -198,6 +218,14 @@ function ToolDetail() {
             <ItemDescription>
               <div className="flex items-center gap-2">
                 <Badge variant="outline">{tool?.type}</Badge>
+
+                <Link
+                  to={tool?.source}
+                  target="_blank"
+                  className="text-xs text-muted-foreground hover:text-foreground"
+                >
+                  {tool?.source}
+                </Link>
               </div>
             </ItemDescription>
           </ItemContent>
@@ -248,13 +276,35 @@ function ToolDetail() {
                 </>
               )}
               {tool?.type === ToolType.SKILL && (
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => handleDelete(tool.id)}
-                >
-                  {t('common.delete')}
-                </Button>
+                <>
+                  {tool?.source && (
+                    <Button
+                      variant="outline"
+                      size="icon-sm"
+                      className="cursor-pointer"
+                      disabled={updating}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleImportSkills(tool);
+                      }}
+                    >
+                      {updating ? (
+                        <Spinner className="w-4 h-4" />
+                      ) : (
+                        <IconReload />
+                      )}
+                    </Button>
+                  )}
+                  <Button
+                    variant="destructive"
+                    size="icon-sm"
+                    className="cursor-pointer"
+                    disabled={updating}
+                    onClick={() => handleDelete(tool.id)}
+                  >
+                    <IconTrash />
+                  </Button>
+                </>
               )}
             </ItemActions>
           )}
@@ -279,7 +329,9 @@ function ToolDetail() {
                 <Accordion type="multiple" defaultValue={[]} className="w-full">
                   {tool?.tools?.map((_tool) => (
                     <AccordionItem value={_tool.id} key={_tool.id}>
-                      <AccordionTrigger>{t(`tool_name.${_tool.name.toLowerCase()}`, _tool.name)}</AccordionTrigger>
+                      <AccordionTrigger>
+                        {t(`tool_name.${_tool.name.toLowerCase()}`, _tool.name)}
+                      </AccordionTrigger>
                       <AccordionContent className="flex flex-col gap-4 text-balance">
                         {/* <pre className="text-xs break-all text-wrap bg-secondary p-4 rounded-2xl">
                           {_tool?.description}

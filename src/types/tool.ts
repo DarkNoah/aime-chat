@@ -50,7 +50,8 @@ export const ToolConfig = {
   Read: {
     configSchema: z.strictObject({
       forcePDFOcr: z.boolean().optional().default(true),
-      forceWordOcr: z.boolean().optional().default(true),
+      forceWordOcr: z.boolean().optional().default(false),
+      disableVision: z.boolean().optional().default(false),
     }),
     uiSchema: {
       forcePDFOcr: {
@@ -58,6 +59,23 @@ export const ToolConfig = {
       },
       forceWordOcr: {
         'ui:title': t('common.force_word_ocr'),
+      },
+      disableVision: {
+        'ui:title': t('common.disable_vision'),
+      }
+    },
+  },
+  MusicGeneration: {
+    configSchema: z.strictObject({
+      modelId: z.string(),
+    }),
+    uiSchema: {
+      modelId: {
+        'ui:widget': 'modelSelector',
+        'ui:title': t('common.model'),
+        'ui:options': {
+          type: ModelType.MUSIC,
+        },
       },
     },
   },
@@ -70,7 +88,7 @@ export const ToolConfig = {
         'ui:widget': 'modelSelector',
         'ui:title': t('common.model'),
         'ui:options': {
-          type: ModelType.STT,
+          type: ModelType.TRANSCRIPTION,
         },
       },
     },
@@ -84,7 +102,7 @@ export const ToolConfig = {
         'ui:widget': 'modelSelector',
         'ui:title': t('common.model'),
         'ui:options': {
-          type: ModelType.TTS,
+          type: ModelType.SPEECH,
         },
       },
     },
@@ -209,7 +227,7 @@ export const ToolConfig = {
   },
   RemoveBackground: {
     configSchema: z.strictObject({
-      modelName: z.enum(['rmbg-1.4', 'rmbg-2.0']),
+      modelName: z.enum(['rmbg-1.4', 'rmbg-2.0', 'ben2']),
     }),
     uiSchema: {
       modelName: {

@@ -57,8 +57,9 @@ import {
   OpenDialogReturnValue,
   webUtils,
 } from 'electron';
-import { KnowledgeBaseItem } from '@/entities/knowledge-base';
+import { KnowledgeBase, KnowledgeBaseItem } from '@/entities/knowledge-base';
 import { InstanceInfo } from '@/types/instance';
+import { MarketChannel } from '@/types/market';
 
 
 // export type Channels = 'ipc-example';
@@ -250,7 +251,7 @@ const electronHandler = {
       }),
   },
   knowledgeBase: {
-    create: (data: CreateKnowledgeBase) =>
+    create: (data: CreateKnowledgeBase): Promise<KnowledgeBase> =>
       ipcRenderer.invoke(KnowledgeBaseChannel.Create, data),
     update: (id: string, data: UpdateKnowledgeBase) =>
       ipcRenderer.invoke(KnowledgeBaseChannel.Update, id, data),
@@ -271,8 +272,8 @@ const electronHandler = {
     saveMCPServer: (id: string | undefined, data: string) =>
       ipcRenderer.invoke(ToolChannel.SaveMCPServer, id, data),
     getMcp: (id: string) => ipcRenderer.invoke(ToolChannel.GetMcp, id),
-    getAvailableTools: (): Promise<Record<ToolType, Tool[]>> =>
-      ipcRenderer.invoke(ToolChannel.GetAvailableTools),
+    getAvailableTools: ({ filter, isActive }: { filter?: string, isActive?: boolean } = { isActive: true }): Promise<Record<ToolType, Tool[]>> =>
+      ipcRenderer.invoke(ToolChannel.GetAvailableTools, { filter, isActive }),
     getList: (filter?: { type: ToolType }) =>
       ipcRenderer.invoke(ToolChannel.GetList, filter),
     getTool: (id: string) => ipcRenderer.invoke(ToolChannel.GetTool, id),
@@ -341,6 +342,8 @@ const electronHandler = {
       ipcRenderer.invoke(ProjectChannel.CreateThread, options),
     deleteSkill: (projectId: string, skillId: string) =>
       ipcRenderer.invoke(ProjectChannel.DeleteSkill, projectId, skillId),
+    openWith: (projectId: string, action: string) =>
+      ipcRenderer.invoke(ProjectChannel.OpenWith, projectId, action),
   },
   taskQueue: {
     add: (options: AddTaskOptions): Promise<string> =>
@@ -380,6 +383,9 @@ const electronHandler = {
     createInstance: (data: any) => ipcRenderer.invoke(InstancesChannel.CreateInstance, data),
     getInstance: (id: string) => ipcRenderer.invoke(InstancesChannel.GetInstance, id),
     detectBrowserProfiles: () => ipcRenderer.invoke(InstancesChannel.DetectBrowserProfiles),
+  },
+  market: {
+    getMarketData: (type: ToolType.SKILL | ToolType.MCP) => ipcRenderer.invoke(MarketChannel.GetMarketData, type),
   },
 };
 

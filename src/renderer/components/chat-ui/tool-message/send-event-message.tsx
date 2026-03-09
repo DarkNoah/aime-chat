@@ -114,7 +114,7 @@ export const SendEventMessage = React.forwardRef<
                   >
                     <img
                       alt={file.name || 'attachment'}
-                      className="size-full object-cover rounded-2xl"
+                      className="size-full object-cover rounded-2xl max-w-[200px]"
                       height={100}
                       src={`file://${file.path}`}
                       width={100}

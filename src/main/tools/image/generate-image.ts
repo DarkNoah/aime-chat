@@ -11,10 +11,12 @@ import { appManager } from '@/main/app';
 import { isBase64String, isString, isUrl } from '@/utils/is';
 import { PNG } from 'pngjs';
 import { saveFile, downloadFile } from '@/main/utils/file';
-import { ToolConfig } from '@/types/tool';
+import { ToolConfig, ToolType } from '@/types/tool';
 import { localModelManager } from '@/main/local-model';
 import { providersManager } from '@/main/providers';
 import { ProviderType } from '@/types/provider';
+import { toolsManager } from '..';
+import { RemoveBackground } from './rmbg';
 // import { Blob } from 'node:buffer';
 
 export interface GenerateImageParams extends BaseToolParams {
@@ -23,7 +25,15 @@ export interface GenerateImageParams extends BaseToolParams {
 export class GenerateImage extends BaseTool {
   static readonly toolName = 'GenerateImage';
   id: string = 'GenerateImage';
-  description = 'Create a new image from a text prompt.';
+  description = `Generate a image from a text prompt.
+- If you need to remove the image background, the prompt need to include a "clean background" keyword.
+
+Prompt Templates (high hit-rate)
+Use templates when the user is vague or when edits must be precise.
+
+Generation template:
+"<subject>. Style: <style>. Composition: <camera/shot>. Lighting: <lighting>. Background: <background>. Color palette: <palette>. Avoid: <list>."
+`;
   inputSchema = z.object({
     prompt: z.string().describe('The prompt to generate the image'),
     save_path: z
@@ -42,6 +52,7 @@ export class GenerateImage extends BaseTool {
       .describe(
         'Optional: Aspect ratio of the images to generate, format: `{width}:{height}`.',
       ),
+    remove_background: z.boolean().optional().default(false).describe('Whether to remove the background of the image'),
   });
 
   configSchema = ToolConfig.GenerateImage.configSchema;
@@ -57,7 +68,7 @@ export class GenerateImage extends BaseTool {
     inputData: z.infer<typeof this.inputSchema>,
     options?: ToolExecutionContext,
   ) => {
-    const { prompt, save_path, size, aspect_ratio } = inputData;
+    const { prompt, save_path, size, aspect_ratio, remove_background } = inputData;
     const { requestContext } = options;
     const workspace = requestContext.get('workspace' as never) as string;
 
@@ -85,6 +96,7 @@ export class GenerateImage extends BaseTool {
           // output_format: 'png', // png, jpeg, or webp
         },
       },
+
     });
 
     const file_paths = [];
@@ -120,6 +132,33 @@ export class GenerateImage extends BaseTool {
         file_paths.push(file_path);
       }
     }
+    try {
+      if (remove_background === true) {
+        const removeBackgroundTool = await toolsManager.buildTool(`${ToolType.BUILD_IN}:${RemoveBackground.toolName}`);
+        const results = [];
+        for (let file_path of file_paths) {
+          const save_path = renameWithSuffix(file_path, '_rmbg', '.png');
+          const result = await (removeBackgroundTool as RemoveBackground).execute({
+            file_path_or_url: file_path,
+            save_path: save_path
+          }, options);
+          results.push(save_path);
+        }
+        return results.map((x) => `<file>${x}</file>`).join('\n');
+      }
+    } catch {
+
+    }
     return file_paths.map((x) => `<file>${x}</file>`).join('\n');
   };
+}
+
+function renameWithSuffix(filePath: string, suffix: string, newExt: string) {
+  if (!newExt.startsWith(".")) {
+    newExt = "." + newExt;
+  }
+
+  const { dir, name } = path.parse(filePath);
+
+  return path.join(dir, `${name}${suffix}${newExt}`);
 }

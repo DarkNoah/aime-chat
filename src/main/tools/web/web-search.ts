@@ -21,13 +21,16 @@ export interface WebSearchParams extends BaseToolParams {
   numResults?: number;
 }
 
-export const webSearchResultSchema = z.array(
-  z.object({
-    href: z.string().optional(),
-    title: z.string().optional(),
-    snippet: z.string().optional(),
-  }),
-);
+export const webSearchResultSchema = z.object({
+  results: z.array(
+    z.object({
+      href: z.string().optional(),
+      title: z.string().optional(),
+      snippet: z.string().optional(),
+    }),
+  ),
+  message: z.string().optional()
+});
 export class WebSearch extends BaseTool<WebSearchParams> {
   static readonly toolName = 'WebSearch';
   id: string = 'WebSearch';
@@ -67,7 +70,10 @@ Returns:
     const { query } = inputData;
     const config = this.config;
     const numResults = config?.numResults ?? 20;
-    const results: z.infer<typeof webSearchResultSchema> = [];
+    const results: z.infer<typeof webSearchResultSchema> = {
+      results: [],
+      message: undefined,
+    };
     if (config?.providerId) {
       const provider = await providersManager.get(config?.providerId);
       if (provider.type === ProviderType.BRAVE_SEARCH) {
@@ -76,7 +82,7 @@ Returns:
           numResults,
           apiKey: provider.apiKey,
         });
-        results.push(...webSearchResults);
+        results.results.push(...webSearchResults.results);
       } else if (provider.type === ProviderType.GOOGLE) {
         const googleProvider = (await providersManager.getProvider(
           config?.providerId,
@@ -101,9 +107,21 @@ Returns:
           input: query,
           include: ['web_search_call.action.sources'],
         });
+        if (response.output[response.output.length - 1].status == 'completed' && response.output[response.output.length - 1].content?.[0]?.annotations?.length > 0) {
+
+
+          results.results.push(...response.output[response.output.length - 1].content?.[0]?.annotations.map((x) => {
+            return {
+              href: x.url,
+              title: x.title
+            };
+          }));
+        }
+        results.message = response?.output_text;
+
 
         debugger;
-      } else if (provider.type === ProviderType.ZHIPUAI) {
+      } else if (provider.type === ProviderType.ZHIPUAI || provider.type === "zhipuai-coding-plan") {
         const zhipuaiProvider = (await providersManager.getProvider(
           config?.providerId,
         )) as ZhipuAIProvider;
@@ -131,7 +149,7 @@ Returns:
           options,
         );
         const data = await res.json();
-        results.push(
+        results.results.push(
           ...data.search_result.map((x) => {
             return {
               href: x.link || undefined,
@@ -169,7 +187,7 @@ Returns:
         });
         const data = await response.json();
 
-        results.push(
+        results.results.push(
           ...data.data.map((x) => {
             return {
               title: x.title,
@@ -184,9 +202,10 @@ Returns:
           api_key: provider.apiKey, // Get your API_KEY from https://serpapi.com/manage-api-key
           q: query,
 
+
           // location: 'Austin, Texas',
         });
-        results.push(
+        results.results.push(
           ...response.organic_results.map((x) => {
             return {
               title: x.title,
@@ -208,7 +227,10 @@ const braveSearch = async (options: {
   numResults?: number;
   apiKey: string;
 }): Promise<z.infer<typeof webSearchResultSchema>> => {
-  const results: z.infer<typeof webSearchResultSchema> = [];
+  const results: z.infer<typeof webSearchResultSchema> = {
+    results: [],
+    message: undefined,
+  };
   const headers = {
     'X-Subscription-Token': options.apiKey,
     Accept: 'application/json',
@@ -231,7 +253,7 @@ const braveSearch = async (options: {
   }
   const webSearchResults = parsedResponse.web?.results ?? [];
 
-  results.push(
+  results.results.push(
     ...webSearchResults.map((item) => ({
       href: item.url,
       title: item.title,

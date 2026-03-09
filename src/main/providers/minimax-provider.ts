@@ -1,5 +1,5 @@
 import { Providers } from '@/entities/providers';
-import { BaseProvider, RerankModel } from './base-provider';
+import { BaseProvider, MusicModel, RerankModel } from './base-provider';
 import fs from 'fs';
 import path from 'path';
 import OpenAI from 'openai';
@@ -27,10 +27,12 @@ export class MiniMaxImageModel implements ImageModelV2 {
   provider: string = 'minimax';
   modelId: string;
   providerEntity: Providers;
+  apiBase: string;
 
-  constructor({ modelId, provider }: { modelId: string; provider: Providers }) {
+  constructor({ modelId, provider, apiBase }: { modelId: string; provider: Providers; apiBase: string }) {
     this.providerEntity = provider;
     this.modelId = modelId;
+    this.apiBase = apiBase;
   }
 
   maxImagesPerCall:
@@ -89,10 +91,11 @@ export class MiniMaxTranscriptionModel implements TranscriptionModelV2 {
   provider: string = 'minimax';
   modelId: string;
   providerEntity: Providers;
-
-  constructor({ modelId, provider }: { modelId: string; provider: Providers }) {
+  apiBase: string;
+  constructor({ modelId, provider, apiBase }: { modelId: string; provider: Providers; apiBase: string }) {
     this.providerEntity = provider;
     this.modelId = modelId;
+    this.apiBase = apiBase;
   }
 
 
@@ -150,10 +153,12 @@ export class MiniMaxSpeechModel implements SpeechModelV2 {
   provider: string = 'minimax';
   modelId: string;
   providerEntity: Providers;
+  apiBase: string;
 
-  constructor({ modelId, provider }: { modelId: string; provider: Providers }) {
+  constructor({ modelId, provider, apiBase }: { modelId: string; provider: Providers; apiBase: string }) {
     this.providerEntity = provider;
     this.modelId = modelId;
+    this.apiBase = apiBase;
   }
 
   async doGenerate(options: SpeechModelV2CallOptions): Promise<{ audio: Uint8Array; warnings: Array<SpeechModelV2CallWarning>; request?: { body?: string; }; response: { timestamp: Date; modelId: string; headers?: SharedV2Headers; body?: unknown; }; providerMetadata?: Record<string, Record<string, JSONValue>>; }> {
@@ -182,7 +187,7 @@ export class MiniMaxSpeechModel implements SpeechModelV2 {
       output_format: 'url'
     };
 
-    const res = await fetch('https://api.minimaxi.com/v1/t2a_v2', {
+    const res = await fetch(this.apiBase + '/t2a_v2', {
       method: 'POST',
       headers: {
         Authorization: 'Bearer ' + this.providerEntity.apiKey,
@@ -229,18 +234,59 @@ export class MiniMaxSpeechModel implements SpeechModelV2 {
   }
 }
 
+export class MiniMaxMusicModel implements MusicModel {
+  provider: string = 'minimax';
+  modelId: string;
+  providerEntity: Providers;
+  apiBase: string;
+  constructor({ modelId, provider, apiBase }: { modelId: string; provider: Providers; apiBase: string }) {
+    this.apiBase = apiBase;
+    this.providerEntity = provider;
+    this.modelId = modelId;
+  }
+  async doGenerate(options: {
+    prompt: string; lyrics?: string; sample_rate?: number; format?: 'mp3' | 'wav' | 'pcm';
+  }): Promise<string> {
+    const body = {
+      model: this.modelId || 'music-2.5',
+      prompt: options.prompt,
+      lyrics: options.lyrics,
+      audio_setting: {
+        sample_rate: options.sample_rate || 24000,
+        format: options.format || 'wav',
+        output_format: 'url'
+      }
+
+    };
+    const res = await fetch(this.apiBase + '/music_generation', {
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer ' + this.providerEntity.apiKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    return data.data.audio;
+  }
+}
+
 export class MiniMaxProvider extends BaseProvider {
   name: string = 'minimax';
-  type: ProviderType = ProviderType.MINIMAX;
+  type: ProviderType;
   description: string;
   defaultApiBase?: string = 'https://api.minimax.io/v1';
-
   openaiClient?: OpenAI;
-
   tags: ProviderTag[] = [];
 
-  constructor(provider: Providers) {
+  constructor(provider: Providers, type: ProviderType.MINIMAX | ProviderType.MINIMAX_CN) {
     super({ provider });
+    this.type = type;
+    if (type === ProviderType.MINIMAX_CN) {
+      this.defaultApiBase = 'https://api.minimaxi.com/v1';
+    } else if (type === ProviderType.MINIMAX) {
+      this.defaultApiBase = 'https://api.minimax.io/v1';
+    }
     //this.provider = provider;
     this.openaiClient = new OpenAI({
       baseURL: this.provider.apiBase || this.defaultApiBase,
@@ -251,7 +297,7 @@ export class MiniMaxProvider extends BaseProvider {
   languageModel(modelId: string): LanguageModelV2 {
     return {
       url: this.provider.apiBase || this.defaultApiBase,
-      id: `zhipuai/${modelId}` as `${string}/${string}`,
+      id: `${this.type}/${modelId}` as `${string}/${string}`,
       apiKey: this.provider.apiKey,
     };
   }
@@ -284,6 +330,11 @@ export class MiniMaxProvider extends BaseProvider {
     return [];
   }
 
+
+  async getMusicModelList(): Promise<{ name: string; id: string }[]> {
+    return [{ id: 'music-2.5', name: 'Music 2.5' }];
+  }
+
   getCredits(): Promise<ProviderCredits | undefined> {
     return undefined;
   }
@@ -297,9 +348,12 @@ export class MiniMaxProvider extends BaseProvider {
     return undefined;
   }
   speechModel?(modelId: string): SpeechModelV2 {
-    return new MiniMaxSpeechModel({ modelId, provider: this.provider });
+    return new MiniMaxSpeechModel({ modelId, provider: this.provider, apiBase: this.provider.apiBase || this.defaultApiBase });
   }
   rerankModel?(modelId: string): RerankModel {
     return undefined;
+  }
+  musicModel?(modelId: string): MusicModel {
+    return new MiniMaxMusicModel({ modelId, provider: this.provider, apiBase: this.provider.apiBase || this.defaultApiBase });
   }
 }

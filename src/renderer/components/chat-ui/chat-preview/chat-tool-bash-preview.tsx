@@ -114,12 +114,14 @@ export const ChatToolBashPreview = React.forwardRef<
       description = '',
       timeout,
       run_in_background = false,
+      env = {},
     } = (part?.input as {
       command?: string;
       directory?: string;
       description?: string;
       timeout?: number;
       run_in_background?: boolean;
+      env?: Record<string, string>;
     }) || {};
 
     // Check if still running (input available but no output yet)
@@ -256,6 +258,22 @@ export const ChatToolBashPreview = React.forwardRef<
           {description && (
             <div className="text-zinc-500 dark:text-zinc-600 text-xs mb-2 italic">
               # {description}
+            </div>
+          )}
+
+          {/* Environment variables */}
+          {env && Object.keys(env).length > 0 && (
+            <div className="mb-2 space-y-0.5">
+              {Object.entries(env).map(([key, value]) => (
+                <div key={key} className="flex items-start gap-2 text-xs">
+                  <span className="text-zinc-500 select-none shrink-0">
+                    export
+                  </span>
+                  <span className="text-cyan-400">{key}</span>
+                  <span className="text-zinc-500">=</span>
+                  <span className="text-yellow-300/80 break-all">{value}</span>
+                </div>
+              ))}
             </div>
           )}
 

@@ -20,7 +20,6 @@ import mime from 'mime';
 import { OcrAccuracy, recognize } from '@napi-rs/system-ocr';
 import { PowerPointLoader } from '@/main/utils/loaders/power-point-loader';
 import { ExcelLoader } from '@/main/utils/loaders/excel-loader';
-import { OcrLoader } from '@/main/utils/loaders/ocr-loader';
 import { ToolConfig, ToolType } from '@/types/tool';
 import { AudioLoader } from '@/main/utils/loaders/audio-loader';
 import { Vision } from '../vision/vision';
@@ -36,6 +35,7 @@ const MAX_LINE_LENGTH_TEXT_FILE = 2000;
 export interface ReadParams extends BaseToolParams {
   forcePDFOcr?: boolean;
   forceWordOcr?: boolean;
+  disableVision?: boolean;
 }
 export class Read extends BaseTool {
   static readonly toolName = 'Read';
@@ -72,6 +72,7 @@ Usage:
         .describe(
           'The number of lines to read. Only provide if the file is too large to read at once.',
         ),
+      useVision: z.boolean().optional().default(false).describe('Optional: only use this when the file is an image. If set to true, it will be presented visually by a multimodal LLM, default is false.'),
     })
     .strict();
 
@@ -80,14 +81,15 @@ Usage:
   configSchema = ToolConfig.Read.configSchema;
   forcePDFOcr?: ReadParams['forcePDFOcr'];
   forceWordOcr?: ReadParams['forceWordOcr'];
-
-  outputSchema = z.string();
+  disableVision?: ReadParams['disableVision'];
+  // outputSchema = z.string();
 
 
   constructor(config?: ReadParams) {
     super(config);
     this.forcePDFOcr = config?.forcePDFOcr ?? true;
-    this.forceWordOcr = config?.forceWordOcr ?? true;
+    this.forceWordOcr = config?.forceWordOcr ?? false;
+    this.disableVision = config?.disableVision ?? false;
   }
 
   // requireApproval: true,
@@ -95,13 +97,14 @@ Usage:
     inputData: z.infer<typeof this.inputSchema>,
     context: ToolExecutionContext<z.ZodSchema, any>,
   ) => {
-    const { file_path, offset, limit } = inputData;
+    const { file_path, offset, limit, useVision } = inputData;
     const appInfo = await appManager.getInfo();
-    const visionModelId = appInfo.defaultModel.visionModel || context.requestContext?.get('modelId' as never) as string | undefined;
+    const currentModel = context?.requestContext?.get('model' as never) as string;
+    const visionModelId = appInfo.defaultModel.visionModel || currentModel;
 
 
     if (!fs.existsSync(file_path))
-      throw new Error(`File '${file_path}' does not exist.`);
+      throw new Error(`<system-reminder>File does not exist. Note: your current working directory is "${path.dirname(file_path).replaceAll('\\', '/')}" </system-reminder>`);
 
     const stats = await fs.promises.stat(file_path);
 
@@ -122,6 +125,13 @@ Usage:
     if (await isBinaryFile(file_path)) {
       try {
         if (mime.lookup(file_path).startsWith('image/')) {
+          if (this.disableVision === true || useVision === false) {
+            const defaultOcr = appInfo?.defaultModel?.ocrModel;
+            const provider = await providersManager.getProvider(defaultOcr);
+            const ocrModel = defaultOcr.split('/').slice(1).join('/')
+            const ocr = await provider.ocrModel(ocrModel).doOCR({ image: file_path });
+            return ocr;
+          }
           const result = await new Vision({
             modelId: visionModelId,
           }).execute({
@@ -267,52 +277,61 @@ Usage:
 
     let content = '';
     const mimeType = mime.lookup(file_source);
+    const provider = await providersManager.getProvider(defaultOcr);
+    if (!provider) {
+      throw new Error(`OCR provider not found`);
+    }
+    const ocrModel = defaultOcr.split('/').slice(1).join('/');
+    let result = ''
+
     if (ext === '.pdf') {
-      if (this.forcePDFOcr) {
-        const loader = new OcrLoader(file_source, { mode: this.mode });
-        const content = await loader.load();
-        return content;
-      } else {
-        const loader = new PDFLoader(file_source);
-        const content = await loader.load();
-        return content;
+      try {
+        if (this.forcePDFOcr === true) {
+          const result = await provider.ocrModel(ocrModel).doOCR({ image: file_source });
+          return result;
+        }
+      } catch {
+
       }
+      const loader = new PDFLoader(file_source);
+      const content = await loader.load();
+      result = content;
     } else if (ext === '.docx' || ext === '.doc') {
-      if (this.forceWordOcr) {
-        const loader = new OcrLoader(file_source);
-        const content = await loader.load();
-        return content;
+      try {
+        if (this.forceWordOcr === true) {
+          result = await provider.ocrModel(ocrModel).doOCR({ image: file_source });
+          if (!result) throw new Error('OCR result is empty');
+        }
+      } catch {
+
       }
       const loader = new WordLoader(file_source, {
         type: ext === '.docx' ? 'docx' : 'doc',
       });
       // const info = await loader.info();
       const content = await loader.load();
-      return content;
+      result = content;
     } else if (ext === '.xls' || ext === '.xlsx') {
       const loader = new ExcelLoader(file_source);
       const content = await loader.load();
-      return content;
+      result = content;
     } else if (ext === '.ppt' || ext === '.pptx') {
       const loader = new PowerPointLoader(file_source);
       const content = await loader.load();
-      return content;
+      result = content;
     } else if (mimeType.startsWith('image/')) {
 
 
-      const provider = await providersManager.getProvider(defaultOcr);
-      if (provider) {
-        const result = await provider.ocrModel(defaultOcr.split('/').slice(1).join('/')).doOCR({ image: file_source });
-        return result;
-      }
+      result = await provider.ocrModel(ocrModel).doOCR({ image: file_source });
 
 
+      // throw new Error(`Unsupported file type: ${mimeType}`);
 
 
       // 使用 paddle OCR 进行图像文字识别
-      const loader = new OcrLoader(file_source);
-      const content = await loader.load();
-      return content;
+      // const loader = new OcrLoader(file_source, { modelId: defaultOcr });
+      // const content = await loader.load();
+      // return content;
     } else if (mimeType.startsWith('audio/')) {
       let speechToText = await toolsManager.buildTool(
         `${ToolType.BUILD_IN}:${SpeechToText.toolName}` as `${ToolType.BUILD_IN}:${string}`,
@@ -325,11 +344,12 @@ Usage:
         source: file_source,
         output_type: 'srt',
       }, context);
-      return content
+      result = content
       // const loader = new AudioLoader(file_source, { outputType: 'asr' });
       // const content = await loader.load();
       // return content.text;
     }
-    return content;
+    if (result.trim() === '') return `<system-reminder>The file '${file_source}' is empty.</system-reminder>`;
+    return result;
   };
 }

@@ -41,6 +41,7 @@ export type UpdateKnowledgeBase = {
   tags?: string[];
   reranker?: string;
   returnChunkCount?: number;
+  forceReturnFullContent?: boolean;
 };
 
 
@@ -55,7 +56,15 @@ export type SearchKnowledgeBaseItemResult = {
   itemId: string;
   score: number;
   rerankScore?: number;
+  hybridScore?: number;
   metadata: any;
   chunk?: string;
   content?: string;
+  name?: string;
+  source?: string;
+  sourceType?: KnowledgeBaseSourceType;
 };
+
+export enum KnowledgeBaseEvent {
+  KnowledgeBaseItemsUpdated = 'knowledge-base:knowledge-base-items-updated',
+}

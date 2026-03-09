@@ -1,18 +1,18 @@
-import { AppSidebar } from '../components/app-sidebar';
-import { Button } from '../components/ui/button';
+import { AppSidebar } from '../../components/app-sidebar';
+import { Button } from '../../components/ui/button';
 import {
   SidebarInset,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarProvider,
-} from '../components/ui/sidebar';
-import { useHeader } from '../hooks/use-title';
+} from '../../components/ui/sidebar';
+import { useHeader } from '../../hooks/use-title';
 import { useTranslation } from 'react-i18next';
 import React, { useEffect, useState } from 'react';
-import { ScrollArea } from '../components/ui/scroll-area';
+import { ScrollArea } from '../../components/ui/scroll-area';
 
-import { Separator } from '../components/ui/separator';
+import { Separator } from '../../components/ui/separator';
 import {
   Link,
   Route,
@@ -20,14 +20,26 @@ import {
   useLocation,
   useNavigate,
 } from 'react-router-dom';
-import About from './Settings/about';
-import General from './Settings/General';
-import Providers from './Settings/Providers';
-import Runtime from './Settings/Runtime';
-import { Item } from '../components/ui/item';
-import LocalModel from './Settings/local-model';
-import DefaultModel from './Settings/default-model';
-import Instances from './Settings/instances';
+import About from './about';
+import General from './general';
+import Providers from './providers';
+import Runtime from './runtime';
+import { Item } from '../../components/ui/item';
+import LocalModel from './local-model';
+import DefaultModel from './default-model';
+import Instances from './instances';
+import Usage from './usage';
+import {
+  IconAdjustments,
+  IconChartBar,
+  IconCloud,
+  IconCpu,
+  IconInfoCircle,
+  IconPlayerPlay,
+  IconServer,
+  IconSparkles,
+  IconWand,
+} from '@tabler/icons-react';
 
 function Settings() {
   const { setTitle } = useHeader();
@@ -42,30 +54,42 @@ function Settings() {
     {
       key: 'general',
       label: t('settings.general'),
+      icon: IconAdjustments,
     },
     {
       key: 'providers',
       label: t('settings.providers'),
+      icon: IconCloud,
     },
     {
       key: 'runtime',
       label: t('settings.runtime'),
+      icon: IconPlayerPlay,
     },
     {
       key: 'local-model',
       label: t('settings.local_model'),
+      icon: IconCpu,
     },
     {
       key: 'default-model',
       label: t('settings.default_model'),
+      icon: IconSparkles,
     },
     {
       key: 'instances',
       label: t('settings.instances'),
+      icon: IconServer,
+    },
+    {
+      key: 'usage',
+      label: t('settings.usage'),
+      icon: IconChartBar,
     },
     {
       key: 'about',
       label: t('settings.about'),
+      icon: IconInfoCircle,
     },
   ];
   return (
@@ -87,10 +111,29 @@ function Settings() {
                 )}
                 className="truncate w-full flex flex-row justify-between h-full"
               >
-                <div className="text-sm">{item.label}</div>
+                <div className="text-sm flex items-center justify-start gap-2">
+                  <item.icon size={16} />
+                  {item.label}
+                </div>
               </SidebarMenuButton>
             </SidebarMenuItem>
           ))}
+          <SidebarMenuItem
+            className="group/item mb-1 cursor-pointer"
+            onClick={() => {
+              navigate('/setup');
+            }}
+          >
+            <SidebarMenuButton
+              asChild
+              className="truncate w-full flex flex-row justify-between h-full"
+            >
+              <div className="text-sm flex items-center justify-start gap-2">
+                <IconWand size={16} />
+                {t('settings.setup', 'Setup')}
+              </div>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
         </SidebarMenu>
       </div>
       <div className="flex flex-col flex-1 w-full min-w-0">
@@ -102,6 +145,7 @@ function Settings() {
           <Route path="local-model" element={<LocalModel />} />
           <Route path="default-model" element={<DefaultModel />} />
           <Route path="instances" element={<Instances />} />
+          <Route path="usage" element={<Usage />} />
         </Routes>
       </div>
     </div>

@@ -45,6 +45,8 @@ import { TavilyProvider } from './tavily-provider';
 import { appManager } from '../app';
 import { SerpapiProvider } from './serpapi-provider';
 import { MineruProvider } from './mineru-provider';
+import { ElevenlabsProvider } from './elevenlabs-provider';
+import { MiniMaxProvider } from './minimax-provider';
 const modelsData = require('../../../assets/models.json');
 class ProvidersManager extends BaseManager {
   repository: Repository<Providers>;
@@ -97,6 +99,9 @@ class ProvidersManager extends BaseManager {
           }, {
             id: ProviderType.MINERU,
             name: 'MinerU',
+          }, {
+            id: ProviderType.ELEVENLABS,
+            name: 'Elevenlabs'
           }
         ],
       },
@@ -131,6 +136,15 @@ class ProvidersManager extends BaseManager {
           { tags: filter?.tags },
         )
         .getMany();
+      provierEntities = await this.repository.find();
+      const filterProvierEntities = [];
+      for (const provider of provierEntities) {
+        const providerData = await this.getProvider(provider.id);
+        if (providerData && providerData.tags?.filter((t) => filter?.tags.includes(t)).length > 0) {
+          filterProvierEntities.push(provider);
+        }
+      }
+      provierEntities = filterProvierEntities;
     } else {
       provierEntities = await this.repository.find();
     }
@@ -184,12 +198,14 @@ class ProvidersManager extends BaseManager {
       return this.getAvailableRerankModels();
     } else if (type == ModelType.IMAGE_GENERATION) {
       return this.getAvailableImageGenerationModels();
-    } else if (type == ModelType.STT) {
+    } else if (type == ModelType.TRANSCRIPTION) {
       return this.getAvailableTranscriptionModels();
-    } else if (type == ModelType.TTS) {
+    } else if (type == ModelType.SPEECH) {
       return this.getAvailableSpeechModels();
     } else if (type == ModelType.OCR) {
       return this.getAvailableOcrModels();
+    } else if (type == ModelType.MUSIC) {
+      return this.getAvailableMusicModels();
     }
   }
 
@@ -237,6 +253,7 @@ class ProvidersManager extends BaseManager {
     if (provider && provider.tags && provider.tags.length > 0) {
       data['tags'] = provider.tags;
     }
+    const existingProvider = await this.repository.findOne({ where: { id } });
     await this.repository.update(id, data);
   }
 
@@ -431,6 +448,7 @@ class ProvidersManager extends BaseManager {
       const provider = await this.getProvider(providerData.id);
       if (provider) {
         try {
+          console.log('provider', provider.name);
           const embeddingModels = await provider.getEmbeddingModelList();
           if (embeddingModels.length > 0) {
             data.push({
@@ -691,6 +709,41 @@ class ProvidersManager extends BaseManager {
     return data;
   }
 
+  public async getAvailableMusicModels(): Promise<Provider[]> {
+    const providers = await this.repository.find({
+      where: {
+        isActive: true,
+      },
+    });
+    const data: Provider[] = [];
+    for (const providerData of providers) {
+      const provider = await this.getProvider(providerData.id);
+      if (provider) {
+        try {
+          const ocrModels = await provider.getMusicModelList();
+          if (ocrModels.length > 0) {
+            data.push({
+              id: providerData.id,
+              name: providerData.name,
+              type: providerData.type,
+              models: ocrModels
+                .map((x) => ({
+                  id: `${providerData.id}/${x.id}`,
+                  name: x.name,
+                  providerType: providerData.type,
+                  isActive: true,
+                }))
+                .sort((a, b) => b.name.localeCompare(a.name)),
+            });
+          }
+        } catch { }
+      }
+    }
+
+    return data;
+
+  }
+
 
   public async getProvider(id: string): Promise<BaseProvider | undefined> {
 
@@ -716,6 +769,7 @@ class ProvidersManager extends BaseManager {
       case ProviderType.DEEPSEEK:
         return new DeepSeekProvider(provider);
       case ProviderType.ZHIPUAI:
+      case "zhipuai-coding-plan":
         return new ZhipuAIProvider(provider);
       case ProviderType.GOOGLE:
         return new GoogleProvider(provider);
@@ -733,10 +787,17 @@ class ProvidersManager extends BaseManager {
         return new SerpapiProvider(provider);
       case ProviderType.MINERU:
         return new MineruProvider(provider);
+      case ProviderType.ELEVENLABS:
+        return new ElevenlabsProvider(provider);
+      case ProviderType.MINIMAX_CN:
+        return new MiniMaxProvider(provider, ProviderType.MINIMAX_CN);
+      case ProviderType.MINIMAX:
+        return new MiniMaxProvider(provider, ProviderType.MINIMAX);
     }
   }
 
   public async getModelInfo(_modelId: string) {
+    if (!_modelId) return undefined;
     const providerId = _modelId.split('/')[0];
 
     const provider = await providersManager.get(_modelId.split('/')[0]);

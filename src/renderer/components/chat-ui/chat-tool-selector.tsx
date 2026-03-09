@@ -23,6 +23,7 @@ export type ChatToolSelectorProps = ComponentProps<typeof Dialog> & {
   children: React.ReactNode;
   className?: string;
   value?: string[];
+  showUnavailable?: boolean;
   onChange?: (value: string[]) => void;
 };
 
@@ -30,7 +31,7 @@ export const ChatToolSelector = ({
   children,
   ...props
 }: ChatToolSelectorProps) => {
-  const { value = [], onChange } = props;
+  const { value = [], onChange, showUnavailable = false } = props;
   const [loading, setLoading] = useState(false);
   const { t } = useTranslation();
   const [data, setData] = useState<{
@@ -146,7 +147,8 @@ export const ChatToolSelector = ({
                       value={tool.id}
                       onSelect={() => handleSelect(tool)}
                     >
-                      {t(`tool_name.${tool.name.toLowerCase()}`, tool.name)} {renderCheckIcon(tool)}
+                      {t(`tool_name.${tool.name.toLowerCase()}`, tool.name)}{' '}
+                      {renderCheckIcon(tool)}
                     </CommandItem>
                     {tool.isToolkit && (
                       <div className="my-2">
@@ -202,7 +204,8 @@ export const ChatToolSelector = ({
                       value={tool.id}
                       onSelect={() => handleSelect(tool)}
                     >
-                      {t(`tool_name.${tool.name.toLowerCase()}`, tool.name)} {renderCheckIcon(tool)}
+                      {t(`tool_name.${tool.name.toLowerCase()}`, tool.name)}{' '}
+                      {renderCheckIcon(tool)}
                     </CommandItem>
                     {tool.isToolkit && (
                       <div className="my-2">
@@ -236,7 +239,10 @@ export const ChatToolSelector = ({
                                 aria-label={subtool.name}
                                 className=""
                               >
-                                {t(`tool_name.${subtool.name.toLowerCase()}`, subtool.name)}
+                                {t(
+                                  `tool_name.${subtool.name.toLowerCase()}`,
+                                  subtool.name,
+                                )}
                               </ToggleGroupItem>
                             );
                           })}

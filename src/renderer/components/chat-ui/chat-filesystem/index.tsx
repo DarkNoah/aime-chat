@@ -15,6 +15,8 @@ import {
   IconX,
   IconEye,
   IconFolderShare,
+  IconBrandVscode,
+  IconTerminal,
 } from '@tabler/icons-react';
 import { DirectoryTreeNode, SearchResult } from '@/types/common';
 import { Button } from '../../ui/button';
@@ -38,8 +40,18 @@ import { useTranslation } from 'react-i18next';
 import { set } from 'core-js/core/dict';
 import { PhotoProvider, PhotoView } from 'react-photo-view';
 import { Badge } from '../../ui/badge';
+import { ButtonGroup } from '../../ui/button-group';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../../ui/dropdown-menu';
+import { ChevronDownIcon, VolumeOffIcon } from 'lucide-react';
 
 export type ChatFilesystemProps = {
+  projectId?: string;
   workspace?: string;
   className?: string;
 };
@@ -188,6 +200,7 @@ const FilePreviewDialog: React.FC<{
 };
 
 type TreeNodeProps = {
+  rootPath?: string;
   node: DirectoryTreeNode;
   level: number;
   defaultOpen?: boolean;
@@ -195,6 +208,7 @@ type TreeNodeProps = {
 };
 
 const TreeNode: React.FC<TreeNodeProps> = ({
+  rootPath,
   node,
   level,
   defaultOpen = false,
@@ -221,8 +235,13 @@ const TreeNode: React.FC<TreeNodeProps> = ({
   };
 
   const handleDragStart = (e: React.DragEvent) => {
-    e.dataTransfer.setData('text/plain', node.path);
-    e.dataTransfer.setData('application/x-file-path', node.path);
+    let relativePath = node.path;
+    if (rootPath && node.path.replaceAll("\\", "/").startsWith(`${rootPath.replaceAll("\\", "/")}/`)) {
+      relativePath = `"./${node.path.replaceAll("\\", "/").substring(rootPath.replaceAll("\\", "/").length + 1)}"`;
+    }
+
+    e.dataTransfer.setData('text/plain', relativePath);
+    e.dataTransfer.setData('application/x-file-path', relativePath);
     e.dataTransfer.effectAllowed = 'copy';
   };
 
@@ -250,43 +269,56 @@ const TreeNode: React.FC<TreeNodeProps> = ({
 
   if (node.isDirectory) {
     return (
-      <Collapsible open={isOpen} onOpenChange={handleToggle}>
-        <CollapsibleTrigger asChild>
-          <div
-            className="flex items-center gap-1 py-1 px-2 hover:bg-muted/50 cursor-pointer rounded-sm select-none"
-            style={{ paddingLeft }}
-            draggable
-            onDragStart={handleDragStart}
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
+          <Collapsible open={isOpen} onOpenChange={handleToggle}>
+            <CollapsibleTrigger asChild>
+              <div
+                className="flex items-center gap-1 py-1 px-2 hover:bg-muted/50 cursor-pointer rounded-sm select-none"
+                style={{ paddingLeft }}
+                draggable
+                onDragStart={handleDragStart}
+              >
+                {hasChildren && isOpen && (
+                  <IconChevronDown className="size-4 text-muted-foreground shrink-0" />
+                )}
+                {hasChildren && !isOpen && (
+                  <IconChevronRight className="size-4 text-muted-foreground shrink-0" />
+                )}
+                {!hasChildren && <span className="size-4 shrink-0" />}
+                {isOpen ? (
+                  <IconFolderOpen className="size-4 text-yellow-500 shrink-0" />
+                ) : (
+                  <IconFolder className="size-4 text-yellow-500 shrink-0" />
+                )}
+                <span className="text-sm truncate">{node.name}</span>
+                {isLoading && (
+                  <IconRefresh className="size-3 animate-spin text-muted-foreground ml-1" />
+                )}
+              </div>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              {children?.map((child) => (
+                <TreeNode
+                  key={child.path}
+                  node={child}
+                  level={level + 1}
+                  rootPath={rootPath}
+                  onPreviewFile={onPreviewFile}
+                />
+              ))}
+            </CollapsibleContent>
+          </Collapsible>
+        </ContextMenuTrigger>
+        <ContextMenuContent>
+          <ContextMenuItem
+            onClick={() => window.electron.app.openPath(node.path)}
           >
-            {hasChildren && isOpen && (
-              <IconChevronDown className="size-4 text-muted-foreground shrink-0" />
-            )}
-            {hasChildren && !isOpen && (
-              <IconChevronRight className="size-4 text-muted-foreground shrink-0" />
-            )}
-            {!hasChildren && <span className="size-4 shrink-0" />}
-            {isOpen ? (
-              <IconFolderOpen className="size-4 text-yellow-500 shrink-0" />
-            ) : (
-              <IconFolder className="size-4 text-yellow-500 shrink-0" />
-            )}
-            <span className="text-sm truncate">{node.name}</span>
-            {isLoading && (
-              <IconRefresh className="size-3 animate-spin text-muted-foreground ml-1" />
-            )}
-          </div>
-        </CollapsibleTrigger>
-        <CollapsibleContent>
-          {children?.map((child) => (
-            <TreeNode
-              key={child.path}
-              node={child}
-              level={level + 1}
-              onPreviewFile={onPreviewFile}
-            />
-          ))}
-        </CollapsibleContent>
-      </Collapsible>
+            <IconFolderShare className="size-4 mr-2" />
+            {t('chat.open_in_explorer')}
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
     );
   }
 
@@ -380,8 +412,12 @@ const SearchResultItem: React.FC<SearchResultItemProps> = ({
   };
 
   const handleDragStart = (e: React.DragEvent) => {
-    e.dataTransfer.setData('text/plain', result.file);
-    e.dataTransfer.setData('application/x-file-path', result.file);
+    let relativePath = result.file;
+    if (workspace && result.file.replaceAll("\\", "/").startsWith(`${workspace.replaceAll("\\", "/")}/`)) {
+      relativePath = `"./${result.file.replaceAll("\\", "/").substring(workspace.replaceAll("\\", "/").length + 1)}"`;
+    }
+    e.dataTransfer.setData('text/plain', relativePath);
+    e.dataTransfer.setData('application/x-file-path', relativePath);
     e.dataTransfer.effectAllowed = 'copy';
   };
 
@@ -519,7 +555,7 @@ export const ChatFilesystem = React.forwardRef<
   ChatFilesystemProps
 >((props: ChatFilesystemProps, ref: ForwardedRef<ChatFilesystemRef>) => {
   const { t } = useTranslation();
-  const { workspace, className } = props;
+  const { workspace, className, projectId } = props;
   const [tree, setTree] = useState<DirectoryTreeNode | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -621,6 +657,12 @@ export const ChatFilesystem = React.forwardRef<
     },
     [handleSearch, handleClearSearch],
   );
+  const openWith = useCallback(
+    (action: string) => {
+      window.electron.projects.openWith(projectId, action);
+    },
+    [projectId],
+  );
 
   useEffect(() => {
     loadTree();
@@ -656,6 +698,7 @@ export const ChatFilesystem = React.forwardRef<
         )}
       >
         <p className="text-sm text-destructive">{error}</p>
+
         <Button variant="outline" size="sm" onClick={loadTree}>
           <IconRefresh className="size-4 mr-1" />
           {t('common.retry')}
@@ -695,15 +738,62 @@ export const ChatFilesystem = React.forwardRef<
               {workspace}
             </Button>
           </div>
+          <div className="flex flex-row gap-2">
+            <ButtonGroup>
+              <Button
+                variant="outline"
+                size="sm"
+                className="pl-2!"
+                onClick={() => {
+                  openWith('vscode');
+                }}
+              >
+                <IconBrandVscode></IconBrandVscode>
+                Open
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="pl-2!">
+                    <ChevronDownIcon />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-44">
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        openWith('vscode');
+                      }}
+                    >
+                      VS code
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        openWith('cursor');
+                      }}
+                    >
+                      Cursor
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        openWith('terminal');
+                      }}
+                    >
+                      Terminal
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </ButtonGroup>
 
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={loadTree}
-            title={t('common.refresh')}
-          >
-            <IconRefresh className="size-3" />
-          </Button>
+            <Button
+              variant="outline"
+              size="icon-sm"
+              onClick={loadTree}
+              title={t('common.refresh')}
+            >
+              <IconRefresh className="size-3" />
+            </Button>
+          </div>
         </div>
 
         {/* 搜索框 */}
@@ -776,6 +866,7 @@ export const ChatFilesystem = React.forwardRef<
                   key={child.path}
                   node={child}
                   level={0}
+                  rootPath={workspace}
                   onPreviewFile={handlePreviewFile}
                 />
               ))}

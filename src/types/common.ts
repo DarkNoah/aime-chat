@@ -10,6 +10,7 @@ export type PaginationParams = {
   page: number;
   size: number;
   filter?: string;
+  filters?: Record<string, string>;
   sort?: string;
   order?: string;
 };

@@ -1,0 +1,5 @@
+{
+  "name": "agent-browser",
+  "description": "Browser Automation",
+  "autoInstall": true
+}

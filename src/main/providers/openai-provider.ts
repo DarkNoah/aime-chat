@@ -58,7 +58,9 @@ export class OpenAIProvider extends BaseProvider {
   }
 
   async getLanguageModelList(): Promise<{ name: string; id: string }[]> {
-    const list = await this.openaiClient.models.list();
+    const list = await this.openaiClient.models.list({
+      timeout: 2000,
+    });
     return list.data
       .filter(
         (x) =>
@@ -74,7 +76,9 @@ export class OpenAIProvider extends BaseProvider {
       .sort((a, b) => a.id.localeCompare(b.id));
   }
   async getEmbeddingModelList(): Promise<{ name: string; id: string }[]> {
-    const list = await this.openaiClient.models.list();
+    const list = await this.openaiClient.models.list({
+      timeout: 2000,
+    });
     return list.data
       .filter((x) => x.id.startsWith('text-'))
       .map((x) => {
