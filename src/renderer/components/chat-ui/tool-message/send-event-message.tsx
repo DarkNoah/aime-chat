@@ -48,6 +48,7 @@ import {
 import { FileInfo } from '@/types/common';
 import { useChat } from '@/renderer/hooks/use-chat';
 import { PhotoProvider, PhotoView } from 'react-photo-view';
+import { ModelViewer, isSupportedModelFile } from '../../model-viewer';
 
 export interface SendEventMessageRef {}
 
@@ -142,6 +143,15 @@ export const SendEventMessage = React.forwardRef<
                   >
                     <track kind="captions" />
                   </audio>
+                );
+              } else if (isSupportedModelFile(file.ext)) {
+                return (
+                  <ModelViewer
+                    key={`${file.path}-${i}`}
+                    url={`file://${file.path}`}
+                    ext={file.ext!}
+                    className="w-full max-w-[500px]"
+                  />
                 );
               } else if (file.mimeType?.startsWith('application/pdf')) {
                 return (
