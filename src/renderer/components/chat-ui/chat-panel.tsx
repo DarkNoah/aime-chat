@@ -463,7 +463,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
                 <Message from="assistant">
                   <MessageContent>
                     <MessageResponse
-                      className="text-xs"
+                      className="text-xs whitespace-normal break-all"
                       mermaidConfig={{
                         theme: theme === 'dark' ? 'dark' : 'forest',
                       }}

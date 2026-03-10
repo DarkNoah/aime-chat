@@ -16,6 +16,7 @@ import { ToolSuspended } from '.';
 import { isArray } from '@/utils/is';
 import { Input } from '../../ui/input';
 import { useTranslation } from 'react-i18next';
+import { Streamdown } from '../../ai-elements/streamdown';
 
 export interface AskUserQuestionMessageRef {}
 
@@ -71,24 +72,31 @@ export const AskUserQuestionMessage = React.forwardRef<
                         handleSelect(question.question, value);
                       }}
                     >
-                      {question?.options?.map((option) => {
+                      {question?.options?.map((option, index) => {
                         return (
                           <div
-                            className={`cursor-pointer flex items-center gap-3 border p-2 rounded-md w-fit ${selectedOptions[question.question] === option.label ? 'bg-secondary' : ''}`}
+                            className={`cursor-pointer flex flex-col gap-3 border p-2 rounded-md w-full ${selectedOptions[question.question] === option.label ? 'bg-secondary' : ''}`}
                           >
-                            <RadioGroupItem
-                              value={option.label}
-                              id={option.label}
-                            ></RadioGroupItem>
-                            <Label
-                              htmlFor={option.label}
-                              className="cursor-pointer"
-                            >
-                              {option.label}
-                              <small className="text-xs text-muted-foreground">
-                                {option?.description}
-                              </small>
-                            </Label>
+                            <div className="flex flex-row gap-2">
+                              <RadioGroupItem
+                                value={option.label}
+                                id={`option-${option.label}-${index}`}
+                              ></RadioGroupItem>
+                              <Label
+                                htmlFor={`option-${option.label}-${index}`}
+                                className="cursor-pointer"
+                              >
+                                {option.label}
+                                <small className="text-xs text-muted-foreground">
+                                  {option?.description}
+                                </small>
+                              </Label>
+                            </div>
+                            {option?.markdown && (
+                              <Streamdown className="w-full h-full whitespace-normal border border-muted-foreground/20 rounded-2xl px-2">
+                                {option?.markdown}
+                              </Streamdown>
+                            )}
                           </div>
                         );
                       })}
@@ -143,7 +151,7 @@ export const AskUserQuestionMessage = React.forwardRef<
                             value={option.label}
                             id={option.label}
                             aria-label={option.label}
-                            className="flex flex-row gap-1 flex-wrap whitespace-pre-wrap text-left h-auto items-center justify-start"
+                            className="flex flex-row gap-1 flex-wrap whitespace-pre-wrap text-left h-auto items-center justify-start w-full"
                           >
                             {selectedOptions[question.question]?.includes(
                               option?.label,
@@ -154,11 +162,21 @@ export const AskUserQuestionMessage = React.forwardRef<
                             {!selectedOptions[question.question]?.includes(
                               option?.label,
                             ) && <IconSquare></IconSquare>}
+                            <div className="flex flex-row gap-2 py-1 items-center">
+                              {option?.label}
+                              <small className="text-muted-foreground text-xs whitespace-pre-wrap text-left">
+                                {option?.description}
+                              </small>
+                            </div>
 
-                            {option?.label}
-                            <small className="text-muted-foreground text-xs whitespace-pre-wrap text-left">
-                              {option?.description}
-                            </small>
+                            {option?.markdown && (
+                              <>
+                                <Streamdown className="w-full h-full whitespace-normal border border-muted-foreground/20 rounded-2xl px-2">
+                                  {option?.markdown}
+                                </Streamdown>
+                                <div className=" mb-2"></div>
+                              </>
+                            )}
                           </ToggleGroupItem>
                         );
                       })}

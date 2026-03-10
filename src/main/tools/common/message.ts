@@ -25,7 +25,7 @@ Usage notes:
     data: z.string().describe('must be a JSON string'),
   });
 
-  outputSchema = z.string();
+  // outputSchema = z.string();
 
   constructor(config?: BaseToolParams) {
     super(config);
@@ -45,12 +45,12 @@ Usage notes:
       return 'done';
     } else if (event === 'web_preview') {
       if (!value?.url || !isString(value?.url)) {
-        throw new Error('"url" is required');
+        throw new Error('Error: field "url" is required, example: {"url": "http://localhost:3000"}');
       }
       return 'done';
     } else if (event === 'files_preview') {
       if (!value?.files || !isArray(value?.files)) {
-        throw new Error('"files" is required');
+        throw new Error('Error: field "files" is required, example: {"files": ["/path/to/file1", "/path/to/file2"]}');
       }
       const validFiles: string[] = [];
       for (const file of value?.files) {

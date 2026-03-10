@@ -73,12 +73,16 @@ export const SendEventMessage = React.forwardRef<
     const fetchFiles = async () => {
       if (part?.input?.event === 'files_preview') {
         const fileInfos: FileInfo[] = [];
-        for (const file of JSON.parse(part?.input?.data as string).files) {
-          const info = await window.electron.app.getFileInfo(file);
-          if (info && info.isExist) {
-            fileInfos.push(info);
+        try {
+          const files = JSON.parse(part?.input?.data as string).files;
+          for (const file of files) {
+            const info = await window.electron.app.getFileInfo(file);
+            if (info && info.isExist) {
+              fileInfos.push(info);
+            }
           }
-        }
+        } catch {}
+
         setFiles(fileInfos);
       }
     };
