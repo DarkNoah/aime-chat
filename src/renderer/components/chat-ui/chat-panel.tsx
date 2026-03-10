@@ -140,7 +140,6 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
       clearMessages,
       clearError,
     } = useChat();
-    const [input, setInput] = useState('');
     const { appInfo } = useGlobal();
     const { theme } = useTheme();
     const { t } = useTranslation();
@@ -186,7 +185,6 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
           projectId,
         };
         sendMessage(threadId, inputMessage, body);
-        setInput('');
         chatInputRef.current?.attachmentsClear();
       },
       setAgentId: (_agentId: string) => {
@@ -309,7 +307,6 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
       if (threadId) {
         console.log(inputMessage, body);
         sendMessage(threadId, inputMessage, body);
-        setInput('');
         chatInputRef.current?.attachmentsClear();
       } else {
         onSubmit?.(inputMessage, body);
@@ -573,7 +570,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
                                   <Message from={message.role}>
                                     <MessageContent>
                                       <MessageResponse
-                                        className={`text-xs ${message.role === 'user' ? 'whitespace-break-spaces' : ''}`}
+                                        className={`text-xs ${message.role === 'user' ? 'whitespace-break-spaces' : 'break-words'}`}
                                         mermaidConfig={{
                                           theme:
                                             theme === 'dark'
@@ -820,8 +817,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
             requireToolApproval={requireToolApproval}
             onRequireToolApprovalChange={setRequireToolApproval}
             ref={chatInputRef}
-            input={input}
-            setInput={setInput}
+            threadId={threadId}
             onSubmit={handleSubmit}
             onAbort={handleAbort}
             status={threadState?.status}

@@ -35,11 +35,13 @@ function getSlashQuery(input: string): string | null {
 }
 
 export function ChatSlashCommand({
-  input,
+  input: inputProp,
   onComplete,
   commands = [],
   children,
 }: ChatSlashCommandProps) {
+  const controller = usePromptInputController();
+  const input = controller?.textInput.value ?? inputProp;
   const query = getSlashQuery(input);
   const [selectedValue, setSelectedValue] = useState('');
   const { t } = useTranslation();
@@ -59,7 +61,6 @@ export function ChatSlashCommand({
   useEffect(() => {
     setSelectedValue(filtered.length > 0 ? filtered[0].id : '');
   }, [filtered]);
-  const controller = usePromptInputController();
 
   const completeSelected = useCallback(() => {
     const cmd = filtered.find((c) => c.id === selectedValue) ?? filtered[0];

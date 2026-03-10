@@ -14240,6 +14240,38 @@
           "output": 32768
         }
       },
+      "gpt-5.4": {
+        "id": "gpt-5.4",
+        "name": "GPT-5.4",
+        "family": "gpt",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": false,
+        "knowledge": "2025-08-31",
+        "release_date": "2026-03-05",
+        "last_updated": "2026-03-05",
+        "modalities": {
+          "input": [
+            "text",
+            "image"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 2.5,
+          "output": 15
+        },
+        "limit": {
+          "context": 1050000,
+          "input": 922000,
+          "output": 128000
+        }
+      },
       "kimi-k2-turbo-preview": {
         "id": "kimi-k2-turbo-preview",
         "name": "Kimi K2 Turbo Preview",
@@ -14356,37 +14388,6 @@
         "limit": {
           "context": 128000,
           "output": 16384
-        }
-      },
-      "gemini-3-pro-preview": {
-        "id": "gemini-3-pro-preview",
-        "name": "Gemini 3 Pro Preview",
-        "family": "gemini-pro",
-        "attachment": true,
-        "reasoning": true,
-        "tool_call": true,
-        "temperature": true,
-        "release_date": "2025-06-01",
-        "last_updated": "2025-06-01",
-        "modalities": {
-          "input": [
-            "text",
-            "image",
-            "audio",
-            "video"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": false,
-        "cost": {
-          "input": 2,
-          "output": 12
-        },
-        "limit": {
-          "context": 1000000,
-          "output": 65000
         }
       },
       "gpt-5.3-chat-latest": {
@@ -98983,6 +98984,35 @@
     "name": "CloudFerro Sherlock",
     "doc": "https://docs.sherlock.cloudferro.com/",
     "models": {
+      "MiniMaxAI/MiniMax-M2.5": {
+        "id": "MiniMaxAI/MiniMax-M2.5",
+        "name": "MiniMax-M2.5",
+        "family": "minimax",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "temperature": true,
+        "knowledge": "2026-01",
+        "release_date": "2026-03-05",
+        "last_updated": "2026-03-05",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 0.3,
+          "output": 1.2
+        },
+        "limit": {
+          "context": 196000,
+          "output": 196000
+        }
+      },
       "speakleash/Bielik-11B-v2.6-Instruct": {
         "id": "speakleash/Bielik-11B-v2.6-Instruct",
         "name": "Bielik 11B v2.6 Instruct",
@@ -99097,35 +99127,6 @@
         "limit": {
           "context": 131000,
           "output": 131000
-        }
-      },
-      " MiniMaxAI/MiniMax-M2.5": {
-        "id": " MiniMaxAI/MiniMax-M2.5",
-        "name": "MiniMax-M2.5",
-        "family": "minimax",
-        "attachment": false,
-        "reasoning": true,
-        "tool_call": true,
-        "temperature": true,
-        "knowledge": "2026-01",
-        "release_date": "2026-03-05",
-        "last_updated": "2026-03-05",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": true,
-        "cost": {
-          "input": 0.3,
-          "output": 1.2
-        },
-        "limit": {
-          "context": 196000,
-          "output": 196000
         }
       }
     }
@@ -110193,8 +110194,8 @@
           "cache_write": 0
         },
         "limit": {
-          "context": 204800,
-          "output": 32768
+          "context": 16608,
+          "output": 24576
         }
       },
       "qwen3-coder-next": {
@@ -110292,7 +110293,7 @@
         },
         "limit": {
           "context": 262144,
-          "output": 65536
+          "output": 32768
         }
       },
       "glm-4.7": {
@@ -110389,7 +110390,7 @@
           "cache_write": 0
         },
         "limit": {
-          "context": 1048576,
+          "context": 1000000,
           "output": 65536
         }
       }
@@ -110436,6 +110437,39 @@
         "limit": {
           "context": 202752,
           "output": 16384
+        }
+      },
+      "MiniMax-M2.5": {
+        "id": "MiniMax-M2.5",
+        "name": "MiniMax-M2.5",
+        "family": "minimax",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "interleaved": {
+          "field": "reasoning_content"
+        },
+        "temperature": true,
+        "release_date": "2026-02-12",
+        "last_updated": "2026-02-12",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cache_read": 0,
+          "cache_write": 0
+        },
+        "limit": {
+          "context": 196608,
+          "output": 24576
         }
       },
       "qwen3-coder-next": {
@@ -110532,7 +110566,7 @@
         },
         "limit": {
           "context": 262144,
-          "output": 65536
+          "output": 32768
         }
       },
       "glm-4.7": {
