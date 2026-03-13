@@ -9,6 +9,7 @@ import {
   nativeTheme,
   OpenDialogOptions,
   OpenDialogReturnValue,
+  powerSaveBlocker,
   ProxyConfig,
   screen,
   shell,
@@ -94,6 +95,7 @@ class AppManager extends BaseManager {
   settingsRepository: Repository<Settings>;
   translationRepository: Repository<Translations>;
   appProxy: AppProxy;
+  powerSaveBlockerId: number | null = null;
   defaultApiServerPort = 41100;
   defaultACPPort = 41101;
 
@@ -113,6 +115,14 @@ class AppManager extends BaseManager {
     });
     this.appProxy = (proxySetting?.value || { mode: 'noproxy' }) as AppProxy;
     await this.setProxy(this.appProxy);
+
+    const keepAwakeSetting = await this.settingsRepository.findOne({
+      where: { id: 'keepAwakeWithDisplaySleep' },
+    });
+    this.setKeepAwakeWithDisplaySleep(
+      Boolean(keepAwakeSetting?.value),
+    );
+
     await acpManager.init();
     const acpInfo = await acpManager.getInfo();
     if (acpInfo.enabled) {
@@ -161,6 +171,8 @@ class AppManager extends BaseManager {
     const defaultModel = settings.find((x) => x.id === 'defaultModel')?.value ?? {};
     const defaultAgent = settings.find((x) => x.id === 'defaultAgent')?.value ?? CodeAgent.agentName;
     const defaultThink = settings.find((x) => x.id === 'defaultThink')?.value;
+    const keepAwakeWithDisplaySleep =
+      settings.find((x) => x.id === 'keepAwakeWithDisplaySleep')?.value ?? false;
     return {
       name: app.getName(),
       appPath: app.getAppPath(),
@@ -193,7 +205,28 @@ class AppManager extends BaseManager {
         port: apiServer?.port ?? this.defaultApiServerPort,
       },
       acp,
+      keepAwakeWithDisplaySleep,
     };
+  }
+
+  private setKeepAwakeWithDisplaySleep(enabled: boolean) {
+    if (enabled) {
+      if (
+        this.powerSaveBlockerId === null ||
+        !powerSaveBlocker.isStarted(this.powerSaveBlockerId)
+      ) {
+        this.powerSaveBlockerId = powerSaveBlocker.start('prevent-app-suspension');
+      }
+      return;
+    }
+
+    if (
+      this.powerSaveBlockerId !== null &&
+      powerSaveBlocker.isStarted(this.powerSaveBlockerId)
+    ) {
+      powerSaveBlocker.stop(this.powerSaveBlockerId);
+    }
+    this.powerSaveBlockerId = null;
   }
 
   @channel(AppChannel.Toast)
@@ -727,6 +760,9 @@ class AppManager extends BaseManager {
     value: any;
   }): Promise<void> {
     await this.settingsRepository.upsert(settings, ['id']);
+    if (settings.id === 'keepAwakeWithDisplaySleep') {
+      this.setKeepAwakeWithDisplaySleep(Boolean(settings.value));
+    }
   }
   @channel(AppChannel.InstasllRumtime)
   public async installRuntime(pkg: string) {

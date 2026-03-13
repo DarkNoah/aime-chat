@@ -33,6 +33,7 @@ export class AppInfo {
     port: number;
   };
   acp: ACPInfo;
+  keepAwakeWithDisplaySleep: boolean;
 }
 
 

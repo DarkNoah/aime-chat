@@ -92,6 +92,14 @@ export default function General() {
     await getAppInfo();
   };
 
+  const onChangeKeepAwakeWithDisplaySleep = async (enabled: boolean) => {
+    await window.electron.app.saveSettings({
+      id: 'keepAwakeWithDisplaySleep',
+      value: enabled,
+    });
+    await getAppInfo();
+  };
+
   return (
     <FieldGroup className="p-4 overflow-y-auto">
       <Field className="max-w-[200px]">
@@ -228,6 +236,16 @@ export default function General() {
           </Field>
         </div>
       )}
+      <Field>
+        <FieldLabel>防止系统休眠</FieldLabel>
+        <div className="flex flex-row items-center gap-3">
+          <Switch
+            checked={!!appInfo?.keepAwakeWithDisplaySleep}
+            onCheckedChange={onChangeKeepAwakeWithDisplaySleep}
+          />
+          <Label>允许屏幕关闭，但阻止系统休眠</Label>
+        </div>
+      </Field>
       <Field>
         <FieldLabel>ACP Studio</FieldLabel>
         <div className="flex flex-row items-center gap-3">
