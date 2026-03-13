@@ -85,6 +85,7 @@ import {
   ModelSelectorName,
 } from '../ai-elements/model-selector';
 import { ChatSlashCommandConfig } from '@/types/chat';
+import { Badge } from '../ui/badge';
 
 const DRAFT_STORAGE_KEY = 'chat-input-drafts';
 
@@ -330,12 +331,17 @@ function ChatInputInner(props: ChatInputInnerProps) {
               )}
               {showToolSelector && (
                 <ChatToolSelector value={tools} onChange={setTools}>
-                  <PromptInputButton
-                    size="icon-xs"
-                    variant={tools.length > 0 ? 'default' : 'ghost'}
-                  >
-                    <WrenchIcon size={16} />
-                  </PromptInputButton>
+                  <div className="relative">
+                    <PromptInputButton
+                      size="icon-xs"
+                      variant={tools.length > 0 ? 'default' : 'ghost'}
+                    >
+                      <WrenchIcon size={16} />
+                    </PromptInputButton>
+                    <div className="absolute top-3 right-0.5 text-[9px] ">
+                      {tools.length}
+                    </div>
+                  </div>
                 </ChatToolSelector>
               )}
               {showAgentSelector && (
@@ -344,12 +350,17 @@ function ChatInputInner(props: ChatInputInnerProps) {
                   onChange={setSubAgents}
                   mode="multiple"
                 >
-                  <PromptInputButton
-                    size="icon-xs"
-                    variant={subAgents.length > 0 ? 'default' : 'ghost'}
-                  >
-                    <BotIcon size={16} />
-                  </PromptInputButton>
+                  <div className="relative">
+                    <PromptInputButton
+                      size="icon-xs"
+                      variant={subAgents.length > 0 ? 'default' : 'ghost'}
+                    >
+                      <BotIcon size={16} />
+                    </PromptInputButton>
+                    <div className="absolute top-3 right-0.5 text-[9px] ">
+                      {subAgents.length}
+                    </div>
+                  </div>
                 </ChatAgentSelector>
               )}
               <Tooltip>

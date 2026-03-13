@@ -96,8 +96,6 @@ import {
   AccordionTrigger,
 } from '../ui/accordion';
 
-const DEFAULT_AGENT_ID = 'CodeAgent';
-
 export type ChatPanelProps = {
   children?: React.ReactNode;
   projectId?: string;
@@ -188,6 +186,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
         chatInputRef.current?.attachmentsClear();
       },
       setAgentId: (_agentId: string) => {
+        debugger;
         setAgentId((prev) => {
           return _agentId;
         });
@@ -219,7 +218,8 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
       stop(threadId);
     };
 
-    const handleAgentChange = (_agent: Agent) => {
+    const handleAgentChange = async (_agent: Agent) => {
+      console.log('AgentChange', _agent);
       const tools = _agent?.tools || [];
       tools.push(...(threadState?.metadata?.tools || []));
       chatInputRef.current?.setTools([...new Set(tools)]);
@@ -234,6 +234,20 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
         chatInputRef.current?.setSubAgents([]);
       }
       setSuggestions(_agent?.suggestions || []);
+
+      if (threadId && threadState) {
+        if (_agent?.id !== threadState?.metadata?.agentId) {
+          console.log(_agent?.id);
+          await window.electron.mastra.updateThread(threadId, {
+            title: threadState?.title,
+            metadata: {
+              ...threadState?.metadata,
+              agentId: _agent?.id,
+              tools,
+            },
+          });
+        }
+      }
       if (
         _agent?.greeting &&
         (!threadState || threadState?.messages.length === 0)
@@ -383,7 +397,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
           // unregisterThread(threadId);
           const _thread = await ensureThread(threadId);
           // const _thread = await getThreadFn(threadId);
-          console.log(_thread);
+          console.log('getThread', _thread);
           onThreadChanged?.(_thread);
 
           setModelId(
@@ -398,15 +412,23 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
               maxTokens: number;
             },
           );
-          chatInputRef.current?.setThink(
-            (_thread?.metadata?.think as boolean) ?? false,
-          );
+          let _agent: Agent | undefined;
+          if (_thread?.metadata?.agentId) {
+            _agent = await window.electron.agents.getAgent(
+              _thread?.metadata?.agentId as string,
+            );
+          }
 
-          chatInputRef.current?.setTools(
-            (_thread?.metadata?.tools as string[]) ?? [],
-          );
-          chatInputRef.current?.setSubAgents(
-            (_thread?.metadata?.subAgents as string[]) ?? [],
+          if (!_thread?.metadata?.tools) {
+            chatInputRef.current?.setTools((_agent?.tools as string[]) ?? []);
+          }
+          if (!_thread?.metadata?.subAgents) {
+            chatInputRef.current?.setSubAgents(
+              (_agent?.subAgents as string[]) ?? [],
+            );
+          }
+          chatInputRef.current?.setThink(
+            (_thread?.metadata?.think as boolean) ?? true,
           );
           setRequireToolApproval(
             (_thread?.metadata?.requireToolApproval as boolean) ?? false,
@@ -421,6 +443,16 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
         };
       } else {
         setModelId(appInfo?.defaultModel?.model);
+        setAgentId(appInfo?.defaultAgent);
+        window.electron.agents
+          .getAgent(appInfo?.defaultAgent)
+          .then((_agent) => {
+            chatInputRef.current?.setTools(_agent?.tools ?? []);
+            chatInputRef.current?.setSubAgents(_agent?.subAgents ?? []);
+            return null;
+          })
+          .catch((err) => {});
+        chatInputRef.current?.setThink(true);
       }
       return () => {};
     }, [threadId]);
@@ -570,7 +602,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
                                   <Message from={message.role}>
                                     <MessageContent>
                                       <MessageResponse
-                                        className={`text-xs ${message.role === 'user' ? 'whitespace-break-spaces' : 'break-words'}`}
+                                        className={`text-xs wrap-break-word ${message.role === 'user' ? 'whitespace-break-spaces' : ''}`}
                                         mermaidConfig={{
                                           theme:
                                             theme === 'dark'
@@ -790,9 +822,11 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
               key={threadId}
               value={agentId}
               mode="single"
-              defaultAgentId={DEFAULT_AGENT_ID}
+              defaultAgentId={
+                (threadState?.metadata?.agentId as string) ||
+                appInfo.defaultAgent
+              }
               onSelectedAgent={handleAgentChange}
-              clearable
             ></ChatAgentSelector>
 
             {usage?.usage?.totalTokens > 0 && (

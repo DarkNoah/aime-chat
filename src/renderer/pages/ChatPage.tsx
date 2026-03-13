@@ -237,14 +237,14 @@ function ChatPage() {
       };
     } else if (location.pathname === '/chat') {
       setTitle(t('chat.new_chat'));
-      if (location.state?.options?.agentId) {
-        setTimeout(() => {
-          chatPanelRef?.current?.setAgentId(location.state?.options?.agentId);
-          location.state = null;
-        }, 100);
-      }
+      // if (location.state?.options?.agentId) {
+      //   setTimeout(() => {
+      //     chatPanelRef?.current?.setAgentId(location.state?.options?.agentId);
+      //     location.state = null;
+      //   }, 100);
+      // }
     }
-    return () => { };
+    return () => {};
   }, [threadId]);
 
   useEffect(() => {
@@ -402,10 +402,7 @@ function ChatPage() {
       {showPreview && (
         <>
           <ResizableHandle withHandle />
-          <ResizablePanel
-
-            className={`h-full flex-1`}
-          >
+          <ResizablePanel className={`h-full flex-1`}>
             <div className="p-2 w-full h-full">
               <ChatPreview
                 threadId={threadId}

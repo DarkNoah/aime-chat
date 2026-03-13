@@ -42,6 +42,7 @@ import { Message } from '@/main/tools/common/message';
 import { AgentBrowser } from '@/main/tools/browser';
 
 export class CodeAgent extends BaseAgent {
+  static readonly agentName = 'CodeAgent';
   id: string = 'CodeAgent';
   name: string = 'Code Agent';
   description: string = 'A code agent that can help with code related tasks.';

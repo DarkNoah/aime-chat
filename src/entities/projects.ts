@@ -36,4 +36,7 @@ export class Projects {
 
   @UpdateDateColumn()
   updatedAt!: Date;
+
+  @Column({ nullable: true })
+  defaultAgentId?: string;
 }

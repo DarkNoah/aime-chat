@@ -29,10 +29,12 @@ import LocalModel from './local-model';
 import DefaultModel from './default-model';
 import Instances from './instances';
 import Usage from './usage';
+import Channels from './channels';
 import {
   IconAdjustments,
   IconChartBar,
   IconCloud,
+  IconBrandTelegram,
   IconCpu,
   IconInfoCircle,
   IconPlayerPlay,
@@ -80,6 +82,11 @@ function Settings() {
       key: 'instances',
       label: t('settings.instances'),
       icon: IconServer,
+    },
+    {
+      key: 'channels',
+      label: t('settings.channels'),
+      icon: IconBrandTelegram,
     },
     {
       key: 'usage',
@@ -145,6 +152,7 @@ function Settings() {
           <Route path="local-model" element={<LocalModel />} />
           <Route path="default-model" element={<DefaultModel />} />
           <Route path="instances" element={<Instances />} />
+          <Route path="channels" element={<Channels />} />
           <Route path="usage" element={<Usage />} />
         </Routes>
       </div>

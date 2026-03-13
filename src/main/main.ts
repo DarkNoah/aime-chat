@@ -18,6 +18,7 @@ import { dbManager } from './db';
 import { getAssetPath } from './utils';
 import { providersManager } from './providers';
 import { appManager } from './app';
+import { acpManager } from './app/acp';
 import { knowledgeBaseManager } from './knowledge-base';
 import { toolsManager } from './tools';
 import { localModelManager } from './local-model';
@@ -27,6 +28,8 @@ import { updateManager } from './app/update';
 import { instancesManager } from './instances';
 import { taskQueueManager } from './task-queue';
 import { marketManager } from './market';
+import { channelManager } from './channel';
+
 
 async function init() {
   try {
@@ -43,6 +46,8 @@ async function init() {
     await instancesManager.init();
     await taskQueueManager.init();
     await marketManager.init();
+    await acpManager.init();
+    await channelManager.init();
   } catch (err) {
     dialog.showErrorBox('Mastra Init Error', String(err));
   }
@@ -146,6 +151,7 @@ app.on('window-all-closed', () => {
   }
 });
 
+
 app
   .whenReady()
   .then(() => {
@@ -165,6 +171,7 @@ app
     });
   })
   .catch(console.log);
+
 
 export const getMainWindow = (): BrowserWindow | null => {
   return mainWindow;

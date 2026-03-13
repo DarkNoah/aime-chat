@@ -83,15 +83,19 @@ import { ToolType } from '@/types/tool';
 import { Translation } from '../tools/work/translation';
 import { nanoid } from '@/utils/nanoid';
 import { HookAgent, HookProxyAgent } from './hook-agent';
+import { acpManager } from './acp';
 import { get } from 'core-js/core/dict';
 import { isBinaryFile } from 'isbinaryfile';
 import mime from 'mime';
+import { DefaultAgent } from '../mastra/agents/default-agent';
+import { CodeAgent } from '../mastra/agents/code-agent';
 class AppManager extends BaseManager {
   repository: Repository<Providers>;
   settingsRepository: Repository<Settings>;
   translationRepository: Repository<Translations>;
   appProxy: AppProxy;
   defaultApiServerPort = 41100;
+  defaultACPPort = 41101;
 
   constructor() {
     super();
@@ -109,6 +113,11 @@ class AppManager extends BaseManager {
     });
     this.appProxy = (proxySetting?.value || { mode: 'noproxy' }) as AppProxy;
     await this.setProxy(this.appProxy);
+    await acpManager.init();
+    const acpInfo = await acpManager.getInfo();
+    if (acpInfo.enabled) {
+      await acpManager.start();
+    }
 
     this.updateModelsJson().catch((err) =>
       console.error('Failed to update models.json:', err),
@@ -148,6 +157,10 @@ class AppManager extends BaseManager {
       settings.find((x) => x.id === 'modelPath')?.value ??
       getDefaultModelPath();
     const apiServer = settings.find((x) => x.id === 'apiServer')?.value;
+    const acp = await acpManager.getInfo();
+    const defaultModel = settings.find((x) => x.id === 'defaultModel')?.value ?? {};
+    const defaultAgent = settings.find((x) => x.id === 'defaultAgent')?.value ?? CodeAgent.agentName;
+    const defaultThink = settings.find((x) => x.id === 'defaultThink')?.value;
     return {
       name: app.getName(),
       appPath: app.getAppPath(),
@@ -166,7 +179,9 @@ class AppManager extends BaseManager {
       isPackaged: app.isPackaged,
       theme: nativeTheme.themeSource,
       shouldUseDarkColors: nativeTheme.shouldUseDarkColors,
-      defaultModel: settings.find((x) => x.id === 'defaultModel')?.value ?? {},
+      defaultModel: defaultModel,
+      defaultAgent: defaultAgent,
+      defaultThink: defaultThink ?? 'medium',
       proxy:
         this.appProxy ||
         ({
@@ -177,6 +192,7 @@ class AppManager extends BaseManager {
         enabled: apiServer?.enabled ?? false,
         port: apiServer?.port ?? this.defaultApiServerPort,
       },
+      acp,
     };
   }
 
@@ -793,6 +809,26 @@ class AppManager extends BaseManager {
       await mastraManager.close();
     }
     await this.settingsRepository.upsert(settings, ['id']);
+  }
+
+  @channel(AppChannel.SetACPPort)
+  public async setACPPort(port: number) {
+    await acpManager.setPort(port);
+    const acpInfo = await acpManager.getInfo();
+    if (acpInfo.enabled) {
+      await acpManager.stop();
+      await acpManager.start();
+    }
+  }
+
+  @channel(AppChannel.ToggleACPEnable)
+  public async toggleACPEnable(enabled: boolean) {
+    const config = await acpManager.setEnabled(enabled);
+    if (config.enabled) {
+      await acpManager.start();
+    } else {
+      await acpManager.stop();
+    }
   }
   @channel(AppChannel.GetSetupStatus)
   public async getSetupStatus(): Promise<{

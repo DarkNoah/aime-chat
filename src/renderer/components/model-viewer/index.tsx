@@ -3,7 +3,11 @@ import React, { Suspense, useMemo, useState, useCallback } from 'react';
 import { Canvas, useLoader } from '@react-three/fiber';
 import { OrbitControls, Center, useGLTF, useFBX } from '@react-three/drei';
 import * as THREE from 'three';
-import { IconArrowsMaximize, IconArrowsMinimize } from '@tabler/icons-react';
+import {
+  IconAlertCircle,
+  IconArrowsMaximize,
+  IconArrowsMinimize,
+} from '@tabler/icons-react';
 // @ts-expect-error three/examples loaders lack type declarations in this setup
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader';
 // @ts-expect-error three/examples loaders lack type declarations in this setup
@@ -12,6 +16,16 @@ import { STLLoader } from 'three/examples/jsm/loaders/STLLoader';
 const SUPPORTED_EXTENSIONS = ['.glb', '.gltf', '.fbx', '.obj', '.stl'] as const;
 
 type SupportedExtension = (typeof SUPPORTED_EXTENSIONS)[number];
+
+type ErrorBoundaryProps = {
+  children: React.ReactNode;
+  fallback: React.ComponentType<{ error: Error }>;
+  resetKey: string;
+};
+
+type ErrorBoundaryState = {
+  error: Error | null;
+};
 
 export function isSupportedModelFile(ext?: string): boolean {
   if (!ext) return false;
@@ -79,6 +93,91 @@ function LoadingFallback() {
   );
 }
 
+function getErrorMessage(error: Error) {
+  return error.message || 'Unknown model loading error';
+}
+
+function ModelErrorState({ error }: { error: Error }) {
+  return (
+    <div className="flex size-full items-center justify-center p-6 text-white">
+      <div className="max-w-md rounded-xl border border-white/10 bg-black/25 p-4 backdrop-blur-sm">
+        <div className="mb-3 flex items-center gap-2 text-sm font-medium text-red-200">
+          <IconAlertCircle size={18} />
+          Model preview failed
+        </div>
+        <p className="text-sm text-white/80">
+          The model file could not be loaded.
+        </p>
+        <p className="mt-3 wrap-break-word rounded-lg bg-black/30 px-3 py-2 font-mono text-xs text-white/70">
+          {getErrorMessage(error)}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+class ModelErrorBoundary extends React.Component<
+  ErrorBoundaryProps,
+  ErrorBoundaryState
+> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { error: null };
+  }
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { error };
+  }
+
+  componentDidUpdate(prevProps: ErrorBoundaryProps) {
+    const { resetKey } = this.props;
+    const { error } = this.state;
+
+    if (prevProps.resetKey !== resetKey && error) {
+      this.setState({ error: null });
+    }
+  }
+
+  render() {
+    const { children, fallback: Fallback } = this.props;
+    const { error } = this.state;
+
+    if (error) {
+      return <Fallback error={error} />;
+    }
+
+    return children;
+  }
+}
+
+function ModelScene({ url, ext }: { url: string; ext: string }) {
+  return (
+    <Canvas
+      camera={{ position: [0, 2, 5], fov: 45 }}
+      gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping }}
+    >
+      <ambientLight intensity={0.6} />
+      <directionalLight position={[5, 10, 5]} intensity={1} castShadow />
+      <directionalLight position={[-5, -2, -5]} intensity={0.4} />
+      <hemisphereLight args={['#b1e1ff', '#b97a20', 0.5]} />
+      <Suspense fallback={<LoadingFallback />}>
+        <Center>
+          <ModelContent url={url} ext={ext} />
+        </Center>
+      </Suspense>
+      <OrbitControls makeDefault enableDamping />
+    </Canvas>
+  );
+}
+
+function ModelViewport({ url, ext }: { url: string; ext: string }) {
+  return (
+    <ModelErrorBoundary resetKey={`${ext}:${url}`} fallback={ModelErrorState}>
+      <ModelScene url={url} ext={ext} />
+    </ModelErrorBoundary>
+  );
+}
+
 export interface ModelViewerProps {
   url: string;
   ext: string;
@@ -101,7 +200,7 @@ export function ModelViewer({ url, ext, className, style }: ModelViewerProps) {
           onKeyDown={(e) => e.key === 'Escape' && setMaximized(false)}
         >
           <div
-            className="relative w-[90vw] h-[85vh]"
+            className="relative h-[85vh] w-[90vw]"
             onClick={(e) => e.stopPropagation()}
             role="presentation"
           >
@@ -113,27 +212,12 @@ export function ModelViewer({ url, ext, className, style }: ModelViewerProps) {
               <IconArrowsMinimize size={18} />
             </button>
             <div
-              className="size-full rounded-xl overflow-hidden"
+              className="size-full overflow-hidden rounded-xl"
               style={{
-                background:
-                  'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
+                background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
               }}
             >
-              <Canvas
-                camera={{ position: [0, 2, 5], fov: 45 }}
-                gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping }}
-              >
-                <ambientLight intensity={0.6} />
-                <directionalLight position={[5, 10, 5]} intensity={1} castShadow />
-                <directionalLight position={[-5, -2, -5]} intensity={0.4} />
-                <hemisphereLight args={['#b1e1ff', '#b97a20', 0.5]} />
-                <Suspense fallback={<LoadingFallback />}>
-                  <Center>
-                    <ModelContent url={url} ext={ext} />
-                  </Center>
-                </Suspense>
-                <OrbitControls makeDefault enableDamping />
-              </Canvas>
+              <ModelViewport url={url} ext={ext} />
             </div>
           </div>
         </div>
@@ -156,21 +240,7 @@ export function ModelViewer({ url, ext, className, style }: ModelViewerProps) {
         >
           <IconArrowsMaximize size={16} />
         </button>
-        <Canvas
-          camera={{ position: [0, 2, 5], fov: 45 }}
-          gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping }}
-        >
-          <ambientLight intensity={0.6} />
-          <directionalLight position={[5, 10, 5]} intensity={1} castShadow />
-          <directionalLight position={[-5, -2, -5]} intensity={0.4} />
-          <hemisphereLight args={['#b1e1ff', '#b97a20', 0.5]} />
-          <Suspense fallback={<LoadingFallback />}>
-            <Center>
-              <ModelContent url={url} ext={ext} />
-            </Center>
-          </Suspense>
-          <OrbitControls makeDefault enableDamping />
-        </Canvas>
+        <ModelViewport url={url} ext={ext} />
       </div>
     </>
   );
