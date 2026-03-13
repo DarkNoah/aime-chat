@@ -26,6 +26,8 @@ import { app } from 'electron';
 import { MessageInput } from '@mastra/core/agent/message-list';
 import { ContentPart } from '@mastra/core/_types/@internal_ai-sdk-v5/dist';
 import { toolsManager } from '..';
+import { filesize } from 'filesize';
+import sharp from 'sharp';
 
 const inputSchema = z.strictObject({
   url_or_file_path: z.string(),
@@ -225,6 +227,17 @@ Returns:
 ${ocr}`,
           });
         }
+
+        const stats = fs.statSync(file_path);
+        const size = stats.size;
+        const imageMetadata = await sharp(file_path).metadata();
+        const width = imageMetadata.width ?? 'unknown';
+        const height = imageMetadata.height ?? 'unknown';
+
+        data.push({
+          type: 'text',
+          text: `<system-reminder>Image file: ${path.basename(file_path)}. Path: ${file_path}. Size: ${filesize(size)}. Format: ${mimeType}. Width: ${width}px. Height: ${height}px.</system-reminder>`,
+        })
         return {
           content: data
           // mimeType: mimeType,

@@ -1,5 +1,5 @@
 import { UIMessage } from '@ai-sdk/react';
-import { UIMessageWithMetadata } from '@mastra/core/agent';
+import { Agent, UIMessageWithMetadata } from '@mastra/core/agent';
 import { CallSettings, ChatStatus, LanguageModelUsage } from 'ai';
 import { StorageThreadType } from '@mastra/core/memory';
 import type { SharedV2ProviderOptions } from '@ai-sdk/provider';
@@ -14,7 +14,7 @@ export type ChatInput = {
   messageId?: string;
   messages: Array<UIMessage | UIMessageWithMetadata>;
   model: string;
-  webSearch: boolean;
+  webSearch?: boolean;
   chatId: string;
   trigger?: string;
   think?: boolean;
@@ -154,3 +154,26 @@ export const ChatSlashCommandConfig = [{
   label: 'compact',
   description: 'Compact the current messages',
 }]
+
+
+export type ChatCallbackEvent = {
+  onStepFinish?: () => void;
+  onToolCall?: (toolCall: {
+    toolName: string;
+    toolCallId: string;
+    input: any;
+  }) => void;
+  onToolCallUpdate?: (toolCallUpdate: {
+    toolCallId: string;
+    output: any;
+  }, status: 'pending' | 'completed' | 'failed') => void;
+  onPlanUpdate?: (plans: ChatTask[]) => void;
+  onAgentChanged?: (agent: Agent) => void;
+  onError?: (error: string) => void;
+  onUsage?: (usage: LanguageModelUsage, maxTokens?: number) => void;
+  onStart?: () => void;
+  onEnd?: () => void;
+  onChunk?: (chunk: string) => void;
+  onThought?: (chunk: string) => void;
+  onThreadChanged?: (thread: ChatThread) => void;
+}

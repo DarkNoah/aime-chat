@@ -36,6 +36,8 @@ export enum AppChannel {
   GetRuntimeInfo = 'app:getRuntimeInfo',
   SetApiServerPort = 'app:setApiServerPort',
   ToggleApiServerEnable = 'app:toggleApiServerEnable',
+  SetACPPort = 'app:setACPPort',
+  ToggleACPEnable = 'app:toggleACPEnable',
   // 更新相关
   CheckForUpdates = 'app:checkForUpdates',
   DownloadUpdate = 'app:downloadUpdate',
@@ -124,6 +126,7 @@ export enum AgentChannel {
   GetAvailableAgents = 'agent:getAvailableAgents',
   DeleteAgent = 'agent:deleteAgent',
   GetAgentConfig = 'agent:getAgentConfig',
+  GetDefaultAgent = 'agent:getDefaultAgent',
 }
 
 export enum ProjectChannel {
@@ -151,4 +154,21 @@ export enum TaskQueueChannel {
   TaskUpdated = 'task-queue:taskUpdated',
   TaskAdded = 'task-queue:taskAdded',
   TaskRemoved = 'task-queue:taskRemoved',
+}
+
+
+export enum ChannelChannel {
+  GetList = 'channel:getList',
+  Get = 'channel:get',
+  Save = 'channel:save',
+  Delete = 'channel:delete',
+  Start = 'channel:start',
+  Stop = 'channel:stop',
+  Restart = 'channel:restart',
+  TestConnection = 'channel:testConnection',
+  SendTestMessage = 'channel:sendTestMessage',
+  SendTestFile = 'channel:sendTestFile',
+  GetCommands = 'channel:getCommands',
+  GeneratePairingCode = 'channel:generatePairingCode',
+  ClearPairingCode = 'channel:clearPairingCode',
 }

@@ -169,7 +169,7 @@ ${additionalInstructions}
     const agent = new MastraAgent({
       id: builtInAgent?.id ?? agentEntity.id,
       name: builtInAgent?.name ?? agentEntity.name,
-      instructions: instructions,
+      instructions: instructions ?? `You are a helpful assistant.`,
       description: builtInAgent?.description ?? agentEntity.description,
       model: await providersManager.getLanguageModel(params?.modelId),
       memory: new Memory({
@@ -428,6 +428,13 @@ ${additionalInstructions}
     await this.agentsRepository.save(agentEntity);
 
     return agentEntity;
+  }
+
+  @channel(AgentChannel.GetDefaultAgent)
+  public async getDefaultAgent(): Promise<Agent> {
+    const appInfo = await appManager.getInfo();
+    const defaultAgent = appInfo.defaultAgent;
+    return await this.getAgent(defaultAgent);
   }
 }
 

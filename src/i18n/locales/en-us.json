@@ -46,7 +46,14 @@
     "instances_debug_port": "Remote Debugging Port",
     "vision_model": "Vision Model",
     "default_ocr": "Ocr Model",
-    "usage": "Usage"
+    "usage": "Usage",
+    "default_agent": "Default Agent",
+    "think_none": "None",
+    "think_low": "Low",
+    "think_high": "High",
+    "think_medium": "Medium",
+    "default_think": "Default Think Mode",
+    "channels": "Channels"
   },
   "common": {
     "edit": "Edit",
@@ -188,7 +195,8 @@
     "new_project": "New Project",
     "project_path": "Project Path",
     "edit_project": "Edit Project",
-    "add_skills": "Add Skills"
+    "add_skills": "Add Skills",
+    "default_agent": "Default Agent"
   },
   "knowledge-base": {
     "add_url": "Add Url",
@@ -286,5 +294,51 @@
   "providers": {
     "chat_provider": "Chat Provider",
     "other_provider": "Other Provider"
+  },
+  "channels": {
+    "saved": "Channel saved",
+    "deleted": "Channel deleted",
+    "summary": "{{count}} channel(s), {{running}} running",
+    "add_telegram": "Add Telegram",
+    "type": "Type",
+    "default_chat_id": "Default Chat ID",
+    "allowed_chat_ids": "Allowed Chat IDs",
+    "last_event": "Last Event",
+    "last_event_at": "Last Event At",
+    "bot_identity": "Bot Identity",
+    "connect": "Connect",
+    "disconnect": "Disconnect",
+    "restart": "Restart",
+    "test_connection": "Test Connection",
+    "send_test_message": "Send Test Message",
+    "send_test_file": "Send Test File",
+    "test_panel": "Test Panel",
+    "test_panel_description": "Edit the default test message or file caption, then send from each channel card.",
+    "test_message": "Test Message",
+    "test_file_caption": "Test File Caption",
+    "edit_channel": "Edit Channel",
+    "add_channel": "Add Channel",
+    "bot_token": "Bot Token",
+    "keep_token_placeholder": "Leave empty to keep current token",
+    "auto_start": "Auto connect on app start",
+    "allowed_chat_ids_placeholder": "One chat id per line, empty means allow any chat",
+    "add_command": "Add Command",
+    "command_reply": "Command Reply",
+    "pair_command": "Pair command",
+    "pairing_code": "Pairing code",
+    "pairing_expires_at": "Pairing expires at",
+    "generate_pairing_code": "Generate pairing code",
+    "pairing_section_title": "Telegram pairing",
+    "pairing_help": "Send `/${command} <code>` to the bot from the chat you want to authorize.",
+    "paired_toast": "Telegram channel {{channel}} paired with chat {{chatId}}.",
+    "paired_toast_with_title": "Telegram channel {{channel}} paired with {{title}} ({{chatId}}).",
+    "pairing_dialog_title": "Telegram pairing guide",
+    "pairing_dialog_description": "{{channel}} is waiting for pairing. Keep this window open and send the pairing command in Telegram.",
+    "pairing_step_1": "1. Open Telegram and find your bot chat or target group.",
+    "pairing_step_2": "2. Send /{{command}} {{code}}.",
+    "pairing_step_3": "3. Once the bot confirms, this window will close automatically.",
+    "pairing_dialog_waiting": "Pairing in progress. Waiting for a Telegram chat to submit the pairing code.",
+    "pairing_dialog_close_hint": "Closing this window immediately invalidates the current pairing code.",
+    "pairing_expired_toast": "The pairing code for {{channel}} expired after {{count}} failed attempts, and the dialog has been closed."
   }
 }

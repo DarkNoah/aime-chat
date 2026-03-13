@@ -13,6 +13,7 @@ export class StreamTest extends BaseTool {
   description = '测试工具';
   inputSchema = z.object({
     time: z.number().describe('结束时间(毫秒)').default(5000),
+    failed: z.boolean().describe('是否失败').default(false),
   });
 
   constructor(config?: BaseToolParams) {
@@ -26,8 +27,11 @@ export class StreamTest extends BaseTool {
   ) => {
     const now = Date.now();
     const abortSignal = options?.abortSignal as AbortSignal;
-    const { time } = inputData;
+    const { time, failed } = inputData;
 
+    if (failed) {
+      throw new Error('测试失败');
+    }
     await new Promise<void>((resolve) => {
       const timeoutId = setTimeout(resolve, time);
       abortSignal?.addEventListener('abort', () => {

@@ -27,6 +27,7 @@ import {
 import { useThreadStore } from '../store/use-thread-store';
 import { useShallow } from 'zustand/react/shallow';
 import { eventBus } from '../lib/event-bus';
+import { useGlobal } from './use-global';
 
 export type ChatSessionProps = {
   threadId: string;
@@ -58,6 +59,7 @@ export const ChatSession = React.forwardRef<ChatSessionRef, ChatSessionProps>(
       onFinish,
       onThreadChanged,
     } = props;
+    const { appInfo } = useGlobal();
 
     const threadState = useThreadStore(
       useShallow((s) => s.threadStates[threadId]),
@@ -159,7 +161,9 @@ export const ChatSession = React.forwardRef<ChatSessionRef, ChatSessionProps>(
     }, [threadId, error, updateError]);
 
     return (
-      <div className=" p-2 h-10 bg-muted-foreground/20 backdrop-blur text-muted-foreground flex items-center justify-center flex-row gap-2 rounded-xl hidden!">
+      <div
+        className={` p-2 h-10 bg-muted-foreground/20 backdrop-blur text-xs text-muted-foreground items-center justify-center flex-row gap-2 rounded-xl ${appInfo?.isPackaged ? 'hidden' : ''}`}
+      >
         {threadId.substring(0, 2)} {threadState.status}
         <div>{threadState.messages?.length}</div>
       </div>
@@ -385,7 +389,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           title: event.data.title,
         });
       } else if (event.data.type === ChatChangedType.Finish) {
-        // onFinish(event.data.chatId, event.data);
+        onFinish(event.data.chatId, event.data);
       }
     };
     const handleChatThreadChangedEvent = (event: {

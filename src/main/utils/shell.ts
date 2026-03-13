@@ -224,13 +224,17 @@ export const createShell = (
   const _command = isWindows
     ? input_command
     : (() => {
-        // wrap command to append subprocess pids (via pgrep) to temporary file
-        let command = isString(input_command)
-          ? input_command
-          : quote(input_command);
-        if (!command.endsWith('&')) command += ';';
-        return `{ ${command} }; __code=$?; pgrep -g 0 >${tempFilePath} 2>&1; exit $__code;`;
-      })();
+      // wrap command to append subprocess pids (via pgrep) to temporary file
+      let command = isString(input_command)
+        ? input_command
+        : quote(input_command);
+      if (!command.endsWith('&')) command += ';';
+      return `{ ${command} }; __code=$?; pgrep -g 0 >${tempFilePath} 2>&1; exit $__code;`;
+    })();
+
+  if (isWindows) {
+    _env['PYTHONIOENCODING'] = 'utf-8';
+  }
 
   if (isWindows && usePowerShell) {
     const command = isString(input_command)

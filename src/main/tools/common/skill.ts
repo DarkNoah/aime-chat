@@ -40,6 +40,7 @@ Important:
 - When a skill matches the user's request, this is a BLOCKING REQUIREMENT: invoke the relevant Skill tool BEFORE generating any other response about the task
 - NEVER mention a skill without actually calling this tool
 - Do not invoke a skill that is already running
+- If the skill is already launching, you do not need to invoke the tool again.
 `;
   inputSchema = z.strictObject({
     skill_id: z
@@ -133,7 +134,8 @@ ${_skills
     requestContext.set('skillsLoaded' as never, [...new Set([...skillsLoaded, skill_id])] as never);
 
     if (skillInfo)
-      return `Base directory for this skill: ${skillInfo.path}
+      return `<system-reminder>Launching skill: ${skillInfo.id}<system-reminder>
+Base directory for this skill: ${skillInfo.path}
 
 ${skillInfo.content}
 

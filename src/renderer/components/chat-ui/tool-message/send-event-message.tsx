@@ -48,6 +48,14 @@ import {
 import { FileInfo } from '@/types/common';
 import { useChat } from '@/renderer/hooks/use-chat';
 import { PhotoProvider, PhotoView } from 'react-photo-view';
+import { ModelViewer, isSupportedModelFile } from '../../model-viewer';
+
+const toFileUrl = (filePath: string) => new URL(filePath, 'file:').href;
+
+type SendEventInput = {
+  event?: string;
+  data?: string;
+};
 
 export interface SendEventMessageRef {}
 
@@ -65,24 +73,38 @@ export const SendEventMessage = React.forwardRef<
   const [event, setEvent] = useState<string>('');
   const [data, setData] = useState<string>('');
   const { sendEvent } = useChat();
+  const input = part?.input as SendEventInput | undefined;
 
   useEffect(() => {
-    setEvent(part?.input?.event as string);
-    setData(part?.input?.data as string);
+    setEvent(input?.event ?? '');
+    setData(input?.data ?? '');
+
     const fetchFiles = async () => {
-      if (part?.input?.event === 'files_preview') {
-        const fileInfos: FileInfo[] = [];
-        for (const file of JSON.parse(part?.input?.data as string).files) {
-          const info = await window.electron.app.getFileInfo(file);
+      if (input?.event !== 'files_preview') {
+        setFiles([]);
+        return;
+      }
+
+      const fileInfos: FileInfo[] = [];
+
+      try {
+        const parsed = JSON.parse(input.data ?? '{}') as { files?: string[] };
+
+        for (const filePath of parsed.files ?? []) {
+          const info = await window.electron.app.getFileInfo(filePath);
           if (info && info.isExist) {
             fileInfos.push(info);
           }
         }
-        setFiles(fileInfos);
+      } catch {
+        // Ignore malformed preview payloads and render no attachments.
       }
+
+      setFiles(fileInfos);
     };
+
     fetchFiles();
-  }, [part]);
+  }, [input]);
 
   return (
     <>
@@ -109,14 +131,14 @@ export const SendEventMessage = React.forwardRef<
               if (file.mimeType?.startsWith('image/')) {
                 return (
                   <PhotoView
-                    src={`file://${file.path}`}
+                    src={toFileUrl(file.path)}
                     key={`${file.path}-${i}`}
                   >
                     <img
                       alt={file.name || 'attachment'}
                       className="size-full object-cover rounded-2xl max-w-[200px]"
                       height={100}
-                      src={`file://${file.path}`}
+                      src={toFileUrl(file.path)}
                       width={100}
                     />
                   </PhotoView>
@@ -124,7 +146,7 @@ export const SendEventMessage = React.forwardRef<
               } else if (file.mimeType?.startsWith('video/')) {
                 return (
                   <video
-                    src={`file://${file.path}`}
+                    src={toFileUrl(file.path)}
                     controls
                     className="w-full rounded-2xl"
                     key={`${file.path}-${i}`}
@@ -135,7 +157,7 @@ export const SendEventMessage = React.forwardRef<
               } else if (file.mimeType?.startsWith('audio/')) {
                 return (
                   <audio
-                    src={`file://${file.path}`}
+                    src={toFileUrl(file.path)}
                     controls
                     className="w-full"
                     key={`${file.path}-${i}`}
@@ -143,10 +165,19 @@ export const SendEventMessage = React.forwardRef<
                     <track kind="captions" />
                   </audio>
                 );
+              } else if (isSupportedModelFile(file.ext)) {
+                return (
+                  <ModelViewer
+                    key={`${file.path}-${i}`}
+                    url={toFileUrl(file.path)}
+                    ext={file.ext!}
+                    className="w-full max-w-[500px]"
+                  />
+                );
               } else if (file.mimeType?.startsWith('application/pdf')) {
                 return (
                   <iframe
-                    src={`file://${file.path}`}
+                    src={toFileUrl(file.path)}
                     className="w-full h-auto"
                     key={`${file.path}-${i}`}
                     title={file.name}

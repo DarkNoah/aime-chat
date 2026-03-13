@@ -24,12 +24,28 @@ export class AppInfo {
     transcriptionModel: string;
     speechModel: string;
   };
+  defaultAgent: string;
+  defaultThink: 'low' | 'medium' | 'high';
   proxy: AppProxy;
   apiServer: {
     status: 'running' | 'stopped';
     enabled: boolean;
     port: number;
   };
+  acp: ACPInfo;
+  keepAwakeWithDisplaySleep: boolean;
+}
+
+
+
+export class ACPInfo {
+  enabled: boolean;
+  status: 'running' | 'stopped';
+  transport: 'http';
+  url?: string;
+  port?: number;
+  bridgeScriptPath?: string;
+  bridgeCommand?: string;
 }
 
 export class AppProxy {

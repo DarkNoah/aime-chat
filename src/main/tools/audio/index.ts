@@ -14,7 +14,7 @@ import {
   AudioLoader,
 } from '@/main/utils/loaders/audio-loader';
 import { downloadFile, saveFile } from '@/main/utils/file';
-import { isString, isUrl } from '@/utils/is';
+import { isObject, isString, isUrl } from '@/utils/is';
 import { nanoid } from '@/utils/nanoid';
 import { ToolConfig } from '@/types/tool';
 import { providersManager } from '@/main/providers';
@@ -46,6 +46,7 @@ const AUDIO_EXTENSIONS = new Set([
   '.flac',
   '.aac',
   '.ogg',
+  '.oga',
   '.m4a',
   '.wma',
   '.opus',
@@ -687,7 +688,7 @@ export class SpeechToText extends BaseTool {
   description = `Transcribe speech from audio or video files to text, SRT subtitles, or ASS subtitles.
 
 Supports:
-- Audio files: wav, mp3, flac, aac, ogg, m4a, wma, opus
+- Audio files: wav, mp3, flac, aac, ogg, oga, m4a, wma, opus
 - Video files: mp4, mkv, avi, mov, flv, wmv, webm (audio will be extracted automatically)
 - URL input: HTTP/HTTPS URLs pointing to audio or video files
 
@@ -829,6 +830,10 @@ Output types:
         system_reminder = `<system-reminder>This audio file duration is ${result.durationInSeconds?.toFixed(2)}s.</system-reminder>`;
       }
       if (output_type === 'text') {
+        return {
+          durationInSeconds: result.durationInSeconds,
+          text: text,
+        }
         return `${system_reminder}
 <transcription-text>
 ${text}
@@ -899,6 +904,24 @@ ${fileContent}
       }
     }
   };
+
+  toModelOutput = (output: any) => {
+    if (isString(output)) return output;
+    else if (isObject(output) && 'text' in output) {
+      let system_reminder = '';
+      if (output.durationInSeconds) {
+        system_reminder = `<system-reminder>This audio file duration is ${output.durationInSeconds?.toFixed(2)}s.</system-reminder>`;
+      }
+
+      return {
+        type: 'text',
+        value: `${system_reminder}
+<transcription-text>
+${output.text}
+</transcription-text>`,
+      }
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------

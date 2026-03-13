@@ -892,6 +892,9 @@ class ToolsManager extends BaseManager {
         const tool = tools[`${mcpToolKey}_${toolName}`];
         if (tool) {
           const res = await tool.execute?.(input);
+          if (isObject(res) && Object.keys(res).length === 1 && 'result' in res && isString(res.result)) {
+            return res.result;
+          }
           return res;
         } else {
           throw new Error(`Tool ${toolName} not found`);

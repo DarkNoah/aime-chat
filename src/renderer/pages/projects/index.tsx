@@ -73,6 +73,8 @@ function ProjectsPage() {
     });
     if (res.items.length > 0) {
       setThreadId(res.items[0].id);
+    } else {
+      setThreadId(undefined);
     }
   }, [id, setTitle]);
 
@@ -82,7 +84,7 @@ function ProjectsPage() {
 
   useEffect(() => {
     // getProjects();
-    setThreadId(undefined);
+    // setThreadId(undefined);
     const handleProjectUpdated = (data) => {
       if (id === data.id) getProject();
     };

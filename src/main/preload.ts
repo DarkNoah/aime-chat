@@ -20,6 +20,7 @@ import {
 import {
   AgentChannel,
   AppChannel,
+  ChannelChannel,
   KnowledgeBaseChannel,
   LocalModelChannel,
   MastraChannel,
@@ -60,6 +61,7 @@ import {
 import { KnowledgeBase, KnowledgeBaseItem } from '@/entities/knowledge-base';
 import { InstanceInfo } from '@/types/instance';
 import { MarketChannel } from '@/types/market';
+import { ChannelCommandsResult, ChannelInfo, ChannelPairingCodeResult, ChannelTestResult, SaveChannelInput, SendChannelFileInput, SendChannelMessageInput } from '@/types/channel';
 
 
 // export type Channels = 'ipc-example';
@@ -93,6 +95,20 @@ const electronHandler = {
       return ipcRenderer.listeners.length;
     },
   },
+  channels: {
+    getList: (): Promise<ChannelInfo[]> => ipcRenderer.invoke(ChannelChannel.GetList),
+    get: (id: string): Promise<ChannelInfo> => ipcRenderer.invoke(ChannelChannel.Get, id),
+    save: (data: SaveChannelInput): Promise<ChannelInfo> => ipcRenderer.invoke(ChannelChannel.Save, data),
+    delete: (id: string): Promise<void> => ipcRenderer.invoke(ChannelChannel.Delete, id),
+    start: (id: string): Promise<ChannelInfo> => ipcRenderer.invoke(ChannelChannel.Start, id),
+    stop: (id: string): Promise<ChannelInfo> => ipcRenderer.invoke(ChannelChannel.Stop, id),
+    restart: (id: string): Promise<ChannelInfo> => ipcRenderer.invoke(ChannelChannel.Restart, id),
+    testConnection: (id: string): Promise<ChannelTestResult> => ipcRenderer.invoke(ChannelChannel.TestConnection, id),
+    generatePairingCode: (id: string): Promise<ChannelPairingCodeResult> =>
+      ipcRenderer.invoke(ChannelChannel.GeneratePairingCode, id),
+    clearPairingCode: (id: string): Promise<ChannelInfo> =>
+      ipcRenderer.invoke(ChannelChannel.ClearPairingCode, id),
+  },
   app: {
     getPathForFile: (file: File): string => {
       return webUtils.getPathForFile(file);
@@ -125,6 +141,10 @@ const electronHandler = {
       ipcRenderer.invoke(AppChannel.SetApiServerPort, port),
     toggleApiServerEnable: (enabled: boolean) =>
       ipcRenderer.invoke(AppChannel.ToggleApiServerEnable, enabled),
+    setACPPort: (port: number) =>
+      ipcRenderer.invoke(AppChannel.SetACPPort, port),
+    toggleACPEnable: (enabled: boolean) =>
+      ipcRenderer.invoke(AppChannel.ToggleACPEnable, enabled),
     // 更新相关 API
     checkForUpdates: (): Promise<UpdateState> =>
       ipcRenderer.invoke(AppChannel.CheckForUpdates),
@@ -328,6 +348,8 @@ const electronHandler = {
       ipcRenderer.invoke(AgentChannel.DeleteAgent, id),
     getAgentConfig: (id: string) =>
       ipcRenderer.invoke(AgentChannel.GetAgentConfig, id),
+    getDefaultAgent: (): Promise<Agent> =>
+      ipcRenderer.invoke(AgentChannel.GetDefaultAgent),
   },
   projects: {
     saveProject: (data: any) =>

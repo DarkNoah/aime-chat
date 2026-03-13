@@ -14,6 +14,7 @@ import { Projects } from '@/entities/projects';
 import { MastraThreadsUsage } from '@/entities/mastra-threads-usage';
 import { Translations } from '@/entities/translations';
 import { Instances } from '@/entities/instances';
+import { Channels } from '@/entities/channels';
 
 class DBManager extends BaseManager {
   // defaultDb: Database;
@@ -43,6 +44,7 @@ class DBManager extends BaseManager {
         MastraThreadsUsage,
         Translations,
         Instances,
+        Channels,
       ],
       // migrationsRun: true,
       // migrations: [],

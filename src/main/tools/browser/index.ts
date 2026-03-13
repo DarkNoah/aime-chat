@@ -55,6 +55,9 @@ export class AgentBrowser extends BaseTool<BaseToolParams> {
     const result = await runCommand(command, {
       abortSignal: options?.abortSignal,
       cwd: workspace,
+      env: {
+        AGENT_BROWSER_SESSION: "dev1"
+      }
     });
     if (result.processSignal) {
       return 'Action cancelled by user';

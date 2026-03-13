@@ -169,7 +169,9 @@ export const ChatToolResultPreview = React.forwardRef<
               <Item variant="muted">
                 <ItemContent>
                   <ItemTitle>
-                    <Streamdown>{part.output?.message}</Streamdown>
+                    <Streamdown className="whitespace-normal break-all">
+                      {part.output?.message}
+                    </Streamdown>
                   </ItemTitle>
                 </ItemContent>
               </Item>
@@ -221,7 +223,7 @@ export const ChatToolResultPreview = React.forwardRef<
                   return (
                     <Streamdown
                       key={index}
-                      className="bg-secondary p-4 rounded-2xl"
+                      className="bg-secondary p-4 rounded-2xl whitespace-normal break-all"
                     >
                       {item.text}
                     </Streamdown>
@@ -240,7 +242,7 @@ export const ChatToolResultPreview = React.forwardRef<
             <TabsContent value="markdown">
               <Streamdown
                 key={`${part.toolCallId}-markdown`}
-                className="bg-secondary p-4 rounded-2xl  text-wrap break-all"
+                className="bg-secondary p-4 rounded-2xl  text-wrap break-all whitespace-normal"
                 allowedTags={{
                   file: [],
                 }}
@@ -296,7 +298,7 @@ export const ChatToolResultPreview = React.forwardRef<
               )}
 
               {part?.input.code && (
-                <Streamdown>
+                <Streamdown className="whitespace-normal break-all">
                   {`\`\`\`python\n${part?.input.code}\n\`\`\``}
                 </Streamdown>
               )}
@@ -324,7 +326,7 @@ export const ChatToolResultPreview = React.forwardRef<
                 {part?.input?.file_path}
               </Button>
               {part?.input?.content && (
-                <Streamdown>
+                <Streamdown className="whitespace-normal break-all">
                   {`\`\`\`text\n${part?.input.content}\n\`\`\``}
                 </Streamdown>
               )}
