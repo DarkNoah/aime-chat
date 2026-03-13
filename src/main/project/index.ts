@@ -154,21 +154,20 @@ class ProjectManager extends BaseManager {
 
 
   @channel(ProjectChannel.OpenWith)
-  async openWith(projectId: string, action: string) {
-    const result = await this.getProject(projectId);
+  async openWith(cwd: string, action: string) {
     if (action === 'vscode') {
       await runCommand('code .', {
-        cwd: result.path,
+        cwd: cwd,
       });
     }
     else if (action === 'cursor') {
       await runCommand(process.platform === 'win32' ? 'start cursor .' : 'open -a Cursor .', {
-        cwd: result.path,
+        cwd: cwd,
       });
     }
     else if (action === 'terminal') {
-      await runCommand(process.platform === 'win32' ? 'cmd.exe' : 'open -a Terminal .', {
-        cwd: result.path,
+      await runCommand(process.platform === 'win32' ? 'start cmd.exe' : 'open -a Terminal .', {
+        cwd: cwd,
       });
     }
   }
