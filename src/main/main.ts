@@ -52,6 +52,8 @@ async function init() {
     await channelManager.init();
   } catch (err) {
     dialog.showErrorBox('Mastra Init Error', String(err));
+    app.exit(1);
+    throw err;
   }
 }
 

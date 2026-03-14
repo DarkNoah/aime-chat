@@ -210,6 +210,7 @@
     "better-sqlite3": "^11.10.0",
     "browserslist-config-erb": "^0.0.3",
     "chalk": "^4.1.2",
+    "chardet": "^2.1.1",
     "chrome-paths": "^1.0.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

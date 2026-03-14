@@ -543,7 +543,7 @@ export class BashManager {
       const signal = abortController.signal;
       abortSignal = signal;
     }
-    const { shell, tempFilePath, command } = createShell(
+    const { shell, tempFilePath, command } = await createShell(
       input.command,
       cwd,
       timeout,

@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process';
+import { spawn, execFile } from 'node:child_process';
 import os from 'os';
 import path from 'path';
 import fs from 'fs';
@@ -9,12 +9,41 @@ import { appManager } from '../app';
 import iconv from 'iconv-lite';
 import { isString } from '@/utils/is';
 import { parse, quote } from 'shell-quote';
+import { promisify } from 'node:util';
+import chardet from 'chardet';
 
 export const decodeBuffer = (data: Buffer) => {
-  return process.platform === 'win32'
-    ? iconv.decode(data, 'cp936')
-    : data.toString('utf8');
+  return data.toString('utf8');
+
+  // return process.platform === 'win32'
+  //   ? iconv.decode(data, 'cp936')
+  //   : data.toString('utf8');
 };
+
+
+const execFileAsync = promisify(execFile);
+let winCodePage: { codePage: string, encoding: "utf8" | "cp936" | `cp${string}` } | undefined = undefined;
+async function getConsoleCodePage() {
+  if (process.platform !== 'win32') {
+    return {
+      codePage: 'utf8',
+      encoding: 'utf8',
+    };
+  }
+  if (winCodePage) {
+    return winCodePage;
+  }
+  const { stdout } = await execFileAsync("cmd.exe", ["/d", "/s", "/c", "chcp"]);
+  const m = stdout.match(/(\d+)/);
+  const cp = m?.[1] ?? "";
+  winCodePage = {
+    codePage: cp,
+    encoding: cp === "65001" ? "utf8" : cp === "936" ? "cp936" : `cp${cp}`,
+  };
+  return winCodePage;
+}
+
+
 
 export const runCommand = async (
   command: string | string[],
@@ -33,7 +62,7 @@ export const runCommand = async (
     shell,
     tempFilePath,
     command: realCommand,
-  } = createShell(
+  } = await createShell(
     command,
     options?.cwd,
     options?.timeout,
@@ -57,7 +86,19 @@ export const runCommand = async (
     // removing listeners can overflow OS buffer and block subprocesses
     // destroying (e.g. shell.stdout.destroy()) can terminate subprocesses via SIGPIPE
     if (!exited) {
-      const text = decodeBuffer(data);
+      let text;
+      if (process.platform === 'win32') {
+        let _encoding = chardet.detect(data);
+        if (winCodePage?.encoding === 'cp936' && _encoding === 'GB18030') {
+          _encoding = 'cp936';
+        } else {
+          _encoding = 'utf8';
+        }
+        text = iconv.decode(data, _encoding);
+      } else {
+        text = decodeBuffer(data);
+      }
+
       const str = stripAnsi(text);
       stdout += str;
       options?.onStdOut?.(str);
@@ -68,7 +109,18 @@ export const runCommand = async (
   let stderr = '';
   shell.stderr.on('data', (data: Buffer) => {
     if (!exited) {
-      const text = decodeBuffer(data);
+      let text;
+      if (process.platform === 'win32') {
+        let _encoding = chardet.detect(data);
+        if (winCodePage?.encoding === 'cp936' && _encoding === 'GB18030') {
+          _encoding = 'cp936';
+        } else {
+          _encoding = 'utf8';
+        }
+        text = iconv.decode(data, _encoding);
+      } else {
+        text = decodeBuffer(data);
+      }
       const str = stripAnsi(text);
       stderr += str;
       options?.onStdErr?.(str);
@@ -168,7 +220,7 @@ export const runCommand = async (
   };
 };
 
-export const createShell = (
+export const createShell = async (
   input_command: string | string[],
   cwd?: string,
   timeout?: number,
@@ -273,10 +325,11 @@ export const createShell = (
     } else {
       real_input_command = _command;
     }
+    const codePage = await getConsoleCodePage();
 
     real_input_command = real_input_command.map((x) => {
       if (isString(x)) {
-        return x;
+        return iconv.decode(Buffer.from(x, 'utf8'), codePage.encoding);
       } else {
         if ('op' in x) {
           return x['op'];
@@ -287,7 +340,7 @@ export const createShell = (
     });
     const shell = spawn(
       file || 'cmd.exe',
-      file ? [...real_input_command] : ['/c', ...real_input_command],
+      file ? ['chcp', '65001>nul', '&&', ...real_input_command] : ['/c', 'chcp', '65001>nul', '&&', ...real_input_command],
       {
         stdio: ['ignore', 'pipe', 'pipe'],
         // detached: true, // ensure subprocess starts its own process group (esp. in Linux)
