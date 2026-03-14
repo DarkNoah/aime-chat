@@ -1110,7 +1110,7 @@ class MastraManager extends BaseManager {
     ) as string;
     const runId = streamOptions.runId;
     let stream: MastraModelOutput<unknown>;
-
+    await appManager.refreshPreventSleep();
     if (
       runId &&
       resume?.toolCallId &&

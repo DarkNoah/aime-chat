@@ -48,6 +48,15 @@ type TelegramStreamResponder = {
   onStart: () => Promise<void>;
   onChunk: (chunk: string) => Promise<void>;
   onEnd: () => Promise<void>;
+  onToolCall: (toolCall: {
+    toolName: string;
+    toolCallId: string;
+    input: any;
+  }) => Promise<void>;
+  onToolCallUpdate: (toolCallUpdate: {
+    toolCallId: string;
+    output: any;
+  }, status: "pending" | "completed" | "failed") => Promise<void>;
 };
 
 const TELEGRAM_MIN_EDIT_INTERVAL_MS = 2500;
@@ -380,6 +389,8 @@ export class TelegramChannelRuntime {
         onStart: responder.onStart,
         onChunk: responder.onChunk,
         onEnd: responder.onEnd,
+        onToolCall: responder.onToolCall,
+        onToolCallUpdate: responder.onToolCallUpdate,
       });
 
       if (!result.success) {
@@ -468,6 +479,12 @@ export class TelegramChannelRuntime {
           flushTimer = undefined;
         }
         await flush();
+      },
+      onToolCall: async (toolCall) => {
+        await ctx.reply(`Tool call: ${toolCall.toolName}`);
+      },
+      onToolCallUpdate: async (toolCallUpdate, status) => {
+        // await ctx.reply(`Tool call update: ${toolCallUpdate.toolCallId} ${status}`);
       },
     };
   }
@@ -766,6 +783,7 @@ export class TelegramChannelRuntime {
 
   executeCommand = async (command: string, text: string, ctx: Context) => {
     const appInfo = await appManager.getInfo();
+    const config = await this.getChannelConfig();
     switch (command) {
       case Commands.PROJECTS:
         const projects = await projectManager.getList({ page: 0, size: 10 });
@@ -778,7 +796,7 @@ export class TelegramChannelRuntime {
           keyboard = keyboard.text(item.text, item.id).row();
         }
 
-        await ctx.reply("Select a project on focus:", {
+        await ctx.reply("📁 Select a project on focus:", {
           reply_markup: keyboard,
         })
         return;
@@ -791,14 +809,55 @@ export class TelegramChannelRuntime {
           subAgents: agent.subAgents,
           tools: agent.tools,
         });
-        const config = await this.getChannelConfig();
         config.currentThreadId = threadEntity.id;
         const channelEntity = await this.channelRepository.findOneBy({ id: this.channel.id });
         if (!channelEntity) {
-          throw new Error('Channel not found');
+          throw new Error('❌ Channel not found');
         }
         channelEntity.config = { ...config, currentThreadId: threadEntity.id };
         await this.channelRepository.save(channelEntity);
+        await ctx.reply('✅ New session has been started.');
+        return;
+      case Commands.CLEAR:
+        if (config.currentThreadId) {
+          await mastraManager.clearMessages(config.currentThreadId);
+          await ctx.reply('🧹 Current session has been cleared.');
+        } else {
+          await ctx.reply('⚠️ Session does not exist.');
+        }
+        return;
+      case Commands.STOP:
+        await mastraManager.chatAbort(config.currentThreadId);
+        await ctx.reply('⏹️ Current session has been stopped.');
+        return;
+      case Commands.COMPACT:
+        const thread = await this.resolveCurrentThread();
+        const tools = thread?.metadata?.tools as string[] ?? [];
+        const subAgents = thread?.metadata?.subAgents as string[] ?? [];
+        const model = thread?.metadata?.model as string ?? '';
+        const msg = await ctx.reply('🗜️ Compacting current session...');
+        const result = await mastraManager.chat(undefined, {
+          chatId: config.currentThreadId as string,
+          model: model,
+          tools: tools,
+          subAgents: subAgents,
+          requireToolApproval: false,
+          messages: [
+            {
+              id: nanoid(),
+              parts: [{
+                type: 'text',
+                text: '/compact',
+              }],
+              role: 'user',
+            }
+          ],
+        });
+        if (result.success) {
+          await ctx.editMessageText('✅ Current session has been compacted.');
+        } else {
+          await ctx.editMessageText(`❌ Error: ${result.error}`);
+        }
         return;
     }
   };

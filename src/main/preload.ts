@@ -181,6 +181,8 @@ const electronHandler = {
       options?: { limit?: number },
     ): Promise<{ content: string; truncated: boolean; size: number, mimeType: string, isBinary: boolean }> =>
       ipcRenderer.invoke(AppChannel.ReadFileContent, filePath, options),
+    refreshPreventSleep: (): Promise<void> =>
+      ipcRenderer.invoke(AppChannel.RefreshPreventSleep),
     screenCapture: (
       options: ScreenCaptureOptions,
     ): Promise<ScreenCaptureResult> =>
