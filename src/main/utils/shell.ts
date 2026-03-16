@@ -329,7 +329,7 @@ export const createShell = async (
 
     real_input_command = real_input_command.map((x) => {
       if (isString(x)) {
-        return iconv.decode(Buffer.from(x, 'utf8'), codePage.encoding);
+        return x; //iconv.decode(Buffer.from(x, 'utf8'), codePage.encoding);
       } else {
         if ('op' in x) {
           return x['op'];
