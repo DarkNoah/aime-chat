@@ -1,11 +1,10 @@
 import { ChatStatus, UIMessage } from 'ai';
 import { create } from 'zustand';
-
-import { StorageThreadType } from '@mastra/core/memory';
 import { ThreadState } from '@/types/chat';
 
 interface ThreadStoreState {
   threadStates: Record<string, ThreadState>;
+  threadKeepList: string[];
 
   updateMessages: (threadId: string, messages: UIMessage[]) => void;
   updateStatus: (threadId: string, status: ChatStatus) => void;
@@ -15,10 +14,24 @@ interface ThreadStoreState {
   removeThread: (threadId: string) => void;
   registerThread: (threadId: string, state: ThreadState) => void;
   getThreads: () => Record<string, ThreadState>;
+  keepThread: (threadId: string) => void;
+  unkeepThread: (threadId: string) => void;
 }
 
 export const useThreadStore = create<ThreadStoreState>((set, get) => ({
-  threadStates: {},
+  threadStates: {} as Record<string, ThreadState>,
+  threadKeepList: [],
+
+  keepThread: (threadId) => {
+    set((state) => ({
+      threadKeepList: [...new Set([...(state.threadKeepList ?? []), threadId])],
+    }));
+  },
+  unkeepThread: (threadId) => {
+    set((state) => ({
+      threadKeepList: [...new Set((state.threadKeepList ?? []).filter((id) => id !== threadId))],
+    }));
+  },
 
   updateMessages: (threadId, messages) => {
     set((state) => ({

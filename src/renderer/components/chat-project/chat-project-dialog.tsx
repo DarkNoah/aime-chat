@@ -39,12 +39,12 @@ import { useNavigate } from 'react-router-dom';
 import { Project } from '@/types/project';
 import { ChatAgentSelector } from '../chat-ui/chat-agent-selector';
 import { useGlobal } from '@/renderer/hooks/use-global';
+import { ChatModelSelect } from '../chat-ui/chat-model-select';
 
 const chatProjectSchema = z.object({
   title: z.string(),
   path: z.string(),
   tag: z.string().optional(),
-  defaultAgentId: z.string().optional(),
 });
 
 type ChatProjectFormData = z.infer<typeof chatProjectSchema>;
@@ -69,7 +69,6 @@ export function ChatProjectDialog(props: ChatProjectDialogProps) {
       title: value?.title,
       path: value?.path,
       tag: value?.tag,
-      defaultAgentId: value?.defaultAgentId,
     },
     reValidateMode: 'onSubmit',
   });
@@ -94,9 +93,8 @@ export function ChatProjectDialog(props: ChatProjectDialogProps) {
       form.setValue('title', value?.title);
       form.setValue('path', value?.path);
       form.setValue('tag', value?.tag);
-      form.setValue('defaultAgentId', value?.defaultAgentId);
     }
-  }, [open, form, value]);
+  }, [open, form, value, appInfo.defaultModel?.model]);
   return (
     <Dialog {...props} open={open}>
       <DialogTrigger>{children}</DialogTrigger>
@@ -189,26 +187,6 @@ export function ChatProjectDialog(props: ChatProjectDialogProps) {
                           Work
                         </ToggleGroupItem>
                       </ToggleGroup>
-                    </FieldContent>
-                  </Field>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="defaultAgentId"
-                render={({ field }) => (
-                  <Field className="min-w-0 inline-grid">
-                    <FieldLabel>{t('project.default_agent')}</FieldLabel>
-                    <FieldContent className="flex flex-row items-center gap-2 min-w-0 justify-between">
-                      <ChatAgentSelector
-                        value={field.value}
-                        onChange={field.onChange}
-                        defaultAgentId={appInfo.defaultAgent}
-                        onSelectedAgent={(agent) => {
-                          field.onChange(agent?.id);
-                        }}
-                        mode="single"
-                      />
                     </FieldContent>
                   </Field>
                 )}

@@ -183,7 +183,7 @@ export type ChatState = {
   clearMessages: (threadId: string) => Promise<void>;
   clearError: (threadId: string) => void;
   ensureThread: (threadId: string) => Promise<ThreadState>;
-  unregisterThread: (threadId: string) => void;
+  unregisterThread: (threadId: string, skipKeep: boolean) => void;
   getThread: (threadId: string) => Promise<ThreadState>;
 };
 
@@ -198,14 +198,15 @@ export function useChat() {
 }
 
 export function ChatProvider({ children }: { children: ReactNode }) {
-  const { threadStates } = useThreadStore();
-
   const {
+    threadStates,
     registerThread,
     removeThread,
     updateMessages,
     updateThreadState,
     updateThreadMeatadata,
+    keepThread,
+    unkeepThread,
   } = useThreadStore();
 
   const chatSessionRefs = useRef(new Map<string, ChatSessionRef>());
@@ -215,7 +216,10 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const ensureThread = useCallback(
-    async (threadId: string) => {
+    async (threadId: string, keep: boolean = true) => {
+      if (keep) {
+        keepThread(threadId);
+      }
       if (threadStates[threadId]) {
         return threadStates[threadId];
       } else {
@@ -225,22 +229,27 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         return _thread;
       }
     },
-    [threadStates, registerThread],
+    [threadStates, registerThread, keepThread],
   );
 
   const unregisterThread = useCallback(
-    (threadId: string) => {
-      const threadState = useThreadStore.getState().threadStates[threadId];
+    (threadId: string, skipKeep: boolean = false) => {
+      const { threadKeepList, threadStates: threadStatesState } =
+        useThreadStore.getState();
+      const threadState = threadStatesState[threadId];
+      if (threadKeepList.includes(threadId) && !skipKeep) {
+        return;
+      }
       if (
         threadState &&
         (threadState.status === 'ready' || threadState.status === 'error')
       ) {
-        console.log('removeThread', threadId);
         chatSessionRefs.current.delete(threadId);
+        unkeepThread(threadId);
         removeThread(threadId);
       }
     },
-    [removeThread],
+    [removeThread, unkeepThread],
   );
 
   const sendMessage = useCallback(
@@ -265,7 +274,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       if (chatSessionRef) {
         chatSessionRef.stop();
       } else {
-        toast.error(`线程 ${threadId} 未初始化`);
+        toast.error(`stop: 线程 ${threadId} 未初始化`);
       }
     },
     [chatSessionRefs],
@@ -276,7 +285,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     if (chatSessionRef) {
       chatSessionRef.clearMessages();
     } else {
-      toast.error(`线程 ${threadId} 未初始化`);
+      toast.error(`clearMessages: 线程 ${threadId} 未初始化`);
     }
     // await window.electron.mastra.clearMessages(threadId);
     // updateMessages(threadId, []);
@@ -287,7 +296,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     if (chatSessionRef) {
       chatSessionRef.stop();
     } else {
-      toast.error(`线程 ${threadId} 未初始化`);
+      toast.error(`clearError: 线程 ${threadId} 未初始化`);
     }
   }, []);
 
@@ -296,24 +305,23 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     if (chatSessionRef) {
       chatSessionRef.setMessages(messages);
     } else {
-      toast.error(`线程 ${threadId} 未初始化`);
+      console.log(chatSessionRefs.current);
+      toast.error(`setMessages: 线程 ${threadId} 未初始化`);
     }
   }, []);
 
-  const onFinish = useCallback((threadId, event) => {
+  const onFinish = useCallback(async (threadId, event) => {
     eventBus.emit(`chat:onFinish:${threadId}`, event);
     // const chatSessionRef = chatSessionRefs.current.get(threadId);
     console.log(`chat:onFinish:${threadId}`);
-    window.electron.mastra
-      .getThread(threadId)
-      .then((_thread) => {
-        // registerThread(threadId, _thread);
-        setMessages(threadId, _thread.messages);
-        return _thread;
-      })
-      .catch((err) => {
-        toast.error(err.message);
-      });
+    try {
+      const _thread = await window.electron.mastra.getThread(threadId);
+      setMessages(threadId, _thread.messages);
+      return _thread;
+    } catch (err) {
+      toast.error(err.message);
+      return null;
+    }
     // window.electron.mastra
     //   .getThreadMessages({ threadId })
     //   .then((data) => {
@@ -376,7 +384,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
-    const handleChatChangedEvent = (event: {
+    const handleChatChangedEvent = async (event: {
       data: {
         type: ChatChangedType;
         chatId?: string;
@@ -389,7 +397,18 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           title: event.data.title,
         });
       } else if (event.data.type === ChatChangedType.Finish) {
-        onFinish(event.data.chatId, event.data);
+        const { chatId } = event.data;
+        await onFinish(chatId, event.data);
+        updateThreadState(chatId, {
+          status: 'ready',
+        });
+        unregisterThread(event.data.chatId);
+      } else if (event.data.type === ChatChangedType.Start) {
+        const { chatId } = event.data;
+        await ensureThread(chatId, false);
+        updateThreadState(chatId, {
+          status: 'streaming',
+        });
       }
     };
     const handleChatThreadChangedEvent = (event: {
@@ -402,6 +421,17 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       const { chatId, resourceId } = event.data;
       onThreadChanged(chatId, event.data);
     };
+    const handleChatMessageChangedEvent = async (event: {
+      data: {
+        chatId: string;
+        resourceId: string;
+      };
+    }) => {
+      console.log('handleChatMessageChangedEvent', event.data);
+      const { chatId, resourceId } = event.data;
+      const _thread = await window.electron.mastra.getThread(chatId);
+      setMessages(chatId, _thread.messages);
+    };
     window.electron.ipcRenderer.on(
       ChatEvent.ChatChanged,
       handleChatChangedEvent,
@@ -410,7 +440,15 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       ChatEvent.ChatThreadChanged,
       handleChatThreadChangedEvent,
     );
+    window.electron.ipcRenderer.on(
+      ChatEvent.ChatMessageChanged,
+      handleChatMessageChangedEvent,
+    );
     return () => {
+      window.electron.ipcRenderer.removeListener(
+        ChatEvent.ChatMessageChanged,
+        handleChatMessageChangedEvent,
+      );
       window.electron.ipcRenderer.removeListener(
         ChatEvent.ChatChanged,
         handleChatChangedEvent,

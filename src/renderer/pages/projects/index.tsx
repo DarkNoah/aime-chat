@@ -44,6 +44,7 @@ import {
   ChatPreviewType,
   ChatTask,
   ChatTodo,
+  DEFAULT_TITLE,
   ThreadState,
 } from '@/types/chat';
 import { eventBus } from '@/renderer/lib/event-bus';
@@ -131,7 +132,7 @@ function ProjectsPage() {
       setThreads(
         (res.items ?? []).map((item) => ({
           id: item.id,
-          title: item.title ?? 'New Thread',
+          title: item.title ?? DEFAULT_TITLE,
         })),
       );
     } catch (e) {

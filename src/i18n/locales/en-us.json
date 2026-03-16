@@ -196,7 +196,8 @@
     "project_path": "Project Path",
     "edit_project": "Edit Project",
     "add_skills": "Add Skills",
-    "default_agent": "Default Agent"
+    "default_agent": "Default Agent",
+    "default_model": "Default Model"
   },
   "knowledge-base": {
     "add_url": "Add Url",

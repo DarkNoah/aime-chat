@@ -1,7 +1,3 @@
-import {
-  Agent,
-  AgentConfig,
-} from '@mastra/core/agent';
 import { BaseAgent, BaseAgentParams } from './base-agent';
 
 export class DefaultAgent extends BaseAgent {
@@ -11,7 +7,7 @@ export class DefaultAgent extends BaseAgent {
   instructions = ({ requestContext, mastra }) => {
     return `You are a helpful assistant.`
   };
-  isHidden = true;
+  isHidden = false;
   // model: string = 'openai/gpt-4o-mini';
   tools: string[] = [];
   constructor(params: BaseAgentParams) {

@@ -2,7 +2,7 @@ import { BaseManager } from '../BaseManager';
 import { AgentChannel, ProjectChannel } from '@/types/ipc-channel';
 import { channel } from '@/main/ipc/IpcController';
 import { Agents } from '@/entities/agents';
-import { Repository } from 'typeorm';
+import { ILike, Repository } from 'typeorm';
 import { convertToInstructionContent } from '@/main/utils/convertToCoreMessages';
 import { dbManager } from '@/main/db';
 import { Projects } from '@/entities/projects';
@@ -17,6 +17,7 @@ import matter from 'gray-matter';
 import { ToolType } from '@/types/tool';
 import { getSkills } from '../utils/skills';
 import { runCommand } from '../utils/shell';
+import { DEFAULT_TITLE } from '@/types/chat';
 class ProjectManager extends BaseManager {
   projectsRepository: Repository<Projects>;
 
@@ -66,13 +67,16 @@ class ProjectManager extends BaseManager {
   }
 
   @channel(ProjectChannel.GetList)
-  async getList({ page, size }: { page: number; size: number }) {
+  async getList({ page, size, filter }: { page: number; size: number, filter?: string }) {
     const [projects, total] = await this.projectsRepository.findAndCount({
       skip: page * size,
       take: size,
       order: {
         createdAt: 'DESC',
       },
+      where: filter ? {
+        title: ILike(`%${filter}%`),
+      } : undefined,
     });
     return {
       items: projects,
@@ -121,7 +125,7 @@ class ProjectManager extends BaseManager {
     const thread = await memoryStore.saveThread({
       thread: {
         id: nanoid(),
-        title: 'New Thread',
+        title: DEFAULT_TITLE,
         resourceId: `project:${options?.projectId}`,
         createdAt: new Date(),
         updatedAt: new Date(),

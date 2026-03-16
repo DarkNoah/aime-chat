@@ -36,6 +36,7 @@ import { TaskMessage } from './task-message';
 import { GenerateImageMessage } from './generate-image';
 import { SendEventMessage } from './send-event-message';
 import { VisionMessage } from './vision-message';
+import { getToolMessageDescription } from '@/utils/tool-message';
 
 export type ToolSuspended = {
   toolName: string;
@@ -155,54 +156,6 @@ export const ToolMessage = React.forwardRef<ToolMessageRef, ToolMessageProps>(
       return null;
     };
 
-    const getDescription = () => {
-      const input = part?.input as any;
-      switch (toolName) {
-        case 'Skill':
-          return input?.skill_id;
-        case 'Read':
-        case 'Write':
-        case 'Edit':
-          return input?.file_path;
-        case 'Glob':
-        case 'Grep':
-          return input?.pattern;
-        case 'TodoWrite':
-          return `${input?.todos?.length} todo`;
-        case 'KillBash':
-        case 'BashOutput':
-          return input?.shell_id;
-        case 'GenerateImage':
-        case 'EditImage':
-          return input?.prompt ?? '';
-        case 'WebSearch':
-          return input?.query;
-        case 'WebFetch':
-          return input?.url;
-        case 'Extract':
-          return input?.file_path_or_url;
-        case 'RemoveBackground':
-          return input?.file_path_or_url;
-        case 'SpeechToText':
-          return input?.source;
-        case 'TextToSpeech':
-          return input?.text;
-        case 'TaskUpdate':
-          return '#' + input?.taskId;
-        case 'Vision':
-          return input?.prompt;
-        case 'LibSQLListTable':
-        case 'LibSQLDatabaseInfo':
-          return input?.scope;
-        case 'LibSQLDescribeTable':
-          return input?.table;
-        case 'LibSQLRun':
-          return input?.sql;
-        default:
-          return input?.description;
-      }
-    };
-
     return (
       <div className="flex flex-col">
         <Badge
@@ -217,7 +170,7 @@ export const ToolMessage = React.forwardRef<ToolMessageRef, ToolMessageProps>(
           <span className="font-medium text-sm">{toolName}</span>
           {part?.input && (
             <span className=" ml-1 text-xs text-muted-foreground truncate max-w-[300px] block">
-              {getDescription()}
+              {getToolMessageDescription(toolName, part?.input)}
             </span>
           )}
         </Badge>

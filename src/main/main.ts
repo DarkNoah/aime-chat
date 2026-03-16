@@ -110,6 +110,11 @@ const handleProtocolUrl = (url?: string) => {
 };
 
 const createWindow = async () => {
+  if (mainWindow) {
+    focusMainWindow();
+    return mainWindow;
+  }
+
   if (isDebug) {
     // await installExtensions();
   }
@@ -164,7 +169,7 @@ const createWindow = async () => {
 const gotSingleInstanceLock = app.requestSingleInstanceLock();
 
 if (!gotSingleInstanceLock) {
-  app.quit();
+  app.exit(0);
 } else {
   init();
 

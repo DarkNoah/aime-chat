@@ -107,7 +107,7 @@ function FilePreview({ children }: { children?: React.ReactNode }) {
     return (
       <Item
         variant="outline"
-        className="w-fit cursor-pointer bg-secondary p-2 gap-2 items-center"
+        className="cursor-pointer bg-secondary p-2 gap-2 items-center flex flex-row flex-nowrap! w-auto max-w-[300px]"
         onClick={() => {
           window.electron.app.openPath(_path);
         }}
@@ -115,10 +115,10 @@ function FilePreview({ children }: { children?: React.ReactNode }) {
         <ItemMedia>
           <FileIcon filePath={_path} className="size-10" />
         </ItemMedia>
-        <ItemContent>
+        <ItemContent className="flex-1 min-w-0">
           <ItemTitle>{file_name}</ItemTitle>
           <ItemDescription className=" ">
-            <span className="truncate max-w-[300px] block">{_path}</span>
+            <span className="truncate line-clamp-1 block ">{_path}</span>
           </ItemDescription>
         </ItemContent>
       </Item>

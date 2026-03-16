@@ -1,4 +1,4 @@
-import { Bot, Context, InlineKeyboard, InputFile } from 'grammy';
+import { Bot, Context, InlineKeyboard, InputFile, Keyboard } from 'grammy';
 import type { BotCommand, Chat, UserFromGetMe } from 'grammy/types';
 import fs from 'fs';
 import {
@@ -23,16 +23,31 @@ import { SpeechToText } from '@/main/tools/audio';
 import { toolsManager } from '@/main/tools';
 import { ToolType } from '@/types/tool';
 import { projectManager } from '@/main/project';
-import { renderTelegramHtmlSegments } from '@/utils/telegram-markdown';
+import { markdownToTelegramChunks } from '@/utils/telegram-markdown';
+import { getToolMessageDescription } from '@/utils/tool-message';
+import { Message } from '@/main/tools/common/message';
+import { Project } from '@/types/project';
+import { LanguageModelUsage } from 'ai';
+import { models } from '@elevenlabs/elevenlabs-js/api';
+import { providersManager } from '@/main/providers';
+import { createHash } from 'crypto';
 
 
 export const enum Commands {
   PAIR = 'pair',
   PROJECTS = 'projects',
+  AGENTS = 'agents',
   NEW = 'new',
   COMPACT = 'compact',
   STOP = 'stop',
   CLEAR = 'clear',
+  STATUS = 'status',
+  SETMODEL = 'set_model',
+  SETAGENT = 'set_agent',
+  SETTOOLS = 'set_tools',
+  SETSKILLS = 'set_skills',
+  SETSUBAGENTS = 'set_subagents',
+  SESSIONS = 'sessions',
 }
 
 
@@ -59,8 +74,35 @@ type TelegramStreamResponder = {
   }, status: "pending" | "completed" | "failed") => Promise<void>;
 };
 
+type TelegramCommandContext = {
+  appInfo: Awaited<ReturnType<typeof appManager.getInfo>>;
+  config: TelegramChannelConfig;
+  currentProjectId?: string;
+  currentThreadId?: string;
+  project?: Project;
+  thread?: ThreadState;
+};
+
+type TelegramSelectableModel = {
+  id: string;
+  text: string;
+};
+
+type TelegramAvailableTool = {
+  id: string;
+  name: string;
+  isToolkit: boolean;
+  tools?: {
+    id: string;
+    name: string;
+  }[];
+};
+
 const TELEGRAM_MIN_EDIT_INTERVAL_MS = 2500;
 const TELEGRAM_TYPING_INTERVAL_MS = 4000;
+const TELEGRAM_TOOLS_PAGE_SIZE = 8;
+const TELEGRAM_PROJECTS_PAGE_SIZE = 8;
+const TELEGRAM_BUTTON_TEXT_LIMIT = 18;
 
 function normalizeCommand(command: string): string {
   return command.replace(/^\/+/, '').trim().toLowerCase();
@@ -365,14 +407,20 @@ export class TelegramChannelRuntime {
 
     try {
       const appInfo = await appManager.getInfo();
+      const config = await this.getChannelConfig();
       const thread = await this.resolveCurrentThread();
-      const tools = thread?.metadata?.tools as string[] ?? [];
-      const subAgents = thread?.metadata?.subAgents as string[] ?? [];
-      const model = thread?.metadata?.model as string ?? '';
-      const agentId = thread?.metadata?.agentId as string ?? '';
+      let projectId = config?.currentProjectId;
+      let project;
+      if (projectId) {
+        project = await projectManager.getProject(projectId);
+      }
+      const tools = project?.defaultTools || thread?.metadata?.tools as string[] || [];
+      const subAgents = project?.defaultSubAgents || thread?.metadata?.subAgents as string[] || [];
+      const model = project?.defaultModelId || thread?.metadata?.model as string || '';
+      const agentId = project?.defaultAgentId || thread?.metadata?.agentId as string || '';
       const result = await mastraManager.chat(undefined, {
         chatId: input.threadId,
-        model: input.model,
+        model: model,
         agentId: agentId,
         messages: [{
           id: nanoid(),
@@ -408,60 +456,124 @@ export class TelegramChannelRuntime {
   }
 
   private createTelegramStreamResponder(ctx: Context, threadId: string): TelegramStreamResponder {
-    const messageIds: number[] = [];
-    let fullText = '';
-    let renderedSegments: string[] = [];
-    let streamStarted = false;
-    let lastTypingAt = 0;
-    let flushTimer: ReturnType<typeof setTimeout> | undefined;
+    type ActiveTelegramMessage = {
+      messageIds: number[];
+      fullText: string;
+      renderedSegments: string[];
+      finalizedTextLength: number;
+      flushTimer?: ReturnType<typeof setTimeout>;
+      started: boolean;
+      ended: boolean;
+    };
 
-    const flush = async () => {
-      const nextSegments = await renderTelegramHtmlSegments(fullText, {
+    let activeMessage: ActiveTelegramMessage | undefined;
+    let lastTypingAt = 0;
+    let toolsMsg: any[] = [];
+
+    const createActiveMessage = (): ActiveTelegramMessage => ({
+      messageIds: [],
+      fullText: '',
+      renderedSegments: [],
+      finalizedTextLength: 0,
+      flushTimer: undefined,
+      started: false,
+      ended: false,
+    });
+
+    const ensureActiveMessage = () => {
+      if (!activeMessage || activeMessage.ended) {
+        activeMessage = createActiveMessage();
+      }
+
+      return activeMessage;
+    };
+
+    const ensureLiveMessage = async (messageState: ActiveTelegramMessage) => {
+      const liveIndex = messageState.messageIds.length;
+      if (messageState.messageIds[liveIndex]) {
+        return;
+      }
+
+      const message = await ctx.reply('...');
+      messageState.messageIds[liveIndex] = message.message_id;
+      messageState.renderedSegments[liveIndex] = '...';
+    };
+
+    const flush = async (messageState: ActiveTelegramMessage) => {
+      const remainingText = messageState.fullText.slice(messageState.finalizedTextLength);
+      const nextChunks = markdownToTelegramChunks(remainingText, 4000, {
         tableMode: 'code'
       });
-      if (nextSegments.length === 0) {
+      if (nextChunks.length === 0) {
         return;
       }
 
       await this.enqueueTelegramWrite(threadId, async () => {
-        for (const [index, segment] of nextSegments.entries()) {
-          if (!messageIds[index]) {
-            const message = await ctx.reply(segment, { parse_mode: "HTML" });
-            messageIds[index] = message.message_id;
-            continue;
+        const frozenChunks = nextChunks.slice(0, -1);
+        const baseIndex = messageState.messageIds.length > 0 ? messageState.messageIds.length - 1 : 0;
+
+        for (const [index, chunk] of frozenChunks.entries()) {
+          const absoluteIndex = baseIndex + index;
+          if (!messageState.messageIds[absoluteIndex]) {
+            const message = await ctx.reply(chunk.html, { parse_mode: "HTML" });
+            messageState.messageIds[absoluteIndex] = message.message_id;
+          } else if (messageState.renderedSegments[absoluteIndex] !== chunk.html) {
+            await this.safeEditMessageText(ctx, messageState.messageIds[absoluteIndex], chunk.html);
           }
 
-          if (renderedSegments[index] === segment) {
-            continue;
-          }
-
-          await this.safeEditMessageText(ctx, messageIds[index], segment);
+          messageState.renderedSegments[absoluteIndex] = chunk.html;
+          messageState.finalizedTextLength += chunk.text.length;
         }
 
-        renderedSegments = nextSegments;
+        const liveChunk = nextChunks[nextChunks.length - 1];
+        const liveIndex = baseIndex + frozenChunks.length;
+        if (!messageState.messageIds[liveIndex]) {
+          const message = await ctx.reply(liveChunk.html, { parse_mode: "HTML" });
+          messageState.messageIds[liveIndex] = message.message_id;
+        } else if (messageState.renderedSegments[liveIndex] !== liveChunk.html) {
+          await this.safeEditMessageText(ctx, messageState.messageIds[liveIndex], liveChunk.html);
+        }
+
+        messageState.renderedSegments[liveIndex] = liveChunk.html;
       });
     };
 
-    const scheduleFlush = () => {
-      if (flushTimer) {
+    const scheduleFlush = (messageState: ActiveTelegramMessage) => {
+      if (messageState.flushTimer) {
         return;
       }
 
-      flushTimer = setTimeout(() => {
-        flushTimer = undefined;
-        void flush();
+      messageState.flushTimer = setTimeout(() => {
+        messageState.flushTimer = undefined;
+        void flush(messageState);
       }, TELEGRAM_MIN_EDIT_INTERVAL_MS);
     };
 
     return {
       onStart: async () => {
-        streamStarted = true;
+
+
+
+        const messageState = ensureActiveMessage();
+        if (messageState.started && !messageState.ended) {
+          return;
+        }
+
+        messageState.started = true;
+        await this.enqueueTelegramWrite(threadId, async () => {
+          await ensureLiveMessage(messageState);
+        });
       },
       onChunk: async (chunk: string) => {
-        if (!streamStarted) {
-          streamStarted = true;
+        const messageState = ensureActiveMessage();
+        if (!messageState.started) {
+          messageState.started = true;
+          await this.enqueueTelegramWrite(threadId, async () => {
+            await ensureLiveMessage(messageState);
+          });
         }
-        fullText += chunk;
+
+        messageState.fullText += chunk;
 
         const now = Date.now();
         if (now - lastTypingAt >= TELEGRAM_TYPING_INTERVAL_MS) {
@@ -471,20 +583,53 @@ export class TelegramChannelRuntime {
           });
         }
 
-        scheduleFlush();
+        scheduleFlush(messageState);
       },
       onEnd: async () => {
-        if (flushTimer) {
-          clearTimeout(flushTimer);
-          flushTimer = undefined;
+        const messageState = activeMessage;
+        if (!messageState || messageState.ended) {
+          return;
         }
-        await flush();
+
+        if (messageState.flushTimer) {
+          clearTimeout(messageState.flushTimer);
+          messageState.flushTimer = undefined;
+        }
+        await flush(messageState);
+        messageState.ended = true;
+        activeMessage = undefined;
       },
       onToolCall: async (toolCall) => {
-        await ctx.reply(`Tool call: ${toolCall.toolName}`);
+        const description = getToolMessageDescription(toolCall.toolName, toolCall.input);
+        const msg = await ctx.reply(`🛠️ ${toolCall.toolName}: ${description ?? ''}`);
+        toolsMsg.push({
+          toolCallId: toolCall.toolCallId,
+          toolName: toolCall.toolName,
+          description: description,
+          messageId: msg.message_id,
+          input: toolCall.input,
+        });
       },
       onToolCallUpdate: async (toolCallUpdate, status) => {
-        // await ctx.reply(`Tool call update: ${toolCallUpdate.toolCallId} ${status}`);
+        const toolMsg = toolsMsg.find(x => x.toolCallId === toolCallUpdate.toolCallId);
+        if (toolMsg) {
+          const icon = status === "pending" ? "🛠️" : status === "completed" ? "✅" : "❌";
+          await this.safeEditMessageText(ctx, toolMsg.messageId, `${icon} ${toolMsg.toolName}: ${toolMsg.description ?? ''}`);
+          if (status === "completed" && toolMsg.toolName == Message.toolName) {
+            if (toolMsg.input.event == "files_preview") {
+              const files = JSON.parse(toolMsg.input.data).files;
+              for (const file of files) {
+                const info = await appManager.getFileInfo(file);
+                if (info && info.isExist) {
+                  if (info.isFile) {
+                    await ctx.api.sendDocument(ctx.chat.id, new InputFile(info.path))
+                  }
+                }
+              }
+            }
+          }
+          toolsMsg = toolsMsg.filter(x => x.toolCallId !== toolCallUpdate.toolCallId);
+        }
       },
     };
   }
@@ -676,6 +821,7 @@ export class TelegramChannelRuntime {
 
       void bot
         .start({
+          drop_pending_updates: true,
           onStart: () => {
             this.started = true;
             this.callbacks.onActivity(
@@ -732,6 +878,15 @@ export class TelegramChannelRuntime {
     return channelEntity.config as TelegramChannelConfig;
   }
 
+  public async saveChannelConfig(config: TelegramChannelConfig): Promise<void> {
+    const channelEntity = await this.channelRepository.findOneBy({ id: this.channel.id });
+    if (!channelEntity) {
+      throw new Error('Channel not found');
+    }
+    channelEntity.config = config;
+    await this.channelRepository.save(channelEntity);
+  }
+
   public getBotInfo(): {
     username?: string;
     firstName?: string;
@@ -772,56 +927,330 @@ export class TelegramChannelRuntime {
     return [
       { command: Commands.PAIR, description: 'Pair this chat with aime-chat.' },
       { command: Commands.PROJECTS, description: 'List all projects.' },
+      { command: Commands.AGENTS, description: 'List all agents.' },
       { command: Commands.NEW, description: 'Start a new session.' },
       { command: Commands.COMPACT, description: 'Compact the current session.' },
       { command: Commands.STOP, description: 'Stop current session.' },
       { command: Commands.CLEAR, description: 'Clear current session.' },
-
+      { command: Commands.STATUS, description: 'Show current session status.' },
+      { command: Commands.SESSIONS, description: 'List sessions.' },
+      { command: Commands.SETMODEL, description: 'Set the model for the current session.' },
+      { command: Commands.SETAGENT, description: 'Set the agent for the current session.' },
+      { command: Commands.SETTOOLS, description: 'Set the tools for the current session.' },
+      { command: Commands.SETSKILLS, description: 'Set the skills for the current session.' },
+      { command: Commands.SETSUBAGENTS, description: 'Set the sub-agents for the current session.' }
     ];
   };
 
+  private encodeTelegramToken(id: string) {
+    return createHash('sha256').update(id).digest('base64url').slice(0, 16);
+  }
 
-  executeCommand = async (command: string, text: string, ctx: Context) => {
+  private async getCurrentToolSelection(project?: Project, thread?: ThreadState): Promise<string[]> {
+    const appInfo = await appManager.getInfo();
+    const agentId = project?.defaultAgentId || thread?.metadata?.agentId as string || appInfo.defaultAgent;
+    const agent = await agentManager.getAgent(agentId);
+    return [...new Set(project?.defaultTools || thread?.metadata?.tools as string[] || agent?.tools || [])];
+  }
+
+  private async buildCommandContext(currentThreadId?: string): Promise<TelegramCommandContext> {
     const appInfo = await appManager.getInfo();
     const config = await this.getChannelConfig();
+    const { currentProjectId } = config;
+    const resolvedThreadId = currentThreadId ?? config.currentThreadId;
+    const project = currentProjectId ? await projectManager.getProject(currentProjectId) : undefined;
+    const thread = resolvedThreadId ? await this.resolveCurrentThread() : undefined;
+
+    return {
+      appInfo,
+      config,
+      currentProjectId,
+      currentThreadId: resolvedThreadId,
+      project,
+      thread,
+    };
+  }
+
+  private async getAvailableModels(): Promise<TelegramSelectableModel[]> {
+    const providers = await providersManager.getAvailableLanguageModels();
+    return providers.flatMap((provider) => provider.models.map((model) => ({
+      text: `${provider.name}/${model.name}`,
+      id: model.id,
+    })));
+  }
+
+  private async getAvailableTools(toolType: ToolType): Promise<TelegramAvailableTool[]> {
+    const tools = await toolsManager.getAvailableTools({
+      isActive: true,
+    });
+
+    const availableTools = (tools[toolType] || []).map((item) => ({
+      id: item.id,
+      name: item.name,
+      isToolkit: item.isToolkit,
+      tools: item.tools?.map((tool) => ({
+        id: tool.id,
+        name: tool.name,
+      })),
+    }));
+
+    const _tools = [];
+
+    for (const item of availableTools) {
+      if (item.isToolkit) {
+        _tools.push(...item.tools);
+      } else {
+        _tools.push(item);
+      }
+    }
+
+    return _tools;
+  }
+
+  private formatToolList(title: string, values: string[], mapper?: (value: string) => string) {
+    const items = values.length > 0
+      ? values.map((value) => ` - ${mapper ? mapper(value) : value}`).join('\n')
+      : '(none)';
+    return `${title}: \n${items}`;
+  }
+
+  private async buildStatusMessage(commandContext: TelegramCommandContext): Promise<string> {
+    const { appInfo, currentThreadId, project, thread } = commandContext;
+    const output = [
+      `Project Id: ${project?.id || 'N/A'}`,
+      `Project Title: ${project?.title || 'N/A'}`,
+    ];
+
+    if (!currentThreadId || !thread) {
+      return output.join('\n');
+    }
+
+    const totalTokens = (thread.metadata?.usage as LanguageModelUsage)?.totalTokens;
+    const maxTokens = thread.metadata?.maxTokens as number | undefined;
+    const usageRate = totalTokens && maxTokens ? (totalTokens / maxTokens) * 100 : 0;
+    const modelId = project?.defaultModelId || thread.metadata?.model as string || appInfo.defaultModel?.model as string;
+    const provider = modelId ? await providersManager.getProvider(modelId.split('/')[0]) : undefined;
+    const agentId = project?.defaultAgentId || thread.metadata?.agentId as string || appInfo.defaultAgent;
+    const agent = await agentManager.getAgent(agentId);
+    const tools = [...new Set(project?.defaultTools || thread.metadata?.tools as string[] || agent.tools || [])];
+    const subAgents = [...new Set(project?.defaultSubAgents || thread.metadata?.subAgents as string[] || agent.subAgents || [])];
+
+    output.push(`Thread Id: ${currentThreadId}`);
+    output.push(`Thread Title: ${thread.title}`);
+    output.push(`Status: ${thread.status}`);
+    output.push(`Model: ${provider ? provider.name : ''}/${modelId?.split('/')?.slice(1).join('/') || 'N/A'}`);
+    output.push(`Usage: ${totalTokens || 'N/A'} ${maxTokens ? `(${usageRate.toFixed(2)}%)` : ''}`);
+    output.push(`Agent: ${agentId}`);
+    output.push(this.formatToolList('Tools', tools.filter((value) => value.startsWith(ToolType.BUILD_IN)), (value) => value.slice(value.indexOf(':') + 1)));
+    output.push(this.formatToolList('Skills', tools.filter((value) => value.startsWith(ToolType.SKILL)), (value) => value.slice(value.indexOf(':') + 1)));
+    output.push(this.formatToolList('MCP', tools.filter((value) => value.startsWith(ToolType.MCP)), (value) => value.slice(value.indexOf(':') + 1)));
+    output.push(this.formatToolList('Sub Agents', subAgents));
+
+    return output.join('\n');
+  }
+
+  private async updateCurrentThreadMetadata(threadId: string, updater: (metadata: Record<string, any>) => Record<string, any>) {
+    const thread = await mastraManager.getThread(threadId, true);
+    const metadata = updater({ ...(thread.metadata || {}) });
+    await mastraManager.updateThread(threadId, {
+      id: thread.id,
+      resourceId: thread.resourceId,
+      title: thread.title,
+      metadata,
+      updatedAt: new Date(),
+      createdAt: thread.createdAt,
+    });
+    return thread;
+  }
+
+  private async updateModelSelection(config: TelegramChannelConfig, modelId: string): Promise<void> {
+    if (config.currentProjectId) {
+      const project = await projectManager.getProject(config.currentProjectId);
+      project.defaultModelId = modelId;
+      await projectManager.projectsRepository.save(project);
+      return;
+    }
+
+    if (config.currentThreadId) {
+      await this.updateCurrentThreadMetadata(config.currentThreadId, (metadata) => ({
+        ...metadata,
+        model: modelId,
+      }));
+    }
+  }
+
+  private async updateToolSelection(toolType: ToolType, config: TelegramChannelConfig, nextTools: string[]): Promise<void> {
+
+    if (config.currentProjectId) {
+      const project = await projectManager.getProject(config.currentProjectId);
+      project.defaultTools = [...new Set([...nextTools, ...project.defaultTools.filter(x => !x.startsWith(toolType + ":"))])];
+      await projectManager.projectsRepository.save(project);
+      return;
+    }
+
+    if (config.currentThreadId) {
+      await this.updateCurrentThreadMetadata(config.currentThreadId, (metadata) => ({
+        ...metadata,
+        tools: [...new Set([...nextTools, ...(metadata.tools as string[] || []).filter(x => !x.startsWith(toolType + ":"))])],
+      }));
+    }
+  }
+
+  private formatTelegramButtonText(text: string, prefix = '') {
+    const maxLength = Math.max(1, TELEGRAM_BUTTON_TEXT_LIMIT - prefix.length);
+    const trimmed = text.length > maxLength ? `${text.slice(0, maxLength - 1)}…` : text;
+    return `${prefix}${trimmed}`;
+  }
+
+  private buildProjectsKeyboard(
+    projects: { id: string; title: string }[],
+    currentProjectId: string | undefined,
+    page: number,
+  ) {
+    const totalPages = Math.max(1, Math.ceil(projects.length / TELEGRAM_PROJECTS_PAGE_SIZE));
+    const safePage = Math.min(Math.max(page, 0), totalPages - 1);
+    const start = safePage * TELEGRAM_PROJECTS_PAGE_SIZE;
+    const pageItems = projects.slice(start, start + TELEGRAM_PROJECTS_PAGE_SIZE);
+
+    let keyboard = new InlineKeyboard();
+    for (const item of pageItems) {
+      const isSelected = currentProjectId === item.id;
+      keyboard = keyboard.text(
+        this.formatTelegramButtonText(item.title, isSelected ? '✅ ' : ''),
+        `toggle:project:${item.id}`,
+      ).row();
+    }
+
+    if (totalPages > 1) {
+      if (safePage > 0) {
+        keyboard = keyboard.text('⬅️ Prev', `page:projects:${safePage - 1}`);
+      }
+      keyboard = keyboard.text(`${safePage + 1}/${totalPages}`, 'page:projects:noop');
+      if (safePage < totalPages - 1) {
+        keyboard = keyboard.text('Next ➡️', `page:projects:${safePage + 1}`);
+      }
+    }
+
+    return { keyboard, safePage, totalPages, pageItems };
+  }
+
+  private renderProjectsMessage(
+    projects: { id: string; title: string }[],
+    currentProjectId: string | undefined,
+    page: number,
+  ) {
+    const { keyboard, safePage, totalPages, pageItems } = this.buildProjectsKeyboard(projects, currentProjectId, page);
+    const text = [
+      '📁 Select a project on focus:',
+      `Page: ${safePage + 1}/${totalPages}`,
+      pageItems.length === 0 ? 'No projects found.' : 'Tap a project to switch the current focus.',
+    ].join('\n');
+
+    return { text, keyboard };
+  }
+
+  private buildToolsKeyboard(
+    toolType: ToolType,
+    availableTools: { id: string; name: string }[],
+    selectedTools: string[],
+    page: number,
+  ) {
+    const totalPages = Math.max(1, Math.ceil(availableTools.length / TELEGRAM_TOOLS_PAGE_SIZE));
+    const safePage = Math.min(Math.max(page, 0), totalPages - 1);
+    const start = safePage * TELEGRAM_TOOLS_PAGE_SIZE;
+    const pageItems = availableTools.slice(start, start + TELEGRAM_TOOLS_PAGE_SIZE);
+    const selectedSet = new Set(selectedTools);
+
+    let keyboard = new InlineKeyboard();
+    for (const item of pageItems) {
+      const token = this.encodeTelegramToken(item.id);
+      const label = this.formatTelegramButtonText(item.name, selectedSet.has(item.id) ? '✅ ' : '');
+      keyboard = keyboard.text(label, `toggle:${toolType.toLowerCase()}:${token}:${safePage}`).row();
+    }
+
+    if (totalPages > 1) {
+      if (safePage > 0) {
+        keyboard = keyboard.text('⬅️ Prev', `page:${toolType.toLowerCase()}:${safePage - 1}`);
+      }
+      keyboard = keyboard.text(`${safePage + 1}/${totalPages}`, `page:${toolType.toLowerCase()}:noop`);
+      if (safePage < totalPages - 1) {
+        keyboard = keyboard.text('Next ➡️', `page:${toolType.toLowerCase()}:${safePage + 1}`);
+      }
+    }
+
+    return { keyboard, safePage, totalPages, pageItems };
+  }
+
+  private renderToolsMessage(
+    toolType: ToolType,
+    availableTools: { id: string; name: string }[],
+    selectedTools: string[],
+    page: number,
+  ) {
+    const { keyboard, safePage, totalPages, pageItems } = this.buildToolsKeyboard(toolType, availableTools, selectedTools, page);
+    const text = [
+      '🧰 Select tools for the current session:',
+      `Selected: ${selectedTools.length}`,
+      `Page: ${safePage + 1}/${totalPages}`,
+      pageItems.length === 0 ? 'No tools found.' : 'Tap a tool to enable or disable it.',
+    ].join('\n');
+
+    return { text, keyboard };
+  }
+
+
+  executeCommand = async (command: string, text: string, ctx: Context) => {
+    const arg = text.startsWith(`/${command} `) ? text.slice(command.length + 1).trim() : undefined;
+    const commandContext = await this.buildCommandContext();
+    const { appInfo, config, currentProjectId, currentThreadId, project, thread } = commandContext;
+
     switch (command) {
-      case Commands.PROJECTS:
-        const projects = await projectManager.getList({ page: 0, size: 10 });
-        const items = projects.items.map(x => ({
-          text: x.title,
-          id: `focus:project:${x.id}`,
+      case Commands.PROJECTS: {
+        const projects = await projectManager.getList({ page: 0, size: 100, filter: arg });
+        const items = projects.items.map((item) => ({
+          id: item.id,
+          title: item.title,
         }));
-        let keyboard = new InlineKeyboard();
-        for (const item of items) {
-          keyboard = keyboard.text(item.text, item.id).row();
+
+        if (items.length === 0) {
+          await ctx.reply('No projects found.');
+          return;
         }
 
-        await ctx.reply("📁 Select a project on focus:", {
+        const { text, keyboard } = this.renderProjectsMessage(items, currentProjectId, 0);
+        await ctx.reply(text, {
           reply_markup: keyboard,
-        })
+        });
         return;
-      case Commands.NEW:
-        const agentId = appInfo.defaultAgent;
+      }
+      case Commands.STATUS: {
+        const statusMessage = await this.buildStatusMessage(commandContext);
+        await ctx.reply(statusMessage, {
+          parse_mode: 'Markdown',
+        });
+        return;
+      }
+      case Commands.NEW: {
+        const agentId = project?.defaultAgentId || appInfo.defaultAgent;
         const agent = await agentManager.getAgent(agentId);
         const threadEntity = await mastraManager.createThread({
-          agentId: agent.id,
-          model: agent.defaultModelId || appInfo.defaultModel?.model as string,
-          subAgents: agent.subAgents,
-          tools: agent.tools,
+          agentId,
+          model: project?.defaultModelId || agent.defaultModelId || appInfo.defaultModel?.model as string,
+          subAgents: project?.defaultSubAgents || agent.subAgents,
+          tools: project?.defaultTools || agent.tools,
+          resourceId: currentProjectId ? `project:${currentProjectId}` : undefined,
         });
         config.currentThreadId = threadEntity.id;
-        const channelEntity = await this.channelRepository.findOneBy({ id: this.channel.id });
-        if (!channelEntity) {
-          throw new Error('❌ Channel not found');
-        }
-        channelEntity.config = { ...config, currentThreadId: threadEntity.id };
-        await this.channelRepository.save(channelEntity);
+        await this.saveChannelConfig(config);
         await ctx.reply('✅ New session has been started.');
         return;
+      }
       case Commands.CLEAR:
         if (config.currentThreadId) {
           await mastraManager.clearMessages(config.currentThreadId);
-          await ctx.reply('🧹 Current session has been cleared.');
+          await ctx.reply('🧹 Current session has been cleared.', {
+            reply_markup: { remove_keyboard: true },
+          });
         } else {
           await ctx.reply('⚠️ Session does not exist.');
         }
@@ -830,17 +1259,16 @@ export class TelegramChannelRuntime {
         await mastraManager.chatAbort(config.currentThreadId);
         await ctx.reply('⏹️ Current session has been stopped.');
         return;
-      case Commands.COMPACT:
-        const thread = await this.resolveCurrentThread();
+      case Commands.COMPACT: {
         const tools = thread?.metadata?.tools as string[] ?? [];
         const subAgents = thread?.metadata?.subAgents as string[] ?? [];
         const model = thread?.metadata?.model as string ?? '';
-        const msg = await ctx.reply('🗜️ Compacting current session...');
+        await ctx.reply('🗜️ Compacting current session...');
         const result = await mastraManager.chat(undefined, {
           chatId: config.currentThreadId as string,
-          model: model,
-          tools: tools,
-          subAgents: subAgents,
+          model,
+          tools,
+          subAgents,
           requireToolApproval: false,
           messages: [
             {
@@ -850,7 +1278,7 @@ export class TelegramChannelRuntime {
                 text: '/compact',
               }],
               role: 'user',
-            }
+            },
           ],
         });
         if (result.success) {
@@ -859,21 +1287,273 @@ export class TelegramChannelRuntime {
           await ctx.editMessageText(`❌ Error: ${result.error}`);
         }
         return;
+      }
+      case Commands.SETMODEL: {
+        const models = await this.getAvailableModels();
+
+        if (models.length === 0) {
+          await ctx.reply('No models found.');
+          return;
+        }
+
+        const currentModel = project?.defaultModelId || thread?.metadata?.model as string || appInfo.defaultModel?.model as string;
+        let keyboard = new InlineKeyboard();
+        for (const item of models) {
+          const token = this.encodeTelegramToken(item.id);
+          keyboard = keyboard.text(currentModel === item.id ? `✅ ${item.text}` : item.text, `toggle:model:${token}`).row();
+        }
+
+        await ctx.reply('📁 Select a model for the current session:', {
+          reply_markup: keyboard,
+        });
+        return;
+      }
+      case Commands.SETAGENT: {
+        const agents = await agentManager.getList();
+        if (agents.length === 0) {
+          await ctx.reply('No agents found.');
+          return;
+        }
+        const currentAgent = project?.defaultAgentId || thread?.metadata?.agentId as string || appInfo.defaultAgent;
+        let keyboard = new InlineKeyboard();
+        for (const item of agents.filter((agentItem) => !agentItem.isHidden)) {
+          keyboard = keyboard.text(currentAgent === item.id ? `✅ ${item.name}` : item.name, `toggle:agent:${item.id}`).row();
+        }
+        await ctx.reply('🤖 Select an agent for the current session:', {
+          reply_markup: keyboard,
+        });
+        return;
+      }
+      case Commands.SETTOOLS: {
+        const availableTools = await this.getAvailableTools(ToolType.BUILD_IN);
+
+        if (availableTools.length === 0) {
+          await ctx.reply('No tools found.');
+          return;
+        }
+
+        const selectedTools = (await this.getCurrentToolSelection(project, thread)).filter(x => x.startsWith(ToolType.BUILD_IN));
+        const { text, keyboard } = this.renderToolsMessage(ToolType.BUILD_IN, availableTools, selectedTools, 0);
+
+        await ctx.reply(text, {
+          reply_markup: keyboard,
+        });
+        return;
+      }
+      case Commands.SETSKILLS: {
+        const availableTools = await this.getAvailableTools(ToolType.SKILL);
+
+        if (availableTools.length === 0) {
+          await ctx.reply('No tools found.');
+          return;
+        }
+
+        const selectedTools = (await this.getCurrentToolSelection(project, thread)).filter(x => x.startsWith(ToolType.SKILL));
+        const { text, keyboard } = this.renderToolsMessage(ToolType.SKILL, availableTools, selectedTools, 0);
+
+        await ctx.reply(text, {
+          reply_markup: keyboard,
+        });
+        return;
+      }
     }
   };
 
   setCommandCallbackQueryHandler = (bot: Bot) => {
-    bot.callbackQuery(/^focus:project:[A-Za-z0-9]+$/, async (ctx) => {
+    bot.callbackQuery(/^toggle:project:[A-Za-z0-9]+$/, async (ctx) => {
       await ctx.answerCallbackQuery()
       const projectId = ctx.callbackQuery.data.split(":")[2];
       const project = await projectManager.getProject(projectId);
+      const appInfo = await appManager.getInfo();
+      const config = await this.getChannelConfig();
       if (!project) {
-        await ctx.reply("项目不存在")
+        await ctx.reply("Project not found.")
         return;
       }
-      await ctx.reply(`项目 ${project.title} 已选择`)
+      config.currentProjectId = projectId;
+      const threads = await mastraManager.getThreads({ resourceId: `project:${projectId}` });
+      let thread;
+      if (threads.items.length == 0) {
+        const agentEntity = await agentManager.getAgent(project.defaultAgentId);
+        // const agent = await agentManager.buildAgent(agentEntity.id);
+        thread = await mastraManager.createThread({
+          resourceId: `project:${projectId}`,
+          agentId: agentEntity.id,
+          model: project.defaultAgentId || agentEntity.defaultModelId || appInfo.defaultModel?.model as string,
+          tools: agentEntity.tools,
+          subAgents: agentEntity.subAgents,
+        });
+        config.currentThreadId = thread.id;
+      } else {
+        thread = threads.items[0];
+        config.currentThreadId = thread.id;
+      }
+      await this.saveChannelConfig(config);
+      await ctx.reply(`${project.title} has been selected.
+Working directory : ${project.path}
+Default agent: ${thread.metadata?.agentId}
+Default model: ${thread.metadata?.model?.split('/').slice(1).join('/') as string}
+`)
     });
+
+    bot.callbackQuery(/^page:projects:(noop|\d+)$/, async (ctx) => {
+      await ctx.answerCallbackQuery();
+      const value = ctx.callbackQuery.data.split(':')[2];
+      if (value === 'noop') {
+        return;
+      }
+
+      const config = await this.getChannelConfig();
+      const projects = await projectManager.getList({ page: 0, size: 100, filter: undefined });
+      const items = projects.items.map((item) => ({
+        id: item.id,
+        title: item.title,
+      }));
+      const { text, keyboard } = this.renderProjectsMessage(items, config.currentProjectId, Number(value));
+
+      await ctx.editMessageText(text, {
+        reply_markup: keyboard,
+      });
+    });
+
+    bot.callbackQuery(/^toggle:agent:[A-Za-z0-9]+$/, async (ctx) => {
+      await ctx.answerCallbackQuery();
+      const agentId = ctx.callbackQuery.data.split(":")[2];
+      const agent = await agentManager.getAgent(agentId);
+      const config = await this.getChannelConfig();
+      if (!agent) {
+        await ctx.reply("Agent not found.");
+        return;
+      }
+      if (config.currentProjectId) {
+        const project = await projectManager.getProject(config.currentProjectId);
+        project.defaultAgentId = agentId;
+        project.defaultTools = agent.tools;
+        project.defaultSubAgents = agent.subAgents;
+        await projectManager.projectsRepository.save(project);
+      } else {
+        const thread = await mastraManager.getThread(config.currentThreadId, true);
+        thread.metadata.agentId = agentId;
+        await mastraManager.updateThread(config.currentThreadId, {
+          id: thread.id,
+          resourceId: thread.resourceId,
+          title: thread.title,
+          metadata: {
+            ...thread.metadata,
+            agentId: agentId,
+            tools: thread.metadata.tools,
+            subAgents: thread.metadata.subAgents,
+          },
+          updatedAt: new Date(),
+          createdAt: thread.createdAt,
+        });
+      }
+      await ctx.reply(`${agent.name} has been selected.`);
+      return;
+    });
+
+    bot.callbackQuery(/^toggle:model:[A-Za-z0-9/]+$/, async (ctx) => {
+      await ctx.answerCallbackQuery();
+      const token = ctx.callbackQuery.data.split(':')[2];
+      const models = await this.getAvailableModels();
+      const model = models.find((item) => this.encodeTelegramToken(item.id) === token);
+      if (!model) {
+        await ctx.reply('Model not found.');
+        return;
+      }
+      const config = await this.getChannelConfig();
+      await this.updateModelSelection(config, model.id);
+      await ctx.reply(`${model.text} has been selected.`);
+    });
+
+    bot.callbackQuery(/^page:build-in:(noop|\d+)$/, async (ctx) => {
+      await ctx.answerCallbackQuery();
+      const value = ctx.callbackQuery.data.split(':')[2];
+      if (value === 'noop') {
+        return;
+      }
+
+      const commandContext = await this.buildCommandContext();
+      const availableTools = await this.getAvailableTools(ToolType.BUILD_IN);
+      const selectedTools = (await this.getCurrentToolSelection(commandContext.project, commandContext.thread)).filter(x => x.startsWith(ToolType.BUILD_IN));
+      const { text, keyboard } = this.renderToolsMessage(ToolType.BUILD_IN, availableTools, selectedTools, Number(value));
+
+      await ctx.editMessageText(text, {
+        reply_markup: keyboard,
+      });
+    });
+
+    bot.callbackQuery(/^toggle:build-in:[A-Za-z0-9_-]+:\d+$/, async (ctx) => {
+      await ctx.answerCallbackQuery();
+      const [, , token, pageValue] = ctx.callbackQuery.data.split(':');
+      const page = Number(pageValue);
+      const commandContext = await this.buildCommandContext();
+      const availableTools = await this.getAvailableTools(ToolType.BUILD_IN);
+      const tool = availableTools.find((item) => this.encodeTelegramToken(item.id) === token);
+
+      if (!tool) {
+        await ctx.reply('Tool not found.');
+        return;
+      }
+
+      const currentTools = (await this.getCurrentToolSelection(commandContext.project, commandContext.thread)).filter(x => x.startsWith(ToolType.BUILD_IN));
+      const nextTools = currentTools.includes(tool.id)
+        ? currentTools.filter((item) => item !== tool.id)
+        : [...currentTools, tool.id];
+
+      await this.updateToolSelection(ToolType.BUILD_IN, commandContext.config, nextTools);
+
+      const { text, keyboard } = this.renderToolsMessage(ToolType.BUILD_IN, availableTools, nextTools, page);
+      await ctx.editMessageText(text, {
+        reply_markup: keyboard,
+      });
+    });
+
+    bot.callbackQuery(/^page:skill:(noop|\d+)$/, async (ctx) => {
+      await ctx.answerCallbackQuery();
+      const value = ctx.callbackQuery.data.split(':')[2];
+      if (value === 'noop') {
+        return;
+      }
+      const commandContext = await this.buildCommandContext();
+      const availableSkills = await this.getAvailableTools(ToolType.SKILL);
+      const selectedTools = (await this.getCurrentToolSelection(commandContext.project, commandContext.thread)).filter(x => x.startsWith(ToolType.SKILL));
+      const { text, keyboard } = this.renderToolsMessage(ToolType.SKILL, availableSkills, selectedTools, Number(value));
+
+      await ctx.editMessageText(text, {
+        reply_markup: keyboard,
+      });
+    });
+
+    bot.callbackQuery(/^toggle:skill:[A-Za-z0-9_-]+:\d+$/, async (ctx) => {
+      await ctx.answerCallbackQuery();
+      const [, , token, pageValue] = ctx.callbackQuery.data.split(':');
+      const page = Number(pageValue);
+      const commandContext = await this.buildCommandContext();
+      const availableTools = await this.getAvailableTools(ToolType.SKILL);
+      const tool = availableTools.find((item) => this.encodeTelegramToken(item.id) === token);
+
+      if (!tool) {
+        await ctx.reply('Skill not found.');
+        return;
+      }
+
+      const currentTools = (await this.getCurrentToolSelection(commandContext.project, commandContext.thread)).filter(x => x.startsWith(ToolType.SKILL));
+      const nextTools = currentTools.includes(tool.id)
+        ? currentTools.filter((item) => item !== tool.id)
+        : [...currentTools, tool.id];
+
+      await this.updateToolSelection(ToolType.BUILD_IN, commandContext.config, nextTools);
+
+      const { text, keyboard } = this.renderToolsMessage(ToolType.SKILL, availableTools, nextTools, page);
+      await ctx.editMessageText(text, {
+        reply_markup: keyboard,
+      });
+    });
+
     return bot;
   }
+
+
 
 }

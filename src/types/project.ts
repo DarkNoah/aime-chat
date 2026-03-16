@@ -9,6 +9,9 @@ export type Project = {
   skills?: SkillInfo[];
   agentsMd?: string;
   defaultAgentId?: string;
+  defaultModelId?: string;
+  defaultTools?: string[];
+  defaultSubAgents?: string[];
 };
 
 export enum ProjectEvent {

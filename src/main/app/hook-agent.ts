@@ -114,6 +114,7 @@ export class HookProxyAgent extends ProxyAgent {
             }
           }
         }
+        // console.log(JSON.stringify(jsonObject));
 
         return JSON.stringify(jsonObject);
       }
