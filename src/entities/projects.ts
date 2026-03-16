@@ -37,6 +37,19 @@ export class Projects {
   @UpdateDateColumn()
   updatedAt!: Date;
 
+  @Column('json', { nullable: true })
+  metadata?: any;
+
   @Column({ nullable: true })
   defaultAgentId?: string;
+
+  @Column({ nullable: true })
+  defaultModelId?: string;
+
+  @Column('json', { nullable: true })
+  defaultTools?: any;
+
+  @Column('json', { nullable: true })
+  defaultSubAgents?: any;
+
 }

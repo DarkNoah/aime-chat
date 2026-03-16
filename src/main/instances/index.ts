@@ -7,12 +7,6 @@ import log from 'electron-log';
 import { BaseManager } from '../BaseManager';
 import { channel } from '../ipc/IpcController';
 import { AppChannel, InstancesChannel } from '@/types/ipc-channel';
-import {
-  UpdateInfo,
-  UpdateProgress,
-  UpdateState,
-  UpdateStatus,
-} from '@/types/app';
 import { BrowserContext, chromium } from 'playwright';
 import { appManager } from '../app';
 import path from 'path';

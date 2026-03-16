@@ -143,7 +143,10 @@ export const SendEventMessage = React.forwardRef<
                     />
                   </PhotoView>
                 );
-              } else if (file.mimeType?.startsWith('video/')) {
+              } else if (
+                file.mimeType?.startsWith('video/') &&
+                file.ext?.toLowerCase() !== '.ts'
+              ) {
                 return (
                   <video
                     src={toFileUrl(file.path)}

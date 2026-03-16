@@ -264,6 +264,19 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
       }
     };
 
+    const handleModelChanged = async (_modelId: string) => {
+      setModelId(_modelId);
+      if (threadId) {
+        await window.electron.mastra.updateThread(threadId, {
+          title: threadState?.title,
+          metadata: {
+            ...threadState?.metadata,
+            model: _modelId,
+          },
+        });
+      }
+    };
+
     const handleSubmit = async (
       message: PromptInputMessage,
       // model?: string,
@@ -437,7 +450,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
         };
         getThread();
         return () => {
-          unregisterThread(threadId);
+          unregisterThread(threadId, true);
           eventBus.off(`chat:onData:${threadId}`);
           eventBus.off(`chat:onFinish:${threadId}`);
         };
@@ -847,7 +860,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
             showAgentSelector
             showThink
             model={modelId}
-            onModelChange={setModelId}
+            onModelChange={handleModelChanged}
             requireToolApproval={requireToolApproval}
             onRequireToolApprovalChange={setRequireToolApproval}
             ref={chatInputRef}

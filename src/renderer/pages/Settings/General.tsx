@@ -16,7 +16,7 @@ import {
 } from '@/renderer/components/ui/select';
 import { useGlobal } from '@/renderer/hooks/use-global';
 import { useHeader } from '@/renderer/hooks/use-title';
-import { AppProxy } from '@/types/app';
+import { AppProxy, PreventSleepInterval } from '@/types/app';
 import { useTranslation } from 'react-i18next';
 import { useState } from 'react';
 import { useTheme } from 'next-themes';
@@ -92,10 +92,12 @@ export default function General() {
     await getAppInfo();
   };
 
-  const onChangeKeepAwakeWithDisplaySleep = async (enabled: boolean) => {
+  const onChangePreventSleepInterval = async (
+    value: PreventSleepInterval,
+  ) => {
     await window.electron.app.saveSettings({
-      id: 'keepAwakeWithDisplaySleep',
-      value: enabled,
+      id: 'preventSleepInterval',
+      value,
     });
     await getAppInfo();
   };
@@ -172,6 +174,31 @@ export default function General() {
       </Field>
 
       <Field>
+        <FieldLabel>休眠选项</FieldLabel>
+        <div className="max-w-[200px]">
+          <Select
+            value={appInfo?.preventSleepInterval || '5m'}
+            onValueChange={(value) =>
+              onChangePreventSleepInterval(value as PreventSleepInterval)
+            }
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectItem value="5m">5分钟</SelectItem>
+                <SelectItem value="10m">10分钟</SelectItem>
+                <SelectItem value="30m">30分钟</SelectItem>
+                <SelectItem value="1h">1小时</SelectItem>
+                <SelectItem value="never">永不休眠</SelectItem>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </div>
+      </Field>
+
+      <Field>
         <FieldLabel>{t('settings.proxy')}</FieldLabel>
         <RadioGroup
           defaultValue="system"
@@ -236,16 +263,6 @@ export default function General() {
           </Field>
         </div>
       )}
-      <Field>
-        <FieldLabel>防止系统休眠</FieldLabel>
-        <div className="flex flex-row items-center gap-3">
-          <Switch
-            checked={!!appInfo?.keepAwakeWithDisplaySleep}
-            onCheckedChange={onChangeKeepAwakeWithDisplaySleep}
-          />
-          <Label>允许屏幕关闭，但阻止系统休眠</Label>
-        </div>
-      </Field>
       <Field>
         <FieldLabel>ACP Studio</FieldLabel>
         <div className="flex flex-row items-center gap-3">

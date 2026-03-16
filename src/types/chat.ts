@@ -45,6 +45,7 @@ export enum ChatEvent {
   ChatAbort = 'chat:chat-abort',
   ChatStepFinish = 'chat:chat-step-finish',
   ChatThreadChanged = 'chat:chat-thread-changed',
+  ChatMessageChanged = 'chat:chat-message-changed',
 }
 
 export enum ThreadEvent {
@@ -132,6 +133,7 @@ export type ChatRequestContext = {
 };
 
 export const DEFAULT_RESOURCE_ID = 'default';
+export const DEFAULT_TITLE = 'New Thread';
 
 export type ChatSubmitOptions = {
   model?: string;
@@ -157,23 +159,23 @@ export const ChatSlashCommandConfig = [{
 
 
 export type ChatCallbackEvent = {
-  onStepFinish?: () => void;
+  onStepFinish?: (event: any) => Promise<void>;
   onToolCall?: (toolCall: {
     toolName: string;
     toolCallId: string;
     input: any;
-  }) => void;
+  }) => Promise<void>;
   onToolCallUpdate?: (toolCallUpdate: {
     toolCallId: string;
     output: any;
-  }, status: 'pending' | 'completed' | 'failed') => void;
-  onPlanUpdate?: (plans: ChatTask[]) => void;
-  onAgentChanged?: (agent: Agent) => void;
-  onError?: (error: string) => void;
-  onUsage?: (usage: LanguageModelUsage, maxTokens?: number) => void;
-  onStart?: () => void;
-  onEnd?: () => void;
-  onChunk?: (chunk: string) => void;
-  onThought?: (chunk: string) => void;
-  onThreadChanged?: (thread: ChatThread) => void;
+  }, status: 'pending' | 'completed' | 'failed') => Promise<void>;
+  onPlanUpdate?: (plans: ChatTask[]) => Promise<void>;
+  onAgentChanged?: (agent: Agent) => Promise<void>;
+  onError?: (error: string) => Promise<void>;
+  onUsage?: (usage: LanguageModelUsage, maxTokens?: number) => Promise<void>;
+  onStart?: () => Promise<void>;
+  onEnd?: () => Promise<void>;
+  onChunk?: (chunk: string) => Promise<void>;
+  onThought?: (chunk: string) => Promise<void>;
+  onThreadChanged?: (thread: ChatThread) => Promise<void>;
 }

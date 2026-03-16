@@ -35,19 +35,29 @@ interface SetupStepProps {
   onSkip?: () => void;
 }
 
+type RuntimeKey = 'uv' | 'bun';
+
 function RuntimeStep({ onNext, onBack, onSkip }: SetupStepProps) {
   const { t } = useTranslation();
   const [runtimeInfo, setRuntimeInfo] = useState<RuntimeInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [installing, setInstalling] = useState(false);
+  const [installingMap, setInstallingMap] = useState<Record<RuntimeKey, boolean>>({
+    uv: false,
+    bun: false,
+  });
 
-  const getRuntimeInfo = async () => {
-    setLoading(true);
+  const getRuntimeInfo = async (useLoading = true) => {
+    if (useLoading) {
+      setLoading(true);
+    }
     try {
       const data = await window.electron.app.getRuntimeInfo();
       setRuntimeInfo(data);
     } finally {
-      setLoading(false);
+      if (useLoading) {
+        setLoading(false);
+      }
     }
   };
 
@@ -55,39 +65,47 @@ function RuntimeStep({ onNext, onBack, onSkip }: SetupStepProps) {
     getRuntimeInfo();
   }, []);
 
-  const handleInstallUV = async () => {
-    setInstalling(true);
-    setRuntimeInfo((prev) => {
-      if (!prev) return null;
-      return { ...prev, uv: { ...prev.uv, status: 'installing' } as any };
-    });
+  // const handleInstallUV = async () => {
+  //   setInstalling(true);
+  //   setRuntimeInfo((prev) => {
+  //     if (!prev) return null;
+  //     return { ...prev, uv: { ...prev.uv, status: 'installing' } as any };
+  //   });
+  //   try {
+  //     await window.electron.app.installRuntime('uv');
+  //     await getRuntimeInfo();
+  //   } finally {
+  //     setInstalling(false);
+  //   }
+  // };
+
+  // const handleInstallBun = async () => {
+  //   setInstalling(true);
+  //   setRuntimeInfo((prev) => {
+  //     if (!prev) return null;
+  //     return { ...prev, bun: { ...prev.bun, status: 'installing' } as any };
+  //   });
+  //   try {
+  //     await window.electron.app.installRuntime('bun');
+  //     await getRuntimeInfo();
+  //   } finally {
+  //     setInstalling(false);
+  //   }
+  // };
+
+  const handleInstallRuntime = async (pkg: RuntimeKey) => {
+    setInstallingMap((prev) => ({ ...prev, [pkg]: true }));
     try {
-      await window.electron.app.installRuntime('uv');
-      await getRuntimeInfo();
+      await window.electron.app.installRuntime(pkg);
+      await getRuntimeInfo(false);
     } finally {
-      setInstalling(false);
+      setInstallingMap((prev) => ({ ...prev, [pkg]: false }));
     }
   };
 
-  const handleInstallBun = async () => {
-    setInstalling(true);
-    setRuntimeInfo((prev) => {
-      if (!prev) return null;
-      return { ...prev, bun: { ...prev.bun, status: 'installing' } as any };
-    });
-    try {
-      await window.electron.app.installRuntime('bun');
-      await getRuntimeInfo();
-    } finally {
-      setInstalling(false);
-    }
-  };
   const isUVInstalled = runtimeInfo?.uv?.status === 'installed';
-  const isNodeInstalled = runtimeInfo?.node?.installed;
-  const isUVInstalling = runtimeInfo?.uv?.status === 'installing' || installing;
   const isBunInstalled = runtimeInfo?.bun?.status === 'installed';
-  const isBunInstalling =
-    runtimeInfo?.bun?.status === 'installing' || installing;
+
 
   return (
     <Card className="border-0 shadow-2xl bg-card/80 backdrop-blur-sm">
@@ -128,14 +146,14 @@ function RuntimeStep({ onNext, onBack, onSkip }: SetupStepProps) {
                     {t('setup.runtime.installed')}
                   </Badge>
                 )}
-                {!isUVInstalled && isUVInstalling && (
+                {!isUVInstalled && installingMap['uv'] && (
                   <Button disabled size="sm">
                     <Spinner className="w-4 h-4 mr-2" />
                     {t('setup.runtime.installing')}
                   </Button>
                 )}
-                {!isUVInstalled && !isUVInstalling && (
-                  <Button size="sm" onClick={handleInstallUV}>
+                {!isUVInstalled && !installingMap['uv'] && (
+                  <Button size="sm" onClick={() => handleInstallRuntime('uv')}>
                     <Download className="w-4 h-4 mr-2" />
                     {t('setup.runtime.install')}
                   </Button>
@@ -166,14 +184,14 @@ function RuntimeStep({ onNext, onBack, onSkip }: SetupStepProps) {
                     {t('setup.runtime.installed')}
                   </Badge>
                 )}
-                {!isBunInstalled && isBunInstalling && (
+                {!isBunInstalled && installingMap['bun'] && (
                   <Button disabled size="sm">
                     <Spinner className="w-4 h-4 mr-2" />
                     {t('setup.runtime.installing')}
                   </Button>
                 )}
-                {!isBunInstalled && !isBunInstalling && (
-                  <Button size="sm" onClick={handleInstallBun}>
+                {!isBunInstalled && !installingMap['bun'] && (
+                  <Button size="sm" onClick={() => handleInstallRuntime('bun')}>
                     <Download className="w-4 h-4 mr-2" />
                     {t('setup.runtime.install')}
                   </Button>
@@ -201,7 +219,7 @@ function RuntimeStep({ onNext, onBack, onSkip }: SetupStepProps) {
               <SkipForward className="w-4 h-4 ml-2" />
             </Button>
           )}
-          <Button onClick={onNext} disabled={isUVInstalling}>
+          <Button onClick={onNext} disabled={installingMap['bun'] || installingMap['uv']}>
             {t('common.next')}
             <ArrowRight className="w-4 h-4 ml-2" />
           </Button>

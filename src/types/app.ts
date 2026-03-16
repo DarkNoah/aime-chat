@@ -1,3 +1,10 @@
+export type PreventSleepInterval =
+  | '5m'
+  | '10m'
+  | '30m'
+  | '1h'
+  | 'never';
+
 export class AppInfo {
   name: string;
   appPath: string;
@@ -33,7 +40,7 @@ export class AppInfo {
     port: number;
   };
   acp: ACPInfo;
-  keepAwakeWithDisplaySleep: boolean;
+  preventSleepInterval: PreventSleepInterval;
 }
 
 

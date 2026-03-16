@@ -181,6 +181,8 @@ const electronHandler = {
       options?: { limit?: number },
     ): Promise<{ content: string; truncated: boolean; size: number, mimeType: string, isBinary: boolean }> =>
       ipcRenderer.invoke(AppChannel.ReadFileContent, filePath, options),
+    refreshPreventSleep: (): Promise<void> =>
+      ipcRenderer.invoke(AppChannel.RefreshPreventSleep),
     screenCapture: (
       options: ScreenCaptureOptions,
     ): Promise<ScreenCaptureResult> =>
@@ -364,8 +366,8 @@ const electronHandler = {
       ipcRenderer.invoke(ProjectChannel.CreateThread, options),
     deleteSkill: (projectId: string, skillId: string) =>
       ipcRenderer.invoke(ProjectChannel.DeleteSkill, projectId, skillId),
-    openWith: (projectId: string, action: string) =>
-      ipcRenderer.invoke(ProjectChannel.OpenWith, projectId, action),
+    openWith: (cwd: string, action: string) =>
+      ipcRenderer.invoke(ProjectChannel.OpenWith, cwd, action),
   },
   taskQueue: {
     add: (options: AddTaskOptions): Promise<string> =>

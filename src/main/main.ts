@@ -31,6 +31,8 @@ import { marketManager } from './market';
 import { channelManager } from './channel';
 
 
+
+
 async function init() {
   try {
     await dbManager.init();
@@ -50,10 +52,10 @@ async function init() {
     await channelManager.init();
   } catch (err) {
     dialog.showErrorBox('Mastra Init Error', String(err));
+    app.exit(1);
+    throw err;
   }
 }
-
-init();
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -82,7 +84,37 @@ const installExtensions = async () => {
     .catch(console.log);
 };
 
+const focusMainWindow = () => {
+  if (!mainWindow) {
+    return;
+  }
+
+  if (mainWindow.isMinimized()) {
+    mainWindow.restore();
+  }
+
+  if (!mainWindow.isVisible()) {
+    mainWindow.show();
+  }
+
+  mainWindow.focus();
+};
+
+const handleProtocolUrl = (url?: string) => {
+  if (!url) {
+    return;
+  }
+
+  console.log('从网页传来的数据:', url);
+  focusMainWindow();
+};
+
 const createWindow = async () => {
+  if (mainWindow) {
+    focusMainWindow();
+    return mainWindow;
+  }
+
   if (isDebug) {
     // await installExtensions();
   }
@@ -134,44 +166,60 @@ const createWindow = async () => {
   });
 };
 
-app.setAsDefaultProtocolClient('aime-chat');
-app.on('open-url', (event, url) => {
-  console.log('macOS 捕获到 URL:', url);
-});
-app.on('second-instance', (event, commandLine) => {
-  // commandLine 是一个数组，里面包含类似 "my-app://action?data=123" 的字符串
-  const url = commandLine.pop();
-  console.log('从网页传来的数据:', url);
-});
-app.on('window-all-closed', () => {
-  // Respect the OSX convention of having the application in memory even
-  // after all windows have been closed
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
-});
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
 
+if (!gotSingleInstanceLock) {
+  app.exit(0);
+} else {
+  init();
 
-app
-  .whenReady()
-  .then(() => {
-    const filter = { urls: ['https://mmbiz.qpic.cn/*'] };
+  app.setAsDefaultProtocolClient('aime-chat');
+  app.on('open-url', (event, url) => {
+    event.preventDefault();
+    console.log('macOS 捕获 URL:', url);
+    handleProtocolUrl(url);
+  });
 
-    session.defaultSession.webRequest.onBeforeSendHeaders(filter, (details, callback) => {
-      details.requestHeaders['Referer'] = 'https://mp.weixin.qq.com/';
-      // 有时也需要 UA 更像微信内置浏览器/Chrome
-      // details.requestHeaders['User-Agent'] = 'Mozilla/5.0 ...';
-      callback({ requestHeaders: details.requestHeaders });
-    });
-    createWindow();
-    app.on('activate', () => {
-      // On macOS it's common to re-create a window in the app when the
-      // dock icon is clicked and there are no other windows open.
-      if (mainWindow === null) createWindow();
-    });
-  })
-  .catch(console.log);
+  app.on('second-instance', (event, commandLine) => {
+    event.preventDefault();
+    const protocolUrl = commandLine.find((arg) => arg.startsWith('aime-chat://'));
+    handleProtocolUrl(protocolUrl);
+    focusMainWindow();
+  });
 
+  app.on('window-all-closed', () => {
+    // Respect the OSX convention of having the application in memory even
+    // after all windows have been closed
+    if (process.platform !== 'darwin') {
+      app.quit();
+    }
+  });
+
+  app
+    .whenReady()
+    .then(() => {
+      const filter = { urls: ['https://mmbiz.qpic.cn/*'] };
+
+      session.defaultSession.webRequest.onBeforeSendHeaders(filter, (details, callback) => {
+        details.requestHeaders['Referer'] = 'https://mp.weixin.qq.com/';
+        // 有时也需 UA 更像微信内置浏览 Chrome
+        // details.requestHeaders['User-Agent'] = 'Mozilla/5.0 ...';
+        callback({ requestHeaders: details.requestHeaders });
+      });
+      createWindow();
+      app.on('activate', () => {
+        // On macOS it's common to re-create a window in the app when the
+        // dock icon is clicked and there are no other windows open.
+        if (mainWindow === null) {
+          createWindow();
+          return;
+        }
+
+        focusMainWindow();
+      });
+    })
+    .catch(console.log);
+}
 
 export const getMainWindow = (): BrowserWindow | null => {
   return mainWindow;

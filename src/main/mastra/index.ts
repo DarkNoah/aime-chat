@@ -1,5 +1,4 @@
 import { Mastra } from '@mastra/core';
-import { Memory } from '@mastra/memory';
 import { getStorage, getVectorStore } from './storage';
 import { BaseManager } from '../BaseManager';
 import express, { Response, Request } from 'express';
@@ -39,7 +38,6 @@ import { channel } from '../ipc/IpcController';
 import { PaginationInfo } from '@/types/common';
 import { MastraChannel } from '@/types/ipc-channel';
 import {
-  Agent,
   AgentExecutionOptions,
   convertMessages,
   MastraDBMessage,
@@ -58,6 +56,7 @@ import {
   ChatThread,
   ChatTodo,
   DEFAULT_RESOURCE_ID,
+  DEFAULT_TITLE,
   ThreadEvent,
   ThreadState,
 } from '@/types/chat';
@@ -105,6 +104,7 @@ import { TaskCreate, TaskList } from '../tools/common/task';
 import { MemoryWrite } from '../tools/memory/memory';
 import { formatCodeWithLineNumbers } from '../utils/format';
 import { getSkills } from '../utils/skills';
+import { Agent } from '@/types/agent';
 
 
 class MastraManager extends BaseManager {
@@ -260,7 +260,17 @@ class MastraManager extends BaseManager {
   public async getThread(id: string, onlyThread: boolean = false): Promise<ThreadState> {
     const storage = this.mastra.getStorage();
     const memoryStore = await storage.getStore('memory');
+    const appInfo = await appManager.getInfo();
     const thread = await memoryStore?.getThreadById({ threadId: id });
+    if (thread.resourceId?.startsWith('project:')) {
+      const projectId = thread.resourceId.split(':')[1];
+      const project = await projectManager.getProject(projectId);
+      thread.metadata = {
+        ...(thread.metadata || {}),
+        agentId: project?.defaultAgentId || appInfo.defaultAgent,
+        model: project?.defaultModelId || appInfo.defaultModel?.model as string,
+      }
+    }
 
     // const memory = new Memory({
     //   storage: storage,
@@ -363,23 +373,27 @@ class MastraManager extends BaseManager {
     const memoryStore = await storage.getStore('memory');
     let projectId;
     let project;
+    let agent: Agent | undefined;
     if (options?.resourceId?.startsWith('project:')) {
       projectId = options.resourceId.split(':')[1];
       project = await projectManager.getProject(projectId);
-
     }
     const appInfo = await appManager.getInfo();
     const agentId = options?.agentId || project?.defaultAgentId || appInfo.defaultAgent;
+    if (agentId) {
+      agent = await agentManager.getAgent(agentId);
+    }
     const thread = await memoryStore.saveThread({
       thread: {
         id: nanoid(),
-        title: 'New Thread',
+        title: DEFAULT_TITLE,
         resourceId: options?.resourceId ?? DEFAULT_RESOURCE_ID,
         createdAt: new Date(),
         updatedAt: new Date(),
         metadata: {
           ...(options || {}),
-          agentId
+          agentId,
+          model: options?.model || project?.defaultModelId || agent?.defaultModelId || appInfo.defaultModel?.model as string,
         },
       },
     });
@@ -393,12 +407,37 @@ class MastraManager extends BaseManager {
     data: StorageThreadType,
   ): Promise<StorageThreadType> {
     const storage = this.mastra.getStorage();
+    const appInfo = await appManager.getInfo();
     const memoryStore = await storage.getStore('memory');
+    // let thread = await this.getThread(id);
+
+
+    const tools = [...new Set(data?.metadata?.tools as string[] || [])];
+    const subAgents = [...new Set(data?.metadata?.subAgents as string[] || [])];
+
     const thread = await memoryStore.updateThread({
       id: id,
-      title: data.title,
-      metadata: data.metadata || {},
+      title: data?.title || DEFAULT_TITLE,
+      metadata: { ...(data?.metadata || {}), tools, subAgents },
+
     });
+
+
+    if (thread.resourceId.startsWith('project:')) {
+      const projectId = thread.resourceId.split(':')[1];
+      const project = await projectManager.projectsRepository.findOne({
+        where: { id: projectId },
+      });
+      if (project) {
+        project.defaultAgentId = data.metadata?.agentId as string || appInfo.defaultAgent;
+        const agent = await agentManager.getAgent(project.defaultAgentId);
+        project.defaultModelId = data.metadata?.model as string || agent?.defaultModelId || appInfo.defaultModel?.model as string;
+        project.defaultTools = [...new Set(data.metadata?.tools as string[] || [])];
+        project.defaultSubAgents = [...new Set(data.metadata?.subAgents as string[] || [])];
+        await projectManager.saveProject(project);
+      }
+    }
+
 
     appManager.sendEvent(ChatEvent.ChatChanged, {
       data: {
@@ -448,7 +487,10 @@ class MastraManager extends BaseManager {
       },
     });
     appManager.sendEvent(ChatEvent.ChatThreadChanged, {
-      data: { chatId: id, resourceId: DEFAULT_RESOURCE_ID },
+      data: { chatId: id, resourceId: thread.resourceId || DEFAULT_RESOURCE_ID },
+    });
+    appManager.sendEvent(ChatEvent.ChatMessageChanged, {
+      data: { chatId: id, resourceId: thread.resourceId || DEFAULT_RESOURCE_ID },
     });
   }
 
@@ -482,7 +524,13 @@ class MastraManager extends BaseManager {
     const storage = this.mastra.getStorage();
 
     let resourceId = DEFAULT_RESOURCE_ID;
+    const memoryStore = await storage.getStore('memory');
+    let currentThread = await memoryStore.getThreadById({ threadId: chatId });
+
     let project: Project | undefined;
+    if (!projectId) {
+      projectId = currentThread?.resourceId?.startsWith('project:') ? currentThread.resourceId.split(':')[1] : undefined;
+    }
     if (projectId) {
       project = await projectManager.getProject(projectId);
       if (project) {
@@ -490,8 +538,8 @@ class MastraManager extends BaseManager {
       }
     }
     const appInfo = await appManager.getInfo();
-    const memoryStore = await storage.getStore('memory');
-    let currentThread = await memoryStore.getThreadById({ threadId: chatId });
+
+
 
     // for (const uiMessage of uiMessages) {
     //   delete uiMessage.id;
@@ -689,7 +737,7 @@ class MastraManager extends BaseManager {
           const { usage, response, text, reasoning } = event;
 
           const maxContextSize = requestContext.get('maxContextSize');
-          callback?.onUsage?.(usage, maxContextSize);
+          await callback?.onUsage?.(usage, maxContextSize);
           requestContext.set('usage' as never, usage as never);
           const usageRate = (usage?.totalTokens / maxContextSize) * 100;
           console.log('usage rate: ' + usageRate.toFixed(2) + '%', usage);
@@ -716,7 +764,7 @@ class MastraManager extends BaseManager {
             },
           });
         },
-        onError: ({ error }: { error: Error | string }) => {
+        onError: async ({ error }: { error: Error | string }) => {
           console.error(error);
           let errMsg = 'Unknown error';
           if (isString(error)) {
@@ -729,9 +777,9 @@ class MastraManager extends BaseManager {
             type: ChatEvent.ChatError,
             data: errMsg,
           });
-          callback?.onError?.(errMsg);
+          await callback?.onError?.(errMsg);
         },
-        onChunk: (chunk) => {
+        onChunk: async (chunk) => {
           // console.log('Stream chunk:', chunk);
           if (chunk.type == 'text-delta') {
             const textDelta = chunk.payload.text;
@@ -745,7 +793,7 @@ class MastraManager extends BaseManager {
               _chunks.runId = chunk.runId;
               _chunks.text = textDelta;
             }
-            callback?.onChunk(textDelta);
+            await callback?.onChunk?.(textDelta);
             requestContext.set('chunks', _chunks);
           } else {
             requestContext.set('chunks', undefined);
@@ -936,7 +984,7 @@ class MastraManager extends BaseManager {
         const skillsLoaded = requestContext.get('skillsLoaded') as string[] || [];
         const tasks = requestContext.get('tasks') as ChatTask[] || [];
         const fileLastReadTime = requestContext.get('fileLastReadTime') as Record<string, number> || {};
-        callback?.onPlanUpdate?.(tasks);
+        await callback?.onPlanUpdate?.(tasks);
 
         currentThread = await memoryStore.updateThread({
           id: chatId,
@@ -1058,7 +1106,7 @@ class MastraManager extends BaseManager {
         data: { type: ChatChangedType.Finish, chatId, resourceId },
       });
       currentThread = await memoryStore.getThreadById({ threadId: chatId });
-      if (currentThread.title == 'New Thread') {
+      if (currentThread.title == DEFAULT_TITLE) {
         const title = await agent.genTitle(
           inputMessage,
           undefined,
@@ -1071,7 +1119,7 @@ class MastraManager extends BaseManager {
           metadata: currentThread.metadata,
         });
 
-        callback?.onThreadChanged?.({
+        await callback?.onThreadChanged?.({
           id: chatId,
           title: title.replaceAll('\n', '').trim(),
           status: 'idle',
@@ -1110,7 +1158,7 @@ class MastraManager extends BaseManager {
     ) as string;
     const runId = streamOptions.runId;
     let stream: MastraModelOutput<unknown>;
-
+    await appManager.refreshPreventSleep();
     if (
       runId &&
       resume?.toolCallId &&
@@ -1157,33 +1205,33 @@ class MastraManager extends BaseManager {
         break;
       }
       if (value.type == 'reasoning-delta') {
-        callback?.onThought?.(value.delta);
+        await callback?.onThought?.(value.delta);
       }
 
       if (value.type == 'tool-input-available') {
-        callback?.onToolCall?.({
+        await callback?.onToolCall?.({
           toolName: value.toolName,
           toolCallId: value.toolCallId,
           input: value.input,
         });
       }
       if (value.type == 'tool-output-available') {
-        callback?.onToolCallUpdate?.({
+        await callback?.onToolCallUpdate?.({
           toolCallId: value.toolCallId,
           output: value.output,
         }, 'completed');
       }
       if (value.type == 'tool-output-error') {
-        callback?.onToolCallUpdate?.({
+        await callback?.onToolCallUpdate?.({
           toolCallId: value.toolCallId,
           output: value.errorText,
         }, 'failed');
       }
       if (value.type == 'text-start') {
-        callback?.onStart?.();
+        await callback?.onStart?.();
       }
       if (value.type == 'text-end') {
-        callback?.onEnd?.();
+        await callback?.onEnd?.();
       }
 
 

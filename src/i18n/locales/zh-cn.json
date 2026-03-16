@@ -234,7 +234,8 @@
     "project_path": "项目目录",
     "edit_project": "修改项目",
     "add_skills": "添加技能",
-    "default_agent": "默认助手"
+    "default_agent": "默认助手",
+    "default_model": "默认模型"
   },
   "knowledge-base": {
     "add_url": "添加网址",

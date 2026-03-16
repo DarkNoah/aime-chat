@@ -1,5 +1,5 @@
 import fs from 'fs';
-import { createShell, runCommand } from '../utils/shell';
+import { runCommand } from '../utils/shell';
 import { app } from 'electron';
 import path from 'path';
 import { appManager } from '.';

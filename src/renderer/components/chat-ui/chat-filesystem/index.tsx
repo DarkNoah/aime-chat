@@ -659,7 +659,7 @@ export const ChatFilesystem = React.forwardRef<
   );
   const openWith = useCallback(
     (action: string) => {
-      window.electron.projects.openWith(projectId, action);
+      window.electron.projects.openWith(workspace, action);
     },
     [projectId],
   );

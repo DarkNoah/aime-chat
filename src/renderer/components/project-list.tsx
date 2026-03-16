@@ -50,6 +50,7 @@ import { Shimmer } from './ai-elements/shimmer';
 import { Label } from './ui/label';
 import { Project, ProjectEvent } from '@/types/project';
 import { ChatProjectDialog } from './chat-project/chat-project-dialog';
+import { useChat } from '@/renderer/hooks/use-chat';
 
 export type ProjectsListProps = {
   className?: string;
@@ -78,6 +79,7 @@ export default function ProjectsList({ className }: ProjectsListProps) {
   const pageRef = useRef(0);
   const initialLoadRef = useRef(false);
   const [openProjectDialog, setOpenProjectDialog] = useState(false);
+  const { ensureThread, unregisterThread } = useChat();
   // const [currentId, setCurrentId] = useState<string | null>(null);
 
   // const [isPending, startTransition] = useTransition();
@@ -161,7 +163,7 @@ export default function ProjectsList({ className }: ProjectsListProps) {
       loadMore(true);
     }
 
-    const handleChatChanged = (event) => {
+    const handleChatChanged = async (event) => {
       if (event.data.type === ChatChangedType.Start) {
         setItems((prev) => {
           const index = prev.findIndex(
