@@ -3613,6 +3613,40 @@
           "output": 131072
         }
       },
+      "glm-5-turbo": {
+        "id": "glm-5-turbo",
+        "name": "GLM-5-Turbo",
+        "family": "glm",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "interleaved": {
+          "field": "reasoning_content"
+        },
+        "structured_output": true,
+        "temperature": true,
+        "release_date": "2026-03-16",
+        "last_updated": "2026-03-16",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cache_read": 0,
+          "cache_write": 0
+        },
+        "limit": {
+          "context": 200000,
+          "output": 131072
+        }
+      },
       "glm-4.5v": {
         "id": "glm-4.5v",
         "name": "GLM-4.5V",
@@ -6576,17 +6610,17 @@
     "name": "Vultr",
     "doc": "https://api.vultrinference.com/",
     "models": {
-      "kimi-k2-instruct": {
-        "id": "kimi-k2-instruct",
-        "name": "Kimi K2 Instruct",
-        "family": "kimi",
+      "Llama-3_1-Nemotron-Ultra-253B-v1": {
+        "id": "Llama-3_1-Nemotron-Ultra-253B-v1",
+        "name": "Llama 3.1 Nemotron Ultra 253B v1",
+        "family": "llama",
         "attachment": false,
         "reasoning": false,
         "tool_call": true,
         "temperature": true,
         "knowledge": "2024-10",
-        "release_date": "2024-07-18",
-        "last_updated": "2024-07-18",
+        "release_date": "2025-01-20",
+        "last_updated": "2025-01-20",
         "modalities": {
           "input": [
             "text"
@@ -6597,16 +6631,74 @@
         },
         "open_weights": true,
         "cost": {
-          "input": 0.2,
-          "output": 0.2
+          "input": 0.55,
+          "output": 1.8
         },
         "limit": {
-          "context": 58904,
+          "context": 32000,
           "output": 4096
         }
       },
-      "qwen2.5-coder-32b-instruct": {
-        "id": "qwen2.5-coder-32b-instruct",
+      "DeepSeek-R1-Distill-Qwen-32B": {
+        "id": "DeepSeek-R1-Distill-Qwen-32B",
+        "name": "DeepSeek R1 Distill Qwen 32B",
+        "family": "qwen",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "temperature": true,
+        "knowledge": "2024-10",
+        "release_date": "2025-01-20",
+        "last_updated": "2025-01-20",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 0.3,
+          "output": 0.3
+        },
+        "limit": {
+          "context": 130000,
+          "output": 4096
+        }
+      },
+      "MiniMax-M2.5": {
+        "id": "MiniMax-M2.5",
+        "name": "MiniMax M2.5",
+        "family": "minimax",
+        "attachment": false,
+        "reasoning": false,
+        "tool_call": true,
+        "temperature": true,
+        "knowledge": "2024-10",
+        "release_date": "2025-01-20",
+        "last_updated": "2025-01-20",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 0.3,
+          "output": 1.2
+        },
+        "limit": {
+          "context": 196000,
+          "output": 4096
+        }
+      },
+      "Qwen2.5-Coder-32B-Instruct": {
+        "id": "Qwen2.5-Coder-32B-Instruct",
         "name": "Qwen2.5 Coder 32B Instruct",
         "family": "qwen",
         "attachment": false,
@@ -6627,11 +6719,40 @@
         "open_weights": true,
         "cost": {
           "input": 0.2,
-          "output": 0.2
+          "output": 0.6
         },
         "limit": {
-          "context": 12952,
-          "output": 2048
+          "context": 15000,
+          "output": 256
+        }
+      },
+      "Kimi-K2.5": {
+        "id": "Kimi-K2.5",
+        "name": "Kimi K2 Instruct",
+        "family": "kimi",
+        "attachment": false,
+        "reasoning": false,
+        "tool_call": true,
+        "temperature": true,
+        "knowledge": "2024-10",
+        "release_date": "2024-07-18",
+        "last_updated": "2024-07-18",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 0.55,
+          "output": 2.75
+        },
+        "limit": {
+          "context": 261000,
+          "output": 32768
         }
       },
       "gpt-oss-120b": {
@@ -6655,16 +6776,103 @@
         },
         "open_weights": true,
         "cost": {
-          "input": 0.2,
-          "output": 0.2
+          "input": 0.15,
+          "output": 0.6
         },
         "limit": {
-          "context": 121808,
+          "context": 130000,
           "output": 8192
         }
       },
-      "deepseek-r1-distill-llama-70b": {
-        "id": "deepseek-r1-distill-llama-70b",
+      "DeepSeek-V3.2": {
+        "id": "DeepSeek-V3.2",
+        "name": "DeepSeek V3.2",
+        "family": "deepseek",
+        "attachment": false,
+        "reasoning": false,
+        "tool_call": true,
+        "temperature": true,
+        "knowledge": "2024-10",
+        "release_date": "2025-01-20",
+        "last_updated": "2025-01-20",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 0.55,
+          "output": 1.65
+        },
+        "limit": {
+          "context": 163000,
+          "output": 4096
+        }
+      },
+      "GLM-5-FP8": {
+        "id": "GLM-5-FP8",
+        "name": "GLM 5 FP8",
+        "family": "glm",
+        "attachment": false,
+        "reasoning": false,
+        "tool_call": true,
+        "temperature": true,
+        "knowledge": "2024-10",
+        "release_date": "2025-01-20",
+        "last_updated": "2025-01-20",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 0.85,
+          "output": 3.1
+        },
+        "limit": {
+          "context": 202000,
+          "output": 131072
+        }
+      },
+      "NVIDIA-Nemotron-3-Super-120B-A12B-NVFP4": {
+        "id": "NVIDIA-Nemotron-3-Super-120B-A12B-NVFP4",
+        "name": "NVIDIA Nemotron 3 Super 120B A12B NVFP4",
+        "family": "nemotron",
+        "attachment": false,
+        "reasoning": false,
+        "tool_call": true,
+        "temperature": true,
+        "knowledge": "2024-10",
+        "release_date": "2025-01-20",
+        "last_updated": "2025-01-20",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 0.2,
+          "output": 0.8
+        },
+        "limit": {
+          "context": 260000,
+          "output": 8192
+        }
+      },
+      "DeepSeek-R1-Distill-Llama-70B": {
+        "id": "DeepSeek-R1-Distill-Llama-70B",
         "name": "DeepSeek R1 Distill Llama 70B",
         "family": "deepseek-thinking",
         "attachment": false,
@@ -6684,41 +6892,12 @@
         },
         "open_weights": true,
         "cost": {
-          "input": 0.2,
-          "output": 0.2
+          "input": 2,
+          "output": 2
         },
         "limit": {
-          "context": 121808,
-          "output": 8192
-        }
-      },
-      "deepseek-r1-distill-qwen-32b": {
-        "id": "deepseek-r1-distill-qwen-32b",
-        "name": "DeepSeek R1 Distill Qwen 32B",
-        "family": "qwen",
-        "attachment": false,
-        "reasoning": true,
-        "tool_call": true,
-        "temperature": true,
-        "knowledge": "2024-10",
-        "release_date": "2025-01-20",
-        "last_updated": "2025-01-20",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": true,
-        "cost": {
-          "input": 0.2,
-          "output": 0.2
-        },
-        "limit": {
-          "context": 121808,
-          "output": 8192
+          "context": 130000,
+          "output": 4096
         }
       }
     }
@@ -28611,7 +28790,7 @@
         "structured_output": true,
         "temperature": true,
         "release_date": "2026-02-05",
-        "last_updated": "2026-02-18",
+        "last_updated": "2026-03-16",
         "modalities": {
           "input": [
             "text",
@@ -28626,13 +28805,7 @@
           "input": 6,
           "output": 30,
           "cache_read": 0.6,
-          "cache_write": 7.5,
-          "context_over_200k": {
-            "input": 11,
-            "output": 41.25,
-            "cache_read": 1.1,
-            "cache_write": 13.75
-          }
+          "cache_write": 7.5
         },
         "limit": {
           "context": 1000000,
@@ -28746,7 +28919,7 @@
         "structured_output": true,
         "temperature": true,
         "release_date": "2026-02-17",
-        "last_updated": "2026-02-28",
+        "last_updated": "2026-03-16",
         "modalities": {
           "input": [
             "text",
@@ -28761,17 +28934,44 @@
           "input": 3.6,
           "output": 18,
           "cache_read": 0.36,
-          "cache_write": 4.5,
-          "context_over_200k": {
-            "input": 7.2,
-            "output": 27,
-            "cache_read": 0.72,
-            "cache_write": 9
-          }
+          "cache_write": 4.5
         },
         "limit": {
           "context": 1000000,
           "output": 64000
+        }
+      },
+      "zai-org-glm-4.6": {
+        "id": "zai-org-glm-4.6",
+        "name": "GLM 4.6",
+        "family": "glm",
+        "attachment": false,
+        "reasoning": false,
+        "tool_call": true,
+        "interleaved": {
+          "field": "reasoning_content"
+        },
+        "structured_output": true,
+        "temperature": true,
+        "release_date": "2024-04-01",
+        "last_updated": "2026-03-16",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 0.85,
+          "output": 2.75,
+          "cache_read": 0.3
+        },
+        "limit": {
+          "context": 198000,
+          "output": 16384
         }
       },
       "openai-gpt-53-codex": {
@@ -28819,7 +29019,7 @@
         "temperature": true,
         "knowledge": "2024-04",
         "release_date": "2026-01-27",
-        "last_updated": "2026-03-12",
+        "last_updated": "2026-03-16",
         "modalities": {
           "input": [
             "text",
@@ -28831,13 +29031,42 @@
         },
         "open_weights": true,
         "cost": {
-          "input": 0.75,
-          "output": 3.75,
-          "cache_read": 0.125
+          "input": 0.56,
+          "output": 3.5,
+          "cache_read": 0.11
         },
         "limit": {
           "context": 256000,
           "output": 65536
+        }
+      },
+      "mistral-small-3-2-24b-instruct": {
+        "id": "mistral-small-3-2-24b-instruct",
+        "name": "Mistral Small 3.2 24B Instruct",
+        "family": "mistral-small",
+        "attachment": false,
+        "reasoning": false,
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": true,
+        "release_date": "2026-01-15",
+        "last_updated": "2026-03-16",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 0.09375,
+          "output": 0.25
+        },
+        "limit": {
+          "context": 256000,
+          "output": 16384
         }
       },
       "mistral-31-24b": {
@@ -28881,7 +29110,7 @@
         "structured_output": true,
         "temperature": true,
         "release_date": "2026-03-12",
-        "last_updated": "2026-03-13",
+        "last_updated": "2026-03-16",
         "modalities": {
           "input": [
             "text",
@@ -28899,7 +29128,7 @@
           "context_over_200k": {
             "input": 5,
             "output": 15,
-            "cache_read": 0.5
+            "cache_read": 0.25
           }
         },
         "limit": {
@@ -29019,7 +29248,7 @@
         "structured_output": true,
         "temperature": true,
         "release_date": "2026-03-12",
-        "last_updated": "2026-03-13",
+        "last_updated": "2026-03-16",
         "modalities": {
           "input": [
             "text",
@@ -29037,7 +29266,7 @@
           "context_over_200k": {
             "input": 5,
             "output": 15,
-            "cache_read": 0.5
+            "cache_read": 0.25
           }
         },
         "limit": {
@@ -29086,7 +29315,7 @@
         },
         "temperature": true,
         "release_date": "2026-02-12",
-        "last_updated": "2026-03-12",
+        "last_updated": "2026-03-16",
         "modalities": {
           "input": [
             "text"
@@ -29097,8 +29326,8 @@
         },
         "open_weights": true,
         "cost": {
-          "input": 0.4,
-          "output": 1.6,
+          "input": 0.34,
+          "output": 1.19,
           "cache_read": 0.04
         },
         "limit": {
@@ -29507,6 +29736,36 @@
           "output": 65536
         }
       },
+      "qwen3-5-9b": {
+        "id": "qwen3-5-9b",
+        "name": "Qwen 3.5 9B",
+        "family": "qwen",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": true,
+        "release_date": "2026-03-05",
+        "last_updated": "2026-03-16",
+        "modalities": {
+          "input": [
+            "text",
+            "image"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 0.05,
+          "output": 0.15
+        },
+        "limit": {
+          "context": 256000,
+          "output": 65536
+        }
+      },
       "minimax-m21": {
         "id": "minimax-m21",
         "name": "MiniMax M2.1",
@@ -29520,7 +29779,7 @@
         "structured_output": true,
         "temperature": true,
         "release_date": "2025-12-01",
-        "last_updated": "2026-03-12",
+        "last_updated": "2026-03-16",
         "modalities": {
           "input": [
             "text"
@@ -29531,8 +29790,8 @@
         },
         "open_weights": true,
         "cost": {
-          "input": 0.4,
-          "output": 1.6,
+          "input": 0.35,
+          "output": 1.5,
           "cache_read": 0.04
         },
         "limit": {
@@ -29757,6 +30016,36 @@
         "limit": {
           "context": 256000,
           "output": 65536
+        }
+      },
+      "venice-uncensored-role-play": {
+        "id": "venice-uncensored-role-play",
+        "name": "Venice Role Play Uncensored",
+        "family": "venice",
+        "attachment": true,
+        "reasoning": false,
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": true,
+        "release_date": "2026-02-20",
+        "last_updated": "2026-03-16",
+        "modalities": {
+          "input": [
+            "text",
+            "image"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 0.5,
+          "output": 2
+        },
+        "limit": {
+          "context": 128000,
+          "output": 4096
         }
       },
       "qwen3-vl-235b-a22b": {
@@ -32586,8 +32875,9 @@
         },
         "open_weights": true,
         "cost": {
-          "input": 0.35,
-          "output": 1.5
+          "input": 0.4,
+          "output": 1.7,
+          "cache_read": 0.2
         },
         "limit": {
           "context": 202752,
@@ -32646,8 +32936,9 @@
         },
         "open_weights": true,
         "cost": {
-          "input": 0.75,
-          "output": 2.5
+          "input": 0.95,
+          "output": 3.15,
+          "cache_read": 0.475
         },
         "limit": {
           "context": 202752,
@@ -32680,7 +32971,8 @@
         "open_weights": true,
         "cost": {
           "input": 0.3,
-          "output": 0.9
+          "output": 0.9,
+          "cache_read": 0.15
         },
         "limit": {
           "context": 131072,
@@ -33016,8 +33308,9 @@
         },
         "open_weights": true,
         "cost": {
-          "input": 0.15,
-          "output": 0.6
+          "input": 0.3,
+          "output": 1.1,
+          "cache_read": 0.15
         },
         "limit": {
           "context": 196608,
@@ -33112,12 +33405,12 @@
         },
         "open_weights": true,
         "cost": {
-          "input": 0.25,
-          "output": 0.38,
-          "cache_read": 0.125
+          "input": 0.28,
+          "output": 0.42,
+          "cache_read": 0.14
         },
         "limit": {
-          "context": 163840,
+          "context": 131072,
           "output": 65536
         }
       },
@@ -33794,9 +34087,9 @@
         },
         "open_weights": true,
         "cost": {
-          "input": 0.3,
-          "output": 1.2,
-          "cache_read": 0.15
+          "input": 0.39,
+          "output": 2.34,
+          "cache_read": 0.195
         },
         "limit": {
           "context": 262144,
@@ -75141,6 +75434,35 @@
           "output": 65536
         }
       },
+      "LLM360/K2-Think": {
+        "id": "LLM360/K2-Think",
+        "name": "K2-Think",
+        "family": "kimi-thinking",
+        "attachment": false,
+        "reasoning": false,
+        "tool_call": false,
+        "structured_output": false,
+        "release_date": "2025-07-26",
+        "last_updated": "2025-07-26",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0.17,
+          "output": 0.68
+        },
+        "limit": {
+          "context": 128000,
+          "input": 128000,
+          "output": 32768
+        }
+      },
       "abacusai/Dracarys-72B-Instruct": {
         "id": "abacusai/Dracarys-72B-Instruct",
         "name": "Llama 3.1 70B Dracarys 2",
@@ -75151,6 +75473,64 @@
         "structured_output": false,
         "release_date": "2025-08-02",
         "last_updated": "2025-08-02",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0.49299999999999994,
+          "output": 0.49299999999999994
+        },
+        "limit": {
+          "context": 16384,
+          "input": 16384,
+          "output": 8192
+        }
+      },
+      "Envoid/Llama-3.05-Nemotron-Tenyxchat-Storybreaker-70B": {
+        "id": "Envoid/Llama-3.05-Nemotron-Tenyxchat-Storybreaker-70B",
+        "name": "Nemotron Tenyxchat Storybreaker 70b",
+        "family": "nemotron",
+        "attachment": false,
+        "reasoning": false,
+        "tool_call": false,
+        "structured_output": false,
+        "release_date": "2024-12-01",
+        "last_updated": "2024-12-01",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0.49299999999999994,
+          "output": 0.49299999999999994
+        },
+        "limit": {
+          "context": 16384,
+          "input": 16384,
+          "output": 8192
+        }
+      },
+      "Envoid/Llama-3.05-NT-Storybreaker-Ministral-70B": {
+        "id": "Envoid/Llama-3.05-NT-Storybreaker-Ministral-70B",
+        "name": "Llama 3.05 Storybreaker Ministral 70b",
+        "family": "llama",
+        "attachment": false,
+        "reasoning": false,
+        "tool_call": false,
+        "structured_output": false,
+        "release_date": "2024-12-01",
+        "last_updated": "2024-12-01",
         "modalities": {
           "input": [
             "text"
@@ -75313,64 +75693,6 @@
         "limit": {
           "context": 128000,
           "input": 128000,
-          "output": 8192
-        }
-      },
-      "Envoid 2/Llama-3.05-Nemotron-Tenyxchat-Storybreaker-70B": {
-        "id": "Envoid 2/Llama-3.05-Nemotron-Tenyxchat-Storybreaker-70B",
-        "name": "Nemotron Tenyxchat Storybreaker 70b",
-        "family": "nemotron",
-        "attachment": false,
-        "reasoning": false,
-        "tool_call": false,
-        "structured_output": false,
-        "release_date": "2024-12-01",
-        "last_updated": "2024-12-01",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": false,
-        "cost": {
-          "input": 0.49299999999999994,
-          "output": 0.49299999999999994
-        },
-        "limit": {
-          "context": 16384,
-          "input": 16384,
-          "output": 8192
-        }
-      },
-      "Envoid 2/Llama-3.05-NT-Storybreaker-Ministral-70B": {
-        "id": "Envoid 2/Llama-3.05-NT-Storybreaker-Ministral-70B",
-        "name": "Llama 3.05 Storybreaker Ministral 70b",
-        "family": "llama",
-        "attachment": false,
-        "reasoning": false,
-        "tool_call": false,
-        "structured_output": false,
-        "release_date": "2024-12-01",
-        "last_updated": "2024-12-01",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": false,
-        "cost": {
-          "input": 0.49299999999999994,
-          "output": 0.49299999999999994
-        },
-        "limit": {
-          "context": 16384,
-          "input": 16384,
           "output": 8192
         }
       },
@@ -75664,6 +75986,35 @@
           "output": 16384
         }
       },
+      "Doctor-Shotgun/MS3.2-24B-Magnum-Diamond": {
+        "id": "Doctor-Shotgun/MS3.2-24B-Magnum-Diamond",
+        "name": "MS3.2 24B Magnum Diamond",
+        "family": "mistral",
+        "attachment": false,
+        "reasoning": false,
+        "tool_call": false,
+        "structured_output": false,
+        "release_date": "2025-11-24",
+        "last_updated": "2025-11-24",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0.49299999999999994,
+          "output": 0.49299999999999994
+        },
+        "limit": {
+          "context": 16384,
+          "input": 16384,
+          "output": 32768
+        }
+      },
       "arcee-ai/trinity-mini": {
         "id": "arcee-ai/trinity-mini",
         "name": "Trinity Mini",
@@ -75807,35 +76158,6 @@
           "context": 8192,
           "input": 8192,
           "output": 8192
-        }
-      },
-      "Alibaba-NLP 2/Tongyi-DeepResearch-30B-A3B": {
-        "id": "Alibaba-NLP 2/Tongyi-DeepResearch-30B-A3B",
-        "name": "Tongyi DeepResearch 30B A3B",
-        "family": "yi",
-        "attachment": false,
-        "reasoning": false,
-        "tool_call": false,
-        "structured_output": false,
-        "release_date": "2025-08-26",
-        "last_updated": "2025-08-26",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": false,
-        "cost": {
-          "input": 0.08,
-          "output": 0.24000000000000002
-        },
-        "limit": {
-          "context": 128000,
-          "input": 128000,
-          "output": 65536
         }
       },
       "xiaomi/mimo-v2-flash-original": {
@@ -76014,122 +76336,6 @@
           "output": 8192
         }
       },
-      "EVA-UNIT-01 2/EVA-Qwen2.5-72B-v0.2": {
-        "id": "EVA-UNIT-01 2/EVA-Qwen2.5-72B-v0.2",
-        "name": "EVA-Qwen2.5-72B-v0.2",
-        "family": "qwen",
-        "attachment": false,
-        "reasoning": false,
-        "tool_call": false,
-        "structured_output": false,
-        "release_date": "2025-09-25",
-        "last_updated": "2025-09-25",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": false,
-        "cost": {
-          "input": 0.7989999999999999,
-          "output": 0.7989999999999999
-        },
-        "limit": {
-          "context": 16384,
-          "input": 16384,
-          "output": 8192
-        }
-      },
-      "EVA-UNIT-01 2/EVA-LLaMA-3.33-70B-v0.0": {
-        "id": "EVA-UNIT-01 2/EVA-LLaMA-3.33-70B-v0.0",
-        "name": "EVA Llama 3.33 70B",
-        "family": "llama",
-        "attachment": false,
-        "reasoning": false,
-        "tool_call": false,
-        "structured_output": false,
-        "release_date": "2025-07-26",
-        "last_updated": "2025-07-26",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": false,
-        "cost": {
-          "input": 2.006,
-          "output": 2.006
-        },
-        "limit": {
-          "context": 16384,
-          "input": 16384,
-          "output": 16384
-        }
-      },
-      "EVA-UNIT-01 2/EVA-LLaMA-3.33-70B-v0.1": {
-        "id": "EVA-UNIT-01 2/EVA-LLaMA-3.33-70B-v0.1",
-        "name": "EVA-LLaMA-3.33-70B-v0.1",
-        "family": "llama",
-        "attachment": false,
-        "reasoning": false,
-        "tool_call": false,
-        "structured_output": false,
-        "release_date": "2025-09-25",
-        "last_updated": "2025-09-25",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": false,
-        "cost": {
-          "input": 2.006,
-          "output": 2.006
-        },
-        "limit": {
-          "context": 16384,
-          "input": 16384,
-          "output": 16384
-        }
-      },
-      "EVA-UNIT-01 2/EVA-Qwen2.5-32B-v0.2": {
-        "id": "EVA-UNIT-01 2/EVA-Qwen2.5-32B-v0.2",
-        "name": "EVA-Qwen2.5-32B-v0.2",
-        "family": "qwen",
-        "attachment": false,
-        "reasoning": false,
-        "tool_call": false,
-        "structured_output": false,
-        "release_date": "2025-07-26",
-        "last_updated": "2025-07-26",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": false,
-        "cost": {
-          "input": 0.7989999999999999,
-          "output": 0.7989999999999999
-        },
-        "limit": {
-          "context": 16384,
-          "input": 16384,
-          "output": 8192
-        }
-      },
       "failspy/Meta-Llama-3-70B-Instruct-abliterated-v3.5": {
         "id": "failspy/Meta-Llama-3-70B-Instruct-abliterated-v3.5",
         "name": "Llama 3 70B abliterated",
@@ -76186,35 +76392,6 @@
           "context": 32000,
           "input": 32000,
           "output": 8192
-        }
-      },
-      "MiniMaxAI 2/MiniMax-M1-80k": {
-        "id": "MiniMaxAI 2/MiniMax-M1-80k",
-        "name": "MiniMax M1 80K",
-        "family": "minimax",
-        "attachment": false,
-        "reasoning": false,
-        "tool_call": false,
-        "structured_output": false,
-        "release_date": "2025-06-16",
-        "last_updated": "2025-06-16",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": false,
-        "cost": {
-          "input": 0.6052,
-          "output": 2.4225000000000003
-        },
-        "limit": {
-          "context": 1000000,
-          "input": 1000000,
-          "output": 131072
         }
       },
       "TEE/glm-5": {
@@ -76885,35 +77062,6 @@
           "output": 32000
         }
       },
-      "Infermatic 2/MN-12B-Inferor-v0.0": {
-        "id": "Infermatic 2/MN-12B-Inferor-v0.0",
-        "name": "Mistral Nemo Inferor 12B",
-        "family": "mistral-nemo",
-        "attachment": false,
-        "reasoning": false,
-        "tool_call": false,
-        "structured_output": false,
-        "release_date": "2024-07-01",
-        "last_updated": "2024-07-01",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": false,
-        "cost": {
-          "input": 0.25499999999999995,
-          "output": 0.49299999999999994
-        },
-        "limit": {
-          "context": 16384,
-          "input": 16384,
-          "output": 8192
-        }
-      },
       "anthracite-org/magnum-v2-72b": {
         "id": "anthracite-org/magnum-v2-72b",
         "name": "Magnum V2 72B",
@@ -77176,122 +77324,6 @@
           "output": 8192
         }
       },
-      "Sao10K 2/L3.1-70B-Hanami-x1": {
-        "id": "Sao10K 2/L3.1-70B-Hanami-x1",
-        "name": "Llama 3.1 70B Hanami",
-        "family": "llama",
-        "attachment": false,
-        "reasoning": false,
-        "tool_call": false,
-        "structured_output": false,
-        "release_date": "2024-07-23",
-        "last_updated": "2024-07-23",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": false,
-        "cost": {
-          "input": 0.49299999999999994,
-          "output": 0.49299999999999994
-        },
-        "limit": {
-          "context": 16384,
-          "input": 16384,
-          "output": 16384
-        }
-      },
-      "Sao10K 2/L3.3-70B-Euryale-v2.3": {
-        "id": "Sao10K 2/L3.3-70B-Euryale-v2.3",
-        "name": "Llama 3.3 70B Euryale",
-        "family": "llama",
-        "attachment": false,
-        "reasoning": false,
-        "tool_call": false,
-        "structured_output": false,
-        "release_date": "2024-12-06",
-        "last_updated": "2024-12-06",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": false,
-        "cost": {
-          "input": 0.49299999999999994,
-          "output": 0.49299999999999994
-        },
-        "limit": {
-          "context": 20480,
-          "input": 20480,
-          "output": 16384
-        }
-      },
-      "Sao10K 2/L3.1-70B-Euryale-v2.2": {
-        "id": "Sao10K 2/L3.1-70B-Euryale-v2.2",
-        "name": "Llama 3.1 70B Euryale",
-        "family": "llama",
-        "attachment": false,
-        "reasoning": false,
-        "tool_call": false,
-        "structured_output": false,
-        "release_date": "2024-07-23",
-        "last_updated": "2024-07-23",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": false,
-        "cost": {
-          "input": 0.306,
-          "output": 0.357
-        },
-        "limit": {
-          "context": 20480,
-          "input": 20480,
-          "output": 16384
-        }
-      },
-      "Sao10K 2/L3-8B-Stheno-v3.2": {
-        "id": "Sao10K 2/L3-8B-Stheno-v3.2",
-        "name": "Sao10K Stheno 8b",
-        "family": "llama",
-        "attachment": false,
-        "reasoning": false,
-        "tool_call": false,
-        "structured_output": false,
-        "release_date": "2024-11-29",
-        "last_updated": "2024-11-29",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": false,
-        "cost": {
-          "input": 0.2006,
-          "output": 0.2006
-        },
-        "limit": {
-          "context": 16384,
-          "input": 16384,
-          "output": 8192
-        }
-      },
       "pamanseau/OpenReasoning-Nemotron-32B": {
         "id": "pamanseau/OpenReasoning-Nemotron-32B",
         "name": "OpenReasoning Nemotron 32B",
@@ -77321,16 +77353,16 @@
           "output": 65536
         }
       },
-      "LLM360 2/K2-Think": {
-        "id": "LLM360 2/K2-Think",
-        "name": "K2-Think",
-        "family": "kimi-thinking",
+      "MiniMaxAI/MiniMax-M1-80k": {
+        "id": "MiniMaxAI/MiniMax-M1-80k",
+        "name": "MiniMax M1 80K",
+        "family": "minimax",
         "attachment": false,
         "reasoning": false,
         "tool_call": false,
         "structured_output": false,
-        "release_date": "2025-07-26",
-        "last_updated": "2025-07-26",
+        "release_date": "2025-06-16",
+        "last_updated": "2025-06-16",
         "modalities": {
           "input": [
             "text"
@@ -77341,72 +77373,13 @@
         },
         "open_weights": false,
         "cost": {
-          "input": 0.17,
-          "output": 0.68
+          "input": 0.6052,
+          "output": 2.4225000000000003
         },
         "limit": {
-          "context": 128000,
-          "input": 128000,
-          "output": 32768
-        }
-      },
-      "NeverSleep 2/Llama-3-Lumimaid-70B-v0.1": {
-        "id": "NeverSleep 2/Llama-3-Lumimaid-70B-v0.1",
-        "name": "Lumimaid 70b",
-        "family": "llama",
-        "attachment": true,
-        "reasoning": false,
-        "tool_call": false,
-        "structured_output": false,
-        "release_date": "2024-07-01",
-        "last_updated": "2024-07-01",
-        "modalities": {
-          "input": [
-            "text",
-            "pdf"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": false,
-        "cost": {
-          "input": 2.006,
-          "output": 2.006
-        },
-        "limit": {
-          "context": 16384,
-          "input": 16384,
-          "output": 8192
-        }
-      },
-      "NeverSleep 2/Lumimaid-v0.2-70B": {
-        "id": "NeverSleep 2/Lumimaid-v0.2-70B",
-        "name": "Lumimaid v0.2",
-        "family": "llama",
-        "attachment": false,
-        "reasoning": false,
-        "tool_call": false,
-        "structured_output": false,
-        "release_date": "2024-07-01",
-        "last_updated": "2024-07-01",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": false,
-        "cost": {
-          "input": 1,
-          "output": 1.5
-        },
-        "limit": {
-          "context": 16384,
-          "input": 16384,
-          "output": 8192
+          "context": 1000000,
+          "input": 1000000,
+          "output": 131072
         }
       },
       "deepseek-ai/deepseek-v3.2-exp-thinking": {
@@ -77641,35 +77614,6 @@
           "context": 16000,
           "input": 16000,
           "output": 8192
-        }
-      },
-      "Salesforce 2/Llama-xLAM-2-70b-fc-r": {
-        "id": "Salesforce 2/Llama-xLAM-2-70b-fc-r",
-        "name": "Llama-xLAM-2 70B fc-r",
-        "family": "llama",
-        "attachment": false,
-        "reasoning": false,
-        "tool_call": false,
-        "structured_output": false,
-        "release_date": "2025-04-13",
-        "last_updated": "2025-04-13",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": false,
-        "cost": {
-          "input": 2.5,
-          "output": 2.5
-        },
-        "limit": {
-          "context": 128000,
-          "input": 128000,
-          "output": 16384
         }
       },
       "aion-labs/aion-1.0-mini": {
@@ -77965,6 +77909,35 @@
           "output": 4096
         }
       },
+      "Infermatic/MN-12B-Inferor-v0.0": {
+        "id": "Infermatic/MN-12B-Inferor-v0.0",
+        "name": "Mistral Nemo Inferor 12B",
+        "family": "mistral-nemo",
+        "attachment": false,
+        "reasoning": false,
+        "tool_call": false,
+        "structured_output": false,
+        "release_date": "2024-07-01",
+        "last_updated": "2024-07-01",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0.25499999999999995,
+          "output": 0.49299999999999994
+        },
+        "limit": {
+          "context": 16384,
+          "input": 16384,
+          "output": 8192
+        }
+      },
       "tencent/Hunyuan-MT-7B": {
         "id": "tencent/Hunyuan-MT-7B",
         "name": "Hunyuan MT 7B",
@@ -77992,6 +77965,64 @@
           "context": 8192,
           "input": 8192,
           "output": 8192
+        }
+      },
+      "Gryphe/MythoMax-L2-13b": {
+        "id": "Gryphe/MythoMax-L2-13b",
+        "name": "MythoMax 13B",
+        "family": "llama",
+        "attachment": false,
+        "reasoning": false,
+        "tool_call": false,
+        "structured_output": false,
+        "release_date": "2025-08-08",
+        "last_updated": "2025-08-08",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0.1003,
+          "output": 0.1003
+        },
+        "limit": {
+          "context": 4000,
+          "input": 4000,
+          "output": 4096
+        }
+      },
+      "CrucibleLab/L3.3-70B-Loki-V2.0": {
+        "id": "CrucibleLab/L3.3-70B-Loki-V2.0",
+        "name": "L3.3 70B Loki v2.0",
+        "family": "llama",
+        "attachment": false,
+        "reasoning": false,
+        "tool_call": false,
+        "structured_output": false,
+        "release_date": "2026-01-22",
+        "last_updated": "2026-01-22",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0.49299999999999994,
+          "output": 0.49299999999999994
+        },
+        "limit": {
+          "context": 16384,
+          "input": 16384,
+          "output": 16384
         }
       },
       "soob3123/Veiled-Calla-12B": {
@@ -78081,10 +78112,40 @@
           "output": 32768
         }
       },
-      "GalrionSoftworks 2/MN-LooseCannon-12B-v1": {
-        "id": "GalrionSoftworks 2/MN-LooseCannon-12B-v1",
-        "name": "MN-LooseCannon-12B-v1",
-        "family": "mistral-nemo",
+      "NeverSleep/Llama-3-Lumimaid-70B-v0.1": {
+        "id": "NeverSleep/Llama-3-Lumimaid-70B-v0.1",
+        "name": "Lumimaid 70b",
+        "family": "llama",
+        "attachment": true,
+        "reasoning": false,
+        "tool_call": false,
+        "structured_output": false,
+        "release_date": "2024-07-01",
+        "last_updated": "2024-07-01",
+        "modalities": {
+          "input": [
+            "text",
+            "pdf"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 2.006,
+          "output": 2.006
+        },
+        "limit": {
+          "context": 16384,
+          "input": 16384,
+          "output": 8192
+        }
+      },
+      "NeverSleep/Lumimaid-v0.2-70B": {
+        "id": "NeverSleep/Lumimaid-v0.2-70B",
+        "name": "Lumimaid v0.2",
+        "family": "llama",
         "attachment": false,
         "reasoning": false,
         "tool_call": false,
@@ -78101,8 +78162,8 @@
         },
         "open_weights": false,
         "cost": {
-          "input": 0.49299999999999994,
-          "output": 0.49299999999999994
+          "input": 1,
+          "output": 1.5
         },
         "limit": {
           "context": 16384,
@@ -78227,6 +78288,35 @@
           "context": 163000,
           "input": 163000,
           "output": 65536
+        }
+      },
+      "MarinaraSpaghetti/NemoMix-Unleashed-12B": {
+        "id": "MarinaraSpaghetti/NemoMix-Unleashed-12B",
+        "name": "NemoMix 12B Unleashed",
+        "family": "mistral-nemo",
+        "attachment": false,
+        "reasoning": false,
+        "tool_call": false,
+        "structured_output": false,
+        "release_date": "2024-07-01",
+        "last_updated": "2024-07-01",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0.49299999999999994,
+          "output": 0.49299999999999994
+        },
+        "limit": {
+          "context": 32768,
+          "input": 32768,
+          "output": 8192
         }
       },
       "moonshotai/kimi-k2-instruct": {
@@ -78491,35 +78581,6 @@
           "context": 256000,
           "input": 256000,
           "output": 16384
-        }
-      },
-      "MarinaraSpaghetti 2/NemoMix-Unleashed-12B": {
-        "id": "MarinaraSpaghetti 2/NemoMix-Unleashed-12B",
-        "name": "NemoMix 12B Unleashed",
-        "family": "mistral-nemo",
-        "attachment": false,
-        "reasoning": false,
-        "tool_call": false,
-        "structured_output": false,
-        "release_date": "2024-07-01",
-        "last_updated": "2024-07-01",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": false,
-        "cost": {
-          "input": 0.49299999999999994,
-          "output": 0.49299999999999994
-        },
-        "limit": {
-          "context": 32768,
-          "input": 32768,
-          "output": 8192
         }
       },
       "baidu/ernie-4.5-vl-28b-a3b": {
@@ -78788,35 +78849,6 @@
           "output": 96000
         }
       },
-      "Tongyi-Zhiwen 2/QwenLong-L1-32B": {
-        "id": "Tongyi-Zhiwen 2/QwenLong-L1-32B",
-        "name": "QwenLong L1 32B",
-        "family": "qwen",
-        "attachment": false,
-        "reasoning": false,
-        "tool_call": false,
-        "structured_output": false,
-        "release_date": "2025-01-25",
-        "last_updated": "2025-01-25",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": false,
-        "cost": {
-          "input": 0.13999999999999999,
-          "output": 0.6
-        },
-        "limit": {
-          "context": 128000,
-          "input": 128000,
-          "output": 40960
-        }
-      },
       "stepfun-ai/step-3.5-flash:thinking": {
         "id": "stepfun-ai/step-3.5-flash:thinking",
         "name": "Step 3.5 Flash Thinking",
@@ -78992,35 +79024,6 @@
           "context": 258048,
           "input": 258048,
           "output": 65536
-        }
-      },
-      "CrucibleLab 2/L3.3-70B-Loki-V2.0": {
-        "id": "CrucibleLab 2/L3.3-70B-Loki-V2.0",
-        "name": "L3.3 70B Loki v2.0",
-        "family": "llama",
-        "attachment": false,
-        "reasoning": false,
-        "tool_call": false,
-        "structured_output": false,
-        "release_date": "2026-01-22",
-        "last_updated": "2026-01-22",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": false,
-        "cost": {
-          "input": 0.49299999999999994,
-          "output": 0.49299999999999994
-        },
-        "limit": {
-          "context": 16384,
-          "input": 16384,
-          "output": 16384
         }
       },
       "inflatebot/MN-12B-Mag-Mell-R1": {
@@ -79258,35 +79261,6 @@
           "context": 256000,
           "input": 256000,
           "output": 131072
-        }
-      },
-      "Gryphe 2/MythoMax-L2-13b": {
-        "id": "Gryphe 2/MythoMax-L2-13b",
-        "name": "MythoMax 13B",
-        "family": "llama",
-        "attachment": false,
-        "reasoning": false,
-        "tool_call": false,
-        "structured_output": false,
-        "release_date": "2025-08-08",
-        "last_updated": "2025-08-08",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": false,
-        "cost": {
-          "input": 0.1003,
-          "output": 0.1003
-        },
-        "limit": {
-          "context": 4000,
-          "input": 4000,
-          "output": 4096
         }
       },
       "meta-llama/llama-4-scout": {
@@ -80050,16 +80024,16 @@
           "output": 32768
         }
       },
-      "LatitudeGames 2/Wayfarer-Large-70B-Llama-3.3": {
-        "id": "LatitudeGames 2/Wayfarer-Large-70B-Llama-3.3",
-        "name": "Llama 3.3 70B Wayfarer",
-        "family": "llama",
+      "Tongyi-Zhiwen/QwenLong-L1-32B": {
+        "id": "Tongyi-Zhiwen/QwenLong-L1-32B",
+        "name": "QwenLong L1 32B",
+        "family": "qwen",
         "attachment": false,
         "reasoning": false,
         "tool_call": false,
         "structured_output": false,
-        "release_date": "2025-02-20",
-        "last_updated": "2025-02-20",
+        "release_date": "2025-01-25",
+        "last_updated": "2025-01-25",
         "modalities": {
           "input": [
             "text"
@@ -80070,13 +80044,71 @@
         },
         "open_weights": false,
         "cost": {
-          "input": 0.700000007,
-          "output": 0.700000007
+          "input": 0.13999999999999999,
+          "output": 0.6
+        },
+        "limit": {
+          "context": 128000,
+          "input": 128000,
+          "output": 40960
+        }
+      },
+      "ReadyArt/The-Omega-Abomination-L-70B-v1.0": {
+        "id": "ReadyArt/The-Omega-Abomination-L-70B-v1.0",
+        "name": "The Omega Abomination V1",
+        "family": "llama",
+        "attachment": false,
+        "reasoning": false,
+        "tool_call": false,
+        "structured_output": false,
+        "release_date": "2024-12-01",
+        "last_updated": "2024-12-01",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0.7,
+          "output": 0.95
         },
         "limit": {
           "context": 16384,
           "input": 16384,
           "output": 16384
+        }
+      },
+      "ReadyArt/MS3.2-The-Omega-Directive-24B-Unslop-v2.0": {
+        "id": "ReadyArt/MS3.2-The-Omega-Directive-24B-Unslop-v2.0",
+        "name": "Omega Directive 24B Unslop v2.0",
+        "family": "llama",
+        "attachment": false,
+        "reasoning": false,
+        "tool_call": false,
+        "structured_output": false,
+        "release_date": "2025-12-08",
+        "last_updated": "2025-12-08",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0.5,
+          "output": 0.5
+        },
+        "limit": {
+          "context": 16384,
+          "input": 16384,
+          "output": 32768
         }
       },
       "openai/gpt-4o-2024-11-20": {
@@ -81419,6 +81451,35 @@
           "output": 16384
         }
       },
+      "VongolaChouko/Starcannon-Unleashed-12B-v1.0": {
+        "id": "VongolaChouko/Starcannon-Unleashed-12B-v1.0",
+        "name": "Mistral Nemo Starcannon 12b v1",
+        "family": "mistral-nemo",
+        "attachment": false,
+        "reasoning": false,
+        "tool_call": false,
+        "structured_output": false,
+        "release_date": "2024-07-01",
+        "last_updated": "2024-07-01",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0.49299999999999994,
+          "output": 0.49299999999999994
+        },
+        "limit": {
+          "context": 16384,
+          "input": 16384,
+          "output": 8192
+        }
+      },
       "cohere/command-r-plus-08-2024": {
         "id": "cohere/command-r-plus-08-2024",
         "name": "Cohere: Command R+",
@@ -81797,16 +81858,16 @@
           "output": 131072
         }
       },
-      "ReadyArt 2/The-Omega-Abomination-L-70B-v1.0": {
-        "id": "ReadyArt 2/The-Omega-Abomination-L-70B-v1.0",
-        "name": "The Omega Abomination V1",
-        "family": "llama",
+      "GalrionSoftworks/MN-LooseCannon-12B-v1": {
+        "id": "GalrionSoftworks/MN-LooseCannon-12B-v1",
+        "name": "MN-LooseCannon-12B-v1",
+        "family": "mistral-nemo",
         "attachment": false,
         "reasoning": false,
         "tool_call": false,
         "structured_output": false,
-        "release_date": "2024-12-01",
-        "last_updated": "2024-12-01",
+        "release_date": "2024-07-01",
+        "last_updated": "2024-07-01",
         "modalities": {
           "input": [
             "text"
@@ -81817,8 +81878,66 @@
         },
         "open_weights": false,
         "cost": {
-          "input": 0.7,
-          "output": 0.95
+          "input": 0.49299999999999994,
+          "output": 0.49299999999999994
+        },
+        "limit": {
+          "context": 16384,
+          "input": 16384,
+          "output": 8192
+        }
+      },
+      "Alibaba-NLP/Tongyi-DeepResearch-30B-A3B": {
+        "id": "Alibaba-NLP/Tongyi-DeepResearch-30B-A3B",
+        "name": "Tongyi DeepResearch 30B A3B",
+        "family": "yi",
+        "attachment": false,
+        "reasoning": false,
+        "tool_call": false,
+        "structured_output": false,
+        "release_date": "2025-08-26",
+        "last_updated": "2025-08-26",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0.08,
+          "output": 0.24000000000000002
+        },
+        "limit": {
+          "context": 128000,
+          "input": 128000,
+          "output": 65536
+        }
+      },
+      "Steelskull/L3.3-Electra-R1-70b": {
+        "id": "Steelskull/L3.3-Electra-R1-70b",
+        "name": "Steelskull Electra R1 70b",
+        "family": "llama",
+        "attachment": false,
+        "reasoning": false,
+        "tool_call": false,
+        "structured_output": false,
+        "release_date": "2024-12-06",
+        "last_updated": "2024-12-06",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0.69989,
+          "output": 0.69989
         },
         "limit": {
           "context": 16384,
@@ -81826,16 +81945,16 @@
           "output": 16384
         }
       },
-      "ReadyArt 2/MS3.2-The-Omega-Directive-24B-Unslop-v2.0": {
-        "id": "ReadyArt 2/MS3.2-The-Omega-Directive-24B-Unslop-v2.0",
-        "name": "Omega Directive 24B Unslop v2.0",
+      "Steelskull/L3.3-MS-Evalebis-70b": {
+        "id": "Steelskull/L3.3-MS-Evalebis-70b",
+        "name": "MS Evalebis 70b",
         "family": "llama",
         "attachment": false,
         "reasoning": false,
         "tool_call": false,
         "structured_output": false,
-        "release_date": "2025-12-08",
-        "last_updated": "2025-12-08",
+        "release_date": "2024-12-06",
+        "last_updated": "2024-12-06",
         "modalities": {
           "input": [
             "text"
@@ -81846,13 +81965,187 @@
         },
         "open_weights": false,
         "cost": {
-          "input": 0.5,
-          "output": 0.5
+          "input": 0.49299999999999994,
+          "output": 0.49299999999999994
         },
         "limit": {
           "context": 16384,
           "input": 16384,
-          "output": 32768
+          "output": 16384
+        }
+      },
+      "Steelskull/L3.3-Cu-Mai-R1-70b": {
+        "id": "Steelskull/L3.3-Cu-Mai-R1-70b",
+        "name": "Llama 3.3 70B Cu Mai",
+        "family": "llama",
+        "attachment": false,
+        "reasoning": false,
+        "tool_call": false,
+        "structured_output": false,
+        "release_date": "2024-12-06",
+        "last_updated": "2024-12-06",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0.49299999999999994,
+          "output": 0.49299999999999994
+        },
+        "limit": {
+          "context": 16384,
+          "input": 16384,
+          "output": 16384
+        }
+      },
+      "Steelskull/L3.3-Nevoria-R1-70b": {
+        "id": "Steelskull/L3.3-Nevoria-R1-70b",
+        "name": "Steelskull Nevoria R1 70b",
+        "family": "llama",
+        "attachment": false,
+        "reasoning": false,
+        "tool_call": false,
+        "structured_output": false,
+        "release_date": "2024-12-06",
+        "last_updated": "2024-12-06",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0.49299999999999994,
+          "output": 0.49299999999999994
+        },
+        "limit": {
+          "context": 16384,
+          "input": 16384,
+          "output": 16384
+        }
+      },
+      "Steelskull/L3.3-MS-Nevoria-70b": {
+        "id": "Steelskull/L3.3-MS-Nevoria-70b",
+        "name": "Steelskull Nevoria 70b",
+        "family": "llama",
+        "attachment": false,
+        "reasoning": false,
+        "tool_call": false,
+        "structured_output": false,
+        "release_date": "2024-12-06",
+        "last_updated": "2024-12-06",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0.49299999999999994,
+          "output": 0.49299999999999994
+        },
+        "limit": {
+          "context": 16384,
+          "input": 16384,
+          "output": 16384
+        }
+      },
+      "Steelskull/L3.3-MS-Evayale-70B": {
+        "id": "Steelskull/L3.3-MS-Evayale-70B",
+        "name": "Evayale 70b ",
+        "family": "llama",
+        "attachment": false,
+        "reasoning": false,
+        "tool_call": false,
+        "structured_output": false,
+        "release_date": "2024-12-06",
+        "last_updated": "2024-12-06",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0.49299999999999994,
+          "output": 0.49299999999999994
+        },
+        "limit": {
+          "context": 16384,
+          "input": 16384,
+          "output": 16384
+        }
+      },
+      "Salesforce/Llama-xLAM-2-70b-fc-r": {
+        "id": "Salesforce/Llama-xLAM-2-70b-fc-r",
+        "name": "Llama-xLAM-2 70B fc-r",
+        "family": "llama",
+        "attachment": false,
+        "reasoning": false,
+        "tool_call": false,
+        "structured_output": false,
+        "release_date": "2025-04-13",
+        "last_updated": "2025-04-13",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 2.5,
+          "output": 2.5
+        },
+        "limit": {
+          "context": 128000,
+          "input": 128000,
+          "output": 16384
+        }
+      },
+      "LatitudeGames/Wayfarer-Large-70B-Llama-3.3": {
+        "id": "LatitudeGames/Wayfarer-Large-70B-Llama-3.3",
+        "name": "Llama 3.3 70B Wayfarer",
+        "family": "llama",
+        "attachment": false,
+        "reasoning": false,
+        "tool_call": false,
+        "structured_output": false,
+        "release_date": "2025-02-20",
+        "last_updated": "2025-02-20",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0.700000007,
+          "output": 0.700000007
+        },
+        "limit": {
+          "context": 16384,
+          "input": 16384,
+          "output": 16384
         }
       },
       "TheDrummer 2/Cydonia-24B-v4.3": {
@@ -82140,209 +82433,6 @@
         "cost": {
           "input": 0.1003,
           "output": 0.1207
-        },
-        "limit": {
-          "context": 16384,
-          "input": 16384,
-          "output": 32768
-        }
-      },
-      "Steelskull 2/L3.3-Electra-R1-70b": {
-        "id": "Steelskull 2/L3.3-Electra-R1-70b",
-        "name": "Steelskull Electra R1 70b",
-        "family": "llama",
-        "attachment": false,
-        "reasoning": false,
-        "tool_call": false,
-        "structured_output": false,
-        "release_date": "2024-12-06",
-        "last_updated": "2024-12-06",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": false,
-        "cost": {
-          "input": 0.69989,
-          "output": 0.69989
-        },
-        "limit": {
-          "context": 16384,
-          "input": 16384,
-          "output": 16384
-        }
-      },
-      "Steelskull 2/L3.3-MS-Evalebis-70b": {
-        "id": "Steelskull 2/L3.3-MS-Evalebis-70b",
-        "name": "MS Evalebis 70b",
-        "family": "llama",
-        "attachment": false,
-        "reasoning": false,
-        "tool_call": false,
-        "structured_output": false,
-        "release_date": "2024-12-06",
-        "last_updated": "2024-12-06",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": false,
-        "cost": {
-          "input": 0.49299999999999994,
-          "output": 0.49299999999999994
-        },
-        "limit": {
-          "context": 16384,
-          "input": 16384,
-          "output": 16384
-        }
-      },
-      "Steelskull 2/L3.3-Cu-Mai-R1-70b": {
-        "id": "Steelskull 2/L3.3-Cu-Mai-R1-70b",
-        "name": "Llama 3.3 70B Cu Mai",
-        "family": "llama",
-        "attachment": false,
-        "reasoning": false,
-        "tool_call": false,
-        "structured_output": false,
-        "release_date": "2024-12-06",
-        "last_updated": "2024-12-06",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": false,
-        "cost": {
-          "input": 0.49299999999999994,
-          "output": 0.49299999999999994
-        },
-        "limit": {
-          "context": 16384,
-          "input": 16384,
-          "output": 16384
-        }
-      },
-      "Steelskull 2/L3.3-Nevoria-R1-70b": {
-        "id": "Steelskull 2/L3.3-Nevoria-R1-70b",
-        "name": "Steelskull Nevoria R1 70b",
-        "family": "llama",
-        "attachment": false,
-        "reasoning": false,
-        "tool_call": false,
-        "structured_output": false,
-        "release_date": "2024-12-06",
-        "last_updated": "2024-12-06",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": false,
-        "cost": {
-          "input": 0.49299999999999994,
-          "output": 0.49299999999999994
-        },
-        "limit": {
-          "context": 16384,
-          "input": 16384,
-          "output": 16384
-        }
-      },
-      "Steelskull 2/L3.3-MS-Nevoria-70b": {
-        "id": "Steelskull 2/L3.3-MS-Nevoria-70b",
-        "name": "Steelskull Nevoria 70b",
-        "family": "llama",
-        "attachment": false,
-        "reasoning": false,
-        "tool_call": false,
-        "structured_output": false,
-        "release_date": "2024-12-06",
-        "last_updated": "2024-12-06",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": false,
-        "cost": {
-          "input": 0.49299999999999994,
-          "output": 0.49299999999999994
-        },
-        "limit": {
-          "context": 16384,
-          "input": 16384,
-          "output": 16384
-        }
-      },
-      "Steelskull 2/L3.3-MS-Evayale-70B": {
-        "id": "Steelskull 2/L3.3-MS-Evayale-70B",
-        "name": "Evayale 70b ",
-        "family": "llama",
-        "attachment": false,
-        "reasoning": false,
-        "tool_call": false,
-        "structured_output": false,
-        "release_date": "2024-12-06",
-        "last_updated": "2024-12-06",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": false,
-        "cost": {
-          "input": 0.49299999999999994,
-          "output": 0.49299999999999994
-        },
-        "limit": {
-          "context": 16384,
-          "input": 16384,
-          "output": 16384
-        }
-      },
-      "Doctor-Shotgun 2/MS3.2-24B-Magnum-Diamond": {
-        "id": "Doctor-Shotgun 2/MS3.2-24B-Magnum-Diamond",
-        "name": "MS3.2 24B Magnum Diamond",
-        "family": "mistral",
-        "attachment": false,
-        "reasoning": false,
-        "tool_call": false,
-        "structured_output": false,
-        "release_date": "2025-11-24",
-        "last_updated": "2025-11-24",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": false,
-        "cost": {
-          "input": 0.49299999999999994,
-          "output": 0.49299999999999994
         },
         "limit": {
           "context": 16384,
@@ -82654,6 +82744,122 @@
           "output": 4000
         }
       },
+      "Sao10K/L3.1-70B-Hanami-x1": {
+        "id": "Sao10K/L3.1-70B-Hanami-x1",
+        "name": "Llama 3.1 70B Hanami",
+        "family": "llama",
+        "attachment": false,
+        "reasoning": false,
+        "tool_call": false,
+        "structured_output": false,
+        "release_date": "2024-07-23",
+        "last_updated": "2024-07-23",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0.49299999999999994,
+          "output": 0.49299999999999994
+        },
+        "limit": {
+          "context": 16384,
+          "input": 16384,
+          "output": 16384
+        }
+      },
+      "Sao10K/L3.3-70B-Euryale-v2.3": {
+        "id": "Sao10K/L3.3-70B-Euryale-v2.3",
+        "name": "Llama 3.3 70B Euryale",
+        "family": "llama",
+        "attachment": false,
+        "reasoning": false,
+        "tool_call": false,
+        "structured_output": false,
+        "release_date": "2024-12-06",
+        "last_updated": "2024-12-06",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0.49299999999999994,
+          "output": 0.49299999999999994
+        },
+        "limit": {
+          "context": 20480,
+          "input": 20480,
+          "output": 16384
+        }
+      },
+      "Sao10K/L3.1-70B-Euryale-v2.2": {
+        "id": "Sao10K/L3.1-70B-Euryale-v2.2",
+        "name": "Llama 3.1 70B Euryale",
+        "family": "llama",
+        "attachment": false,
+        "reasoning": false,
+        "tool_call": false,
+        "structured_output": false,
+        "release_date": "2024-07-23",
+        "last_updated": "2024-07-23",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0.306,
+          "output": 0.357
+        },
+        "limit": {
+          "context": 20480,
+          "input": 20480,
+          "output": 16384
+        }
+      },
+      "Sao10K/L3-8B-Stheno-v3.2": {
+        "id": "Sao10K/L3-8B-Stheno-v3.2",
+        "name": "Sao10K Stheno 8b",
+        "family": "llama",
+        "attachment": false,
+        "reasoning": false,
+        "tool_call": false,
+        "structured_output": false,
+        "release_date": "2024-11-29",
+        "last_updated": "2024-11-29",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0.2006,
+          "output": 0.2006
+        },
+        "limit": {
+          "context": 16384,
+          "input": 16384,
+          "output": 8192
+        }
+      },
       "huihui-ai/DeepSeek-R1-Distill-Llama-70B-abliterated": {
         "id": "huihui-ai/DeepSeek-R1-Distill-Llama-70B-abliterated",
         "name": "DeepSeek R1 Llama 70B Abliterated",
@@ -82915,16 +83121,16 @@
           "output": 8192
         }
       },
-      "VongolaChouko 2/Starcannon-Unleashed-12B-v1.0": {
-        "id": "VongolaChouko 2/Starcannon-Unleashed-12B-v1.0",
-        "name": "Mistral Nemo Starcannon 12b v1",
-        "family": "mistral-nemo",
+      "EVA-UNIT-01/EVA-Qwen2.5-72B-v0.2": {
+        "id": "EVA-UNIT-01/EVA-Qwen2.5-72B-v0.2",
+        "name": "EVA-Qwen2.5-72B-v0.2",
+        "family": "qwen",
         "attachment": false,
         "reasoning": false,
         "tool_call": false,
         "structured_output": false,
-        "release_date": "2024-07-01",
-        "last_updated": "2024-07-01",
+        "release_date": "2025-09-25",
+        "last_updated": "2025-09-25",
         "modalities": {
           "input": [
             "text"
@@ -82935,8 +83141,95 @@
         },
         "open_weights": false,
         "cost": {
-          "input": 0.49299999999999994,
-          "output": 0.49299999999999994
+          "input": 0.7989999999999999,
+          "output": 0.7989999999999999
+        },
+        "limit": {
+          "context": 16384,
+          "input": 16384,
+          "output": 8192
+        }
+      },
+      "EVA-UNIT-01/EVA-LLaMA-3.33-70B-v0.0": {
+        "id": "EVA-UNIT-01/EVA-LLaMA-3.33-70B-v0.0",
+        "name": "EVA Llama 3.33 70B",
+        "family": "llama",
+        "attachment": false,
+        "reasoning": false,
+        "tool_call": false,
+        "structured_output": false,
+        "release_date": "2025-07-26",
+        "last_updated": "2025-07-26",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 2.006,
+          "output": 2.006
+        },
+        "limit": {
+          "context": 16384,
+          "input": 16384,
+          "output": 16384
+        }
+      },
+      "EVA-UNIT-01/EVA-LLaMA-3.33-70B-v0.1": {
+        "id": "EVA-UNIT-01/EVA-LLaMA-3.33-70B-v0.1",
+        "name": "EVA-LLaMA-3.33-70B-v0.1",
+        "family": "llama",
+        "attachment": false,
+        "reasoning": false,
+        "tool_call": false,
+        "structured_output": false,
+        "release_date": "2025-09-25",
+        "last_updated": "2025-09-25",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 2.006,
+          "output": 2.006
+        },
+        "limit": {
+          "context": 16384,
+          "input": 16384,
+          "output": 16384
+        }
+      },
+      "EVA-UNIT-01/EVA-Qwen2.5-32B-v0.2": {
+        "id": "EVA-UNIT-01/EVA-Qwen2.5-32B-v0.2",
+        "name": "EVA-Qwen2.5-32B-v0.2",
+        "family": "qwen",
+        "attachment": false,
+        "reasoning": false,
+        "tool_call": false,
+        "structured_output": false,
+        "release_date": "2025-07-26",
+        "last_updated": "2025-07-26",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0.7989999999999999,
+          "output": 0.7989999999999999
         },
         "limit": {
           "context": 16384,
@@ -83175,6 +83468,40 @@
         },
         "limit": {
           "context": 204800,
+          "output": 131072
+        }
+      },
+      "glm-5-turbo": {
+        "id": "glm-5-turbo",
+        "name": "GLM-5-Turbo",
+        "family": "glm",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "interleaved": {
+          "field": "reasoning_content"
+        },
+        "structured_output": true,
+        "temperature": true,
+        "release_date": "2026-03-16",
+        "last_updated": "2026-03-16",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 1.2,
+          "output": 4,
+          "cache_read": 0.24,
+          "cache_write": 0
+        },
+        "limit": {
+          "context": 200000,
           "output": 131072
         }
       },
@@ -85710,7 +86037,7 @@
         "reasoning": true,
         "tool_call": true,
         "temperature": true,
-        "knowledge": "2025-04-30",
+        "knowledge": "2025-05",
         "release_date": "2025-11-24",
         "last_updated": "2025-11-24",
         "modalities": {
@@ -85743,7 +86070,7 @@
         "reasoning": true,
         "tool_call": true,
         "temperature": true,
-        "knowledge": "2025-01-31",
+        "knowledge": "2025-03-31",
         "release_date": "2025-05-22",
         "last_updated": "2025-05-22",
         "modalities": {
@@ -85776,7 +86103,7 @@
         "reasoning": true,
         "tool_call": true,
         "temperature": true,
-        "knowledge": "2025-01-31",
+        "knowledge": "2025-07-31",
         "release_date": "2025-09-29",
         "last_updated": "2025-09-29",
         "modalities": {
@@ -86005,7 +86332,7 @@
         "temperature": true,
         "knowledge": "2025-08",
         "release_date": "2026-02-17",
-        "last_updated": "2026-02-17",
+        "last_updated": "2026-03-13",
         "modalities": {
           "input": [
             "text",
@@ -86021,16 +86348,10 @@
           "input": 3,
           "output": 15,
           "cache_read": 0.3,
-          "cache_write": 3.75,
-          "context_over_200k": {
-            "input": 6,
-            "output": 22.5,
-            "cache_read": 0.6,
-            "cache_write": 7.5
-          }
+          "cache_write": 3.75
         },
         "limit": {
-          "context": 200000,
+          "context": 1000000,
           "output": 64000
         }
       },
@@ -86110,8 +86431,8 @@
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-02-28",
-        "release_date": "2025-10-01",
-        "last_updated": "2025-10-01",
+        "release_date": "2025-10-15",
+        "last_updated": "2025-10-15",
         "modalities": {
           "input": [
             "text",
@@ -86159,7 +86480,7 @@
         "cost": {
           "input": 1.25,
           "output": 10,
-          "cache_read": 0.13
+          "cache_read": 0.125
         },
         "limit": {
           "context": 400000,
@@ -86336,7 +86657,7 @@
         "temperature": true,
         "knowledge": "2025-05",
         "release_date": "2026-02-05",
-        "last_updated": "2026-02-05",
+        "last_updated": "2026-03-13",
         "modalities": {
           "input": [
             "text",
@@ -86352,16 +86673,10 @@
           "input": 5,
           "output": 25,
           "cache_read": 0.5,
-          "cache_write": 6.25,
-          "context_over_200k": {
-            "input": 10,
-            "output": 37.5,
-            "cache_read": 1,
-            "cache_write": 12.5
-          }
+          "cache_write": 6.25
         },
         "limit": {
-          "context": 200000,
+          "context": 1000000,
           "output": 128000
         }
       },
@@ -86425,7 +86740,7 @@
         "cost": {
           "input": 0.05,
           "output": 0.4,
-          "cache_read": 0.01
+          "cache_read": 0.005
         },
         "limit": {
           "context": 400000,
@@ -86440,7 +86755,7 @@
         "reasoning": true,
         "tool_call": true,
         "temperature": true,
-        "knowledge": "2025-01-31",
+        "knowledge": "2025-03-31",
         "release_date": "2025-05-22",
         "last_updated": "2025-05-22",
         "modalities": {
