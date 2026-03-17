@@ -48217,6 +48217,7 @@
           "context": 1048576,
           "output": 65536
         },
+        "status": "deprecated",
         "provider": {
           "npm": "@ai-sdk/google"
         }

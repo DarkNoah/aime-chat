@@ -15,6 +15,8 @@ import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import { createOpenAI } from '@ai-sdk/openai';
 import { OpenAIProvider as OpenAIProviderSDK } from '@ai-sdk/openai';
 import { OpenAICompatibleConfig } from '@mastra/core/llm';
+import { createOpenResponses } from '@ai-sdk/open-responses';
+
 export class OpenAIProvider extends BaseProvider {
   name: string = 'openai';
   type: ProviderType = ProviderType.OPENAI;
