@@ -66,7 +66,29 @@ const formatResultAsCsv = (columns: string[], rows: Row[]): string => {
   return [header, ...body].join('\n');
 };
 
-const formatResultAsXlsx = (columns: string[], rows: Row[]): string => {
+const getExportFilePath = (savePath: string | undefined, ext: string): string => {
+  if (savePath) {
+    const dir = path.dirname(savePath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    return savePath;
+  }
+  const tmpDir = path.join(app.getPath('temp'), 'aime-chat', 'exports');
+  if (!fs.existsSync(tmpDir)) {
+    fs.mkdirSync(tmpDir, { recursive: true });
+  }
+  return path.join(tmpDir, `query-result-${nanoid()}.${ext}`);
+};
+
+const saveCsvToFile = (columns: string[], rows: Row[], savePath?: string): string => {
+  const filePath = getExportFilePath(savePath, 'csv');
+  const content = formatResultAsCsv(columns, rows);
+  fs.writeFileSync(filePath, content, 'utf-8');
+  return filePath;
+};
+
+const formatResultAsXlsx = (columns: string[], rows: Row[], savePath?: string): string => {
   const data = rows.map((row) => {
     const obj: Record<string, unknown> = {};
     for (const col of columns) {
@@ -79,12 +101,9 @@ const formatResultAsXlsx = (columns: string[], rows: Row[]): string => {
   const wb = xlsx.utils.book_new();
   xlsx.utils.book_append_sheet(wb, ws, 'Result');
 
-  const tmpDir = path.join(app.getPath('temp'), 'aime-chat', 'exports');
-  if (!fs.existsSync(tmpDir)) {
-    fs.mkdirSync(tmpDir, { recursive: true });
-  }
-  const filePath = path.join(tmpDir, `query-result-${nanoid()}.xlsx`);
-  xlsx.writeFile(wb, filePath);
+  const filePath = getExportFilePath(savePath, 'xlsx');
+  const buf = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
+  fs.writeFileSync(filePath, buf);
   return filePath;
 };
 
@@ -116,6 +135,10 @@ export class LibSQLRun extends BaseTool {
       .optional()
       .default('json')
       .describe('The output format for query results. "json" returns structured data, "markdown" returns a markdown table, "csv" returns comma-separated values, "xlsx" generates an Excel file and returns the file path.'),
+    save_path: z
+      .string()
+      .optional()
+      .describe('The path to save the result file.'),
   });
 
   constructor(config?: BaseToolParams) {
@@ -126,10 +149,12 @@ export class LibSQLRun extends BaseTool {
     inputData: z.infer<typeof this.inputSchema>,
     context: ToolExecutionContext<z.ZodSchema, any>,
   ) => {
-    const { scope, sql, args, format = 'json' } = inputData;
+    const { scope, sql, args, format = 'json', save_path } = inputData;
     const { requestContext } = context;
     const workspace = requestContext.get('workspace' as never);
     const client = createDbClient(scope, workspace);
+
+    const MAX_DISPLAY_ROWS = 10;
 
     try {
       const result = await client.execute({
@@ -138,35 +163,52 @@ export class LibSQLRun extends BaseTool {
       });
 
       const { columns, rows, rowsAffected, lastInsertRowid } = result;
+      const totalRows = rows.length;
+      const isTruncated = totalRows > MAX_DISPLAY_ROWS;
+      const displayRows = isTruncated ? rows.slice(0, MAX_DISPLAY_ROWS) : rows;
+      const truncationNote = isTruncated
+        ? `\n\n(Results truncated: showing ${MAX_DISPLAY_ROWS} of ${totalRows} rows)`
+        : '';
 
       switch (format) {
         case 'markdown':
-          return rows.length > 0
-            ? formatResultAsMarkdown(columns, rows)
-            : `Query executed successfully. Rows affected: ${rowsAffected}`;
+          if (totalRows === 0) {
+            return `Query executed successfully. Rows affected: ${rowsAffected}`;
+          }
+          return formatResultAsMarkdown(columns, displayRows) + truncationNote;
 
-        case 'csv':
-          return rows.length > 0
-            ? formatResultAsCsv(columns, rows)
-            : `Query executed successfully. Rows affected: ${rowsAffected}`;
-
-        case 'xlsx': {
-          if (rows.length === 0) {
+        case 'csv': {
+          if (totalRows === 0) {
             return `Query executed successfully. Rows affected: ${rowsAffected}. No data to export.`;
           }
-          const filePath = formatResultAsXlsx(columns, rows);
-          return `<file>${filePath}</file>`;
+          const csvFilePath = saveCsvToFile(columns, rows, save_path);
+          const csvPreview = formatResultAsCsv(columns, displayRows);
+          return csvPreview + truncationNote + `\n\nFile saved to: ${csvFilePath}`;
+        }
+
+        case 'xlsx': {
+          if (totalRows === 0) {
+            return `Query executed successfully. Rows affected: ${rowsAffected}. No data to export.`;
+          }
+          const xlsxFilePath = formatResultAsXlsx(columns, rows, save_path);
+          const xlsxPreview = formatResultAsMarkdown(columns, displayRows);
+          return xlsxPreview + truncationNote + `\n\nFile saved to: ${xlsxFilePath}`;
         }
 
         case 'json':
         default:
           return {
             columns,
-            rows,
+            rows: displayRows,
+            totalRows,
             rowsAffected,
             lastInsertRowid: lastInsertRowid?.toString(),
+            ...(isTruncated && { truncated: true, truncationMessage: `Results truncated: showing ${MAX_DISPLAY_ROWS} of ${totalRows} rows` }),
           };
       }
+    } catch (error) {
+      console.error("Error :", error);
+      throw new Error(`Failed : ${error.message}`);
     } finally {
       client.close();
     }

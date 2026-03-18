@@ -373,9 +373,9 @@
       "FIRMWARE_API_KEY"
     ],
     "npm": "@ai-sdk/openai-compatible",
-    "api": "https://app.firmware.ai/api/v1",
+    "api": "https://app.frogbot.ai/api/v1",
     "name": "Firmware",
-    "doc": "https://docs.firmware.ai",
+    "doc": "https://docs.frogbot.ai",
     "models": {
       "gpt-5-4": {
         "id": "gpt-5-4",
@@ -9050,7 +9050,7 @@
         "name": "Aya Expanse 32B",
         "attachment": false,
         "reasoning": false,
-        "tool_call": true,
+        "tool_call": false,
         "temperature": true,
         "release_date": "2024-10-24",
         "last_updated": "2024-10-24",
@@ -9073,7 +9073,7 @@
         "name": "Command A",
         "family": "command-a",
         "attachment": false,
-        "reasoning": true,
+        "reasoning": false,
         "tool_call": true,
         "temperature": true,
         "knowledge": "2024-06-01",
@@ -9160,7 +9160,7 @@
         "name": "Command R",
         "family": "command-r",
         "attachment": false,
-        "reasoning": true,
+        "reasoning": false,
         "tool_call": true,
         "temperature": true,
         "knowledge": "2024-06-01",
@@ -9189,7 +9189,7 @@
         "name": "Command R+",
         "family": "command-r",
         "attachment": false,
-        "reasoning": true,
+        "reasoning": false,
         "tool_call": true,
         "temperature": true,
         "knowledge": "2024-06-01",
@@ -9247,7 +9247,7 @@
         "name": "Aya Expanse 8B",
         "attachment": false,
         "reasoning": false,
-        "tool_call": true,
+        "tool_call": false,
         "temperature": true,
         "release_date": "2024-10-24",
         "last_updated": "2024-10-24",
@@ -9270,7 +9270,7 @@
         "name": "Aya Vision 8B",
         "attachment": true,
         "reasoning": false,
-        "tool_call": true,
+        "tool_call": false,
         "temperature": true,
         "release_date": "2025-03-04",
         "last_updated": "2025-05-14",
@@ -9294,7 +9294,7 @@
         "name": "Aya Vision 32B",
         "attachment": true,
         "reasoning": false,
-        "tool_call": true,
+        "tool_call": false,
         "temperature": true,
         "release_date": "2025-03-04",
         "last_updated": "2025-05-14",
@@ -10798,6 +10798,38 @@
         "limit": {
           "context": 64000,
           "output": 16384
+        }
+      },
+      "gpt-5.4-mini": {
+        "id": "gpt-5.4-mini",
+        "name": "GPT-5.4 mini",
+        "family": "gpt-mini",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": false,
+        "knowledge": "2025-08-31",
+        "release_date": "2026-03-17",
+        "last_updated": "2026-03-17",
+        "modalities": {
+          "input": [
+            "text",
+            "image"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0,
+          "output": 0
+        },
+        "limit": {
+          "context": 400000,
+          "input": 272000,
+          "output": 128000
         }
       }
     }
@@ -15650,6 +15682,35 @@
           "output": 24000
         }
       },
+      "zai/glm-5-turbo": {
+        "id": "zai/glm-5-turbo",
+        "name": "GLM 5 Turbo",
+        "family": "glm",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "temperature": true,
+        "release_date": "2026-03-15",
+        "last_updated": "2026-03-17",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 1.2,
+          "output": 4,
+          "cache_read": 0.24
+        },
+        "limit": {
+          "context": 202800,
+          "output": 131100
+        }
+      },
       "zai/glm-4.5v": {
         "id": "zai/glm-4.5v",
         "name": "GLM 4.5V",
@@ -19913,6 +19974,38 @@
           "output": 128000
         }
       },
+      "openai/gpt-5.4-nano": {
+        "id": "openai/gpt-5.4-nano",
+        "name": "GPT 5.4 Nano",
+        "family": "gpt",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "temperature": true,
+        "release_date": "2026-03-17",
+        "last_updated": "2026-03-17",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "pdf"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0.19999999999999998,
+          "output": 1.25,
+          "cache_read": 0.02
+        },
+        "limit": {
+          "context": 400000,
+          "input": 272000,
+          "output": 128000
+        }
+      },
       "openai/gpt-oss-20b": {
         "id": "openai/gpt-oss-20b",
         "name": "GPT OSS 20B",
@@ -19971,6 +20064,38 @@
           "context": 8192,
           "input": 4096,
           "output": 4096
+        }
+      },
+      "openai/gpt-5.4-mini": {
+        "id": "openai/gpt-5.4-mini",
+        "name": "GPT 5.4 Mini",
+        "family": "gpt",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "temperature": true,
+        "release_date": "2026-03-17",
+        "last_updated": "2026-03-17",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "pdf"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0.75,
+          "output": 4.5,
+          "cache_read": 0.075
+        },
+        "limit": {
+          "context": 400000,
+          "input": 272000,
+          "output": 128000
         }
       },
       "openai/gpt-5.1-instant": {
@@ -23947,6 +24072,37 @@
           "output": 32768
         }
       },
+      "MiniMax-M2.5": {
+        "id": "MiniMax-M2.5",
+        "name": "MiniMax-M2.5",
+        "family": "minimax",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "interleaved": {
+          "field": "reasoning_content"
+        },
+        "temperature": true,
+        "release_date": "2026-02-12",
+        "last_updated": "2026-02-12",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 0.3,
+          "output": 1.2
+        },
+        "limit": {
+          "context": 204800,
+          "output": 131072
+        }
+      },
       "qwen3-asr-flash": {
         "id": "qwen3-asr-flash",
         "name": "Qwen3-ASR Flash",
@@ -25080,37 +25236,6 @@
         "limit": {
           "context": 1000000,
           "output": 32768
-        }
-      },
-      "minimax-m2.5": {
-        "id": "minimax-m2.5",
-        "name": "MiniMax-M2.5",
-        "family": "minimax",
-        "attachment": false,
-        "reasoning": true,
-        "tool_call": true,
-        "interleaved": {
-          "field": "reasoning_content"
-        },
-        "temperature": true,
-        "release_date": "2026-02-12",
-        "last_updated": "2026-02-12",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": true,
-        "cost": {
-          "input": 0.3,
-          "output": 1.2
-        },
-        "limit": {
-          "context": 204800,
-          "output": 131072
         }
       },
       "qwen2-5-32b-instruct": {
@@ -37068,7 +37193,7 @@
         "name": "Cohere Command R+ 08-2024",
         "family": "command-r",
         "attachment": false,
-        "reasoning": true,
+        "reasoning": false,
         "tool_call": true,
         "temperature": true,
         "knowledge": "2024-03",
@@ -37126,7 +37251,7 @@
         "name": "Cohere Command R 08-2024",
         "family": "command-r",
         "attachment": false,
-        "reasoning": true,
+        "reasoning": false,
         "tool_call": true,
         "temperature": true,
         "knowledge": "2024-03",
@@ -37155,7 +37280,7 @@
         "name": "Cohere Command R+",
         "family": "command-r",
         "attachment": false,
-        "reasoning": true,
+        "reasoning": false,
         "tool_call": true,
         "temperature": true,
         "knowledge": "2024-03",
@@ -38721,7 +38846,7 @@
         "name": "Command R+",
         "family": "command-r",
         "attachment": false,
-        "reasoning": true,
+        "reasoning": false,
         "tool_call": true,
         "temperature": true,
         "knowledge": "2024-06-01",
@@ -39201,7 +39326,7 @@
         "name": "Command R",
         "family": "command-r",
         "attachment": false,
-        "reasoning": true,
+        "reasoning": false,
         "tool_call": true,
         "temperature": true,
         "knowledge": "2024-06-01",
@@ -40545,6 +40670,40 @@
           "output": 4096
         }
       },
+      "gpt-5.4-nano": {
+        "id": "gpt-5.4-nano",
+        "name": "GPT-5.4 Nano",
+        "family": "gpt-nano",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": false,
+        "knowledge": "2025-08-31",
+        "release_date": "2026-03-17",
+        "last_updated": "2026-03-17",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "pdf"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0.2,
+          "output": 1.25,
+          "cache_read": 0.02
+        },
+        "limit": {
+          "context": 400000,
+          "input": 272000,
+          "output": 128000
+        }
+      },
       "phi-4-reasoning": {
         "id": "phi-4-reasoning",
         "name": "Phi-4-reasoning",
@@ -40839,6 +40998,40 @@
         "limit": {
           "context": 8192,
           "output": 2048
+        }
+      },
+      "gpt-5.4-mini": {
+        "id": "gpt-5.4-mini",
+        "name": "GPT-5.4 Mini",
+        "family": "gpt-mini",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": false,
+        "knowledge": "2025-08-31",
+        "release_date": "2026-03-17",
+        "last_updated": "2026-03-17",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "pdf"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0.75,
+          "output": 4.5,
+          "cache_read": 0.075
+        },
+        "limit": {
+          "context": 400000,
+          "input": 272000,
+          "output": 128000
         }
       }
     }
@@ -47507,7 +47700,8 @@
         "limit": {
           "context": 204800,
           "output": 131072
-        }
+        },
+        "status": "deprecated"
       },
       "minimax-m2.1": {
         "id": "minimax-m2.1",
@@ -47540,7 +47734,8 @@
         "limit": {
           "context": 204800,
           "output": 131072
-        }
+        },
+        "status": "deprecated"
       },
       "gpt-5.1-codex-mini": {
         "id": "gpt-5.1-codex-mini",
@@ -47750,7 +47945,8 @@
         "limit": {
           "context": 204800,
           "output": 131072
-        }
+        },
+        "status": "deprecated"
       },
       "glm-5-free": {
         "id": "glm-5-free",
@@ -48265,6 +48461,43 @@
           "npm": "@ai-sdk/anthropic"
         }
       },
+      "gpt-5.4-nano": {
+        "id": "gpt-5.4-nano",
+        "name": "GPT-5.4 Nano",
+        "family": "gpt-nano",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": false,
+        "knowledge": "2025-08-31",
+        "release_date": "2026-03-17",
+        "last_updated": "2026-03-17",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "pdf"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0.2,
+          "output": 1.25,
+          "cache_read": 0.02
+        },
+        "limit": {
+          "context": 400000,
+          "input": 272000,
+          "output": 128000
+        },
+        "provider": {
+          "npm": "@ai-sdk/openai"
+        }
+      },
       "gpt-5-nano": {
         "id": "gpt-5-nano",
         "name": "GPT-5 Nano",
@@ -48291,6 +48524,43 @@
           "input": 0,
           "output": 0,
           "cache_read": 0
+        },
+        "limit": {
+          "context": 400000,
+          "input": 272000,
+          "output": 128000
+        },
+        "provider": {
+          "npm": "@ai-sdk/openai"
+        }
+      },
+      "gpt-5.4-mini": {
+        "id": "gpt-5.4-mini",
+        "name": "GPT-5.4 Mini",
+        "family": "gpt-mini",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": false,
+        "knowledge": "2025-08-31",
+        "release_date": "2026-03-17",
+        "last_updated": "2026-03-17",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "pdf"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0.75,
+          "output": 4.5,
+          "cache_read": 0.075
         },
         "limit": {
           "context": 400000,
@@ -48783,6 +49053,36 @@
           "output": 131072
         }
       },
+      "MiniMax-M2.7-highspeed": {
+        "id": "MiniMax-M2.7-highspeed",
+        "name": "MiniMax-M2.7-highspeed",
+        "family": "minimax",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "temperature": true,
+        "release_date": "2026-03-18",
+        "last_updated": "2026-03-18",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 0.6,
+          "output": 2.4,
+          "cache_read": 0.06,
+          "cache_write": 0.375
+        },
+        "limit": {
+          "context": 204800,
+          "output": 131072
+        }
+      },
       "MiniMax-M2": {
         "id": "MiniMax-M2",
         "name": "MiniMax-M2",
@@ -48863,6 +49163,36 @@
         "cost": {
           "input": 0.3,
           "output": 1.2
+        },
+        "limit": {
+          "context": 204800,
+          "output": 131072
+        }
+      },
+      "MiniMax-M2.7": {
+        "id": "MiniMax-M2.7",
+        "name": "MiniMax-M2.7",
+        "family": "minimax",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "temperature": true,
+        "release_date": "2026-03-18",
+        "last_updated": "2026-03-18",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 0.3,
+          "output": 1.2,
+          "cache_read": 0.06,
+          "cache_write": 0.375
         },
         "limit": {
           "context": 204800,
@@ -56010,6 +56340,39 @@
           "output": 128000
         }
       },
+      "gpt-5.4-nano": {
+        "id": "gpt-5.4-nano",
+        "name": "GPT-5.4 nano",
+        "family": "gpt-nano",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": false,
+        "knowledge": "2025-08-31",
+        "release_date": "2026-03-17",
+        "last_updated": "2026-03-17",
+        "modalities": {
+          "input": [
+            "text",
+            "image"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0.2,
+          "output": 1.25,
+          "cache_read": 0.02
+        },
+        "limit": {
+          "context": 400000,
+          "input": 272000,
+          "output": 128000
+        }
+      },
       "gpt-5.1-chat-latest": {
         "id": "gpt-5.1-chat-latest",
         "name": "GPT-5.1 Chat",
@@ -56166,6 +56529,39 @@
         "limit": {
           "context": 128000,
           "output": 16384
+        }
+      },
+      "gpt-5.4-mini": {
+        "id": "gpt-5.4-mini",
+        "name": "GPT-5.4 mini",
+        "family": "gpt-mini",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": false,
+        "knowledge": "2025-08-31",
+        "release_date": "2026-03-17",
+        "last_updated": "2026-03-17",
+        "modalities": {
+          "input": [
+            "text",
+            "image"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0.75,
+          "output": 4.5,
+          "cache_read": 0.075
+        },
+        "limit": {
+          "context": 400000,
+          "input": 272000,
+          "output": 128000
         }
       }
     }
@@ -56506,6 +56902,36 @@
           "output": 131072
         }
       },
+      "MiniMax-M2.7-highspeed": {
+        "id": "MiniMax-M2.7-highspeed",
+        "name": "MiniMax-M2.7-highspeed",
+        "family": "minimax",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "temperature": true,
+        "release_date": "2026-03-18",
+        "last_updated": "2026-03-18",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 0.6,
+          "output": 2.4,
+          "cache_read": 0.06,
+          "cache_write": 0.375
+        },
+        "limit": {
+          "context": 204800,
+          "output": 131072
+        }
+      },
       "MiniMax-M2": {
         "id": "MiniMax-M2",
         "name": "MiniMax-M2",
@@ -56586,6 +57012,36 @@
         "cost": {
           "input": 0.3,
           "output": 1.2
+        },
+        "limit": {
+          "context": 204800,
+          "output": 131072
+        }
+      },
+      "MiniMax-M2.7": {
+        "id": "MiniMax-M2.7",
+        "name": "MiniMax-M2.7",
+        "family": "minimax",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "temperature": true,
+        "release_date": "2026-03-18",
+        "last_updated": "2026-03-18",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 0.3,
+          "output": 1.2,
+          "cache_read": 0.06,
+          "cache_write": 0.375
         },
         "limit": {
           "context": 204800,
@@ -65071,6 +65527,36 @@
           "output": 131072
         }
       },
+      "MiniMax-M2.7-highspeed": {
+        "id": "MiniMax-M2.7-highspeed",
+        "name": "MiniMax-M2.7-highspeed",
+        "family": "minimax",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "temperature": true,
+        "release_date": "2026-03-18",
+        "last_updated": "2026-03-18",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cache_read": 0,
+          "cache_write": 0
+        },
+        "limit": {
+          "context": 204800,
+          "output": 131072
+        }
+      },
       "MiniMax-M2": {
         "id": "MiniMax-M2",
         "name": "MiniMax-M2",
@@ -65151,6 +65637,36 @@
         "cost": {
           "input": 0,
           "output": 0
+        },
+        "limit": {
+          "context": 204800,
+          "output": 131072
+        }
+      },
+      "MiniMax-M2.7": {
+        "id": "MiniMax-M2.7",
+        "name": "MiniMax-M2.7",
+        "family": "minimax",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "temperature": true,
+        "release_date": "2026-03-18",
+        "last_updated": "2026-03-18",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cache_read": 0,
+          "cache_write": 0
         },
         "limit": {
           "context": 204800,
@@ -81487,7 +82003,7 @@
         "family": "command-r",
         "attachment": false,
         "reasoning": false,
-        "tool_call": false,
+        "tool_call": true,
         "structured_output": false,
         "release_date": "2024-08-30",
         "last_updated": "2024-08-30",
@@ -90803,6 +91319,74 @@
           "api": "https://${AZURE_COGNITIVE_SERVICES_RESOURCE_NAME}.services.ai.azure.com/anthropic/v1"
         }
       },
+      "gpt-5.4-nano": {
+        "id": "gpt-5.4-nano",
+        "name": "GPT-5.4 Nano",
+        "family": "gpt-nano",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": false,
+        "knowledge": "2025-08-31",
+        "release_date": "2026-03-17",
+        "last_updated": "2026-03-17",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "pdf"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0.2,
+          "output": 1.25,
+          "cache_read": 0.02
+        },
+        "limit": {
+          "context": 400000,
+          "input": 272000,
+          "output": 128000
+        }
+      },
+      "gpt-5.4-mini": {
+        "id": "gpt-5.4-mini",
+        "name": "GPT-5.4 Mini",
+        "family": "gpt-mini",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": false,
+        "knowledge": "2025-08-31",
+        "release_date": "2026-03-17",
+        "last_updated": "2026-03-17",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "pdf"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0.75,
+          "output": 4.5,
+          "cache_read": 0.075
+        },
+        "limit": {
+          "context": 400000,
+          "input": 272000,
+          "output": 128000
+        }
+      },
       "phi-3-small-8k-instruct": {
         "id": "phi-3-small-8k-instruct",
         "name": "Phi-3-small-instruct (8k)",
@@ -92279,7 +92863,7 @@
         "name": "Command R",
         "family": "command-r",
         "attachment": false,
-        "reasoning": true,
+        "reasoning": false,
         "tool_call": true,
         "temperature": true,
         "knowledge": "2024-06-01",
@@ -92759,7 +93343,7 @@
         "name": "Command R+",
         "family": "command-r",
         "attachment": false,
-        "reasoning": true,
+        "reasoning": false,
         "tool_call": true,
         "temperature": true,
         "knowledge": "2024-06-01",
@@ -93804,7 +94388,7 @@
         "tool_call": true,
         "temperature": true,
         "release_date": "2025-07-01",
-        "last_updated": "2025-07-01",
+        "last_updated": "2026-03-17",
         "modalities": {
           "input": [
             "text",
@@ -93821,7 +94405,7 @@
         },
         "limit": {
           "context": 32000,
-          "output": 8192
+          "output": 16384
         }
       },
       "qwen3-235b-a22b-instruct-2507": {
@@ -93833,7 +94417,7 @@
         "tool_call": true,
         "temperature": true,
         "release_date": "2025-07-01",
-        "last_updated": "2025-07-01",
+        "last_updated": "2026-03-17",
         "modalities": {
           "input": [
             "text"
@@ -93849,7 +94433,7 @@
         },
         "limit": {
           "context": 260000,
-          "output": 8192
+          "output": 16384
         }
       },
       "llama-3.3-70b-instruct": {
@@ -93862,7 +94446,7 @@
         "temperature": true,
         "knowledge": "2023-12",
         "release_date": "2024-12-06",
-        "last_updated": "2024-12-06",
+        "last_updated": "2026-03-17",
         "modalities": {
           "input": [
             "text"
@@ -93878,7 +94462,7 @@
         },
         "limit": {
           "context": 100000,
-          "output": 4096
+          "output": 16384
         }
       },
       "mistral-small-3.2-24b-instruct-2506": {
@@ -93890,7 +94474,7 @@
         "tool_call": true,
         "temperature": true,
         "release_date": "2025-06-20",
-        "last_updated": "2025-06-20",
+        "last_updated": "2026-03-17",
         "modalities": {
           "input": [
             "text",
@@ -93907,7 +94491,35 @@
         },
         "limit": {
           "context": 128000,
-          "output": 8192
+          "output": 32768
+        }
+      },
+      "qwen3-embedding-8b": {
+        "id": "qwen3-embedding-8b",
+        "name": "Qwen3 Embedding 8B",
+        "family": "qwen",
+        "attachment": false,
+        "reasoning": false,
+        "tool_call": false,
+        "temperature": false,
+        "release_date": "2025-25-11",
+        "last_updated": "2026-03-17",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0.1,
+          "output": 0
+        },
+        "limit": {
+          "context": 32768,
+          "output": 4096
         }
       },
       "bge-multilingual-gemma2": {
@@ -93930,12 +94542,42 @@
         },
         "open_weights": false,
         "cost": {
-          "input": 0.13,
+          "input": 0.1,
           "output": 0
         },
         "limit": {
           "context": 8191,
           "output": 3072
+        }
+      },
+      "qwen3.5-397b-a17b": {
+        "id": "qwen3.5-397b-a17b",
+        "name": "Qwen3.5 397B A17B",
+        "family": "devstral",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "temperature": true,
+        "release_date": "2026-03-17",
+        "last_updated": "2026-03-17",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "video"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 0.6,
+          "output": 3.6
+        },
+        "limit": {
+          "context": 256000,
+          "output": 16384
         }
       },
       "gpt-oss-120b": {
@@ -93947,7 +94589,7 @@
         "tool_call": true,
         "temperature": true,
         "release_date": "2024-01-01",
-        "last_updated": "2024-01-01",
+        "last_updated": "2026-03-17",
         "modalities": {
           "input": [
             "text"
@@ -93963,7 +94605,7 @@
         },
         "limit": {
           "context": 128000,
-          "output": 8192
+          "output": 32768
         }
       },
       "deepseek-r1-distill-llama-70b": {
@@ -93976,7 +94618,7 @@
         "temperature": true,
         "knowledge": "2024-07",
         "release_date": "2025-01-20",
-        "last_updated": "2025-01-20",
+        "last_updated": "2026-03-17",
         "modalities": {
           "input": [
             "text"
@@ -93992,7 +94634,7 @@
         },
         "limit": {
           "context": 32000,
-          "output": 4096
+          "output": 8196
         }
       },
       "qwen3-coder-30b-a3b-instruct": {
@@ -94005,7 +94647,7 @@
         "temperature": true,
         "knowledge": "2025-04",
         "release_date": "2025-04",
-        "last_updated": "2025-04",
+        "last_updated": "2026-03-17",
         "modalities": {
           "input": [
             "text"
@@ -94021,7 +94663,7 @@
         },
         "limit": {
           "context": 128000,
-          "output": 8192
+          "output": 32768
         }
       },
       "whisper-large-v3": {
@@ -94034,7 +94676,7 @@
         "temperature": false,
         "knowledge": "2023-09",
         "release_date": "2023-09-01",
-        "last_updated": "2025-09-05",
+        "last_updated": "2026-03-17",
         "modalities": {
           "input": [
             "audio"
@@ -94050,7 +94692,7 @@
         },
         "limit": {
           "context": 0,
-          "output": 4096
+          "output": 8192
         }
       },
       "llama-3.1-8b-instruct": {
@@ -94063,7 +94705,7 @@
         "temperature": true,
         "knowledge": "2023-12",
         "release_date": "2025-01-01",
-        "last_updated": "2025-01-01",
+        "last_updated": "2026-03-17",
         "modalities": {
           "input": [
             "text"
@@ -94091,7 +94733,7 @@
         "tool_call": true,
         "temperature": true,
         "release_date": "2026-01-07",
-        "last_updated": "2026-01-07",
+        "last_updated": "2026-03-17",
         "modalities": {
           "input": [
             "text"
@@ -94107,7 +94749,7 @@
         },
         "limit": {
           "context": 256000,
-          "output": 8192
+          "output": 16384
         }
       },
       "pixtral-12b-2409": {
@@ -94119,7 +94761,7 @@
         "tool_call": true,
         "temperature": true,
         "release_date": "2024-09-25",
-        "last_updated": "2024-09-25",
+        "last_updated": "2026-03-17",
         "modalities": {
           "input": [
             "text",
@@ -94148,7 +94790,7 @@
         "tool_call": true,
         "temperature": true,
         "release_date": "2024-07-25",
-        "last_updated": "2024-07-25",
+        "last_updated": "2026-03-17",
         "modalities": {
           "input": [
             "text"
@@ -94177,7 +94819,7 @@
         "temperature": true,
         "knowledge": "2024-12",
         "release_date": "2024-12-01",
-        "last_updated": "2025-09-05",
+        "last_updated": "2026-03-17",
         "modalities": {
           "input": [
             "text",
@@ -100216,6 +100858,36 @@
           "output": 131072
         }
       },
+      "MiniMax-M2.7-highspeed": {
+        "id": "MiniMax-M2.7-highspeed",
+        "name": "MiniMax-M2.7-highspeed",
+        "family": "minimax",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "temperature": true,
+        "release_date": "2026-03-18",
+        "last_updated": "2026-03-18",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cache_read": 0,
+          "cache_write": 0
+        },
+        "limit": {
+          "context": 204800,
+          "output": 131072
+        }
+      },
       "MiniMax-M2": {
         "id": "MiniMax-M2",
         "name": "MiniMax-M2",
@@ -100296,6 +100968,36 @@
         "cost": {
           "input": 0,
           "output": 0
+        },
+        "limit": {
+          "context": 204800,
+          "output": 131072
+        }
+      },
+      "MiniMax-M2.7": {
+        "id": "MiniMax-M2.7",
+        "name": "MiniMax-M2.7",
+        "family": "minimax",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "temperature": true,
+        "release_date": "2026-03-18",
+        "last_updated": "2026-03-18",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cache_read": 0,
+          "cache_write": 0
         },
         "limit": {
           "context": 204800,
@@ -110161,7 +110863,7 @@
         "name": "Cohere: Command R7B (12-2024)",
         "attachment": false,
         "reasoning": false,
-        "tool_call": false,
+        "tool_call": true,
         "temperature": true,
         "release_date": "2024-02-27",
         "last_updated": "2024-02-27",
@@ -115430,6 +116132,379 @@
         "limit": {
           "context": 131072,
           "output": 16384
+        }
+      }
+    }
+  },
+  "dinference": {
+    "id": "dinference",
+    "env": [
+      "DINFERENCE_API_KEY"
+    ],
+    "npm": "@ai-sdk/openai-compatible",
+    "api": "https://api.dinference.com/v1",
+    "name": "DInference",
+    "doc": "https://dinference.com",
+    "models": {
+      "glm-5": {
+        "id": "glm-5",
+        "name": "GLM-5",
+        "family": "glm",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "interleaved": {
+          "field": "reasoning_content"
+        },
+        "temperature": true,
+        "knowledge": "2025-04",
+        "release_date": "2026-02",
+        "last_updated": "2026-02",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 0.75,
+          "output": 2.4
+        },
+        "limit": {
+          "context": 200000,
+          "output": 128000
+        }
+      },
+      "gpt-oss-120b": {
+        "id": "gpt-oss-120b",
+        "name": "GPT OSS 120B",
+        "attachment": false,
+        "reasoning": false,
+        "tool_call": true,
+        "temperature": true,
+        "release_date": "2025-08",
+        "last_updated": "2025-08",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 0.0675,
+          "output": 0.27
+        },
+        "limit": {
+          "context": 131072,
+          "output": 32768
+        }
+      },
+      "glm-4.7": {
+        "id": "glm-4.7",
+        "name": "GLM-4.7",
+        "family": "glm",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "interleaved": {
+          "field": "reasoning_content"
+        },
+        "temperature": true,
+        "knowledge": "2025-04",
+        "release_date": "2025-12",
+        "last_updated": "2025-12",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 0.45,
+          "output": 1.65
+        },
+        "limit": {
+          "context": 200000,
+          "output": 128000
+        }
+      }
+    }
+  },
+  "tencent-coding-plan": {
+    "id": "tencent-coding-plan",
+    "env": [
+      "TENCENT_CODING_PLAN_API_KEY"
+    ],
+    "npm": "@ai-sdk/openai-compatible",
+    "api": "https://api.lkeap.cloud.tencent.com/coding/v3",
+    "name": "Tencent Coding Plan (China)",
+    "doc": "https://cloud.tencent.com/document/product/1772/128947",
+    "models": {
+      "hunyuan-turbos": {
+        "id": "hunyuan-turbos",
+        "name": "Hunyuan-TurboS",
+        "family": "hunyuan",
+        "attachment": false,
+        "reasoning": false,
+        "tool_call": true,
+        "temperature": true,
+        "release_date": "2026-03-08",
+        "last_updated": "2026-03-08",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cache_read": 0,
+          "cache_write": 0
+        },
+        "limit": {
+          "context": 131072,
+          "output": 16384
+        }
+      },
+      "tc-code-latest": {
+        "id": "tc-code-latest",
+        "name": "Auto",
+        "family": "auto",
+        "attachment": false,
+        "reasoning": false,
+        "tool_call": true,
+        "temperature": true,
+        "release_date": "2026-03-08",
+        "last_updated": "2026-03-08",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cache_read": 0,
+          "cache_write": 0
+        },
+        "limit": {
+          "context": 131072,
+          "output": 16384
+        }
+      },
+      "glm-5": {
+        "id": "glm-5",
+        "name": "GLM-5",
+        "family": "glm",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "interleaved": {
+          "field": "reasoning_content"
+        },
+        "temperature": true,
+        "release_date": "2026-02-11",
+        "last_updated": "2026-02-11",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cache_read": 0,
+          "cache_write": 0
+        },
+        "limit": {
+          "context": 202752,
+          "output": 16384
+        }
+      },
+      "kimi-k2.5": {
+        "id": "kimi-k2.5",
+        "name": "Kimi-K2.5",
+        "family": "kimi",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "interleaved": {
+          "field": "reasoning_content"
+        },
+        "temperature": true,
+        "knowledge": "2025-01",
+        "release_date": "2026-01-27",
+        "last_updated": "2026-01-27",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "video"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cache_read": 0,
+          "cache_write": 0
+        },
+        "limit": {
+          "context": 262144,
+          "output": 32768
+        }
+      },
+      "hunyuan-t1": {
+        "id": "hunyuan-t1",
+        "name": "Hunyuan-T1",
+        "family": "hunyuan",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "interleaved": {
+          "field": "reasoning_content"
+        },
+        "temperature": true,
+        "release_date": "2026-03-08",
+        "last_updated": "2026-03-08",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cache_read": 0,
+          "cache_write": 0
+        },
+        "limit": {
+          "context": 131072,
+          "output": 16384
+        }
+      },
+      "hunyuan-2.0-instruct": {
+        "id": "hunyuan-2.0-instruct",
+        "name": "Tencent HY 2.0 Instruct",
+        "family": "hunyuan",
+        "attachment": false,
+        "reasoning": false,
+        "tool_call": true,
+        "temperature": true,
+        "release_date": "2026-03-08",
+        "last_updated": "2026-03-08",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cache_read": 0,
+          "cache_write": 0
+        },
+        "limit": {
+          "context": 131072,
+          "output": 16384
+        }
+      },
+      "hunyuan-2.0-thinking": {
+        "id": "hunyuan-2.0-thinking",
+        "name": "Tencent HY 2.0 Think",
+        "family": "hunyuan",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "interleaved": {
+          "field": "reasoning_content"
+        },
+        "temperature": true,
+        "release_date": "2026-03-08",
+        "last_updated": "2026-03-08",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cache_read": 0,
+          "cache_write": 0
+        },
+        "limit": {
+          "context": 131072,
+          "output": 16384
+        }
+      },
+      "minimax-m2.5": {
+        "id": "minimax-m2.5",
+        "name": "MiniMax-M2.5",
+        "family": "minimax",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "interleaved": {
+          "field": "reasoning_content"
+        },
+        "temperature": true,
+        "release_date": "2026-02-12",
+        "last_updated": "2026-02-12",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cache_read": 0,
+          "cache_write": 0
+        },
+        "limit": {
+          "context": 204800,
+          "output": 32768
         }
       }
     }

@@ -18,7 +18,7 @@ import { Repository } from 'typeorm';
 import { dbManager } from '@/main/db';
 import mastraManager from '@/main/mastra';
 import { agentManager } from '@/main/mastra/agents';
-import { ThreadState } from '@/types/chat';
+import { DEFAULT_RESOURCE_ID, ThreadState } from '@/types/chat';
 import { SpeechToText } from '@/main/tools/audio';
 import { toolsManager } from '@/main/tools';
 import { ToolType } from '@/types/tool';
@@ -31,7 +31,7 @@ import { LanguageModelUsage } from 'ai';
 import { models } from '@elevenlabs/elevenlabs-js/api';
 import { providersManager } from '@/main/providers';
 import { createHash } from 'crypto';
-
+import increment from 'add-filename-increment'
 
 export const enum Commands {
   PAIR = 'pair',
@@ -237,9 +237,66 @@ export class TelegramChannelRuntime {
       const chatId = String(ctx.chat.id);
       if (!this.isChatAllowed(chatId)) return;
       const document = ctx.message.document;
-      await ctx.reply(
-        `Received document: ${document.file_name || document.file_id} (${document.mime_type || 'unknown'})`,
-      );
+      const fileId = document.file_id
+      const file = await ctx.api.getFile(fileId)
+
+      const url = `https://api.telegram.org/file/bot${ctx.api.token}/${file.file_path}`;
+      if (file.file_path) {
+        const config = await this.getChannelConfig();
+        const projectId = config.currentProjectId;
+        const threadId = config.currentThreadId;
+        let project: Project | undefined;
+        let thread: ThreadState | undefined;
+        if (projectId) {
+          project = await projectManager.getProject(projectId);
+        }
+
+        thread = await this.resolveCurrentThread();
+        const workspacePath = project?.path || thread?.metadata?.workspace as string || '';
+        let filePath = path.join(workspacePath, ...(path.dirname(file.file_path).replaceAll('\\', '/')).split('/'), document.file_name);
+        try {
+          if (fs.existsSync(filePath) && fs.statSync(filePath).isDirectory()) {
+            ctx.reply("Error: File path is a directory: " + filePath);
+            return;
+          }
+          if (fs.existsSync(filePath) && fs.statSync(filePath).isFile() && fs.statSync(filePath).size > 0) {
+            filePath = increment(filePath, { platform: 'win32', fs: true, });
+          }
+
+          await mastraManager.saveMessages(threadId, [{
+            id: nanoid(),
+            role: 'user',
+            threadId: threadId,
+            resourceId: thread?.resourceId || DEFAULT_RESOURCE_ID,
+            type: 'v2',
+            createdAt: new Date(),
+            content: {
+              format: 2,
+              parts: [{
+                type: 'text',
+                text: `<system-reminder>The user sent you a file via Telegram. The file is saved to '${filePath}'</system-reminder>`,
+              }],
+            },
+          }])
+          const response = await fetch(url);
+          const buffer = await response.arrayBuffer();
+          const data = Buffer.from(buffer);
+          if (!fs.existsSync(path.dirname(filePath))) {
+            fs.mkdirSync(path.dirname(filePath), { recursive: true });
+          }
+          await fs.promises.writeFile(filePath, data);
+          await ctx.reply(
+            `Received document: saved to '${filePath}'`,
+          );
+        } catch (error) {
+          console.error("Error downloading voice file:", error);
+          ctx.reply("Error downloading file: " + error.message);
+        } finally {
+
+        }
+      } else {
+        await ctx.reply("Error downloading document file: " + file.file_path);
+      }
       this.callbacks.onActivity(`Received document from chat ${chatId}`);
     });
 
@@ -261,8 +318,9 @@ export class TelegramChannelRuntime {
     });
 
     bot.on("message:voice", async (ctx) => {
-      const voice = ctx.message.voice
+      const voice = ctx.message.voice;
       const chatId = String(ctx.chat.id);
+      if (!this.isChatAllowed(chatId)) return;
       console.log("file_id:", voice.file_id)
       console.log("duration:", voice.duration)
       console.log("mime_type:", voice.mime_type)
@@ -317,20 +375,73 @@ export class TelegramChannelRuntime {
     });
 
     bot.on("message:audio", async (ctx) => {
-      const voice = ctx.message.voice
+      const voice = ctx.message.voice;
+      const chatId = String(ctx.chat.id);
+      if (!this.isChatAllowed(chatId)) return;
 
       console.log("file_id:", voice.file_id)
       console.log("duration:", voice.duration)
       console.log("mime_type:", voice.mime_type)
-      console.log("file_size:", voice.file_size)
+      console.log("file_size:", voice.file_size);
+      const fileId = voice.file_id
+      const file = await ctx.api.getFile(fileId)
 
-      const file = await ctx.api.getFile(voice.file_id)
-      console.log("file_path:", file.file_path)
+      if (file.file_path) {
+        const config = await this.getChannelConfig();
+        const projectId = config.currentProjectId;
+        const threadId = config.currentThreadId;
+        let project: Project | undefined;
+        let thread: ThreadState | undefined;
+        if (projectId) {
+          project = await projectManager.getProject(projectId);
+        }
 
-      const url = `https://api.telegram.org/file/bot${ctx.api.token}/${file.file_path}`;
-      console.log("download url:", url)
+        thread = await this.resolveCurrentThread();
+        const workspacePath = project?.path || thread?.metadata?.workspace as string || '';
+        let filePath = path.join(workspacePath, ...(path.dirname(file.file_path).replaceAll('\\', '/')).split('/'), voice.file_id);
+        try {
+          if (fs.existsSync(filePath) && fs.statSync(filePath).isDirectory()) {
+            ctx.reply("Error: File path is a directory: " + filePath);
+            return;
+          }
+          if (fs.existsSync(filePath) && fs.statSync(filePath).isFile() && fs.statSync(filePath).size > 0) {
+            filePath = increment(filePath, { platform: 'win32', fs: true, });
+          }
 
-      await ctx.reply("收到语音了")
+          await mastraManager.saveMessages(threadId, [{
+            id: nanoid(),
+            role: 'user',
+            threadId: threadId,
+            resourceId: thread?.resourceId || DEFAULT_RESOURCE_ID,
+            type: 'v2',
+            createdAt: new Date(),
+            content: {
+              format: 2,
+              parts: [{
+                type: 'text',
+                text: `<system-reminder>The user sent you a file via Telegram. The file is saved to '${filePath}'</system-reminder>`,
+              }],
+            },
+          }])
+          const response = await fetch(url);
+          const buffer = await response.arrayBuffer();
+          const data = Buffer.from(buffer);
+          if (!fs.existsSync(path.dirname(filePath))) {
+            fs.mkdirSync(path.dirname(filePath), { recursive: true });
+          }
+          await fs.promises.writeFile(filePath, data);
+          await ctx.reply(
+            `Received document: saved to '${filePath}'`,
+          );
+        } catch (error) {
+          console.error("Error downloading voice file:", error);
+          ctx.reply("Error downloading file: " + error.message);
+        } finally {
+
+        }
+      } else {
+        await ctx.reply("Error downloading document file: " + file.file_path);
+      }
     });
 
 
@@ -350,11 +461,13 @@ export class TelegramChannelRuntime {
   private async resolveCurrentThread(): Promise<ThreadState> {
     const appInfo = await appManager.getInfo();
     const config = await this.getChannelConfig();
+    const projectId = config.currentProjectId;
     if (!config.currentThreadId) {
       const agentId = appInfo.defaultAgent;
       const agent = await agentManager.getAgent(agentId);
       const threadEntity = await mastraManager.createThread({
         agentId: agent.id,
+        resourceId: projectId ? `project:${projectId}` : undefined,
         model: agent.defaultModelId || appInfo.defaultModel?.model as string,
         subAgents: agent.subAgents,
         tools: agent.tools,
@@ -1037,6 +1150,7 @@ export class TelegramChannelRuntime {
 
     output.push(`Thread Id: ${currentThreadId}`);
     output.push(`Thread Title: ${thread.title}`);
+    output.push(`Workspace: ${project?.path || thread.metadata?.workspace as string || 'N/A'}`);
     output.push(`Status: ${thread.status}`);
     output.push(`Model: ${provider ? provider.name : ''}/${modelId?.split('/')?.slice(1).join('/') || 'N/A'}`);
     output.push(`Usage: ${totalTokens || 'N/A'} ${maxTokens ? `(${usageRate.toFixed(2)}%)` : ''}`);

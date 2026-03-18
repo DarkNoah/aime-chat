@@ -1,7 +1,7 @@
 {
   "name": "aime-chat",
   "description": "A foundation for scalable desktop apps",
-  "version": "0.3.22",
+  "version": "0.3.23",
   "keywords": [
     "electron",
     "boilerplate",
@@ -207,6 +207,7 @@
     "@vscode/ripgrep": "^1.17.0",
     "@xyflow/react": "^12.9.2",
     "a2a-ai-provider": "^0.4.0-alpha.2",
+    "add-filename-increment": "^1.0.0",
     "ai": "^5.0.93",
     "autoprefixer": "^10.4.21",
     "baseline-browser-mapping": "^2.10.8",

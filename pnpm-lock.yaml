@@ -327,6 +327,9 @@ importers:
       a2a-ai-provider:
         specifier: ^0.4.0-alpha.2
         version: 0.4.0-alpha.2(ai@5.0.105(zod@3.25.76))(express@5.1.0)
+      add-filename-increment:
+        specifier: ^1.0.0
+        version: 1.0.0
       ai:
         specifier: ^5.0.93
         version: 5.0.105(zod@3.25.76)
@@ -5949,6 +5952,10 @@ packages:
     resolution: {integrity: sha512-NZyJarBfL7nWwIq+FDL6Zp/yHEhePMNnnJ0y3qfieCrmNvYct8uvtiV41UvlSe6apAfk0fY1FbWx+NwfmpvtTg==}
     engines: {node: '>=0.4.0'}
     hasBin: true
+
+  add-filename-increment@1.0.0:
+    resolution: {integrity: sha512-pFV8VZX8jxuVMIycKvGZkWF/ihnUubu9lbQVnOnZWp7noVxbKQTNj7zG2y9fXdPcuZ6lAN3Drr517HaivGCjdQ==}
+    engines: {node: '>=8'}
 
   address@2.0.3:
     resolution: {integrity: sha512-XNAb/a6TCqou+TufU8/u11HCu9x1gYvOoxLwtlXgIqmkrYQADVv6ljyW2zwiPhHz9R1gItAWpuDrdJMmrOBFEA==}
@@ -12360,6 +12367,10 @@ packages:
 
   strip-bom@4.0.0:
     resolution: {integrity: sha512-3xurFv5tEgii33Zi8Jtp55wEIILR9eh34FAW00PZf+JnSsTmV/ioewSgQl97JHvgjoRGwPShsWm+IdrxB35d0w==}
+    engines: {node: '>=8'}
+
+  strip-filename-increment@2.0.1:
+    resolution: {integrity: sha512-+v5xsiTTsdYqkPj7qz1zlngIsjZedhHDi3xp/9bMurV8kXe9DAr732gNVqtt4X8sI3hOqS3nlFfps5gyVcux6w==}
     engines: {node: '>=8'}
 
   strip-final-newline@2.0.0:
@@ -19974,6 +19985,10 @@ snapshots:
       acorn: 8.15.0
 
   acorn@8.15.0: {}
+
+  add-filename-increment@1.0.0:
+    dependencies:
+      strip-filename-increment: 2.0.1
 
   address@2.0.3: {}
 
@@ -27808,6 +27823,8 @@ snapshots:
   strip-bom@3.0.0: {}
 
   strip-bom@4.0.0: {}
+
+  strip-filename-increment@2.0.1: {}
 
   strip-final-newline@2.0.0: {}
 

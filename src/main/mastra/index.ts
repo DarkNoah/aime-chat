@@ -415,7 +415,10 @@ class MastraManager extends BaseManager {
     const tools = [...new Set(data?.metadata?.tools as string[] || [])];
     const subAgents = [...new Set(data?.metadata?.subAgents as string[] || [])];
 
-    const thread = await memoryStore.updateThread({
+
+    let thread = await memoryStore.getThreadById({ threadId: id });
+    const oldTitle = thread.title || DEFAULT_TITLE;
+    thread = await memoryStore.updateThread({
       id: id,
       title: data?.title || DEFAULT_TITLE,
       metadata: { ...(data?.metadata || {}), tools, subAgents },
@@ -434,18 +437,21 @@ class MastraManager extends BaseManager {
         project.defaultModelId = data.metadata?.model as string || agent?.defaultModelId || appInfo.defaultModel?.model as string;
         project.defaultTools = [...new Set(data.metadata?.tools as string[] || [])];
         project.defaultSubAgents = [...new Set(data.metadata?.subAgents as string[] || [])];
-        await projectManager.saveProject(project);
+        await projectManager.projectsRepository.save(project);
       }
+    } else {
+
     }
 
-
-    appManager.sendEvent(ChatEvent.ChatChanged, {
-      data: {
-        type: ChatChangedType.TitleUpdated,
-        chatId: id,
-        title: data.title,
-      },
-    });
+    if (oldTitle !== data.title) {
+      appManager.sendEvent(ChatEvent.ChatChanged, {
+        data: {
+          type: ChatChangedType.TitleUpdated,
+          chatId: id,
+          title: data.title,
+        },
+      });
+    }
     return thread;
   }
 
@@ -1105,36 +1111,45 @@ class MastraManager extends BaseManager {
       appManager.sendEvent(ChatEvent.ChatChanged, {
         data: { type: ChatChangedType.Finish, chatId, resourceId },
       });
+      this.threadChats = this.threadChats.filter((chat) => chat.id !== chatId);
+
       currentThread = await memoryStore.getThreadById({ threadId: chatId });
       if (currentThread.title == DEFAULT_TITLE) {
-        const title = await agent.genTitle(
-          inputMessage,
-          undefined,
-          undefined,
-          fastLanguageModel,
-        );
-        currentThread = await memoryStore.updateThread({
-          id: chatId,
-          title: title.replaceAll('\n', '').trim(),
-          metadata: currentThread.metadata,
-        });
+        try {
+          const title = await agent.genTitle(
+            inputMessage,
+            undefined,
+            undefined,
+            fastLanguageModel,
+          );
+          currentThread = await memoryStore.updateThread({
+            id: chatId,
+            title: title.replaceAll('\n', '').trim(),
+            metadata: currentThread.metadata,
+          });
 
-        await callback?.onThreadChanged?.({
-          id: chatId,
-          title: title.replaceAll('\n', '').trim(),
-          status: 'idle',
-        });
+          await callback?.onThreadChanged?.({
+            id: chatId,
+            title: title.replaceAll('\n', '').trim(),
+            status: 'idle',
+          });
 
-        appManager.sendEvent(ChatEvent.ChatChanged, {
-          data: { type: ChatChangedType.TitleUpdated, chatId, title },
-        });
+          appManager.sendEvent(ChatEvent.ChatChanged, {
+            data: { type: ChatChangedType.TitleUpdated, chatId, title },
+          });
 
-        appManager.sendEvent(`chat:event:${chatId}`, {
-          type: ChatEvent.ChatChanged,
-          data: { type: ChatChangedType.TitleUpdated, chatId, title },
-        });
+          appManager.sendEvent(`chat:event:${chatId}`, {
+            type: ChatEvent.ChatChanged,
+            data: { type: ChatChangedType.TitleUpdated, chatId, title },
+          });
+        } catch (err) {
+
+
+          console.error(err)
+        }
+
       }
-      this.threadChats = this.threadChats.filter((chat) => chat.id !== chatId);
+
     }
 
     // const response = createUIMessageStreamResponse({ stream: stream_2 });
