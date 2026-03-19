@@ -105,6 +105,7 @@ import { MemoryWrite } from '../tools/memory/memory';
 import { formatCodeWithLineNumbers } from '../utils/format';
 import { getSkills } from '../utils/skills';
 import { Agent } from '@/types/agent';
+import { WorkflowRunStatus } from '@mastra/core/workflows';
 
 
 class MastraManager extends BaseManager {
@@ -504,7 +505,9 @@ class MastraManager extends BaseManager {
   public async chat(event: IpcMainEvent, data: ChatInput, callback?: ChatCallbackEvent): Promise<{
     success: boolean;
     aborted?: boolean;
+    status?: WorkflowRunStatus;
     error?: string | undefined;
+    runId?: string;
     messages?: MastraDBMessage[];
   }> {
     let {
@@ -1090,8 +1093,10 @@ class MastraManager extends BaseManager {
       }
       return {
         success: true,
+        status: stream.status,
         aborted: streamOptions.abortSignal.aborted,
-        messages: stream.messageList.get.input.db()
+        runId: stream.runId,
+        messages: stream.messageList.get.all.db()
       }
     } catch (err) {
       console.error(err);
@@ -1102,6 +1107,7 @@ class MastraManager extends BaseManager {
       return {
         success: false,
         error: err?.message || 'Unknown error',
+        status: stream?.status,
       }
     } finally {
       appManager.sendEvent(`chat:event:${chatId}`, {

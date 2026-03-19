@@ -112,7 +112,7 @@ export const ChatSession = React.forwardRef<ChatSessionRef, ChatSessionProps>(
     useEffect(() => {
       const thread = useThreadStore.getState().threadStates[threadId];
       if (thread) {
-        setMessages(thread.messages);
+        setMessages(thread.messages || []);
       }
     }, [setMessages, threadId]);
 
@@ -237,6 +237,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       const { threadKeepList, threadStates: threadStatesState } =
         useThreadStore.getState();
       const threadState = threadStatesState[threadId];
+      console.log('UnregisterThread', threadId, threadKeepList, threadState);
       if (threadKeepList.includes(threadId) && !skipKeep) {
         return;
       }
@@ -303,7 +304,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const setMessages = useCallback((threadId: string, messages: UIMessage[]) => {
     const chatSessionRef = chatSessionRefs.current.get(threadId);
     if (chatSessionRef) {
-      chatSessionRef.setMessages(messages);
+      chatSessionRef.setMessages(messages || []);
     } else {
       console.log(chatSessionRefs.current);
       toast.error(`setMessages: 线程 ${threadId} 未初始化`);
@@ -430,7 +431,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       console.log('handleChatMessageChangedEvent', event.data);
       const { chatId, resourceId } = event.data;
       const _thread = await window.electron.mastra.getThread(chatId);
-      setMessages(chatId, _thread.messages);
+      setMessages(chatId, _thread.messages || []);
     };
     window.electron.ipcRenderer.on(
       ChatEvent.ChatChanged,
