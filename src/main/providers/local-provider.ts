@@ -280,7 +280,7 @@ export class LocalClipModel {
       modelPath
     );
     const { model, processor, tokenizer, textModel } = cachedModel;
-    if (this.modelId == 'jina-clip-v2') {
+    if (this.modelId == 'jina-clip-v2' || this.modelId == 'chinese-clip-vit-large-patch14-336px') {
       const rawImages = [];
       if (images.length > 0) {
         for (const image of images) {
@@ -308,10 +308,15 @@ export class LocalClipModel {
       }
 
     }
-    const text_inputs = tokenizer(texts, { padding: true, truncation: true });
 
-    const output = await textModel(text_inputs);
-    const text_embeddings = output.text_embeds.tolist();
+    let text_embeddings;
+    if (texts && texts.length > 0) {
+      const text_inputs = tokenizer(texts, { padding: true, truncation: true });
+
+      const output = await textModel(text_inputs);
+      text_embeddings = output.text_embeds?.tolist();
+    }
+
 
 
     const rawImages = [];

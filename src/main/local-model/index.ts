@@ -182,7 +182,7 @@ class LocalModelManager extends BaseManager {
     // 开始加载模型
     this.modelLoadPromises[modelName] = (async () => {
       let entry: CachedModel;
-      if (task == 'background-removal' || task == 'image-feature-extraction' || modelName == 'jina-clip-v2') {
+      if (task == 'background-removal' || task == 'image-feature-extraction' || modelName == 'jina-clip-v2' || modelName == 'chinese-clip-vit-large-patch14-336px') {
         const [model, processor] = await Promise.all([
           AutoModel.from_pretrained(modelPath, {
             local_files_only: true,

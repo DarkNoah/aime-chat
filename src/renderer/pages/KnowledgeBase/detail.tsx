@@ -49,7 +49,7 @@ import {
   IconCheck,
   IconClock,
   IconFile,
-  IconImageInPicture,
+  IconPhoto,
   IconNetwork,
   IconSearch,
   IconTextCaption,
@@ -94,6 +94,7 @@ import {
   SelectValue,
 } from '@/renderer/components/ui/select';
 import toast from 'react-hot-toast';
+import { PhotoProvider, PhotoView } from 'react-photo-view';
 
 const PAGE_SIZE = 10;
 
@@ -340,6 +341,19 @@ function KnowledgeBaseDetail() {
   };
 
   const formatSearchResult = (result: Record<string, any>) => {
+    if (result.metadata?.embeddingType === 'image') {
+      return (
+        <PhotoView>
+          <img
+            alt={result.name || 'attachment'}
+            className="size-full object-cover rounded-2xl"
+            height={100}
+            src={`data:${result.metadata.mimeType};base64,${result.metadata.base64}`}
+            width={100}
+          />
+        </PhotoView>
+      );
+    }
     return result.chunk;
   };
 
@@ -441,11 +455,8 @@ function KnowledgeBaseDetail() {
     if (!id) {
       return;
     }
-    setSearchLoading(true);
-    setSearchError('');
-    setSearchDialogOpen(true);
-    setCurrentSearchQuery('');
-    try{
+
+    try {
       const result = await window.electron.app.showOpenDialog({
         title: t('knowledge-base.select_image'),
         buttonLabel: t('common.select'),
@@ -468,6 +479,10 @@ function KnowledgeBaseDetail() {
       if (!result.filePaths || result.filePaths.length === 0) {
         return;
       }
+      setSearchLoading(true);
+      setSearchError('');
+      setSearchDialogOpen(true);
+      setCurrentSearchQuery('');
       const filePath = result.filePaths[0];
       const data = await window.electron.knowledgeBase.searchKnowledgeBase(
         id,
@@ -488,8 +503,7 @@ function KnowledgeBaseDetail() {
     } finally {
       setSearchLoading(false);
     }
-
-  }
+  };
 
   return (
     <div className="p-4 flex flex-col gap-2 flex-1 min-h-0">
@@ -805,11 +819,11 @@ function KnowledgeBaseDetail() {
             />
             <InputGroupAddon align="inline-end">
               <InputGroupButton
-                  size="icon-xs"
-                  onClick={() => handleImageSearch()}
-                  disabled={searchLoading}
-                >
-                  <IconImageInPicture />
+                size="icon-xs"
+                onClick={() => handleImageSearch()}
+                disabled={searchLoading}
+              >
+                <IconPhoto />
               </InputGroupButton>
               <InputGroupButton
                 size="icon-xs"
@@ -823,77 +837,90 @@ function KnowledgeBaseDetail() {
         </div>
       </div>
       <div className="flex flex-col gap-2 mt-2 flex-1 overflow-y-auto">
-        {itemsLoading ? (
-          <div className="text-sm text-muted-foreground">
-            {t('common.loading')}
-          </div>
-        ) : items.length === 0 ? (
-          <div className="text-sm text-muted-foreground">
-            {t('common.no_data')}
-          </div>
-        ) : (
-          items.map((item) => (
-            <Item key={item.id} variant="outline" className="">
-              {/* <ItemHeader className="w-full">
+        <PhotoProvider>
+          {itemsLoading ? (
+            <div className="text-sm text-muted-foreground">
+              {t('common.loading')}
+            </div>
+          ) : items.length === 0 ? (
+            <div className="text-sm text-muted-foreground">
+              {t('common.no_data')}
+            </div>
+          ) : (
+            items.map((item) => (
+              <Item key={item.id} variant="outline" className="">
+                {/* <ItemHeader className="w-full">
 
                 <div className="flex items-center gap-2">
                   <Badge variant="outline">{getSourceTypeLabel(item.sourceType)}</Badge>
                   <Badge variant={getStateVariant(item.state)}>{item.state || '-'}</Badge>
                 </div>
               </ItemHeader> */}
-              <ItemContent className="w-full gap-2">
-                <ItemTitle className="max-w-[60%] truncate flex items-center gap-2">
-                  <div>
-                    {item.state === KnowledgeBaseItemState.Completed && (
-                      <IconCheck className="size-4 text-green-500" />
+                <ItemContent className="w-full gap-2">
+                  <ItemTitle className="max-w-[60%] truncate flex items-center gap-2">
+                    <div>
+                      {item.state === KnowledgeBaseItemState.Completed && (
+                        <IconCheck className="size-4 text-green-500" />
+                      )}
+                      {item.state === KnowledgeBaseItemState.Fail && (
+                        <IconAlertCircle className="size-4 text-red-500" />
+                      )}
+                      {item.state === KnowledgeBaseItemState.Pending && (
+                        <IconClock className="size-4 text-yellow-500" />
+                      )}
+                      {item.state === KnowledgeBaseItemState.Processing && (
+                        <IconClock className="size-4 text-yellow-500" />
+                      )}
+                    </div>
+                    <Badge variant="outline">
+                      {getSourceTypeLabel(item.sourceType)}
+                    </Badge>
+                    <Button
+                      variant="link"
+                      className="truncate cursor-pointer text-left"
+                      onClick={() => {
+                        console.log(item);
+                        setSelectedItem(item);
+                      }}
+                    >
+                      {item.name || item.source || '-'}
+                    </Button>
+                  </ItemTitle>
+                  <ItemDescription className="line-clamp-2 break-all text-xs">
+                    {item.metadata?.embeddingType === 'image' && (
+                      <PhotoView
+                        src={`data:${item.metadata?.mimeType};base64,${item.metadata?.base64}`}
+                      >
+                        <img
+                          src={`data:${item.metadata?.mimeType};base64,${item.metadata?.base64}`}
+                          alt={item.name}
+                          className="size-20 object-cover rounded-2xl mb-2"
+                        />
+                      </PhotoView>
                     )}
-                    {item.state === KnowledgeBaseItemState.Fail && (
-                      <IconAlertCircle className="size-4 text-red-500" />
-                    )}
-                    {item.state === KnowledgeBaseItemState.Pending && (
-                      <IconClock className="size-4 text-yellow-500" />
-                    )}
-                    {item.state === KnowledgeBaseItemState.Processing && (
-                      <IconClock className="size-4 text-yellow-500" />
-                    )}
+                    {item.content || item.source || '-'}
+                  </ItemDescription>
+                  <div className="text-xs text-muted-foreground flex items-center justify-between">
+                    <span>{new Date(item.updatedAt).toLocaleString()}</span>
+                    <span>Chunk: {item.chunkCount || 0}</span>
                   </div>
-                  <Badge variant="outline">
-                    {getSourceTypeLabel(item.sourceType)}
-                  </Badge>
+                </ItemContent>
+                <ItemActions>
                   <Button
-                    variant="link"
-                    className="truncate cursor-pointer text-left"
+                    type="button"
+                    size="sm"
+                    variant="destructive"
                     onClick={() => {
-                      console.log(item);
-                      setSelectedItem(item);
+                      setPendingDeleteItem(item);
                     }}
                   >
-                    {item.name || item.source || '-'}
+                    <IconTrash></IconTrash>
                   </Button>
-                </ItemTitle>
-                <ItemDescription className="line-clamp-2 break-all text-xs">
-                  {item.content || item.source || '-'}
-                </ItemDescription>
-                <div className="text-xs text-muted-foreground flex items-center justify-between">
-                  <span>{new Date(item.updatedAt).toLocaleString()}</span>
-                  <span>Chunk: {item.chunkCount || 0}</span>
-                </div>
-              </ItemContent>
-              <ItemActions>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="destructive"
-                  onClick={() => {
-                    setPendingDeleteItem(item);
-                  }}
-                >
-                  <IconTrash></IconTrash>
-                </Button>
-              </ItemActions>
-            </Item>
-          ))
-        )}
+                </ItemActions>
+              </Item>
+            ))
+          )}
+        </PhotoProvider>
       </div>
       <div className="mt-2 flex flex-row items-center justify-between gap-2 w-full">
         <span className="text-xs text-muted-foreground text-center">
@@ -1007,56 +1034,57 @@ function KnowledgeBaseDetail() {
                 {t('common.results', 'Results')} {searchResults.length}
               </div>
             )}
-
-            {searchLoading ? (
-              <div className="text-sm text-muted-foreground">
-                {t('common.loading')}
-              </div>
-            ) : searchError ? (
-              <div className="text-sm text-destructive break-all">
-                {searchError}
-              </div>
-            ) : searchResults.length === 0 ? (
-              <div className="text-sm text-muted-foreground">
-                {t('common.no_data')}
-              </div>
-            ) : (
-              searchResults.map((result, index) => (
-                <Item
-                  key={`${result.id || index}`}
-                  variant="outline"
-                  className=""
-                >
-                  <ItemContent className="w-full gap-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <ItemTitle className="text-sm break-all">
-                        {String(
-                          result.name || result.itemId || result.id || '-',
-                        )}
-                      </ItemTitle>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="secondary">
-                          embedding: {formatSearchScore(result.score)}
-                        </Badge>
-                        {result.rerankScore && (
+            <PhotoProvider>
+              {searchLoading ? (
+                <div className="text-sm text-muted-foreground">
+                  {t('common.loading')}
+                </div>
+              ) : searchError ? (
+                <div className="text-sm text-destructive break-all">
+                  {searchError}
+                </div>
+              ) : searchResults.length === 0 ? (
+                <div className="text-sm text-muted-foreground">
+                  {t('common.no_data')}
+                </div>
+              ) : (
+                searchResults.map((result, index) => (
+                  <Item
+                    key={`${result.id || index}`}
+                    variant="outline"
+                    className=""
+                  >
+                    <ItemContent className="w-full gap-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <ItemTitle className="text-sm break-all">
+                          {String(
+                            result.name || result.itemId || result.id || '-',
+                          )}
+                        </ItemTitle>
+                        <div className="flex items-center gap-2">
                           <Badge variant="secondary">
-                            rerank: {formatSearchScore(result.rerankScore)}
+                            embedding: {formatSearchScore(result.score)}
                           </Badge>
-                        )}
-                        {result.hybridScore && (
-                          <Badge variant="secondary">
-                            score: {formatSearchScore(result.hybridScore)}
-                          </Badge>
-                        )}
+                          {result.rerankScore && (
+                            <Badge variant="secondary">
+                              rerank: {formatSearchScore(result.rerankScore)}
+                            </Badge>
+                          )}
+                          {result.hybridScore && (
+                            <Badge variant="secondary">
+                              score: {formatSearchScore(result.hybridScore)}
+                            </Badge>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                    <pre className="bg-secondary rounded-md p-2 text-xs whitespace-pre-wrap break-all">
-                      {formatSearchResult(result)}
-                    </pre>
-                  </ItemContent>
-                </Item>
-              ))
-            )}
+                      <pre className="bg-secondary rounded-md p-2 text-xs whitespace-pre-wrap break-all">
+                        {formatSearchResult(result)}
+                      </pre>
+                    </ItemContent>
+                  </Item>
+                ))
+              )}
+            </PhotoProvider>
           </div>
         </DialogContent>
       </Dialog>
@@ -1108,6 +1136,13 @@ function KnowledgeBaseDetail() {
             <div className="text-sm font-medium break-all">
               {selectedItem?.name || selectedItem?.source || '-'}
             </div>
+            {selectedItem?.metadata?.embeddingType === 'image' && (
+              <img
+                src={`data:${selectedItem.metadata?.mimeType};base64,${selectedItem.metadata?.base64}`}
+                alt={selectedItem.name}
+                className="size-20 object-cover rounded-2xl mb-2"
+              />
+            )}
             <Tabs defaultValue="markdown">
               <TabsList>
                 <TabsTrigger value="markdown">Markdown</TabsTrigger>

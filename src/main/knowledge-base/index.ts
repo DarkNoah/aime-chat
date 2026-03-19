@@ -186,6 +186,36 @@ export class KnowledgeBaseManager extends BaseManager {
       take: size,
       order: { [sort]: order },
     });
+
+    const kb = await this.knowledgeBaseRepository.findOneBy({ id });
+    // if (kb && items.length > 0) {
+    //   const itemIds = items.map(item => item.id);
+    //   const placeholders = itemIds.map(() => '?').join(',');
+    //   const vectorResults = await this.libSQLClient.execute({
+    //     sql: `SELECT item_id, chunk, metadata, type FROM [kb_${id}_${kb.vectorLength}] WHERE item_id IN (${placeholders}) AND type = 'image'`,
+    //     args: itemIds,
+    //   });
+
+    //   const imageChunkMap = new Map<string, { chunk: string; metadata: any }>();
+    //   for (const row of vectorResults.rows) {
+    //     const itemId = row.item_id as string;
+    //     if (!imageChunkMap.has(itemId)) {
+    //       imageChunkMap.set(itemId, {
+    //         chunk: row.chunk as string,
+    //         metadata: typeof row.metadata === 'string' ? JSON.parse(row.metadata) : row.metadata,
+    //       });
+    //     }
+    //   }
+
+    //   for (const item of items) {
+    //     const imageData = imageChunkMap.get(item.id);
+    //     if (imageData) {
+    //       (item as any).chunk = imageData.chunk;
+    //       (item as any).metadata = { ...(item.metadata ?? {}), ...imageData.metadata };
+    //     }
+    //   }
+    // }
+
     return {
       items: items,
       total: total,
@@ -250,7 +280,7 @@ export class KnowledgeBaseManager extends BaseManager {
           chunk,
           (1-vector_distance_cos(embedding, vector32(?))) as score,
           metadata,
-          type,
+          "type",
           vector_extract(embedding) as embedding
         FROM [kb_${kb.id}_${kb.vectorLength}]
         WHERE is_enable = 1
@@ -289,8 +319,9 @@ export class KnowledgeBaseManager extends BaseManager {
         itemId: item.item_id as string,
         score: item.score as number,
         hybridScore: item.hybrid_score as number ?? item.score as number,
-        metadata: item.metadata,
+        metadata: { ...(JSON.parse(item?.metadata as string ?? '{}')), ...(kbitem?.metadata ?? {}) },
         chunk: item.chunk as string,
+        type: item.type as 'text' | 'image',
         name: kbitem.name,
         source: kbitem.source,
         sourceType: kbitem.sourceType as KnowledgeBaseSourceType,
@@ -298,7 +329,7 @@ export class KnowledgeBaseManager extends BaseManager {
       }
     });
 
-    if (kb.reranker) {
+    if (kb.reranker && query) {
       const model = await providersManager.getRerankModel(kb.reranker);
       const rereankResults = await model.doRerank({
         query: query,
@@ -625,7 +656,7 @@ export class KnowledgeBaseManager extends BaseManager {
             content = await fs.promises.readFile(file, 'utf-8');
           }
           item.content = content;
-
+          const buffer = await fs.promises.readFile(file);
           console.log(file, content)
           item = await this.knowledgeBaseItemRepository.save(item);
           await appManager.sendEvent(KnowledgeBaseEvent.KnowledgeBaseItemsUpdated, {
@@ -671,6 +702,14 @@ export class KnowledgeBaseManager extends BaseManager {
           }
 
           if (hasImage) {
+            // item.content = buffer.toString('base64');
+            item.metadata = {
+              ...(item.metadata ?? {}),
+              mimeType: mime.lookup(file),
+              embeddingType: 'image',
+              base64: buffer.toString('base64'),
+            };
+            item = await this.knowledgeBaseItemRepository.save(item);
             insertStatements.push({
               sql: `INSERT INTO [kb_${kbId}_${kb.vectorLength}] (id, item_id, chunk, is_enable, type, embedding, metadata)
               VALUES (?, ?, ?, ?, ?, vector32(?), ?)`,
@@ -681,7 +720,9 @@ export class KnowledgeBaseManager extends BaseManager {
                 true,
                 'image',
                 JSON.stringify(embeddings?.image_embeddings?.[0]),
-                JSON.stringify({}),
+                JSON.stringify({
+                  mimeType: mime.lookup(file),
+                }),
               ],
             });
           }
