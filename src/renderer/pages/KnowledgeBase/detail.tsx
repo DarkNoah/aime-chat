@@ -49,6 +49,7 @@ import {
   IconCheck,
   IconClock,
   IconFile,
+  IconImageInPicture,
   IconNetwork,
   IconSearch,
   IconTextCaption,
@@ -436,6 +437,60 @@ function KnowledgeBaseDetail() {
     return pages;
   };
 
+  const handleImageSearch = async () => {
+    if (!id) {
+      return;
+    }
+    setSearchLoading(true);
+    setSearchError('');
+    setSearchDialogOpen(true);
+    setCurrentSearchQuery('');
+    try{
+      const result = await window.electron.app.showOpenDialog({
+        title: t('knowledge-base.select_image'),
+        buttonLabel: t('common.select'),
+        filters: [
+          {
+            name: 'Images',
+            extensions: [
+              'jpg',
+              'jpeg',
+              'png',
+              'gif',
+              'bmp',
+              'tiff',
+              'ico',
+              'webp',
+            ],
+          },
+        ],
+      });
+      if (!result.filePaths || result.filePaths.length === 0) {
+        return;
+      }
+      const filePath = result.filePaths[0];
+      const data = await window.electron.knowledgeBase.searchKnowledgeBase(
+        id,
+        filePath,
+        'image',
+      );
+      const results = data.results.sort(
+        (a, b) => b.hybridScore - a.hybridScore,
+      );
+      console.log(data);
+      setCurrentSearchQuery(data.query);
+      setSearchResults(results);
+    } catch (error) {
+      setSearchResults([]);
+      setSearchError(
+        error instanceof Error ? error.message : t('common.error'),
+      );
+    } finally {
+      setSearchLoading(false);
+    }
+
+  }
+
   return (
     <div className="p-4 flex flex-col gap-2 flex-1 min-h-0">
       <div className="flex flex-row gap-2">
@@ -749,6 +804,13 @@ function KnowledgeBaseDetail() {
               }}
             />
             <InputGroupAddon align="inline-end">
+              <InputGroupButton
+                  size="icon-xs"
+                  onClick={() => handleImageSearch()}
+                  disabled={searchLoading}
+                >
+                  <IconImageInPicture />
+              </InputGroupButton>
               <InputGroupButton
                 size="icon-xs"
                 onClick={() => searchKnowledgeBase(search)}

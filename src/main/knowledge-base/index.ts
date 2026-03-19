@@ -195,7 +195,7 @@ export class KnowledgeBaseManager extends BaseManager {
     };
   }
   @channel(KnowledgeBaseChannel.SearchKnowledgeBase)
-  public async searchKnowledgeBase(kb_id_or_name: string, query: string, top_k: number = 10): Promise<SearchKnowledgeBaseResult> {
+  public async searchKnowledgeBase(kb_id_or_name: string, query: string, fileTpye: 'text' | 'image' = 'text', top_k: number = 10): Promise<SearchKnowledgeBaseResult> {
     const kb = await this.knowledgeBaseRepository.findOne({ where: [{ id: kb_id_or_name }, { name: kb_id_or_name }] });
     if (!kb) {
       throw new Error('Knowledge base not found');
@@ -222,11 +222,25 @@ export class KnowledgeBaseManager extends BaseManager {
     //   });
     //   embeddings = result.embeddings;
     // }
-    const embeddings = await this.calcEmbeddings(kb.embedding, [query]);
+
+    let embeddings: {
+      text_embeddings: number[][];
+      image_embeddings: number[][];
+    }
+    if (fileTpye == 'text') {
+      if (kb.embedding.split('/')[kb.embedding.split('/').length - 1] == 'jina-clip-v2') {
+        const QUERY_PREFIX = 'Represent the query for retrieving evidence documents: ';
+        query = QUERY_PREFIX + query;
+      }
+      embeddings = await this.calcEmbeddings(kb.embedding, [query]);
+    } else if (fileTpye == 'image') {
+      embeddings = await this.calcEmbeddings(kb.embedding, [], [query]);
+    }
 
 
 
-    const vectorStr = `[${embeddings?.text_embeddings?.[0].join(",")}]`;
+
+    const vectorStr = embeddings?.text_embeddings?.[0] || embeddings?.image_embeddings?.[0];
     const results = await this.libSQLClient.execute({
       sql: `
       WITH vector_scores AS (
@@ -246,7 +260,7 @@ export class KnowledgeBaseManager extends BaseManager {
       WHERE score > ?
       ORDER BY score DESC
       LIMIT ?`,
-      args: [JSON.stringify(embeddings.text_embeddings[0]), 0.5, top_k],
+      args: [JSON.stringify(vectorStr), 0.5, top_k],
     });
 
 
