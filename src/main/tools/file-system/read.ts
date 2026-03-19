@@ -27,6 +27,8 @@ import { appManager } from '@/main/app';
 import { providersManager } from '@/main/providers';
 import { SpeechToText } from '../audio';
 import { toolsManager } from '..';
+import { LanguageModelV2ToolResultPart } from '@ai-sdk/provider';
+import { isString } from '@/utils/is';
 
 const DEFAULT_MAX_LINES_TEXT_FILE = 2000;
 const MAX_LINE_LENGTH_TEXT_FILE = 2000;
@@ -226,6 +228,7 @@ export interface ReadBinaryFileParams extends BaseToolParams {
   mode?: 'auto' | 'system' | 'paddleocr' | 'mineru-api';
   forcePDFOcr?: boolean;
   forceWordOcr?: boolean;
+  reminder?: boolean;
 }
 export class ReadBinaryFile extends BaseTool {
   static readonly toolName = 'ReadBinaryFile';
@@ -257,12 +260,14 @@ Usage:
   mode?: ReadBinaryFileParams['mode'];
   forcePDFOcr?: ReadBinaryFileParams['forcePDFOcr'];
   forceWordOcr?: ReadBinaryFileParams['forceWordOcr'];
+  reminder?: ReadBinaryFileParams['reminder'];
 
   constructor(config?: ReadBinaryFileParams) {
     super(config);
     this.mode = config?.mode ?? 'auto';
     this.forcePDFOcr = config?.forcePDFOcr ?? true;
     this.forceWordOcr = config?.forceWordOcr ?? true;
+    this.reminder = config?.reminder ?? true;
   }
 
   execute = async (
@@ -274,9 +279,9 @@ Usage:
       throw new Error(`File '${file_source}' does not exist.`);
     const stats = await fs.promises.stat(file_source);
     if (!stats.isFile())
-      throw new Error(`File '${file_source}' is not a file.`);
+      throw new Error(`'${file_source}' is not a file.`);
     if (stats.size === 0)
-      return `<system-reminder>The file '${file_source}' is empty.</system-reminder>`;
+      throw new Error(`File '${file_source}' is empty.`);
 
 
 
@@ -360,7 +365,8 @@ Usage:
       // const content = await loader.load();
       // return content.text;
     }
-    if (result.trim() === '') return `<system-reminder>The file '${file_source}' is empty.</system-reminder>`;
+    if (result.trim() === '' && this.reminder == true) return `<system-reminder>The file '${file_source}' is empty.</system-reminder>`;
     return result;
   };
+
 }

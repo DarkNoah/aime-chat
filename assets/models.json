@@ -6225,7 +6225,7 @@
         "family": "grok",
         "attachment": true,
         "reasoning": true,
-        "tool_call": true,
+        "tool_call": false,
         "temperature": true,
         "release_date": "2026-03-09",
         "last_updated": "2026-03-09",
@@ -47994,9 +47994,7 @@
         "last_updated": "2026-03-18",
         "modalities": {
           "input": [
-            "text",
-            "image",
-            "pdf"
+            "text"
           ],
           "output": [
             "text"

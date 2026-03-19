@@ -280,6 +280,34 @@ export class LocalClipModel {
       modelPath
     );
     const { model, processor, tokenizer, textModel } = cachedModel;
+    if (this.modelId == 'jina-clip-v2') {
+      const rawImages = [];
+      if (images.length > 0) {
+        for (const image of images) {
+          const rawImage = await RawImage.read(image);
+          rawImages.push(rawImage);
+        }
+      }
+      const inputTexts = [];
+      for (const text of texts) {
+        if (text && text.trim() != '')
+          inputTexts.push(text);
+      }
+
+      const inputs = await processor(
+        inputTexts.length > 0 ? inputTexts : null,
+        rawImages.length > 0 ? rawImages : null,
+        { padding: true, truncation: true }
+      );
+      const outputs = await model(inputs);
+
+
+      return {
+        image_embeddings: outputs.l2norm_image_embeddings?.tolist(),
+        text_embeddings: outputs.l2norm_text_embeddings?.tolist()
+      }
+
+    }
     const text_inputs = tokenizer(texts, { padding: true, truncation: true });
 
     const output = await textModel(text_inputs);

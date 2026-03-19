@@ -182,7 +182,7 @@ class LocalModelManager extends BaseManager {
     // 开始加载模型
     this.modelLoadPromises[modelName] = (async () => {
       let entry: CachedModel;
-      if (task == 'background-removal' || task == 'image-feature-extraction') {
+      if (task == 'background-removal' || task == 'image-feature-extraction' || modelName == 'jina-clip-v2') {
         const [model, processor] = await Promise.all([
           AutoModel.from_pretrained(modelPath, {
             local_files_only: true,
@@ -233,6 +233,10 @@ class LocalModelManager extends BaseManager {
           processor,
           textModel
         };
+
+      } else if (task == 'jina-clip-v2') {
+
+
 
       }
       entry.lastUsed = Date.now();

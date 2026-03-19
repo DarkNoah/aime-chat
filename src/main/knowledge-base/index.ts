@@ -602,6 +602,7 @@ export class KnowledgeBaseManager extends BaseManager {
             content = await new ReadBinaryFile({
               forcePDFOcr: true,
               forceWordOcr: false,
+              reminder: false,
             }).execute({
               file_source: file,
               args: {}
