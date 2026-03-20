@@ -1213,7 +1213,7 @@ class MastraManager extends BaseManager {
     }
     const uiStream = toAISdkStream(stream, {
       from: 'agent',
-      sendReasoning: true,
+      sendReasoning: false,
       sendStart: false,
       sendFinish: false,
       // lastMessageId: inputMessage[inputMessage.length - 1].id,

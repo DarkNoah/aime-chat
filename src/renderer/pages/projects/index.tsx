@@ -328,7 +328,11 @@ function ProjectsPage() {
       direction="horizontal"
       className="h-full w-full @container"
     >
-      <ResizablePanel className="h-full  w-full justify-between min-w-[450px]">
+      <ResizablePanel
+        id="projects-chat"
+        order={1}
+        className="h-full  w-full justify-between min-w-[450px]"
+      >
         <div className="absolute top-12 left-0 p-2 z-10 flex flex-row gap-1 ">
           <Button
             variant="ghost"
@@ -456,7 +460,7 @@ function ProjectsPage() {
         ></ChatPanel>
       </ResizablePanel>
       <ResizableHandle withHandle />
-      <ResizablePanel className="h-full flex-1">
+      <ResizablePanel id="projects-preview" order={2} className="h-full flex-1">
         <div className="min-w-0 p-2 flex-1 h-full">
           <ChatPreview
             resourceId={projectResourceId}

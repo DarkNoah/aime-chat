@@ -4075,6 +4075,29 @@
           "output": 131072
         }
       },
+      "minimax-m2.7": {
+        "id": "minimax-m2.7",
+        "name": "minimax-m2.7",
+        "family": "minimax",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "release_date": "2026-03-18",
+        "last_updated": "2026-03-18",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "limit": {
+          "context": 204800,
+          "output": 131072
+        }
+      },
       "kimi-k2.5": {
         "id": "kimi-k2.5",
         "name": "kimi-k2.5",
@@ -4514,6 +4537,43 @@
     "name": "Xiaomi",
     "doc": "https://platform.xiaomimimo.com/#/docs",
     "models": {
+      "mimo-v2-omni": {
+        "id": "mimo-v2-omni",
+        "name": "MiMo-V2-Omni",
+        "family": "mimo",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "interleaved": {
+          "field": "reasoning_content"
+        },
+        "temperature": true,
+        "knowledge": "2024-12",
+        "release_date": "2026-03-18",
+        "last_updated": "2026-03-18",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "audio",
+            "video",
+            "pdf"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 0.4,
+          "output": 2,
+          "cache_read": 0.08
+        },
+        "limit": {
+          "context": 256000,
+          "output": 128000
+        }
+      },
       "mimo-v2-flash": {
         "id": "mimo-v2-flash",
         "name": "MiMo-V2-Flash",
@@ -4545,6 +4605,39 @@
         "limit": {
           "context": 256000,
           "output": 64000
+        }
+      },
+      "mimo-v2-pro": {
+        "id": "mimo-v2-pro",
+        "name": "MiMo-V2-Pro",
+        "family": "mimo",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "interleaved": {
+          "field": "reasoning_content"
+        },
+        "temperature": true,
+        "knowledge": "2024-12",
+        "release_date": "2026-03-18",
+        "last_updated": "2026-03-18",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 1,
+          "output": 3,
+          "cache_read": 0.2
+        },
+        "limit": {
+          "context": 1000000,
+          "output": 128000
         }
       }
     }
@@ -29715,7 +29808,7 @@
         "temperature": true,
         "knowledge": "2025-10",
         "release_date": "2025-12-04",
-        "last_updated": "2026-03-12",
+        "last_updated": "2026-03-18",
         "modalities": {
           "input": [
             "text"
@@ -29726,9 +29819,9 @@
         },
         "open_weights": true,
         "cost": {
-          "input": 0.4,
-          "output": 1,
-          "cache_read": 0.2
+          "input": 0.33,
+          "output": 0.48,
+          "cache_read": 0.16
         },
         "limit": {
           "context": 160000,
@@ -30204,6 +30297,35 @@
         "limit": {
           "context": 256000,
           "output": 65536
+        }
+      },
+      "minimax-m27": {
+        "id": "minimax-m27",
+        "name": "MiniMax M2.7",
+        "family": "minimax",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "temperature": true,
+        "release_date": "2026-03-18",
+        "last_updated": "2026-03-18",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 0.375,
+          "output": 1.5,
+          "cache_read": 0.075
+        },
+        "limit": {
+          "context": 198000,
+          "output": 32768
         }
       },
       "venice-uncensored-role-play": {
@@ -51370,6 +51492,37 @@
           "output": 131072
         }
       },
+      "@cf/nvidia/nemotron-3-120b-a12b": {
+        "id": "@cf/nvidia/nemotron-3-120b-a12b",
+        "name": "Nemotron 3 Super 120B",
+        "family": "nemotron",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "interleaved": {
+          "field": "reasoning_content"
+        },
+        "temperature": true,
+        "release_date": "2026-03-11",
+        "last_updated": "2026-03-11",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 0.5,
+          "output": 1.5
+        },
+        "limit": {
+          "context": 256000,
+          "output": 256000
+        }
+      },
       "@cf/ibm-granite/granite-4.0-h-micro": {
         "id": "@cf/ibm-granite/granite-4.0-h-micro",
         "name": "IBM Granite 4.0 H Micro",
@@ -51704,6 +51857,41 @@
         "limit": {
           "context": 128000,
           "output": 16384
+        }
+      },
+      "@cf/moonshotai/kimi-k2.5": {
+        "id": "@cf/moonshotai/kimi-k2.5",
+        "name": "Kimi K2.5",
+        "family": "kimi",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "interleaved": {
+          "field": "reasoning_content"
+        },
+        "structured_output": true,
+        "temperature": true,
+        "knowledge": "2025-01",
+        "release_date": "2026-01-27",
+        "last_updated": "2026-01-27",
+        "modalities": {
+          "input": [
+            "text",
+            "image"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 0.6,
+          "output": 3,
+          "cache_read": 0.1
+        },
+        "limit": {
+          "context": 256000,
+          "output": 256000
         }
       },
       "@cf/google/gemma-3-12b-it": {
@@ -53123,6 +53311,66 @@
     "name": "Cloudflare AI Gateway",
     "doc": "https://developers.cloudflare.com/ai-gateway/",
     "models": {
+      "workers-ai/@cf/zai-org/glm-4.7-flash": {
+        "id": "workers-ai/@cf/zai-org/glm-4.7-flash",
+        "name": "GLM-4.7-Flash",
+        "family": "glm-flash",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "temperature": true,
+        "knowledge": "2025-04",
+        "release_date": "2026-01-19",
+        "last_updated": "2026-01-19",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 0.06,
+          "output": 0.4
+        },
+        "limit": {
+          "context": 131072,
+          "output": 131072
+        }
+      },
+      "workers-ai/@cf/nvidia/nemotron-3-120b-a12b": {
+        "id": "workers-ai/@cf/nvidia/nemotron-3-120b-a12b",
+        "name": "Nemotron 3 Super 120B",
+        "family": "nemotron",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "interleaved": {
+          "field": "reasoning_content"
+        },
+        "temperature": true,
+        "release_date": "2026-03-11",
+        "last_updated": "2026-03-11",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 0.5,
+          "output": 1.5
+        },
+        "limit": {
+          "context": 256000,
+          "output": 256000
+        }
+      },
       "workers-ai/@cf/ibm-granite/granite-4.0-h-micro": {
         "id": "workers-ai/@cf/ibm-granite/granite-4.0-h-micro",
         "name": "IBM Granite 4.0 H Micro",
@@ -53457,6 +53705,41 @@
         "limit": {
           "context": 128000,
           "output": 16384
+        }
+      },
+      "workers-ai/@cf/moonshotai/kimi-k2.5": {
+        "id": "workers-ai/@cf/moonshotai/kimi-k2.5",
+        "name": "Kimi K2.5",
+        "family": "kimi",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "interleaved": {
+          "field": "reasoning_content"
+        },
+        "structured_output": true,
+        "temperature": true,
+        "knowledge": "2025-01",
+        "release_date": "2026-01-27",
+        "last_updated": "2026-01-27",
+        "modalities": {
+          "input": [
+            "text",
+            "image"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 0.6,
+          "output": 3,
+          "cache_read": 0.1
+        },
+        "limit": {
+          "context": 256000,
+          "output": 256000
         }
       },
       "workers-ai/@cf/google/gemma-3-12b-it": {
@@ -56709,39 +56992,6 @@
     "name": "Zhipu AI Coding Plan",
     "doc": "https://docs.bigmodel.cn/cn/coding-plan/overview",
     "models": {
-      "glm-5": {
-        "id": "glm-5",
-        "name": "GLM-5",
-        "family": "glm",
-        "attachment": false,
-        "reasoning": true,
-        "tool_call": true,
-        "interleaved": {
-          "field": "reasoning_content"
-        },
-        "temperature": true,
-        "release_date": "2026-02-11",
-        "last_updated": "2026-02-11",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": true,
-        "cost": {
-          "input": 0,
-          "output": 0,
-          "cache_read": 0,
-          "cache_write": 0
-        },
-        "limit": {
-          "context": 204800,
-          "output": 131072
-        }
-      },
       "glm-4.6v-flash": {
         "id": "glm-4.6v-flash",
         "name": "GLM-4.6V-Flash",
@@ -56833,6 +57083,40 @@
         "limit": {
           "context": 64000,
           "output": 16384
+        }
+      },
+      "glm-5-turbo": {
+        "id": "glm-5-turbo",
+        "name": "GLM-5-Turbo",
+        "family": "glm",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "interleaved": {
+          "field": "reasoning_content"
+        },
+        "structured_output": true,
+        "temperature": true,
+        "release_date": "2026-03-16",
+        "last_updated": "2026-03-16",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cache_read": 0,
+          "cache_write": 0
+        },
+        "limit": {
+          "context": 200000,
+          "output": 131072
         }
       },
       "glm-4.7": {
@@ -56991,6 +57275,39 @@
         "limit": {
           "context": 131072,
           "output": 98304
+        }
+      },
+      "glm-5": {
+        "id": "glm-5",
+        "name": "GLM-5",
+        "family": "glm",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "interleaved": {
+          "field": "reasoning_content"
+        },
+        "temperature": true,
+        "release_date": "2026-02-11",
+        "last_updated": "2026-02-11",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cache_read": 0,
+          "cache_write": 0
+        },
+        "limit": {
+          "context": 204800,
+          "output": 131072
         }
       }
     }
@@ -57591,6 +57908,41 @@
           "output": 131072
         }
       },
+      "xiaomi/mimo-v2-omni": {
+        "id": "xiaomi/mimo-v2-omni",
+        "name": "MiMo-V2-Omni",
+        "family": "mimo",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "interleaved": {
+          "field": "reasoning_details"
+        },
+        "structured_output": true,
+        "temperature": true,
+        "release_date": "2026-03-18",
+        "last_updated": "2026-03-18",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "video",
+            "audio"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 0.4,
+          "output": 2
+        },
+        "limit": {
+          "context": 262144,
+          "output": 65536
+        }
+      },
       "xiaomi/mimo-v2-flash": {
         "id": "xiaomi/mimo-v2-flash",
         "name": "MiMo-V2-Flash",
@@ -57619,6 +57971,38 @@
         },
         "limit": {
           "context": 262144,
+          "output": 65536
+        }
+      },
+      "xiaomi/mimo-v2-pro": {
+        "id": "xiaomi/mimo-v2-pro",
+        "name": "MiMo-V2-Pro",
+        "family": "mimo",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "interleaved": {
+          "field": "reasoning_details"
+        },
+        "structured_output": true,
+        "temperature": true,
+        "release_date": "2026-03-18",
+        "last_updated": "2026-03-18",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 1,
+          "output": 3
+        },
+        "limit": {
+          "context": 1048576,
           "output": 65536
         }
       },
@@ -62629,6 +63013,39 @@
           "output": 128000
         }
       },
+      "openai/gpt-5.4-nano": {
+        "id": "openai/gpt-5.4-nano",
+        "name": "GPT-5.4 Nano",
+        "family": "gpt-nano",
+        "attachment": true,
+        "reasoning": false,
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": true,
+        "knowledge": "2025-08-31",
+        "release_date": "2026-03-17",
+        "last_updated": "2026-03-17",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "pdf"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 2e-7,
+          "output": 0.00000125,
+          "cache_read": 2e-8
+        },
+        "limit": {
+          "context": 400000,
+          "output": 128000
+        }
+      },
       "openai/gpt-oss-20b": {
         "id": "openai/gpt-oss-20b",
         "name": "GPT OSS 20B",
@@ -62711,6 +63128,39 @@
         "cost": {
           "input": 0.05,
           "output": 0.4
+        },
+        "limit": {
+          "context": 400000,
+          "output": 128000
+        }
+      },
+      "openai/gpt-5.4-mini": {
+        "id": "openai/gpt-5.4-mini",
+        "name": "GPT-5.4 Mini",
+        "family": "gpt-mini",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": true,
+        "knowledge": "2025-08-31",
+        "release_date": "2026-03-17",
+        "last_updated": "2026-03-17",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "pdf"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 7.5e-7,
+          "output": 0.0000045,
+          "cache_read": 7.5e-8
         },
         "limit": {
           "context": 400000,

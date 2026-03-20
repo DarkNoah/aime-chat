@@ -206,7 +206,11 @@ function ToolDetail() {
 
   return (
     <ResizablePanelGroup direction="horizontal" className="h-full w-full">
-      <ResizablePanel className="w-full flex-1 p-4 overflow-y-auto!">
+      <ResizablePanel
+        id="tool-detail-main"
+        order={1}
+        className="w-full flex-1 p-4 overflow-y-auto!"
+      >
         <Item variant="outline">
           <ItemContent>
             <ItemTitle className="flex items-center gap-2">
@@ -388,6 +392,8 @@ function ToolDetail() {
         <>
           <ResizableHandle withHandle />
           <ResizablePanel
+            id="tool-result-preview"
+            order={2}
             maxSize={showPreview ? 75 : 0}
             className={`h-full flex-1 `}
           >
