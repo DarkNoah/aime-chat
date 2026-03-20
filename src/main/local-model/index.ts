@@ -182,7 +182,7 @@ class LocalModelManager extends BaseManager {
     // 开始加载模型
     this.modelLoadPromises[modelName] = (async () => {
       let entry: CachedModel;
-      if (task == 'background-removal' || task == 'image-feature-extraction' || modelName == 'jina-clip-v2' || modelName == 'chinese-clip-vit-large-patch14-336px') {
+      if (task == 'background-removal' || task == 'image-feature-extraction' || modelName == 'jina-clip-v2') {
         const [model, processor] = await Promise.all([
           AutoModel.from_pretrained(modelPath, {
             local_files_only: true,
@@ -191,6 +191,17 @@ class LocalModelManager extends BaseManager {
         ]);
         entry = {
           model,
+          processor,
+        };
+      } else if (modelName == 'chinese-clip-vit-large-patch14-336px') {
+        const [tokenizer, processor, model] = await Promise.all([
+          AutoTokenizer.from_pretrained(modelPath),
+          AutoProcessor.from_pretrained(modelPath),
+          AutoModel.from_pretrained(modelPath),
+        ]);
+        entry = {
+          model,
+          tokenizer,
           processor,
         };
       } else if (task == 'text-classification') {
@@ -225,7 +236,10 @@ class LocalModelManager extends BaseManager {
           }),
           AutoTokenizer.from_pretrained(modelPath),
           AutoProcessor.from_pretrained(modelPath),
-          CLIPTextModelWithProjection.from_pretrained(modelPath)
+          CLIPTextModelWithProjection.from_pretrained(modelPath, {
+            local_files_only: true,
+            dtype: options?.dtype,
+          })
         ]);
         entry = {
           model,

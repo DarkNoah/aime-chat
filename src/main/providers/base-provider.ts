@@ -40,6 +40,23 @@ export type RerankModel = {
   }) => Promise<{ index: number; score: number; document: string }[]>;
 }
 
+export type ClipModel = {
+  readonly provider: string;
+  readonly modelId: string;
+
+  encodeText: (text: string) => Promise<Float32Array>;
+  encodeTexts: (texts: string[]) => Promise<Float32Array[]>;
+  encodeImage: (image: string) => Promise<Float32Array>;
+  encodeImages: (images: string[]) => Promise<Float32Array[]>;
+
+  cosineSimilarity(textVec: Float32Array, imageVec: Float32Array): number;
+}
+
+
+
+
+
+
 export interface OCRModel {
   readonly provider: string;
   readonly modelId: string;

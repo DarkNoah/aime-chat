@@ -357,6 +357,20 @@ export class LocalClipModel {
     //   .sort((a, b) => b.score - a.score)
     //   .slice(0, options?.top_k || 10);
   }
+  async encodeText(text: string): Promise<number[]> {
+
+  }
+  async encodeTexts(texts: string[]): Promise<number[][]> {
+
+  }
+  async encodeImage(image: string): Promise<number[]> {
+
+  }
+  async encodeImages(images: string[]): Promise<number[][]> {
+
+  }
+
+  async cosineSimilarity(vec1: Float32Array, vec2: Float32Array): number;
 }
 
 
