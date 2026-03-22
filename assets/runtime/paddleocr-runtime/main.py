@@ -42,6 +42,8 @@ BASE_OUT_DIR = os.environ.get("PPSTRUCTURE_OUT_DIR", "output")
 os.environ["DISABLE_MODEL_SOURCE_CHECK"] ="True"
 os.environ["PPSTRUCTURE_PREWARM"] ="0"
 os.environ["FLAGS_use_mkldnn"] = "0"
+os.environ.setdefault("DISABLE_MODEL_SOURCE_CHECK", "True")
+os.environ.setdefault("FLAGS_use_mkldnn", "0")
 # PaddleOCR import (heavy)
 from paddleocr import PPStructureV3  # noqa: E402
 from paddleocr import PaddleOCRVL

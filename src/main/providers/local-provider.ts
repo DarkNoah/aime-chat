@@ -16,7 +16,7 @@ import {
   TranscriptionModelV2CallWarning,
 } from '@ai-sdk/provider';
 // import { TextEmbeddingPipeline, PoolingType } from 'openvino-genai-node';
-import { BaseProvider, OCRModel, RerankModel } from './base-provider';
+import { BaseProvider, ClipModel, OCRModel, RerankModel } from './base-provider';
 import { Providers } from '@/entities/providers';
 import { ProviderCredits, ProviderTag, ProviderType } from '@/types/provider';
 import fs from 'fs';
@@ -253,7 +253,8 @@ export class LocalRerankModel implements RerankModel {
 }
 
 export class LocalClipModel {
-  modelId: string;
+  readonly provider: string = 'local';
+  readonly modelId: string;
 
   constructor(modelId: string) {
     this.modelId = modelId;
@@ -357,20 +358,20 @@ export class LocalClipModel {
     //   .sort((a, b) => b.score - a.score)
     //   .slice(0, options?.top_k || 10);
   }
-  async encodeText(text: string): Promise<number[]> {
+  // async encodeText(text: string): Promise<number[]> {
 
-  }
-  async encodeTexts(texts: string[]): Promise<number[][]> {
+  // }
+  // async encodeTexts(texts: string[]): Promise<number[][]> {
 
-  }
-  async encodeImage(image: string): Promise<number[]> {
+  // }
+  // async encodeImage(image: string): Promise<number[]> {
 
-  }
-  async encodeImages(images: string[]): Promise<number[][]> {
+  // }
+  // async encodeImages(images: string[]): Promise<number[][]> {
 
-  }
+  // }
 
-  async cosineSimilarity(vec1: Float32Array, vec2: Float32Array): number;
+  // async cosineSimilarity(vec1: Float32Array, vec2: Float32Array): number;
 }
 
 

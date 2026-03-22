@@ -40,7 +40,7 @@ export type RerankModel = {
   }) => Promise<{ index: number; score: number; document: string }[]>;
 }
 
-export type ClipModel = {
+export interface ClipModel {
   readonly provider: string;
   readonly modelId: string;
 

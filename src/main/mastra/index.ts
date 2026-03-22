@@ -38,6 +38,7 @@ import { channel } from '../ipc/IpcController';
 import { PaginationInfo } from '@/types/common';
 import { MastraChannel } from '@/types/ipc-channel';
 import {
+  Agent,
   AgentExecutionOptions,
   convertMessages,
   MastraDBMessage,
@@ -104,7 +105,7 @@ import { TaskCreate, TaskList } from '../tools/common/task';
 import { MemoryWrite } from '../tools/memory/memory';
 import { formatCodeWithLineNumbers } from '../utils/format';
 import { getSkills } from '../utils/skills';
-import { Agent } from '@/types/agent';
+
 import { WorkflowRunStatus } from '@mastra/core/workflows';
 
 
@@ -981,7 +982,7 @@ class MastraManager extends BaseManager {
           callback,
         );
 
-        if (stream.status == 'success') {
+        if (stream.status == 'success' && !streamOptions.abortSignal.aborted) {
           const content = await stream.content;
           if (content.length == 0) {
             throw new Error('No content returned');

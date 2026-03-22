@@ -23,6 +23,11 @@ export type TelegramChannelConfig = {
   currentProjectId?: string;
 };
 
+export type WeixinChannelConfig = {
+  appId?: string;
+  appSecret?: string;
+};
+
 export type ChannelBase = {
   id: string;
   type: ChannelType;
@@ -36,7 +41,12 @@ export type TelegramChannel = ChannelBase & {
   config: TelegramChannelConfig;
 };
 
-export type ChannelConfig = TelegramChannel;
+export type WeixinChannel = ChannelBase & {
+  type: 'weixin';
+  config: WeixinChannelConfig;
+};
+
+export type ChannelConfig = TelegramChannel | WeixinChannel;
 
 
 export type ChannelInfo = Omit<TelegramChannel, 'config'> & {

@@ -36,6 +36,7 @@ import { ToolType } from '@/types/tool';
 import localModels from '../local-model/models.json';
 import { LocalClipModel } from '../providers/local-provider';
 import mime from 'mime';
+import { LocalCLIPModel } from '../local-model/clip';
 export class KnowledgeBaseManager extends BaseManager {
   knowledgeBaseRepository: Repository<KnowledgeBase>;
   knowledgeBaseItemRepository: Repository<KnowledgeBaseItem>;
@@ -66,14 +67,21 @@ export class KnowledgeBaseManager extends BaseManager {
     const localClipModel = localModels.clip.find(x => x.id === _modelId);
     return localClipModel !== undefined;
   }
-  async calcEmbeddings(modeId: string, texts: string[], images?: string[]): Promise<{ text_embeddings: number[][], image_embeddings: number[][] } | undefined> {
+  async calcEmbeddings(modeId: string, texts: string[], images?: string[]): Promise<{ text_embeddings: number[][], image_embeddings?: number[][] } | undefined> {
     try {
       if (this.isLocalModel(modeId)) {
         const _modelId = modeId.split('/').slice(1).join('/')
         if (this.isLocalClipModel(modeId)) {
-          const model = new LocalClipModel(_modelId);
-          const res2 = await model.doClip({ texts, images: images ? images : undefined });
-          return { text_embeddings: res2.text_embeddings, image_embeddings: res2.image_embeddings };
+          const appInfo = await appManager.getInfo();
+          const modelPath = path.join(appInfo.modelPath, 'clip', _modelId);
+          const model = new LocalCLIPModel(_modelId, modelPath);
+          const res2 = await model.encodeTexts(texts);
+          let image_embeddings: number[][] = [];
+          if (images && images.length > 0) {
+            image_embeddings = (await model.encodeImages(images ? images : undefined)).map(x => Array.from(x));
+          }
+
+          return { text_embeddings: res2.map(x => Array.from(x)), image_embeddings: image_embeddings };
         }
       }
 
@@ -671,7 +679,7 @@ export class KnowledgeBaseManager extends BaseManager {
             separators: ["\n"],
           });
           item.chunkCount = chunks.length;
-          let embeddings: { text_embeddings: number[][], image_embeddings: number[][] } | undefined;
+          let embeddings: { text_embeddings: number[][], image_embeddings?: number[][] } | undefined;
           const isImage = mime.lookup(file).startsWith('image/')
           if (mime.lookup(file).startsWith('image/')) {
             embeddings = await this.calcEmbeddings(kb.embedding, chunks.map((chunk) => chunk.text), [file]);
