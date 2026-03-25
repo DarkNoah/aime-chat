@@ -237,7 +237,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
 
       if (threadId && threadState) {
         if (_agent?.id !== threadState?.metadata?.agentId) {
-          console.log(_agent?.id);
+          console.log(_agent?.id, threadState);
           await window.electron.mastra.updateThread(threadId, {
             title: threadState?.title,
             metadata: {
@@ -265,8 +265,9 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
     };
 
     const handleModelChanged = async (_modelId: string) => {
+      console.log('AgentChange', _modelId);
       setModelId(_modelId);
-      if (threadId) {
+      if (threadId && threadState) {
         await window.electron.mastra.updateThread(threadId, {
           title: threadState?.title,
           metadata: {

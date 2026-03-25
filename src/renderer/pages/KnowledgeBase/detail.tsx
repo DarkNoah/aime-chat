@@ -1136,12 +1136,19 @@ function KnowledgeBaseDetail() {
             <div className="text-sm font-medium break-all">
               {selectedItem?.name || selectedItem?.source || '-'}
             </div>
+
             {selectedItem?.metadata?.embeddingType === 'image' && (
-              <img
-                src={`data:${selectedItem.metadata?.mimeType};base64,${selectedItem.metadata?.base64}`}
-                alt={selectedItem.name}
-                className="size-20 object-cover rounded-2xl mb-2"
-              />
+              <PhotoProvider>
+                <PhotoView
+                  src={`data:${selectedItem.metadata?.mimeType};base64,${selectedItem.metadata?.base64}`}
+                >
+                  <img
+                    src={`data:${selectedItem.metadata?.mimeType};base64,${selectedItem.metadata?.base64}`}
+                    alt={selectedItem.name}
+                    className="w-full object-cover rounded-2xl mb-2"
+                  />
+                </PhotoView>
+              </PhotoProvider>
             )}
             <Tabs defaultValue="markdown">
               <TabsList>

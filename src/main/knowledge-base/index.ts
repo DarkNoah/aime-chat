@@ -75,13 +75,16 @@ export class KnowledgeBaseManager extends BaseManager {
           const appInfo = await appManager.getInfo();
           const modelPath = path.join(appInfo.modelPath, 'clip', _modelId);
           const model = new LocalCLIPModel(_modelId, modelPath);
-          const res2 = await model.encodeTexts(texts);
+          let text_embeddings: number[][] = [];
+          if (texts && texts.length > 0) {
+            text_embeddings = (await model.encodeTexts(texts)).map(x => Array.from(x));
+          }
           let image_embeddings: number[][] = [];
           if (images && images.length > 0) {
             image_embeddings = (await model.encodeImages(images ? images : undefined)).map(x => Array.from(x));
           }
 
-          return { text_embeddings: res2.map(x => Array.from(x)), image_embeddings: image_embeddings };
+          return { text_embeddings: text_embeddings, image_embeddings: image_embeddings };
         }
       }
 
@@ -263,7 +266,7 @@ export class KnowledgeBaseManager extends BaseManager {
 
     let embeddings: {
       text_embeddings: number[][];
-      image_embeddings: number[][];
+      image_embeddings?: number[][];
     }
     if (fileTpye == 'text') {
       if (kb.embedding.split('/')[kb.embedding.split('/').length - 1] == 'jina-clip-v2') {

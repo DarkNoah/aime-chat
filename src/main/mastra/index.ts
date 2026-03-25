@@ -298,6 +298,7 @@ class MastraManager extends BaseManager {
     const messages = await memoryStore.listMessages({
       threadId: id,
       resourceId: thread?.resourceId || DEFAULT_RESOURCE_ID,
+      perPage: false,
       // format: 'v2',
     });
 
@@ -662,6 +663,7 @@ class MastraManager extends BaseManager {
       const historyMessages = await memoryStore.listMessages({
         threadId: chatId,
         resourceId: resourceId,
+        perPage: false
       });
 
       const historyMessagesAISdkV5 = toAISdkV5Messages(
@@ -837,6 +839,7 @@ class MastraManager extends BaseManager {
         const historyMessages = await memoryStore.listMessages({
           threadId: chatId,
           resourceId: resourceId,
+          perPage: false,
         });
         const historyMessagesAISdkV5 = toAISdkV5Messages(
           historyMessages.messages,
@@ -1062,6 +1065,7 @@ class MastraManager extends BaseManager {
           throw stream.error;
         }
       }
+      const db_messages = stream.messageList.get.all.db();
       if (streamOptions.abortSignal.aborted) {
         const chunks = requestContext.get('chunks');
         const persisted = stream.messageList.getPersisted.input.db();
@@ -1091,13 +1095,33 @@ class MastraManager extends BaseManager {
         requestContext.set('chunks', undefined);
         // await memoryStore.saveMessages({ messages: [...db, ...messages] });
         await memoryStore.saveMessages({ messages: [...messages] });
+      } else {
+        if (db_messages.length > 0 && db_messages[db_messages.length - 1].role == 'assistant') {
+          const lastMessage = db_messages[db_messages.length - 1];
+          if (lastMessage.content.parts.length > 0 && lastMessage.content.parts[lastMessage.content.parts.length - 1].type == 'text' && lastMessage.content.parts[lastMessage.content.parts.length - 1].text) {
+            //lastMessage.content.metadata
+            // await memoryStore.updateMessages({
+            //   messages: [lastMessage],
+            // });
+
+
+          }
+
+
+        }
+
       }
+
+
+
+
+
       return {
         success: true,
         status: stream.status,
         aborted: streamOptions.abortSignal.aborted,
         runId: stream.runId,
-        messages: stream.messageList.get.all.db()
+        messages: db_messages
       }
     } catch (err) {
       console.error(err);
