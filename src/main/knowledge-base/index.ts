@@ -97,6 +97,14 @@ export class KnowledgeBaseManager extends BaseManager {
     return undefined
   }
 
+  async calcClipCosineSimilarity(modeId: string, embedding1: number[], embedding2: number[]): Promise<number> {
+    const appInfo = await appManager.getInfo();
+    const modelPath = path.join(appInfo.modelPath, 'clip', modeId);
+    const model = new LocalCLIPModel(modeId, modelPath);
+    return model.cosineSimilarity(image_embedding, image_embedding);
+
+  }
+
 
 
 
@@ -298,11 +306,42 @@ export class KnowledgeBaseManager extends BaseManager {
       )
       SELECT *
       FROM vector_scores
-      WHERE score > ?
+      WHERE score > ? and type = 'text'
       ORDER BY score DESC
       LIMIT ?`,
       args: [JSON.stringify(vectorStr), 0.5, top_k],
     });
+
+    if (this.isLocalClipModel(kb.embedding)) {
+      const image_results = await this.libSQLClient.execute({
+        sql: `
+        WITH vector_scores AS (
+          SELECT
+            id,
+            item_id,
+            chunk,
+            (1-vector_distance_cos(embedding, vector32(?))) as score,
+            metadata,
+            "type",
+            vector_extract(embedding) as embedding
+          FROM [kb_${kb.id}_${kb.vectorLength}]
+          WHERE is_enable = 1
+        )
+        SELECT *
+        FROM vector_scores
+        WHERE type = 'image'
+        ORDER BY score DESC
+        LIMIT ?`,
+        args: [JSON.stringify(vectorStr), top_k],
+      });
+      if (image_results.rows.length > 0) {
+        this.calcClipCosineSimilarity(kb.embedding, vectorStr, image_results.rows.map(x => x.embedding));
+
+
+      }
+    }
+
+
 
 
 
@@ -659,6 +698,7 @@ export class KnowledgeBaseManager extends BaseManager {
               forcePDFOcr: true,
               forceWordOcr: false,
               reminder: false,
+              excludeInsideImage: true,
             }).execute({
               file_source: file,
               args: {}

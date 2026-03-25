@@ -62,7 +62,7 @@ export class LocalCLIPModel implements ClipModel {
       new Float32Array(batchSize * 3 * imageSize * imageSize),
       [batchSize, 3, imageSize, imageSize],
     );
-    const output = await model({ ...inputs });
+    const output = await model({ ...inputs, pixel_values });
     const textEmbeds = (output.text_embeds ?? output.l2norm_text_embeddings ?? output.text_embeddings)?.data as Float32Array;
     return this.splitEmbeddings(this.normalizeAll(textEmbeds, batchSize), batchSize);
   }

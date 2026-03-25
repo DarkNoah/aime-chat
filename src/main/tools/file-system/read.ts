@@ -229,6 +229,7 @@ export interface ReadBinaryFileParams extends BaseToolParams {
   forcePDFOcr?: boolean;
   forceWordOcr?: boolean;
   reminder?: boolean;
+  excludeInsideImage?: boolean;
 }
 export class ReadBinaryFile extends BaseTool {
   static readonly toolName = 'ReadBinaryFile';
@@ -261,6 +262,7 @@ Usage:
   forcePDFOcr?: ReadBinaryFileParams['forcePDFOcr'];
   forceWordOcr?: ReadBinaryFileParams['forceWordOcr'];
   reminder?: ReadBinaryFileParams['reminder'];
+  excludeInsideImage?: ReadBinaryFileParams['excludeInsideImage'];
 
   constructor(config?: ReadBinaryFileParams) {
     super(config);
@@ -268,6 +270,7 @@ Usage:
     this.forcePDFOcr = config?.forcePDFOcr ?? true;
     this.forceWordOcr = config?.forceWordOcr ?? true;
     this.reminder = config?.reminder ?? true;
+    this.excludeInsideImage = config?.excludeInsideImage ?? false;
   }
 
   execute = async (
@@ -303,7 +306,7 @@ Usage:
     if (ext === '.pdf') {
       try {
         if (this.forcePDFOcr === true) {
-          const result = await provider.ocrModel(ocrModel).doOCR({ image: file_source });
+          const result = await provider.ocrModel(ocrModel).doOCR({ image: file_source, excludeInsideImage: this.excludeInsideImage });
           return result;
         }
       } catch {
@@ -315,7 +318,7 @@ Usage:
     } else if (ext === '.docx' || ext === '.doc') {
       try {
         if (this.forceWordOcr === true) {
-          result = await provider.ocrModel(ocrModel).doOCR({ image: file_source });
+          result = await provider.ocrModel(ocrModel).doOCR({ image: file_source, excludeInsideImage: this.excludeInsideImage });
           if (!result) throw new Error('OCR result is empty');
         }
       } catch {
@@ -338,7 +341,7 @@ Usage:
     } else if (mimeType.startsWith('image/')) {
 
 
-      result = await provider.ocrModel(ocrModel).doOCR({ image: file_source });
+      result = await provider.ocrModel(ocrModel).doOCR({ image: file_source, excludeInsideImage: this.excludeInsideImage });
 
 
       // throw new Error(`Unsupported file type: ${mimeType}`);

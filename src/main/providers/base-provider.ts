@@ -62,6 +62,7 @@ export interface OCRModel {
   readonly modelId: string;
   doOCR: (options: {
     image: string
+    excludeInsideImage?: boolean;
   }) => Promise<string>;
 }
 

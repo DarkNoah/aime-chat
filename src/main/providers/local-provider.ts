@@ -471,8 +471,9 @@ export class LocalOcrModel implements OCRModel {
   constructor(modelId: string) {
     this.modelId = modelId;
   }
-  async doOCR(options: { image: string }): Promise<string> {
+  async doOCR(options: { image: string, excludeInsideImage?: boolean }): Promise<string> {
     const image = fs.readFileSync(options.image);
+    const excludeInsideImage = options.excludeInsideImage ?? false;
     let result;
     if (this.modelId === 'system') {
       if (path.extname(options.image).toLowerCase() === '.pdf') {
@@ -498,7 +499,14 @@ export class LocalOcrModel implements OCRModel {
       ext: path.extname(options.image).toLowerCase(),
       modelId: this.modelId,
     });
-    return result.text;
+    let text = result.text;
+    if (excludeInsideImage) {
+      text = text.replace(
+        /<div\s+style="[^"]*">\s*<img\s+src="[^"]*"\s+alt="Image"\s+width="[^"]*"\s*\/>\s*<\/div>/g,
+        ""
+      );
+    }
+    return text;
 
 
     // const ocrLoader = new OcrLoader(options.image, {

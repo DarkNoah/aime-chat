@@ -1282,7 +1282,7 @@ class MastraManager extends BaseManager {
 
 
 
-      console.log('Stream chunk:', value);
+      // console.log('Stream chunk:', value);
 
       appManager.sendEvent(`chat:event:${chatId}`, {
         type: ChatEvent.ChatChunk,
