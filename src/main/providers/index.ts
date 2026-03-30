@@ -266,18 +266,29 @@ class ProvidersManager extends BaseManager {
           name: x.name,
           isActive: x.isActive,
           isCustom: x.isCustom ?? false,
+          modalities: x.modalities
+            ? {
+                input: x.modalities.input,
+              }
+            : undefined,
+          tool_call: x.tool_call,
+          limit:
+            x.limit?.context !== undefined
+              ? {
+                  context: x.limit.context,
+                }
+              : undefined,
         };
       }),
     });
   }
-
 
   public findModelInfo(providerType: string, modelId: string) {
     let modelInfo = modelsData[providerType]?.models[modelId];
     if (modelInfo) {
       return modelInfo;
     }
-    modelInfo = Object.values(modelsData).find(x => x.models[modelId]);
+    modelInfo = Object.values(modelsData).find((x) => x.models[modelId]);
     if (modelInfo) {
       return modelInfo.models[modelId];
     }
@@ -292,17 +303,63 @@ class ProvidersManager extends BaseManager {
       name: string;
       isActive: boolean;
       isCustom?: boolean;
+      modalities?: {
+        input?: string[];
+      };
+      tool_call?: boolean;
+      limit?: {
+        context?: number;
+      };
     }> = providerData?.models ?? [];
+    const savedModelMap = new Map(
+      savedModels.map((model) => [model.id, model]),
+    );
+    const mergeModelConfig = (
+      baseModel: Partial<ProviderModel> = {},
+      savedModel?: (typeof savedModels)[number],
+    ): Partial<ProviderModel> => {
+      const baseModalities = baseModel.modalities;
+      const savedInputModalities = savedModel?.modalities?.input;
+
+      return {
+        ...baseModel,
+        tool_call: savedModel?.tool_call ?? baseModel.tool_call,
+        limit:
+          savedModel?.limit?.context !== undefined
+            ? {
+                ...baseModel.limit,
+                context: savedModel.limit.context,
+              }
+            : baseModel.limit,
+        modalities: savedInputModalities
+          ? {
+              input: Array.from(new Set(['text', ...savedInputModalities])),
+              output: baseModalities?.output ?? ['text'],
+            }
+          : baseModalities,
+      };
+    };
 
     // 获取自定义模型
     const customModels = savedModels
       .filter((m) => m.isCustom)
-      .map((m) => ({
-        id: m.id,
-        name: m.name || m.id,
-        isActive: m.isActive,
-        isCustom: true,
-      }));
+      .map((m) => {
+        const mergedModel = mergeModelConfig(
+          {
+            id: m.id,
+            name: m.name || m.id,
+            isActive: m.isActive,
+            isCustom: true,
+            modalities: {
+              input: ['text'],
+              output: ['text'],
+            },
+          },
+          m,
+        );
+
+        return mergedModel;
+      });
 
     const provider = await this.getProvider(id);
     if (!provider) {
@@ -310,10 +367,16 @@ class ProvidersManager extends BaseManager {
         modelsData[providerData.type]?.models ?? {},
       ) as ProviderModel[];
       const providerModels = models.map((x) => {
-        return {
-          isActive: savedModels.find((z) => z.id === x.id)?.isActive || false,
-          ...x,
-        };
+        const savedModel = savedModelMap.get(x.id);
+        return mergeModelConfig(
+          {
+            isActive: savedModel?.isActive || false,
+            ...x,
+            name: savedModel?.name || x.name || x.id,
+            isCustom: savedModel?.isCustom ?? false,
+          },
+          savedModel,
+        );
       });
       return [...customModels, ...providerModels];
     }
@@ -323,13 +386,18 @@ class ProvidersManager extends BaseManager {
       const models = await provider.getLanguageModelList();
 
       providerModels = models.map((x) => {
-        let info = this.findModelInfo(provider.type, x.id) || {};
-        return {
-          id: x.id,
-          isActive: savedModels.find((z) => z.id === x.id)?.isActive || false,
-          ...info,
-          name: info?.name || x.name || x.id,
-        } as ProviderModel;
+        const savedModel = savedModelMap.get(x.id);
+        const info = this.findModelInfo(provider.type, x.id) || {};
+        return mergeModelConfig(
+          {
+            id: x.id,
+            isActive: savedModel?.isActive || false,
+            ...info,
+            name: savedModel?.name || info?.name || x.name || x.id,
+            isCustom: savedModel?.isCustom ?? false,
+          },
+          savedModel,
+        ) as ProviderModel;
       });
     } catch (err) {
       appManager.toast(err.message, { type: 'error' });
@@ -799,13 +867,52 @@ class ProvidersManager extends BaseManager {
   public async getModelInfo(_modelId: string) {
     if (!_modelId) return undefined;
     const providerId = _modelId.split('/')[0];
-
-    const provider = await providersManager.get(_modelId.split('/')[0]);
+    const provider = await this.repository.findOne({
+      where: { id: providerId },
+    });
     if (!provider) {
       throw new Error('Provider not found');
     }
     const modelId = _modelId.substring(_modelId.split('/')[0].length + 1);
-    const modelInfo = this.findModelInfo(provider.type, modelId);
+    const savedModels: Array<{
+      id: string;
+      name: string;
+      isActive: boolean;
+      isCustom?: boolean;
+      modalities?: {
+        input?: string[];
+      };
+      tool_call?: boolean;
+      limit?: {
+        context?: number;
+      };
+    }> = provider.models ?? [];
+    const savedModel = savedModels.find((model) => model.id === modelId);
+    const baseModelInfo = this.findModelInfo(provider.type, modelId);
+    const modelInfoModalities = savedModel?.modalities?.input
+      ? {
+          input: Array.from(new Set(['text', ...savedModel.modalities.input])),
+          output: baseModelInfo?.modalities?.output ?? ['text'],
+        }
+      : baseModelInfo?.modalities;
+    const modelInfo = savedModel
+      ? {
+          ...(baseModelInfo ?? {}),
+          id: modelId,
+          name: savedModel.name || baseModelInfo?.name || modelId,
+          isCustom: savedModel.isCustom ?? false,
+          tool_call: savedModel.tool_call ?? baseModelInfo?.tool_call,
+          limit:
+            savedModel.limit?.context !== undefined
+              ? {
+                  ...baseModelInfo?.limit,
+                  context: savedModel.limit.context,
+                }
+              : baseModelInfo?.limit,
+          modalities: modelInfoModalities,
+        }
+      : baseModelInfo;
+
     return {
       providerId,
       modelId,

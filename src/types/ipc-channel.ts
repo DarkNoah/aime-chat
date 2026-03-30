@@ -172,4 +172,7 @@ export enum ChannelChannel {
   GetCommands = 'channel:getCommands',
   GeneratePairingCode = 'channel:generatePairingCode',
   ClearPairingCode = 'channel:clearPairingCode',
+  WeixinStartLogin = 'channel:weixin:startLogin',
+  WeixinCheckLoginStatus = 'channel:weixin:checkLoginStatus',
+  WeixinCancelLogin = 'channel:weixin:cancelLogin',
 }

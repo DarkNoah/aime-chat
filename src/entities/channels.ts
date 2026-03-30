@@ -9,8 +9,8 @@ export class Channels {
   @Column()
   name!: string;
 
-  @Column({ enum: ['telegram', 'discord'] })
-  type!: 'telegram' | 'discord';
+  @Column({ enum: ['telegram', 'discord', 'weixin'] })
+  type!: 'telegram' | 'discord' | 'weixin';
 
   @Column({ default: true })
   enabled!: boolean;
