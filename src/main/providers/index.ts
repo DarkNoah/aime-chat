@@ -47,6 +47,7 @@ import { SerpapiProvider } from './serpapi-provider';
 import { MineruProvider } from './mineru-provider';
 import { ElevenlabsProvider } from './elevenlabs-provider';
 import { MiniMaxProvider } from './minimax-provider';
+import { PaddleOcrApiProvider } from './paddleocrapi-provider';
 const modelsData = require('../../../assets/models.json');
 class ProvidersManager extends BaseManager {
   repository: Repository<Providers>;
@@ -102,6 +103,9 @@ class ProvidersManager extends BaseManager {
           }, {
             id: ProviderType.ELEVENLABS,
             name: 'Elevenlabs'
+          }, {
+            id: ProviderType.PADDLEOCRAPI,
+            name: 'PaddleOCR API'
           }
         ],
       },
@@ -268,15 +272,15 @@ class ProvidersManager extends BaseManager {
           isCustom: x.isCustom ?? false,
           modalities: x.modalities
             ? {
-                input: x.modalities.input,
-              }
+              input: x.modalities.input,
+            }
             : undefined,
           tool_call: x.tool_call,
           limit:
             x.limit?.context !== undefined
               ? {
-                  context: x.limit.context,
-                }
+                context: x.limit.context,
+              }
               : undefined,
         };
       }),
@@ -327,15 +331,15 @@ class ProvidersManager extends BaseManager {
         limit:
           savedModel?.limit?.context !== undefined
             ? {
-                ...baseModel.limit,
-                context: savedModel.limit.context,
-              }
+              ...baseModel.limit,
+              context: savedModel.limit.context,
+            }
             : baseModel.limit,
         modalities: savedInputModalities
           ? {
-              input: Array.from(new Set(['text', ...savedInputModalities])),
-              output: baseModalities?.output ?? ['text'],
-            }
+            input: Array.from(new Set(['text', ...savedInputModalities])),
+            output: baseModalities?.output ?? ['text'],
+          }
           : baseModalities,
       };
     };
@@ -861,6 +865,8 @@ class ProvidersManager extends BaseManager {
         return new MiniMaxProvider(provider, ProviderType.MINIMAX_CN);
       case ProviderType.MINIMAX:
         return new MiniMaxProvider(provider, ProviderType.MINIMAX);
+      case ProviderType.PADDLEOCRAPI:
+        return new PaddleOcrApiProvider(provider);
     }
   }
 
@@ -891,26 +897,26 @@ class ProvidersManager extends BaseManager {
     const baseModelInfo = this.findModelInfo(provider.type, modelId);
     const modelInfoModalities = savedModel?.modalities?.input
       ? {
-          input: Array.from(new Set(['text', ...savedModel.modalities.input])),
-          output: baseModelInfo?.modalities?.output ?? ['text'],
-        }
+        input: Array.from(new Set(['text', ...savedModel.modalities.input])),
+        output: baseModelInfo?.modalities?.output ?? ['text'],
+      }
       : baseModelInfo?.modalities;
     const modelInfo = savedModel
       ? {
-          ...(baseModelInfo ?? {}),
-          id: modelId,
-          name: savedModel.name || baseModelInfo?.name || modelId,
-          isCustom: savedModel.isCustom ?? false,
-          tool_call: savedModel.tool_call ?? baseModelInfo?.tool_call,
-          limit:
-            savedModel.limit?.context !== undefined
-              ? {
-                  ...baseModelInfo?.limit,
-                  context: savedModel.limit.context,
-                }
-              : baseModelInfo?.limit,
-          modalities: modelInfoModalities,
-        }
+        ...(baseModelInfo ?? {}),
+        id: modelId,
+        name: savedModel.name || baseModelInfo?.name || modelId,
+        isCustom: savedModel.isCustom ?? false,
+        tool_call: savedModel.tool_call ?? baseModelInfo?.tool_call,
+        limit:
+          savedModel.limit?.context !== undefined
+            ? {
+              ...baseModelInfo?.limit,
+              context: savedModel.limit.context,
+            }
+            : baseModelInfo?.limit,
+        modalities: modelInfoModalities,
+      }
       : baseModelInfo;
 
     return {

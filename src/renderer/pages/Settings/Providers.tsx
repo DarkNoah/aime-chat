@@ -441,10 +441,7 @@ function Providers() {
     }));
   };
 
-  const updateModelEditorField = (
-    field: 'id' | 'name',
-    value: string,
-  ) => {
+  const updateModelEditorField = (field: 'id' | 'name', value: string) => {
     setModelEditorState((current) => ({
       ...current,
       [field]: value,
@@ -459,7 +456,9 @@ function Providers() {
   };
 
   const renderModelConfigEditor = () => {
-    const normalizedModalities = normalizeModalities(modelEditorState.modalities);
+    const normalizedModalities = normalizeModalities(
+      modelEditorState.modalities,
+    );
     const contextLimitValue =
       modelEditorState.contextLimit !== undefined
         ? String(modelEditorState.contextLimit)
@@ -469,7 +468,8 @@ function Providers() {
       <div className="flex flex-col gap-4 py-4">
         <div className="flex flex-col gap-2">
           <Label htmlFor="modelId">
-            {t('providers.model_id')} <span className="text-destructive">*</span>
+            {t('providers.model_id')}{' '}
+            <span className="text-destructive">*</span>
           </Label>
           <Input
             id="modelId"
@@ -542,7 +542,9 @@ function Providers() {
             }
           >
             <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder={t('providers.context_length_not_set')} />
+              <SelectValue
+                placeholder={t('providers.context_length_not_set')}
+              />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value={EMPTY_CONTEXT_LIMIT_VALUE}>
@@ -591,7 +593,6 @@ function Providers() {
         return bTime - aTime;
       });
   }, [models, search]);
-
 
   const renderList = () => {
     if (loading) {
@@ -1062,7 +1063,9 @@ function Providers() {
                 modelDialogMode === 'create' && !modelEditorState.id.trim()
               }
             >
-              {modelDialogMode === 'create' ? t('common.add') : t('common.save')}
+              {modelDialogMode === 'create'
+                ? t('common.add')
+                : t('common.save')}
             </Button>
           </DialogFooter>
         </DialogContent>

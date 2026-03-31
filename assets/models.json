@@ -6734,122 +6734,6 @@
     "name": "Vultr",
     "doc": "https://api.vultrinference.com/",
     "models": {
-      "DeepSeek-R1-Distill-Llama-70B": {
-        "id": "DeepSeek-R1-Distill-Llama-70B",
-        "name": "DeepSeek R1 Distill Llama 70B",
-        "family": "deepseek-thinking",
-        "attachment": false,
-        "reasoning": true,
-        "tool_call": true,
-        "temperature": true,
-        "knowledge": "2024-10",
-        "release_date": "2025-01-20",
-        "last_updated": "2025-01-20",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": true,
-        "cost": {
-          "input": 2,
-          "output": 2
-        },
-        "limit": {
-          "context": 130000,
-          "output": 4096
-        }
-      },
-      "DeepSeek-R1-Distill-Qwen-32B": {
-        "id": "DeepSeek-R1-Distill-Qwen-32B",
-        "name": "DeepSeek R1 Distill Qwen 32B",
-        "family": "qwen",
-        "attachment": false,
-        "reasoning": true,
-        "tool_call": true,
-        "temperature": true,
-        "knowledge": "2024-10",
-        "release_date": "2025-01-20",
-        "last_updated": "2025-01-20",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": true,
-        "cost": {
-          "input": 0.3,
-          "output": 0.3
-        },
-        "limit": {
-          "context": 130000,
-          "output": 4096
-        }
-      },
-      "NVIDIA-Nemotron-3-Super-120B-A12B-NVFP4": {
-        "id": "NVIDIA-Nemotron-3-Super-120B-A12B-NVFP4",
-        "name": "NVIDIA Nemotron 3 Super 120B A12B NVFP4",
-        "family": "nemotron",
-        "attachment": false,
-        "reasoning": false,
-        "tool_call": true,
-        "temperature": true,
-        "knowledge": "2024-10",
-        "release_date": "2025-01-20",
-        "last_updated": "2025-01-20",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": true,
-        "cost": {
-          "input": 0.2,
-          "output": 0.8
-        },
-        "limit": {
-          "context": 260000,
-          "output": 8192
-        }
-      },
-      "gpt-oss-120b": {
-        "id": "gpt-oss-120b",
-        "name": "GPT OSS 120B",
-        "family": "gpt-oss",
-        "attachment": false,
-        "reasoning": false,
-        "tool_call": true,
-        "temperature": true,
-        "knowledge": "2024-10",
-        "release_date": "2025-06-23",
-        "last_updated": "2025-06-23",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": true,
-        "cost": {
-          "input": 0.15,
-          "output": 0.6
-        },
-        "limit": {
-          "context": 130000,
-          "output": 8192
-        }
-      },
       "Kimi-K2.5": {
         "id": "Kimi-K2.5",
         "name": "Kimi K2 Instruct",
@@ -6963,35 +6847,6 @@
         },
         "limit": {
           "context": 163000,
-          "output": 4096
-        }
-      },
-      "Llama-3_1-Nemotron-Ultra-253B-v1": {
-        "id": "Llama-3_1-Nemotron-Ultra-253B-v1",
-        "name": "Llama 3.1 Nemotron Ultra 253B v1",
-        "family": "llama",
-        "attachment": false,
-        "reasoning": false,
-        "tool_call": true,
-        "temperature": true,
-        "knowledge": "2024-10",
-        "release_date": "2025-01-20",
-        "last_updated": "2025-01-20",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": true,
-        "cost": {
-          "input": 0.55,
-          "output": 1.8
-        },
-        "limit": {
-          "context": 32000,
           "output": 4096
         }
       }
@@ -13176,6 +13031,36 @@
           "output": 128000
         }
       },
+      "mistral-small-2603": {
+        "id": "mistral-small-2603",
+        "name": "Mistral Small 4",
+        "family": "mistral-small",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "temperature": true,
+        "knowledge": "2025-06",
+        "release_date": "2026-03-16",
+        "last_updated": "2026-03-16",
+        "modalities": {
+          "input": [
+            "text",
+            "image"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 0.15,
+          "output": 0.6
+        },
+        "limit": {
+          "context": 256000,
+          "output": 256000
+        }
+      },
       "ministral-3b-latest": {
         "id": "ministral-3b-latest",
         "name": "Ministral 3B (latest)",
@@ -13736,13 +13621,13 @@
         "id": "mistral-small-latest",
         "name": "Mistral Small (latest)",
         "family": "mistral-small",
-        "attachment": false,
-        "reasoning": false,
+        "attachment": true,
+        "reasoning": true,
         "tool_call": true,
         "temperature": true,
-        "knowledge": "2025-03",
-        "release_date": "2024-09-01",
-        "last_updated": "2024-09-04",
+        "knowledge": "2025-06",
+        "release_date": "2026-03-16",
+        "last_updated": "2026-03-16",
         "modalities": {
           "input": [
             "text",
@@ -13754,12 +13639,12 @@
         },
         "open_weights": true,
         "cost": {
-          "input": 0.1,
-          "output": 0.3
+          "input": 0.15,
+          "output": 0.6
         },
         "limit": {
-          "context": 128000,
-          "output": 16384
+          "context": 256000,
+          "output": 256000
         }
       },
       "open-mistral-7b": {
@@ -17533,6 +17418,35 @@
           "output": 32000
         }
       },
+      "kwaipilot/kat-coder-pro-v2": {
+        "id": "kwaipilot/kat-coder-pro-v2",
+        "name": "Kat Coder Pro V2",
+        "family": "kat-coder",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "temperature": true,
+        "release_date": "2026-03-27",
+        "last_updated": "2026-03-30",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0.3,
+          "output": 1.2,
+          "cache_read": 0.06
+        },
+        "limit": {
+          "context": 256000,
+          "output": 256000
+        }
+      },
       "morph/morph-v3-fast": {
         "id": "morph/morph-v3-fast",
         "name": "Morph v3 Fast",
@@ -19204,6 +19118,34 @@
         "limit": {
           "context": 2000000,
           "output": 30000
+        }
+      },
+      "nvidia/nemotron-3-super-120b-a12b": {
+        "id": "nvidia/nemotron-3-super-120b-a12b",
+        "name": "NVIDIA Nemotron 3 Super 120B A12B",
+        "family": "nemotron",
+        "attachment": false,
+        "reasoning": false,
+        "tool_call": false,
+        "temperature": true,
+        "release_date": "2026-03-18",
+        "last_updated": "2026-03-30",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0.15,
+          "output": 0.65
+        },
+        "limit": {
+          "context": 256000,
+          "output": 32000
         }
       },
       "nvidia/nemotron-nano-12b-v2-vl": {
@@ -22108,13 +22050,13 @@
         "id": "mistral/mistral-small",
         "name": "Mistral Small (latest)",
         "family": "mistral-small",
-        "attachment": false,
-        "reasoning": false,
+        "attachment": true,
+        "reasoning": true,
         "tool_call": true,
         "temperature": true,
-        "knowledge": "2025-03",
-        "release_date": "2024-09-01",
-        "last_updated": "2024-09-04",
+        "knowledge": "2025-06",
+        "release_date": "2026-03-16",
+        "last_updated": "2026-03-16",
         "modalities": {
           "input": [
             "text",
@@ -22126,12 +22068,12 @@
         },
         "open_weights": true,
         "cost": {
-          "input": 0.1,
-          "output": 0.3
+          "input": 0.15,
+          "output": 0.6
         },
         "limit": {
-          "context": 128000,
-          "output": 16384
+          "context": 256000,
+          "output": 256000
         }
       },
       "mistral/ministral-3b": {
@@ -48318,6 +48260,39 @@
           "npm": "@ai-sdk/openai"
         }
       },
+      "qwen3.6-plus-free": {
+        "id": "qwen3.6-plus-free",
+        "name": "Qwen3.6 Plus Free",
+        "family": "qwen-free",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "interleaved": {
+          "field": "reasoning_content"
+        },
+        "temperature": true,
+        "knowledge": "2024-12",
+        "release_date": "2026-03-30",
+        "last_updated": "2026-03-30",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cache_read": 0
+        },
+        "limit": {
+          "context": 1048576,
+          "output": 64000
+        }
+      },
       "gpt-5.3-codex-spark": {
         "id": "gpt-5.3-codex-spark",
         "name": "GPT-5.3 Codex Spark",
@@ -57164,6 +57139,38 @@
           "output": 100000
         }
       },
+      "gpt-5.3-chat-latest": {
+        "id": "gpt-5.3-chat-latest",
+        "name": "GPT-5.3 Chat (latest)",
+        "family": "gpt",
+        "attachment": true,
+        "reasoning": false,
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": true,
+        "knowledge": "2025-08-31",
+        "release_date": "2026-03-03",
+        "last_updated": "2026-03-03",
+        "modalities": {
+          "input": [
+            "text",
+            "image"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 1.75,
+          "output": 14,
+          "cache_read": 0.175
+        },
+        "limit": {
+          "context": 128000,
+          "output": 16384
+        }
+      },
       "gpt-5.4-nano": {
         "id": "gpt-5.4-nano",
         "name": "GPT-5.4 nano",
@@ -60575,35 +60582,6 @@
           "output": 262144
         }
       },
-      "nvidia/nemotron-3-super-120b-a12b-free": {
-        "id": "nvidia/nemotron-3-super-120b-a12b-free",
-        "name": "Nemotron 3 Super (free)",
-        "family": "nemotron",
-        "attachment": false,
-        "reasoning": true,
-        "tool_call": true,
-        "temperature": true,
-        "knowledge": "2024-04",
-        "release_date": "2026-03-11",
-        "last_updated": "2026-03-11",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": true,
-        "cost": {
-          "input": 0,
-          "output": 0
-        },
-        "limit": {
-          "context": 262144,
-          "output": 262144
-        }
-      },
       "nvidia/nemotron-nano-12b-v2-vl:free": {
         "id": "nvidia/nemotron-nano-12b-v2-vl:free",
         "name": "Nemotron Nano 12B 2 VL (free)",
@@ -60661,6 +60639,35 @@
         "limit": {
           "context": 131072,
           "output": 131072
+        }
+      },
+      "nvidia/nemotron-3-super-120b-a12b:free": {
+        "id": "nvidia/nemotron-3-super-120b-a12b:free",
+        "name": "Nemotron 3 Super (free)",
+        "family": "nemotron",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "temperature": true,
+        "knowledge": "2024-04",
+        "release_date": "2026-03-11",
+        "last_updated": "2026-03-11",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 0,
+          "output": 0
+        },
+        "limit": {
+          "context": 262144,
+          "output": 262144
         }
       },
       "nvidia/nemotron-3-nano-30b-a3b:free": {
@@ -62688,6 +62695,35 @@
           "output": 262144
         }
       },
+      "qwen/qwen3.6-plus-preview:free": {
+        "id": "qwen/qwen3.6-plus-preview:free",
+        "name": "Qwen3.6 Plus Preview (free)",
+        "family": "qwen",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": true,
+        "release_date": "2026-03-30",
+        "last_updated": "2026-03-30",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0,
+          "output": 0
+        },
+        "limit": {
+          "context": 1000000,
+          "output": 65536
+        }
+      },
       "qwen/qwen3-coder:exacto": {
         "id": "qwen/qwen3-coder:exacto",
         "name": "Qwen3 Coder (exacto)",
@@ -63821,8 +63857,8 @@
     "env": [
       "ZENMUX_API_KEY"
     ],
-    "npm": "@ai-sdk/anthropic",
-    "api": "https://zenmux.ai/api/anthropic/v1",
+    "npm": "@ai-sdk/openai-compatible",
+    "api": "https://zenmux.ai/api/v1",
     "name": "ZenMux",
     "doc": "https://docs.zenmux.ai",
     "models": {
@@ -63855,6 +63891,10 @@
         "limit": {
           "context": 400000,
           "output": 64000
+        },
+        "provider": {
+          "npm": "@ai-sdk/openai",
+          "api": "https://zenmux.ai/api/v1"
         }
       },
       "openai/gpt-5.1-codex-mini": {
@@ -63885,6 +63925,10 @@
         "limit": {
           "context": 400000,
           "output": 64000
+        },
+        "provider": {
+          "npm": "@ai-sdk/openai",
+          "api": "https://zenmux.ai/api/v1"
         }
       },
       "openai/gpt-5.4-pro": {
@@ -63914,6 +63958,10 @@
         "limit": {
           "context": 1050000,
           "output": 128000
+        },
+        "provider": {
+          "npm": "@ai-sdk/openai",
+          "api": "https://zenmux.ai/api/v1"
         }
       },
       "openai/gpt-5.4-mini": {
@@ -63942,6 +63990,10 @@
         "limit": {
           "context": 400000,
           "output": 128000
+        },
+        "provider": {
+          "npm": "@ai-sdk/openai",
+          "api": "https://zenmux.ai/api/v1"
         }
       },
       "openai/gpt-5": {
@@ -63973,6 +64025,10 @@
         "limit": {
           "context": 400000,
           "output": 64000
+        },
+        "provider": {
+          "npm": "@ai-sdk/openai",
+          "api": "https://zenmux.ai/api/v1"
         }
       },
       "openai/gpt-5.3-codex": {
@@ -64001,6 +64057,10 @@
         "limit": {
           "context": 400000,
           "output": 128000
+        },
+        "provider": {
+          "npm": "@ai-sdk/openai",
+          "api": "https://zenmux.ai/api/v1"
         }
       },
       "openai/gpt-5.1-chat": {
@@ -64032,6 +64092,10 @@
         "limit": {
           "context": 128000,
           "output": 64000
+        },
+        "provider": {
+          "npm": "@ai-sdk/openai",
+          "api": "https://zenmux.ai/api/v1"
         }
       },
       "openai/gpt-5.4": {
@@ -64061,6 +64125,10 @@
         "limit": {
           "context": 1050000,
           "output": 128000
+        },
+        "provider": {
+          "npm": "@ai-sdk/openai",
+          "api": "https://zenmux.ai/api/v1"
         }
       },
       "openai/gpt-5.4-nano": {
@@ -64089,6 +64157,10 @@
         "limit": {
           "context": 400000,
           "output": 128000
+        },
+        "provider": {
+          "npm": "@ai-sdk/openai",
+          "api": "https://zenmux.ai/api/v1"
         }
       },
       "openai/gpt-5.3-chat": {
@@ -64117,6 +64189,10 @@
         "limit": {
           "context": 128000,
           "output": 16380
+        },
+        "provider": {
+          "npm": "@ai-sdk/openai",
+          "api": "https://zenmux.ai/api/v1"
         }
       },
       "openai/gpt-5.2": {
@@ -64148,6 +64224,10 @@
         "limit": {
           "context": 400000,
           "output": 64000
+        },
+        "provider": {
+          "npm": "@ai-sdk/openai",
+          "api": "https://zenmux.ai/api/v1"
         }
       },
       "openai/gpt-5.1": {
@@ -64179,6 +64259,10 @@
         "limit": {
           "context": 400000,
           "output": 64000
+        },
+        "provider": {
+          "npm": "@ai-sdk/openai",
+          "api": "https://zenmux.ai/api/v1"
         }
       },
       "openai/gpt-5-codex": {
@@ -64209,6 +64293,10 @@
         "limit": {
           "context": 400000,
           "output": 64000
+        },
+        "provider": {
+          "npm": "@ai-sdk/openai",
+          "api": "https://zenmux.ai/api/v1"
         }
       },
       "openai/gpt-5.1-codex": {
@@ -64239,6 +64327,10 @@
         "limit": {
           "context": 400000,
           "output": 64000
+        },
+        "provider": {
+          "npm": "@ai-sdk/openai",
+          "api": "https://zenmux.ai/api/v1"
         }
       },
       "openai/gpt-5.2-pro": {
@@ -64269,6 +64361,10 @@
         "limit": {
           "context": 400000,
           "output": 128000
+        },
+        "provider": {
+          "npm": "@ai-sdk/openai",
+          "api": "https://zenmux.ai/api/v1"
         }
       },
       "x-ai/grok-4-fast": {
@@ -64509,6 +64605,10 @@
         "limit": {
           "context": 1000000,
           "output": 128000
+        },
+        "provider": {
+          "npm": "@ai-sdk/anthropic",
+          "api": "https://zenmux.ai/api/anthropic/v1"
         }
       },
       "anthropic/claude-haiku-4.5": {
@@ -64540,6 +64640,10 @@
         "limit": {
           "context": 200000,
           "output": 64000
+        },
+        "provider": {
+          "npm": "@ai-sdk/anthropic",
+          "api": "https://zenmux.ai/api/anthropic/v1"
         }
       },
       "anthropic/claude-opus-4.1": {
@@ -64572,6 +64676,10 @@
         "limit": {
           "context": 200000,
           "output": 64000
+        },
+        "provider": {
+          "npm": "@ai-sdk/anthropic",
+          "api": "https://zenmux.ai/api/anthropic/v1"
         }
       },
       "anthropic/claude-3.7-sonnet": {
@@ -64604,6 +64712,10 @@
         "limit": {
           "context": 200000,
           "output": 64000
+        },
+        "provider": {
+          "npm": "@ai-sdk/anthropic",
+          "api": "https://zenmux.ai/api/anthropic/v1"
         }
       },
       "anthropic/claude-sonnet-4.6": {
@@ -64635,6 +64747,10 @@
         "limit": {
           "context": 1000000,
           "output": 64000
+        },
+        "provider": {
+          "npm": "@ai-sdk/anthropic",
+          "api": "https://zenmux.ai/api/anthropic/v1"
         }
       },
       "anthropic/claude-sonnet-4": {
@@ -64667,6 +64783,10 @@
         "limit": {
           "context": 1000000,
           "output": 64000
+        },
+        "provider": {
+          "npm": "@ai-sdk/anthropic",
+          "api": "https://zenmux.ai/api/anthropic/v1"
         }
       },
       "anthropic/claude-3.5-haiku": {
@@ -64698,6 +64818,10 @@
         "limit": {
           "context": 200000,
           "output": 64000
+        },
+        "provider": {
+          "npm": "@ai-sdk/anthropic",
+          "api": "https://zenmux.ai/api/anthropic/v1"
         }
       },
       "anthropic/claude-opus-4.5": {
@@ -64730,40 +64854,11 @@
         "limit": {
           "context": 200000,
           "output": 64000
+        },
+        "provider": {
+          "npm": "@ai-sdk/anthropic",
+          "api": "https://zenmux.ai/api/anthropic/v1"
         }
-      },
-      "anthropic/claude-3.5-sonnet": {
-        "id": "anthropic/claude-3.5-sonnet",
-        "name": "Claude 3.5 Sonnet (Retiring Soon)",
-        "attachment": true,
-        "reasoning": false,
-        "tool_call": true,
-        "temperature": true,
-        "knowledge": "2025-01-01",
-        "release_date": "2024-10-22",
-        "last_updated": "2024-10-22",
-        "modalities": {
-          "input": [
-            "text",
-            "image",
-            "pdf"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": false,
-        "cost": {
-          "input": 3,
-          "output": 15,
-          "cache_read": 0.3,
-          "cache_write": 3.75
-        },
-        "limit": {
-          "context": 200000,
-          "output": 64000
-        },
-        "status": "deprecated"
       },
       "anthropic/claude-sonnet-4.5": {
         "id": "anthropic/claude-sonnet-4.5",
@@ -64795,6 +64890,10 @@
         "limit": {
           "context": 1000000,
           "output": 64000
+        },
+        "provider": {
+          "npm": "@ai-sdk/anthropic",
+          "api": "https://zenmux.ai/api/anthropic/v1"
         }
       },
       "anthropic/claude-opus-4": {
@@ -64826,7 +64925,11 @@
         },
         "limit": {
           "context": 200000,
-          "output": 64000
+          "output": 32000
+        },
+        "provider": {
+          "npm": "@ai-sdk/anthropic",
+          "api": "https://zenmux.ai/api/anthropic/v1"
         }
       },
       "volcengine/doubao-seed-2.0-lite": {
@@ -65106,6 +65209,9 @@
         "attachment": false,
         "reasoning": true,
         "tool_call": true,
+        "interleaved": {
+          "field": "reasoning_content"
+        },
         "temperature": true,
         "knowledge": "2025-01-01",
         "release_date": "2026-01-19",
@@ -65344,6 +65450,9 @@
         "attachment": false,
         "reasoning": true,
         "tool_call": true,
+        "interleaved": {
+          "field": "reasoning_content"
+        },
         "temperature": true,
         "knowledge": "2025-01-01",
         "release_date": "2025-12-23",
@@ -65717,40 +65826,6 @@
           "output": 65530
         }
       },
-      "google/gemini-3-pro-image-preview": {
-        "id": "google/gemini-3-pro-image-preview",
-        "name": "Gemini 3 Pro Image Preview",
-        "attachment": true,
-        "reasoning": true,
-        "tool_call": true,
-        "temperature": true,
-        "knowledge": "2025-01-01",
-        "release_date": "2025-03-20",
-        "last_updated": "2025-03-20",
-        "modalities": {
-          "input": [
-            "text",
-            "image",
-            "pdf",
-            "audio",
-            "video"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": false,
-        "cost": {
-          "input": 2,
-          "output": 12,
-          "cache_read": 0.2,
-          "cache_write": 4.5
-        },
-        "limit": {
-          "context": 1048000,
-          "output": 64000
-        }
-      },
       "baidu/ernie-5.0-thinking-preview": {
         "id": "baidu/ernie-5.0-thinking-preview",
         "name": "ERNIE 5.0",
@@ -65787,9 +65862,6 @@
         "attachment": false,
         "reasoning": true,
         "tool_call": true,
-        "interleaved": {
-          "field": "reasoning_content"
-        },
         "temperature": true,
         "knowledge": "2025-01-01",
         "release_date": "2026-02-13",
@@ -65812,6 +65884,10 @@
         "limit": {
           "context": 204800,
           "output": 131072
+        },
+        "provider": {
+          "npm": "@ai-sdk/anthropic",
+          "api": "https://zenmux.ai/api/anthropic/v1"
         }
       },
       "minimax/minimax-m2": {
@@ -65842,6 +65918,10 @@
         "limit": {
           "context": 204000,
           "output": 64000
+        },
+        "provider": {
+          "npm": "@ai-sdk/anthropic",
+          "api": "https://zenmux.ai/api/anthropic/v1"
         }
       },
       "minimax/minimax-m2.1": {
@@ -65872,6 +65952,10 @@
         "limit": {
           "context": 204000,
           "output": 64000
+        },
+        "provider": {
+          "npm": "@ai-sdk/anthropic",
+          "api": "https://zenmux.ai/api/anthropic/v1"
         }
       },
       "minimax/minimax-m2.7": {
@@ -65900,6 +65984,10 @@
         "limit": {
           "context": 204800,
           "output": 131070
+        },
+        "provider": {
+          "npm": "@ai-sdk/anthropic",
+          "api": "https://zenmux.ai/api/anthropic/v1"
         }
       },
       "minimax/minimax-m2.7-highspeed": {
@@ -65928,6 +66016,10 @@
         "limit": {
           "context": 204800,
           "output": 131070
+        },
+        "provider": {
+          "npm": "@ai-sdk/anthropic",
+          "api": "https://zenmux.ai/api/anthropic/v1"
         }
       },
       "minimax/minimax-m2.5": {
@@ -65936,9 +66028,6 @@
         "attachment": false,
         "reasoning": true,
         "tool_call": true,
-        "interleaved": {
-          "field": "reasoning_content"
-        },
         "temperature": true,
         "knowledge": "2025-01-01",
         "release_date": "2026-02-13",
@@ -65961,6 +66050,10 @@
         "limit": {
           "context": 204800,
           "output": 131072
+        },
+        "provider": {
+          "npm": "@ai-sdk/anthropic",
+          "api": "https://zenmux.ai/api/anthropic/v1"
         }
       },
       "qwen/qwen3.5-plus": {
@@ -66376,7 +66469,7 @@
         "interleaved": {
           "field": "reasoning_content"
         },
-        "temperature": true,
+        "temperature": false,
         "knowledge": "2025-01-01",
         "release_date": "2026-01-27",
         "last_updated": "2026-01-27",
@@ -79571,6 +79664,35 @@
           "output": 128000
         }
       },
+      "zai-org/glm-5.1:thinking": {
+        "id": "zai-org/glm-5.1:thinking",
+        "name": "GLM 5.1 Thinking",
+        "family": "glm",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "structured_output": true,
+        "release_date": "2026-03-27",
+        "last_updated": "2026-03-27",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 0.3,
+          "output": 2.55
+        },
+        "limit": {
+          "context": 200000,
+          "input": 200000,
+          "output": 131072
+        }
+      },
       "zai-org/glm-5:thinking": {
         "id": "zai-org/glm-5:thinking",
         "name": "GLM 5 Thinking",
@@ -79627,6 +79749,35 @@
           "context": 200000,
           "input": 200000,
           "output": 128000
+        }
+      },
+      "zai-org/glm-5.1": {
+        "id": "zai-org/glm-5.1",
+        "name": "GLM 5.1",
+        "family": "glm",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "structured_output": true,
+        "release_date": "2026-03-27",
+        "last_updated": "2026-03-27",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 0.3,
+          "output": 2.55
+        },
+        "limit": {
+          "context": 200000,
+          "input": 200000,
+          "output": 131072
         }
       },
       "zai-org/glm-4.7": {
