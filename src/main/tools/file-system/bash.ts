@@ -23,6 +23,46 @@ import Stream from 'stream';
 import { appManager } from '@/main/app';
 import { ToolConfig } from '@/types/tool';
 const MAX_OUTPUT_LENGTH = 10000;
+const PATH_DELIMITER = process.platform === 'win32' ? ';' : ':';
+
+function prependPath(env: Record<string, string>, dir?: string) {
+  if (!dir) return;
+  env['PATH'] += `${dir}${PATH_DELIMITER}`;
+}
+
+async function hasUsableSystemPython() {
+  const versionResult = await runCommand('python --version', {
+    timeout: 1000 * 5,
+  });
+  const versionOutput = `${versionResult.stdout}\n${versionResult.stderr}`;
+
+  if (
+    versionResult.code !== 0 ||
+    !/^Python\s+\d+(\.\d+)+/m.test(versionOutput)
+  ) {
+    return false;
+  }
+
+  if (process.platform !== 'win32') {
+    return true;
+  }
+
+  const whereResult = await runCommand('where python', {
+    timeout: 1000 * 5,
+  });
+  if (whereResult.code !== 0) {
+    return false;
+  }
+
+  const candidates = whereResult.stdout
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => line.replace(/\//g, '\\').toLowerCase())
+    .filter((line) => !line.includes('\\windowsapps\\python.exe'));
+
+  return candidates.length > 0;
+}
 
 export interface BashToolParams extends BaseToolParams {
   env?: string;
@@ -236,9 +276,16 @@ Output: Creates directory 'foo'`),
     const bun = await getBunRuntime();
 
     if (uv.installed || bun.installed) {
-      _env['PATH'] +=
-        `${uv.dir || bun.dir}` +
-        (process.platform === 'win32' ? ';' : ':');
+      prependPath(_env, uv.dir || bun.dir);
+    }
+
+    const hasSystemPython = await hasUsableSystemPython();
+    const runtimePythonBinDir = uv.pythonRuntime?.pythonPath
+      ? path.dirname(uv.pythonRuntime.pythonPath)
+      : undefined;
+
+    if (!hasSystemPython && runtimePythonBinDir) {
+      prependPath(_env, runtimePythonBinDir);
     }
 
     if (env && Object.values(env).length > 0) {

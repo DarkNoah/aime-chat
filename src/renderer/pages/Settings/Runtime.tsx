@@ -78,6 +78,14 @@ function Runtime() {
             {runtimeInfo?.uv?.version && (
               <Badge>{runtimeInfo?.uv?.version}</Badge>
             )}
+            {runtimeInfo?.uv?.pythonRuntime?.installed &&
+              runtimeInfo?.uv?.pythonRuntime?.pythonVersion && (
+                <Badge>Python {runtimeInfo?.uv?.pythonRuntime?.pythonVersion}</Badge>
+              )}
+            {runtimeInfo?.uv?.pythonRuntime?.installed &&
+              runtimeInfo?.uv?.pythonRuntime?.pipVersion && (
+                <Badge>Pip {runtimeInfo?.uv?.pythonRuntime?.pipVersion}</Badge>
+              )}
           </ItemTitle>
           {runtimeInfo?.uv?.path && (
             <ItemDescription>
@@ -90,6 +98,42 @@ function Runtime() {
               >
                 <IconFolder />
                 <span className="truncate">{runtimeInfo?.uv?.path}</span>
+              </Button>
+            </ItemDescription>
+          )}
+          {runtimeInfo?.uv?.pythonRuntime?.pythonPath && (
+            <ItemDescription>
+              <Button
+                variant="link"
+                size="sm"
+                onClick={() =>
+                  window.electron.app.openPath(
+                    runtimeInfo?.uv?.pythonRuntime?.pythonPath,
+                  )
+                }
+              >
+                <IconFolder />
+                <span className="truncate">
+                  {runtimeInfo?.uv?.pythonRuntime?.pythonPath}
+                </span>
+              </Button>
+            </ItemDescription>
+          )}
+          {runtimeInfo?.uv?.pythonRuntime?.pipPath && (
+            <ItemDescription>
+              <Button
+                variant="link"
+                size="sm"
+                onClick={() =>
+                  window.electron.app.openPath(
+                    runtimeInfo?.uv?.pythonRuntime?.pipPath,
+                  )
+                }
+              >
+                <IconFolder />
+                <span className="truncate">
+                  {runtimeInfo?.uv?.pythonRuntime?.pipPath}
+                </span>
               </Button>
             </ItemDescription>
           )}

@@ -136,6 +136,11 @@ function RuntimeStep({ onNext, onBack, onSkip }: SetupStepProps) {
                   {isUVInstalled && runtimeInfo?.uv?.version && (
                     <Badge variant="secondary">{runtimeInfo.uv.version}</Badge>
                   )}
+                  {isUVInstalled && runtimeInfo?.uv?.pythonRuntime?.pythonVersion && (
+                    <Badge variant="secondary">
+                      Python {runtimeInfo.uv.pythonRuntime.pythonVersion}
+                    </Badge>
+                  )}
                 </ItemTitle>
                 <ItemDescription>{t('setup.runtime.uv_desc')}</ItemDescription>
               </ItemContent>
