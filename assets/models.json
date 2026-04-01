@@ -29398,11 +29398,11 @@
         "name": "Aion 2.0",
         "family": "o",
         "attachment": false,
-        "reasoning": false,
+        "reasoning": true,
         "tool_call": false,
         "temperature": true,
         "release_date": "2026-03-24",
-        "last_updated": "2026-03-27",
+        "last_updated": "2026-03-31",
         "modalities": {
           "input": [
             "text"
@@ -29738,6 +29738,37 @@
         },
         "limit": {
           "context": 2000000,
+          "output": 128000
+        }
+      },
+      "openai-gpt-54-mini": {
+        "id": "openai-gpt-54-mini",
+        "name": "GPT-5.4 Mini",
+        "family": "gpt-mini",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": true,
+        "release_date": "2026-03-27",
+        "last_updated": "2026-03-31",
+        "modalities": {
+          "input": [
+            "text",
+            "image"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0.9375,
+          "output": 5.625,
+          "cache_read": 0.09375
+        },
+        "limit": {
+          "context": 400000,
           "output": 128000
         }
       },
@@ -30290,36 +30321,6 @@
           "output": 16384
         }
       },
-      "qwen3-4b": {
-        "id": "qwen3-4b",
-        "name": "Venice Small",
-        "family": "qwen",
-        "attachment": false,
-        "reasoning": true,
-        "tool_call": true,
-        "structured_output": true,
-        "temperature": true,
-        "knowledge": "2024-07",
-        "release_date": "2025-04-29",
-        "last_updated": "2026-03-12",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": true,
-        "cost": {
-          "input": 0.05,
-          "output": 0.15
-        },
-        "limit": {
-          "context": 32000,
-          "output": 4096
-        }
-      },
       "hermes-3-llama-3.1-405b": {
         "id": "hermes-3-llama-3.1-405b",
         "name": "Hermes 3 Llama 3.1 405b",
@@ -30408,37 +30409,6 @@
         "cost": {
           "input": 0.7,
           "output": 2.8
-        },
-        "limit": {
-          "context": 128000,
-          "output": 4096
-        }
-      },
-      "mistral-31-24b": {
-        "id": "mistral-31-24b",
-        "name": "Venice Medium",
-        "family": "mistral",
-        "attachment": true,
-        "reasoning": false,
-        "tool_call": true,
-        "structured_output": true,
-        "temperature": true,
-        "knowledge": "2023-10",
-        "release_date": "2025-03-18",
-        "last_updated": "2026-03-12",
-        "modalities": {
-          "input": [
-            "text",
-            "image"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": true,
-        "cost": {
-          "input": 0.5,
-          "output": 2
         },
         "limit": {
           "context": 128000,
@@ -68390,6 +68360,41 @@
           "output": 32768
         }
       },
+      "hf:Qwen/Qwen3.5-397B-A17B": {
+        "id": "hf:Qwen/Qwen3.5-397B-A17B",
+        "name": "Qwen3.5-97B-A17B",
+        "family": "qwen",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "interleaved": {
+          "field": "reasoning_content"
+        },
+        "structured_output": true,
+        "temperature": true,
+        "release_date": "2026-02-11",
+        "last_updated": "2026-02-11",
+        "modalities": {
+          "input": [
+            "text",
+            "image"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 0.6,
+          "output": 3,
+          "cache_read": 0.6
+        },
+        "limit": {
+          "context": 262144,
+          "output": 65536
+        },
+        "status": "beta"
+      },
       "hf:Qwen/Qwen3-235B-A22B-Thinking-2507": {
         "id": "hf:Qwen/Qwen3-235B-A22B-Thinking-2507",
         "name": "Qwen3 235B A22B Thinking 2507",
@@ -89290,8 +89295,7 @@
     "env": [
       "AIHUBMIX_API_KEY"
     ],
-    "npm": "@ai-sdk/openai-compatible",
-    "api": "https://aihubmix.com/v1",
+    "npm": "@aihubmix/ai-sdk-provider",
     "name": "AIHubMix",
     "doc": "https://docs.aihubmix.com",
     "models": {

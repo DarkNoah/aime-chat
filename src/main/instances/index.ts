@@ -33,6 +33,15 @@ export interface BrowserProfile {
   userDataPath: string;
   browser: 'chrome' | 'edge';
   executablePath?: string;
+  isBuiltIn?: boolean;
+  availableBrowsers?: BrowserExecutableOption[];
+}
+
+export interface BrowserExecutableOption {
+  browser: 'chrome' | 'edge';
+  label: string;
+  executablePath?: string;
+  installed: boolean;
 }
 
 export interface InstanceInfo extends Instances {
@@ -46,6 +55,54 @@ class InstancesManager extends BaseManager {
   DEFAULT_BROWSER_INSTANCE_ID = 'default_browser';
   instanceInfos: Map<string, InstanceInfo> = new Map();
   repository: Repository<Instances>;
+
+  private resolveChromePath(): string | undefined {
+    const executablePath = chromePath?.chrome;
+    return executablePath && fs.existsSync(executablePath)
+      ? executablePath
+      : undefined;
+  }
+
+  private resolveEdgePath(): string | undefined {
+    try {
+      const executablePath = getEdgePath();
+      return executablePath && fs.existsSync(executablePath)
+        ? executablePath
+        : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  private getAvailableBrowsers(): BrowserExecutableOption[] {
+    const chromeExecutablePath = this.resolveChromePath();
+    const edgeExecutablePath = this.resolveEdgePath();
+
+    return [
+      {
+        browser: 'chrome',
+        label: 'Google Chrome',
+        executablePath: chromeExecutablePath,
+        installed: Boolean(chromeExecutablePath),
+      },
+      {
+        browser: 'edge',
+        label: 'Microsoft Edge',
+        executablePath: edgeExecutablePath,
+        installed: Boolean(edgeExecutablePath),
+      },
+    ];
+  }
+
+  private resolveExecutablePath(executablePath?: string): string | undefined {
+    return executablePath && fs.existsSync(executablePath)
+      ? executablePath
+      : undefined;
+  }
+
+  private getDefaultExecutablePath(): string | undefined {
+    return this.resolveChromePath() || this.resolveEdgePath();
+  }
 
   async init(): Promise<void> {
     this.repository = dbManager.dataSource.getRepository(Instances);
@@ -119,7 +176,7 @@ class InstancesManager extends BaseManager {
       this.DEFAULT_BROWSER_INSTANCE_ID,
     );
 
-    const executablePath = chromePath?.chrome || getEdgePath();
+    const executablePath = this.getDefaultExecutablePath();
     if (!instance) {
       instance = new Instances(
         this.DEFAULT_BROWSER_INSTANCE_ID,
@@ -131,8 +188,12 @@ class InstancesManager extends BaseManager {
         },
       );
     }
-    if (!instance?.config?.executablePath || !instance?.config?.userDataPath) {
+    const resolvedExecutablePath = this.resolveExecutablePath(
+      instance?.config?.executablePath,
+    );
+    if (!resolvedExecutablePath || !instance?.config?.userDataPath) {
       instance.config = {
+        ...instance.config,
         executablePath: executablePath,
         userDataPath: userDataPath,
       };
@@ -197,12 +258,14 @@ class InstancesManager extends BaseManager {
       'instances',
       this.DEFAULT_BROWSER_INSTANCE_ID,
     );
-    const defaultExePath = chromePath?.chrome || getEdgePath();
+    const defaultExePath = this.getDefaultExecutablePath();
     profiles.push({
       name: 'Default (Built-in)',
       userDataPath: defaultUserData,
-      browser: 'chrome',
+      browser: defaultExePath === this.resolveEdgePath() ? 'edge' : 'chrome',
       executablePath: defaultExePath || undefined,
+      isBuiltIn: true,
+      availableBrowsers: this.getAvailableBrowsers(),
     });
     if (process.platform === 'win32') {
       const localAppData = process.env.LOCALAPPDATA;
@@ -220,7 +283,7 @@ class InstancesManager extends BaseManager {
             name: 'Google Chrome',
             userDataPath: chromeUserData,
             browser: 'chrome',
-            executablePath: chromePath?.chrome || undefined,
+            executablePath: this.resolveChromePath(),
           });
         }
 
@@ -232,17 +295,11 @@ class InstancesManager extends BaseManager {
           'User Data',
         );
         if (fs.existsSync(edgeUserData)) {
-          let edgeExePath: string | undefined;
-          try {
-            edgeExePath = getEdgePath();
-          } catch {
-            edgeExePath = undefined;
-          }
           profiles.push({
             name: 'Microsoft Edge',
             userDataPath: edgeUserData,
             browser: 'edge',
-            executablePath: edgeExePath,
+            executablePath: this.resolveEdgePath(),
           });
         }
       }
@@ -257,24 +314,18 @@ class InstancesManager extends BaseManager {
           name: 'Google Chrome',
           userDataPath: chromeUserData,
           browser: 'chrome',
-          executablePath: chromePath?.chrome || undefined,
+          executablePath: this.resolveChromePath(),
         });
       }
 
       // Edge: ~/Library/Application Support/Microsoft Edge
       const edgeUserData = path.join(applicationSupport, 'Microsoft Edge');
       if (fs.existsSync(edgeUserData)) {
-        let edgeExePath: string | undefined;
-        try {
-          edgeExePath = getEdgePath();
-        } catch {
-          edgeExePath = undefined;
-        }
         profiles.push({
           name: 'Microsoft Edge',
           userDataPath: edgeUserData,
           browser: 'edge',
-          executablePath: edgeExePath,
+          executablePath: this.resolveEdgePath(),
         });
       }
     }
@@ -361,7 +412,8 @@ class InstancesManager extends BaseManager {
 
       if (!wsUrl) {
         const executablePath =
-          config.executablePath || chromePath?.chrome || getEdgePath();
+          this.resolveExecutablePath(config.executablePath) ||
+          this.getDefaultExecutablePath();
 
         if (!executablePath) {
           throw new Error('No browser executable found');
