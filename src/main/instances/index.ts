@@ -406,7 +406,7 @@ class InstancesManager extends BaseManager {
 
     const debugPort = config.debugPort || 9222;
 
-    if (isSystemUserData || true) {
+    if (isSystemUserData) {
       let wsUrl = await this.getCdpWebSocketUrl(debugPort);
 
 

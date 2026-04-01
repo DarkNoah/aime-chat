@@ -2,7 +2,13 @@ import { createTool, ToolExecutionContext } from '@mastra/core/tools';
 import { generateText } from 'ai';
 import z from 'zod';
 import BaseTool, { BaseToolParams } from '../base-tool';
-import { createShell, decodeBuffer, runCommand } from '@/main/utils/shell';
+import {
+  attachAbortHandler,
+  createManagedAbortController,
+  createShell,
+  decodeBuffer,
+  runCommand,
+} from '@/main/utils/shell';
 import { getBunRuntime, getUVRuntime } from '@/main/app/runtime';
 import { app } from 'electron';
 import fs from 'fs';
@@ -10,9 +16,8 @@ import path from 'path';
 import { nanoid } from '@/utils/nanoid';
 import BaseToolkit, { BaseToolkitParams } from '../base-toolkit';
 import { truncateText } from '@/utils/common';
-import os from 'os';
 import stripAnsi from 'strip-ansi';
-import { ChildProcessByStdio, spawn } from 'child_process';
+import { ChildProcessByStdio } from 'child_process';
 import iconv from 'iconv-lite';
 import Stream from 'stream';
 import { appManager } from '@/main/app';
@@ -196,7 +201,6 @@ Output: Creates directory 'foo'`),
     const { requestContext } = context;
     const threadId = requestContext.get('threadId' as never) as string;
     const abortSignal = context?.abortSignal;
-    const isWindows = os.platform() === 'win32';
 
     if (directory && !fs.existsSync(directory)) {
       throw new Error(`Directory ${directory} does not exist`);
@@ -272,6 +276,7 @@ Output: Creates directory 'foo'`),
       error,
       code,
       processSignal,
+      timedOut,
       backgroundPIDs,
       tempFilePath,
       pid,
@@ -294,6 +299,18 @@ Output: Creates directory 'foo'`),
         llmContent += ` Below is the output (on stdout and stderr) before it was cancelled:\n${output}`;
       } else {
         llmContent += ' There was no output before it was cancelled.';
+      }
+    } else if (timedOut) {
+      llmContent = `Command timed out after ${timeout}ms before it could complete.`;
+      if (output.trim()) {
+        output = output.trim();
+
+        if (output && output.length > MAX_OUTPUT_LENGTH) {
+          output = truncateText(output, MAX_OUTPUT_LENGTH / 2);
+        }
+        llmContent += ` Below is the output (on stdout and stderr) before timeout:\n${output}`;
+      } else {
+        llmContent += ' There was no output before timeout.';
       }
     } else {
       if (stdout && stdout.length > MAX_OUTPUT_LENGTH) {
@@ -391,6 +408,7 @@ export class BashOutput extends BaseTool {
       `Error: ${errorMessage ?? '(none)'}`,
       `Exit Code: ${bashSession.exitCode ?? '(none)'}`,
       `Signal: ${bashSession.processSignal ?? '(none)'}`,
+      `Timed Out: ${bashSession.timedOut ? 'Yes' : 'No'}`,
       `Duration: ${Math.floor(
         (new Date().getTime() - bashSession.startTime.getTime()) / 1000,
       )} s`,
@@ -520,6 +538,7 @@ export interface BashSession {
   abortController?: AbortController;
   processSignal?: NodeJS.Signals;
   description?: string;
+  timedOut?: boolean;
 }
 
 export class BashManager {
@@ -537,16 +556,12 @@ export class BashManager {
     abortSignal?: AbortSignal,
     threadId?: string,
   ) {
-    let abortController: AbortController;
-    if (!abortSignal) {
-      abortController = new AbortController();
-      const signal = abortController.signal;
-      abortSignal = signal;
-    }
+    const managedAbort = createManagedAbortController(timeout, abortSignal);
+    const { abortController } = managedAbort;
     const { shell, tempFilePath, command } = await createShell(
       input.command,
       cwd,
-      timeout,
+      undefined,
       env,
     );
     if (!bashId) {
@@ -568,6 +583,7 @@ export class BashManager {
       abortController,
       threadId,
       description: input.description,
+      timedOut: false,
     };
     this.bashMap.set(bashId, bashSession);
 
@@ -615,7 +631,8 @@ export class BashManager {
       error = err;
       // remove wrapper from user's command in error message
 
-      error.message = error.message.replace(command, input.command);
+      const wrappedCommand = Array.isArray(command) ? command.join(' ') : command;
+      error.message = error.message.replace(wrappedCommand, input.command);
       bashSession.errorMessage = error.message;
     });
 
@@ -631,44 +648,21 @@ export class BashManager {
       bashSession.exitCode = _code;
       bashSession.isExited = true;
       bashSession.processSignal = _signal;
+      bashSession.timedOut = managedAbort.didTimeout();
       console.log('exit', `${bashSession.bashId}`);
     };
     shell.on('exit', exitHandler);
-
-    const abortHandler = async () => {
-      console.log('abort', `${bashSession.bashId}`);
-      if (shell.pid && !exited) {
-        if (os.platform() === 'win32') {
-          // For Windows, use taskkill to kill the process tree
-          spawn('taskkill', ['/pid', shell.pid.toString(), '/f', '/t']);
-        } else {
-          try {
-            // attempt to SIGTERM process group (negative PID)
-            // fall back to SIGKILL (to group) after 200ms
-            process.kill(-shell.pid, 'SIGTERM');
-            await new Promise((resolve) => setTimeout(resolve, 200));
-            if (shell.pid && !exited) {
-              process.kill(-shell.pid, 'SIGKILL');
-            }
-          } catch (_e) {
-            // if group kill fails, fall back to killing just the main process
-            try {
-              if (shell.pid) {
-                shell.kill('SIGKILL');
-              }
-            } catch (_e) {
-              console.error(`failed to kill shell process ${shell.pid}: ${_e}`);
-            }
-          }
-        }
-      }
-    };
-    abortSignal?.addEventListener('abort', abortHandler);
+    const removeAbortHandler = attachAbortHandler(
+      shell,
+      managedAbort.abortSignal,
+      () => exited,
+    );
 
     try {
       await new Promise((resolve) => shell.on('exit', resolve));
     } finally {
-      abortSignal?.removeEventListener('abort', abortHandler);
+      removeAbortHandler();
+      managedAbort.cleanup();
     }
   }
 
