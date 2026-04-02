@@ -502,7 +502,7 @@ export class LocalOcrModel implements OCRModel {
     let text = result.text;
     if (excludeInsideImage) {
       text = text.replace(
-        /<div\s+style="[^"]*">\s*<img\s+src="[^"]*"\s+alt="Image"\s+width="[^"]*"\s*\/>\s*<\/div>/g,
+        /<img\b[^>]*\/?>/gi,
         ""
       );
     }

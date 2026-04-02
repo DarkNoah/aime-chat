@@ -221,7 +221,7 @@ Returns:
             mimeType: mimeType,
           }] as any[];
         if (ocr) {
-          data.push({
+          data.unshift({
             type: 'text',
             text: `<system-reminder>OCR result is provided in the context.</system-reminder>
 ${ocr}`,
@@ -234,7 +234,7 @@ ${ocr}`,
         const width = imageMetadata.width ?? 'unknown';
         const height = imageMetadata.height ?? 'unknown';
 
-        data.push({
+        data.unshift({
           type: 'text',
           text: `<system-reminder>Image file: ${path.basename(file_path)}. Path: ${file_path}. Size: ${filesize(size)}. Format: ${mimeType}. Width: ${width}px. Height: ${height}px.</system-reminder>`,
         })
@@ -341,8 +341,12 @@ ${ocr}
       } catch {
 
       } finally {
-        await fs.promises.rm(tempAudioPath, { recursive: true });
-        await fs.promises.rm(tempsrtOutputPath, { recursive: true });
+        if (tempAudioPath && fs.existsSync(tempAudioPath)) {
+          await fs.promises.rm(tempAudioPath, { recursive: true });
+        }
+        if (tempsrtOutputPath && fs.existsSync(tempsrtOutputPath)) {
+          await fs.promises.rm(tempsrtOutputPath, { recursive: true });
+        }
       }
 
       const visionModelInfo = await providersManager.getModelInfo(this.modelId);

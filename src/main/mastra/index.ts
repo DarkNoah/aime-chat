@@ -989,8 +989,9 @@ class MastraManager extends BaseManager {
         );
 
         if (stream.status == 'success' && !streamOptions.abortSignal.aborted) {
-          const content = await stream.content;
-          if (content.length == 0) {
+          const text = await stream.text;
+          const finishReason = await stream.finishReason;
+          if (finishReason == 'stop' && !text) {
             throw new Error('No content returned');
           }
         }
@@ -1253,8 +1254,10 @@ class MastraManager extends BaseManager {
       if (done) {
         break;
       }
+      // console.log(value)
       if (value.type == 'reasoning-delta') {
         await callback?.onThought?.(value.delta);
+        continue;
       }
 
       if (value.type == 'tool-input-available') {

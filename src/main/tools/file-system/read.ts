@@ -27,8 +27,9 @@ import { appManager } from '@/main/app';
 import { providersManager } from '@/main/providers';
 import { SpeechToText } from '../audio';
 import { toolsManager } from '..';
-import { LanguageModelV2ToolResultPart } from '@ai-sdk/provider';
-import { isString } from '@/utils/is';
+import { LanguageModelV2ToolResultOutput, LanguageModelV2ToolResultPart } from '@ai-sdk/provider';
+import { isArray, isObject, isString } from '@/utils/is';
+
 
 const DEFAULT_MAX_LINES_TEXT_FILE = 2000;
 const MAX_LINE_LENGTH_TEXT_FILE = 2000;
@@ -79,8 +80,6 @@ Usage:
     })
     .strict();
 
-
-
   configSchema = ToolConfig.Read.configSchema;
   forcePDFOcr?: ReadParams['forcePDFOcr'];
   forceWordOcr?: ReadParams['forceWordOcr'];
@@ -95,46 +94,67 @@ Usage:
     this.disableVision = config?.disableVision ?? false;
   }
 
-  // requireApproval: true,
-  execute = async (
-    inputData: z.infer<typeof this.inputSchema>,
-    context: ToolExecutionContext<z.ZodSchema, any>,
-  ) => {
+  public async doRead(inputData: z.infer<typeof this.inputSchema>,
+    context: ToolExecutionContext<z.ZodSchema, any>): Promise<{
+      content?: string | any;
+      isError: boolean;
+      systemReminder?: string[];
+    }> {
     const { file_path, offset, limit, useVision } = inputData;
     const appInfo = await appManager.getInfo();
     const currentModel = context?.requestContext?.get('model' as never) as string;
     const visionModelId = appInfo.defaultModel.visionModel || currentModel;
 
 
-    if (!fs.existsSync(file_path))
-      throw new Error(`<system-reminder>File does not exist. Note: your current working directory is "${path.dirname(file_path).replaceAll('\\', '/')}" </system-reminder>`);
-
+    if (!fs.existsSync(file_path)) {
+      return {
+        isError: true,
+        systemReminder: [`<system-reminder>Error: File does not exist. </system-reminder>`],
+      }
+    }
     const stats = await fs.promises.stat(file_path);
 
-    if (!stats.isFile()) throw new Error(`File '${file_path}' is not a file.`);
+    if (stats.isDirectory()) {
+      return {
+        isError: true,
+        systemReminder: [`<system-reminder>Error: File '${file_path}' is a directory. </system-reminder>`],
+      }
+    }
 
     if (stats.size === 0) {
       await updateFileModTime(file_path, context.requestContext);
-      return `<system-reminder>The file '${file_path}' is empty.</system-reminder>`;
+      return {
+        isError: false,
+        systemReminder: [`<system-reminder>File '${file_path}' is empty.</system-reminder>`],
+      }
     }
 
     if (offset !== undefined && offset < 0) {
-      throw new Error('Offset must be a non-negative number');
+      return {
+        isError: true,
+        systemReminder: [`<system-reminder>Error: Offset must be a non-negative number.</system-reminder>`],
+      }
     }
     if (limit !== undefined && limit <= 0) {
-      throw new Error('Limit must be a positive number');
+      return {
+        isError: true,
+        systemReminder: [`<system-reminder>Error: Limit must be a positive number.</system-reminder>`],
+      }
     }
     const ext = path.extname(file_path).toLowerCase();
 
-    if (await isBinaryFile(file_path)) {
+    if (await isBinaryFile(file_path) && ext != '.ts') {
       try {
         if (mime.lookup(file_path).startsWith('image/')) {
           if (this.disableVision === true || useVision === false) {
             const defaultOcr = appInfo?.defaultModel?.ocrModel;
             const provider = await providersManager.getProvider(defaultOcr);
             const ocrModel = defaultOcr.split('/').slice(1).join('/')
-            const ocr = await provider.ocrModel(ocrModel).doOCR({ image: file_path });
-            return ocr;
+            const ocr = await provider.ocrModel(ocrModel).doOCR({ image: file_path, abortSignal: context?.abortSignal });
+            return {
+              isError: false,
+              content: ocr,
+            }
           }
           const result = await new Vision({
             modelId: visionModelId,
@@ -142,16 +162,22 @@ Usage:
             source: file_path,
             prompt: 'Please describe the image in detail.',
           }, context);
-          return result;
+          return {
+            isError: false,
+            content: result,
+          }
         }
-        else if (mime.lookup(file_path).startsWith('video/') && ext != '.ts') {
+        else if (mime.lookup(file_path).startsWith('video/')) {
           const result = await new Vision({
             modelId: visionModelId,
           }).execute({
             source: file_path,
             prompt: 'Please describe the video in detail.',
           }, context);
-          return result;
+          return {
+            isError: false,
+            content: result,
+          };
         }
       } catch (err) {
         console.error(err)
@@ -163,12 +189,10 @@ Usage:
       }).execute({
         file_source: file_path,
       }, context);
-      return content;
-
-
-      throw new Error(
-        `The file '${file_path}' is a binary file. please use ReadBinaryFile tool to read the file.`,
-      );
+      return {
+        isError: false,
+        content: content,
+      };
     }
 
 
@@ -189,9 +213,10 @@ Usage:
     let selectedLines = lines.slice(actualStartLine, endLine);
 
     if (startLine >= originalLineCount) {
-      throw new Error(
-        `Error: offset is out of range, offset: ${startLine}, originalLineCount: ${originalLineCount}`,
-      );
+      return {
+        isError: true,
+        systemReminder: [`<system-reminder>Error: offset is out of range, offset: ${startLine}, originalLineCount: ${originalLineCount}.</system-reminder>`],
+      }
     }
 
     let linesWereTruncatedInLength = false;
@@ -206,11 +231,11 @@ Usage:
     const contentRangeTruncated = endLine < originalLineCount;
     const isTruncated = contentRangeTruncated || linesWereTruncatedInLength;
 
-    let llmTextContent = '';
+    const systemReminder = [];
     if (contentRangeTruncated) {
-      llmTextContent += `<system-reminder>File content truncated: showing lines ${actualStartLine + 1}-${endLine} of ${originalLineCount} total lines. Use offset/limit parameters to view more.</system-reminder>\n`;
+      systemReminder.push(`<system-reminder>File content truncated: showing lines ${actualStartLine + 1}-${endLine} of ${originalLineCount} total lines. Use offset/limit parameters to view more.</system-reminder>`);
     } else if (linesWereTruncatedInLength) {
-      llmTextContent += `<system-reminder>File content partially truncated: some lines exceeded maximum length of ${MAX_LINE_LENGTH_TEXT_FILE} characters.</system-reminder>\n`;
+      systemReminder.push(`<system-reminder>File content partially truncated: some lines exceeded maximum length of ${MAX_LINE_LENGTH_TEXT_FILE} characters.</system-reminder>`);
     }
 
     const formattedLines = formatCodeWithLineNumbers({
@@ -218,19 +243,50 @@ Usage:
       startLine: actualStartLine,
     });
 
-    llmTextContent += formattedLines;
     await updateFileModTime(file_path, context.requestContext);
-    return llmTextContent;
+    return {
+      isError: false,
+      systemReminder: systemReminder,
+      content: formattedLines,
+    };
+  }
+
+  // requireApproval: true,
+  execute = async (
+    inputData: z.infer<typeof this.inputSchema>,
+    context: ToolExecutionContext<z.ZodSchema, any>,
+  ) => {
+    const output = await this.doRead(inputData, context);
+    if (output.isError) {
+      return output.systemReminder?.join('\n')
+    } else {
+      if (isString(output.content)) {
+        let value = '';
+        if (output.systemReminder) {
+          value += output.systemReminder?.join('\n') + '\n';
+        }
+        if (output.content) {
+          value += output.content;
+        }
+        return value
+      } else if (isObject(output.content)) {
+        return output.content
+      } else if (isArray(output.content)) {
+        return output.content
+      }
+    }
   };
+
 }
 
 export interface ReadBinaryFileParams extends BaseToolParams {
-  mode?: 'auto' | 'system' | 'paddleocr' | 'mineru-api';
   forcePDFOcr?: boolean;
   forceWordOcr?: boolean;
   reminder?: boolean;
   excludeInsideImage?: boolean;
 }
+
+
 export class ReadBinaryFile extends BaseTool {
   static readonly toolName = 'ReadBinaryFile';
   id: string = 'ReadBinaryFile';
@@ -310,8 +366,8 @@ Usage:
           const result = await provider.ocrModel(ocrModel).doOCR({ image: file_source, excludeInsideImage: this.excludeInsideImage, abortSignal });
           return result;
         }
-      } catch {
-
+      } catch (err) {
+        console.log(err)
       }
       const loader = new PDFLoader(file_source);
       const content = await loader.load();

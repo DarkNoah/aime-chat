@@ -591,7 +591,7 @@ export class KnowledgeBaseManager extends BaseManager {
       item.state = KnowledgeBaseItemState.Pending;
       const webFetch = await toolsManager.buildTool(`${ToolType.BUILD_IN}:${WebFetch.toolName}`);
 
-      const content = await webFetch.execute({
+      const content = await (webFetch as WebFetch).execute({
         url: source.url,
         // prompt: '请将网页内容转换为markdown格式'
       });
@@ -693,7 +693,8 @@ export class KnowledgeBaseManager extends BaseManager {
             kbId: kbId,
             items: [item]
           });
-          if (await isBinaryFile(file)) {
+          const ext = path.extname(file).toLowerCase();
+          if (await isBinaryFile(file) && ext != '.ts') {
             content = await new ReadBinaryFile({
               forcePDFOcr: true,
               forceWordOcr: false,

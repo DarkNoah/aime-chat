@@ -96,11 +96,13 @@ export class HookProxyAgent extends ProxyAgent {
           if (message.role == 'tool' && isString(message.content) && message.content.startsWith('{') && message.content.endsWith('}')) {
             try {
               const content = JSON.parse(message.content);
-              if (isObject(content) && isArray(content.content) && content.content?.length > 0 && content.content?.find(x => x.type == 'image' && x.data && x.mimeType)) {
+              if (isObject(content) && isArray(content.content) && content.content?.length > 0 && content.content?.find(x => (x.type == 'image' || x.type == 'video') && x.data && x.mimeType)) {
                 const newContent = [];
                 for (const part of content.content) {
                   if (part.type == 'image' && part.data && part.mimeType) {
                     newContent.push({ type: 'image_url', image_url: { url: part.data.startsWith('data:') ? part.data : `data:${part.mimeType};base64,${part.data}` } });
+                  } else if (part.type == 'video' && part.data && part.mimeType) {
+                    newContent.push({ type: 'video_url', video_url: { url: part.data.startsWith('data:') ? part.data : `data:${part.mimeType};base64,${part.data}` } });
                   } else {
                     newContent.push(part);
                   }

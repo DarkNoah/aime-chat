@@ -53,6 +53,9 @@ import { ImageToolkit } from './image';
 import { AgentBrowser } from './browser';
 import { KnowledgeBaseToolkit } from './knowledge-base';
 import { Agent } from './common/agent';
+import { RequestContext } from '@mastra/core/request-context';
+import { ChatRequestContext } from '@/types/chat';
+import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 interface BuiltInToolContext {
   tool: BaseTool;
   abortController: AbortController;
@@ -290,24 +293,43 @@ class ToolsManager extends BaseManager {
               outputSchema,
               // outputSchema: zodToJsonSchema(builtInTool.outputSchema),
             },
-            async (args, v) => {
-              const toolEntity = await this.toolsRepository.findOne({
-                where: { id: builtInTool.id },
-              });
-              if (!toolEntity?.isActive) throw new Error('Tool is not active');
-              const buildedTool = (await this.buildTool(
-                `${ToolType.BUILD_IN}:${_tool.id}`,
-              )) as BaseTool;
-              const result = await buildedTool.execute?.(args);
-              return {
-                content: [
-                  {
-                    type: 'text',
-                    text: isObject(result) ? JSON.stringify(result) : result,
-                  },
-                ],
-                // structuredContent: result,
-              };
+            async (args, v): Promise<CallToolResult> => {
+              try {
+                const toolEntity = await this.toolsRepository.findOne({
+                  where: { id: builtInTool.id },
+                });
+                if (!toolEntity?.isActive) throw new Error('Tool is not active');
+                const buildedTool = (await this.buildTool(
+                  `${ToolType.BUILD_IN}:${_tool.id}`,
+                )) as BaseTool;
+                const { _meta } = v
+                const requestContext = new RequestContext<ChatRequestContext>();
+                requestContext.set('workspace', _meta?.['workspace'] as string);
+                requestContext.set('model', _meta?.['model'] as string);
+                const result = await buildedTool.execute?.(args, {
+                  requestContext,
+                });
+                return {
+                  content: [
+                    {
+                      type: 'text',
+                      text: isObject(result) ? JSON.stringify(result) : result,
+                    },
+                  ],
+                  // structuredContent: result,
+                };
+              } catch (err) {
+                return {
+                  isError: true,
+                  content: [
+                    {
+                      type: "text",
+                      text: err.message
+                    }
+                  ],
+                }
+              }
+
             },
           );
         }
@@ -323,27 +345,48 @@ class ToolsManager extends BaseManager {
             // outputSchema,
             // outputSchema: zodToJsonSchema(builtInTool.outputSchema),
           },
-          async (args, v) => {
-            const toolEntity = await this.toolsRepository.findOne({
-              where: { id: builtInTool.id },
-            });
-            if (!toolEntity.isActive) throw new Error('Tool is not active');
-            const buildedTool = (await this.buildTool(
-              builtInTool.id,
-            )) as BaseTool;
-            const result = await buildedTool.execute?.(args);
-            return {
-              content: [
-                {
-                  type: 'text',
-                  text:
-                    isObject(result) || isArray(result)
-                      ? JSON.stringify(result)
-                      : result,
-                },
-              ],
-              // structuredContent: result,
-            };
+          async (args, v): Promise<CallToolResult> => {
+            try {
+              const toolEntity = await this.toolsRepository.findOne({
+                where: { id: builtInTool.id },
+              });
+
+              if (!toolEntity.isActive) throw new Error('Tool is not active');
+              const buildedTool = (await this.buildTool(
+                builtInTool.id,
+              )) as BaseTool;
+              const { _meta } = v
+              const requestContext = new RequestContext<ChatRequestContext>();
+              requestContext.set('workspace', _meta?.['workspace'] as string);
+              requestContext.set('model', _meta?.['model'] as string);
+
+              const result = await buildedTool.execute?.(args, {
+                requestContext,
+              });
+              return {
+                content: [
+                  {
+                    type: 'text',
+                    text:
+                      isObject(result) || isArray(result)
+                        ? JSON.stringify(result)
+                        : result,
+                  },
+                ],
+                // structuredContent: result,
+              };
+            } catch (err) {
+              return {
+                isError: true,
+                content: [
+                  {
+                    type: "text",
+                    text: err.message
+                  }
+                ],
+              }
+            }
+
           },
         );
       }
@@ -891,7 +934,7 @@ class ToolsManager extends BaseManager {
         const mcpToolKey = Object.keys(toolEntity.mcpConfig)[0];
         const tool = tools[`${mcpToolKey}_${toolName}`];
         if (tool) {
-          const res = await tool.execute?.(input);
+          const res = await tool.execute?.(input, {});
           if (isObject(res) && Object.keys(res).length === 1 && 'result' in res && isString(res.result)) {
             return res.result;
           }

@@ -43,7 +43,7 @@ export class OllamaProvider extends BaseProvider {
     const ollama = createOllama({
       // optional settings, e.g.
 
-      baseURL: this.provider.apiBase || this.defaultApiBase,
+      baseURL: (this.provider.apiBase || this.defaultApiBase) + '/api',
     });
     // const model = withMastra(ollama.languageModel(modelId))
 

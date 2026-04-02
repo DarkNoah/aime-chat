@@ -1,14 +1,15 @@
-import { Mastra } from '@mastra/core';
+import type { Mastra } from '@mastra/core' with { "resolution-mode": "import" };
 
-import {
+import type {
   createTool,
   Tool,
   ToolAction,
   ToolExecutionContext,
-} from '@mastra/core/tools';
-import { tool, ToolCallOptions } from 'ai';
-import z, { ZodSchema, ZodObject, ZodTypeAny } from 'zod';
-import { LanguageModelV2ToolResultPart } from '@ai-sdk/provider';
+} from '@mastra/core/tools' with { "resolution-mode": "import" };
+import type { ToolCallOptions } from 'ai';
+import type { ZodSchema } from 'zod';
+import type { LanguageModelV2ToolResultPart } from '@ai-sdk/provider';
+import type { PublicSchema } from '@mastra/core/schema' with { "resolution-mode": "import" };
 export interface BaseToolParams {
   description?: string;
   verbose?: boolean;
@@ -18,19 +19,13 @@ export interface BaseToolParams {
 
 abstract class BaseTool<
   T extends BaseToolParams = BaseToolParams,
-> implements Tool<
-  ZodSchema,
-  ZodSchema,
-  any,
-  any,
-  ToolExecutionContext<ZodSchema, any>
 > {
   static readonly toolName: string = 'BaseTool';
   abstract id: string;
   description: string;
-  abstract inputSchema: ZodSchema;
+  abstract inputSchema: PublicSchema<any>;
   isToolkit: boolean = false;
-  outputSchema?: ZodSchema;
+  outputSchema?: PublicSchema<any>;
   suspendSchema?: any;
   resumeSchema?: any;
   descriptionField?: string;
@@ -48,8 +43,8 @@ abstract class BaseTool<
     this.config = config;
   }
 
-  execute?: ToolAction<ZodSchema, ZodSchema, any, any, ToolExecutionContext<ZodSchema, any>>['execute'];
-  toModelOutput?: (output: any) => LanguageModelV2ToolResultPart['output'];
+  execute?: ToolAction<any, any, any, any, ToolExecutionContext<any, any>>['execute'];
+  toModelOutput?: (output: any) => unknown;
   mastra?: Mastra;
   requireApproval?: boolean;
 
