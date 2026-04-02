@@ -12,7 +12,7 @@ export class PaddleOcrApiModel implements OCRModel {
     this.providerEntity = provider;
   }
 
-  async doOCR(options: { image: string, excludeInsideImage?: boolean }): Promise<string> {
+  async doOCR(options: { image: string, excludeInsideImage?: boolean, abortSignal?: AbortSignal }): Promise<string> {
     const image = fs.readFileSync(options.image);
     const excludeInsideImage = options.excludeInsideImage ?? false;
     let fileType = 1;
@@ -34,7 +34,11 @@ export class PaddleOcrApiModel implements OCRModel {
         "file": image_data,
         "fileType": fileType,
       }),
+      signal: options?.abortSignal,
     });
+    if (options?.abortSignal?.aborted) {
+      throw new Error('OCR was cancelled by user before it could complete.');
+    }
     const data = await res.json()
     if (data.errorCode)
       throw new Error(data.errorMsg);

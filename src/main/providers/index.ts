@@ -74,10 +74,13 @@ class ProvidersManager extends BaseManager {
     return [
       {
         groupId: 'chat_provider',
-        providers: providerTypes.map((m) => ({
+        providers: [...providerTypes.map((m) => ({
           id: m.id,
           name: m.name,
-        })),
+        })), {
+          id: ProviderType.OLLAMA,
+          name: 'Ollama',
+        }],
       },
       {
         groupId: 'other_provider',

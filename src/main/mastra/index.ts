@@ -707,6 +707,9 @@ class MastraManager extends BaseManager {
         xai: {
           reasoningEffort: think ? (appInfo.defaultThink == 'low' ? 'low' : 'high') : undefined
         } as XaiProviderOptions,
+        ollama: {
+
+        }
       };
       let streamOptions: AgentExecutionOptions<undefined> = {
         includeRawChunks: false,

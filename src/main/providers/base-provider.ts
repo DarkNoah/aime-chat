@@ -63,6 +63,7 @@ export interface OCRModel {
   doOCR: (options: {
     image: string
     excludeInsideImage?: boolean;
+    abortSignal?: AbortSignal;
   }) => Promise<string>;
 }
 

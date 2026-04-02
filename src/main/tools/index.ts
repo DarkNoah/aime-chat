@@ -290,7 +290,7 @@ class ToolsManager extends BaseManager {
               outputSchema,
               // outputSchema: zodToJsonSchema(builtInTool.outputSchema),
             },
-            async (args) => {
+            async (args, v) => {
               const toolEntity = await this.toolsRepository.findOne({
                 where: { id: builtInTool.id },
               });
@@ -323,7 +323,7 @@ class ToolsManager extends BaseManager {
             // outputSchema,
             // outputSchema: zodToJsonSchema(builtInTool.outputSchema),
           },
-          async (args) => {
+          async (args, v) => {
             const toolEntity = await this.toolsRepository.findOne({
               where: { id: builtInTool.id },
             });

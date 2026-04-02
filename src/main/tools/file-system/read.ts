@@ -278,6 +278,7 @@ Usage:
     context: ToolExecutionContext<z.ZodSchema, any>,
   ) => {
     const { file_source } = inputData;
+    const { abortSignal } = context
     if (!fs.existsSync(file_source))
       throw new Error(`File '${file_source}' does not exist.`);
     const stats = await fs.promises.stat(file_source);
@@ -306,7 +307,7 @@ Usage:
     if (ext === '.pdf') {
       try {
         if (this.forcePDFOcr === true) {
-          const result = await provider.ocrModel(ocrModel).doOCR({ image: file_source, excludeInsideImage: this.excludeInsideImage });
+          const result = await provider.ocrModel(ocrModel).doOCR({ image: file_source, excludeInsideImage: this.excludeInsideImage, abortSignal });
           return result;
         }
       } catch {
@@ -318,7 +319,7 @@ Usage:
     } else if (ext === '.docx' || ext === '.doc') {
       try {
         if (this.forceWordOcr === true) {
-          result = await provider.ocrModel(ocrModel).doOCR({ image: file_source, excludeInsideImage: this.excludeInsideImage });
+          result = await provider.ocrModel(ocrModel).doOCR({ image: file_source, excludeInsideImage: this.excludeInsideImage, abortSignal });
           if (!result) throw new Error('OCR result is empty');
         }
       } catch {
@@ -341,7 +342,7 @@ Usage:
     } else if (mimeType.startsWith('image/')) {
 
 
-      result = await provider.ocrModel(ocrModel).doOCR({ image: file_source, excludeInsideImage: this.excludeInsideImage });
+      result = await provider.ocrModel(ocrModel).doOCR({ image: file_source, excludeInsideImage: this.excludeInsideImage, abortSignal });
 
 
       // throw new Error(`Unsupported file type: ${mimeType}`);

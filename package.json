@@ -280,6 +280,7 @@
     "node-abi": "^4.17.0",
     "officeparser": "^5.2.2",
     "ollama": "^0.6.2",
+    "ollama-ai-provider-v2": "^2.0.0",
     "onnxruntime-node": "^1.23.2",
     "openai": "^6.8.1",
     "pdf-parse": "^2.4.5",

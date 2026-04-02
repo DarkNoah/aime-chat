@@ -12,7 +12,7 @@ import fg from 'fast-glob';
 import { appManager } from '@/main/app';
 import { ToolConfig, ToolTags } from '@/types/tool';
 
-const getSitecustomizePy = async () => {
+const getSitecustomizePy = async (allRequestContext: Record<string, any> = {}) => {
   const appInfo = await appManager.getInfo();
   const mcpServerUrl = `http://localhost:${appInfo.apiServer.port}/mcp`;
   return `
@@ -36,7 +36,7 @@ async def _call_tool_async(name: str, **kwargs):
     async with streamablehttp_client(MCP_SERVER_URL) as (read_stream, write_stream, _):
         async with ClientSession(read_stream, write_stream) as session:
             await session.initialize()
-            result = await session.call_tool(name, kwargs)
+            result = await session.call_tool(name, kwargs, meta="${JSON.stringify(allRequestContext)}")
             texts = [c.text for c in result.content if c.type == 'text']
             return '\\n'.join(texts)
 
@@ -172,11 +172,17 @@ asyncio.run(main())
     options?: ToolExecutionContext,
   ) => {
     const { code, packages = [], ptc } = inputData;
+    const { requestContext, abortSignal } = options;
+
     const temp = app.getPath('temp');
     const tempDir = path.join(temp, nanoid());
     await fs.promises.mkdir(tempDir, { recursive: true });
     const isWindows = process.platform === 'win32';
     const uvPreCommand = isWindows ? 'uv.exe' : './uv';
+
+    const workspace = (requestContext.get('workspace' as never) as string) || tempDir;
+    const allRequestContext = requestContext.all
+
     try {
       const uvRuntime = await getUVRuntime();
       if (uvRuntime.status !== 'installed') {
@@ -237,7 +243,7 @@ asyncio.run(main())
         }
         site_packages_path = sitePackages[0];
 
-        const sitecustomize_py = await getSitecustomizePy();
+        const sitecustomize_py = await getSitecustomizePy(allRequestContext);
         await fs.promises.writeFile(
           path.join(site_packages_path, 'sitecustomize.py'),
           sitecustomize_py,
@@ -248,13 +254,13 @@ asyncio.run(main())
       await fs.promises.writeFile(tempFile, code);
 
       const result = await runCommand(
-        `${uvPreCommand} run --project "${tempDir}" "${tempFile}"`,
+        `"${path.join(uvRuntime?.dir, uvPreCommand)}" run --project "${tempDir}" "${tempFile}"`,
         {
-          cwd: uvRuntime?.dir,
+          cwd: workspace,
         },
       );
       return [
-        `Directory: ${tempDir || '(root)'}`,
+        `Directory: ${workspace || '(root)'}`,
         `Stdout: \n${result.stdout || '(empty)'}`,
         `Stderr: \n${result.stderr || '(empty)'}`,
         `Error: ${result.error ?? '(none)'}`,

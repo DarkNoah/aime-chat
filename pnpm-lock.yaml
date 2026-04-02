@@ -546,6 +546,9 @@ importers:
       ollama:
         specifier: ^0.6.2
         version: 0.6.3
+      ollama-ai-provider-v2:
+        specifier: ^2.0.0
+        version: 2.0.0(ai@5.0.105(zod@3.25.76))(zod@3.25.76)
       onnxruntime-node:
         specifier: ^1.23.2
         version: 1.23.2
@@ -10555,6 +10558,13 @@ packages:
     resolution: {integrity: sha512-1YwTFdPjhPNHny/DrOHO+s8oVGGIE5Jib61/KnnjPRNWQhVVimrJJdaAX3e6nNRRDXrY5zbb9cfm2+yVvgsrqw==}
     engines: {node: '>=18'}
     peerDependencies:
+      zod: ^4.0.16
+
+  ollama-ai-provider-v2@2.0.0:
+    resolution: {integrity: sha512-vbLG/xsW0kgGlInrTIa3W8niy294dw7n8nkLFVwjPHlX9EjtBH4bNPgHQEbmQUy60LjV3NF3Y1HtWPxORSb3bQ==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      ai: ^5.0.0 || ^6.0.0
       zod: ^4.0.16
 
   ollama@0.6.3:
@@ -25673,6 +25683,13 @@ snapshots:
       '@ai-sdk/provider-utils': 3.0.20(zod@3.25.76)
       zod: 3.25.76
     optional: true
+
+  ollama-ai-provider-v2@2.0.0(ai@5.0.105(zod@3.25.76))(zod@3.25.76):
+    dependencies:
+      '@ai-sdk/provider': 3.0.8
+      '@ai-sdk/provider-utils': 4.0.19(zod@3.25.76)
+      ai: 5.0.105(zod@3.25.76)
+      zod: 3.25.76
 
   ollama@0.6.3:
     dependencies:

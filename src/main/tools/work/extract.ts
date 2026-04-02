@@ -141,6 +141,8 @@ Returns:
       );
 
       console.log('文件内容:', content);
+    } else {
+      throw new Error('File not found');
     }
 
     console.log('准备提取内容...');
@@ -158,8 +160,12 @@ ${content}
           schema: fieldsSchema,
           jsonPromptInjection: true,
         },
+        abortSignal: options?.abortSignal,
       },
     );
+    if (options?.abortSignal.aborted) {
+      throw new Error('Task was aborted by the user.');
+    }
     const o = response.object;
     console.log('提取结果:', o);
     return `${JSON.stringify(o, null, 2)}`;

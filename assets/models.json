@@ -3391,6 +3391,42 @@
           "output": 131072
         }
       },
+      "glm-5v-turbo": {
+        "id": "glm-5v-turbo",
+        "name": "glm-5v-turbo",
+        "family": "glm",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "interleaved": {
+          "field": "reasoning_content"
+        },
+        "temperature": true,
+        "release_date": "2026-04-01",
+        "last_updated": "2026-04-01",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "video",
+            "pdf"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cache_read": 0,
+          "cache_write": 0
+        },
+        "limit": {
+          "context": 200000,
+          "output": 131072
+        }
+      },
       "glm-5-turbo": {
         "id": "glm-5-turbo",
         "name": "GLM-5-Turbo",
@@ -49000,7 +49036,7 @@
           "cache_read": 0
         },
         "limit": {
-          "context": 1000000,
+          "context": 204800,
           "output": 128000
         }
       },
@@ -56816,6 +56852,33 @@
           "output": 32000
         }
       },
+      "gpt-image-1.5": {
+        "id": "gpt-image-1.5",
+        "name": "gpt-image-1.5",
+        "family": "gpt-image",
+        "attachment": true,
+        "reasoning": false,
+        "tool_call": false,
+        "temperature": false,
+        "release_date": "2025-11-25",
+        "last_updated": "2025-11-25",
+        "modalities": {
+          "input": [
+            "text",
+            "image"
+          ],
+          "output": [
+            "text",
+            "image"
+          ]
+        },
+        "open_weights": false,
+        "limit": {
+          "context": 0,
+          "input": 0,
+          "output": 0
+        }
+      },
       "gpt-4o-mini": {
         "id": "gpt-4o-mini",
         "name": "GPT-4o mini",
@@ -56846,6 +56909,33 @@
         "limit": {
           "context": 128000,
           "output": 16384
+        }
+      },
+      "gpt-image-1-mini": {
+        "id": "gpt-image-1-mini",
+        "name": "gpt-image-1-mini",
+        "family": "gpt-image",
+        "attachment": true,
+        "reasoning": false,
+        "tool_call": false,
+        "temperature": false,
+        "release_date": "2025-09-26",
+        "last_updated": "2025-09-26",
+        "modalities": {
+          "input": [
+            "text",
+            "image"
+          ],
+          "output": [
+            "text",
+            "image"
+          ]
+        },
+        "open_weights": false,
+        "limit": {
+          "context": 0,
+          "input": 0,
+          "output": 0
         }
       },
       "gpt-5.1-codex-max": {
@@ -57235,6 +57325,33 @@
           "output": 8192
         }
       },
+      "chatgpt-image-latest": {
+        "id": "chatgpt-image-latest",
+        "name": "chatgpt-image-latest",
+        "family": "gpt-image",
+        "attachment": true,
+        "reasoning": false,
+        "tool_call": false,
+        "temperature": false,
+        "release_date": "2025-12-16",
+        "last_updated": "2025-12-16",
+        "modalities": {
+          "input": [
+            "text",
+            "image"
+          ],
+          "output": [
+            "text",
+            "image"
+          ]
+        },
+        "open_weights": false,
+        "limit": {
+          "context": 0,
+          "input": 0,
+          "output": 0
+        }
+      },
       "gpt-4o-2024-11-20": {
         "id": "gpt-4o-2024-11-20",
         "name": "GPT-4o (2024-11-20)",
@@ -57488,6 +57605,32 @@
           "context": 400000,
           "input": 272000,
           "output": 128000
+        }
+      },
+      "gpt-image-1": {
+        "id": "gpt-image-1",
+        "name": "gpt-image-1",
+        "family": "gpt-image",
+        "attachment": true,
+        "reasoning": false,
+        "tool_call": false,
+        "temperature": false,
+        "release_date": "2025-04-24",
+        "last_updated": "2025-04-24",
+        "modalities": {
+          "input": [
+            "text",
+            "image"
+          ],
+          "output": [
+            "image"
+          ]
+        },
+        "open_weights": false,
+        "limit": {
+          "context": 0,
+          "input": 0,
+          "output": 0
         }
       },
       "o3-pro": {
@@ -57848,6 +57991,42 @@
     "name": "Zhipu AI Coding Plan",
     "doc": "https://docs.bigmodel.cn/cn/coding-plan/overview",
     "models": {
+      "glm-5v-turbo": {
+        "id": "glm-5v-turbo",
+        "name": "glm-5v-turbo",
+        "family": "glm",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "interleaved": {
+          "field": "reasoning_content"
+        },
+        "temperature": true,
+        "release_date": "2026-04-01",
+        "last_updated": "2026-04-01",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "video",
+            "pdf"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cache_read": 0,
+          "cache_write": 0
+        },
+        "limit": {
+          "context": 200000,
+          "output": 131072
+        }
+      },
       "glm-5.1": {
         "id": "glm-5.1",
         "name": "GLM-5.1",
@@ -69386,6 +69565,42 @@
     "name": "Zhipu AI",
     "doc": "https://docs.z.ai/guides/overview/pricing",
     "models": {
+      "glm-5v-turbo": {
+        "id": "glm-5v-turbo",
+        "name": "glm-5v-turbo",
+        "family": "glm",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "interleaved": {
+          "field": "reasoning_content"
+        },
+        "temperature": true,
+        "release_date": "2026-04-01",
+        "last_updated": "2026-04-01",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "video",
+            "pdf"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 5,
+          "output": 22,
+          "cache_read": 1.2,
+          "cache_write": 0
+        },
+        "limit": {
+          "context": 200000,
+          "output": 131072
+        }
+      },
       "glm-5": {
         "id": "glm-5",
         "name": "GLM-5",
@@ -85021,6 +85236,42 @@
           "output": 131072
         }
       },
+      "glm-5v-turbo": {
+        "id": "glm-5v-turbo",
+        "name": "glm-5v-turbo",
+        "family": "glm",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "interleaved": {
+          "field": "reasoning_content"
+        },
+        "temperature": true,
+        "release_date": "2026-04-01",
+        "last_updated": "2026-04-01",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "video",
+            "pdf"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 1.2,
+          "output": 4,
+          "cache_read": 0.24,
+          "cache_write": 0
+        },
+        "limit": {
+          "context": 200000,
+          "output": 131072
+        }
+      },
       "glm-5-turbo": {
         "id": "glm-5-turbo",
         "name": "GLM-5-Turbo",
@@ -99433,7 +99684,7 @@
         "name": "gpt-image-1.5",
         "attachment": true,
         "reasoning": false,
-        "tool_call": true,
+        "tool_call": false,
         "temperature": false,
         "release_date": "2025-12-16",
         "last_updated": "2025-12-16",
@@ -116195,6 +116446,9 @@
         "attachment": false,
         "reasoning": true,
         "tool_call": true,
+        "interleaved": {
+          "field": "reasoning_content"
+        },
         "temperature": true,
         "knowledge": "2025-01",
         "release_date": "2026-02-12",
@@ -116216,9 +116470,6 @@
         "limit": {
           "context": 204800,
           "output": 131072
-        },
-        "provider": {
-          "npm": "@ai-sdk/anthropic"
         }
       }
     }
@@ -124243,6 +124494,93 @@
           "context": 200000,
           "output": 8192
         }
+      }
+    }
+  },
+  "the-grid-ai": {
+    "id": "the-grid-ai",
+    "env": [
+      "THEGRIDAI_API_KEY"
+    ],
+    "npm": "@ai-sdk/openai-compatible",
+    "api": "https://api.thegrid.ai/v1",
+    "name": "The Grid AI",
+    "doc": "https://thegrid.ai/docs",
+    "models": {
+      "text-standard": {
+        "id": "text-standard",
+        "name": "Text Standard",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": true,
+        "release_date": "2026-02-26",
+        "last_updated": "2026-02-26",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "limit": {
+          "context": 128000,
+          "output": 16000
+        },
+        "status": "beta"
+      },
+      "text-max": {
+        "id": "text-max",
+        "name": "Text Max",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": true,
+        "release_date": "2026-03-24",
+        "last_updated": "2026-03-24",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "limit": {
+          "context": 1000000,
+          "output": 128000
+        },
+        "status": "beta"
+      },
+      "text-prime": {
+        "id": "text-prime",
+        "name": "Text Prime",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": true,
+        "release_date": "2026-02-26",
+        "last_updated": "2026-02-26",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "limit": {
+          "context": 128000,
+          "output": 30000
+        },
+        "status": "beta"
       }
     }
   }
