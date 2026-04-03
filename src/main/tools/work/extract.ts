@@ -1,20 +1,19 @@
 import { Agent } from '@mastra/core/agent';
-import { createTool, ToolExecutionContext } from '@mastra/core/tools';
+import { ToolExecutionContext } from '@mastra/core/tools';
 import z from 'zod';
 import BaseTool, { BaseToolParams } from '../base-tool';
 import fs from 'fs';
-import path from 'path';
 import { ToolConfig, ToolType } from '@/types/tool';
 import { providersManager } from '@/main/providers';
 import { isUrl } from '@/utils/is';
 import { toolsManager } from '..';
-import { Read, ReadBinaryFile } from '../file-system/read';
+import { Read } from '../file-system/read';
 import { WebFetch } from '../web/web-fetch';
 import { appManager } from '@/main/app';
 
 export interface ExtractParams extends BaseToolParams {
   modelId?: string;
-  maxChunkSize?: number;
+  mode?: 'fast' | 'accurate';
 }
 
 export class Extract extends BaseTool<ExtractParams> {
@@ -66,6 +65,144 @@ Returns:
     super(config);
   }
 
+  private async readSourceContent(
+    source: string,
+    options?: ToolExecutionContext,
+  ) {
+    if (isUrl(source)) {
+      const webFetch = await toolsManager.buildTool(
+        `${ToolType.BUILD_IN}:${WebFetch.toolName}`,
+      );
+      return await (webFetch as WebFetch).execute(
+        {
+          url: source,
+        },
+        options,
+      );
+    }
+
+    if (!fs.existsSync(source) || !fs.statSync(source).isFile()) {
+      throw new Error('File not found');
+    }
+
+    const read = new Read({
+      forcePDFOcr: true,
+      forceWordOcr: true,
+      disableVision: true,
+    });
+
+    console.log('准备OCR文件:', source);
+    const result = await read.doRead(
+      {
+        file_path: source,
+      },
+      options,
+    );
+
+    if (result.isError) {
+      throw new Error(result.systemReminder?.join('\n') || 'Error reading file');
+    }
+
+    if (!result.content) {
+      throw new Error('File content is empty');
+    }
+
+    console.log('文件内容:', result.content);
+    return result.content;
+  }
+
+  private async generateTextExtraction(
+    model: Awaited<ReturnType<typeof providersManager.getLanguageModel>>,
+    content: string,
+    fieldsSchema: Record<string, unknown>,
+    options?: ToolExecutionContext,
+  ) {
+    const extractAgent = new Agent({
+      id: 'extract-agent',
+      name: 'ExtractAgent',
+      instructions: `You are an information extraction expert. Based on the file provided by the user and the fields that need to be extracted, organize the information and infer answers when appropriate.
+
+- The output language should match the user’s input language.
+- Do not make up answers arbitrarily.
+- You may include your own analysis in plain text.`,
+      model,
+    });
+
+    const response = await extractAgent.generate(
+      [
+        {
+          role: 'user',
+          content: `<content>
+${content}
+</content>`,
+        },
+        {
+          role: 'user',
+          content: `Extract the following fields: \n${JSON.stringify(fieldsSchema, null, 2)}`,
+        },
+      ],
+      {
+        abortSignal: options?.abortSignal,
+      },
+    );
+
+    if (options?.abortSignal?.aborted) {
+      throw new Error('Task was aborted by the user.');
+    }
+
+    if (response.error) {
+      throw new Error(response.error.message);
+    }
+
+    const text = response.text;
+    if (!text) {
+      throw new Error('Extract content is empty');
+    }
+
+    console.log('提取内容:', text);
+    return text;
+  }
+
+  private async generateStructuredExtraction(
+    model: Awaited<ReturnType<typeof providersManager.getLanguageModel>>,
+    content: string,
+    fieldsSchema: Record<string, unknown>,
+    options?: ToolExecutionContext,
+  ) {
+    const extractAgent = new Agent({
+      id: 'extract-agent',
+      name: 'ExtractAgent',
+      instructions: `You are an information extraction expert. Fill missing values with null.`,
+      model,
+    });
+
+    const response = await extractAgent.generate(
+      [
+        {
+          role: 'user',
+          content,
+        },
+      ],
+      {
+        structuredOutput: {
+          schema: fieldsSchema,
+          jsonPromptInjection: true,
+        },
+        abortSignal: options?.abortSignal,
+      },
+    );
+
+    if (options?.abortSignal?.aborted) {
+      throw new Error('Task was aborted by the user.');
+    }
+
+    if (response.error) {
+      throw new Error(response.error.message);
+    }
+
+    return response.object;
+  }
+
   execute = async (
     inputData: z.infer<typeof this.inputSchema>,
     options?: ToolExecutionContext,
@@ -73,26 +210,11 @@ Returns:
     let modeId = options.requestContext.get('model' as never) as string;
     const { fields, source } = inputData;
     const appInfo = await appManager.getInfo();
+    const mode = this.config?.mode || 'accurate';
     modeId = this.config?.modelId || modeId || appInfo.defaultModel.model;
     if (!modeId) {
       throw new Error('Model is not set');
     }
-
-
-    // if((save_format && !save_path) || (!save_format && save_path)) {
-    //   throw new Error('save_format and save_path must be provided together');
-    // }
-    // if(save_format == 'json' && !save_path.endsWith('.json')) {
-    //   throw new Error('save_path must end with .json');
-    // }
-    // if(save_format == 'csv' && !save_path.endsWith('.csv')) {
-    //   throw new Error('save_path must end with .csv');
-    // }
-    // if(save_format == 'excel' && !save_path.endsWith('.xlsx')) {
-    //   throw new Error('save_path must end with .xlsx');
-    // }
-
-
 
     let fieldsSchema;
     try {
@@ -106,128 +228,21 @@ Returns:
     const model = await providersManager.getLanguageModel(
       modeId
     );
-    const config = this.config;
-
-
-    let content = '';
-
-    if (isUrl(source)) {
-      const webFetch = await toolsManager.buildTool(
-        `${ToolType.BUILD_IN}:${WebFetch.toolName}`,
-      );
-      content = await (webFetch as WebFetch).execute(
-        {
-          url: source,
-        },
-        options,
-      );
-    } else if (
-      fs.existsSync(source) &&
-      fs.statSync(source).isFile()
-    ) {
-      // const read = await toolsManager.buildTool(
-      //   `${ToolType.BUILD_IN}:${Read.toolName}`,
-      //   {
-      //     forcePDFOcr: true,
-      //     forceWordOcr: true,
-      //     disableVision: true,
-      //   }
-      // );
-      const read = new Read({
-        forcePDFOcr: true,
-        forceWordOcr: true,
-        disableVision: true,
-      })
-      console.log('准备OCR文件:', source);
-      const result = await read.doRead(
-        {
-          file_path: source,
-        },
-        options,
-      )
-      if (result.isError) {
-        throw new Error(result.systemReminder?.join('\n') || 'Error reading file');
-      }
-      content = result.content;
-      if (!content) {
-        throw new Error(`File content is empty`);
-      }
-      console.log('文件内容:', content);
-    } else {
-      throw new Error('File not found');
-    }
+    const content = await this.readSourceContent(source, options);
 
     console.log('准备提取内容...');
 
-    let extractAgent = new Agent({
-      id: 'extract-agent',
-      name: 'ExtractAgent',
-      instructions:
-        `You are an information extraction expert. Based on the file provided by the user and the fields that need to be extracted, organize the information and infer answers when appropriate.
+    const extractionInput =
+      mode === 'accurate'
+        ? await this.generateTextExtraction(model, content, fieldsSchema, options)
+        : content;
 
-- The output language should match the user’s input language.
-- Do not make up answers arbitrarily.
-- You may include your own analysis in plain text.`,
-      model: model,
-    });
-
-    let response = await extractAgent.generate(
-      [
-        {
-          role: 'user',
-          content: `<content>
-${content}
-</content>`},
-        {
-          role: 'user',
-          content: `Extract the following fields: \n${JSON.stringify(fieldsSchema, null, 2)}`
-        }
-      ], {
-      abortSignal: options?.abortSignal,
-    });
-    if (options?.abortSignal?.aborted) {
-      throw new Error('Task was aborted by the user.');
-    }
-    if (response.error) {
-      throw new Error(response.error.message);
-    }
-
-    const text = response.text;
-    if (!text) {
-      throw new Error('Extract content is empty');
-    }
-    console.log('提取内容:', text);
-
-    extractAgent = new Agent({
-      id: 'extract-agent',
-      name: 'ExtractAgent',
-      instructions:
-        `You are an information extraction expert. Fill missing values with null.`,
-      model: model,
-    });
-
-
-
-
-    response = await extractAgent.generate(
-      [
-        {
-          role: 'user',
-          content: text,
-        },
-      ],
-      {
-        structuredOutput: {
-          schema: fieldsSchema,
-          jsonPromptInjection: true,
-        },
-        abortSignal: options?.abortSignal,
-      },
+    const o = await this.generateStructuredExtraction(
+      model,
+      extractionInput,
+      fieldsSchema,
+      options,
     );
-    if (options?.abortSignal?.aborted) {
-      throw new Error('Task was aborted by the user.');
-    }
-    const o = response.object;
     console.log('提取结果:', o);
     return `${JSON.stringify(o, null, 2)}`;
   };

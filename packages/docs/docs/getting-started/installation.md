@@ -138,41 +138,13 @@ pnpm package
 | Windows | `%APPDATA%/aime-chat` |
 | Linux | `~/.config/aime-chat` |
 
-## 常见问题
-
-### 依赖安装失败
-
-如果原生模块编译失败，请尝试：
-
-```bash
-# 重建原生模块
-pnpm rebuild
-```
-
-### 端口占用
-
-如果启动时提示端口被占用：
-
-```bash
-# 终止占用端口的进程
-pnpm kill-port
-```
-
-### Electron 下载失败
-
-如果 Electron 下载速度很慢，可以设置镜像：
-
-```bash
-# 设置 Electron 镜像
-export ELECTRON_MIRROR="https://npmmirror.com/mirrors/electron/"
-```
-
 ## 下一步
 
 安装完成后，您可以：
 
 - 查看 [AI 服务商配置](./ai-providers) 来配置您的 AI 服务
 - 了解 [基本使用](./basic-usage) 开始您的第一次对话
+- 遇到问题时参考 [常见问题](./faq)
 
 
 

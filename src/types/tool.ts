@@ -185,10 +185,7 @@ export const ToolConfig = {
   Extract: {
     configSchema: z.strictObject({
       modelId: z.string().optional(),
-      maxChunkSize: z
-        .number()
-        .optional()
-        .default(32 * 1000),
+      mode: z.enum(['fast', 'accurate']).optional().default('accurate'),
     }),
     uiSchema: {
       modelId: {
@@ -198,8 +195,8 @@ export const ToolConfig = {
           clearable: true,
         },
       },
-      maxChunkSize: {
-        'ui:title': t('common.max_chunk_size'),
+      mode: {
+        'ui:title': t('common.mode'),
       },
     },
   },

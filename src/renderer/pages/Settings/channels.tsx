@@ -914,7 +914,7 @@ export default function Channels() {
       <Dialog open={weixinDialogOpen} onOpenChange={setWeixinDialogOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>编辑微信渠道</DialogTitle>
+            <DialogTitle>编辑微信频道</DialogTitle>
           </DialogHeader>
           <ScrollArea className="max-h-[70vh] pr-4">
             <div className="grid gap-4 py-2">
