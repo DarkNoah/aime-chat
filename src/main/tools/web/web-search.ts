@@ -102,7 +102,7 @@ Returns:
           config?.providerId,
         )) as OpenAIProvider;
         const response = await openaiProvider.openaiClient.responses.create({
-          model: 'gpt-5',
+          model: 'gpt-5.4',
           tools: [{ type: 'web_search' }],
           input: query,
           include: ['web_search_call.action.sources'],
@@ -118,9 +118,6 @@ Returns:
           }));
         }
         results.message = response?.output_text;
-
-
-        debugger;
       } else if (provider.type === ProviderType.ZHIPUAI || provider.type === "zhipuai-coding-plan") {
         const zhipuaiProvider = (await providersManager.getProvider(
           config?.providerId,

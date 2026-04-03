@@ -1,6 +1,6 @@
 import type { BotCommand } from 'grammy/types';
 
-export type ChannelType = 'telegram' | 'discord';
+export type ChannelType = 'telegram' | 'discord' | 'weixin';
 
 export type ChannelStatus =
   | 'stopped'
@@ -23,6 +23,18 @@ export type TelegramChannelConfig = {
   currentProjectId?: string;
 };
 
+export type WeixinChannelConfig = {
+  botToken?: string;
+  accountId?: string;
+  baseUrl?: string;
+  cdnBaseUrl?: string;
+  routeTag?: string;
+  loginUserId?: string;
+  getUpdatesBuf?: string;
+  currentThreadId?: string;
+  currentProjectId?: string;
+};
+
 export type ChannelBase = {
   id: string;
   type: ChannelType;
@@ -36,10 +48,14 @@ export type TelegramChannel = ChannelBase & {
   config: TelegramChannelConfig;
 };
 
-export type ChannelConfig = TelegramChannel;
+export type WeixinChannel = ChannelBase & {
+  type: 'weixin';
+  config: WeixinChannelConfig;
+};
 
+export type ChannelConfig = TelegramChannel | WeixinChannel;
 
-export type ChannelInfo = Omit<TelegramChannel, 'config'> & {
+export type ChannelInfo = Omit<ChannelConfig, 'config'> & {
   status: ChannelStatus;
   errorMessage?: string;
   lastEventAt?: string;
@@ -48,19 +64,39 @@ export type ChannelInfo = Omit<TelegramChannel, 'config'> & {
     username?: string;
     firstName?: string;
     botId?: number;
+    accountId?: string;
+    userId?: string;
+    baseUrl?: string;
+    loginStatus?: WeixinLoginStatus;
   };
   pairingCode?: string;
   pairingCodeExpiresAt?: string;
   pairCommand?: string;
-  config: TelegramChannelConfig & {
-    token?: string;
+  config: (TelegramChannelConfig &
+    WeixinChannelConfig & {
+      token?: string;
+      botToken?: string;
+      defaultChatId?: string;
+      allowedChatIds?: string[];
+      accountId?: string;
+      baseUrl?: string;
+      cdnBaseUrl?: string;
+      routeTag?: string;
+      loginUserId?: string;
+    }) & {
     hasToken: boolean;
   };
 };
 
-export type SaveChannelInput = Omit<TelegramChannel, 'id'> & {
+export type SaveTelegramChannelInput = Omit<TelegramChannel, 'id'> & {
   id?: string;
 };
+
+export type SaveWeixinChannelInput = Omit<WeixinChannel, 'id'> & {
+  id?: string;
+};
+
+export type SaveChannelInput = SaveTelegramChannelInput | SaveWeixinChannelInput;
 
 export type ChannelTestResult = {
   ok: boolean;
@@ -69,6 +105,9 @@ export type ChannelTestResult = {
     username?: string;
     firstName?: string;
     botId?: number;
+    accountId?: string;
+    userId?: string;
+    baseUrl?: string;
   };
 };
 
@@ -92,6 +131,33 @@ export type ChannelPairingCodeResult = {
   expiresAt: string;
   command: string;
   message: string;
+};
+
+export type WeixinLoginStatus =
+  | 'idle'
+  | 'wait'
+  | 'scaned'
+  | 'confirmed'
+  | 'expired'
+  | 'cancelled';
+
+export type WeixinLoginStartResult = {
+  sessionKey: string;
+  qrcodeBase64: string;
+  expiresAt: string;
+  message: string;
+};
+
+export type WeixinLoginStatusResult = {
+  sessionKey?: string;
+  status: WeixinLoginStatus;
+  qrcodeBase64?: string;
+  expiresAt?: string;
+  message: string;
+  connected?: boolean;
+  accountId?: string;
+  userId?: string;
+  baseUrl?: string;
 };
 
 export type ChannelPairedEventPayload = {

@@ -13,6 +13,14 @@ export const uv: RuntimeInfo['uv'] = {
   path: undefined,
   dir: undefined,
   version: undefined,
+  pythonRuntime: {
+    installed: false,
+    dir: undefined,
+    pythonPath: undefined,
+    pipPath: undefined,
+    pythonVersion: undefined,
+    pipVersion: undefined,
+  },
 };
 
 export const node: RuntimeInfo['node'] = {
@@ -51,8 +59,125 @@ export const agentBrowser: RuntimeInfo['agentBrowser'] = {
   version: undefined,
 };
 
+const PYTHON_RUNTIME_VERSION = '3.12';
+
+async function getUVPythonRuntimeInfo() {
+  const isWindows = process.platform === 'win32';
+  const pythonRuntimeDir = path.join(
+    app.getPath('userData'),
+    '.runtime',
+    'python-runtime',
+  );
+  const venvDir = path.join(pythonRuntimeDir, '.venv');
+  const pythonPath = isWindows
+    ? path.join(venvDir, 'Scripts', 'python.exe')
+    : path.join(venvDir, 'bin', 'python');
+  const pipPath = isWindows
+    ? path.join(venvDir, 'Scripts', 'pip.exe')
+    : path.join(venvDir, 'bin', 'pip');
+
+  const info: NonNullable<RuntimeInfo['uv']>['pythonRuntime'] = {
+    installed: false,
+    dir: undefined,
+    pythonPath: undefined,
+    pipPath: undefined,
+    pythonVersion: undefined,
+    pipVersion: undefined,
+  };
+
+  if (!fs.existsSync(pythonPath) || !fs.existsSync(pipPath)) {
+    return info;
+  }
+
+  info.installed = true;
+  info.dir = pythonRuntimeDir;
+  info.pythonPath = pythonPath;
+  info.pipPath = pipPath;
+
+  const result = await runCommand(
+    `"${pythonPath}" --version && "${pipPath}" --version`,
+    {
+      cwd: pythonRuntimeDir,
+      timeout: 1000 * 10,
+    },
+  );
+
+  if (result.code === 0) {
+    const lines = result.stdout
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean);
+    const pythonLine = lines.find((line) => line.startsWith('Python '));
+    const pipLine = lines.find((line) => line.startsWith('pip '));
+
+    info.pythonVersion = pythonLine?.replace(/^Python\s+/, '');
+    info.pipVersion = pipLine?.split(' ')[1];
+  }
+
+  return info;
+}
+
+async function ensurePythonRuntimeEnvironment(uvDir: string) {
+  const isWindows = process.platform === 'win32';
+  const uvPreCommand = isWindows ? 'uv.exe' : './uv';
+  const pythonRuntimeDir = path.join(
+    app.getPath('userData'),
+    '.runtime',
+    'python-runtime',
+  );
+  const venvDir = path.join(pythonRuntimeDir, '.venv');
+  const pythonPath = isWindows
+    ? path.join(venvDir, 'Scripts', 'python.exe')
+    : path.join(venvDir, 'bin', 'python');
+  const pipPath = isWindows
+    ? path.join(venvDir, 'Scripts', 'pip.exe')
+    : path.join(venvDir, 'bin', 'pip');
+
+  if (fs.existsSync(pythonPath) && fs.existsSync(pipPath)) {
+    return true;
+  }
+
+  fs.mkdirSync(pythonRuntimeDir, { recursive: true });
+  if (fs.existsSync(venvDir)) {
+    await fs.promises.rm(venvDir, { recursive: true, force: true });
+  }
+
+  const result = await runCommand(
+    `${uvPreCommand} venv "${venvDir}" --seed`,
+    {
+      cwd: uvDir,
+      timeout: 1000 * 60,
+    },
+  );
+  await new Promise(resolve => setTimeout(resolve, 1000 * 2));
+
+  if (
+    result.code !== 0 ||
+    !fs.existsSync(pythonPath) ||
+    !fs.existsSync(pipPath)
+  ) {
+    return false;
+  }
+
+  const verifyResult = await runCommand(
+    `"${pythonPath}" --version && "${pipPath}" --version`,
+    {
+      cwd: pythonRuntimeDir,
+      timeout: 1000 * 10,
+    },
+  );
+
+  return verifyResult.code === 0;
+}
+
 export async function installUVRuntime() {
-  const uvPath = path.join(app.getPath('userData'), '.runtime', 'bin', 'uv');
+  const isWindows = process.platform === 'win32';
+  const uvPath = path.join(
+    app.getPath('userData'),
+    '.runtime',
+    'bin',
+    isWindows ? 'uv.exe' : 'uv',
+  );
   if (fs.existsSync(uvPath)) return;
   if (uv.status === 'installing') {
     return;
@@ -89,8 +214,26 @@ export async function installUVRuntime() {
   }
 
   if (success) {
+    const uvRuntime = await getUVRuntime(true);
+    if (uvRuntime?.status !== 'installed' || !uvRuntime.dir) {
+      appManager.toast('Failed to initialize UV Runtime', { type: 'error' });
+      uv.status = 'not_installed';
+      return uv;
+    }
+
+    const pythonRuntimeReady = await ensurePythonRuntimeEnvironment(
+      uvRuntime.dir,
+    );
+    if (!pythonRuntimeReady) {
+      appManager.toast('UV Runtime installed, but Python runtime setup failed', {
+        type: 'error',
+      });
+      return uvRuntime;
+    }
+    uv.pythonRuntime = await getUVPythonRuntimeInfo();
+
     appManager.toast('UV Runtime installed successfully', { type: 'success' });
-    return await getUVRuntime(true);
+    return uvRuntime;
   } else {
     appManager.toast('Failed to install UV Runtime', { type: 'error' });
     uv.status = 'not_installed';
@@ -145,12 +288,20 @@ export async function getUVRuntime(refresh = false) {
     uv.path = undefined;
     uv.dir = undefined;
     uv.version = undefined;
+    uv.pythonRuntime = {
+      installed: false,
+      dir: undefined,
+      pythonPath: undefined,
+      pipPath: undefined,
+      pythonVersion: undefined,
+      pipVersion: undefined,
+    };
     return uv;
   }
   if (uv.status === 'installed' && refresh == false) {
     return uv;
   }
-  const result = await runCommand(`"${path.basename(uvPath)}" --version`, {
+  const result = await runCommand(`${isWindows ? 'uv.exe' : './uv'} --version`, {
     timeout: 1000 * 5,
     cwd: path.dirname(uvPath),
   });
@@ -160,6 +311,7 @@ export async function getUVRuntime(refresh = false) {
     uv.path = uvPath;
     uv.dir = path.dirname(uvPath);
     uv.version = result.stdout.split(' ')[1];
+    uv.pythonRuntime = await getUVPythonRuntimeInfo();
     return uv;
   }
 }

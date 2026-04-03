@@ -16,7 +16,7 @@ import {
   TranscriptionModelV2CallWarning,
 } from '@ai-sdk/provider';
 // import { TextEmbeddingPipeline, PoolingType } from 'openvino-genai-node';
-import { BaseProvider, OCRModel, RerankModel } from './base-provider';
+import { BaseProvider, ClipModel, OCRModel, RerankModel } from './base-provider';
 import { Providers } from '@/entities/providers';
 import { ProviderCredits, ProviderTag, ProviderType } from '@/types/provider';
 import fs from 'fs';
@@ -253,7 +253,8 @@ export class LocalRerankModel implements RerankModel {
 }
 
 export class LocalClipModel {
-  modelId: string;
+  readonly provider: string = 'local';
+  readonly modelId: string;
 
   constructor(modelId: string) {
     this.modelId = modelId;
@@ -280,10 +281,43 @@ export class LocalClipModel {
       modelPath
     );
     const { model, processor, tokenizer, textModel } = cachedModel;
-    const text_inputs = tokenizer(texts, { padding: true, truncation: true });
+    if (this.modelId == 'jina-clip-v2' || this.modelId == 'chinese-clip-vit-large-patch14-336px') {
+      const rawImages = [];
+      if (images.length > 0) {
+        for (const image of images) {
+          const rawImage = await RawImage.read(image);
+          rawImages.push(rawImage);
+        }
+      }
+      const inputTexts = [];
+      for (const text of texts) {
+        if (text && text.trim() != '')
+          inputTexts.push(text);
+      }
 
-    const output = await textModel(text_inputs);
-    const text_embeddings = output.text_embeds.tolist();
+      const inputs = await processor(
+        inputTexts.length > 0 ? inputTexts : null,
+        rawImages.length > 0 ? rawImages : null,
+        { padding: true, truncation: true }
+      );
+      const outputs = await model(inputs);
+
+
+      return {
+        image_embeddings: outputs.l2norm_image_embeddings?.tolist(),
+        text_embeddings: outputs.l2norm_text_embeddings?.tolist()
+      }
+
+    }
+
+    let text_embeddings;
+    if (texts && texts.length > 0) {
+      const text_inputs = tokenizer(texts, { padding: true, truncation: true });
+
+      const output = await textModel(text_inputs);
+      text_embeddings = output.text_embeds?.tolist();
+    }
+
 
 
     const rawImages = [];
@@ -324,6 +358,20 @@ export class LocalClipModel {
     //   .sort((a, b) => b.score - a.score)
     //   .slice(0, options?.top_k || 10);
   }
+  // async encodeText(text: string): Promise<number[]> {
+
+  // }
+  // async encodeTexts(texts: string[]): Promise<number[][]> {
+
+  // }
+  // async encodeImage(image: string): Promise<number[]> {
+
+  // }
+  // async encodeImages(images: string[]): Promise<number[][]> {
+
+  // }
+
+  // async cosineSimilarity(vec1: Float32Array, vec2: Float32Array): number;
 }
 
 
@@ -423,8 +471,9 @@ export class LocalOcrModel implements OCRModel {
   constructor(modelId: string) {
     this.modelId = modelId;
   }
-  async doOCR(options: { image: string }): Promise<string> {
+  async doOCR(options: { image: string, excludeInsideImage?: boolean }): Promise<string> {
     const image = fs.readFileSync(options.image);
+    const excludeInsideImage = options.excludeInsideImage ?? false;
     let result;
     if (this.modelId === 'system') {
       if (path.extname(options.image).toLowerCase() === '.pdf') {
@@ -450,7 +499,14 @@ export class LocalOcrModel implements OCRModel {
       ext: path.extname(options.image).toLowerCase(),
       modelId: this.modelId,
     });
-    return result.text;
+    let text = result.text;
+    if (excludeInsideImage) {
+      text = text.replace(
+        /<img\b[^>]*\/?>/gi,
+        ""
+      );
+    }
+    return text;
 
 
     // const ocrLoader = new OcrLoader(options.image, {

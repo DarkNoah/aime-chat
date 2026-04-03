@@ -12,9 +12,21 @@ import fg from 'fast-glob';
 import { appManager } from '@/main/app';
 import { ToolConfig, ToolTags } from '@/types/tool';
 
-const getSitecustomizePy = async () => {
+const getSitecustomizePy = async (allRequestContext: Record<string, any> = {}) => {
   const appInfo = await appManager.getInfo();
   const mcpServerUrl = `http://localhost:${appInfo.apiServer.port}/mcp`;
+  const workspace = allRequestContext['workspace'] as string;
+  const model = allRequestContext['model'] as string;
+  let meta = {}
+  if (workspace) {
+    meta['workspace'] = workspace
+  }
+  if (model) {
+    meta['model'] = model
+  }
+
+
+
   return `
 import asyncio
 import builtins
@@ -36,7 +48,7 @@ async def _call_tool_async(name: str, **kwargs):
     async with streamablehttp_client(MCP_SERVER_URL) as (read_stream, write_stream, _):
         async with ClientSession(read_stream, write_stream) as session:
             await session.initialize()
-            result = await session.call_tool(name, kwargs)
+            result = await session.call_tool(name, kwargs, meta=${JSON.stringify(meta)})
             texts = [c.text for c in result.content if c.type == 'text']
             return '\\n'.join(texts)
 
@@ -69,34 +81,6 @@ Usage:
 - every time will run in a new temporary directory, which is deleted after the run is completed.
 - packages need to be reinstalled for every run if you need.
 
-PTC Mode:
-Programmatic Tool Calling (PTC) allows to write code that calls tools programmatically within the Code Execution environment, rather than requiring round-trips through the model for each tool invocation
-- You can use all tools in the current context.
-- You know tool names and descriptions and arguments in current context.
-
-<tips>
-- All returns will be returned as text.
-- According to the tool description, if the returned format is a JSON or a JSON array and you need to use it, please use json.loads(result) to obtain the correct JSON object.
-- All tool is async, so you need to use await to call the tool.
-- There is no need to import the module for that function, because I have already loaded the function globally. You can use it directly.
-- if you need to return some information, please use print(result) to return the result.
-</tips>
-
-<example>
-available tools: [Bash, RemoveBackground, ...]
-user: "Please remove the background from the image, find all .jpg in /path/to/images", and save in /path/to/images_removed_bg
-assistant:
-import asyncio
-import glob
-import os
-async def main():
-    images = glob.glob('/path/to/images/**/*.jpg', recursive=True)
-    for image_path in images:
-        result_text = await RemoveBackground(url_or_file_path = image_path, save_path = "/path/to/images_removed_bg/" + os.path.basename(image_path).replace('.jpg', '_removed.jpg')))
-        result = json.loads(result_text)
-    print('done')
-asyncio.run(main())
-</example>
 `;
   inputSchema = z.object({
     code: z.string().describe('The code to execute'),
@@ -143,7 +127,19 @@ Programmatic Tool Calling (PTC) allows to write code that calls tools programmat
 - According to the tool description, if the returned format is a JSON or a JSON array and you need to use it, please use json.loads(result) to obtain the correct JSON object.
 - All tool is async, so you need to use await to call the tool.
 - There is no need to import the module for that function, because I have already loaded the function globally. You can use it directly.
-- if you need to return some information, please use print(result) to return the result.
+- If you need to return some information, please use print(result) to return the result.
+- Handle errors gracefully.
+- If there is a large amount of input data, it is best to retrieve values through variables in code rather than hard-coding them directly.
+  <bad-example>
+  \`\`\`py
+  paths = ['xxx.py' , 'yyy.py' , 'zzz.py']
+  \`\`\`
+  </bad-example>
+  <good-example>
+  \`\`\`py
+  paths = glob.glob('**/*.py', recursive=True)
+  \`\`\`
+  </good-example>
 </tips>
 
 <example>
@@ -172,11 +168,17 @@ asyncio.run(main())
     options?: ToolExecutionContext,
   ) => {
     const { code, packages = [], ptc } = inputData;
+    const { requestContext, abortSignal } = options;
+
     const temp = app.getPath('temp');
     const tempDir = path.join(temp, nanoid());
     await fs.promises.mkdir(tempDir, { recursive: true });
     const isWindows = process.platform === 'win32';
     const uvPreCommand = isWindows ? 'uv.exe' : './uv';
+
+    const workspace = (requestContext.get('workspace' as never) as string) || tempDir;
+    const allRequestContext = requestContext.all
+
     try {
       const uvRuntime = await getUVRuntime();
       if (uvRuntime.status !== 'installed') {
@@ -237,7 +239,7 @@ asyncio.run(main())
         }
         site_packages_path = sitePackages[0];
 
-        const sitecustomize_py = await getSitecustomizePy();
+        const sitecustomize_py = await getSitecustomizePy(allRequestContext);
         await fs.promises.writeFile(
           path.join(site_packages_path, 'sitecustomize.py'),
           sitecustomize_py,
@@ -248,13 +250,13 @@ asyncio.run(main())
       await fs.promises.writeFile(tempFile, code);
 
       const result = await runCommand(
-        `${uvPreCommand} run --project "${tempDir}" "${tempFile}"`,
+        `"${path.join(uvRuntime?.dir, uvPreCommand)}" run --project "${tempDir}" "${tempFile}"`,
         {
-          cwd: uvRuntime?.dir,
+          cwd: workspace,
         },
       );
       return [
-        `Directory: ${tempDir || '(root)'}`,
+        `Directory: ${workspace || '(root)'}`,
         `Stdout: \n${result.stdout || '(empty)'}`,
         `Stderr: \n${result.stderr || '(empty)'}`,
         `Error: ${result.error ?? '(none)'}`,

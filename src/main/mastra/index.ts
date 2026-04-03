@@ -38,6 +38,7 @@ import { channel } from '../ipc/IpcController';
 import { PaginationInfo } from '@/types/common';
 import { MastraChannel } from '@/types/ipc-channel';
 import {
+  Agent,
   AgentExecutionOptions,
   convertMessages,
   MastraDBMessage,
@@ -104,7 +105,8 @@ import { TaskCreate, TaskList } from '../tools/common/task';
 import { MemoryWrite } from '../tools/memory/memory';
 import { formatCodeWithLineNumbers } from '../utils/format';
 import { getSkills } from '../utils/skills';
-import { Agent } from '@/types/agent';
+
+import { WorkflowRunStatus } from '@mastra/core/workflows';
 
 
 class MastraManager extends BaseManager {
@@ -296,6 +298,7 @@ class MastraManager extends BaseManager {
     const messages = await memoryStore.listMessages({
       threadId: id,
       resourceId: thread?.resourceId || DEFAULT_RESOURCE_ID,
+      perPage: false,
       // format: 'v2',
     });
 
@@ -415,7 +418,10 @@ class MastraManager extends BaseManager {
     const tools = [...new Set(data?.metadata?.tools as string[] || [])];
     const subAgents = [...new Set(data?.metadata?.subAgents as string[] || [])];
 
-    const thread = await memoryStore.updateThread({
+
+    let thread = await memoryStore.getThreadById({ threadId: id });
+    const oldTitle = thread.title || DEFAULT_TITLE;
+    thread = await memoryStore.updateThread({
       id: id,
       title: data?.title || DEFAULT_TITLE,
       metadata: { ...(data?.metadata || {}), tools, subAgents },
@@ -434,18 +440,21 @@ class MastraManager extends BaseManager {
         project.defaultModelId = data.metadata?.model as string || agent?.defaultModelId || appInfo.defaultModel?.model as string;
         project.defaultTools = [...new Set(data.metadata?.tools as string[] || [])];
         project.defaultSubAgents = [...new Set(data.metadata?.subAgents as string[] || [])];
-        await projectManager.saveProject(project);
+        await projectManager.projectsRepository.save(project);
       }
+    } else {
+
     }
 
-
-    appManager.sendEvent(ChatEvent.ChatChanged, {
-      data: {
-        type: ChatChangedType.TitleUpdated,
-        chatId: id,
-        title: data.title,
-      },
-    });
+    if (oldTitle !== data.title) {
+      appManager.sendEvent(ChatEvent.ChatChanged, {
+        data: {
+          type: ChatChangedType.TitleUpdated,
+          chatId: id,
+          title: data.title,
+        },
+      });
+    }
     return thread;
   }
 
@@ -498,7 +507,9 @@ class MastraManager extends BaseManager {
   public async chat(event: IpcMainEvent, data: ChatInput, callback?: ChatCallbackEvent): Promise<{
     success: boolean;
     aborted?: boolean;
+    status?: WorkflowRunStatus;
     error?: string | undefined;
+    runId?: string;
     messages?: MastraDBMessage[];
   }> {
     let {
@@ -652,6 +663,7 @@ class MastraManager extends BaseManager {
       const historyMessages = await memoryStore.listMessages({
         threadId: chatId,
         resourceId: resourceId,
+        perPage: false
       });
 
       const historyMessagesAISdkV5 = toAISdkV5Messages(
@@ -695,6 +707,9 @@ class MastraManager extends BaseManager {
         xai: {
           reasoningEffort: think ? (appInfo.defaultThink == 'low' ? 'low' : 'high') : undefined
         } as XaiProviderOptions,
+        ollama: {
+
+        }
       };
       let streamOptions: AgentExecutionOptions<undefined> = {
         includeRawChunks: false,
@@ -827,6 +842,7 @@ class MastraManager extends BaseManager {
         const historyMessages = await memoryStore.listMessages({
           threadId: chatId,
           resourceId: resourceId,
+          perPage: false,
         });
         const historyMessagesAISdkV5 = toAISdkV5Messages(
           historyMessages.messages,
@@ -972,9 +988,10 @@ class MastraManager extends BaseManager {
           callback,
         );
 
-        if (stream.status == 'success') {
-          const content = await stream.content;
-          if (content.length == 0) {
+        if (stream.status == 'success' && !streamOptions.abortSignal.aborted) {
+          const text = await stream.text;
+          const finishReason = await stream.finishReason;
+          if (finishReason == 'stop' && !text) {
             throw new Error('No content returned');
           }
         }
@@ -1052,6 +1069,7 @@ class MastraManager extends BaseManager {
           throw stream.error;
         }
       }
+      const db_messages = stream.messageList.get.all.db();
       if (streamOptions.abortSignal.aborted) {
         const chunks = requestContext.get('chunks');
         const persisted = stream.messageList.getPersisted.input.db();
@@ -1081,11 +1099,33 @@ class MastraManager extends BaseManager {
         requestContext.set('chunks', undefined);
         // await memoryStore.saveMessages({ messages: [...db, ...messages] });
         await memoryStore.saveMessages({ messages: [...messages] });
+      } else {
+        if (db_messages.length > 0 && db_messages[db_messages.length - 1].role == 'assistant') {
+          const lastMessage = db_messages[db_messages.length - 1];
+          if (lastMessage.content.parts.length > 0 && lastMessage.content.parts[lastMessage.content.parts.length - 1].type == 'text' && lastMessage.content.parts[lastMessage.content.parts.length - 1].text) {
+            //lastMessage.content.metadata
+            // await memoryStore.updateMessages({
+            //   messages: [lastMessage],
+            // });
+
+
+          }
+
+
+        }
+
       }
+
+
+
+
+
       return {
         success: true,
+        status: stream.status,
         aborted: streamOptions.abortSignal.aborted,
-        messages: stream.messageList.get.input.db()
+        runId: stream.runId,
+        messages: db_messages
       }
     } catch (err) {
       console.error(err);
@@ -1096,6 +1136,7 @@ class MastraManager extends BaseManager {
       return {
         success: false,
         error: err?.message || 'Unknown error',
+        status: stream?.status,
       }
     } finally {
       appManager.sendEvent(`chat:event:${chatId}`, {
@@ -1105,36 +1146,45 @@ class MastraManager extends BaseManager {
       appManager.sendEvent(ChatEvent.ChatChanged, {
         data: { type: ChatChangedType.Finish, chatId, resourceId },
       });
+      this.threadChats = this.threadChats.filter((chat) => chat.id !== chatId);
+
       currentThread = await memoryStore.getThreadById({ threadId: chatId });
       if (currentThread.title == DEFAULT_TITLE) {
-        const title = await agent.genTitle(
-          inputMessage,
-          undefined,
-          undefined,
-          fastLanguageModel,
-        );
-        currentThread = await memoryStore.updateThread({
-          id: chatId,
-          title: title.replaceAll('\n', '').trim(),
-          metadata: currentThread.metadata,
-        });
+        try {
+          const title = await agent.genTitle(
+            inputMessage,
+            undefined,
+            undefined,
+            fastLanguageModel,
+          );
+          currentThread = await memoryStore.updateThread({
+            id: chatId,
+            title: title.replaceAll('\n', '').trim(),
+            metadata: currentThread.metadata,
+          });
 
-        await callback?.onThreadChanged?.({
-          id: chatId,
-          title: title.replaceAll('\n', '').trim(),
-          status: 'idle',
-        });
+          await callback?.onThreadChanged?.({
+            id: chatId,
+            title: title.replaceAll('\n', '').trim(),
+            status: 'idle',
+          });
 
-        appManager.sendEvent(ChatEvent.ChatChanged, {
-          data: { type: ChatChangedType.TitleUpdated, chatId, title },
-        });
+          appManager.sendEvent(ChatEvent.ChatChanged, {
+            data: { type: ChatChangedType.TitleUpdated, chatId, title },
+          });
 
-        appManager.sendEvent(`chat:event:${chatId}`, {
-          type: ChatEvent.ChatChanged,
-          data: { type: ChatChangedType.TitleUpdated, chatId, title },
-        });
+          appManager.sendEvent(`chat:event:${chatId}`, {
+            type: ChatEvent.ChatChanged,
+            data: { type: ChatChangedType.TitleUpdated, chatId, title },
+          });
+        } catch (err) {
+
+
+          console.error(err)
+        }
+
       }
-      this.threadChats = this.threadChats.filter((chat) => chat.id !== chatId);
+
     }
 
     // const response = createUIMessageStreamResponse({ stream: stream_2 });
@@ -1192,7 +1242,7 @@ class MastraManager extends BaseManager {
     }
     const uiStream = toAISdkStream(stream, {
       from: 'agent',
-      sendReasoning: true,
+      sendReasoning: false,
       sendStart: false,
       sendFinish: false,
       // lastMessageId: inputMessage[inputMessage.length - 1].id,
@@ -1204,8 +1254,10 @@ class MastraManager extends BaseManager {
       if (done) {
         break;
       }
+      // console.log(value)
       if (value.type == 'reasoning-delta') {
         await callback?.onThought?.(value.delta);
+        continue;
       }
 
       if (value.type == 'tool-input-available') {
@@ -1236,7 +1288,7 @@ class MastraManager extends BaseManager {
 
 
 
-      console.log('Stream chunk:', value);
+      // console.log('Stream chunk:', value);
 
       appManager.sendEvent(`chat:event:${chatId}`, {
         type: ChatEvent.ChatChunk,

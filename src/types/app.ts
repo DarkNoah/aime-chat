@@ -125,6 +125,14 @@ export interface RuntimeInfo {
     path?: string;
     dir?: string;
     version?: string;
+    pythonRuntime?: {
+      installed: boolean;
+      dir?: string;
+      pythonPath?: string;
+      pipPath?: string;
+      pythonVersion?: string;
+      pipVersion?: string;
+    };
   };
   bun: {
     status: 'installed' | 'not_installed' | 'installing';

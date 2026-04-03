@@ -28,12 +28,10 @@ import {
   DialogTitle,
 } from '@/renderer/components/ui/dialog';
 import { Label } from '@/renderer/components/ui/label';
-import { Textarea } from '@/renderer/components/ui/textarea';
 import {
   Provider,
   ProviderModel,
   CreateProvider,
-  ProviderType,
   UpdateProvider,
   ProviderTypeList,
 } from '@/types/provider';
@@ -51,7 +49,6 @@ import {
   Item,
   ItemActions,
   ItemContent,
-  ItemDescription,
   ItemMedia,
   ItemTitle,
 } from '@/renderer/components/ui/item';
@@ -66,11 +63,7 @@ import {
   Trash,
 } from 'lucide-react';
 import { Spinner } from '@/renderer/components/ui/spinner';
-import {
-  Alert,
-  AlertDescription,
-  AlertTitle,
-} from '@/renderer/components/ui/alert';
+import { Alert, AlertTitle } from '@/renderer/components/ui/alert';
 import {
   Field,
   FieldDescription,
@@ -80,7 +73,6 @@ import {
   IconBrain,
   IconMicrophone,
   IconPhoto,
-  IconSearch,
   IconTool,
   IconTrashX,
   IconVideo,
@@ -98,8 +90,6 @@ import {
   FormMessage,
 } from '@/renderer/components/ui/form';
 import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import {
   InputGroup,
   InputGroupAddon,
@@ -107,6 +97,90 @@ import {
 } from '@/renderer/components/ui/input-group';
 import toast from 'react-hot-toast';
 import { InputPassword } from '@/renderer/components/ui/input-password';
+
+type ModelModalities = NonNullable<ProviderModel['modalities']>;
+type ModelDialogMode = 'create' | 'edit';
+type ModelEditorState = {
+  id: string;
+  name: string;
+  modalities: ModelModalities;
+  tool_call: boolean;
+  contextLimit?: number;
+};
+
+const INPUT_MODALITY_OPTIONS: ModelModalities['input'] = [
+  'text',
+  'image',
+  'audio',
+  'video',
+];
+const CONTEXT_LIMIT_OPTIONS = [6000, 32000, 65536, 128000, 256000, 1000000];
+const EMPTY_CONTEXT_LIMIT_VALUE = '__unset__';
+
+const normalizeModalities = (
+  modalities?: ProviderModel['modalities'],
+): ModelModalities => ({
+  input: Array.from(
+    new Set(
+      modalities?.input?.length ? ['text', ...modalities.input] : ['text'],
+    ),
+  ),
+  output: Array.from(new Set(modalities?.output ?? ['text'])),
+});
+
+const ensureModelModalities = (model: ProviderModel): ProviderModel => ({
+  ...model,
+  modalities: normalizeModalities(model.modalities),
+});
+
+const toggleModalityValue = (
+  modalities: ProviderModel['modalities'],
+  modality: string,
+): ModelModalities => {
+  const nextModalities = normalizeModalities(modalities);
+
+  if (modality === 'text') {
+    return nextModalities;
+  }
+
+  const nextValues = new Set(nextModalities.input);
+  if (nextValues.has(modality)) {
+    nextValues.delete(modality);
+  } else {
+    nextValues.add(modality);
+  }
+
+  return normalizeModalities({
+    ...nextModalities,
+    input: Array.from(nextValues),
+  } as ModelModalities);
+};
+
+const getContextLimitOptions = (currentValue?: number) => {
+  const values = new Set(CONTEXT_LIMIT_OPTIONS);
+  if (currentValue !== undefined) {
+    values.add(currentValue);
+  }
+  return Array.from(values).sort((a, b) => a - b);
+};
+
+const formatContextLimitLabel = (value: number) => {
+  if (value >= 1000000) {
+    return `${(value / 1000000).toFixed(value % 1000000 === 0 ? 0 : 1)}M`;
+  }
+  if (value >= 1000) {
+    return `${(value / 1000).toFixed(value % 1000 === 0 ? 0 : 1)}K`;
+  }
+  return `${value}`;
+};
+
+const createModelEditorState = (model?: ProviderModel): ModelEditorState => ({
+  id: model?.id ?? '',
+  name: model?.name ?? '',
+  modalities: normalizeModalities(model?.modalities),
+  tool_call: !!model?.tool_call,
+  contextLimit: model?.limit?.context,
+});
 
 function Providers() {
   const { setTitle } = useHeader();
@@ -142,10 +216,13 @@ function Providers() {
     name: string;
   } | null>(null);
 
-  // 添加模型弹窗状态
-  const [addModelOpen, setAddModelOpen] = useState<boolean>(false);
-  const [newModelId, setNewModelId] = useState<string>('');
-  const [newModelName, setNewModelName] = useState<string>('');
+  const [modelEditorOpen, setModelEditorOpen] = useState<boolean>(false);
+  const [modelDialogMode, setModelDialogMode] =
+    useState<ModelDialogMode>('create');
+  const [editingModelId, setEditingModelId] = useState<string | null>(null);
+  const [modelEditorState, setModelEditorState] = useState<ModelEditorState>(
+    createModelEditorState(),
+  );
   const [providerTypeList, setProviderTypeList] = useState<ProviderTypeList[]>(
     [],
   );
@@ -154,7 +231,6 @@ function Providers() {
     setLoading(true);
     try {
       const data = await window.electron.providers.getList();
-      console.log(data);
       setProviders(data);
     } finally {
       setLoading(false);
@@ -241,10 +317,9 @@ function Providers() {
     setGetModelsError(null);
     try {
       const list = await window.electron.providers.getModelList(data.id);
-      console.log(list);
-      setModels(list || []);
+      setModels((list || []).map(ensureModelModalities));
     } catch {
-      setGetModelsError('获取模型失败');
+      setGetModelsError(t('providers.get_models_error'));
     }
 
     setLoadingModels(false);
@@ -262,35 +337,231 @@ function Providers() {
 
   // 打开添加模型弹窗
   const openAddModel = () => {
-    setNewModelId('');
-    setNewModelName('');
-    setAddModelOpen(true);
+    setModelDialogMode('create');
+    setEditingModelId(null);
+    setModelEditorState(createModelEditorState());
+    setModelEditorOpen(true);
   };
 
-  // 添加自定义模型
-  const addCustomModel = () => {
-    if (!newModelId.trim()) {
-      toast.error('模型 ID 不能为空');
+  const openModelEditor = (model: ProviderModel) => {
+    setModelDialogMode('edit');
+    setEditingModelId(model.id);
+    setModelEditorState(createModelEditorState(model));
+    setModelEditorOpen(true);
+  };
+
+  const saveModelEditor = () => {
+    const modelId = modelEditorState.id.trim();
+    if (!modelId) {
+      toast.error(t('providers.model_id_required'));
       return;
     }
-    // 检查是否已存在
-    if (models.some((m) => m.id === newModelId.trim())) {
-      toast.error('模型 ID 已存在');
+    if (
+      modelDialogMode === 'create' &&
+      models.some((model) => model.id === modelId)
+    ) {
+      toast.error(t('providers.model_id_exists'));
       return;
     }
-    const newModel: ProviderModel = {
-      id: newModelId.trim(),
-      name: newModelName.trim() || newModelId.trim(),
-      isActive: true,
-      isCustom: true,
-    };
-    setModels((prev) => [newModel, ...prev]);
-    setAddModelOpen(false);
+    const modelName = modelEditorState.name.trim() || modelId;
+    const nextModalities = normalizeModalities(modelEditorState.modalities);
+    const nextContextLimit = modelEditorState.contextLimit;
+
+    if (modelDialogMode === 'create') {
+      const newModel: ProviderModel = {
+        id: modelId,
+        name: modelName,
+        isActive: true,
+        isCustom: true,
+        modalities: nextModalities,
+        tool_call: modelEditorState.tool_call,
+        limit:
+          nextContextLimit !== undefined
+            ? {
+                context: nextContextLimit,
+              }
+            : undefined,
+      };
+      setModels((prev) => [newModel, ...prev]);
+    } else {
+      if (!editingModelId) return;
+      setModels((list) =>
+        list.map((model) =>
+          model.id === editingModelId
+            ? {
+                ...model,
+                name: modelName,
+                modalities: nextModalities,
+                tool_call: modelEditorState.tool_call,
+                limit:
+                  nextContextLimit !== undefined
+                    ? {
+                        ...model.limit,
+                        context: nextContextLimit,
+                      }
+                    : model.limit?.output !== undefined
+                      ? {
+                          ...model.limit,
+                          context: undefined,
+                        }
+                      : undefined,
+              }
+            : model,
+        ),
+      );
+    }
+
+    setModelEditorOpen(false);
+    setEditingModelId(null);
   };
 
   // 删除自定义模型
   const removeCustomModel = (modelId: string) => {
     setModels((prev) => prev.filter((m) => m.id !== modelId));
+  };
+
+  const updateModelEditorModality = (modality: string) => {
+    setModelEditorState((current) => ({
+      ...current,
+      modalities: toggleModalityValue(current.modalities, modality),
+    }));
+  };
+
+  const updateModelEditorContextLimit = (contextLimit?: number) => {
+    setModelEditorState((current) => ({
+      ...current,
+      contextLimit,
+    }));
+  };
+
+  const updateModelEditorToolCall = (enabled: boolean) => {
+    setModelEditorState((current) => ({
+      ...current,
+      tool_call: enabled,
+    }));
+  };
+
+  const updateModelEditorField = (field: 'id' | 'name', value: string) => {
+    setModelEditorState((current) => ({
+      ...current,
+      [field]: value,
+    }));
+  };
+
+  const closeModelEditor = (open: boolean) => {
+    setModelEditorOpen(open);
+    if (!open) {
+      setEditingModelId(null);
+    }
+  };
+
+  const renderModelConfigEditor = () => {
+    const normalizedModalities = normalizeModalities(
+      modelEditorState.modalities,
+    );
+    const contextLimitValue =
+      modelEditorState.contextLimit !== undefined
+        ? String(modelEditorState.contextLimit)
+        : EMPTY_CONTEXT_LIMIT_VALUE;
+
+    return (
+      <div className="flex flex-col gap-4 py-4">
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="modelId">
+            {t('providers.model_id')}{' '}
+            <span className="text-destructive">*</span>
+          </Label>
+          <Input
+            id="modelId"
+            disabled={modelDialogMode === 'edit'}
+            placeholder={t('providers.model_id_placeholder')}
+            value={modelEditorState.id}
+            onChange={(e) => updateModelEditorField('id', e.target.value)}
+          />
+          {modelDialogMode === 'edit' && (
+            <FieldDescription>
+              {t('providers.model_id_readonly_hint')}
+            </FieldDescription>
+          )}
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="modelName">{t('providers.model_name')}</Label>
+          <Input
+            id="modelName"
+            placeholder={t('providers.model_name_placeholder')}
+            value={modelEditorState.name}
+            onChange={(e) => updateModelEditorField('name', e.target.value)}
+          />
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="min-w-20 text-xs text-muted-foreground">
+            {t('providers.input_modalities')}
+          </span>
+          {INPUT_MODALITY_OPTIONS.map((modality) => {
+            const selected = normalizedModalities.input.includes(modality);
+            const disabled = modality === 'text';
+
+            return (
+              <Badge
+                key={modality}
+                asChild
+                variant={selected ? 'default' : 'outline'}
+                className={disabled ? 'opacity-80' : undefined}
+              >
+                <button
+                  type="button"
+                  className="cursor-pointer disabled:cursor-not-allowed"
+                  disabled={disabled}
+                  onClick={() => updateModelEditorModality(modality)}
+                >
+                  {t(`providers.modalities.${modality}`)}
+                </button>
+              </Badge>
+            );
+          })}
+        </div>
+        <div className="flex items-center justify-between gap-4">
+          <span className="text-xs text-muted-foreground">
+            {t('providers.tool_call')}
+          </span>
+          <Switch
+            checked={!!modelEditorState.tool_call}
+            onCheckedChange={(checked) => updateModelEditorToolCall(!!checked)}
+          />
+        </div>
+        <div className="flex items-center justify-between gap-4">
+          <span className="text-xs text-muted-foreground">
+            {t('providers.context_length')}
+          </span>
+          <Select
+            value={contextLimitValue}
+            onValueChange={(value) =>
+              updateModelEditorContextLimit(
+                value === EMPTY_CONTEXT_LIMIT_VALUE ? undefined : Number(value),
+              )
+            }
+          >
+            <SelectTrigger className="w-[180px]">
+              <SelectValue
+                placeholder={t('providers.context_length_not_set')}
+              />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={EMPTY_CONTEXT_LIMIT_VALUE}>
+                {t('providers.context_length_not_set')}
+              </SelectItem>
+              {getContextLimitOptions(modelEditorState.contextLimit).map(
+                (value) => (
+                  <SelectItem key={value} value={String(value)}>
+                    {formatContextLimitLabel(value)}
+                  </SelectItem>
+                ),
+              )}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+    );
   };
 
   const renderApi = useCallback(() => {
@@ -305,6 +576,24 @@ function Providers() {
     );
   }, [editProvider?.type, selectedType]);
 
+  const filteredModels = useMemo(() => {
+    return models
+      .filter(
+        (model) =>
+          model.name.toLowerCase().includes(search.toLowerCase()) ||
+          model.id.toLowerCase().includes(search.toLowerCase()),
+      )
+      .sort((a, b) => {
+        if (a.isActive !== b.isActive) {
+          return a.isActive ? -1 : 1;
+        }
+
+        const aTime = a.release_date ? new Date(a.release_date).getTime() : 0;
+        const bTime = b.release_date ? new Date(b.release_date).getTime() : 0;
+        return bTime - aTime;
+      });
+  }, [models, search]);
+
   const renderList = () => {
     if (loading) {
       return (
@@ -316,7 +605,7 @@ function Providers() {
     if (!providers || providers.length === 0) {
       return (
         <div className="p-8 text-center text-sm text-muted-foreground">
-          暂无 Provider，请点击右上角“新建”添加
+          {t('providers.empty')}
         </div>
       );
     }
@@ -378,7 +667,7 @@ function Providers() {
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between p-4">
-        <div className="text-base font-semibold">Providers</div>
+        <div className="text-base font-semibold">{t('settings.providers')}</div>
         <div className="flex items-center gap-2">
           <Button onClick={openCreate}>{t('common.add')}</Button>
         </div>
@@ -390,7 +679,9 @@ function Providers() {
         <SheetContent className="min-w-[560px]">
           <SheetHeader>
             <SheetTitle>
-              {editProvider ? '编辑 Provider' : '新建 Provider'}
+              {editProvider
+                ? t('providers.edit_provider')
+                : t('providers.add_provider')}
             </SheetTitle>
           </SheetHeader>
           <Form {...form}>
@@ -404,7 +695,10 @@ function Providers() {
                     <FormItem>
                       <FormLabel>{t('common.name')}</FormLabel>
                       <FormControl>
-                        <Input placeholder="OpenAI-US" {...field} />
+                        <Input
+                          placeholder={t('providers.provider_name_placeholder')}
+                          {...field}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -417,7 +711,7 @@ function Providers() {
                     rules={{ required: true }}
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>类型</FormLabel>
+                        <FormLabel>{t('common.type')}</FormLabel>
                         <FormControl>
                           <Select
                             value={field.value}
@@ -440,7 +734,9 @@ function Providers() {
                             }}
                           >
                             <SelectTrigger className="w-full">
-                              <SelectValue placeholder="选择类型" />
+                              <SelectValue
+                                placeholder={t('providers.select_type')}
+                              />
                             </SelectTrigger>
                             <SelectContent>
                               {providerTypeList.map((group) => (
@@ -530,7 +826,7 @@ function Providers() {
                   name="apiBase"
                   render={({ field, formState, fieldState }) => (
                     <FormItem>
-                      <FormLabel>API Base</FormLabel>
+                      <FormLabel>{t('providers.api_base')}</FormLabel>
                       <FormControl>
                         <Input
                           {...field}
@@ -548,7 +844,7 @@ function Providers() {
                   name="apiKey"
                   render={({ field, formState, fieldState }) => (
                     <FormItem>
-                      <FormLabel>API Key</FormLabel>
+                      <FormLabel>{t('providers.api_key')}</FormLabel>
                       <FormControl>
                         <InputPassword placeholder="sk-..." {...field} />
                       </FormControl>
@@ -575,11 +871,11 @@ function Providers() {
       <Sheet open={modelsOpen} onOpenChange={setModelsOpen}>
         <SheetContent className="min-w-[560px]">
           <SheetHeader>
-            <SheetTitle>模型管理</SheetTitle>
+            <SheetTitle>{t('providers.model_management')}</SheetTitle>
             <div className="flex flex-row gap-2">
               <InputGroup>
                 <InputGroupInput
-                  placeholder="Search..."
+                  placeholder={t('providers.search_models_placeholder')}
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
@@ -587,19 +883,14 @@ function Providers() {
                   <Search />
                 </InputGroupAddon>
                 <InputGroupAddon align="inline-end">
-                  {
-                    models.filter(
-                      (m) =>
-                        m.name.toLowerCase().includes(search.toLowerCase()) ||
-                        m.id.toLowerCase().includes(search.toLowerCase()),
-                    ).length
-                  }{' '}
-                  model
+                  {t('providers.models_count', {
+                    count: filteredModels.length,
+                  })}
                 </InputGroupAddon>
               </InputGroup>
               <Button variant="outline" onClick={openAddModel}>
                 <Plus />
-                添加模型
+                {t('providers.add_model')}
               </Button>
             </div>
           </SheetHeader>
@@ -619,7 +910,7 @@ function Providers() {
                 </ItemMedia>
                 <ItemContent>
                   <ItemTitle className="line-clamp-1">
-                    Loading models...
+                    {t('providers.loading_models')}
                   </ItemTitle>
                 </ItemContent>
               </Item>
@@ -631,28 +922,10 @@ function Providers() {
                 <div className="p-4">
                   {models && models.length > 0 && (
                     <div className=" p-4 flex flex-col gap-2">
-                      {models
-                        .filter(
-                          (m) =>
-                            m.name
-                              .toLowerCase()
-                              .includes(search.toLowerCase()) ||
-                            m.id.toLowerCase().includes(search.toLowerCase()),
-                        )
-                        .sort((a, b) => {
-                          if (a.isActive !== b.isActive) {
-                            return a.isActive ? -1 : 1;
-                          }
+                      {filteredModels.map((m) => {
+                        const modalities = normalizeModalities(m.modalities);
 
-                          const aTime = a.release_date
-                            ? new Date(a.release_date).getTime()
-                            : 0;
-                          const bTime = b.release_date
-                            ? new Date(b.release_date).getTime()
-                            : 0;
-                          return bTime - aTime;
-                        })
-                        .map((m, idx) => (
+                        return (
                           <Item variant="outline" key={m.id}>
                             <ItemContent>
                               <Field className="w-full">
@@ -663,14 +936,14 @@ function Providers() {
                                       variant="secondary"
                                       className="text-xs"
                                     >
-                                      自定义
+                                      {t('providers.custom')}
                                     </Badge>
                                   )}
                                 </Label>
                                 <FieldDescription className="text-sm">
                                   {m.id}
                                 </FieldDescription>
-                                <div className="flex flex-row justify-between items-center">
+                                <div className="flex flex-row items-center justify-between">
                                   <div className="flex flex-row gap-2 items-center">
                                     {m?.limit?.context &&
                                       m?.limit?.context > 0 && (
@@ -681,24 +954,17 @@ function Providers() {
                                           K
                                         </Badge>
                                       )}
-                                    {m?.modalities?.input.includes('image') && (
-                                      <IconPhoto size={16}></IconPhoto>
+                                    {modalities.input.includes('image') && (
+                                      <IconPhoto size={16} />
                                     )}
-                                    {m?.modalities?.input.includes('audio') && (
-                                      <IconMicrophone
-                                        size={16}
-                                      ></IconMicrophone>
+                                    {modalities.input.includes('audio') && (
+                                      <IconMicrophone size={16} />
                                     )}
-                                    {m?.modalities?.input.includes('video') && (
-                                      <IconVideo size={16}></IconVideo>
+                                    {modalities.input.includes('video') && (
+                                      <IconVideo size={16} />
                                     )}
-
-                                    {m?.reasoning && (
-                                      <IconBrain size={16}></IconBrain>
-                                    )}
-                                    {m?.tool_call && (
-                                      <IconTool size={16}></IconTool>
-                                    )}
+                                    {m?.reasoning && <IconBrain size={16} />}
+                                    {m?.tool_call && <IconTool size={16} />}
                                   </div>
                                   <small>{m.release_date}</small>
                                 </div>
@@ -706,11 +972,19 @@ function Providers() {
                             </ItemContent>
                             <ItemActions>
                               <div className="col-span-3 flex items-center gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => openModelEditor(m)}
+                                >
+                                  <Edit className="h-4 w-4" />
+                                  {t('common.edit')}
+                                </Button>
                                 <Switch
                                   checked={!!m.isActive}
                                   onCheckedChange={(v) =>
                                     setModels((list) => {
-                                      return list.map((it, i) =>
+                                      return list.map((it) =>
                                         it.id === m.id
                                           ? { ...it, isActive: !!v }
                                           : it,
@@ -731,7 +1005,8 @@ function Providers() {
                               </div>
                             </ItemActions>
                           </Item>
-                        ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -748,13 +1023,11 @@ function Providers() {
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>确认删除</AlertDialogTitle>
+            <AlertDialogTitle>{t('providers.confirm_delete')}</AlertDialogTitle>
             <AlertDialogDescription>
-              确认删除 Provider：
-              <span className="font-medium text-foreground">
-                {deleteInfo?.name}
-              </span>
-              ？该操作不可恢复。
+              {t('providers.delete_confirm_desc', {
+                name: deleteInfo?.name ?? '',
+              })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -770,39 +1043,29 @@ function Providers() {
       </AlertDialog>
 
       {/* 添加自定义模型弹窗 */}
-      <Dialog open={addModelOpen} onOpenChange={setAddModelOpen}>
+      <Dialog open={modelEditorOpen} onOpenChange={closeModelEditor}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>添加自定义模型</DialogTitle>
+            <DialogTitle>
+              {modelDialogMode === 'create'
+                ? t('providers.add_custom_model')
+                : t('providers.edit_model')}
+            </DialogTitle>
           </DialogHeader>
-          <div className="flex flex-col gap-4 py-4">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="modelId">
-                模型 ID <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="modelId"
-                placeholder="例如：gpt-4o-mini"
-                value={newModelId}
-                onChange={(e) => setNewModelId(e.target.value)}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="modelName">模型名称（可选）</Label>
-              <Input
-                id="modelName"
-                placeholder="例如：GPT-4o Mini"
-                value={newModelName}
-                onChange={(e) => setNewModelName(e.target.value)}
-              />
-            </div>
-          </div>
+          {renderModelConfigEditor()}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setAddModelOpen(false)}>
+            <Button variant="outline" onClick={() => closeModelEditor(false)}>
               {t('common.cancel')}
             </Button>
-            <Button onClick={addCustomModel} disabled={!newModelId.trim()}>
-              {t('common.add')}
+            <Button
+              onClick={saveModelEditor}
+              disabled={
+                modelDialogMode === 'create' && !modelEditorState.id.trim()
+              }
+            >
+              {modelDialogMode === 'create'
+                ? t('common.add')
+                : t('common.save')}
             </Button>
           </DialogFooter>
         </DialogContent>

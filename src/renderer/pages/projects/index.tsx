@@ -7,6 +7,8 @@ import { Button } from '@/renderer/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -24,10 +26,15 @@ import { useGlobal } from '@/renderer/hooks/use-global';
 import { useHeader } from '@/renderer/hooks/use-title';
 import { Project, ProjectEvent } from '@/types/project';
 import {
+  IconArrowBarLeft,
+  IconArrowBarRight,
   IconClockHour3,
   IconFolder,
+  IconFolderOpen,
+  IconImageInPicture,
   IconMessage,
   IconPlus,
+  IconSvg,
   IconTimeline,
   IconTrash,
 } from '@tabler/icons-react';
@@ -53,10 +60,13 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from '@/renderer/components/ui/resizable';
+import domtoimage from 'dom-to-image';
+import toast from 'react-hot-toast';
+import { MoreHorizontalIcon } from 'lucide-react';
 
 function ProjectsPage() {
   const { id } = useParams();
-  const { setTitle } = useHeader();
+  const { setTitle, setTitleAction } = useHeader();
   const { t } = useTranslation();
   const [project, setProject] = useState<Project | undefined>();
   const [threadId, setThreadId] = useState<any | undefined>();
@@ -105,12 +115,14 @@ function ProjectsPage() {
     () => (id ? `project:${id}` : undefined),
     [id],
   );
+  const { appInfo } = useGlobal();
   const [threadsOpen, setThreadsOpen] = useState(false);
   const [threadsLoading, setThreadsLoading] = useState(false);
   const [threadsError, setThreadsError] = useState<string | null>(null);
   const [threads, setThreads] = useState<Array<{ id: string; title: string }>>(
     [],
   );
+  const [threadState, setThreadState] = useState<ThreadState | undefined>();
   const [previewToolPart, setPreviewToolPart] = useState<
     ToolUIPart | undefined
   >();
@@ -180,6 +192,7 @@ function ProjectsPage() {
     chatPanelRef?.current?.sendMessage(message, options);
   };
   const handleThreadChanged = (thread: ThreadState) => {
+    setThreadState(thread);
     setPreviewData((data) => {
       return {
         ...data,
@@ -208,12 +221,118 @@ function ProjectsPage() {
     }
     return () => {};
   }, [threadId]);
+
+  useEffect(() => {
+    const handleExportConversation = async (mode: 'jpg' | 'svg') => {
+      try {
+        const bgcolor = appInfo.shouldUseDarkColors ? '#000000' : '#ffffff';
+        let dataUrl = '';
+        let blob;
+        if (mode === 'jpg') {
+          dataUrl = await domtoimage.toJpeg(
+            document.querySelector('#chat-conversation'),
+            {
+              bgcolor,
+            },
+          );
+          const byteCharacters = atob(
+            dataUrl.substring(dataUrl.indexOf(',') + 1),
+          ); // 解码 base64
+          const byteNumbers = Array.from(byteCharacters).map((ch) =>
+            ch.charCodeAt(0),
+          );
+          const byteArray = new Uint8Array(byteNumbers);
+          const mimeType = 'image/jpeg';
+          blob = new Blob([byteArray], { type: mimeType });
+        } else if (mode === 'svg') {
+          dataUrl = await domtoimage.toSvg(
+            document.querySelector('#chat-conversation'),
+            {
+              bgcolor,
+            },
+          );
+          blob = new Blob([dataUrl.substring(dataUrl.indexOf(',') + 1)], {
+            type: 'image/svg+xml',
+          });
+        }
+
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `${threadState?.title.replaceAll(' ', '_')}_${new Date().getTime()}.${mode}`;
+        link.click();
+        URL.revokeObjectURL(link.href); // 释放 URL
+      } catch (err) {
+        toast.error('Export image failed');
+        console.error(err);
+      }
+    };
+
+    setTitleAction(
+      <div className="flex flex-row gap-2">
+        {threadId && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon-sm"
+                aria-label="More Options"
+              >
+                <MoreHorizontalIcon />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuGroup>
+                <DropdownMenuItem
+                  onClick={() => {
+                    if (threadState?.metadata?.workspace) {
+                      window.electron.app.openPath(
+                        threadState?.metadata?.workspace as string,
+                      );
+                    }
+                  }}
+                >
+                  <IconFolderOpen />
+                  Open Dictionary
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+              <DropdownMenuSeparator></DropdownMenuSeparator>
+              <DropdownMenuGroup>
+                <DropdownMenuItem
+                  onClick={() => handleExportConversation('jpg')}
+                >
+                  <IconImageInPicture />
+                  Export Jpg
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => handleExportConversation('svg')}
+                >
+                  <IconSvg />
+                  Export Svg
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+      </div>,
+    );
+  }, [
+    setTitleAction,
+    threadId,
+    appInfo.shouldUseDarkColors,
+    threadState?.title,
+    threadState?.metadata?.workspace,
+  ]);
+
   return (
     <ResizablePanelGroup
       direction="horizontal"
       className="h-full w-full @container"
     >
-      <ResizablePanel className="h-full  w-full justify-between min-w-[450px]">
+      <ResizablePanel
+        id="projects-chat"
+        order={1}
+        className="h-full  w-full justify-between min-w-[450px]"
+      >
         <div className="absolute top-12 left-0 p-2 z-10 flex flex-row gap-1 ">
           <Button
             variant="ghost"
@@ -341,7 +460,7 @@ function ProjectsPage() {
         ></ChatPanel>
       </ResizablePanel>
       <ResizableHandle withHandle />
-      <ResizablePanel className="h-full flex-1">
+      <ResizablePanel id="projects-preview" order={2} className="h-full flex-1">
         <div className="min-w-0 p-2 flex-1 h-full">
           <ChatPreview
             resourceId={projectResourceId}

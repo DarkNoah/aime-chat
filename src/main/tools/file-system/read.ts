@@ -27,6 +27,9 @@ import { appManager } from '@/main/app';
 import { providersManager } from '@/main/providers';
 import { SpeechToText } from '../audio';
 import { toolsManager } from '..';
+import { LanguageModelV2ToolResultOutput, LanguageModelV2ToolResultPart } from '@ai-sdk/provider';
+import { isArray, isObject, isString } from '@/utils/is';
+
 
 const DEFAULT_MAX_LINES_TEXT_FILE = 2000;
 const MAX_LINE_LENGTH_TEXT_FILE = 2000;
@@ -52,7 +55,8 @@ Usage:
 - Results are returned using cat -n format, with line numbers starting at 1
 - This tool allows to read images (eg PNG, JPG, etc). When reading an image file the contents are presented visually by a multimodal LLM.
 - This tool can read PDF files (.pdf). PDFs are processed page by page, extracting both text and visual content for analysis.
-- this tool can read audio files (.wav, .mp3 etc), and returns the audio transcription content (.srt format).
+- This tool can read audio files (.wav, .mp3 etc), and returns the audio transcription content (.srt format).
+- This tool can read video files (.mp4, .mov, .webm), and returns the video transcription content (.srt format).
 - This tool can read Jupyter notebooks (.ipynb files) and returns all cells with their outputs, combining code, text, and visualizations.
 - You have the capability to call multiple tools in a single response. It is always better to speculatively read multiple files as a batch that are potentially useful.
 - You will regularly be asked to read screenshots. If the user provides a path to a screenshot ALWAYS use this tool to view the file at the path. This tool will work with all temporary file paths like /var/folders/123/abc/T/TemporaryItems/NSIRD_screencaptureui_ZfB1tD/Screenshot.png
@@ -76,8 +80,6 @@ Usage:
     })
     .strict();
 
-
-
   configSchema = ToolConfig.Read.configSchema;
   forcePDFOcr?: ReadParams['forcePDFOcr'];
   forceWordOcr?: ReadParams['forceWordOcr'];
@@ -92,45 +94,67 @@ Usage:
     this.disableVision = config?.disableVision ?? false;
   }
 
-  // requireApproval: true,
-  execute = async (
-    inputData: z.infer<typeof this.inputSchema>,
-    context: ToolExecutionContext<z.ZodSchema, any>,
-  ) => {
+  public async doRead(inputData: z.infer<typeof this.inputSchema>,
+    context: ToolExecutionContext<z.ZodSchema, any>): Promise<{
+      content?: string | any;
+      isError: boolean;
+      systemReminder?: string[];
+    }> {
     const { file_path, offset, limit, useVision } = inputData;
     const appInfo = await appManager.getInfo();
     const currentModel = context?.requestContext?.get('model' as never) as string;
     const visionModelId = appInfo.defaultModel.visionModel || currentModel;
 
 
-    if (!fs.existsSync(file_path))
-      throw new Error(`<system-reminder>File does not exist. Note: your current working directory is "${path.dirname(file_path).replaceAll('\\', '/')}" </system-reminder>`);
-
+    if (!fs.existsSync(file_path)) {
+      return {
+        isError: true,
+        systemReminder: [`<system-reminder>Error: File does not exist. </system-reminder>`],
+      }
+    }
     const stats = await fs.promises.stat(file_path);
 
-    if (!stats.isFile()) throw new Error(`File '${file_path}' is not a file.`);
+    if (stats.isDirectory()) {
+      return {
+        isError: true,
+        systemReminder: [`<system-reminder>Error: File '${file_path}' is a directory. </system-reminder>`],
+      }
+    }
 
     if (stats.size === 0) {
       await updateFileModTime(file_path, context.requestContext);
-      return `<system-reminder>The file '${file_path}' is empty.</system-reminder>`;
+      return {
+        isError: false,
+        systemReminder: [`<system-reminder>File '${file_path}' is empty.</system-reminder>`],
+      }
     }
 
     if (offset !== undefined && offset < 0) {
-      throw new Error('Offset must be a non-negative number');
+      return {
+        isError: true,
+        systemReminder: [`<system-reminder>Error: Offset must be a non-negative number.</system-reminder>`],
+      }
     }
     if (limit !== undefined && limit <= 0) {
-      throw new Error('Limit must be a positive number');
+      return {
+        isError: true,
+        systemReminder: [`<system-reminder>Error: Limit must be a positive number.</system-reminder>`],
+      }
     }
+    const ext = path.extname(file_path).toLowerCase();
 
-    if (await isBinaryFile(file_path)) {
+    if (await isBinaryFile(file_path) && ext != '.ts') {
       try {
         if (mime.lookup(file_path).startsWith('image/')) {
           if (this.disableVision === true || useVision === false) {
             const defaultOcr = appInfo?.defaultModel?.ocrModel;
             const provider = await providersManager.getProvider(defaultOcr);
             const ocrModel = defaultOcr.split('/').slice(1).join('/')
-            const ocr = await provider.ocrModel(ocrModel).doOCR({ image: file_path });
-            return ocr;
+            const ocr = await provider.ocrModel(ocrModel).doOCR({ image: file_path, abortSignal: context?.abortSignal });
+            return {
+              isError: false,
+              content: ocr,
+            }
           }
           const result = await new Vision({
             modelId: visionModelId,
@@ -138,10 +162,25 @@ Usage:
             source: file_path,
             prompt: 'Please describe the image in detail.',
           }, context);
-          return result;
+          return {
+            isError: false,
+            content: result,
+          }
         }
-      } catch {
-
+        else if (mime.lookup(file_path).startsWith('video/')) {
+          const result = await new Vision({
+            modelId: visionModelId,
+          }).execute({
+            source: file_path,
+            prompt: 'Please describe the video in detail.',
+          }, context);
+          return {
+            isError: false,
+            content: result,
+          };
+        }
+      } catch (err) {
+        console.error(err)
       }
 
       const content = await new ReadBinaryFile({
@@ -150,15 +189,13 @@ Usage:
       }).execute({
         file_source: file_path,
       }, context);
-      return content;
-
-
-      throw new Error(
-        `The file '${file_path}' is a binary file. please use ReadBinaryFile tool to read the file.`,
-      );
+      return {
+        isError: false,
+        content: content,
+      };
     }
 
-    const ext = path.extname(file_path).toLowerCase();
+
 
     const content = await fs.promises.readFile(file_path, 'utf-8');
 
@@ -176,9 +213,10 @@ Usage:
     let selectedLines = lines.slice(actualStartLine, endLine);
 
     if (startLine >= originalLineCount) {
-      throw new Error(
-        `Error: offset is out of range, offset: ${startLine}, originalLineCount: ${originalLineCount}`,
-      );
+      return {
+        isError: true,
+        systemReminder: [`<system-reminder>Error: offset is out of range, offset: ${startLine}, originalLineCount: ${originalLineCount}.</system-reminder>`],
+      }
     }
 
     let linesWereTruncatedInLength = false;
@@ -193,11 +231,11 @@ Usage:
     const contentRangeTruncated = endLine < originalLineCount;
     const isTruncated = contentRangeTruncated || linesWereTruncatedInLength;
 
-    let llmTextContent = '';
+    const systemReminder = [];
     if (contentRangeTruncated) {
-      llmTextContent += `<system-reminder>File content truncated: showing lines ${actualStartLine + 1}-${endLine} of ${originalLineCount} total lines. Use offset/limit parameters to view more.</system-reminder>\n`;
+      systemReminder.push(`<system-reminder>File content truncated: showing lines ${actualStartLine + 1}-${endLine} of ${originalLineCount} total lines. Use offset/limit parameters to view more.</system-reminder>`);
     } else if (linesWereTruncatedInLength) {
-      llmTextContent += `<system-reminder>File content partially truncated: some lines exceeded maximum length of ${MAX_LINE_LENGTH_TEXT_FILE} characters.</system-reminder>\n`;
+      systemReminder.push(`<system-reminder>File content partially truncated: some lines exceeded maximum length of ${MAX_LINE_LENGTH_TEXT_FILE} characters.</system-reminder>`);
     }
 
     const formattedLines = formatCodeWithLineNumbers({
@@ -205,17 +243,50 @@ Usage:
       startLine: actualStartLine,
     });
 
-    llmTextContent += formattedLines;
     await updateFileModTime(file_path, context.requestContext);
-    return llmTextContent;
+    return {
+      isError: false,
+      systemReminder: systemReminder,
+      content: formattedLines,
+    };
+  }
+
+  // requireApproval: true,
+  execute = async (
+    inputData: z.infer<typeof this.inputSchema>,
+    context: ToolExecutionContext<z.ZodSchema, any>,
+  ) => {
+    const output = await this.doRead(inputData, context);
+    if (output.isError) {
+      return output.systemReminder?.join('\n')
+    } else {
+      if (isString(output.content)) {
+        let value = '';
+        if (output.systemReminder) {
+          value += output.systemReminder?.join('\n') + '\n';
+        }
+        if (output.content) {
+          value += output.content;
+        }
+        return value
+      } else if (isObject(output.content)) {
+        return output.content
+      } else if (isArray(output.content)) {
+        return output.content
+      }
+    }
   };
+
 }
 
 export interface ReadBinaryFileParams extends BaseToolParams {
-  mode?: 'auto' | 'system' | 'paddleocr' | 'mineru-api';
   forcePDFOcr?: boolean;
   forceWordOcr?: boolean;
+  reminder?: boolean;
+  excludeInsideImage?: boolean;
 }
+
+
 export class ReadBinaryFile extends BaseTool {
   static readonly toolName = 'ReadBinaryFile';
   id: string = 'ReadBinaryFile';
@@ -246,12 +317,16 @@ Usage:
   mode?: ReadBinaryFileParams['mode'];
   forcePDFOcr?: ReadBinaryFileParams['forcePDFOcr'];
   forceWordOcr?: ReadBinaryFileParams['forceWordOcr'];
+  reminder?: ReadBinaryFileParams['reminder'];
+  excludeInsideImage?: ReadBinaryFileParams['excludeInsideImage'];
 
   constructor(config?: ReadBinaryFileParams) {
     super(config);
     this.mode = config?.mode ?? 'auto';
     this.forcePDFOcr = config?.forcePDFOcr ?? true;
     this.forceWordOcr = config?.forceWordOcr ?? true;
+    this.reminder = config?.reminder ?? true;
+    this.excludeInsideImage = config?.excludeInsideImage ?? false;
   }
 
   execute = async (
@@ -259,13 +334,14 @@ Usage:
     context: ToolExecutionContext<z.ZodSchema, any>,
   ) => {
     const { file_source } = inputData;
+    const { abortSignal } = context
     if (!fs.existsSync(file_source))
       throw new Error(`File '${file_source}' does not exist.`);
     const stats = await fs.promises.stat(file_source);
     if (!stats.isFile())
-      throw new Error(`File '${file_source}' is not a file.`);
+      throw new Error(`'${file_source}' is not a file.`);
     if (stats.size === 0)
-      return `<system-reminder>The file '${file_source}' is empty.</system-reminder>`;
+      throw new Error(`File '${file_source}' is empty.`);
 
 
 
@@ -287,11 +363,11 @@ Usage:
     if (ext === '.pdf') {
       try {
         if (this.forcePDFOcr === true) {
-          const result = await provider.ocrModel(ocrModel).doOCR({ image: file_source });
+          const result = await provider.ocrModel(ocrModel).doOCR({ image: file_source, excludeInsideImage: this.excludeInsideImage, abortSignal });
           return result;
         }
-      } catch {
-
+      } catch (err) {
+        console.log(err)
       }
       const loader = new PDFLoader(file_source);
       const content = await loader.load();
@@ -299,7 +375,7 @@ Usage:
     } else if (ext === '.docx' || ext === '.doc') {
       try {
         if (this.forceWordOcr === true) {
-          result = await provider.ocrModel(ocrModel).doOCR({ image: file_source });
+          result = await provider.ocrModel(ocrModel).doOCR({ image: file_source, excludeInsideImage: this.excludeInsideImage, abortSignal });
           if (!result) throw new Error('OCR result is empty');
         }
       } catch {
@@ -322,7 +398,7 @@ Usage:
     } else if (mimeType.startsWith('image/')) {
 
 
-      result = await provider.ocrModel(ocrModel).doOCR({ image: file_source });
+      result = await provider.ocrModel(ocrModel).doOCR({ image: file_source, excludeInsideImage: this.excludeInsideImage, abortSignal });
 
 
       // throw new Error(`Unsupported file type: ${mimeType}`);
@@ -349,7 +425,8 @@ Usage:
       // const content = await loader.load();
       // return content.text;
     }
-    if (result.trim() === '') return `<system-reminder>The file '${file_source}' is empty.</system-reminder>`;
+    if (result.trim() === '' && this.reminder == true) return `<system-reminder>The file '${file_source}' is empty.</system-reminder>`;
     return result;
   };
+
 }

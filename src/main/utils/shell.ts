@@ -1,4 +1,4 @@
-import { spawn, execFile } from 'node:child_process';
+import { ChildProcessByStdio, spawn, execFile } from 'node:child_process';
 import os from 'os';
 import path from 'path';
 import fs from 'fs';
@@ -11,6 +11,7 @@ import { isString } from '@/utils/is';
 import { parse, quote } from 'shell-quote';
 import { promisify } from 'node:util';
 import chardet from 'chardet';
+import Stream from 'stream';
 
 export const decodeBuffer = (data: Buffer) => {
   return data.toString('utf8');
@@ -18,6 +19,92 @@ export const decodeBuffer = (data: Buffer) => {
   // return process.platform === 'win32'
   //   ? iconv.decode(data, 'cp936')
   //   : data.toString('utf8');
+};
+
+export const createManagedAbortController = (
+  timeout?: number,
+  upstreamAbortSignal?: AbortSignal,
+) => {
+  const abortController = new AbortController();
+  let didTimeout = false;
+  let timeoutId: NodeJS.Timeout | undefined;
+
+  const forwardAbort = () => {
+    if (!abortController.signal.aborted) {
+      abortController.abort(upstreamAbortSignal?.reason);
+    }
+  };
+
+  if (upstreamAbortSignal?.aborted) {
+    forwardAbort();
+  } else {
+    upstreamAbortSignal?.addEventListener('abort', forwardAbort, { once: true });
+  }
+
+  if (timeout && timeout > 0) {
+    timeoutId = setTimeout(() => {
+      didTimeout = true;
+      if (!abortController.signal.aborted) {
+        abortController.abort(new Error(`Command timed out after ${timeout}ms`));
+      }
+    }, timeout);
+  }
+
+  const cleanup = () => {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+    upstreamAbortSignal?.removeEventListener('abort', forwardAbort);
+  };
+
+  return {
+    abortController,
+    abortSignal: abortController.signal,
+    cleanup,
+    didTimeout: () => didTimeout,
+  };
+};
+
+export const attachAbortHandler = (
+  shell: ChildProcessByStdio<null, Stream.Readable, Stream.Readable>,
+  abortSignal: AbortSignal | undefined,
+  isExited: () => boolean,
+) => {
+  const abortHandler = async () => {
+    if (shell.pid && !isExited()) {
+      if (os.platform() === 'win32') {
+        // For Windows, use taskkill to kill the process tree.
+        spawn('taskkill', ['/pid', shell.pid.toString(), '/f', '/t']);
+      } else {
+        try {
+          // Try to terminate the whole process group first, then force kill.
+          process.kill(-shell.pid, 'SIGTERM');
+          await new Promise((resolve) => setTimeout(resolve, 200));
+          if (shell.pid && !isExited()) {
+            process.kill(-shell.pid, 'SIGKILL');
+          }
+        } catch (_e) {
+          try {
+            if (shell.pid) {
+              shell.kill('SIGKILL');
+            }
+          } catch (_e) {
+            console.error(`failed to kill shell process ${shell.pid}: ${_e}`);
+          }
+        }
+      }
+    }
+  };
+
+  if (abortSignal?.aborted) {
+    void abortHandler();
+  } else {
+    abortSignal?.addEventListener('abort', abortHandler);
+  }
+
+  return () => {
+    abortSignal?.removeEventListener('abort', abortHandler);
+  };
 };
 
 
@@ -59,13 +146,18 @@ export const runCommand = async (
   },
 ) => {
   const {
+    abortSignal,
+    cleanup: cleanupAbortController,
+    didTimeout,
+  } = createManagedAbortController(options?.timeout, options?.abortSignal);
+  const {
     shell,
     tempFilePath,
     command: realCommand,
   } = await createShell(
     command,
     options?.cwd,
-    options?.timeout,
+    undefined,
     options?.env,
     options?.usePowerShell,
     options?.file,
@@ -132,7 +224,9 @@ export const runCommand = async (
   shell.on('error', (err: Error) => {
     error = err;
     // remove wrapper from user's command in error message
-    error.message = error.message.replace(realCommand, command);
+    const realCommandText = isString(realCommand) ? realCommand : realCommand.join(' ');
+    const displayCommand = isString(command) ? command : command.join(' ');
+    error.message = error.message.replace(realCommandText, displayCommand);
   });
 
   let code: number | null = null;
@@ -146,41 +240,14 @@ export const runCommand = async (
     processSignal = _signal;
   };
   shell.on('exit', exitHandler);
-
-  const abortHandler = async () => {
-    if (shell.pid && !exited) {
-      if (os.platform() === 'win32') {
-        // For Windows, use taskkill to kill the process tree
-        spawn('taskkill', ['/pid', shell.pid.toString(), '/f', '/t']);
-      } else {
-        try {
-          // attempt to SIGTERM process group (negative PID)
-          // fall back to SIGKILL (to group) after 200ms
-          process.kill(-shell.pid, 'SIGTERM');
-          await new Promise((resolve) => setTimeout(resolve, 200));
-          if (shell.pid && !exited) {
-            process.kill(-shell.pid, 'SIGKILL');
-          }
-        } catch (_e) {
-          // if group kill fails, fall back to killing just the main process
-          try {
-            if (shell.pid) {
-              shell.kill('SIGKILL');
-            }
-          } catch (_e) {
-            console.error(`failed to kill shell process ${shell.pid}: ${_e}`);
-          }
-        }
-      }
-    }
-  };
-  options?.abortSignal?.addEventListener('abort', abortHandler);
+  const removeAbortHandler = attachAbortHandler(shell, abortSignal, () => exited);
 
   // wait for the shell to exit
   try {
     await new Promise((resolve) => shell.on('exit', resolve));
   } finally {
-    options?.abortSignal?.removeEventListener('abort', abortHandler);
+    removeAbortHandler();
+    cleanupAbortController();
   }
 
   const backgroundPIDs: number[] = [];
@@ -202,7 +269,7 @@ export const runCommand = async (
       }
       fs.unlinkSync(tempFilePath);
     } else {
-      if (options?.abortSignal?.aborted === false) {
+      if (!abortSignal?.aborted) {
         console.error('missing pgrep output');
       }
     }
@@ -214,6 +281,7 @@ export const runCommand = async (
     error,
     code,
     processSignal,
+    timedOut: didTimeout(),
     backgroundPIDs,
     tempFilePath,
     pid: shell.pid,
@@ -297,7 +365,6 @@ export const createShell = async (
         stdio: ['ignore', 'pipe', 'pipe'],
         // detached: true, // ensure subprocess starts its own process group (esp. in Linux)
         cwd: cwd,
-        timeout: timeout,
         env: _env,
       }),
       tempFilePath,
@@ -313,7 +380,6 @@ export const createShell = async (
         stdio: ['ignore', 'pipe', 'pipe'],
         detached: true, // ensure subprocess starts its own process group (esp. in Linux)
         cwd: cwd,
-        timeout: timeout,
         env: _env,
       },
     );
@@ -345,7 +411,6 @@ export const createShell = async (
         stdio: ['ignore', 'pipe', 'pipe'],
         // detached: true, // ensure subprocess starts its own process group (esp. in Linux)
         cwd: cwd,
-        timeout: timeout,
         env: _env,
       },
     );

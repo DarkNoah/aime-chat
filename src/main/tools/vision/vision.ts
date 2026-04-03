@@ -221,7 +221,7 @@ Returns:
             mimeType: mimeType,
           }] as any[];
         if (ocr) {
-          data.push({
+          data.unshift({
             type: 'text',
             text: `<system-reminder>OCR result is provided in the context.</system-reminder>
 ${ocr}`,
@@ -234,7 +234,7 @@ ${ocr}`,
         const width = imageMetadata.width ?? 'unknown';
         const height = imageMetadata.height ?? 'unknown';
 
-        data.push({
+        data.unshift({
           type: 'text',
           text: `<system-reminder>Image file: ${path.basename(file_path)}. Path: ${file_path}. Size: ${filesize(size)}. Format: ${mimeType}. Width: ${width}px. Height: ${height}px.</system-reminder>`,
         })
@@ -326,7 +326,7 @@ ${ocr}
       try {
         const outputPath = path.join(app.getPath('temp'), `stt-${randomUUID()}.wav`);
         tempsrtOutputPath = path.join(app.getPath('temp'), `stt-${randomUUID()}.srt`);
-        const tempAudioPath = await convertToWav(source, outputPath);
+        tempAudioPath = await convertToWav(source, outputPath);
 
 
         const speechToTextTool = await toolsManager.buildTool(`${ToolType.BUILD_IN}:${SpeechToText.toolName}`);
@@ -341,29 +341,55 @@ ${ocr}
       } catch {
 
       } finally {
-        await fs.promises.rm(tempAudioPath, { recursive: true });
-        await fs.promises.rm(tempsrtOutputPath, { recursive: true });
+        if (tempAudioPath && fs.existsSync(tempAudioPath)) {
+          await fs.promises.rm(tempAudioPath, { recursive: true });
+        }
+        if (tempsrtOutputPath && fs.existsSync(tempsrtOutputPath)) {
+          await fs.promises.rm(tempsrtOutputPath, { recursive: true });
+        }
+      }
+
+      const visionModelInfo = await providersManager.getModelInfo(this.modelId);
+      const data = [
+        {
+          type: 'video',
+          data: fs.readFileSync(file_path).toString('base64'),
+          mimeType: mimeType,
+        },
+      ] as any[];
+      if (asr) {
+        data.push({
+          type: 'text',
+          text: `<system-reminder>SRT result is provided in the context.</system-reminder>
+${asr}`,
+        });
       }
 
       if (modelInfo.modelInfo?.modalities?.input?.includes('video')) {
-        const data = [
-          {
-            type: 'video',
-            data: fs.readFileSync(file_path).toString('base64'),
-            mimeType: mimeType,
-          },
-        ] as any[];
-        if (asr) {
-          data.push({
-            type: 'text',
-            text: `<system-reminder>SRT result is provided in the context.</system-reminder>
-${asr}`,
-          });
-        }
+
         return {
           content: data,
         };
 
+      } else if (visionModelInfo.modelInfo?.modalities?.input?.includes('video')) {
+        const model = provider.languageModel(this.modelId?.split('/').slice(1).join('/'));
+        const understandVideoAgent = new Agent({
+          id: 'understand-video-agent',
+          name: 'UnderstandVideoAgent',
+          instructions: `You are an expert video analysis assistant with exceptional visual perception and interpretation skills.
+
+Your task is to carefully analyze the provided video and respond to the user's prompt accurately and thoroughly.
+`,
+          model: model,
+        });
+
+        const result = await understandVideoAgent.generate([{
+          role: 'user',
+          content: data
+        }], {
+          abortSignal: options?.abortSignal,
+        });
+        return result.text;
       }
     } else {
       throw new Error('Unsupported file type');

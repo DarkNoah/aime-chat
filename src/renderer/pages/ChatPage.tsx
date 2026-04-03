@@ -380,6 +380,8 @@ function ChatPage() {
       className="h-full w-full @container"
     >
       <ResizablePanel
+        id="chat-main"
+        order={1}
         className={`h-full  w-full justify-between min-w-[450px]`}
       >
         <ChatPanel
@@ -402,7 +404,7 @@ function ChatPage() {
       {showPreview && (
         <>
           <ResizableHandle withHandle />
-          <ResizablePanel className={`h-full flex-1`}>
+          <ResizablePanel id="chat-preview" order={2} className={`h-full flex-1`}>
             <div className="p-2 w-full h-full">
               <ChatPreview
                 threadId={threadId}

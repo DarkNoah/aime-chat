@@ -36,6 +36,7 @@ import { ToolType } from '@/types/tool';
 import localModels from '../local-model/models.json';
 import { LocalClipModel } from '../providers/local-provider';
 import mime from 'mime';
+import { LocalCLIPModel } from '../local-model/clip';
 export class KnowledgeBaseManager extends BaseManager {
   knowledgeBaseRepository: Repository<KnowledgeBase>;
   knowledgeBaseItemRepository: Repository<KnowledgeBaseItem>;
@@ -66,14 +67,24 @@ export class KnowledgeBaseManager extends BaseManager {
     const localClipModel = localModels.clip.find(x => x.id === _modelId);
     return localClipModel !== undefined;
   }
-  async calcEmbeddings(modeId: string, texts: string[], images?: string[]): Promise<{ text_embeddings: number[][], image_embeddings: number[][] } | undefined> {
+  async calcEmbeddings(modeId: string, texts: string[], images?: string[]): Promise<{ text_embeddings: number[][], image_embeddings?: number[][] } | undefined> {
     try {
       if (this.isLocalModel(modeId)) {
         const _modelId = modeId.split('/').slice(1).join('/')
         if (this.isLocalClipModel(modeId)) {
-          const model = new LocalClipModel(_modelId);
-          const res2 = await model.doClip({ texts, images: images ? images : undefined });
-          return { text_embeddings: res2.text_embeddings, image_embeddings: res2.image_embeddings };
+          const appInfo = await appManager.getInfo();
+          const modelPath = path.join(appInfo.modelPath, 'clip', _modelId);
+          const model = new LocalCLIPModel(_modelId, modelPath);
+          let text_embeddings: number[][] = [];
+          if (texts && texts.length > 0) {
+            text_embeddings = (await model.encodeTexts(texts)).map(x => Array.from(x));
+          }
+          let image_embeddings: number[][] = [];
+          if (images && images.length > 0) {
+            image_embeddings = (await model.encodeImages(images ? images : undefined)).map(x => Array.from(x));
+          }
+
+          return { text_embeddings: text_embeddings, image_embeddings: image_embeddings };
         }
       }
 
@@ -84,6 +95,14 @@ export class KnowledgeBaseManager extends BaseManager {
       console.error(err);
     }
     return undefined
+  }
+
+  async calcClipCosineSimilarity(modeId: string, embedding1: number[], embedding2: number[]): Promise<number> {
+    const appInfo = await appManager.getInfo();
+    const modelPath = path.join(appInfo.modelPath, 'clip', modeId);
+    const model = new LocalCLIPModel(modeId, modelPath);
+    return model.cosineSimilarity(image_embedding, image_embedding);
+
   }
 
 
@@ -186,6 +205,36 @@ export class KnowledgeBaseManager extends BaseManager {
       take: size,
       order: { [sort]: order },
     });
+
+    const kb = await this.knowledgeBaseRepository.findOneBy({ id });
+    // if (kb && items.length > 0) {
+    //   const itemIds = items.map(item => item.id);
+    //   const placeholders = itemIds.map(() => '?').join(',');
+    //   const vectorResults = await this.libSQLClient.execute({
+    //     sql: `SELECT item_id, chunk, metadata, type FROM [kb_${id}_${kb.vectorLength}] WHERE item_id IN (${placeholders}) AND type = 'image'`,
+    //     args: itemIds,
+    //   });
+
+    //   const imageChunkMap = new Map<string, { chunk: string; metadata: any }>();
+    //   for (const row of vectorResults.rows) {
+    //     const itemId = row.item_id as string;
+    //     if (!imageChunkMap.has(itemId)) {
+    //       imageChunkMap.set(itemId, {
+    //         chunk: row.chunk as string,
+    //         metadata: typeof row.metadata === 'string' ? JSON.parse(row.metadata) : row.metadata,
+    //       });
+    //     }
+    //   }
+
+    //   for (const item of items) {
+    //     const imageData = imageChunkMap.get(item.id);
+    //     if (imageData) {
+    //       (item as any).chunk = imageData.chunk;
+    //       (item as any).metadata = { ...(item.metadata ?? {}), ...imageData.metadata };
+    //     }
+    //   }
+    // }
+
     return {
       items: items,
       total: total,
@@ -195,7 +244,7 @@ export class KnowledgeBaseManager extends BaseManager {
     };
   }
   @channel(KnowledgeBaseChannel.SearchKnowledgeBase)
-  public async searchKnowledgeBase(kb_id_or_name: string, query: string, top_k: number = 10): Promise<SearchKnowledgeBaseResult> {
+  public async searchKnowledgeBase(kb_id_or_name: string, query: string, fileTpye: 'text' | 'image' = 'text', top_k: number = 10): Promise<SearchKnowledgeBaseResult> {
     const kb = await this.knowledgeBaseRepository.findOne({ where: [{ id: kb_id_or_name }, { name: kb_id_or_name }] });
     if (!kb) {
       throw new Error('Knowledge base not found');
@@ -222,11 +271,25 @@ export class KnowledgeBaseManager extends BaseManager {
     //   });
     //   embeddings = result.embeddings;
     // }
-    const embeddings = await this.calcEmbeddings(kb.embedding, [query]);
+
+    let embeddings: {
+      text_embeddings: number[][];
+      image_embeddings?: number[][];
+    }
+    if (fileTpye == 'text') {
+      if (kb.embedding.split('/')[kb.embedding.split('/').length - 1] == 'jina-clip-v2') {
+        const QUERY_PREFIX = 'Represent the query for retrieving evidence documents: ';
+        query = QUERY_PREFIX + query;
+      }
+      embeddings = await this.calcEmbeddings(kb.embedding, [query]);
+    } else if (fileTpye == 'image') {
+      embeddings = await this.calcEmbeddings(kb.embedding, [], [query]);
+    }
 
 
 
-    const vectorStr = `[${embeddings?.text_embeddings?.[0].join(",")}]`;
+
+    const vectorStr = embeddings?.text_embeddings?.[0] || embeddings?.image_embeddings?.[0];
     const results = await this.libSQLClient.execute({
       sql: `
       WITH vector_scores AS (
@@ -236,18 +299,49 @@ export class KnowledgeBaseManager extends BaseManager {
           chunk,
           (1-vector_distance_cos(embedding, vector32(?))) as score,
           metadata,
-          type,
+          "type",
           vector_extract(embedding) as embedding
         FROM [kb_${kb.id}_${kb.vectorLength}]
         WHERE is_enable = 1
       )
       SELECT *
       FROM vector_scores
-      WHERE score > ?
+      WHERE score > ? and type = 'text'
       ORDER BY score DESC
       LIMIT ?`,
-      args: [JSON.stringify(embeddings.text_embeddings[0]), 0.5, top_k],
+      args: [JSON.stringify(vectorStr), 0.5, top_k],
     });
+
+    if (this.isLocalClipModel(kb.embedding)) {
+      const image_results = await this.libSQLClient.execute({
+        sql: `
+        WITH vector_scores AS (
+          SELECT
+            id,
+            item_id,
+            chunk,
+            (1-vector_distance_cos(embedding, vector32(?))) as score,
+            metadata,
+            "type",
+            vector_extract(embedding) as embedding
+          FROM [kb_${kb.id}_${kb.vectorLength}]
+          WHERE is_enable = 1
+        )
+        SELECT *
+        FROM vector_scores
+        WHERE type = 'image'
+        ORDER BY score DESC
+        LIMIT ?`,
+        args: [JSON.stringify(vectorStr), top_k],
+      });
+      if (image_results.rows.length > 0) {
+        this.calcClipCosineSimilarity(kb.embedding, vectorStr, image_results.rows.map(x => x.embedding));
+
+
+      }
+    }
+
+
 
 
 
@@ -275,8 +369,9 @@ export class KnowledgeBaseManager extends BaseManager {
         itemId: item.item_id as string,
         score: item.score as number,
         hybridScore: item.hybrid_score as number ?? item.score as number,
-        metadata: item.metadata,
+        metadata: { ...(JSON.parse(item?.metadata as string ?? '{}')), ...(kbitem?.metadata ?? {}) },
         chunk: item.chunk as string,
+        type: item.type as 'text' | 'image',
         name: kbitem.name,
         source: kbitem.source,
         sourceType: kbitem.sourceType as KnowledgeBaseSourceType,
@@ -284,7 +379,7 @@ export class KnowledgeBaseManager extends BaseManager {
       }
     });
 
-    if (kb.reranker) {
+    if (kb.reranker && query) {
       const model = await providersManager.getRerankModel(kb.reranker);
       const rereankResults = await model.doRerank({
         query: query,
@@ -496,7 +591,7 @@ export class KnowledgeBaseManager extends BaseManager {
       item.state = KnowledgeBaseItemState.Pending;
       const webFetch = await toolsManager.buildTool(`${ToolType.BUILD_IN}:${WebFetch.toolName}`);
 
-      const content = await webFetch.execute({
+      const content = await (webFetch as WebFetch).execute({
         url: source.url,
         // prompt: '请将网页内容转换为markdown格式'
       });
@@ -598,10 +693,13 @@ export class KnowledgeBaseManager extends BaseManager {
             kbId: kbId,
             items: [item]
           });
-          if (await isBinaryFile(file)) {
+          const ext = path.extname(file).toLowerCase();
+          if (await isBinaryFile(file) && ext != '.ts') {
             content = await new ReadBinaryFile({
               forcePDFOcr: true,
               forceWordOcr: false,
+              reminder: false,
+              excludeInsideImage: true,
             }).execute({
               file_source: file,
               args: {}
@@ -610,7 +708,7 @@ export class KnowledgeBaseManager extends BaseManager {
             content = await fs.promises.readFile(file, 'utf-8');
           }
           item.content = content;
-
+          const buffer = await fs.promises.readFile(file);
           console.log(file, content)
           item = await this.knowledgeBaseItemRepository.save(item);
           await appManager.sendEvent(KnowledgeBaseEvent.KnowledgeBaseItemsUpdated, {
@@ -625,7 +723,7 @@ export class KnowledgeBaseManager extends BaseManager {
             separators: ["\n"],
           });
           item.chunkCount = chunks.length;
-          let embeddings: { text_embeddings: number[][], image_embeddings: number[][] } | undefined;
+          let embeddings: { text_embeddings: number[][], image_embeddings?: number[][] } | undefined;
           const isImage = mime.lookup(file).startsWith('image/')
           if (mime.lookup(file).startsWith('image/')) {
             embeddings = await this.calcEmbeddings(kb.embedding, chunks.map((chunk) => chunk.text), [file]);
@@ -656,6 +754,14 @@ export class KnowledgeBaseManager extends BaseManager {
           }
 
           if (hasImage) {
+            // item.content = buffer.toString('base64');
+            item.metadata = {
+              ...(item.metadata ?? {}),
+              mimeType: mime.lookup(file),
+              embeddingType: 'image',
+              base64: buffer.toString('base64'),
+            };
+            item = await this.knowledgeBaseItemRepository.save(item);
             insertStatements.push({
               sql: `INSERT INTO [kb_${kbId}_${kb.vectorLength}] (id, item_id, chunk, is_enable, type, embedding, metadata)
               VALUES (?, ?, ?, ?, ?, vector32(?), ?)`,
@@ -666,7 +772,9 @@ export class KnowledgeBaseManager extends BaseManager {
                 true,
                 'image',
                 JSON.stringify(embeddings?.image_embeddings?.[0]),
-                JSON.stringify({}),
+                JSON.stringify({
+                  mimeType: mime.lookup(file),
+                }),
               ],
             });
           }

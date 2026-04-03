@@ -28,7 +28,7 @@ const OptionSchema = z
   })
   .strict(); // additionalProperties: false
 
-const QuestionItemSchema = z
+export const QuestionItemSchema = z
   .object({
     question: z
       .string()

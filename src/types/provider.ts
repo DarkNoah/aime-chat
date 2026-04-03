@@ -75,6 +75,7 @@ export enum ProviderType {
   SERPAPI = 'serpapi',
   MINERU = 'mineru',
   MINIMAX_CN = 'minimax-cn',
+  PADDLEOCRAPI = 'paddleocrapi',
 }
 
 export enum ModelType {

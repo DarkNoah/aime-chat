@@ -35,6 +35,15 @@ interface BrowserProfile {
   userDataPath: string;
   browser: 'chrome' | 'edge';
   executablePath?: string;
+  isBuiltIn?: boolean;
+  availableBrowsers?: BrowserExecutableOption[];
+}
+
+interface BrowserExecutableOption {
+  browser: 'chrome' | 'edge';
+  label: string;
+  executablePath?: string;
+  installed: boolean;
 }
 
 interface InstanceConfig {
@@ -121,6 +130,54 @@ function Instances() {
       await window.electron.instances.updateInstance(instanceId, {
         config: {
           userDataPath: filePaths[0],
+        },
+      });
+      await loadInstances();
+      toast.success(t('settings.instances_config_saved'));
+    } catch (err) {
+      toast.error(err.message || 'Failed to update instance');
+    }
+  };
+
+  const getBuiltInProfile = () => profiles.find((profile) => profile.isBuiltIn);
+
+  const isBuiltInSelected = (instance: InstanceInfo) => {
+    const builtInProfile = getBuiltInProfile();
+    return (
+      Boolean(builtInProfile) &&
+      instance.config?.userDataPath === builtInProfile?.userDataPath
+    );
+  };
+
+  const getAvailableBrowsers = (instance: InstanceInfo) =>
+    isBuiltInSelected(instance) ? getBuiltInProfile()?.availableBrowsers ?? [] : [];
+
+  const getSelectedExecutableBrowser = (instance: InstanceInfo) => {
+    const availableBrowsers = getAvailableBrowsers(instance);
+    const matchedBrowser = availableBrowsers.find(
+      (browser) => browser.executablePath === instance.config?.executablePath,
+    );
+
+    if (matchedBrowser) return matchedBrowser.browser;
+
+    return availableBrowsers.find((browser) => browser.installed)?.browser ?? '';
+  };
+
+  const handleSelectExecutable = async (
+    instanceId: string,
+    browserType: 'chrome' | 'edge',
+  ) => {
+    const builtInProfile = getBuiltInProfile();
+    const browser = builtInProfile?.availableBrowsers?.find(
+      (item) => item.browser === browserType,
+    );
+
+    if (!browser?.executablePath) return;
+
+    try {
+      await window.electron.instances.updateInstance(instanceId, {
+        config: {
+          executablePath: browser.executablePath,
         },
       });
       await loadInstances();
@@ -259,10 +316,48 @@ function Instances() {
                 )}
 
                 {/* Executable path */}
-                {instance.config?.executablePath && (
+                {isBuiltInSelected(instance) && (
                   <div className="flex flex-col gap-1">
                     <span className="text-xs text-muted-foreground">
                       {t('settings.instances_executable')}
+                    </span>
+                    <Select
+                      value={getSelectedExecutableBrowser(instance)}
+                      onValueChange={(value: 'chrome' | 'edge') =>
+                        handleSelectExecutable(instance.id, value)
+                      }
+                      disabled={getAvailableBrowsers(instance).every(
+                        (browser) => !browser.installed,
+                      )}
+                    >
+                      <SelectTrigger className="w-64 h-8 text-xs">
+                        <SelectValue
+                          placeholder={t(
+                            'settings.instances_select_executable',
+                          )}
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {getAvailableBrowsers(instance).map((browser) => (
+                          <SelectItem
+                            key={browser.browser}
+                            value={browser.browser}
+                            disabled={!browser.installed}
+                          >
+                            {browser.installed
+                              ? browser.label
+                              : `${browser.label} (${t('settings.instances_browser_not_installed')})`}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {instance.config?.executablePath && (
+                  <div className="flex flex-col gap-1">
+                    <span className="text-xs text-muted-foreground">
+                      {t('settings.instances_executable_path')}
                     </span>
                     <span className="text-xs font-mono truncate">
                       {instance.config.executablePath}

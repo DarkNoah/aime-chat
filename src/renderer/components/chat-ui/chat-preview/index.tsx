@@ -255,14 +255,14 @@ export const ChatPreview = React.forwardRef<ChatPreviewRef, ChatPreviewProps>(
             )}
           </div>
         </div>
-        <div
-          className={`h-full overflow-y-auto ${previewData.previewPanel === ChatPreviewType.USAGE ? '' : 'hidden'}`}
-        >
-          <ChatUsageView
-            threadId={threadId}
-            resourceId={resourceId}
-          ></ChatUsageView>
-        </div>
+        {previewData.previewPanel === ChatPreviewType.USAGE ? (
+          <div className="h-full overflow-y-auto">
+            <ChatUsageView
+              threadId={threadId}
+              resourceId={resourceId}
+            ></ChatUsageView>
+          </div>
+        ) : null}
         {project && (
           <div
             className={`h-full overflow-y-auto ${previewData.previewPanel === ChatPreviewType.PROJECT ? '' : 'hidden'}`}

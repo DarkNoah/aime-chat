@@ -18,7 +18,7 @@ import { Repository } from 'typeorm';
 import { dbManager } from '@/main/db';
 import mastraManager from '@/main/mastra';
 import { agentManager } from '@/main/mastra/agents';
-import { ThreadState } from '@/types/chat';
+import { DEFAULT_RESOURCE_ID, ThreadState } from '@/types/chat';
 import { SpeechToText } from '@/main/tools/audio';
 import { toolsManager } from '@/main/tools';
 import { ToolType } from '@/types/tool';
@@ -31,7 +31,9 @@ import { LanguageModelUsage } from 'ai';
 import { models } from '@elevenlabs/elevenlabs-js/api';
 import { providersManager } from '@/main/providers';
 import { createHash } from 'crypto';
-
+import increment from 'add-filename-increment'
+import { AskUserQuestion, QuestionItemSchema } from '@/main/tools/common/ask-user-question';
+import z from 'zod';
 
 export const enum Commands {
   PAIR = 'pair',
@@ -98,6 +100,24 @@ type TelegramAvailableTool = {
   }[];
 };
 
+type PendingAskQuestion = {
+  id: string;
+  threadId: string;
+  chatId: number;
+  toolCallId: string;
+  runId: string;
+  questions: z.infer<typeof QuestionItemSchema>[];
+  /** questionIndex -> set of selected option indices */
+  selections: Map<number, Set<number>>;
+  /** questionIndex -> telegram message id */
+  messageIds: Map<number, number>;
+  ctx: Context;
+  model: string;
+  agentId: string;
+  tools: string[];
+  subAgents: string[];
+};
+
 const TELEGRAM_MIN_EDIT_INTERVAL_MS = 2500;
 const TELEGRAM_TYPING_INTERVAL_MS = 4000;
 const TELEGRAM_TOOLS_PAGE_SIZE = 8;
@@ -136,6 +156,8 @@ export class TelegramChannelRuntime {
   private readonly threadWorkers = new Set<string>();
 
   private readonly threadTelegramWrites: Record<string, Promise<void>> = {};
+
+  private readonly pendingAskQuestions = new Map<string, PendingAskQuestion>();
 
   constructor(
     private readonly channel: TelegramChannel,
@@ -237,9 +259,66 @@ export class TelegramChannelRuntime {
       const chatId = String(ctx.chat.id);
       if (!this.isChatAllowed(chatId)) return;
       const document = ctx.message.document;
-      await ctx.reply(
-        `Received document: ${document.file_name || document.file_id} (${document.mime_type || 'unknown'})`,
-      );
+      const fileId = document.file_id
+      const file = await ctx.api.getFile(fileId)
+
+      const url = `https://api.telegram.org/file/bot${ctx.api.token}/${file.file_path}`;
+      if (file.file_path) {
+        const config = await this.getChannelConfig();
+        const projectId = config.currentProjectId;
+        const threadId = config.currentThreadId;
+        let project: Project | undefined;
+        let thread: ThreadState | undefined;
+        if (projectId) {
+          project = await projectManager.getProject(projectId);
+        }
+
+        thread = await this.resolveCurrentThread();
+        const workspacePath = project?.path || thread?.metadata?.workspace as string || '';
+        let filePath = path.join(workspacePath, ...(path.dirname(file.file_path).replaceAll('\\', '/')).split('/'), document.file_name);
+        try {
+          if (fs.existsSync(filePath) && fs.statSync(filePath).isDirectory()) {
+            ctx.reply("Error: File path is a directory: " + filePath);
+            return;
+          }
+          if (fs.existsSync(filePath) && fs.statSync(filePath).isFile() && fs.statSync(filePath).size > 0) {
+            filePath = increment(filePath, { platform: 'win32', fs: true, });
+          }
+
+          await mastraManager.saveMessages(threadId, [{
+            id: nanoid(),
+            role: 'user',
+            threadId: threadId,
+            resourceId: thread?.resourceId || DEFAULT_RESOURCE_ID,
+            type: 'v2',
+            createdAt: new Date(),
+            content: {
+              format: 2,
+              parts: [{
+                type: 'text',
+                text: `<system-reminder>The user sent you a file via Telegram. The file is saved to '${filePath}'</system-reminder>`,
+              }],
+            },
+          }])
+          const response = await fetch(url);
+          const buffer = await response.arrayBuffer();
+          const data = Buffer.from(buffer);
+          if (!fs.existsSync(path.dirname(filePath))) {
+            fs.mkdirSync(path.dirname(filePath), { recursive: true });
+          }
+          await fs.promises.writeFile(filePath, data);
+          await ctx.reply(
+            `Received document: saved to '${filePath}'`,
+          );
+        } catch (error) {
+          console.error("Error downloading voice file:", error);
+          ctx.reply("Error downloading file: " + error.message);
+        } finally {
+
+        }
+      } else {
+        await ctx.reply("Error downloading document file: " + file.file_path);
+      }
       this.callbacks.onActivity(`Received document from chat ${chatId}`);
     });
 
@@ -261,8 +340,9 @@ export class TelegramChannelRuntime {
     });
 
     bot.on("message:voice", async (ctx) => {
-      const voice = ctx.message.voice
+      const voice = ctx.message.voice;
       const chatId = String(ctx.chat.id);
+      if (!this.isChatAllowed(chatId)) return;
       console.log("file_id:", voice.file_id)
       console.log("duration:", voice.duration)
       console.log("mime_type:", voice.mime_type)
@@ -317,20 +397,73 @@ export class TelegramChannelRuntime {
     });
 
     bot.on("message:audio", async (ctx) => {
-      const voice = ctx.message.voice
+      const voice = ctx.message.voice;
+      const chatId = String(ctx.chat.id);
+      if (!this.isChatAllowed(chatId)) return;
 
       console.log("file_id:", voice.file_id)
       console.log("duration:", voice.duration)
       console.log("mime_type:", voice.mime_type)
-      console.log("file_size:", voice.file_size)
+      console.log("file_size:", voice.file_size);
+      const fileId = voice.file_id
+      const file = await ctx.api.getFile(fileId)
 
-      const file = await ctx.api.getFile(voice.file_id)
-      console.log("file_path:", file.file_path)
+      if (file.file_path) {
+        const config = await this.getChannelConfig();
+        const projectId = config.currentProjectId;
+        const threadId = config.currentThreadId;
+        let project: Project | undefined;
+        let thread: ThreadState | undefined;
+        if (projectId) {
+          project = await projectManager.getProject(projectId);
+        }
 
-      const url = `https://api.telegram.org/file/bot${ctx.api.token}/${file.file_path}`;
-      console.log("download url:", url)
+        thread = await this.resolveCurrentThread();
+        const workspacePath = project?.path || thread?.metadata?.workspace as string || '';
+        let filePath = path.join(workspacePath, ...(path.dirname(file.file_path).replaceAll('\\', '/')).split('/'), voice.file_id);
+        try {
+          if (fs.existsSync(filePath) && fs.statSync(filePath).isDirectory()) {
+            ctx.reply("Error: File path is a directory: " + filePath);
+            return;
+          }
+          if (fs.existsSync(filePath) && fs.statSync(filePath).isFile() && fs.statSync(filePath).size > 0) {
+            filePath = increment(filePath, { platform: 'win32', fs: true, });
+          }
 
-      await ctx.reply("收到语音了")
+          await mastraManager.saveMessages(threadId, [{
+            id: nanoid(),
+            role: 'user',
+            threadId: threadId,
+            resourceId: thread?.resourceId || DEFAULT_RESOURCE_ID,
+            type: 'v2',
+            createdAt: new Date(),
+            content: {
+              format: 2,
+              parts: [{
+                type: 'text',
+                text: `<system-reminder>The user sent you a file via Telegram. The file is saved to '${filePath}'</system-reminder>`,
+              }],
+            },
+          }])
+          const response = await fetch(url);
+          const buffer = await response.arrayBuffer();
+          const data = Buffer.from(buffer);
+          if (!fs.existsSync(path.dirname(filePath))) {
+            fs.mkdirSync(path.dirname(filePath), { recursive: true });
+          }
+          await fs.promises.writeFile(filePath, data);
+          await ctx.reply(
+            `Received document: saved to '${filePath}'`,
+          );
+        } catch (error) {
+          console.error("Error downloading voice file:", error);
+          ctx.reply("Error downloading file: " + error.message);
+        } finally {
+
+        }
+      } else {
+        await ctx.reply("Error downloading document file: " + file.file_path);
+      }
     });
 
 
@@ -350,11 +483,13 @@ export class TelegramChannelRuntime {
   private async resolveCurrentThread(): Promise<ThreadState> {
     const appInfo = await appManager.getInfo();
     const config = await this.getChannelConfig();
+    const projectId = config.currentProjectId;
     if (!config.currentThreadId) {
       const agentId = appInfo.defaultAgent;
       const agent = await agentManager.getAgent(agentId);
       const threadEntity = await mastraManager.createThread({
         agentId: agent.id,
+        resourceId: projectId ? `project:${projectId}` : undefined,
         model: agent.defaultModelId || appInfo.defaultModel?.model as string,
         subAgents: agent.subAgents,
         tools: agent.tools,
@@ -444,6 +579,14 @@ export class TelegramChannelRuntime {
       if (!result.success) {
         await this.enqueueTelegramWrite(input.threadId, async () => {
           await input.ctx.reply(`Error: ${result.error}`);
+        });
+      }
+      if (result.status == "suspended") {
+        await this.handleSuspendedAskQuestions(result, input.ctx, input.threadId, {
+          model,
+          agentId,
+          tools,
+          subAgents,
         });
       }
     } catch (error) {
@@ -922,6 +1065,135 @@ export class TelegramChannelRuntime {
     this.pairingFailureCount = 0;
   }
 
+  private buildAskQuestionKeyboard(
+    pendingId: string,
+    qIdx: number,
+    question: z.infer<typeof QuestionItemSchema>,
+    selected: Set<number>,
+  ): InlineKeyboard {
+    let keyboard = new InlineKeyboard();
+    for (let oIdx = 0; oIdx < question.options.length; oIdx++) {
+      const opt = question.options[oIdx];
+      const isSelected = selected.has(oIdx);
+      const label = question.multiSelect
+        ? `${isSelected ? '✅ ' : '⬜ '}${opt.label}`
+        : opt.label;
+      keyboard = keyboard.text(label, `aq:${pendingId}:${qIdx}:${oIdx}`).row();
+    }
+    if (question.multiSelect) {
+      keyboard = keyboard.text('✓ 确认选择', `aq:${pendingId}:${qIdx}:d`).row();
+    }
+    return keyboard;
+  }
+
+  private async handleSuspendedAskQuestions(
+    result: { runId?: string; messages?: any[] },
+    ctx: Context,
+    threadId: string,
+    opts: { model: string; agentId: string; tools: string[]; subAgents: string[] },
+  ): Promise<void> {
+    if (!result.runId || !result.messages?.length) return;
+
+    const lastMsg = result.messages[result.messages.length - 1];
+    const suspendedDatas = lastMsg.content.parts.filter(
+      (x: any) => x.type === 'tool-invocation' && x.toolInvocation.toolName === AskUserQuestion.toolName,
+    );
+
+    for (const data of suspendedDatas) {
+      const { args, toolCallId } = data.toolInvocation;
+      const { questions = <z.infer<typeof QuestionItemSchema>[]>[] } = args as { questions: z.infer<typeof QuestionItemSchema>[] };
+      if (questions.length === 0) continue;
+
+      const pendingId = nanoid(6);
+      const pending: PendingAskQuestion = {
+        id: pendingId,
+        threadId,
+        chatId: ctx.chat.id,
+        toolCallId,
+        runId: result.runId,
+        questions,
+        selections: new Map(),
+        messageIds: new Map(),
+        ctx,
+        model: opts.model,
+        agentId: opts.agentId,
+        tools: opts.tools,
+        subAgents: opts.subAgents,
+      };
+      this.pendingAskQuestions.set(pendingId, pending);
+
+      await this.enqueueTelegramWrite(threadId, async () => {
+        for (let qIdx = 0; qIdx < questions.length; qIdx++) {
+          const q = questions[qIdx];
+          pending.selections.set(qIdx, new Set());
+          const keyboard = this.buildAskQuestionKeyboard(pendingId, qIdx, q, new Set());
+          const prefix = q.multiSelect ? '☑️' : '🔘';
+          const msg = await ctx.reply(
+            `${prefix} *${q.header}*\n${q.question}`,
+            { reply_markup: keyboard, parse_mode: 'Markdown' },
+          );
+          pending.messageIds.set(qIdx, msg.message_id);
+        }
+      });
+    }
+  }
+
+  private async resumeAfterAskQuestion(pending: PendingAskQuestion): Promise<void> {
+    this.pendingAskQuestions.delete(pending.id);
+
+    const answers = pending.questions.map((q, qIdx) => {
+      const sel = pending.selections.get(qIdx) ?? new Set<number>();
+      const selectedLabels = [...sel].map(i => q.options[i]?.label).filter(Boolean);
+      return {
+        question: q.question,
+        answer: selectedLabels.join(', '),
+      };
+    });
+
+    const responder = this.createTelegramStreamResponder(pending.ctx, pending.threadId);
+
+    try {
+      const result = await mastraManager.chat(undefined, {
+        chatId: pending.threadId,
+        model: pending.model,
+        agentId: pending.agentId,
+        runId: pending.runId,
+        toolCallId: pending.toolCallId,
+        resumeData: { answers },
+        messages: [],
+        requireToolApproval: false,
+        tools: pending.tools,
+        subAgents: pending.subAgents,
+      }, {
+        onStart: responder.onStart,
+        onChunk: responder.onChunk,
+        onEnd: responder.onEnd,
+        onToolCall: responder.onToolCall,
+        onToolCallUpdate: responder.onToolCallUpdate,
+      });
+
+      if (!result.success) {
+        await this.enqueueTelegramWrite(pending.threadId, async () => {
+          await pending.ctx.reply(`Error: ${result.error}`);
+        });
+      }
+
+      if (result.status === 'suspended') {
+        await this.handleSuspendedAskQuestions(result, pending.ctx, pending.threadId, {
+          model: pending.model,
+          agentId: pending.agentId,
+          tools: pending.tools,
+          subAgents: pending.subAgents,
+        });
+      }
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      await this.enqueueTelegramWrite(pending.threadId, async () => {
+        await pending.ctx.reply(`Error: ${err.message}`);
+      });
+      this.callbacks.onError(err);
+    }
+  }
 
   getCommands = (): BotCommand[] => {
     return [
@@ -1037,6 +1309,7 @@ export class TelegramChannelRuntime {
 
     output.push(`Thread Id: ${currentThreadId}`);
     output.push(`Thread Title: ${thread.title}`);
+    output.push(`Workspace: ${project?.path || thread.metadata?.workspace as string || 'N/A'}`);
     output.push(`Status: ${thread.status}`);
     output.push(`Model: ${provider ? provider.name : ''}/${modelId?.split('/')?.slice(1).join('/') || 'N/A'}`);
     output.push(`Usage: ${totalTokens || 'N/A'} ${maxTokens ? `(${usageRate.toFixed(2)}%)` : ''}`);
@@ -1549,6 +1822,87 @@ Default model: ${thread.metadata?.model?.split('/').slice(1).join('/') as string
       await ctx.editMessageText(text, {
         reply_markup: keyboard,
       });
+    });
+
+    bot.callbackQuery(/^aq:[A-Za-z0-9_-]+:\d+:\d+$/, async (ctx) => {
+      await ctx.answerCallbackQuery();
+      const [, pendingId, qIdxStr, oIdxStr] = ctx.callbackQuery.data.split(':');
+      const qIdx = Number(qIdxStr);
+      const oIdx = Number(oIdxStr);
+      const pending = this.pendingAskQuestions.get(pendingId);
+      if (!pending) return;
+
+      const question = pending.questions[qIdx];
+      if (!question) return;
+
+      const selected = pending.selections.get(qIdx) ?? new Set<number>();
+
+      if (question.multiSelect) {
+        if (selected.has(oIdx)) {
+          selected.delete(oIdx);
+        } else {
+          selected.add(oIdx);
+        }
+        pending.selections.set(qIdx, selected);
+
+        const keyboard = this.buildAskQuestionKeyboard(pendingId, qIdx, question, selected);
+        await ctx.editMessageReplyMarkup({ reply_markup: keyboard });
+      } else {
+        selected.clear();
+        selected.add(oIdx);
+        pending.selections.set(qIdx, selected);
+
+        const selectedLabel = question.options[oIdx]?.label ?? '';
+        await ctx.editMessageText(
+          `🔘 *${question.header}*\n${question.question}\n\n✅ ${selectedLabel}`,
+          { parse_mode: 'Markdown' },
+        );
+
+        const allAnswered = pending.questions.every(
+          (_, i) => (pending.selections.get(i)?.size ?? 0) > 0,
+        );
+        if (allAnswered) {
+          await this.resumeAfterAskQuestion(pending);
+        }
+      }
+    });
+
+    bot.callbackQuery(/^aq:[A-Za-z0-9_-]+:\d+:d$/, async (ctx) => {
+      const [, pendingId, qIdxStr] = ctx.callbackQuery.data.split(':');
+      const qIdx = Number(qIdxStr);
+      const pending = this.pendingAskQuestions.get(pendingId);
+      if (!pending) {
+        await ctx.answerCallbackQuery();
+        return;
+      }
+
+      const question = pending.questions[qIdx];
+      if (!question) {
+        await ctx.answerCallbackQuery();
+        return;
+      }
+
+      const selected = pending.selections.get(qIdx) ?? new Set<number>();
+      if (selected.size === 0) {
+        await ctx.answerCallbackQuery({ text: '请至少选择一项', show_alert: true });
+        return;
+      }
+      await ctx.answerCallbackQuery();
+
+      const selectedLabels = [...selected]
+        .map(i => question.options[i]?.label)
+        .filter(Boolean);
+      await ctx.editMessageText(
+        `☑️ *${question.header}*\n${question.question}\n\n✅ ${selectedLabels.join(', ')}`,
+        { parse_mode: 'Markdown' },
+      );
+
+      const allAnswered = pending.questions.every(
+        (_, i) => (pending.selections.get(i)?.size ?? 0) > 0,
+      );
+      if (allAnswered) {
+        await this.resumeAfterAskQuestion(pending);
+      }
     });
 
     return bot;

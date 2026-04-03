@@ -61,7 +61,17 @@ import {
 import { KnowledgeBase, KnowledgeBaseItem } from '@/entities/knowledge-base';
 import { InstanceInfo } from '@/types/instance';
 import { MarketChannel } from '@/types/market';
-import { ChannelCommandsResult, ChannelInfo, ChannelPairingCodeResult, ChannelTestResult, SaveChannelInput, SendChannelFileInput, SendChannelMessageInput } from '@/types/channel';
+import {
+  ChannelCommandsResult,
+  ChannelInfo,
+  ChannelPairingCodeResult,
+  ChannelTestResult,
+  SaveChannelInput,
+  SendChannelFileInput,
+  SendChannelMessageInput,
+  WeixinLoginStartResult,
+  WeixinLoginStatusResult,
+} from '@/types/channel';
 
 
 // export type Channels = 'ipc-example';
@@ -108,6 +118,15 @@ const electronHandler = {
       ipcRenderer.invoke(ChannelChannel.GeneratePairingCode, id),
     clearPairingCode: (id: string): Promise<ChannelInfo> =>
       ipcRenderer.invoke(ChannelChannel.ClearPairingCode, id),
+    weixinStartLogin: (id: string): Promise<WeixinLoginStartResult> =>
+      ipcRenderer.invoke(ChannelChannel.WeixinStartLogin, id),
+    weixinCheckLoginStatus: (
+      id: string,
+      sessionKey?: string,
+    ): Promise<WeixinLoginStatusResult> =>
+      ipcRenderer.invoke(ChannelChannel.WeixinCheckLoginStatus, id, sessionKey),
+    weixinCancelLogin: (id: string): Promise<WeixinLoginStatusResult> =>
+      ipcRenderer.invoke(ChannelChannel.WeixinCancelLogin, id),
   },
   app: {
     getPathForFile: (file: File): string => {
@@ -286,7 +305,7 @@ const electronHandler = {
       type: KnowledgeBaseSourceType;
     }) => ipcRenderer.invoke(KnowledgeBaseChannel.ImportSource, data),
     getKnowledgeBaseItems: (id: string, params: PaginationParams): Promise<PaginationInfo<KnowledgeBaseItem>> => ipcRenderer.invoke(KnowledgeBaseChannel.GetKnowledgeBaseItems, id, params),
-    searchKnowledgeBase: (kbId: string, query: string): Promise<SearchKnowledgeBaseResult> => ipcRenderer.invoke(KnowledgeBaseChannel.SearchKnowledgeBase, kbId, query),
+    searchKnowledgeBase: (kbId: string, query: string, fileTpye: 'text' | 'image' = 'text'): Promise<SearchKnowledgeBaseResult> => ipcRenderer.invoke(KnowledgeBaseChannel.SearchKnowledgeBase, kbId, query, fileTpye),
     deleteKnowledgeBaseItem: (id: string) => ipcRenderer.invoke(KnowledgeBaseChannel.DeleteKnowledgeBaseItem, id),
   },
   tools: {

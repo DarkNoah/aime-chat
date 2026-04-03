@@ -59,6 +59,7 @@ export type SearchKnowledgeBaseItemResult = {
   hybridScore?: number;
   metadata: any;
   chunk?: string;
+  type: 'text' | 'image';
   content?: string;
   name?: string;
   source?: string;

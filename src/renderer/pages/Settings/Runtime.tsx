@@ -78,6 +78,16 @@ function Runtime() {
             {runtimeInfo?.uv?.version && (
               <Badge>{runtimeInfo?.uv?.version}</Badge>
             )}
+            {runtimeInfo?.uv?.pythonRuntime?.installed &&
+              runtimeInfo?.uv?.pythonRuntime?.pythonVersion && (
+                <Badge>
+                  Python {runtimeInfo?.uv?.pythonRuntime?.pythonVersion}
+                </Badge>
+              )}
+            {runtimeInfo?.uv?.pythonRuntime?.installed &&
+              runtimeInfo?.uv?.pythonRuntime?.pipVersion && (
+                <Badge>Pip {runtimeInfo?.uv?.pythonRuntime?.pipVersion}</Badge>
+              )}
           </ItemTitle>
           {runtimeInfo?.uv?.path && (
             <ItemDescription>

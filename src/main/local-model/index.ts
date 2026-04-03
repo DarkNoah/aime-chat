@@ -193,6 +193,17 @@ class LocalModelManager extends BaseManager {
           model,
           processor,
         };
+      } else if (modelName == 'chinese-clip-vit-large-patch14-336px' || modelName == 'jina-clip-v2') {
+        const [tokenizer, processor, model] = await Promise.all([
+          AutoTokenizer.from_pretrained(modelPath),
+          AutoProcessor.from_pretrained(modelPath),
+          AutoModel.from_pretrained(modelPath),
+        ]);
+        entry = {
+          model,
+          tokenizer,
+          processor,
+        };
       } else if (task == 'text-classification') {
         const [model, tokenizer] = await Promise.all([
           AutoModelForSequenceClassification.from_pretrained(modelPath, {
@@ -225,7 +236,10 @@ class LocalModelManager extends BaseManager {
           }),
           AutoTokenizer.from_pretrained(modelPath),
           AutoProcessor.from_pretrained(modelPath),
-          CLIPTextModelWithProjection.from_pretrained(modelPath)
+          CLIPTextModelWithProjection.from_pretrained(modelPath, {
+            local_files_only: true,
+            dtype: options?.dtype,
+          })
         ]);
         entry = {
           model,
@@ -233,6 +247,10 @@ class LocalModelManager extends BaseManager {
           processor,
           textModel
         };
+
+      } else if (task == 'jina-clip-v2') {
+
+
 
       }
       entry.lastUsed = Date.now();

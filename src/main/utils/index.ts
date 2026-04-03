@@ -2,6 +2,8 @@ import { app } from 'electron';
 import path from 'path';
 import fs from 'fs';
 
+export * from './pdf';
+
 export const getDataPath = (...paths: string[]) => {
   let userData;
   if (app.isPackaged) {

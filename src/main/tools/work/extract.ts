@@ -39,7 +39,9 @@ example:
 {
   "type": "object",
   "properties": {
-    "name": { "type": "string", "description": "The name of the person" }
+    "name": { "type": "string", "description": "The name of the person" },
+    "phone_items": { "type": "array", "items": { "type": "string", "description": "The item of the list" } },
+    ...
   },
   "required": ["name"],
 }
@@ -106,13 +108,7 @@ Returns:
     );
     const config = this.config;
 
-    const extractAgent = new Agent({
-      id: 'extract-agent',
-      name: 'ExtractAgent',
-      instructions:
-        'You are an assistant specialized in extracting key extractions from text. ',
-      model: model,
-    });
+
     let content = '';
 
     if (isUrl(source)) {
@@ -129,28 +125,95 @@ Returns:
       fs.existsSync(source) &&
       fs.statSync(source).isFile()
     ) {
-      const read = await toolsManager.buildTool(
-        `${ToolType.BUILD_IN}:${Read.toolName}`,
-      );
+      // const read = await toolsManager.buildTool(
+      //   `${ToolType.BUILD_IN}:${Read.toolName}`,
+      //   {
+      //     forcePDFOcr: true,
+      //     forceWordOcr: true,
+      //     disableVision: true,
+      //   }
+      // );
+      const read = new Read({
+        forcePDFOcr: true,
+        forceWordOcr: true,
+        disableVision: true,
+      })
       console.log('准备OCR文件:', source);
-      content = await (read as Read).execute(
+      const result = await read.doRead(
         {
           file_path: source,
         },
         options,
-      );
-
+      )
+      if (result.isError) {
+        throw new Error(result.systemReminder?.join('\n') || 'Error reading file');
+      }
+      content = result.content;
+      if (!content) {
+        throw new Error(`File content is empty`);
+      }
       console.log('文件内容:', content);
+    } else {
+      throw new Error('File not found');
     }
 
     console.log('准备提取内容...');
-    const response = await extractAgent.generate(
+
+    let extractAgent = new Agent({
+      id: 'extract-agent',
+      name: 'ExtractAgent',
+      instructions:
+        `You are an information extraction expert. Based on the file provided by the user and the fields that need to be extracted, organize the information and infer answers when appropriate.
+
+- The output language should match the user’s input language.
+- Do not make up answers arbitrarily.
+- You may include your own analysis in plain text.`,
+      model: model,
+    });
+
+    let response = await extractAgent.generate(
       [
         {
           role: 'user',
           content: `<content>
 ${content}
-</content>`,
+</content>`},
+        {
+          role: 'user',
+          content: `Extract the following fields: \n${JSON.stringify(fieldsSchema, null, 2)}`
+        }
+      ], {
+      abortSignal: options?.abortSignal,
+    });
+    if (options?.abortSignal?.aborted) {
+      throw new Error('Task was aborted by the user.');
+    }
+    if (response.error) {
+      throw new Error(response.error.message);
+    }
+
+    const text = response.text;
+    if (!text) {
+      throw new Error('Extract content is empty');
+    }
+    console.log('提取内容:', text);
+
+    extractAgent = new Agent({
+      id: 'extract-agent',
+      name: 'ExtractAgent',
+      instructions:
+        `You are an information extraction expert. Fill missing values with null.`,
+      model: model,
+    });
+
+
+
+
+    response = await extractAgent.generate(
+      [
+        {
+          role: 'user',
+          content: text,
         },
       ],
       {
@@ -158,8 +221,12 @@ ${content}
           schema: fieldsSchema,
           jsonPromptInjection: true,
         },
+        abortSignal: options?.abortSignal,
       },
     );
+    if (options?.abortSignal?.aborted) {
+      throw new Error('Task was aborted by the user.');
+    }
     const o = response.object;
     console.log('提取结果:', o);
     return `${JSON.stringify(o, null, 2)}`;

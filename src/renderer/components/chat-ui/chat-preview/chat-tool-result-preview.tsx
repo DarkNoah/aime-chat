@@ -289,7 +289,7 @@ export const ChatToolResultPreview = React.forwardRef<
         case 'CodeExecution':
           return (
             <>
-              {part?.input?.packages && (
+              {part?.input?.packages && isArray(part?.input?.packages) && (
                 <div className="flex flex-row gap-2 flex-wrap">
                   {part?.input?.packages?.map((p) => {
                     return <Badge variant="secondary">{p}</Badge>;
