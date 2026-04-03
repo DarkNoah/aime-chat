@@ -117,9 +117,11 @@ export function SkillImportDialog({
   const isDirectSkillUrl = (url: string) => {
     try {
       const u = new URL(url);
+      const host = u.hostname.toLowerCase();
+      const isGithubHost = host === 'github.com' || host.endsWith('.github.com');
       return (
         /^https?:$/i.test(u.protocol) &&
-        !u.hostname.includes('github.com') &&
+        !isGithubHost &&
         /\.md$/i.test(u.pathname)
       );
     } catch {
