@@ -23,6 +23,7 @@ const sidebars: SidebarsConfig = {
         'getting-started/installation',
         'getting-started/basic-usage',
         'getting-started/ai-providers',
+        'getting-started/faq',
       ],
     },
     {
@@ -34,6 +35,11 @@ const sidebars: SidebarsConfig = {
           type: 'category',
           label: 'Tools 工具',
           items: ['features/tools/overview', 'features/tools/rmbg'],
+        },
+        {
+          type: 'category',
+          label: '频道管理',
+          items: ['features/channels/telegram', 'features/channels/wechat'],
         },
         'features/agents',
         'features/mcp',

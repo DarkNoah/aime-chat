@@ -58,7 +58,7 @@
     "think_low": "低推理强度",
     "think_medium": "中等推理强度",
     "default_think": "默认推理模式",
-    "channels": "渠道"
+    "channels": "频道管理"
   },
   "common": {
     "edit": "编辑",
@@ -380,9 +380,9 @@
     "recommended": "推荐"
   },
   "channels": {
-    "saved": "渠道已保存",
-    "deleted": "渠道已删除",
-    "summary": "共 {{count}} 个渠道，{{running}} 个运行中",
+    "saved": "频道已保存",
+    "deleted": "频道已删除",
+    "summary": "共 {{count}} 个频道，{{running}} 个运行中",
     "add_telegram": "添加 Telegram",
     "type": "类型",
     "default_chat_id": "默认 Chat ID",
@@ -397,11 +397,11 @@
     "send_test_message": "发送测试消息",
     "send_test_file": "发送测试文件",
     "test_panel": "测试面板",
-    "test_panel_description": "编辑默认测试消息或文件说明，然后在渠道卡片中触发发送。",
+    "test_panel_description": "编辑默认测试消息或文件说明，然后在频道卡片中触发发送。",
     "test_message": "测试消息",
     "test_file_caption": "测试文件说明",
-    "edit_channel": "编辑渠道",
-    "add_channel": "新增渠道",
+    "edit_channel": "编辑频道",
+    "add_channel": "新增频道",
     "bot_token": "Bot Token",
     "keep_token_placeholder": "留空则保留当前 token",
     "auto_start": "应用启动时自动连接",
@@ -414,8 +414,8 @@
     "generate_pairing_code": "生成配对码",
     "pairing_section_title": "Telegram 配对",
     "pairing_help": "在要授权的 chat 中向机器人发送 `/${command} <code>`。",
-    "paired_toast": "Telegram 渠道 {{channel}} 已绑定 chat {{chatId}}。",
-    "paired_toast_with_title": "Telegram 渠道 {{channel}} 已绑定 {{title}}（{{chatId}}）。",
+    "paired_toast": "Telegram 频道 {{channel}} 已绑定 chat {{chatId}}。",
+    "paired_toast_with_title": "Telegram 频道 {{channel}} 已绑定 {{title}}（{{chatId}}）。",
     "pairing_dialog_title": "Telegram 配对说明",
     "pairing_dialog_description": "{{channel}} 正在等待配对，请保持此窗口打开，并在 Telegram 中发送配对命令。",
     "pairing_step_1": "1. 打开 Telegram，找到你的机器人对话或目标群聊。",
