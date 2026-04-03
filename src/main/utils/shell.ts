@@ -387,7 +387,7 @@ export const createShell = async (
   } else {
     let real_input_command: string[];
     if (isString(_command)) {
-      real_input_command = parse(_command) as string[];
+      real_input_command = parse(_command, undefined, { escape: '^' }) as string[];
     } else {
       real_input_command = _command;
     }
