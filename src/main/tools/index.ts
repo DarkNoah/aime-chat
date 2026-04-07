@@ -1066,7 +1066,7 @@ class ToolsManager extends BaseManager {
           const relativePath = path.relative(tmpDir, skillPath);
           const data = matter(skillMd);
           return {
-            id: path.basename(path.dirname(skillMdPath)),
+            id: this.getImportedSkillId(skillPath, tmpDir, repoUrl),
             name: data.data.name,
             path: relativePath,
             description: data.data.description,
@@ -1132,6 +1132,16 @@ class ToolsManager extends BaseManager {
 
   private async getSkillsInDir(dirPath: string, includeDotFiles: boolean = false): Promise<string[]> {
     const skills: string[] = [];
+    const currentSkillMPath = path.join(dirPath, 'SKILL.md');
+    const currentExists = await fs.promises
+      .access(currentSkillMPath)
+      .then(() => true)
+      .catch(() => false);
+
+    if (currentExists) {
+      skills.push(dirPath);
+      return skills;
+    }
 
     const entries = await fs.promises.readdir(dirPath, { withFileTypes: true });
     for (const entry of entries) {
@@ -1148,7 +1158,7 @@ class ToolsManager extends BaseManager {
         if (exists) {
           skills.push(skillPath);
         } else {
-          const subSkills = await this.getSkillsInDir(skillPath);
+          const subSkills = await this.getSkillsInDir(skillPath, includeDotFiles);
           skills.push(...subSkills);
         }
       }
@@ -1186,6 +1196,22 @@ class ToolsManager extends BaseManager {
     }
 
     return null;
+  }
+
+  private getProjectNameFromRepoUrl(repoUrl: string): string {
+    const normalizedRepoUrl = repoUrl
+      .replace(/\.git$/, '')
+      .replace(/\/+$/, '');
+    return normalizedRepoUrl.split('/').filter(Boolean).pop() || 'skill';
+  }
+
+  private getImportedSkillId(skillPath: string, tmpDir: string, repoUrl: string): string {
+    const relativePath = path.relative(tmpDir, skillPath);
+    if (!relativePath) {
+      return this.getProjectNameFromRepoUrl(repoUrl);
+    }
+
+    return path.basename(skillPath);
   }
 
   @channel(ToolChannel.ImportSkills)
@@ -1333,7 +1359,7 @@ class ToolsManager extends BaseManager {
           const relativePath = path.relative(tmpDir, skillPath);
           const data = matter(skillMd);
           return {
-            id: path.basename(path.dirname(skillMdPath)),
+            id: this.getImportedSkillId(skillPath, tmpDir, repoUrl),
             name: data.data.name,
             path: relativePath,
             description: data.data.description,

@@ -64,6 +64,8 @@ async function hasUsableSystemPython() {
   return candidates.length > 0;
 }
 
+let hasSystemPython = undefined;
+
 export interface BashToolParams extends BaseToolParams {
   env?: string;
 }
@@ -275,11 +277,12 @@ Output: Creates directory 'foo'`),
     const uv = await getUVRuntime();
     const bun = await getBunRuntime();
 
-    if (uv.installed || bun.installed) {
+    if (uv?.installed || bun?.installed) {
       prependPath(_env, uv.dir || bun.dir);
     }
 
-    const hasSystemPython = await hasUsableSystemPython();
+    const _hasSystemPython = hasSystemPython !== undefined ? hasSystemPython : await hasUsableSystemPython();
+    hasSystemPython = _hasSystemPython;
     const runtimePythonBinDir = uv.pythonRuntime?.pythonPath
       ? path.dirname(uv.pythonRuntime.pythonPath)
       : undefined;

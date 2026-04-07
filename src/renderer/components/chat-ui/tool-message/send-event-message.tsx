@@ -1,54 +1,21 @@
 /* eslint-disable no-await-in-loop */
 /* eslint-disable camelcase */
 import { ToolUIPart } from 'ai';
-import React, {
-  ComponentProps,
-  ForwardedRef,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
-import { Label } from '../../ui/label';
-import { Checkbox } from '../../ui/checkbox';
+import React, { ComponentProps, useEffect, useMemo, useState } from 'react';
 import {
   Item,
-  ItemActions,
   ItemContent,
   ItemDescription,
   ItemMedia,
   ItemTitle,
 } from '../../ui/item';
-import { ToggleGroup, ToggleGroupItem } from '../../ui/toggle-group';
-import {
-  IconCheck,
-  IconFile,
-  IconSquare,
-  IconSquareCheckFilled,
-} from '@tabler/icons-react';
-import { Button } from '../../ui/button';
-import { RadioGroup, RadioGroupItem } from '../../ui/radio-group';
 import { Card } from '../../ui/card';
-import {
-  Queue,
-  QueueItem,
-  QueueItemActions,
-  QueueItemContent,
-  QueueItemIndicator,
-  QueueList,
-  QueueSection,
-  QueueSectionContent,
-  QueueSectionLabel,
-  QueueSectionTrigger,
-} from '../../ai-elements/queue';
 import { FileIcon } from '../../file-icon';
-import {
-  ChatMessageAttachment,
-  ChatMessageAttachments,
-} from '../chat-message-attachment';
 import { FileInfo } from '@/types/common';
 import { useChat } from '@/renderer/hooks/use-chat';
 import { PhotoProvider, PhotoView } from 'react-photo-view';
 import { ModelViewer, isSupportedModelFile } from '../../model-viewer';
+import { cn } from '@/renderer/lib/utils';
 
 const toFileUrl = (filePath: string) => new URL(filePath, 'file:').href;
 
@@ -64,10 +31,18 @@ export type SendEventMessageProps = ComponentProps<typeof Card> & {
   part: ToolUIPart;
 };
 
+const isImageFile = (file: FileInfo) => file.mimeType?.startsWith('image/');
+
+const isPreviewCardFile = (file: FileInfo) =>
+  (file.mimeType?.startsWith('video/') && file.ext?.toLowerCase() !== '.ts') ||
+  file.mimeType?.startsWith('audio/') ||
+  isSupportedModelFile(file.ext) ||
+  file.mimeType?.startsWith('application/pdf');
+
 export const SendEventMessage = React.forwardRef<
   SendEventMessageRef,
   SendEventMessageProps
->((props: SendEventMessageProps, ref: ForwardedRef<SendEventMessageRef>) => {
+>((props: SendEventMessageProps, _ref) => {
   const { className, threadId, part, title, ...rest } = props;
   const [files, setFiles] = useState<FileInfo[]>([]);
   const [event, setEvent] = useState<string>('');
@@ -106,6 +81,92 @@ export const SendEventMessage = React.forwardRef<
     fetchFiles();
   }, [input]);
 
+  const { imageFiles, previewCardFiles, documentFiles } = useMemo(() => {
+    const images: FileInfo[] = [];
+    const previews: FileInfo[] = [];
+    const documents: FileInfo[] = [];
+
+    for (const file of files) {
+      if (isImageFile(file)) {
+        images.push(file);
+      } else if (isPreviewCardFile(file)) {
+        previews.push(file);
+      } else {
+        documents.push(file);
+      }
+    }
+
+    return {
+      imageFiles: images,
+      previewCardFiles: previews,
+      documentFiles: documents,
+    };
+  }, [files]);
+
+  const renderPreviewCard = (file: FileInfo, i: number) => {
+    if (file.mimeType?.startsWith('video/') && file.ext?.toLowerCase() !== '.ts') {
+      return (
+        <div
+          className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm"
+          key={`${file.path}-${i}`}
+        >
+          <video src={toFileUrl(file.path)} controls className="max-h-[320px] w-full bg-black">
+            <track kind="captions" />
+          </video>
+        </div>
+      );
+    }
+
+    if (file.mimeType?.startsWith('audio/')) {
+      return (
+        <div
+          className="rounded-2xl border border-border/60 bg-card p-3 shadow-sm"
+          key={`${file.path}-${i}`}
+        >
+          <div className="mb-2 text-sm font-medium">{file.name}</div>
+          <audio src={toFileUrl(file.path)} controls className="w-full">
+            <track kind="captions" />
+          </audio>
+        </div>
+      );
+    }
+
+    if (isSupportedModelFile(file.ext)) {
+      return (
+        <div
+          className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm"
+          key={`${file.path}-${i}`}
+        >
+          <div className="border-b border-border/60 px-3 py-2 text-sm font-medium">
+            {file.name}
+          </div>
+          <ModelViewer
+            url={toFileUrl(file.path)}
+            ext={file.ext!}
+            className="w-full"
+            style={{ height: 260 }}
+          />
+        </div>
+      );
+    }
+
+    return (
+      <div
+        className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm"
+        key={`${file.path}-${i}`}
+      >
+        <div className="border-b border-border/60 px-3 py-2 text-sm font-medium">
+          {file.name}
+        </div>
+        <iframe
+          src={toFileUrl(file.path)}
+          className="h-[420px] w-full bg-background"
+          title={file.name}
+        />
+      </div>
+    );
+  };
+
   return (
     <>
       {event === 'web_preview' && (
@@ -125,92 +186,72 @@ export const SendEventMessage = React.forwardRef<
         </Item>
       )}
       {event === 'files_preview' && (
-        <div className="flex flex-row flex-wrap gap-2">
-          <PhotoProvider>
-            {files.map((file, i) => {
-              if (file.mimeType?.startsWith('image/')) {
-                return (
-                  <PhotoView
-                    src={toFileUrl(file.path)}
-                    key={`${file.path}-${i}`}
-                  >
-                    <img
-                      alt={file.name || 'attachment'}
-                      className="size-full object-cover rounded-2xl max-w-[200px]"
-                      height={100}
-                      src={toFileUrl(file.path)}
-                      width={100}
-                    />
+        <div className="max-w-[min(100%,42rem)] space-y-3">
+          {imageFiles.length > 0 && (
+            <PhotoProvider>
+              <div className="flex flex-wrap gap-2">
+                {imageFiles.map((file, i) => (
+                  <PhotoView src={toFileUrl(file.path)} key={`${file.path}-${i}`}>
+                    <div
+                      className={cn(
+                        'group relative overflow-hidden rounded-2xl border border-border/60 bg-muted shadow-sm',
+                        imageFiles.length === 1 ? 'max-w-[260px]' : 'size-32',
+                      )}
+                    >
+                      <img
+                        alt={file.name || 'attachment'}
+                        className={cn(
+                          'w-full object-cover transition-transform duration-200 group-hover:scale-[1.03]',
+                          imageFiles.length === 1 ? 'max-h-[260px]' : 'size-full',
+                        )}
+                        height={imageFiles.length === 1 ? 260 : 128}
+                        src={toFileUrl(file.path)}
+                        width={imageFiles.length === 1 ? 260 : 128}
+                      />
+                      {file.name ? (
+                        <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent px-2 py-1.5">
+                          <span className="block truncate text-[11px] text-white/90">
+                            {file.name}
+                          </span>
+                        </div>
+                      ) : null}
+                    </div>
                   </PhotoView>
-                );
-              } else if (
-                file.mimeType?.startsWith('video/') &&
-                file.ext?.toLowerCase() !== '.ts'
-              ) {
-                return (
-                  <video
-                    src={toFileUrl(file.path)}
-                    controls
-                    className="w-full rounded-2xl"
-                    key={`${file.path}-${i}`}
-                  >
-                    <track kind="captions" />
-                  </video>
-                );
-              } else if (file.mimeType?.startsWith('audio/')) {
-                return (
-                  <audio
-                    src={toFileUrl(file.path)}
-                    controls
-                    className="w-full"
-                    key={`${file.path}-${i}`}
-                  >
-                    <track kind="captions" />
-                  </audio>
-                );
-              } else if (isSupportedModelFile(file.ext)) {
-                return (
-                  <ModelViewer
-                    key={`${file.path}-${i}`}
-                    url={toFileUrl(file.path)}
-                    ext={file.ext!}
-                    className="w-full max-w-[500px]"
-                  />
-                );
-              } else if (file.mimeType?.startsWith('application/pdf')) {
-                return (
-                  <iframe
-                    src={toFileUrl(file.path)}
-                    className="w-full h-auto"
-                    key={`${file.path}-${i}`}
-                    title={file.name}
-                  />
-                );
-              } else {
-                return (
-                  <Item
-                    variant="outline"
-                    className="w-fit cursor-pointer bg-secondary p-2 gap-2 items-center"
-                    onClick={() => {
-                      window.electron.app.openPath(file.path);
-                    }}
-                  >
-                    <ItemMedia>
-                      <FileIcon filePath={file.path} className="size-10" />
-                    </ItemMedia>
-                    <ItemContent>
-                      <ItemTitle>{file.name}</ItemTitle>
-                      <ItemDescription className=" ">
-                        <span className="truncate max-w-[300px] block">
-                          {file.path}
-                        </span>
-                      </ItemDescription>
-                    </ItemContent>
-                  </Item>
-                );
-              }
-            })}
-          </PhotoProvider>
+                ))}
+              </div>
+            </PhotoProvider>
+          )}
+
+          {previewCardFiles.length > 0 && (
+            <div className="flex max-w-[560px] flex-col gap-2">
+              {previewCardFiles.map(renderPreviewCard)}
+            </div>
+          )}
+
+          {documentFiles.length > 0 && (
+            <div className="flex max-w-[560px] flex-col gap-2">
+              {documentFiles.map((file, i) => (
+                <Item
+                  key={`${file.path}-${i}`}
+                  variant="outline"
+                  className="w-full cursor-pointer items-start gap-3 rounded-2xl border-border/60 bg-secondary/60 p-3 transition-colors hover:bg-secondary"
+                  onClick={() => {
+                    window.electron.app.openPath(file.path);
+                  }}
+                >
+                  <ItemMedia className="pt-0.5">
+                    <FileIcon filePath={file.path} className="size-10" />
+                  </ItemMedia>
+                  <ItemContent className="min-w-0">
+                    <ItemTitle className="max-w-full truncate">{file.name}</ItemTitle>
+                    <ItemDescription>
+                      <span className="block truncate">{file.path}</span>
+                    </ItemDescription>
+                  </ItemContent>
+                </Item>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </>

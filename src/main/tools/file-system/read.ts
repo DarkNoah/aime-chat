@@ -68,7 +68,7 @@ Usage:
         .number()
         .optional()
         .describe(
-          'The line number to start reading from. Only provide if the file is too large to read at once',
+          'The line number to start reading from. Only provide if the file is too large to read at once, starting from 0',
         ),
       limit: z
         .number()
@@ -240,7 +240,7 @@ Usage:
 
     const formattedLines = formatCodeWithLineNumbers({
       content: selectedLines.join('\n'),
-      startLine: actualStartLine,
+      startLine: actualStartLine + 1,
     });
 
     await updateFileModTime(file_path, context.requestContext);

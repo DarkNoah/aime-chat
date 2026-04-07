@@ -1,6 +1,8 @@
 import fs from 'fs';
 import sharp from 'sharp';
 import { pdf } from 'pdf-to-img';
+import path from 'path';
+import { getAssetPath } from '.';
 
 export type PdfToImageBase64Input = string | Buffer | Uint8Array | ArrayBuffer;
 
@@ -69,7 +71,13 @@ export async function pdfToImageBase64(
 ): Promise<PdfImageBase64Result[]> {
   const { pages, scale = 2, desiredWidth } = options;
   const raw = await toBuffer(input);
-  const document = await pdf(raw, { scale });
+  const pdfjsWasmDir = getAssetPath('pdfjs-dist', 'wasm');
+  const document = await pdf(raw, {
+    scale, docInitParams: {
+      useWasm: true,
+      wasmUrl: `${pdfjsWasmDir.replace(/\\/g, '/')}/`
+    }
+  });
 
   if (pages?.length) {
     return Promise.all(
