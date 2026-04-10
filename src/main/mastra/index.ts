@@ -1157,6 +1157,9 @@ class MastraManager extends BaseManager {
             undefined,
             fastLanguageModel,
           );
+          if (!title) {
+            throw new Error('title generation failed');
+          }
           currentThread = await memoryStore.updateThread({
             id: chatId,
             title: title.replaceAll('\n', '').trim(),

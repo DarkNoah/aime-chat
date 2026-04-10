@@ -771,11 +771,12 @@ class ToolsManager extends BaseManager {
         version,
         tools: Object.values(tools).map((t) => {
           const key = Object.keys(tool.mcpConfig)[0];
+          const inputSchema = t.inputSchema.getSchema()
           return {
             id: t.id,
             name: t.id.substring(key.length + 1),
             description: t.description,
-            inputSchema: zodToJsonSchema(t.inputSchema),
+            inputSchema: inputSchema,
           };
         }),
       };
