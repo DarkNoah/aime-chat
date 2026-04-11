@@ -29,20 +29,30 @@ export class MarketManager extends BaseManager {
           name: string;
           description: string;
           autoInstall: boolean;
+          url?: string;
         }
         let skillfile = path.join(marketPath, path.basename(file, '.json')) + '.skill';
         if (!fs.existsSync(skillfile)) {
           skillfile = path.join(marketPath, path.basename(file, '.json')) + '.zip';
         }
-        if (toolData.autoInstall !== true || !fs.existsSync(skillfile)) {
+        if (toolData.autoInstall !== true) {
           continue;
-
         }
-        const result = await toolsManager.importSkills({
-          files: [skillfile],
-          isActive: true
-        });
-        console.log(`Skill ${toolData.name} installed`);
+        if (toolData.url) {
+          const result = await toolsManager.importSkills({
+            repo_or_url: toolData.url,
+            isActive: true
+          });
+        } else if (fs.existsSync(skillfile)) {
+          const result = await toolsManager.importSkills({
+            files: [skillfile],
+            isActive: true
+          });
+          console.log(`Skill ${toolData.name} installed`);
+        }
+
+
+
       } catch {
 
       }

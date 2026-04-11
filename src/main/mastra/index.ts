@@ -107,6 +107,7 @@ import { formatCodeWithLineNumbers } from '../utils/format';
 import { getSkills } from '../utils/skills';
 
 import { WorkflowRunStatus } from '@mastra/core/workflows';
+import { MessageListInput } from '@mastra/core/agent/message-list';
 
 
 class MastraManager extends BaseManager {
@@ -976,10 +977,6 @@ class MastraManager extends BaseManager {
           }
         }
 
-
-
-
-
         stream = await this.nextStep(
           agent,
           input,
@@ -1195,9 +1192,7 @@ class MastraManager extends BaseManager {
 
   public async nextStep(
     agent: Agent,
-    inputMessage:
-      | UIMessageWithMetadata
-      | UIMessage<unknown, UIDataTypes, UITools>,
+    inputMessage: MessageListInput,
     streamOptions: AgentExecutionOptions,
     resume?: {
       toolCallId?: string;

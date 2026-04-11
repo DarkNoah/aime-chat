@@ -186,7 +186,7 @@ asyncio.run(main())
       }
 
       let resultInit = await runCommand(
-        `${uvPreCommand} init "${tempDir}" && ${uvPreCommand} venv "${path.join(tempDir, '.venv')}"`,
+        `${uvPreCommand} init "${tempDir}" && ${uvPreCommand} venv "${path.join(tempDir, '.venv')}" --seed`,
         {
           cwd: uvRuntime?.dir,
         },

@@ -77,8 +77,7 @@ Usage:
           'The number of lines to read. Only provide if the file is too large to read at once.',
         ),
       useVision: z.boolean().optional().default(false).describe('Optional: only use this when the file is an image. If set to true, it will be presented visually by a multimodal LLM, default is false.'),
-    })
-    .strict();
+    });
 
   configSchema = ToolConfig.Read.configSchema;
   forcePDFOcr?: ReadParams['forcePDFOcr'];
@@ -126,6 +125,7 @@ Usage:
       return {
         isError: false,
         systemReminder: [`<system-reminder>File '${file_path}' is empty.</system-reminder>`],
+        content: '',
       }
     }
 
@@ -258,6 +258,8 @@ Usage:
   ) => {
     const output = await this.doRead(inputData, context);
     if (output.isError) {
+      console.log('Read error');
+      console.log(output.systemReminder);
       return output.systemReminder?.join('\n')
     } else {
       if (isString(output.content)) {
@@ -268,6 +270,8 @@ Usage:
         if (output.content) {
           value += output.content;
         }
+        console.log('Read');
+        console.log(value);
         return value
       } else if (isObject(output.content)) {
         return output.content

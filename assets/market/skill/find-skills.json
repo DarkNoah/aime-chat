@@ -1,0 +1,6 @@
+{
+  "name": "find-skills",
+  "description": "This skill helps you discover and install skills from the open agent skills ecosystem.",
+  "url": "https://github.com/vercel-labs/skills/tree/main/skills/find-skills/SKILL.md",
+  "autoInstall": false
+}

@@ -1218,7 +1218,7 @@ class ToolsManager extends BaseManager {
   @channel(ToolChannel.ImportSkills)
   public async importSkills(data: {
     repo_or_url?: string;
-    files: string[];
+    files?: string[];
     path?: string;
     selectedSkills?: string[];
     isActive?: boolean;

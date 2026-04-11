@@ -368,7 +368,8 @@
       "**/node_modules/onnxruntime-node/**",
       "**/node_modules/openvino-genai-node/**",
       "**/node_modules/openvino-node/**",
-      "**/@techstark/opencv-js/**/*"
+      "**/@techstark/opencv-js/**/*",
+      "**/pdfjs-dist/**"
     ],
     "files": [
       "dist",

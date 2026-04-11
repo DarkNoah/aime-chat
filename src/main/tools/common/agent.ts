@@ -189,6 +189,9 @@ assistant: "I'm going to use the Task tool to launch the greeting-responder agen
       requestContext: requestContext,
       maxSteps: 100,
     });
+    if (abortSignal?.aborted) {
+      return `Task was aborted by the user.`;
+    }
 
     for await (const chunk of stream.fullStream) {
       if (chunk.type == 'tool-result') {
@@ -216,9 +219,7 @@ assistant: "I'm going to use the Task tool to launch the greeting-responder agen
       // await writer.write(chunk);
       console.log(chunk.type);
     }
-    if (abortSignal?.aborted) {
-      return `Task was aborted by the user.`;
-    }
+
     // await stream.textStream.pipeTo(writer);
     // await stream.fullStream.pipeTo(writer);
 

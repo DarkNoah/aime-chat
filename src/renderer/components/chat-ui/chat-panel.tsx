@@ -500,14 +500,14 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
 
     const handleExpandedMessages = (messageId: string, open: boolean) => {
       setExpandedMessages((prev) => {
-        if(open) {
+        if (open) {
           return [...prev, messageId];
         } else {
           return prev.filter((id) => id !== messageId);
         }
       });
     };
-    const renderPart = (part, message, i)=>{
+    const renderPart = (part, message, i) => {
       if (part.type === 'reasoning' && part.text.trim())
         return (
           <Reasoning
@@ -527,16 +527,11 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
         part.text.trim() &&
         !part.text.trim().startsWith('<system-reminder>')
       ) {
-        if (
-          part.text.trim() ===
-          '[Request interrupted by user]'
-        ) {
+        if (part.text.trim() === '[Request interrupted by user]') {
           return (
             <Alert className="w-fit bg-muted p-2">
               <AlertTitle className="text-xs flex gap-1 items-center">
-                <IconAlertCircle
-                  size={16}
-                ></IconAlertCircle>
+                <IconAlertCircle size={16}></IconAlertCircle>
                 {t('common.request_interrupted_by_user')}
               </AlertTitle>
             </Alert>
@@ -549,10 +544,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
                   <MessageResponse
                     className={`text-xs wrap-break-word ${message.role === 'user' ? 'whitespace-break-spaces' : ''}`}
                     mermaidConfig={{
-                      theme:
-                        theme === 'dark'
-                          ? 'dark'
-                          : 'forest',
+                      theme: theme === 'dark' ? 'dark' : 'forest',
                     }}
                   >
                     {part.text}
@@ -562,18 +554,12 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
 
               <MessageActions
                 className={
-                  message.role === 'user'
-                    ? 'justify-end'
-                    : 'justify-start'
+                  message.role === 'user' ? 'justify-end' : 'justify-start'
                 }
               >
                 {message.role === 'user' && (
                   <MessageAction
-                    onClick={() =>
-                      navigator.clipboard.writeText(
-                        part.text,
-                      )
-                    }
+                    onClick={() => navigator.clipboard.writeText(part.text)}
                     label="Copy"
                   >
                     <CopyIcon className="size-3" />
@@ -586,29 +572,17 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
                   message.metadata?.usage?.outputTokens && (
                     <small className="text-xs text-gray-500 flex flex-row gap-1 items-center">
                       <Label>tokens: </Label>
-                      {message.metadata?.usage
-                        ?.inputTokens && (
+                      {message.metadata?.usage?.inputTokens && (
                         <span className="flex flex-row gap-1 items-center">
-                          <IconArrowUp
-                            size={10}
-                          ></IconArrowUp>
-                          {
-                            message.metadata?.usage
-                              ?.inputTokens
-                          }
+                          <IconArrowUp size={10}></IconArrowUp>
+                          {message.metadata?.usage?.inputTokens}
                         </span>
                       )}
 
-                      {message.metadata?.usage
-                        ?.outputTokens && (
+                      {message.metadata?.usage?.outputTokens && (
                         <span className="flex flex-row gap-1 items-center">
-                          <IconArrowDown
-                            size={10}
-                          ></IconArrowDown>
-                          {
-                            message.metadata?.usage
-                              ?.outputTokens
-                          }
+                          <IconArrowDown size={10}></IconArrowDown>
+                          {message.metadata?.usage?.outputTokens}
                         </span>
                       )}
                     </small>
@@ -630,9 +604,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
               _part.type.substring('tool-'.length)
             ];
           const suspendedTool =
-            metadata?.suspendedTools?.[
-              _part.type.substring('tool-'.length)
-            ];
+            metadata?.suspendedTools?.[_part.type.substring('tool-'.length)];
           approvalData = message.parts.find(
             (p) =>
               p.type === 'data-tool-call-approval' &&
@@ -641,8 +613,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
           if (
             !approvalData &&
             pendingToolApproval &&
-            pendingToolApproval.toolCallId ===
-              _part?.toolCallId
+            pendingToolApproval.toolCallId === _part?.toolCallId
           ) {
             approvalData = pendingToolApproval;
           }
@@ -708,18 +679,15 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
                 }}
                 onAccept={() => {
                   console.log('accept', approvalData);
-                  handleResumeChat(
-                    approvalData.runId,
-                    _part?.toolCallId,
-                    true,
-                  );
+                  handleResumeChat(approvalData.runId, _part?.toolCallId, true);
                 }}
               />
             )}
           </div>
         );
       }
-    }
+      return null;
+    };
 
     return (
       <div className={cn('flex flex-col h-full', className)}>
@@ -770,50 +738,79 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
                 {/* <pre className="text-xs whitespace-pre-wrap break-all bg-secondary p-2 rounded-2xl mb-2">
                   {JSON.stringify(threadState?.messages, null, 2)}
                 </pre> */}
-                {threadState?.messages.map((message) => {
+                {threadState?.messages.map((message, index: number) => {
                   let canExpandParts = [];
                   let lastParts = [];
-                  if(message.role =='user'){
+                  if (
+                    message.role === 'user' ||
+                    index === (threadState?.messages.length ?? 0) - 1
+                  ) {
                     lastParts = message.parts;
                   } else {
-                    for(let i = message.parts.length - 1; i >= 0; i--) {
-                      if(message.parts[i].type === 'text' || message.parts[i].type.startsWith('tool-')) {
+                    for (let i = message.parts.length - 1; i >= 0; i--) {
+                      if (
+                        message.parts[i].type === 'text' ||
+                        message.parts[i].type.startsWith('tool-')
+                      ) {
                         lastParts = message.parts.slice(i);
                         canExpandParts = message.parts.slice(0, i);
                         break;
                       }
                     }
                   }
-                  if(!(canExpandParts.find(x=>x.type == 'text' || x.type.startsWith('tool-')) || lastParts.find(x=>x.type == 'text'))) {
+                  if (
+                    !(
+                      canExpandParts.find(
+                        (x) => x.type === 'text' || x.type.startsWith('tool-'),
+                      ) ||
+                      lastParts.find(
+                        (x) => x.type === 'text' || x.type.startsWith('tool-'),
+                      )
+                    )
+                  ) {
                     return null;
                   }
-                  
-                  return <Collapsible key={message.id}
-                    open={expandedMessages.includes(message.id)}
-                    onOpenChange={(open) => handleExpandedMessages(message.id, open)}
-                    className="flex flex-col gap-2 mt-2"
-                  >
-                    {message.role == 'assistant' && canExpandParts.find(x=>x.type == 'text' || x.type.startsWith('tool-')) && <div className="flex items-center gap-4">
-                      <CollapsibleTrigger asChild>
-                        <Button variant="outline" className="flex flex-row gap-2 items-center">
-                          <span className="text-sm font-semibold">{`${expandedMessages.includes(message.id) ? 'Hide' : 'Show'} more details ${canExpandParts.length} msg.`}</span>
-                          <ChevronsUpDown />
-                        </Button>
-                      </CollapsibleTrigger>
-                    </div>}
-                    
-                    
-                    <CollapsibleContent className="flex flex-col gap-2">
-                      {(message.metadata as any)?.compressed === true && <></>}
-                      {!(message.metadata as any)?.compressed &&
-                        canExpandParts?.map((part, i) => {
-                          return renderPart(part, message, i);
-                        })}
-                    </CollapsibleContent>
-                    {lastParts.map((part, i) => {
-                      return renderPart(part, message, i);
-                    })}
-                    <ChatMessageAttachments
+
+                  return (
+                    <Collapsible
+                      key={message.id}
+                      open={expandedMessages.includes(message.id)}
+                      onOpenChange={(open) =>
+                        handleExpandedMessages(message.id, open)
+                      }
+                      className="flex flex-col gap-2 mt-2"
+                    >
+                      {message.role === 'assistant' &&
+                        canExpandParts.find(
+                          (x) =>
+                            x.type === 'text' || x.type.startsWith('tool-'),
+                        ) && (
+                          <div className="flex items-center gap-4">
+                            <CollapsibleTrigger asChild>
+                              <Button
+                                variant="outline"
+                                className="flex flex-row gap-2 items-center"
+                              >
+                                <span className="text-sm font-semibold">{`${expandedMessages.includes(message.id) ? 'Hide' : 'Show'} more details ${canExpandParts.filter((x) => x.type === 'text' || x.type.startsWith('tool-')).length} msg.`}</span>
+                                <ChevronsUpDown />
+                              </Button>
+                            </CollapsibleTrigger>
+                          </div>
+                        )}
+
+                      <CollapsibleContent className="flex flex-col gap-2">
+                        {(message.metadata as any)?.compressed === true && (
+                          <></>
+                        )}
+                        {!(message.metadata as any)?.compressed &&
+                          canExpandParts?.map((part, i) => {
+                            return renderPart(part, message, i);
+                          })}
+                      </CollapsibleContent>
+                      {lastParts.map((part, i) => {
+                        return renderPart(part, message, i);
+                      })}
+                      <ChatMessageAttachments
                         className={`mb-2 ${message.role === 'user' ? 'ml-auto' : 'ml-0'}`}
                       >
                         {lastParts
@@ -827,56 +824,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
                             );
                           })}
                       </ChatMessageAttachments>
-                  </Collapsible>
-
-                  
-                  return (
-                    <div key={message.id} className="flex flex-col gap-2">
-                      {message.role === 'assistant' &&
-                        message.parts.filter(
-                          (part) => part.type === 'source-url',
-                        ).length > 0 && (
-                          <Sources key={message.id}>
-                            <SourcesTrigger
-                              count={
-                                message.parts.filter(
-                                  (part) => part.type === 'source-url',
-                                ).length
-                              }
-                            />
-                            {message.parts
-                              .filter((part) => part.type === 'source-url')
-                              .map((part, i) => (
-                                <SourcesContent key={`${message.id}-${i}`}>
-                                  <Source
-                                    key={`${message.id}-${i}`}
-                                    href={part.url}
-                                    title={part.url}
-                                  />
-                                </SourcesContent>
-                              ))}
-                          </Sources>
-                        )}
-                      {(message.metadata as any)?.compressed === true && <></>}
-                      {!(message.metadata as any)?.compressed &&
-                        message?.parts?.map((part, i) => {
-                          return renderPart(part, message, i);
-                        })}
-                      <ChatMessageAttachments
-                        className={`mb-2 ${message.role === 'user' ? 'ml-auto' : 'ml-0'}`}
-                      >
-                        {message?.parts
-                          ?.filter((p) => p.type === 'file')
-                          .map((part, i) => {
-                            return (
-                              <ChatMessageAttachment
-                                data={part}
-                                key={`${message.id}-${i}`}
-                              />
-                            );
-                          })}
-                      </ChatMessageAttachments>
-                    </div>
+                    </Collapsible>
                   );
                 })}
               </div>
@@ -884,7 +832,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
             {threadState?.status === 'submitted' && (
               <Loader className="animate-spin" />
             )}
-            {compressing && (
+            {compressing && threadState?.status === 'streaming' && (
               <div className="flex flex-row gap-2 items-center">
                 <Loader className="animate-spin" />{' '}
                 <span className="text-xs">{t('common.compressing')}</span>
