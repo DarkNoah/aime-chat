@@ -101,7 +101,7 @@ export class KnowledgeBaseManager extends BaseManager {
     const appInfo = await appManager.getInfo();
     const modelPath = path.join(appInfo.modelPath, 'clip', modeId);
     const model = new LocalCLIPModel(modeId, modelPath);
-    return model.cosineSimilarity(image_embedding, image_embedding);
+    return model.cosineSimilarity(new Float32Array(embedding1), new Float32Array(embedding2));
 
   }
 
@@ -335,8 +335,18 @@ export class KnowledgeBaseManager extends BaseManager {
         args: [JSON.stringify(vectorStr), top_k],
       });
       if (image_results.rows.length > 0) {
-        this.calcClipCosineSimilarity(kb.embedding, vectorStr, image_results.rows.map(x => x.embedding));
 
+        for (const row of image_results.rows) {
+          const score = await this.calcClipCosineSimilarity(kb.embedding, vectorStr, JSON.parse(row.embedding as string));
+          row.score = score;
+          console.log(row, score);
+          if (score > 0.7) {
+            results.rows.push({
+              ...row,
+              score: score,
+            });
+          }
+        }
 
       }
     }
