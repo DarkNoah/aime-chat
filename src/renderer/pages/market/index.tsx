@@ -13,6 +13,7 @@ import { useHeader } from '@/renderer/hooks/use-title';
 import { Tool, ToolType } from '@/types/tool';
 import { IconPlus } from '@tabler/icons-react';
 import { useCallback, useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -31,6 +32,7 @@ function MarketPage() {
       name: string;
       description: string;
       isInstalled: boolean;
+      mcpServers: Record<string, any>;
     }[]
   >([]);
 
@@ -50,7 +52,20 @@ function MarketPage() {
   );
 
   const installMCP = async (id, mcpServers) => {
-    const data = await window.electron.tools.saveMCPServer(id, mcpServers);
+    try{
+      const data = await window.electron.tools.saveMCPServer(id, JSON.stringify({mcpServers}));
+      await getData(activeTab);
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+  const installSkill = async (skill) => {
+    try{
+      const data = await window.electron.tools.importSkills(skill);
+      await getData(activeTab);
+    } catch (err) {
+      toast.error(err.message);
+    }
   };
 
   useEffect(() => {
@@ -114,7 +129,16 @@ function MarketPage() {
                   <ItemDescription>{tool.description}</ItemDescription>
                 </ItemContent>
                 <ItemActions>
-                  <Button variant="outline" size="icon">
+                  <Button variant="outline" size="icon" onClick={() => {
+                    if(activeTab === ToolType.SKILL){
+                      installSkill({
+                        repo_or_url: tool.url,
+                        isActive: true,
+                      });
+                    } else {
+                      installMCP(tool.id, tool.mcpServers);
+                    }
+                    }}>
                     <IconPlus />
                   </Button>
                 </ItemActions>

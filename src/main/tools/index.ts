@@ -1170,7 +1170,7 @@ class ToolsManager extends BaseManager {
 
   private async findSkillDirectory(dirPath: string): Promise<string | null> {
     let skillMPath;
-    if (!dirPath.endsWith('/SKILL.md')) {
+    if (!dirPath.replaceAll('\\', '/').endsWith('/SKILL.md')) {
       skillMPath = path.join(dirPath, 'SKILL.md');
     } else {
       skillMPath = dirPath;
