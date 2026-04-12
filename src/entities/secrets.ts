@@ -3,11 +3,12 @@ import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
 
 @Entity('secrets')
 export class Secrets {
-  constructor(key: string, value: string, description?: string) {
+  constructor(key: string, value: string, description?: string, global?: boolean) {
     this.id = nanoid();
     this.key = key;
     this.value = value;
     this.description = description;
+    this.global = global || false;
   }
 
   @PrimaryColumn()
@@ -22,4 +23,7 @@ export class Secrets {
 
   @Column({ nullable: true })
   description?: string;
+
+  @Column()
+  global!: boolean;
 }

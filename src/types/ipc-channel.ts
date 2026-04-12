@@ -158,6 +158,13 @@ export enum TaskQueueChannel {
 }
 
 
+export enum SecretsChannel {
+  GetList = 'secrets:getList',
+  Create = 'secrets:create',
+  Update = 'secrets:update',
+  Delete = 'secrets:delete',
+}
+
 export enum ChannelChannel {
   GetList = 'channel:getList',
   Get = 'channel:get',

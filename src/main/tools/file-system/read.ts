@@ -76,6 +76,7 @@ Usage:
         .describe(
           'The number of lines to read. Only provide if the file is too large to read at once.',
         ),
+      agrs: z.string().optional().describe('Optional arguments for the tool'),
       useVision: z.boolean().optional().default(false).describe('Optional: only use this when the file is an image. If set to true, it will be presented visually by a multimodal LLM, default is false.'),
     });
 

@@ -84,7 +84,7 @@ export interface BaseProviderParams {
 export abstract class BaseProvider implements ProviderV2 {
   id: string;
   abstract name: string;
-  abstract type: ProviderType;
+  abstract type: ProviderType | string;
   abstract description?: string;
   abstract defaultApiBase?: string;
   hasChatModel?: boolean = true;

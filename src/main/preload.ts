@@ -29,6 +29,7 @@ import {
   TaskQueueChannel,
   InstancesChannel,
   ToolChannel,
+  SecretsChannel,
 } from '@/types/ipc-channel';
 import {
   CreateKnowledgeBase,
@@ -429,6 +430,14 @@ const electronHandler = {
   },
   market: {
     getMarketData: (type: ToolType.SKILL | ToolType.MCP) => ipcRenderer.invoke(MarketChannel.GetMarketData, type),
+  },
+  secrets: {
+    getList: (): Promise<any[]> => ipcRenderer.invoke(SecretsChannel.GetList),
+    create: (data: { key: string; value: string; description?: string; global?: boolean }) =>
+      ipcRenderer.invoke(SecretsChannel.Create, data),
+    update: (id: string, data: { key?: string; value?: string; description?: string; global?: boolean }) =>
+      ipcRenderer.invoke(SecretsChannel.Update, id, data),
+    delete: (id: string) => ipcRenderer.invoke(SecretsChannel.Delete, id),
   },
 };
 

@@ -30,6 +30,7 @@ import DefaultModel from './default-model';
 import Instances from './instances';
 import Usage from './usage';
 import Channels from './channels';
+import Secrets from './secrets';
 import {
   IconAdjustments,
   IconChartBar,
@@ -37,6 +38,7 @@ import {
   IconBrandTelegram,
   IconCpu,
   IconInfoCircle,
+  IconKey,
   IconPlayerPlay,
   IconServer,
   IconSparkles,
@@ -87,6 +89,11 @@ function Settings() {
       key: 'channels',
       label: t('settings.channels'),
       icon: IconBrandTelegram,
+    },
+    {
+      key: 'secrets',
+      label: t('settings.secrets'),
+      icon: IconKey,
     },
     {
       key: 'usage',
@@ -153,6 +160,7 @@ function Settings() {
           <Route path="default-model" element={<DefaultModel />} />
           <Route path="instances" element={<Instances />} />
           <Route path="channels" element={<Channels />} />
+          <Route path="secrets" element={<Secrets />} />
           <Route path="usage" element={<Usage />} />
         </Routes>
       </div>

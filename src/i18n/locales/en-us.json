@@ -56,7 +56,19 @@
     "think_high": "High",
     "think_medium": "Medium",
     "default_think": "Default Think Mode",
-    "channels": "Channels"
+    "channels": "Channels",
+    "secrets": "Secrets",
+    "secrets_description": "Manage environment variables that will be injected into tool execution.",
+    "secrets_key": "Key",
+    "secrets_value": "Value",
+    "secrets_description_col": "Description",
+    "secrets_empty": "No secrets configured.",
+    "secrets_add": "Add Secret",
+    "secrets_edit": "Edit Secret",
+    "secrets_delete_title": "Delete Secret",
+    "secrets_delete_confirm": "Are you sure you want to delete this secret? This action cannot be undone.",
+    "secrets_description_placeholder": "Optional description",
+    "secrets_global": "Global"
   },
   "common": {
     "edit": "Edit",
@@ -136,12 +148,13 @@
     "new_chat": "New Chat",
     "settings": "Settings",
     "providers": "Providers",
-    "tools": "Tools",
+    "tools": "Tools & Skills",
     "knowledge_base": "Knowledge Base",
     "agents": "Agents",
     "knowledge-base": "Knowledge Base",
     "new_project": "New Project",
-    "market": "Market"
+    "market": "Market",
+    "crons": "Crons"
   },
   "chat": {
     "new_chat": "New Chat",

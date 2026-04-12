@@ -145,6 +145,7 @@
     "@mastra/react": "0.2.21",
     "@mastra/schema-compat": "1.2.7",
     "@modelcontextprotocol/sdk": "^1.23.0",
+    "@mozilla/readability": "^0.6.0",
     "@napi-rs/system-ocr": "^1.0.2",
     "@platejs/mention": "^52.0.15",
     "@pmmmwh/react-refresh-webpack-plugin": "^0.5.15",

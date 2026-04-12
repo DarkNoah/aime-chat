@@ -96,46 +96,66 @@ export const ChatModelSelect = React.forwardRef<
       >
         <div className="flex flex-row justify-between items-center hover:bg-accent dark:hover:bg-accent/50 transition-all">
           <PromptInputButton
-            className="justify-start flex-1 w-full  cursor-pointer"
+            className="justify-start flex-1 w-full  cursor-pointer flex"
             disabled={disabled === true || loading}
           >
-            {selectedModelData?.providerType && (
-              <ModelSelectorLogo provider={selectedModelData.providerType} />
+            {loading && !selectedModelData ? (
+              <div className='pl-1 flex flex-row items-center gap-2'>
+                <Loader2Icon className="size-4 animate-spin text-muted-foreground" />
+                <span className="text-muted-foreground">Loading models...</span>
+              </div>
+            ) : (
+              <>
+                <div className='pl-1  flex-1 flex flex-row items-center gap-2 min-w-0'>
+                  {selectedModelData?.providerType && (
+                    <ModelSelectorLogo provider={selectedModelData.providerType} className='size-6'/>
+                  )}
+                  {selectedModelData?.name && (
+                    <ModelSelectorName>{selectedModelData.name}</ModelSelectorName>
+                  )}
+                  {selectedModelData?.name === undefined && (
+                    <span className="text-muted-foreground">Select a model</span>
+                  )}
+                </div>
+                {clearable && (
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Clear selected model"
+                    className="rounded-full w-5 h-5 mr-2 hover:bg-muted-foreground/20 transition-all cursor-pointer"
+                    onPointerDown={(e) => {
+                      // Prevent the click from reaching ModelSelectorTrigger (which would open the popover)
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onChange?.('');
+                      setSelectedModelData(null);
+                      setModelSelectorOpen(false);
+                    }}
+                  >
+                    <XIcon className="size-3" />
+                  </Button>
+                )}
+              </>
             )}
-            {selectedModelData?.name && (
-              <ModelSelectorName>{selectedModelData.name}</ModelSelectorName>
-            )}
-            {selectedModelData?.name === undefined && (
-              <span className="text-muted-foreground">Select a model</span>
-            )}
+            
           </PromptInputButton>
-          {clearable && (
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Clear selected model"
-              className="rounded-full w-5 h-5 mr-2 hover:bg-muted-foreground/20 transition-all cursor-pointer"
-              onPointerDown={(e) => {
-                // Prevent the click from reaching ModelSelectorTrigger (which would open the popover)
-                e.preventDefault();
-                e.stopPropagation();
-              }}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                onChange?.('');
-                setSelectedModelData(null);
-                setModelSelectorOpen(false);
-              }}
-            >
-              <XIcon className="size-3" />
-            </Button>
-          )}
+          
         </div>
       </ModelSelectorTrigger>
       <ModelSelectorContent>
         <ModelSelectorInput placeholder="Search models..." />
         <ModelSelectorList>
+          {loading ? (
+            <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
+              <Loader2Icon className="size-4 animate-spin" />
+              <span>Loading models...</span>
+            </div>
+          ) : (
+          <>
           <ModelSelectorEmpty>No models found.</ModelSelectorEmpty>
           {data.map((provider) => (
             <ModelSelectorGroup heading={provider.name} key={provider.id}>
@@ -165,6 +185,8 @@ export const ChatModelSelect = React.forwardRef<
               ))}
             </ModelSelectorGroup>
           ))}
+          </>
+          )}
         </ModelSelectorList>
       </ModelSelectorContent>
     </ModelSelector>

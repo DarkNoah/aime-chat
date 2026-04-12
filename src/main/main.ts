@@ -29,6 +29,7 @@ import { instancesManager } from './instances';
 import { taskQueueManager } from './task-queue';
 import { marketManager } from './market';
 import { channelManager } from './channel';
+import { secretsManager } from './app/secrets';
 
 
 
@@ -50,6 +51,7 @@ async function init() {
     await marketManager.init();
     await acpManager.init();
     await channelManager.init();
+    await secretsManager.init();
   } catch (err) {
     dialog.showErrorBox('Mastra Init Error', String(err));
     app.exit(1);

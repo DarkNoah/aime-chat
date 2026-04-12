@@ -58,7 +58,19 @@
     "think_low": "低推理强度",
     "think_medium": "中等推理强度",
     "default_think": "默认推理模式",
-    "channels": "频道管理"
+    "channels": "频道管理",
+    "secrets": "密钥管理",
+    "secrets_description": "管理注入到工具执行环境中的环境变量。",
+    "secrets_key": "变量名",
+    "secrets_value": "变量值",
+    "secrets_description_col": "描述",
+    "secrets_empty": "暂无密钥配置。",
+    "secrets_add": "添加密钥",
+    "secrets_edit": "编辑密钥",
+    "secrets_delete_title": "删除密钥",
+    "secrets_delete_confirm": "确定要删除此密钥吗？此操作不可撤消。",
+    "secrets_description_placeholder": "可选描述",
+    "secrets_global": "全局"
   },
   "common": {
     "edit": "编辑",
@@ -140,12 +152,13 @@
     "new_chat": "新聊天",
     "settings": "设置",
     "providers": "模型供应商",
-    "tools": "工具",
+    "tools": "工具 & 技能",
     "knowledge_base": "知识库",
     "agents": "智能体",
     "knowledge-base": "知识库",
     "new_project": "新项目",
-    "market": "市场"
+    "market": "市场",
+    "crons": "自动化"
   },
   "chat": {
     "new_chat": "新聊天",

@@ -108,6 +108,7 @@ import { getSkills } from '../utils/skills';
 
 import { WorkflowRunStatus } from '@mastra/core/workflows';
 import { MessageListInput } from '@mastra/core/agent/message-list';
+import { secretsManager } from '../app/secrets';
 
 
 class MastraManager extends BaseManager {
@@ -1311,6 +1312,7 @@ class MastraManager extends BaseManager {
     const skillsLoaded = requestContext.get('skillsLoaded') ?? [];
 
 
+
     // 注入已载入的技能, 只有当hasCompressed为true时才注入
     if (hasCompressed == true && skillsLoaded.length > 0) {
       let text = `<system-reminder>\nThe following skills were invoked in this session. Continue to follow these guidelines:\n`;
@@ -1421,6 +1423,21 @@ IMPORTANT: this context may or may not be relevant to your tasks. You should not
       type: 'text',
       text: commandContext,
     });
+
+
+    const secrets = await secretsManager.getSecrets(true);
+    if (secrets.length > 0) {
+      injectedMessages.push({
+        type: 'text',
+        text: `<system-reminder>
+You can use the environment variables keys in Bash tool, CodeExecution tool:
+${secrets.map((secret) => `- ${secret.key}${secret.description ? `: ${secret.description}` : ''}`).join('\n')}
+</system-reminder>`,
+      });
+    }
+
+
+
 
     // 注入压缩消息
     const compressedMessage = requestContext.get('compressedMessage');

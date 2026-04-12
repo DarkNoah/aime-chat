@@ -25,6 +25,7 @@ import {
   IconBrandGithub,
   IconShoppingCart,
   IconCategory,
+  IconClock,
 } from '@tabler/icons-react';
 // import { NavMain } from '@/app/(pages)/nav-main';
 // import { NavSecondary } from '@/app/dashboard/nav-secondary';
@@ -108,6 +109,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       title: t('sidebar.market'),
       url: '/market',
       icon: IconCategory,
+      hidden: appInfo?.isPackaged,
+    },
+    {
+      title: t('sidebar.crons'),
+      url: '/crons',
+      icon: IconClock,
       hidden: appInfo?.isPackaged,
     },
     {

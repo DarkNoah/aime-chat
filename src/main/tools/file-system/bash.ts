@@ -10,6 +10,7 @@ import {
   runCommand,
 } from '@/main/utils/shell';
 import { getBunRuntime, getUVRuntime } from '@/main/app/runtime';
+import { secretsManager } from '@/main/app/secrets';
 import { app } from 'electron';
 import fs from 'fs';
 import path from 'path';
@@ -290,6 +291,9 @@ Output: Creates directory 'foo'`),
     if (!hasSystemPython && runtimePythonBinDir) {
       prependPath(_env, runtimePythonBinDir);
     }
+
+    const secretsEnv = await secretsManager.getSecretsEnv();
+    _env = { ..._env, ...secretsEnv };
 
     if (env && Object.values(env).length > 0) {
       _env = {
