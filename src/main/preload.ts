@@ -30,6 +30,7 @@ import {
   InstancesChannel,
   ToolChannel,
   SecretsChannel,
+  CronsChannel,
 } from '@/types/ipc-channel';
 import {
   CreateKnowledgeBase,
@@ -438,6 +439,29 @@ const electronHandler = {
     update: (id: string, data: { key?: string; value?: string; description?: string; global?: boolean }) =>
       ipcRenderer.invoke(SecretsChannel.Update, id, data),
     delete: (id: string) => ipcRenderer.invoke(SecretsChannel.Delete, id),
+  },
+  crons: {
+    getList: (): Promise<any[]> => ipcRenderer.invoke(CronsChannel.GetList),
+    get: (id: string): Promise<any> => ipcRenderer.invoke(CronsChannel.Get, id),
+    create: (data: {
+      name: string;
+      prompt: string;
+      cron: string;
+      projectId?: string;
+      description?: string;
+      agentId?: string;
+      isActive?: boolean;
+    }): Promise<any> => ipcRenderer.invoke(CronsChannel.Create, data),
+    update: (id: string, data: {
+      name?: string;
+      prompt?: string;
+      cron?: string;
+      projectId?: string;
+      description?: string;
+      agentId?: string;
+      isActive?: boolean;
+    }): Promise<any> => ipcRenderer.invoke(CronsChannel.Update, id, data),
+    delete: (id: string): Promise<void> => ipcRenderer.invoke(CronsChannel.Delete, id),
   },
 };
 

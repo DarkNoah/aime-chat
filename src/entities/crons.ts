@@ -1,5 +1,5 @@
 import { nanoid } from '@/utils/nanoid';
-import { Column, Entity, Index, JoinColumn, ManyToOne, OneToOne, PrimaryColumn, RelationOptions } from 'typeorm';
+import { Column, Entity, Index, JoinColumn, ManyToOne, PrimaryColumn, RelationOptions } from 'typeorm';
 import { Projects } from './projects';
 
 @Entity('crons')
@@ -36,4 +36,15 @@ export class Crons {
     @Column()
     cron!: string;
 
+    @Column({ default: true })
+    isActive!: boolean;
+
+    @Column({ nullable: true })
+    description?: string;
+
+    @Column({ nullable: true })
+    agentId?: string;
+
+    @Column({ type: 'datetime', nullable: true })
+    lastRunAt?: Date;
 }

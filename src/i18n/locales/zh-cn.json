@@ -437,5 +437,25 @@
     "pairing_dialog_waiting": "配对中，正在等待 Telegram 会话发送配对码。",
     "pairing_dialog_close_hint": "关闭此窗口后，当前配对码会立即失效。",
     "pairing_expired_toast": "{{channel}} 的配对码因连续失败 {{count}} 次已失效，弹窗已关闭。"
+  },
+  "crons": {
+    "title": "自动化",
+    "description": "管理定时任务以自动化执行。",
+    "add": "添加定时任务",
+    "edit": "编辑定时任务",
+    "delete_title": "删除定时任务",
+    "delete_confirm": "确定要删除此定时任务吗？此操作不可撤销。",
+    "name": "名称",
+    "prompt": "提示词",
+    "cron_expression": "Cron 表达式",
+    "cron_expression_placeholder": "例如 */5 * * * *（每5分钟）",
+    "description_field": "描述",
+    "description_placeholder": "可选描述",
+    "agent": "智能体",
+    "agent_placeholder": "选择智能体（可选）",
+    "active": "启用",
+    "last_run_at": "上次执行",
+    "empty": "暂无定时任务",
+    "never": "从未执行"
   }
 }

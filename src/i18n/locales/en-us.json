@@ -394,5 +394,25 @@
     "pairing_dialog_waiting": "Pairing in progress. Waiting for a Telegram chat to submit the pairing code.",
     "pairing_dialog_close_hint": "Closing this window immediately invalidates the current pairing code.",
     "pairing_expired_toast": "The pairing code for {{channel}} expired after {{count}} failed attempts, and the dialog has been closed."
+  },
+  "crons": {
+    "title": "Automations",
+    "description": "Manage scheduled cron jobs to automate tasks.",
+    "add": "Add Cron",
+    "edit": "Edit Cron",
+    "delete_title": "Delete Cron",
+    "delete_confirm": "Are you sure you want to delete this cron job? This action cannot be undone.",
+    "name": "Name",
+    "prompt": "Prompt",
+    "cron_expression": "Cron Expression",
+    "cron_expression_placeholder": "e.g. */5 * * * * (every 5 minutes)",
+    "description_field": "Description",
+    "description_placeholder": "Optional description",
+    "agent": "Agent",
+    "agent_placeholder": "Select an agent (optional)",
+    "active": "Active",
+    "last_run_at": "Last Run",
+    "empty": "No cron jobs configured",
+    "never": "Never"
   }
 }

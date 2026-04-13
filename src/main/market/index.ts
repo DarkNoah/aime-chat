@@ -73,23 +73,26 @@ export class MarketManager extends BaseManager {
       if (!file.endsWith('.json')) {
         continue;
       }
-      const data = await fs.promises.readFile(path.join(marketPath, file), 'utf-8');
-      const toolData = JSON.parse(data) as {
-        name: string;
-        description: string;
-        mcpServers: Record<string, any>;
-      };
+      try {
+        const data = await fs.promises.readFile(path.join(marketPath, file), 'utf-8');
+        const toolData = JSON.parse(data) as {
+          name: string;
+          description: string;
+          mcpServers: Record<string, any>;
+        };
 
-      const tool = tools.find((t) => t.name === toolData.name);
-      if (tool) {
-        marketData.push({ id: tool.id, ...toolData, isInstalled: true });
-      } else {
-        marketData.push({
-          ...toolData,
-          isInstalled: false,
-        });
+        const tool = tools.find((t) => t.name === toolData.name);
+        if (tool) {
+          marketData.push({ id: tool.id, ...toolData, isInstalled: true });
+        } else {
+          marketData.push({
+            ...toolData,
+            isInstalled: false,
+          });
+        }
+      } catch {
+
       }
-
     }
 
     return marketData;

@@ -30,6 +30,7 @@ import { taskQueueManager } from './task-queue';
 import { marketManager } from './market';
 import { channelManager } from './channel';
 import { secretsManager } from './app/secrets';
+import { cronsManager } from './app/crons';
 
 
 
@@ -52,6 +53,7 @@ async function init() {
     await acpManager.init();
     await channelManager.init();
     await secretsManager.init();
+    await cronsManager.init();
   } catch (err) {
     dialog.showErrorBox('Mastra Init Error', String(err));
     app.exit(1);

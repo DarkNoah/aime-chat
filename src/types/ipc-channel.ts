@@ -165,6 +165,14 @@ export enum SecretsChannel {
   Delete = 'secrets:delete',
 }
 
+export enum CronsChannel {
+  GetList = 'crons:getList',
+  Get = 'crons:get',
+  Create = 'crons:create',
+  Update = 'crons:update',
+  Delete = 'crons:delete',
+}
+
 export enum ChannelChannel {
   GetList = 'channel:getList',
   Get = 'channel:get',

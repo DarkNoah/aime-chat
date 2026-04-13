@@ -52,6 +52,7 @@ import { Message } from './common/message';
 import { ImageToolkit } from './image';
 import { AgentBrowser } from './browser';
 import { KnowledgeBaseToolkit } from './knowledge-base';
+import { CronsToolkit } from './crons';
 import { Agent } from './common/agent';
 import { RequestContext } from '@mastra/core/request-context';
 import { ChatRequestContext } from '@/types/chat';
@@ -193,6 +194,7 @@ class ToolsManager extends BaseManager {
     await this.registerBuiltInTool(AudioToolkit);
     await this.registerBuiltInTool(LibSQLToolkit);
     await this.registerBuiltInTool(KnowledgeBaseToolkit);
+    await this.registerBuiltInTool(CronsToolkit);
 
     if (!app.isPackaged) {
       await this.registerBuiltInTool(ExpenseManagementToolkit);
