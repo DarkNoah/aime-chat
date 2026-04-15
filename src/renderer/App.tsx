@@ -65,6 +65,7 @@ import SetupPage from './pages/Setup';
 import { TaskBadge, TaskManagerPanel } from './components/task-manager';
 import { initTaskQueueIpcListeners } from './store/use-task-queue-store';
 import MarketPage from './pages/market';
+import CronsPage from './pages/crons';
 
 function Hello() {
   const { setTitle } = useHeader();
@@ -246,6 +247,7 @@ function AppRoutes() {
         <Route path="/agents/:id" element={<AgentDetail />} />
         <Route path="/projects/:id" element={<ProjectsPage />} />
         <Route path="/market" element={<MarketPage />} />
+        <Route path="/crons" element={<CronsPage />} />
       </Routes>
     </MainLayout>
   );

@@ -106,10 +106,13 @@ Returns:
           tools: [{ type: 'web_search' }],
           input: query,
           include: ['web_search_call.action.sources'],
+        }, {
+          abortSignal: options?.abortSignal,
         });
+        if (options?.abortSignal?.aborted) {
+          return `Task was aborted by the user.`;
+        }
         if (response.output[response.output.length - 1].status == 'completed' && response.output[response.output.length - 1].content?.[0]?.annotations?.length > 0) {
-
-
           results.results.push(...response.output[response.output.length - 1].content?.[0]?.annotations.map((x) => {
             return {
               href: x.url,

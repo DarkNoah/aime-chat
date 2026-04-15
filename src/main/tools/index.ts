@@ -52,6 +52,7 @@ import { Message } from './common/message';
 import { ImageToolkit } from './image';
 import { AgentBrowser } from './browser';
 import { KnowledgeBaseToolkit } from './knowledge-base';
+import { CronsToolkit } from './crons';
 import { Agent } from './common/agent';
 import { RequestContext } from '@mastra/core/request-context';
 import { ChatRequestContext } from '@/types/chat';
@@ -193,6 +194,7 @@ class ToolsManager extends BaseManager {
     await this.registerBuiltInTool(AudioToolkit);
     await this.registerBuiltInTool(LibSQLToolkit);
     await this.registerBuiltInTool(KnowledgeBaseToolkit);
+    await this.registerBuiltInTool(CronsToolkit);
 
     if (!app.isPackaged) {
       await this.registerBuiltInTool(ExpenseManagementToolkit);
@@ -771,11 +773,12 @@ class ToolsManager extends BaseManager {
         version,
         tools: Object.values(tools).map((t) => {
           const key = Object.keys(tool.mcpConfig)[0];
+          const inputSchema = t.inputSchema.getSchema()
           return {
             id: t.id,
             name: t.id.substring(key.length + 1),
             description: t.description,
-            inputSchema: zodToJsonSchema(t.inputSchema),
+            inputSchema: inputSchema,
           };
         }),
       };
@@ -1066,7 +1069,7 @@ class ToolsManager extends BaseManager {
           const relativePath = path.relative(tmpDir, skillPath);
           const data = matter(skillMd);
           return {
-            id: path.basename(path.dirname(skillMdPath)),
+            id: this.getImportedSkillId(skillPath, tmpDir, repoUrl),
             name: data.data.name,
             path: relativePath,
             description: data.data.description,
@@ -1132,6 +1135,16 @@ class ToolsManager extends BaseManager {
 
   private async getSkillsInDir(dirPath: string, includeDotFiles: boolean = false): Promise<string[]> {
     const skills: string[] = [];
+    const currentSkillMPath = path.join(dirPath, 'SKILL.md');
+    const currentExists = await fs.promises
+      .access(currentSkillMPath)
+      .then(() => true)
+      .catch(() => false);
+
+    if (currentExists) {
+      skills.push(dirPath);
+      return skills;
+    }
 
     const entries = await fs.promises.readdir(dirPath, { withFileTypes: true });
     for (const entry of entries) {
@@ -1148,7 +1161,7 @@ class ToolsManager extends BaseManager {
         if (exists) {
           skills.push(skillPath);
         } else {
-          const subSkills = await this.getSkillsInDir(skillPath);
+          const subSkills = await this.getSkillsInDir(skillPath, includeDotFiles);
           skills.push(...subSkills);
         }
       }
@@ -1159,7 +1172,7 @@ class ToolsManager extends BaseManager {
 
   private async findSkillDirectory(dirPath: string): Promise<string | null> {
     let skillMPath;
-    if (!dirPath.endsWith('/SKILL.md')) {
+    if (!dirPath.replaceAll('\\', '/').endsWith('/SKILL.md')) {
       skillMPath = path.join(dirPath, 'SKILL.md');
     } else {
       skillMPath = dirPath;
@@ -1188,10 +1201,27 @@ class ToolsManager extends BaseManager {
     return null;
   }
 
+  private getProjectNameFromRepoUrl(repoUrl: string): string {
+    const normalizedRepoUrl = repoUrl
+      .replace(/\.git$/, '')
+      .replace(/\/+$/, '');
+    return normalizedRepoUrl.split('/').filter(Boolean).pop() || 'skill';
+  }
+
+  private getImportedSkillId(skillPath: string, tmpDir: string, repoUrl: string): string {
+    const relativePath = path.relative(tmpDir, skillPath);
+    if (!relativePath) {
+      return this.getProjectNameFromRepoUrl(repoUrl);
+    }
+
+    return path.basename(skillPath);
+  }
+
   @channel(ToolChannel.ImportSkills)
   public async importSkills(data: {
     repo_or_url?: string;
-    files: string[];
+    files?: string[];
+    dirs?: string[];
     path?: string;
     selectedSkills?: string[];
     isActive?: boolean;
@@ -1208,7 +1238,7 @@ class ToolsManager extends BaseManager {
     const tmpDir = path.join(os.tmpdir(), `git-clone-${crypto.randomUUID()}`);
     let repoUrl: string;
     let gitPath: string = '';
-    const { repo_or_url, files } = data;
+    const { repo_or_url, files, dirs } = data;
     if (repo_or_url) {
       const isDirectSkillUrl =
         /^https?:\/\//i.test(repo_or_url) &&
@@ -1333,7 +1363,7 @@ class ToolsManager extends BaseManager {
           const relativePath = path.relative(tmpDir, skillPath);
           const data = matter(skillMd);
           return {
-            id: path.basename(path.dirname(skillMdPath)),
+            id: this.getImportedSkillId(skillPath, tmpDir, repoUrl),
             name: data.data.name,
             path: relativePath,
             description: data.data.description,
@@ -1440,6 +1470,47 @@ class ToolsManager extends BaseManager {
       return {
         success: true,
       };
+    } else if (dirs && dirs.length > 0) {
+      for (const dir of dirs) {
+        const skillDir = await this.findSkillDirectory(dir);
+        if (skillDir) {
+          const skills = await this.getSkillsInDir(skillDir, true);
+          for (const skill of skills) {
+            const skillMdPath = path.join(skill, 'SKILL.md');
+            const skillMd = await fs.promises.readFile(skillMdPath, 'utf-8').catch(() => '');
+            const skillMdData = matter(skillMd);
+            const skillName = path.basename(skill);
+            const savePath = path.join(
+              app.getPath('userData'),
+              'skills',
+              skillName,
+            );
+            await fs.promises.cp(skillDir, savePath, { recursive: true });
+            const tool = new Tools(
+              `${ToolType.SKILL}:local:${skillName}`,
+              skillName,
+              ToolType.SKILL,
+            );
+            tool.value = {
+              path: savePath,
+            };
+            tool.description = skillMdData.data.description;
+            if (data.isActive === true) {
+              tool.isActive = true;
+            }
+            await this.toolsRepository.save(tool);
+            await appManager.sendEvent(ToolEvent.ToolListUpdated, {
+              id: tool.id,
+              status: 'created',
+            });
+          }
+        }
+      }
+      await appManager.toast('Skills install successfully', { type: 'success' });
+      return {
+        success: true,
+      };
+
     } else {
       return {
         success: false,

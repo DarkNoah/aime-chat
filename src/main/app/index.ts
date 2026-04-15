@@ -195,6 +195,7 @@ class AppManager extends BaseManager {
       settings.find((x) => x.id === 'modelPath')?.value ??
       getDefaultModelPath();
     const apiServer = settings.find((x) => x.id === 'apiServer')?.value;
+    const appName = settings.find((x) => x.id === 'appName')?.value;
     const acp = await acpManager.getInfo();
     const defaultModel = settings.find((x) => x.id === 'defaultModel')?.value ?? {};
     const defaultAgent = settings.find((x) => x.id === 'defaultAgent')?.value ?? CodeAgent.agentName;
@@ -203,7 +204,7 @@ class AppManager extends BaseManager {
       settings.find((x) => x.id === 'preventSleepInterval')?.value,
     );
     return {
-      name: app.getName(),
+      name: appName ?? app.getName(),
       appPath: app.getAppPath(),
       homePath: app.getPath('home'),
       modelPath: modelPath,

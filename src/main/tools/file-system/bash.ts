@@ -10,6 +10,7 @@ import {
   runCommand,
 } from '@/main/utils/shell';
 import { getBunRuntime, getUVRuntime } from '@/main/app/runtime';
+import { secretsManager } from '@/main/app/secrets';
 import { app } from 'electron';
 import fs from 'fs';
 import path from 'path';
@@ -63,6 +64,8 @@ async function hasUsableSystemPython() {
 
   return candidates.length > 0;
 }
+
+let hasSystemPython = undefined;
 
 export interface BashToolParams extends BaseToolParams {
   env?: string;
@@ -275,11 +278,12 @@ Output: Creates directory 'foo'`),
     const uv = await getUVRuntime();
     const bun = await getBunRuntime();
 
-    if (uv.installed || bun.installed) {
+    if (uv?.installed || bun?.installed) {
       prependPath(_env, uv.dir || bun.dir);
     }
 
-    const hasSystemPython = await hasUsableSystemPython();
+    const _hasSystemPython = hasSystemPython !== undefined ? hasSystemPython : await hasUsableSystemPython();
+    hasSystemPython = _hasSystemPython;
     const runtimePythonBinDir = uv.pythonRuntime?.pythonPath
       ? path.dirname(uv.pythonRuntime.pythonPath)
       : undefined;
@@ -287,6 +291,9 @@ Output: Creates directory 'foo'`),
     if (!hasSystemPython && runtimePythonBinDir) {
       prependPath(_env, runtimePythonBinDir);
     }
+
+    const secretsEnv = await secretsManager.getSecretsEnv();
+    _env = { ..._env, ...secretsEnv };
 
     if (env && Object.values(env).length > 0) {
       _env = {

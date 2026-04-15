@@ -42,7 +42,7 @@ function WelcomeStep({ onNext }: SetupStepProps) {
         <div className="flex justify-center">
           <div className="relative">
             <div className="absolute inset-0 bg-primary/20 blur-2xl rounded-full" />
-            <img src={logo} alt="logo" className='size-[100px]' ></img>
+            {/* <img src={logo} alt="logo" className='size-[100px]' ></img> */}
           </div>
         </div>
         <div className="space-y-2">

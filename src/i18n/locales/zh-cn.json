@@ -58,7 +58,19 @@
     "think_low": "低推理强度",
     "think_medium": "中等推理强度",
     "default_think": "默认推理模式",
-    "channels": "频道管理"
+    "channels": "频道管理",
+    "secrets": "密钥管理",
+    "secrets_description": "管理注入到工具执行环境中的环境变量。",
+    "secrets_key": "变量名",
+    "secrets_value": "变量值",
+    "secrets_description_col": "描述",
+    "secrets_empty": "暂无密钥配置。",
+    "secrets_add": "添加密钥",
+    "secrets_edit": "编辑密钥",
+    "secrets_delete_title": "删除密钥",
+    "secrets_delete_confirm": "确定要删除此密钥吗？此操作不可撤消。",
+    "secrets_description_placeholder": "可选描述",
+    "secrets_global": "全局"
   },
   "common": {
     "edit": "编辑",
@@ -140,12 +152,13 @@
     "new_chat": "新聊天",
     "settings": "设置",
     "providers": "模型供应商",
-    "tools": "工具",
+    "tools": "工具 & 技能",
     "knowledge_base": "知识库",
     "agents": "智能体",
     "knowledge-base": "知识库",
     "new_project": "新项目",
-    "market": "市场"
+    "market": "市场",
+    "crons": "自动化"
   },
   "chat": {
     "new_chat": "新聊天",
@@ -254,7 +267,7 @@
   },
   "setup": {
     "welcome": {
-      "title": "欢迎使用 AIME Chat",
+      "title": "欢迎使用",
       "description": "您的智能 AI 助手，助力提升效率和创造力。让我们通过几个简单的步骤完成设置。",
       "get_started": "开始设置",
       "setup_time": "设置大约需要 2 分钟"
@@ -317,7 +330,7 @@
     },
     "complete": {
       "title": "设置完成！",
-      "description": "AIME Chat 已准备就绪。开始探索 AI 助手的强大功能吧。",
+      "description": "已准备就绪。开始探索 AI 助手的强大功能吧。",
       "quick_tips": "快速提示",
       "tip_chat": "点击侧边栏的 + 按钮开始新对话。",
       "tip_agents": "在助手页面探索预置助手或创建自己的助手。",
@@ -424,5 +437,25 @@
     "pairing_dialog_waiting": "配对中，正在等待 Telegram 会话发送配对码。",
     "pairing_dialog_close_hint": "关闭此窗口后，当前配对码会立即失效。",
     "pairing_expired_toast": "{{channel}} 的配对码因连续失败 {{count}} 次已失效，弹窗已关闭。"
+  },
+  "crons": {
+    "title": "自动化",
+    "description": "管理定时任务以自动化执行。",
+    "add": "添加定时任务",
+    "edit": "编辑定时任务",
+    "delete_title": "删除定时任务",
+    "delete_confirm": "确定要删除此定时任务吗？此操作不可撤销。",
+    "name": "名称",
+    "prompt": "提示词",
+    "cron_expression": "Cron 表达式",
+    "cron_expression_placeholder": "例如 */5 * * * *（每5分钟）",
+    "description_field": "描述",
+    "description_placeholder": "可选描述",
+    "agent": "智能体",
+    "agent_placeholder": "选择智能体（可选）",
+    "active": "启用",
+    "last_run_at": "上次执行",
+    "empty": "暂无定时任务",
+    "never": "从未执行"
   }
 }

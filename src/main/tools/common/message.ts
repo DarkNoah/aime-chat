@@ -9,6 +9,12 @@ import { nanoid } from '@/utils/nanoid';
 import { appManager } from '@/main/app';
 import { ChatEvent } from '@/types/chat';
 import { isArray, isString } from '@/utils/is';
+import { toolsManager } from '..';
+import { SpeechToText, TextToSpeech } from '../audio';
+import { ToolType } from '@/types/tool';
+import { splitContextAndFiles } from '@/utils/context-utils';
+import player from 'play-sound';
+import { FileInfo } from '@/types/common';
 
 export class Message extends BaseTool {
   static readonly toolName = 'Message';
@@ -18,10 +24,11 @@ export class Message extends BaseTool {
 Usage notes:
  - Use "web_preview" event to send a web preview url event to the web preview panel, example: {"url": "http://localhost:3000"}
  - Use "files_preview" event to send multiple file or folder paths to display in chat message, example: {"files": ["/path/to/file1", "/path/to/file2"]}
+ - Use "speech" event to send a speech to user, example: {"speech": "hi, this is a speech text"}
  - Use this tool when you want to display generated files, created files, or any file results to the user in the chat message.
   `;
   inputSchema = z.object({
-    event: z.enum(['web_preview', 'files_preview', 'get_user_result']),
+    event: z.enum(['web_preview', 'files_preview', 'get_user_result', 'speech']),
     data: z.string().describe('must be a JSON string'),
   });
 
@@ -67,7 +74,34 @@ Usage notes:
         return 'No valid files found.';
       }
       return validFiles.join('\n');
+    } else if (event === 'speech') {
+      if (!value?.speech || !isString(value?.speech) || value?.speech.trim() === '') {
+        throw new Error('Error: field "speech" is required, example: {"speech": "hi, this is a speech text"}');
+      }
+      const speech = value?.speech.trim();
+      const speechToText = await toolsManager.buildTool(`${ToolType.BUILD_IN}:${TextToSpeech.toolName}`,)
+      const result = await (speechToText as TextToSpeech).execute({
+        text: speech,
+      });
+      const attachments: FileInfo[] = [];
+      const fileRegex = /<file>([\s\S]*?)<\/file>/g;
+      let match: RegExpExecArray | null;
+
+      // 提取所有 <file>xxx</file> 内容
+
+      while ((match = fileRegex.exec(result)) !== null) {
+        const path = match[1];
+        const info = await appManager.getFileInfo(path);
+        attachments.push(info);
+      }
+
+
+      const audio = player();
+      audio.play(attachments[0].path, (err) => {
+        if (err) console.error(err);
+      });
+      return result;
     }
-    return 'done';
+    return 'Error: invalid event';
   };
 }

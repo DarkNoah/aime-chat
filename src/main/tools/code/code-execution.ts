@@ -10,6 +10,7 @@ import path from 'path';
 import { nanoid } from '@/utils/nanoid';
 import fg from 'fast-glob';
 import { appManager } from '@/main/app';
+import { secretsManager } from '@/main/app/secrets';
 import { ToolConfig, ToolTags } from '@/types/tool';
 
 const getSitecustomizePy = async (allRequestContext: Record<string, any> = {}) => {
@@ -186,7 +187,7 @@ asyncio.run(main())
       }
 
       let resultInit = await runCommand(
-        `${uvPreCommand} init "${tempDir}" && ${uvPreCommand} venv "${path.join(tempDir, '.venv')}"`,
+        `${uvPreCommand} init "${tempDir}" && ${uvPreCommand} venv "${path.join(tempDir, '.venv')}" --seed`,
         {
           cwd: uvRuntime?.dir,
         },
@@ -249,10 +250,12 @@ asyncio.run(main())
       const tempFile = path.join(tempDir, 'main.py');
       await fs.promises.writeFile(tempFile, code);
 
+      const secretsEnv = await secretsManager.getSecretsEnv();
       const result = await runCommand(
         `"${path.join(uvRuntime?.dir, uvPreCommand)}" run --project "${tempDir}" "${tempFile}"`,
         {
           cwd: workspace,
+          env: secretsEnv,
         },
       );
       return [

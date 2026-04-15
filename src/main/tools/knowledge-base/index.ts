@@ -3,7 +3,7 @@ import BaseTool, { BaseToolParams } from "../base-tool";
 import BaseToolkit, { BaseToolkitParams } from "../base-toolkit";
 import { ToolExecutionContext } from "@mastra/core/tools";
 import { z, ZodSchema } from "zod";
-import { SearchKnowledgeBaseItemResult } from "@/types/knowledge-base";
+import { KnowledgeBaseSourceType, SearchKnowledgeBaseItemResult } from "@/types/knowledge-base";
 
 
 
@@ -65,7 +65,7 @@ Return json format:
     const { writer } = options;
     const results: Record<string, { id: string, name: string, score: number, content?: string }[]> = {};
     for (const source of knowledge_base_source) {
-      const knowledgeBase = await knowledgeBaseManager.searchKnowledgeBase(source, query, top_k);
+      const knowledgeBase = await knowledgeBaseManager.searchKnowledgeBase(source, query, 'text', top_k);
       results[source] = knowledgeBase.results.map(x => {
         let content = x.chunk;
         if (return_full_content === true) {
@@ -79,7 +79,35 @@ Return json format:
 }
 
 
+export class KnowledgeBaseAdd extends BaseTool {
+  static readonly toolName = 'KnowledgeBaseAdd';
+  id: string = 'KnowledgeBaseAdd';
+  description = `Add a knowledge base item.
+`;
 
+  inputSchema = z.object({
+    knowledge_base_source: z.string().describe('Knowledge base id or name to add.'),
+    type: z.enum([KnowledgeBaseSourceType.Text, KnowledgeBaseSourceType.File, KnowledgeBaseSourceType.Folder, KnowledgeBaseSourceType.Web]).describe('The type of the knowledge base.'),
+    source: z.any().describe('The source of the knowledge base item.'),
+  });
+
+  constructor(params?: BaseToolParams) {
+    super(params);
+  }
+
+  execute = async (inputData: z.infer<typeof this.inputSchema>, options?: ToolExecutionContext<ZodSchema, any>) => {
+    const { knowledge_base_source, type, source } = inputData;
+    const { writer } = options;
+    const knowledgeBases = await knowledgeBaseManager.getKnowledgeBaseList();
+    const kbId = knowledgeBases.find(x => x.name === knowledge_base_source || x.id === knowledge_base_source)?.id;
+    if (!kbId) {
+      throw new Error('Knowledge base not found');
+    }
+
+    const knowledgeBase = await knowledgeBaseManager.importSource({ kbId: knowledge_base_source, source, type });
+    return { success: true };
+  }
+}
 
 export class KnowledgeBaseToolkit extends BaseToolkit {
   static readonly toolName = 'KnowledgeBaseToolkit';
@@ -89,8 +117,9 @@ export class KnowledgeBaseToolkit extends BaseToolkit {
   constructor(params?: BaseToolkitParams) {
     const searchConfig = params?.[KnowledgeBaseSearch.toolName];
     const listConfig = params?.[KnowledgeBaseList.toolName];
+    const addConfig = params?.[KnowledgeBaseAdd.toolName];
     super(
-      [new KnowledgeBaseSearch(searchConfig), new KnowledgeBaseList(listConfig)],
+      [new KnowledgeBaseSearch(searchConfig), new KnowledgeBaseList(listConfig), new KnowledgeBaseAdd(addConfig)],
       params,
     );
   }

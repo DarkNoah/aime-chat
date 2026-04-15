@@ -227,4 +227,19 @@ ${result.text}`;
     }
     return content;
   };
+
+  fallback = async (
+    inputData: z.infer<typeof this.inputSchema>,
+    options?: ToolExecutionContext,
+  ) => {
+    const { url, prompt } = inputData;
+    const config = this.config;
+    const { requestContext } = options ?? {};
+    const workspace = requestContext?.get('workspace' as never) as string;
+
+
+
+  };
+
+
 }

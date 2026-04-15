@@ -27,6 +27,8 @@
 - 🛠️ **Tool Integration** - Support for MCP (Model Context Protocol) client with extensible tool capabilities
 - 🎙️ **Audio Processing** - Built-in Speech-to-Text (STT) and Text-to-Speech (TTS) powered by Qwen3-TTS models
 - 🔍 **Skill System** - Search, import, and manage AI skills from Git repositories or the online skill marketplace
+- 📡 **Channel Integration** - Connect AI capabilities to messaging platforms like WeChat and Telegram
+- 🔐 **Secrets Management** - Centralized secret key management for tools and services, securely stored locally
 - 🎨 **Modern UI** - Built with shadcn/ui component library, supports light/dark theme switching
 - 🌍 **Internationalization** - Built-in Chinese and English interfaces
 - 🔒 **Local First** - Data stored locally for privacy protection
@@ -150,10 +152,28 @@ Rich built-in tools that AI Agents can call autonomously:
 | Translation | Translation | Multi-language text translation |
 | Task Management | TaskCreate, TaskGet, TaskList, TaskUpdate | Structured task creation, query, and status management |
 | Information Extraction | Extract | Extract structured information from documents |
+| Knowledge Base | KnowledgeBase | Knowledge base retrieval and intelligent Q&A |
 
 - 🔌 **MCP Protocol Support** - Extensible third-party tools
 - ⚙️ **Tool Configuration UI** - Visual tool management and configuration
 - 🔍 **Skill Marketplace** - Search and import skills from Git repositories or online marketplace (skills.sh)
+
+### Channel Integration
+
+Connect AI capabilities to external messaging platforms:
+
+| Channel | Description |
+|---------|-------------|
+| WeChat | Connect to WeChat for AI-powered conversations |
+| Telegram | Integrate with Telegram bots for AI interaction |
+
+### Secrets Management
+
+Centralized management of secret keys and credentials used by tools and services:
+
+- 🔑 Unified interface for managing API keys and tokens
+- 🔒 Secure local storage with encryption
+- 🔗 Automatic injection into tools that require authentication
 
 ## 🛠️ Tech Stack
 

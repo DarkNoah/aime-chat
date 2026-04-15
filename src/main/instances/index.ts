@@ -406,7 +406,7 @@ class InstancesManager extends BaseManager {
 
     const debugPort = config.debugPort || 9222;
 
-    if (isSystemUserData) {
+    if (isSystemUserData || true) {
       let wsUrl = await this.getCdpWebSocketUrl(debugPort);
 
 
@@ -544,6 +544,22 @@ class InstancesManager extends BaseManager {
       browserInstance.on('close', () => {
         this.instanceInfos.delete(id);
       });
+
+      const agentBrowserRuntime = await getAgentBrowserRuntime(true);
+      if (agentBrowserRuntime.installed) {
+        let wsUrl = await this.getCdpWebSocketUrl(debugPort);
+        const httpProxy = await appManager.getProxy();
+        let agentBrowserConfig = {
+          "headed": true,
+          // "profile": config.userDataPath,
+          "cdp": wsUrl
+        }
+        if (httpProxy) {
+          agentBrowserConfig['proxy'] = `http://${httpProxy}`;
+        }
+        await fs.promises.mkdir(path.join(app.getPath('home'), '.agent-browser'), { recursive: true });
+        await fs.promises.writeFile(path.join(app.getPath('home'), '.agent-browser', 'config.json'), JSON.stringify(agentBrowserConfig, null, 2));
+      }
 
       return { status: 'running', message: 'Browser launched' };
     }

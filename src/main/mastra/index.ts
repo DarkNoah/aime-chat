@@ -107,6 +107,8 @@ import { formatCodeWithLineNumbers } from '../utils/format';
 import { getSkills } from '../utils/skills';
 
 import { WorkflowRunStatus } from '@mastra/core/workflows';
+import { MessageListInput } from '@mastra/core/agent/message-list';
+import { secretsManager } from '../app/secrets';
 
 
 class MastraManager extends BaseManager {
@@ -588,6 +590,10 @@ class MastraManager extends BaseManager {
         project?.path ?? path.join(appInfo.userData, 'threads', chatId);
 
       fs.mkdirSync(workspace, { recursive: true });
+      fs.mkdirSync(path.join(workspace, 'memory'), { recursive: true });
+      if (!fs.existsSync(path.join(workspace, 'memory', 'MEMORY.md'))) {
+        await fs.promises.writeFile(path.join(workspace, 'memory', 'MEMORY.md'), ``, 'utf-8');
+      }
 
       currentThread = await memoryStore.updateThread({
         id: chatId,
@@ -976,10 +982,6 @@ class MastraManager extends BaseManager {
           }
         }
 
-
-
-
-
         stream = await this.nextStep(
           agent,
           input,
@@ -1157,6 +1159,9 @@ class MastraManager extends BaseManager {
             undefined,
             fastLanguageModel,
           );
+          if (!title) {
+            throw new Error('title generation failed');
+          }
           currentThread = await memoryStore.updateThread({
             id: chatId,
             title: title.replaceAll('\n', '').trim(),
@@ -1192,9 +1197,7 @@ class MastraManager extends BaseManager {
 
   public async nextStep(
     agent: Agent,
-    inputMessage:
-      | UIMessageWithMetadata
-      | UIMessage<unknown, UIDataTypes, UITools>,
+    inputMessage: MessageListInput,
     streamOptions: AgentExecutionOptions,
     resume?: {
       toolCallId?: string;
@@ -1249,6 +1252,7 @@ class MastraManager extends BaseManager {
     });
 
     const uiStreamReader = uiStream.getReader();
+    let cache = [];
     while (true) {
       const { done, value } = await uiStreamReader.read();
       if (done) {
@@ -1286,9 +1290,19 @@ class MastraManager extends BaseManager {
         await callback?.onEnd?.();
       }
 
+      if (value.type == "tool-input-delta") {
 
+
+      }
 
       // console.log('Stream chunk:', value);
+      // if (cache.length > 0 && cache[cache.length - 1]?.type == value.type) {
+
+
+
+      // } else {
+      //   cache = [value];
+      // }
 
       appManager.sendEvent(`chat:event:${chatId}`, {
         type: ChatEvent.ChatChunk,
@@ -1311,6 +1325,7 @@ class MastraManager extends BaseManager {
     const workspace = requestContext.get('workspace');
     const tools = requestContext.get('tools') ?? [];
     const skillsLoaded = requestContext.get('skillsLoaded') ?? [];
+
 
 
     // 注入已载入的技能, 只有当hasCompressed为true时才注入
@@ -1424,14 +1439,31 @@ IMPORTANT: this context may or may not be relevant to your tasks. You should not
       text: commandContext,
     });
 
+    // 注入环境变量
+    const secrets = await secretsManager.getSecrets(true);
+    if (secrets.length > 0) {
+      injectedMessages.push({
+        type: 'text',
+        text: `<system-reminder>
+You can use the environment variables keys in Bash tool, CodeExecution tool:
+${secrets.map((secret) => `- ${secret.key}${secret.description ? `: ${secret.description}` : ''}`).join('\n')}
+</system-reminder>`,
+      });
+    }
+
+
+
+
     // 注入压缩消息
     const compressedMessage = requestContext.get('compressedMessage');
     if (compressedMessage) {
       injectedMessages.push({
         type: 'text',
-        text: `This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+        text: `<system-reminder>
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
 
-${compressedMessage}`,
+${compressedMessage}
+</system-reminder>`,
       });
       requestContext.set('compressedMessage', undefined);
     }

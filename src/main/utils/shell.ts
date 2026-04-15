@@ -12,6 +12,7 @@ import { parse, quote } from 'shell-quote';
 import { promisify } from 'node:util';
 import chardet from 'chardet';
 import Stream from 'stream';
+import crossSpawn from 'cross-spawn';
 
 export const decodeBuffer = (data: Buffer) => {
   return data.toString('utf8');
@@ -392,6 +393,19 @@ export const createShell = async (
       real_input_command = _command;
     }
     const codePage = await getConsoleCodePage();
+    const input_commands = []
+
+    for (const command of real_input_command) {
+      if (isString(command)) {
+        input_commands.push(command);
+      } else {
+        if ('op' in command) {
+          input_commands.push(command['op']);
+        } else {
+          input_commands.push('');
+        }
+      }
+    }
 
     real_input_command = real_input_command.map((x) => {
       if (isString(x)) {
@@ -404,6 +418,17 @@ export const createShell = async (
         }
       }
     });
+
+
+    // const shell = crossSpawn(file || 'cmd.exe',
+
+    //   file ? ['chcp', '65001>nul', '&&', ...real_input_command] : ['/d', '/c', `chcp 65001>nul && ${_command}`], {
+    //   stdio: ['ignore', 'pipe', 'pipe'],
+    //   cwd: cwd,
+    //   env: _env,
+    // })
+
+
     const shell = spawn(
       file || 'cmd.exe',
       file ? ['chcp', '65001>nul', '&&', ...real_input_command] : ['/c', 'chcp', '65001>nul', '&&', ...real_input_command],

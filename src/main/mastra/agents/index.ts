@@ -264,7 +264,7 @@ ${additionalInstructions}
       agentEntity = new Agents(agent.id, AgentType.CUSTOM);
     }
     const tools = [];
-    for (const tool of agent.tools) {
+    for (const tool of agent?.tools ?? []) {
       if (tool.startsWith(`${ToolType.BUILD_IN}:`)) {
         const toolBuilded = await toolsManager.buildTool(tool);
         if (isArray(toolBuilded) && toolBuilded.length > 0) {

@@ -80,13 +80,19 @@ export async function checkUserDataDirInUse(userDataDir: string, executablePath?
 
   const matchedProcesses = processes.filter((proc) => {
     if (executablePath && proc.cmdline.trim() === executablePath || proc.cmdline.trim().startsWith(executablePath + ' ')) {
+
+      if (argPatterns.some(pattern => proc.cmdline.trim().match(pattern))) {
+        return true;
+      } else {
+        return false;
+      }
       return true;
     }
     return false;
   });
 
-  const inUse = matchedProcesses.length > 0 || lockCandidates.length > 0;
-  const staleLock = matchedProcesses.length === 0 && lockCandidates.length > 0;
+  const inUse = matchedProcesses.length > 0;// || lockCandidates.length > 0;
+  const staleLock = matchedProcesses.length === 0; //&& lockCandidates.length > 0;
 
   return {
     userDataDir: normalizedDir,
