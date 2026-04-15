@@ -4,6 +4,7 @@ import { ToolType } from "@/types/tool";
 import { ToolExecutionContext } from "@mastra/core/tools";
 import { agentManager } from "@/main/mastra/agents";
 import { z } from 'zod';
+import { appManager } from "@/main/app";
 
 export interface AgentToolParams extends BaseToolParams {
   subAgents: SubAgentInfo[] | string[];
@@ -171,7 +172,7 @@ assistant: "I'm going to use the Task tool to launch the greeting-responder agen
     inputData: z.infer<typeof this.inputSchema>,
     context: ToolExecutionContext<z.ZodSchema, any>,
   ) => {
-    const { description, prompt, subagent_type } = inputData;
+    let { description, prompt, subagent_type } = inputData;
     const {
       writer,
       abortSignal,
@@ -180,6 +181,10 @@ assistant: "I'm going to use the Task tool to launch the greeting-responder agen
     } = context;
     const toolCallId = agentContext.toolCallId;
     const rootAgentModel = requestContext.get('model' as never) as string;
+    const appInfo = await appManager.getInfo();
+    if (subagent_type == 'general-purpose') {
+      subagent_type = appInfo.defaultAgent;
+    }
     const agent = await agentManager.buildAgent(subagent_type, {
       modelId: rootAgentModel,
     });

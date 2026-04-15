@@ -6,6 +6,7 @@ import fs from 'fs';
 import { channel } from "../ipc/IpcController";
 import { MarketChannel } from "@/types/market";
 import { ToolType } from "@/types/tool";
+import matter from "gray-matter";
 export class MarketManager extends BaseManager {
 
   constructor() {
@@ -65,30 +66,52 @@ export class MarketManager extends BaseManager {
   @channel(MarketChannel.GetMarketData)
   public async getMarketData(type: ToolType.SKILL | ToolType.MCP) {
     const marketPath = getAssetPath('market', type);
-    const files = await fs.promises.readdir(marketPath);
+    const list = await fs.promises.readdir(marketPath, {
+      withFileTypes: true,
+    });
     const toolsList = await toolsManager.getList();
     const tools = (await toolsManager.getList())[type];
     const marketData = []
-    for (const file of files) {
-      if (!file.endsWith('.json')) {
-        continue;
-      }
+    for (const item of list) {
       try {
-        const data = await fs.promises.readFile(path.join(marketPath, file), 'utf-8');
-        const toolData = JSON.parse(data) as {
-          name: string;
-          description: string;
-          mcpServers: Record<string, any>;
-        };
+        if (item.isDirectory() && type == ToolType.SKILL) {
 
-        const tool = tools.find((t) => t.name === toolData.name);
-        if (tool) {
-          marketData.push({ id: tool.id, ...toolData, isInstalled: true });
-        } else {
+          const skillMdPath = path.join(marketPath, item.name, 'SKILL.md');
+          const skillMd = await fs.promises
+            .readFile(skillMdPath, 'utf-8')
+            .catch(() => '');
+          const data = matter(skillMd);
+          const id = `${ToolType.SKILL}:local:${item.name}`
+          const tool = tools.find((t) => t.id === id);
           marketData.push({
-            ...toolData,
-            isInstalled: false,
+            id: id,
+            name: data.data.name,
+            description: data.data.description,
+            isInstalled: tool ? true : false,
+            path: path.join(marketPath, item.name),
           });
+
+        } else {
+          const file = path.join(marketPath, item.name);
+          if (!file.endsWith('.json')) {
+            continue;
+          }
+          const data = await fs.promises.readFile(file, 'utf-8');
+          const toolData = JSON.parse(data) as {
+            name: string;
+            description: string;
+            mcpServers: Record<string, any>;
+          };
+
+          const tool = tools.find((t) => t.name === toolData.name);
+          if (tool) {
+            marketData.push({ id: tool.id, ...toolData, isInstalled: true });
+          } else {
+            marketData.push({
+              ...toolData,
+              isInstalled: false,
+            });
+          }
         }
       } catch {
 

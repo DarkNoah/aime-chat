@@ -33,6 +33,8 @@ function MarketPage() {
       description: string;
       isInstalled: boolean;
       mcpServers: Record<string, any>;
+      url?: string;
+      path?: string;
     }[]
   >([]);
 
@@ -52,15 +54,18 @@ function MarketPage() {
   );
 
   const installMCP = async (id, mcpServers) => {
-    try{
-      const data = await window.electron.tools.saveMCPServer(id, JSON.stringify({mcpServers}));
+    try {
+      const data = await window.electron.tools.saveMCPServer(
+        id,
+        JSON.stringify({ mcpServers }),
+      );
       await getData(activeTab);
     } catch (err) {
       toast.error(err.message);
     }
   };
   const installSkill = async (skill) => {
-    try{
+    try {
       const data = await window.electron.tools.importSkills(skill);
       await getData(activeTab);
     } catch (err) {
@@ -87,9 +92,6 @@ function MarketPage() {
           <TabsTrigger value="mcp">{t('market.mcp', 'MCP')}</TabsTrigger>
         </TabsList>
       </Tabs>
-      {activeTab === ToolType.SKILL && (
-        <span>Give aime chat superpowers. </span>
-      )}
       {/* {loading && (
         <div className="grid flex-1 gap-3 lg:grid-cols-2 content-start mt-3 mb-6">
           {Array.from({ length: 4 }).map((_, index) => (
@@ -118,32 +120,45 @@ function MarketPage() {
               ))}
           </div>
           <small>{t('market.recommended', 'Recommended')}</small>
-          {tools
-            .filter((tool) => !tool.isInstalled)
-            .map((tool) => (
-              <Item variant="outline" key={tool.name}>
-                <ItemContent>
-                  <ItemTitle>
-                    <span>{tool.name}</span>
-                  </ItemTitle>
-                  <ItemDescription>{tool.description}</ItemDescription>
-                </ItemContent>
-                <ItemActions>
-                  <Button variant="outline" size="icon" onClick={() => {
-                    if(activeTab === ToolType.SKILL){
-                      installSkill({
-                        repo_or_url: tool.url,
-                        isActive: true,
-                      });
-                    } else {
-                      installMCP(tool.id, tool.mcpServers);
-                    }
-                    }}>
-                    <IconPlus />
-                  </Button>
-                </ItemActions>
-              </Item>
-            ))}
+          <div className="grid flex-1 gap-3 lg:grid-cols-2 content-start mt-3 mb-6">
+            {tools
+              .filter((tool) => !tool.isInstalled)
+              .map((tool) => (
+                <Item variant="outline" key={tool.name}>
+                  <ItemContent>
+                    <ItemTitle>
+                      <span>{tool.name}</span>
+                    </ItemTitle>
+                    <ItemDescription>{tool.description}</ItemDescription>
+                  </ItemContent>
+                  <ItemActions>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => {
+                        if (activeTab === ToolType.SKILL) {
+                          if (tool.path) {
+                            installSkill({
+                              dirs: [tool.path],
+                              isActive: true,
+                            });
+                          } else if (tool.url) {
+                            installSkill({
+                              repo_or_url: tool.url,
+                              isActive: true,
+                            });
+                          }
+                        } else {
+                          installMCP(tool.id, tool.mcpServers);
+                        }
+                      }}
+                    >
+                      <IconPlus />
+                    </Button>
+                  </ItemActions>
+                </Item>
+              ))}
+          </div>
         </ScrollArea>
       )}
     </div>

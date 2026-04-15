@@ -229,7 +229,7 @@
   },
   "setup": {
     "welcome": {
-      "title": "Welcome to AIME Chat",
+      "title": "Welcome",
       "description": "Your intelligent AI assistant for productivity and creativity. Let's get you set up in just a few steps.",
       "get_started": "Get Started",
       "setup_time": "Setup takes about 2 minutes"
@@ -292,7 +292,7 @@
     },
     "complete": {
       "title": "You're All Set!",
-      "description": "AIME Chat is ready to use. Start exploring the power of AI assistance.",
+      "description": "It is ready to use. Start exploring the power of AI assistance.",
       "quick_tips": "Quick Tips",
       "tip_chat": "Start a new chat by clicking the + button in the sidebar.",
       "tip_agents": "Explore pre-built agents or create your own in the Agents section.",

@@ -96,7 +96,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       title: t('sidebar.new_project'),
       icon: IconFolderPlus,
       onClick: () => {
-        console.log('new project');
         setOpenProjectDialog(true);
       },
     },
@@ -109,7 +108,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       title: t('sidebar.market'),
       url: '/market',
       icon: IconCategory,
-      hidden: appInfo?.isPackaged,
+      // hidden: appInfo?.isPackaged,
     },
     {
       title: t('sidebar.crons'),
@@ -121,7 +120,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       title: t('sidebar.knowledge_base'),
       url: '/knowledge-base',
       icon: IconBook,
-      hidden: appInfo?.isPackaged,
+      // hidden: appInfo?.isPackaged,
     },
     {
       title: t('sidebar.agents'),

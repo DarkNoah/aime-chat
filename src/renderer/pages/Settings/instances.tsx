@@ -29,7 +29,6 @@ import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { InstanceInfo } from '@/types/instance';
 
-
 interface BrowserProfile {
   name: string;
   userDataPath: string;
@@ -53,7 +52,6 @@ interface InstanceConfig {
   wssUrl?: string;
   debugPort?: number;
 }
-
 
 function Instances() {
   const { setTitle } = useHeader();
@@ -150,7 +148,9 @@ function Instances() {
   };
 
   const getAvailableBrowsers = (instance: InstanceInfo) =>
-    isBuiltInSelected(instance) ? getBuiltInProfile()?.availableBrowsers ?? [] : [];
+    isBuiltInSelected(instance)
+      ? (getBuiltInProfile()?.availableBrowsers ?? [])
+      : [];
 
   const getSelectedExecutableBrowser = (instance: InstanceInfo) => {
     const availableBrowsers = getAvailableBrowsers(instance);
@@ -160,7 +160,9 @@ function Instances() {
 
     if (matchedBrowser) return matchedBrowser.browser;
 
-    return availableBrowsers.find((browser) => browser.installed)?.browser ?? '';
+    return (
+      availableBrowsers.find((browser) => browser.installed)?.browser ?? ''
+    );
   };
 
   const handleSelectExecutable = async (

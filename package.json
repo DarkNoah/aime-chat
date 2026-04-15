@@ -288,6 +288,7 @@
     "pdf-parse": "^2.4.5",
     "pdf-to-img": "^5.0.0",
     "pid-port": "^2.0.1",
+    "play-sound": "^1.1.6",
     "playwright": "^1.57.0",
     "pngjs": "^7.0.0",
     "postcss-loader": "^8.2.0",

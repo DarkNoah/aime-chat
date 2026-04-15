@@ -590,6 +590,10 @@ class MastraManager extends BaseManager {
         project?.path ?? path.join(appInfo.userData, 'threads', chatId);
 
       fs.mkdirSync(workspace, { recursive: true });
+      fs.mkdirSync(path.join(workspace, 'memory'), { recursive: true });
+      if (!fs.existsSync(path.join(workspace, 'memory', 'MEMORY.md'))) {
+        await fs.promises.writeFile(path.join(workspace, 'memory', 'MEMORY.md'), ``, 'utf-8');
+      }
 
       currentThread = await memoryStore.updateThread({
         id: chatId,
@@ -1248,6 +1252,7 @@ class MastraManager extends BaseManager {
     });
 
     const uiStreamReader = uiStream.getReader();
+    let cache = [];
     while (true) {
       const { done, value } = await uiStreamReader.read();
       if (done) {
@@ -1285,9 +1290,19 @@ class MastraManager extends BaseManager {
         await callback?.onEnd?.();
       }
 
+      if (value.type == "tool-input-delta") {
 
+
+      }
 
       // console.log('Stream chunk:', value);
+      // if (cache.length > 0 && cache[cache.length - 1]?.type == value.type) {
+
+
+
+      // } else {
+      //   cache = [value];
+      // }
 
       appManager.sendEvent(`chat:event:${chatId}`, {
         type: ChatEvent.ChatChunk,
@@ -1424,7 +1439,7 @@ IMPORTANT: this context may or may not be relevant to your tasks. You should not
       text: commandContext,
     });
 
-
+    // 注入环境变量
     const secrets = await secretsManager.getSecrets(true);
     if (secrets.length > 0) {
       injectedMessages.push({
@@ -1444,9 +1459,11 @@ ${secrets.map((secret) => `- ${secret.key}${secret.description ? `: ${secret.des
     if (compressedMessage) {
       injectedMessages.push({
         type: 'text',
-        text: `This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+        text: `<system-reminder>
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
 
-${compressedMessage}`,
+${compressedMessage}
+</system-reminder>`,
       });
       requestContext.set('compressedMessage', undefined);
     }

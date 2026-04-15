@@ -267,7 +267,7 @@
   },
   "setup": {
     "welcome": {
-      "title": "欢迎使用 AIME Chat",
+      "title": "欢迎使用",
       "description": "您的智能 AI 助手，助力提升效率和创造力。让我们通过几个简单的步骤完成设置。",
       "get_started": "开始设置",
       "setup_time": "设置大约需要 2 分钟"
@@ -330,7 +330,7 @@
     },
     "complete": {
       "title": "设置完成！",
-      "description": "AIME Chat 已准备就绪。开始探索 AI 助手的强大功能吧。",
+      "description": "已准备就绪。开始探索 AI 助手的强大功能吧。",
       "quick_tips": "快速提示",
       "tip_chat": "点击侧边栏的 + 按钮开始新对话。",
       "tip_agents": "在助手页面探索预置助手或创建自己的助手。",

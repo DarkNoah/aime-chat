@@ -1,7 +1,13 @@
 /* eslint-disable no-await-in-loop */
 /* eslint-disable camelcase */
 import { ToolUIPart } from 'ai';
-import React, { ComponentProps, useEffect, useMemo, useState } from 'react';
+import React, {
+  ComponentProps,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import {
   Item,
   ItemContent,
@@ -49,6 +55,14 @@ export const SendEventMessage = React.forwardRef<
   const [data, setData] = useState<string>('');
   const { sendEvent } = useChat();
   const input = part?.input as SendEventInput | undefined;
+
+  const parsedData = useCallback((_data: string) => {
+    try {
+      return JSON.parse(_data);
+    } catch {
+      return null;
+    }
+  }, []);
 
   useEffect(() => {
     setEvent(input?.event ?? '');
@@ -104,13 +118,20 @@ export const SendEventMessage = React.forwardRef<
   }, [files]);
 
   const renderPreviewCard = (file: FileInfo, i: number) => {
-    if (file.mimeType?.startsWith('video/') && file.ext?.toLowerCase() !== '.ts') {
+    if (
+      file.mimeType?.startsWith('video/') &&
+      file.ext?.toLowerCase() !== '.ts'
+    ) {
       return (
         <div
           className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm"
           key={`${file.path}-${i}`}
         >
-          <video src={toFileUrl(file.path)} controls className="max-h-[320px] w-full bg-black">
+          <video
+            src={toFileUrl(file.path)}
+            controls
+            className="max-h-[320px] w-full bg-black"
+          >
             <track kind="captions" />
           </video>
         </div>
@@ -180,7 +201,9 @@ export const SendEventMessage = React.forwardRef<
           <ItemContent>
             <ItemTitle>Web Preview</ItemTitle>
             <ItemDescription className=" ">
-              <span className="truncate block">{JSON.parse(data).url}</span>
+              <span className="truncate block">
+                {parsedData(data)?.url ?? '-'}
+              </span>
             </ItemDescription>
           </ItemContent>
         </Item>
@@ -191,7 +214,10 @@ export const SendEventMessage = React.forwardRef<
             <PhotoProvider>
               <div className="flex flex-wrap gap-2">
                 {imageFiles.map((file, i) => (
-                  <PhotoView src={toFileUrl(file.path)} key={`${file.path}-${i}`}>
+                  <PhotoView
+                    src={toFileUrl(file.path)}
+                    key={`${file.path}-${i}`}
+                  >
                     <div
                       className={cn(
                         'group relative overflow-hidden rounded-2xl border border-border/60 bg-muted shadow-sm',
@@ -202,7 +228,9 @@ export const SendEventMessage = React.forwardRef<
                         alt={file.name || 'attachment'}
                         className={cn(
                           'w-full object-cover transition-transform duration-200 group-hover:scale-[1.03]',
-                          imageFiles.length === 1 ? 'max-h-[260px]' : 'size-full',
+                          imageFiles.length === 1
+                            ? 'max-h-[260px]'
+                            : 'size-full',
                         )}
                         height={imageFiles.length === 1 ? 260 : 128}
                         src={toFileUrl(file.path)}
@@ -243,7 +271,9 @@ export const SendEventMessage = React.forwardRef<
                     <FileIcon filePath={file.path} className="size-10" />
                   </ItemMedia>
                   <ItemContent className="min-w-0">
-                    <ItemTitle className="max-w-full truncate">{file.name}</ItemTitle>
+                    <ItemTitle className="max-w-full truncate">
+                      {file.name}
+                    </ItemTitle>
                     <ItemDescription>
                       <span className="block truncate">{file.path}</span>
                     </ItemDescription>

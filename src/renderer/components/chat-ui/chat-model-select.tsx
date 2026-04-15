@@ -100,21 +100,28 @@ export const ChatModelSelect = React.forwardRef<
             disabled={disabled === true || loading}
           >
             {loading && !selectedModelData ? (
-              <div className='pl-1 flex flex-row items-center gap-2'>
+              <div className="pl-1 flex flex-row items-center gap-2">
                 <Loader2Icon className="size-4 animate-spin text-muted-foreground" />
                 <span className="text-muted-foreground">Loading models...</span>
               </div>
             ) : (
               <>
-                <div className='pl-1  flex-1 flex flex-row items-center gap-2 min-w-0'>
+                <div className="px-1  flex-1 flex flex-row items-center gap-2 min-w-0">
                   {selectedModelData?.providerType && (
-                    <ModelSelectorLogo provider={selectedModelData.providerType} className='size-6'/>
+                    <ModelSelectorLogo
+                      provider={selectedModelData.providerType}
+                      className="size-6"
+                    />
                   )}
                   {selectedModelData?.name && (
-                    <ModelSelectorName>{selectedModelData.name}</ModelSelectorName>
+                    <ModelSelectorName>
+                      {selectedModelData.name}
+                    </ModelSelectorName>
                   )}
                   {selectedModelData?.name === undefined && (
-                    <span className="text-muted-foreground">Select a model</span>
+                    <span className="text-muted-foreground">
+                      Select a model
+                    </span>
                   )}
                 </div>
                 {clearable && (
@@ -141,9 +148,7 @@ export const ChatModelSelect = React.forwardRef<
                 )}
               </>
             )}
-            
           </PromptInputButton>
-          
         </div>
       </ModelSelectorTrigger>
       <ModelSelectorContent>
@@ -155,37 +160,37 @@ export const ChatModelSelect = React.forwardRef<
               <span>Loading models...</span>
             </div>
           ) : (
-          <>
-          <ModelSelectorEmpty>No models found.</ModelSelectorEmpty>
-          {data.map((provider) => (
-            <ModelSelectorGroup heading={provider.name} key={provider.id}>
-              {provider.models.map((m) => (
-                <ModelSelectorItem
-                  key={m.id}
-                  onSelect={() => {
-                    onChange?.(m.id);
-                    setSelectedModelData(m);
-                    setModelSelectorOpen(false);
-                  }}
-                  value={m.id}
-                >
-                  <ModelSelectorLogo provider={provider.type} />
-                  <ModelSelectorName>{m.name}</ModelSelectorName>
-                  {/* <ModelSelectorLogoGroup>
+            <>
+              <ModelSelectorEmpty>No models found.</ModelSelectorEmpty>
+              {data.map((provider) => (
+                <ModelSelectorGroup heading={provider.name} key={provider.id}>
+                  {provider.models.map((m) => (
+                    <ModelSelectorItem
+                      key={m.id}
+                      onSelect={() => {
+                        onChange?.(m.id);
+                        setSelectedModelData(m);
+                        setModelSelectorOpen(false);
+                      }}
+                      value={m.id}
+                    >
+                      <ModelSelectorLogo provider={provider.type} />
+                      <ModelSelectorName>{m.name}</ModelSelectorName>
+                      {/* <ModelSelectorLogoGroup>
                     {m.providers.map((provider) => (
                       <ModelSelectorLogo key={provider} provider={provider} />
                     ))}
                   </ModelSelectorLogoGroup> */}
-                  {value === m.id ? (
-                    <CheckIcon className="ml-auto size-4" />
-                  ) : (
-                    <div className="ml-auto size-4" />
-                  )}
-                </ModelSelectorItem>
+                      {value === m.id ? (
+                        <CheckIcon className="ml-auto size-4" />
+                      ) : (
+                        <div className="ml-auto size-4" />
+                      )}
+                    </ModelSelectorItem>
+                  ))}
+                </ModelSelectorGroup>
               ))}
-            </ModelSelectorGroup>
-          ))}
-          </>
+            </>
           )}
         </ModelSelectorList>
       </ModelSelectorContent>
