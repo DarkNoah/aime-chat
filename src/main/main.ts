@@ -33,6 +33,32 @@ import { secretsManager } from './app/secrets';
 import { cronsManager } from './app/crons';
 
 
+// process.env.DEFAULT_AGENT = undefined;
+// process.env.DEFAULT_MODEL = undefined;
+// process.env.DEFAULT_FAST_MODEL = undefined;
+// process.env.DEFAULT_VISION_MODEL = undefined;
+// process.env.DEFAULT_OCR_MODEL = undefined;
+// process.env.DEFAULT_TRANSCRIPTION_MODEL = undefined;
+// process.env.DEFAULT_SPEECH_MODEL = undefined;
+// process.env.THINK = undefined;
+
+process.env.API_SERVER_ENABLED = 'true'
+
+// process.env.DEFAULT_PROVIDER_ID = "openai"
+// process.env.DEFAULT_PROVIDER_NAME = "OpenAI"
+// process.env.DEFAULT_PROVIDER_TYPE = "openai"
+// process.env.DEFAULT_PROVIDER_API_KEY = ""
+// process.env.DEFAULT_PROVIDER_API_BASE = ""
+
+// process.env.DEFAULT_PROVIDER_CONFIG = JSON.stringify({
+//   [process.env.DEFAULT_PROVIDER_ID]: {
+//     "name": process.env.DEFAULT_PROVIDER_NAME,
+//     "type": process.env.DEFAULT_PROVIDER_TYPE,
+//     "isActive": true,
+//     "apiKey": process.env.DEFAULT_PROVIDER_API_KEY,
+//     "apiBase": process.env.DEFAULT_PROVIDER_API_BASE,
+//   },
+// });
 
 
 async function init() {

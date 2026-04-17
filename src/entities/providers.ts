@@ -32,4 +32,8 @@ export class Providers {
 
   @Column('json', { nullable: true })
   tags?: string[];
+
+  @Column({ default: false, nullable: true })
+  isStatic?: boolean = false;
+
 }
