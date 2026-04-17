@@ -210,6 +210,9 @@ class AppManager extends BaseManager {
     const preventSleepInterval = this.getPreventSleepInterval(
       settings.find((x) => x.id === 'preventSleepInterval')?.value,
     );
+    const appLocale = app.getLocale().toLowerCase();
+    const language = settings.find((x) => x.id === 'language')?.value || appLocale || 'en-us';
+
     return {
       name: appName ?? app.getName(),
       appPath: app.getAppPath(),
@@ -227,6 +230,7 @@ class AppManager extends BaseManager {
       systemVersion: process.getSystemVersion(),
       isPackaged: app.isPackaged,
       theme: nativeTheme.themeSource,
+      language,
       shouldUseDarkColors: nativeTheme.shouldUseDarkColors,
       defaultModel: defaultModel,
       defaultAgent: defaultAgent,

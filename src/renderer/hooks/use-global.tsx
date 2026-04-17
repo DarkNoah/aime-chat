@@ -37,7 +37,7 @@ export function GlobalProvider({ children }: { children: ReactNode }) {
 
   const getAppInfo = async () => {
     const data = await window.electron.app.getInfo();
-    console.log('appInfo', appInfo);
+    console.log('appInfo', data);
     setAppInfo(data);
   };
 

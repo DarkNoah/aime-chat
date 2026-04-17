@@ -23,6 +23,7 @@ export class AppInfo {
   isPackaged: boolean;
   theme: string;
   shouldUseDarkColors: boolean;
+  language: string;
   defaultModel: {
     model: string;
     fastModel: string;
