@@ -231,6 +231,7 @@ function Providers() {
     setLoading(true);
     try {
       const data = await window.electron.providers.getList();
+      console.log(data);
       setProviders(data);
     } finally {
       setLoading(false);
@@ -646,13 +647,19 @@ function Providers() {
                   {t('common.model')}
                 </Button>
 
-                <Button variant="outline" size="sm" onClick={() => openEdit(p)}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => openEdit(p)}
+                  disabled={p.isStatic}
+                >
                   <Edit></Edit>
                 </Button>
                 <Button
                   variant="destructive"
                   size="sm"
                   onClick={() => askRemoveProvider(p.id, p.name)}
+                  disabled={p.isStatic}
                 >
                   <Trash />
                 </Button>

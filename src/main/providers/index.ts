@@ -60,6 +60,25 @@ class ProvidersManager extends BaseManager {
 
   public async init() {
     this.repository = dbManager.dataSource.getRepository(Providers);
+    if (process.env.DEFAULT_PROVIDER_CONFIG) {
+      const defaultProviderConfig = JSON.parse(process.env.DEFAULT_PROVIDER_CONFIG) as Providers;
+      for (const [key, value] of Object.entries(defaultProviderConfig)) {
+        let provider = await this.repository.findOne({ where: { id: key } });
+        if (provider) {
+          continue;
+        } else {
+          provider = new Providers();
+          provider.id = key;
+        }
+        provider.name = value.name;
+        provider.type = value.type;
+        provider.isActive = value.isActive;
+        provider.apiKey = value.apiKey;
+        provider.apiBase = value.apiBase;
+        provider.isStatic = true;
+        await this.repository.save(provider);
+      }
+    }
     return;
   }
 

@@ -195,11 +195,18 @@ class AppManager extends BaseManager {
       settings.find((x) => x.id === 'modelPath')?.value ??
       getDefaultModelPath();
     const apiServer = settings.find((x) => x.id === 'apiServer')?.value;
-    const appName = settings.find((x) => x.id === 'appName')?.value;
+    const appName = settings.find((x) => x.id === 'appName')?.value || process.env.APP_NAME;
     const acp = await acpManager.getInfo();
-    const defaultModel = settings.find((x) => x.id === 'defaultModel')?.value ?? {};
-    const defaultAgent = settings.find((x) => x.id === 'defaultAgent')?.value ?? CodeAgent.agentName;
-    const defaultThink = settings.find((x) => x.id === 'defaultThink')?.value;
+    const defaultModel = settings.find((x) => x.id === 'defaultModel')?.value ?? {
+      model: process.env.DEFAULT_MODEL,
+      fastModel: process.env.DEFAULT_FAST_MODEL,
+      visionModel: process.env.DEFAULT_VISION_MODEL,
+      ocrModel: process.env.DEFAULT_OCR_MODEL,
+      transcriptionModel: process.env.DEFAULT_TRANSCRIPTION_MODEL,
+      speechModel: process.env.DEFAULT_SPEECH_MODEL,
+    };
+    const defaultAgent = settings.find((x) => x.id === 'defaultAgent')?.value || process.env.DEFAULT_AGENT || CodeAgent.agentName;
+    const defaultThink = settings.find((x) => x.id === 'defaultThink')?.value || process.env.THINK || 'medium';
     const preventSleepInterval = this.getPreventSleepInterval(
       settings.find((x) => x.id === 'preventSleepInterval')?.value,
     );
@@ -223,7 +230,7 @@ class AppManager extends BaseManager {
       shouldUseDarkColors: nativeTheme.shouldUseDarkColors,
       defaultModel: defaultModel,
       defaultAgent: defaultAgent,
-      defaultThink: defaultThink ?? 'medium',
+      defaultThink: defaultThink,
       proxy:
         this.appProxy ||
         ({
@@ -231,7 +238,7 @@ class AppManager extends BaseManager {
         } as AppProxy),
       apiServer: {
         status: mastraManager.httpServer?.listening ? 'running' : 'stopped',
-        enabled: apiServer?.enabled ?? false,
+        enabled: apiServer?.enabled !== undefined ? apiServer.enabled : (process.env.API_SERVER_ENABLED === 'true' ? true : false),
         port: apiServer?.port ?? this.defaultApiServerPort,
       },
       acp,
