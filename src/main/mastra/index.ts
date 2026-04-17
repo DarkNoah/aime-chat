@@ -877,7 +877,7 @@ class MastraManager extends BaseManager {
 
 
 
-        const { compressedMessage, keepMessages, hasCompressed } =
+        const { compressedMessage, keepMessages, hasCompressed, error: compressError, errorMessage: compressErrorMessage } =
           await this.compressMessages(
             [
               { role: 'system', content: system } as SystemModelMessage,
@@ -893,6 +893,9 @@ class MastraManager extends BaseManager {
               model: fastLanguageModel,
             },
           );
+        if (compressError) {
+          throw new Error(compressErrorMessage || 'Failed to compress messages');
+        }
         if (hasCompressed) {
           const compressedMessageText = compressedMessage.content?.find(x => x.type == 'text')?.text;
           if (compressedMessageText) {
@@ -1528,6 +1531,8 @@ ${compressedMessage}
     compressedMessage?: ModelMessage;
     keepMessages: ModelMessage[];
     hasCompressed: boolean;
+    error?: boolean;
+    errorMessage?: string;
   }> {
     let tokenCount = await tokenCounter(messages);
 
@@ -1560,6 +1565,7 @@ ${compressedMessage}
       data: JSON.stringify({
         type: 'data-compress-start',
       }),
+      transient: true
     });
     const systemMessage = messages.find((x) => x.role === 'system');
 
@@ -1712,15 +1718,6 @@ IMPORTANT: Do NOT use any tools. You MUST respond with ONLY the <summary>...</su
       }
 
       if (options?.abortSignal?.aborted === true) {
-        appManager.sendEvent(`chat:event:${chatId}`, {
-          type: ChatEvent.ChatChunk,
-          data: JSON.stringify({
-            type: 'data-compress-end',
-            data: {
-
-            },
-          }),
-        });
         return {
           compressedMessage: undefined,
           keepMessages: keepMessages,
@@ -1733,9 +1730,7 @@ IMPORTANT: Do NOT use any tools. You MUST respond with ONLY the <summary>...</su
       const summary = getTagContent(response.text, 'summary');
       const analysis = getTagContent(response.text, 'analysis');
 
-      const text = `
-${response.text}
-`
+      const text = response.text;
 
       const userMessage = {
         role: 'user',
@@ -1743,15 +1738,6 @@ ${response.text}
       } as UserModelMessage;
 
       const usage = response.usage;
-      appManager.sendEvent(`chat:event:${chatId}`, {
-        type: ChatEvent.ChatChunk,
-        data: JSON.stringify({
-          type: 'data-compress-end',
-          data: {
-            usage,
-          },
-        }),
-      });
       return {
         compressedMessage: userMessage,
         keepMessages: keepMessages,
@@ -1774,7 +1760,18 @@ ${response.text}
         compressedMessage: undefined,
         keepMessages: messages.slice(lastAssistantIndex),
         hasCompressed: false,
+        error: true,
+        errorMessage: err?.message || 'Unknown error',
       };
+    } finally {
+      appManager.sendEvent(`chat:event:${chatId}`, {
+        type: ChatEvent.ChatChunk,
+        data: JSON.stringify({
+          type: 'data-compress-end',
+          data: {}
+        }),
+        transient: true
+      });
     }
 
   }
