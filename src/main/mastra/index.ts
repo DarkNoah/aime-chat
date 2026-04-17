@@ -584,6 +584,7 @@ class MastraManager extends BaseManager {
 
     let stream: MastraModelOutput<unknown>;
     let agent: Agent;
+    let requestContext;
     try {
       // const info = modelsData[provider.type]?.models[_modeId] || {};
       const workspace =
@@ -630,7 +631,7 @@ class MastraManager extends BaseManager {
           reasoningTokens: 0,
           cachedInputTokens: 0,
         };
-      const requestContext = new RequestContext<ChatRequestContext>();
+      requestContext = new RequestContext<ChatRequestContext>();
       requestContext.set('skillsLoaded', skillsLoaded);
       requestContext.set('model', model);
       requestContext.set('threadId', chatId);
@@ -876,7 +877,7 @@ class MastraManager extends BaseManager {
 
 
 
-        const { compressedMessage, keepMessages, hasCompressed } =
+        const { compressedMessage, keepMessages, hasCompressed, error: compressError, errorMessage: compressErrorMessage } =
           await this.compressMessages(
             [
               { role: 'system', content: system } as SystemModelMessage,
@@ -892,6 +893,9 @@ class MastraManager extends BaseManager {
               model: fastLanguageModel,
             },
           );
+        if (compressError) {
+          throw new Error(compressErrorMessage || 'Failed to compress messages');
+        }
         if (hasCompressed) {
           const compressedMessageText = compressedMessage.content?.find(x => x.type == 'text')?.text;
           if (compressedMessageText) {
@@ -1153,12 +1157,27 @@ class MastraManager extends BaseManager {
       currentThread = await memoryStore.getThreadById({ threadId: chatId });
       if (currentThread.title == DEFAULT_TITLE) {
         try {
-          const title = await agent.genTitle(
-            inputMessage,
-            undefined,
-            undefined,
-            fastLanguageModel,
-          );
+
+          //                     const titleAgent = new DefaultAgent({});
+          //                     titleAgent.instructions = ({ requestContext, mastra }) => {
+          //                       return `- you will generate a short title based on the first message a user begins a conversation with
+          // - ensure it is not more than 80 characters long
+          // - the title should be a summary of the user's message
+          // - do not use quotes or colons
+          // - the entire text you return will be used as the title.`;
+          //                     };
+          const titleAgentInstance = await agentManager.buildAgent(DefaultAgent.agentName, {
+            modelId: fastModel,
+          });
+
+          const title = await titleAgentInstance.generate([
+            {
+              role: 'system', content: `- you will generate a short title based on the first message a user begins a conversation with
+- ensure it is not more than 80 characters long
+- the title should be a summary of the user's message
+- do not use quotes or colons
+- the entire text you return will be used as the title.` },
+            { role: 'user', content: inputMessage?.parts[0]?.text }]);
           if (!title) {
             throw new Error('title generation failed');
           }
@@ -1512,11 +1531,18 @@ ${compressedMessage}
     compressedMessage?: ModelMessage;
     keepMessages: ModelMessage[];
     hasCompressed: boolean;
+    error?: boolean;
+    errorMessage?: string;
   }> {
     let tokenCount = await tokenCounter(messages);
 
     for (const tool of Object.values(tools)) {
-      const inputSchema = zodToJsonSchema(tool.inputSchema);
+      let inputSchema;
+      if ("shape" in tool.inputSchema) {
+        inputSchema = zodToJsonSchema(tool.inputSchema);
+      } else {
+        inputSchema = tool.inputSchema.getSchema()
+      }
       tokenCount += countTokens(
         tool.id + '\n' + tool.description + '\n' + JSON.stringify(inputSchema),
       );
@@ -1539,6 +1565,7 @@ ${compressedMessage}
       data: JSON.stringify({
         type: 'data-compress-start',
       }),
+      transient: true
     });
     const systemMessage = messages.find((x) => x.role === 'system');
 
@@ -1691,15 +1718,6 @@ IMPORTANT: Do NOT use any tools. You MUST respond with ONLY the <summary>...</su
       }
 
       if (options?.abortSignal?.aborted === true) {
-        appManager.sendEvent(`chat:event:${chatId}`, {
-          type: ChatEvent.ChatChunk,
-          data: JSON.stringify({
-            type: 'data-compress-end',
-            data: {
-
-            },
-          }),
-        });
         return {
           compressedMessage: undefined,
           keepMessages: keepMessages,
@@ -1712,9 +1730,7 @@ IMPORTANT: Do NOT use any tools. You MUST respond with ONLY the <summary>...</su
       const summary = getTagContent(response.text, 'summary');
       const analysis = getTagContent(response.text, 'analysis');
 
-      const text = `
-${response.text}
-`
+      const text = response.text;
 
       const userMessage = {
         role: 'user',
@@ -1722,15 +1738,6 @@ ${response.text}
       } as UserModelMessage;
 
       const usage = response.usage;
-      appManager.sendEvent(`chat:event:${chatId}`, {
-        type: ChatEvent.ChatChunk,
-        data: JSON.stringify({
-          type: 'data-compress-end',
-          data: {
-            usage,
-          },
-        }),
-      });
       return {
         compressedMessage: userMessage,
         keepMessages: keepMessages,
@@ -1753,7 +1760,18 @@ ${response.text}
         compressedMessage: undefined,
         keepMessages: messages.slice(lastAssistantIndex),
         hasCompressed: false,
+        error: true,
+        errorMessage: err?.message || 'Unknown error',
       };
+    } finally {
+      appManager.sendEvent(`chat:event:${chatId}`, {
+        type: ChatEvent.ChatChunk,
+        data: JSON.stringify({
+          type: 'data-compress-end',
+          data: {}
+        }),
+        transient: true
+      });
     }
 
   }

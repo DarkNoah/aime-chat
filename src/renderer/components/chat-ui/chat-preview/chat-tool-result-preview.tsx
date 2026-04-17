@@ -107,7 +107,7 @@ function FilePreview({ children }: { children?: React.ReactNode }) {
     return (
       <Item
         variant="outline"
-        className="cursor-pointer bg-secondary p-2 gap-2 items-center flex flex-row flex-nowrap! w-auto max-w-[300px]"
+        className="cursor-pointer border-border/60 bg-secondary/60 p-2 gap-2 items-center flex flex-row flex-nowrap! w-auto max-w-[300px] transition-colors hover:bg-secondary"
         onClick={() => {
           window.electron.app.openPath(_path);
         }}

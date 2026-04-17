@@ -22,6 +22,7 @@ import { useChat } from '@/renderer/hooks/use-chat';
 import { PhotoProvider, PhotoView } from 'react-photo-view';
 import { ModelViewer, isSupportedModelFile } from '../../model-viewer';
 import { cn } from '@/renderer/lib/utils';
+import { splitContextAndFiles } from '@/utils/context-utils';
 
 const toFileUrl = (filePath: string) => new URL(filePath, 'file:').href;
 
@@ -69,7 +70,7 @@ export const SendEventMessage = React.forwardRef<
     setData(input?.data ?? '');
 
     const fetchFiles = async () => {
-      if (input?.event !== 'files_preview') {
+      if (!(input?.event === 'files_preview' || input?.event === 'speech')) {
         setFiles([]);
         return;
       }
@@ -78,12 +79,17 @@ export const SendEventMessage = React.forwardRef<
 
       try {
         const parsed = JSON.parse(input.data ?? '{}') as { files?: string[] };
-
         for (const filePath of parsed.files ?? []) {
           const info = await window.electron.app.getFileInfo(filePath);
           if (info && info.isExist) {
             fileInfos.push(info);
           }
+        }
+        if (input.event === 'speech' && part?.output) {
+          const infos = await splitContextAndFiles(
+            (part?.output as string) ?? '',
+          );
+          fileInfos.push(...(infos?.attachments ?? []));
         }
       } catch {
         // Ignore malformed preview payloads and render no attachments.
@@ -280,6 +286,15 @@ export const SendEventMessage = React.forwardRef<
                   </ItemContent>
                 </Item>
               ))}
+            </div>
+          )}
+        </div>
+      )}
+      {event === 'speech' && (
+        <div className="max-w-[min(100%,42rem)] space-y-3">
+          {previewCardFiles.length > 0 && (
+            <div className="flex max-w-[560px] flex-col gap-2">
+              {previewCardFiles.map(renderPreviewCard)}
             </div>
           )}
         </div>
