@@ -258,6 +258,7 @@ function Providers() {
   const openEdit = async (data: Provider) => {
     setEditProvider(data);
     const provider: any = await window.electron.providers.get(data.id);
+    console.log(provider);
 
     form.reset();
     form.setValue('name', provider.name);
