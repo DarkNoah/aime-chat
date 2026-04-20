@@ -9,6 +9,9 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
 } from '@/renderer/components/ui/sidebar';
 import {
   Dialog,
@@ -73,6 +76,7 @@ import { Skeleton } from '@/renderer/components/ui/skeleton';
 import { Badge } from '@/renderer/components/ui/badge';
 import {
   BadgeCheckIcon,
+  ChevronsUpDown,
   DogIcon,
   Dot,
   HeartIcon,
@@ -101,6 +105,11 @@ import { nanoid } from '@/utils/nanoid';
 import { ToolEditDialog } from './tool-edit-dialog';
 import { SkillImportDialog } from './skill-import-dialog';
 import { SkillSearch } from '@/renderer/components/skills-ui/skill-search';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/renderer/components/ui/collapsible';
 
 function Tools() {
   const { setTitle } = useHeader();
@@ -144,11 +153,38 @@ function Tools() {
     const getList = async () => {
       try {
         const data = await window.electron.tools.getList();
+
         console.log(data);
+        const skills = [];
+        for (const skill of data[ToolType.SKILL]) {
+          if (skill.repo) {
+            if (!skills.find((x) => x.id === skill.repo)) {
+              const repoName =
+                skill.repo.split('/').length > 1
+                  ? `${
+                      skill.repo.split('/')[skill.repo.split('/').length - 2]
+                    }/${
+                      skill.repo.split('/')[skill.repo.split('/').length - 1]
+                    }`
+                  : skill.repo;
+              skills.push({
+                id: skill.repo,
+                name: skill.repo.split('/').length > 1 ? repoName : skill.repo,
+                skills: [skill],
+              });
+            } else {
+              skills.find((x) => x.id === skill.repo).skills.push(skill);
+            }
+          } else {
+            skills.push(skill);
+          }
+        }
+        console.log(skills);
+
         setTools((prev) => ({
           [ToolType.BUILD_IN]: data[ToolType.BUILD_IN],
           [ToolType.MCP]: data[ToolType.MCP],
-          [ToolType.SKILL]: data[ToolType.SKILL],
+          [ToolType.SKILL]: skills,
         }));
       } catch (err) {
         toast.error(err.message);
@@ -302,9 +338,7 @@ function Tools() {
                 >
                   <SidebarMenuButton
                     asChild
-                    isActive={location?.pathname?.startsWith(
-                      `/tools/${tool.id}`,
-                    )}
+                    isActive={location?.pathname === `/tools/${tool.id}`}
                     className="truncate w-full flex flex-row justify-between h-full"
                   >
                     <Item
@@ -325,15 +359,56 @@ function Tools() {
                         {tool.status === 'starting' && (
                           <IconLoader2 className="text-yellow-400/50 animate-spin"></IconLoader2>
                         )}
-                        {tool.status === undefined && tool.isActive && (
-                          <IconToggleRightFilled className="text-green-500/50"></IconToggleRightFilled>
-                        )}
-                        {tool.status === undefined && !tool.isActive && (
-                          <IconToggleLeft className="text-red-500/50"></IconToggleLeft>
-                        )}
+                        {tool.status === undefined &&
+                          tool.isActive !== undefined &&
+                          tool.isActive && (
+                            <IconToggleRightFilled className="text-green-500/50"></IconToggleRightFilled>
+                          )}
+                        {tool.status === undefined &&
+                          tool.isActive !== undefined &&
+                          !tool.isActive && (
+                            <IconToggleLeft className="text-red-500/50"></IconToggleLeft>
+                          )}
                       </ItemContent>
                     </Item>
                   </SidebarMenuButton>
+                  {tool.skills && tool.skills.length > 0 && (
+                    <SidebarMenuSub>
+                      {tool.skills.map((skill) => (
+                        <SidebarMenuSubItem key={skill.id}>
+                          <SidebarMenuSubButton
+                            isActive={
+                              location?.pathname === `/tools/${skill.id}`
+                            }
+                          >
+                            <Item
+                              className=" w-full flex flex-row justify-between flex-nowrap pl-0"
+                              onClick={() => navigate(`/tools/${skill.id}`)}
+                            >
+                              <ItemContent className="min-w-0 ">
+                                <ItemTitle className="line-clamp-1 w-auto">
+                                  {t(
+                                    `tool_name.${skill.name.toLowerCase()}`,
+                                    skill.name,
+                                  )}
+                                </ItemTitle>
+                                {skill.status === undefined &&
+                                  skill.isActive !== undefined &&
+                                  skill.isActive && (
+                                    <IconToggleRightFilled className="text-green-500/50"></IconToggleRightFilled>
+                                  )}
+                                {skill.status === undefined &&
+                                  skill.isActive !== undefined &&
+                                  !skill.isActive && (
+                                    <IconToggleLeft className="text-red-500/50"></IconToggleLeft>
+                                  )}
+                              </ItemContent>
+                            </Item>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                      ))}
+                    </SidebarMenuSub>
+                  )}
                 </SidebarMenuItem>
               ))}
             {tools[view]?.filter((kb) =>

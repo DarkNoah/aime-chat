@@ -178,7 +178,8 @@
     "results_count": "{{count}} 条结果",
     "file_too_large": "文件过大 ({{size}})，已截断显示",
     "retry": "重试",
-    "refresh": "刷新"
+    "refresh": "刷新",
+    "web_preview": "预览"
   },
   "tools": {
     "mcp_command": "命令",

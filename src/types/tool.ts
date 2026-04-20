@@ -22,6 +22,9 @@ export type Tool = {
     description: string;
     inputSchema?: any;
   }[];
+  status?: 'running' | 'stopped' | 'error' | 'starting' | undefined;
+  repo?: string;
+  skills?: Tool[];
 };
 
 export type AvailableTool = {

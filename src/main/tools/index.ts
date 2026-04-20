@@ -1399,6 +1399,7 @@ class ToolsManager extends BaseManager {
           tool.value = {
             path: path.join(skillsPath, selectedSkill.id),
             source: source,
+            repo: repoUrl
             // skill: selectedSkill.path
           };
           await this.toolsRepository.save(tool);
