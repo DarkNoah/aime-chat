@@ -623,9 +623,10 @@ export class LocalProvider extends BaseProvider {
       { id: 'mlx-community/GLM-OCR-bf16', name: 'GLM-OCR' }
       ];
     } else {
-      return [{ id: 'system', name: 'System OCR' }, {
-        id: 'paddleocr-vl', name: 'PaddleOCR-V1.5'
-      }, { id: 'pp-structurev3', name: 'PP-StructureV3' }
+      return [{ id: 'system', name: 'System OCR' },
+      { id: 'paddleocr-vl', name: 'PaddleOCR-V1.5' },
+      { id: 'pp-structurev3', name: 'PP-StructureV3' },
+      { id: 'rapidocr', name: 'RapidOCR' },
       ]
     }
 

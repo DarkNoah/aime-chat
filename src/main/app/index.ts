@@ -129,6 +129,7 @@ class AppManager extends BaseManager {
     this.updateModelsJson().catch((err) =>
       console.error('Failed to update models.json:', err),
     );
+    this.getRuntimeInfo(true);
   }
 
   private async updateModelsJson(): Promise<void> {
@@ -862,13 +863,13 @@ class AppManager extends BaseManager {
   }
 
   @channel(AppChannel.GetRuntimeInfo)
-  public async getRuntimeInfo(): Promise<RuntimeInfo> {
-    const uv = await getUVRuntime();
-    const bun = await getBunRuntime();
-    const node = await getNodeRuntime();
-    const paddleOcr = await getPaddleOcrRuntime();
-    const qwenAudio = await getQwenAudioRuntime();
-    const agentBrowser = await getAgentBrowserRuntime();
+  public async getRuntimeInfo(refresh = false): Promise<RuntimeInfo> {
+    const uv = await getUVRuntime(refresh);
+    const bun = await getBunRuntime(refresh);
+    const node = await getNodeRuntime(refresh);
+    const paddleOcr = await getPaddleOcrRuntime(refresh);
+    const qwenAudio = await getQwenAudioRuntime(refresh);
+    const agentBrowser = await getAgentBrowserRuntime(refresh);
     return {
       uv: uv,
       bun: bun,

@@ -50,6 +50,84 @@ from paddleocr import PaddleOCRVL
 import paddle
 
 
+class RapidOCRResult:
+    def __init__(self, result: Any, input_path: str) -> None:
+        self.result = result
+        self.input_path = input_path
+
+    def save_to_json(self, save_path: str) -> None:
+        out_dir = Path(save_path)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        stem = Path(self.input_path).stem
+        json_path = out_dir / f"{stem}.json"
+
+        data: Dict[str, Any] = {"input_path": self.input_path, "texts": []}
+        if self.result.txts:
+            for i, txt in enumerate(self.result.txts):
+                item: Dict[str, Any] = {"text": txt}
+                if self.result.scores:
+                    item["score"] = float(self.result.scores[i])
+                if self.result.boxes is not None:
+                    item["box"] = self.result.boxes[i].tolist()
+                data["texts"].append(item)
+
+        with json_path.open("w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+
+    def save_to_markdown(self, save_path: str) -> None:
+        out_dir = Path(save_path)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        stem = Path(self.input_path).stem
+        md_path = out_dir / f"{stem}.md"
+
+        lines: List[str] = []
+        if self.result.txts:
+            for txt in self.result.txts:
+                lines.append(txt)
+
+        with md_path.open("w", encoding="utf-8") as f:
+            f.write("\n".join(lines))
+
+
+class RapidOCRPipeline:
+    def __init__(self, engine: Any) -> None:
+        self._engine = engine
+
+    @staticmethod
+    def _pdf_to_jpg_files(pdf_path: Path) -> List[str]:
+        import pypdfium2 as pdfium
+
+        pages_dir = Path(tempfile.mkdtemp(prefix=f"{pdf_path.stem}_pages_"))
+        pdf = pdfium.PdfDocument(str(pdf_path))
+        image_paths: List[str] = []
+
+        for page_index in range(len(pdf)):
+            page = pdf[page_index]
+            bitmap = page.render(scale=2)
+            pil_image = bitmap.to_pil()
+            image_path = pages_dir / f"{pdf_path.stem}_page_{page_index + 1:04d}.jpg"
+            pil_image.save(image_path, format="JPEG", quality=95)
+            image_paths.append(str(image_path))
+
+        return image_paths
+
+    def predict(self, input: str) -> List[RapidOCRResult]:
+        input_path = Path(input)
+
+        if input_path.suffix.lower() == ".pdf":
+            images = self._pdf_to_jpg_files(input_path)
+            if not images:
+                raise ValueError(f"pdf has no pages: {input}")
+            results = []
+            for image_path in images:
+                result = self._engine(image_path)
+                results.append(RapidOCRResult(result, image_path))
+            return results
+
+        result = self._engine(str(input_path))
+        return [RapidOCRResult(result, input)]
+
+
 class MlxVlmResult:
     def __init__(self, result: Any, input_path: str) -> None:
         self.result = result
@@ -216,6 +294,15 @@ def get_pipeline(device: str, model_id: str = "paddleocr-vl") -> Any:
             logging.info(f"Device: {device}")
             logging.info(f"Has GPU: {hasGPU}")
             _pipeline = PPStructureV3(device="gpu" if hasGPU else device)
+        elif model_id == "rapidocr":
+            print("Using RapidOCR...")
+            logging.info("Using RapidOCR...")
+            logging.info(f"Device: {device}")
+            logging.info(f"Has GPU: {hasGPU}")
+            from rapidocr import RapidOCR
+            engine = RapidOCR()
+            _pipeline = RapidOCRPipeline(engine)
+
         else:
             raise ValueError(f"unknown model_id: {model_id}")
         _model_id = model_id

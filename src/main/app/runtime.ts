@@ -271,7 +271,7 @@ export async function unInstallUVRuntime() {
   await getUVRuntime(true);
 }
 export async function getUVRuntime(refresh = false) {
-  if (uv.status === 'installing' && refresh == false) {
+  if (uv.status === 'installing' || refresh == false) {
     return uv;
   }
   const isWindows = process.platform === 'win32';
@@ -340,11 +340,11 @@ export async function getNodeRuntime(refresh = false) {
 }
 
 export async function getPaddleOcrRuntime(refresh = false) {
-  if (paddleOcr.status === 'installing' && refresh == false) {
+  if (paddleOcr.status === 'installing' || refresh == false) {
     return paddleOcr;
   }
   try {
-    const uvRuntime = await getUVRuntime();
+    const uvRuntime = await getUVRuntime(refresh);
     if (uvRuntime.status !== 'installed') {
       paddleOcr.status = 'not_installed';
       paddleOcr.installed = false;
@@ -420,7 +420,7 @@ export async function installPaddleOcrRuntime() {
 
   let resultInit = await runCommand(
     // `${uv_source} && ${uvPreCommand} init "${paddleOcrDir}" --python=3.10 && ${uvPreCommand} venv "${path.join(paddleOcrDir, '.venv')}" --python=3.10`,
-    `${uv_source} && ${uvPreCommand} init "${paddleOcrDir}" --python=3.12 && ${uvPreCommand} venv "${path.join(paddleOcrDir, '.venv')}" --python=3.12`,
+    `${uv_source} && ${uvPreCommand} init "${paddleOcrDir}" --python=3.12 && ${uvPreCommand} venv "${path.join(paddleOcrDir, '.venv')}" --python=3.12 --seed`,
     {
       cwd: uvRuntime?.dir,
     },
@@ -489,20 +489,20 @@ export async function installPaddleOcrRuntime() {
   }
 
   const result1 = await runCommand(
-    `${uvPreCommand} --project "${paddleOcrDir}" --no-cache pip install "paddleocr[all]" "paddlex[ocr]" ${process.platform === 'darwin' ? 'mlx-vlm' : ''} --python "${activateSourcePython}"`,
+    `${uvPreCommand} --project "${paddleOcrDir}" --no-cache pip install rapidocr onnxruntime "paddleocr[all]" "paddlex[ocr]" ${process.platform === 'darwin' ? 'mlx-vlm' : ''} --python "${activateSourcePython}"`,
     {
       cwd: uvRuntime?.dir,
       // usePowerShell: isWindows,
     },
   );
-  if (result1.code !== 0) {
-    paddleOcr.status = 'not_installed';
-    paddleOcr.installed = false;
-    paddleOcr.path = undefined;
-    paddleOcr.dir = undefined;
-    paddleOcr.version = undefined;
-    return paddleOcr;
-  }
+  // if (result1.code !== 0) {
+  //   paddleOcr.status = 'not_installed';
+  //   paddleOcr.installed = false;
+  //   paddleOcr.path = undefined;
+  //   paddleOcr.dir = undefined;
+  //   paddleOcr.version = undefined;
+  //   return paddleOcr;
+  // }
 
   if (process.platform === 'darwin') {
     const resultInstallMLX = await runCommand(
@@ -556,7 +556,7 @@ export async function uninstallPaddleOcrRuntime() {
 }
 
 export async function getBunRuntime(refresh = false) {
-  if (bun.status === 'installing' && refresh == false) {
+  if (bun.status === 'installing' || refresh == false) {
     return bun;
   }
   const isWindows = process.platform === 'win32';
@@ -575,7 +575,7 @@ export async function getBunRuntime(refresh = false) {
     bun.version = undefined;
     return bun;
   }
-  if (bun.status === 'installed' && refresh == false) {
+  if (bun.status === 'installed' || refresh == false) {
     return bun;
   }
   const result = await runCommand(`${isWindows ? 'bun.exe' : 'bun'} --version`, {
@@ -664,7 +664,7 @@ export async function uninstallBunRuntime() {
 }
 
 export async function getQwenAudioRuntime(refresh = false) {
-  if (qwenAudio.status === 'installing' && refresh == false) {
+  if (qwenAudio.status === 'installing' || refresh == false) {
     return qwenAudio;
   }
   try {
@@ -692,7 +692,7 @@ export async function getQwenAudioRuntime(refresh = false) {
       qwenAudio.version = undefined;
       return qwenAudio;
     }
-    if (qwenAudio.status === 'installed' && refresh == false) {
+    if (qwenAudio.status === 'installed' || refresh == false) {
       return qwenAudio;
     }
     const isWindows = process.platform === 'win32';
@@ -952,7 +952,7 @@ export async function uninstallAgentBrowserRuntime() {
 }
 
 export async function getAgentBrowserRuntime(refresh = false) {
-  if (agentBrowser.status === 'installing' && refresh == false) {
+  if (agentBrowser.status === 'installing' || refresh == false) {
     return agentBrowser;
   }
 
