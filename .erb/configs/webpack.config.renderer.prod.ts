@@ -14,6 +14,7 @@ import baseConfig from './webpack.config.base';
 import webpackPaths from './webpack.paths';
 import checkNodeEnv from '../scripts/check-node-env';
 import deleteSourceMaps from '../scripts/delete-source-maps';
+import { name as appName } from '../../release/app/package.json';
 
 checkNodeEnv('production');
 deleteSourceMaps();
@@ -154,6 +155,9 @@ const configuration: webpack.Configuration = {
     new HtmlWebpackPlugin({
       filename: 'index.html',
       template: path.join(webpackPaths.srcRendererPath, 'index.ejs'),
+      templateParameters: {
+        appName: appName,
+      },
       minify: {
         collapseWhitespace: true,
         removeAttributeQuotes: true,

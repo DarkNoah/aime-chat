@@ -146,7 +146,8 @@
     "force_word_ocr": "强制word使用ocr",
     "disable_vision": "不使用视觉模型",
     "slash_commands": "快捷命令",
-    "results": "结果"
+    "results": "结果",
+    "select_model": "选择一个模型"
   },
   "sidebar": {
     "new_chat": "新聊天",

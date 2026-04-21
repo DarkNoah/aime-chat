@@ -142,7 +142,8 @@
     "request_interrupted_by_user": "Request interrupted by user",
     "env": "ENV",
     "force_word_ocr": "Force word use ocr",
-    "disable_vision": "Disable Vision Model"
+    "disable_vision": "Disable Vision Model",
+    "select_model": "Select a model"
   },
   "sidebar": {
     "new_chat": "New Chat",

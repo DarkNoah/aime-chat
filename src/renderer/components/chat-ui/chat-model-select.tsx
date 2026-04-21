@@ -27,6 +27,7 @@ import {
 import { PromptInputButton } from '../ai-elements/prompt-input';
 import { cn } from '@/renderer/lib/utils';
 import { Button } from '../ui/button';
+import { useTranslation } from 'react-i18next';
 
 export type ChatModelSelectProps = {
   className?: string;
@@ -58,6 +59,7 @@ export const ChatModelSelect = React.forwardRef<
   const [selectedModelData, setSelectedModelData] =
     useState<ProviderModel | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
+  const { t } = useTranslation();
 
   useEffect(() => {
     const getAvailableModels = async () => {
@@ -120,7 +122,7 @@ export const ChatModelSelect = React.forwardRef<
                   )}
                   {selectedModelData?.name === undefined && (
                     <span className="text-muted-foreground">
-                      Select a model
+                      {t('common.select_model')}
                     </span>
                   )}
                 </div>
