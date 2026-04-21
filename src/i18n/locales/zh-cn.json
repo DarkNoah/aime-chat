@@ -230,7 +230,9 @@
     "libsqllisttable": "数据库列表",
     "libsqlrun": "数据库运行",
     "imagetoolkit": "图片工具包",
-    "translation": "翻译"
+    "translation": "翻译",
+    "knowledgebasetoolkit": "知识库",
+    "cronstoolkit": "自动化"
   },
   "agents": {
     "instructions": "系统提示词",

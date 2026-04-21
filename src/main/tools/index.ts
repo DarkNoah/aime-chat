@@ -179,7 +179,7 @@ class ToolsManager extends BaseManager {
     await this.registerBuiltInTool(WebSearch);
     await this.registerBuiltInTool(WebFetch);
 
-    await this.registerBuiltInTool(Vision);
+    // await this.registerBuiltInTool(Vision);
     await this.registerBuiltInTool(ToolToolkit);
     await this.registerBuiltInTool(ImageToolkit);
 
@@ -188,7 +188,7 @@ class ToolsManager extends BaseManager {
     // await this.registerBuiltInTool(EditImage);
     // await this.registerBuiltInTool(RemoveBackground);
     await this.registerBuiltInTool(Agent);
-    await this.registerBuiltInTool(MemoryToolkit);
+    // await this.registerBuiltInTool(MemoryToolkit);
     await this.registerBuiltInTool(Extract);
     await this.registerBuiltInTool(Translation);
     await this.registerBuiltInTool(AudioToolkit);
