@@ -125,7 +125,7 @@ class InstancesManager extends BaseManager {
       }
       if (instanceEntity.type === 'browser') {
         try {
-          const browserInstance = new BrowserInstance({ instances: instance });
+          const browserInstance = new BrowserInstance({ instances: instanceEntity });
           const browserContext = await browserInstance.run();
           this.instanceInfos.set(id, {
             ...instanceEntity,
