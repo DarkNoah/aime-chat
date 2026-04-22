@@ -127,8 +127,8 @@ export class LibSQLRun extends BaseTool {
       .string()
       .describe('The SQL statement to execute. Supports SELECT, INSERT, UPDATE, DELETE, CREATE TABLE, ALTER TABLE, DROP TABLE, etc.'),
     args: z
-      .array(z.union([z.string(), z.number(), z.null()]))
-      .optional()
+      .array(z.union([z.string(), z.number(), z.null(), z.boolean()]))
+      .optional().nullable()
       .describe('Optional positional parameters for the SQL statement (use ? placeholders in the SQL).'),
     format: z
       .enum(['json', 'markdown', 'csv', 'xlsx'])

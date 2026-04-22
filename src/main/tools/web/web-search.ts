@@ -74,151 +74,170 @@ Returns:
       results: [],
       message: undefined,
     };
-    if (config?.providerId) {
-      const provider = await providersManager.get(config?.providerId);
-      if (provider.type === ProviderType.BRAVE_SEARCH) {
-        const webSearchResults = await braveSearch({
-          query,
-          numResults,
-          apiKey: provider.apiKey,
-        });
-        results.results.push(...webSearchResults.results);
-      } else if (provider.type === ProviderType.GOOGLE) {
-        const googleProvider = (await providersManager.getProvider(
-          config?.providerId,
-        )) as GoogleProvider;
-        const googleSearch = googleProvider.google.tools.googleSearch({});
-        const res = await googleSearch.execute(
-          { webSearchQueries: [query] },
-          {
+    try {
+      if (config?.providerId) {
+        const provider = await providersManager.get(config?.providerId);
+        if (provider.type === ProviderType.BRAVE_SEARCH) {
+          const webSearchResults = await braveSearch({
+            query,
+            numResults,
+            apiKey: provider.apiKey,
+          });
+          results.results.push(...webSearchResults.results);
+        } else if (provider.type === ProviderType.GOOGLE) {
+          const googleProvider = (await providersManager.getProvider(
+            config?.providerId,
+          )) as GoogleProvider;
+          const googleSearch = googleProvider.google.tools.googleSearch({});
+          const res = await googleSearch.execute(
+            { webSearchQueries: [query] },
+            {
+              abortSignal: options?.abortSignal,
+              toolCallId: options?.agent?.toolCallId,
+            },
+          );
+          debugger;
+          results.push(...webSearchResults);
+        } else if (provider.type === ProviderType.OPENAI) {
+          const openaiProvider = (await providersManager.getProvider(
+            config?.providerId,
+          )) as OpenAIProvider;
+          const response = await openaiProvider.openaiClient.responses.create({
+            model: 'gpt-5.4',
+            tools: [{ type: 'web_search' }],
+            input: query,
+            include: ['web_search_call.action.sources'],
+          }, {
             abortSignal: options?.abortSignal,
-            toolCallId: options?.agent?.toolCallId,
-          },
-        );
-        debugger;
-        results.push(...webSearchResults);
-      } else if (provider.type === ProviderType.OPENAI) {
-        const openaiProvider = (await providersManager.getProvider(
-          config?.providerId,
-        )) as OpenAIProvider;
-        const response = await openaiProvider.openaiClient.responses.create({
-          model: 'gpt-5.4',
-          tools: [{ type: 'web_search' }],
-          input: query,
-          include: ['web_search_call.action.sources'],
-        }, {
-          abortSignal: options?.abortSignal,
-        });
-        if (options?.abortSignal?.aborted) {
-          return `Task was aborted by the user.`;
+          });
+          if (options?.abortSignal?.aborted) {
+            return `Task was aborted by the user.`;
+          }
+          if (response.output[response.output.length - 1].status == 'completed' && response.output[response.output.length - 1].content?.[0]?.annotations?.length > 0) {
+            results.results.push(...response.output[response.output.length - 1].content?.[0]?.annotations.map((x) => {
+              return {
+                href: x.url,
+                title: x.title
+              };
+            }));
+          }
+          results.message = response?.output_text;
+        } else if (provider.type === ProviderType.ZHIPUAI || provider.type === "zhipuai-coding-plan") {
+          const zhipuaiProvider = (await providersManager.getProvider(
+            config?.providerId,
+          )) as ZhipuAIProvider;
+          const options = {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${zhipuaiProvider.provider.apiKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              search_query: query,
+              search_engine: 'search_std',
+              search_intent: false,
+              count: numResults,
+              // search_domain_filter: '<string>',
+              search_recency_filter: 'noLimit',
+              content_size: 'medium',
+              // request_id: '<string>',
+              // user_id: '<string>',
+            }),
+          };
+
+          const res = await fetch(
+            'https://open.bigmodel.cn/api/paas/v4/web_search',
+            options,
+          );
+          const data = await res.json();
+          results.results.push(
+            ...data.search_result.map((x) => {
+              return {
+                href: x.link || undefined,
+                title: x.title,
+                snippet: x.content,
+              };
+            }),
+          );
+        } else if (provider.type === ProviderType.TAVILY) {
+          const proxy = await appManager.getProxy();
+          const client = tavily({
+            apiKey: provider.apiKey,
+            proxies: {
+              http: 'http://' + proxy,
+              https: 'http://' + proxy,
+            },
+
+            // apiBaseURL: 'https://api.tavily.com',
+          });
+          const response = await client.search(query, {
+            maxResults: numResults,
+          });
+          debugger;
+        } else if (provider.type === ProviderType.JINA_AI) {
+          const proxy = await appManager.getProxy();
+          const url = 'https://s.jina.ai/?q=' + encodeURIComponent(query);
+          const response = await fetch(url, {
+            headers: {
+              Accept: 'application/json',
+              Authorization: `Bearer ${provider.apiKey}`,
+              'X-Respond-With': 'no-content',
+            },
+
+            signal: options?.abortSignal,
+          });
+          const data = await response.json();
+
+          results.results.push(
+            ...data.data.map((x) => {
+              return {
+                title: x.title,
+                href: x.url,
+                snippet: x.description,
+              };
+            }),
+          );
+        } else if (provider.type === ProviderType.SERPAPI) {
+          const response = await getJson({
+            engine: 'google',
+            api_key: provider.apiKey, // Get your API_KEY from https://serpapi.com/manage-api-key
+            q: query,
+
+
+            // location: 'Austin, Texas',
+          });
+          results.results.push(
+            ...response.organic_results.map((x) => {
+              return {
+                title: x.title,
+                href: x.link,
+                snippet: x.snippet,
+              };
+            }),
+          );
         }
-        if (response.output[response.output.length - 1].status == 'completed' && response.output[response.output.length - 1].content?.[0]?.annotations?.length > 0) {
-          results.results.push(...response.output[response.output.length - 1].content?.[0]?.annotations.map((x) => {
-            return {
-              href: x.url,
-              title: x.title
-            };
-          }));
-        }
-        results.message = response?.output_text;
-      } else if (provider.type === ProviderType.ZHIPUAI || provider.type === "zhipuai-coding-plan") {
-        const zhipuaiProvider = (await providersManager.getProvider(
-          config?.providerId,
-        )) as ZhipuAIProvider;
-        const options = {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${zhipuaiProvider.provider.apiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            search_query: query,
-            search_engine: 'search_std',
-            search_intent: false,
-            count: numResults,
-            // search_domain_filter: '<string>',
-            search_recency_filter: 'noLimit',
-            content_size: 'medium',
-            // request_id: '<string>',
-            // user_id: '<string>',
-          }),
-        };
-
-        const res = await fetch(
-          'https://open.bigmodel.cn/api/paas/v4/web_search',
-          options,
-        );
-        const data = await res.json();
-        results.results.push(
-          ...data.search_result.map((x) => {
-            return {
-              href: x.link || undefined,
-              title: x.title,
-              snippet: x.content,
-            };
-          }),
-        );
-      } else if (provider.type === ProviderType.TAVILY) {
-        const proxy = await appManager.getProxy();
-        const client = tavily({
-          apiKey: provider.apiKey,
-          proxies: {
-            http: 'http://' + proxy,
-            https: 'http://' + proxy,
-          },
-
-          // apiBaseURL: 'https://api.tavily.com',
-        });
-        const response = await client.search(query, {
-          maxResults: numResults,
-        });
-        debugger;
-      } else if (provider.type === ProviderType.JINA_AI) {
-        const proxy = await appManager.getProxy();
-        const url = 'https://s.jina.ai/?q=' + encodeURIComponent(query);
-        const response = await fetch(url, {
-          headers: {
-            Accept: 'application/json',
-            Authorization: `Bearer ${provider.apiKey}`,
-            'X-Respond-With': 'no-content',
-          },
-
-          signal: options?.abortSignal,
-        });
-        const data = await response.json();
-
-        results.results.push(
-          ...data.data.map((x) => {
-            return {
-              title: x.title,
-              href: x.url,
-              snippet: x.description,
-            };
-          }),
-        );
-      } else if (provider.type === ProviderType.SERPAPI) {
-        const response = await getJson({
-          engine: 'google',
-          api_key: provider.apiKey, // Get your API_KEY from https://serpapi.com/manage-api-key
-          q: query,
-
-
-          // location: 'Austin, Texas',
-        });
-        results.results.push(
-          ...response.organic_results.map((x) => {
-            return {
-              title: x.title,
-              href: x.link,
-              snippet: x.snippet,
-            };
-          }),
-        );
+      } else {
+        throw new Error('Provider not found');
       }
-    } else {
-      throw new Error('Provider not found');
+      return results;
+    } catch (error) {
+      return await this.fallback(inputData, options);
     }
-    return results;
+
+  };
+
+  fallback = async (
+    inputData: z.infer<typeof this.inputSchema>,
+    options?: ToolExecutionContext,
+  ) => {
+    const { query } = inputData;
+    const config = this.config;
+    const numResults = config?.numResults ?? 20;
+    const results: z.infer<typeof webSearchResultSchema> = {
+      results: [],
+      message: undefined,
+    };
+    return ``
   };
 }
 

@@ -1146,6 +1146,36 @@
           "output": 64000
         }
       },
+      "kimi-k2-6": {
+        "id": "kimi-k2-6",
+        "name": "Kimi-K2.6",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": true,
+        "release_date": "1970-01-01",
+        "last_updated": "1970-01-01",
+        "modalities": {
+          "input": [
+            "text",
+            "image"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0.95,
+          "output": 4,
+          "cache_read": 0.16
+        },
+        "limit": {
+          "context": 256000,
+          "output": 128000
+        }
+      },
       "gpt-5-3-codex": {
         "id": "gpt-5-3-codex",
         "name": "GPT-5.3 Codex",
@@ -27216,6 +27246,41 @@
           "output": 16384
         }
       },
+      "kimi-k2.6": {
+        "id": "kimi-k2.6",
+        "name": "Moonshot Kimi K2.6",
+        "family": "kimi",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "interleaved": {
+          "field": "reasoning_content"
+        },
+        "structured_output": false,
+        "temperature": true,
+        "knowledge": "2025-01",
+        "release_date": "2026-04-21",
+        "last_updated": "2026-04-21",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "video"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 0.929,
+          "output": 3.858
+        },
+        "limit": {
+          "context": 262144,
+          "output": 16384
+        }
+      },
       "qwen3-vl-30b-a3b": {
         "id": "qwen3-vl-30b-a3b",
         "name": "Qwen3-VL 30B-A3B",
@@ -51146,9 +51211,6 @@
         "attachment": true,
         "reasoning": true,
         "tool_call": true,
-        "interleaved": {
-          "field": "reasoning_content"
-        },
         "temperature": true,
         "knowledge": "2025-04",
         "release_date": "2026-04-02",
@@ -51175,7 +51237,7 @@
           "output": 65536
         },
         "provider": {
-          "npm": "@ai-sdk/alibaba"
+          "npm": "@ai-sdk/anthropic"
         }
       },
       "gpt-5.4-mini": {
@@ -51780,6 +51842,35 @@
         },
         "status": "deprecated"
       },
+      "ling-2.6-flash-free": {
+        "id": "ling-2.6-flash-free",
+        "name": "Ling 2.6 Flash Free",
+        "family": "ling-flash-free",
+        "attachment": false,
+        "reasoning": false,
+        "tool_call": true,
+        "temperature": true,
+        "knowledge": "2025-06",
+        "release_date": "2026-04-21",
+        "last_updated": "2026-04-21",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 0,
+          "output": 0
+        },
+        "limit": {
+          "context": 262100,
+          "output": 32800
+        }
+      },
       "gemini-3-pro": {
         "id": "gemini-3-pro",
         "name": "Gemini 3 Pro",
@@ -52175,9 +52266,6 @@
         "attachment": true,
         "reasoning": true,
         "tool_call": true,
-        "interleaved": {
-          "field": "reasoning_content"
-        },
         "temperature": true,
         "knowledge": "2025-04",
         "release_date": "2026-02-16",
@@ -52204,7 +52292,7 @@
           "output": 65536
         },
         "provider": {
-          "npm": "@ai-sdk/alibaba"
+          "npm": "@ai-sdk/anthropic"
         }
       },
       "mimo-v2-pro-free": {
@@ -62989,9 +63077,9 @@
         },
         "open_weights": false,
         "cost": {
-          "input": 7.5e-7,
-          "output": 0.0000045,
-          "cache_read": 7.5e-8
+          "input": 0.75,
+          "output": 4.5,
+          "cache_read": 0.075
         },
         "limit": {
           "context": 400000,
@@ -63086,9 +63174,9 @@
         },
         "open_weights": false,
         "cost": {
-          "input": 2e-7,
-          "output": 0.00000125,
-          "cache_read": 2e-8
+          "input": 0.2,
+          "output": 1.25,
+          "cache_read": 0.02
         },
         "limit": {
           "context": 400000,
@@ -119985,9 +120073,6 @@
         "attachment": true,
         "reasoning": true,
         "tool_call": true,
-        "interleaved": {
-          "field": "reasoning_content"
-        },
         "temperature": true,
         "knowledge": "2025-04",
         "release_date": "2026-04-02",
@@ -120014,7 +120099,7 @@
           "output": 65536
         },
         "provider": {
-          "npm": "@ai-sdk/alibaba"
+          "npm": "@ai-sdk/anthropic"
         }
       },
       "glm-5.1": {
@@ -120163,9 +120248,6 @@
         "attachment": true,
         "reasoning": true,
         "tool_call": true,
-        "interleaved": {
-          "field": "reasoning_content"
-        },
         "temperature": true,
         "knowledge": "2025-04",
         "release_date": "2026-02-16",
@@ -120192,7 +120274,7 @@
           "output": 65536
         },
         "provider": {
-          "npm": "@ai-sdk/alibaba"
+          "npm": "@ai-sdk/anthropic"
         }
       }
     }

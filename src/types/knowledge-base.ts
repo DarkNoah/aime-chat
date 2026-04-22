@@ -16,13 +16,20 @@ export enum KnowledgeBaseSourceType {
   Text = 'text',
 }
 
+
+export type KnowledgeBaseVectorStoreConfig = {
+  extendColumns?: { columnType: 'text' | 'blob' | 'number' | 'boolean', name: string }[]
+}
+
+
+
 export type KnowledgeBase = {
   id: string;
   name: string;
   description?: string;
   tags?: string[];
   vectorStoreType?: VectorStoreType;
-  vectorStoreConfig?: any;
+  vectorStoreConfig?: KnowledgeBaseVectorStoreConfig;
   embedding?: string;
   embeddingProvider?: string;
   reranker?: string;
@@ -31,7 +38,7 @@ export type KnowledgeBase = {
 
 export type CreateKnowledgeBase = UpdateKnowledgeBase & {
   vectorStoreType?: VectorStoreType;
-  vectorStoreConfig?: any;
+  vectorStoreConfig?: KnowledgeBaseVectorStoreConfig;
   embedding?: string;
 };
 

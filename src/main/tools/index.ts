@@ -956,7 +956,7 @@ class ToolsManager extends BaseManager {
       }
       let buildedTool = await this.buildTool(
         toolEntity.id as `${ToolType.BUILD_IN}:${string}`,
-        { ...toolKitConfig, ...(subToolEntity.value ?? {}) }
+        { ...toolKitConfig, ...(subToolEntity?.value ?? {}) }
       );
 
       if (Array.isArray(buildedTool)) {

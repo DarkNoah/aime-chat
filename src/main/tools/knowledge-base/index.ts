@@ -3,7 +3,7 @@ import BaseTool, { BaseToolParams } from "../base-tool";
 import BaseToolkit, { BaseToolkitParams } from "../base-toolkit";
 import { ToolExecutionContext } from "@mastra/core/tools";
 import { z, ZodSchema } from "zod";
-import { KnowledgeBaseSourceType, SearchKnowledgeBaseItemResult } from "@/types/knowledge-base";
+import { CreateKnowledgeBase, KnowledgeBaseSourceType, SearchKnowledgeBaseItemResult, VectorStoreType } from "@/types/knowledge-base";
 
 
 
@@ -105,6 +105,39 @@ export class KnowledgeBaseAdd extends BaseTool {
     }
 
     const knowledgeBase = await knowledgeBaseManager.importSource({ kbId: knowledge_base_source, source, type });
+    return { success: true };
+  }
+}
+
+export class KnowledgeBaseCreate extends BaseTool {
+  static readonly toolName = 'KnowledgeBaseCreate';
+  id: string = 'KnowledgeBaseCreate';
+  description = `Create a knowledge base.
+`;
+
+  inputSchema = z.object({
+    name: z.string().describe('Knowledge base name'),
+    description: z.string().optional(),
+    extendColumns: z.array(z.object({ columnType: z.enum(['text', 'blob', 'number', 'boolean']), name: z.string() })).optional(),
+  });
+
+  constructor(params?: BaseToolParams) {
+    super(params);
+  }
+
+  execute = async (inputData: z.infer<typeof this.inputSchema>, options?: ToolExecutionContext<ZodSchema, any>) => {
+    const { name, description, extendColumns = [] } = inputData;
+    const { writer } = options;
+    const data: CreateKnowledgeBase = {
+      name,
+      description,
+      vectorStoreType: VectorStoreType.LibSQL,
+      vectorStoreConfig: {
+        extendColumns: extendColumns.map(x => ({ columnType: x.columnType, name: x.name }))
+      }
+    }
+    const knowledgeBase = await knowledgeBaseManager.createKnowledgeBase(data);
+
     return { success: true };
   }
 }
