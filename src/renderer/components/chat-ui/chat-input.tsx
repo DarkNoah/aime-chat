@@ -10,6 +10,7 @@ import {
   SirenIcon,
   SquareIcon,
   WrenchIcon,
+  ShieldUserIcon,
 } from 'lucide-react';
 import { ChatSlashCommand } from './chat-slash-command';
 import {
@@ -86,6 +87,7 @@ import {
 } from '../ai-elements/model-selector';
 import { ChatSlashCommandConfig } from '@/types/chat';
 import { Badge } from '../ui/badge';
+import { ChatUntilEnd } from './chat-until-end';
 
 const DRAFT_STORAGE_KEY = 'chat-input-drafts';
 
@@ -137,8 +139,10 @@ export type ChatInputProps = Omit<PromptInputProps, 'onSubmit'> & {
   showModelSelect?: boolean;
   showToolSelector?: boolean;
   showAgentSelector?: boolean;
+  showUntilEnd?: boolean;
   model?: string;
   onModelChange?: (model: string) => void;
+  onUntilEndChange?: (untilEndPrompt: string) => void;
   requireToolApproval?: boolean;
   onRequireToolApprovalChange?: (requireToolApproval: boolean) => void;
   prompts?: string[];
@@ -152,6 +156,7 @@ export interface ChatInputRef {
   setTools: (toolNames: string[]) => void;
   setSubAgents: (subAgentIds: string[]) => void;
   setThink: (think: boolean) => void;
+  setUntilEndPrompt: (untilEndPrompt: string) => void;
   getTools: () => string[];
 }
 
@@ -172,9 +177,11 @@ function ChatInputInner(props: ChatInputInnerProps) {
     showModelSelect = false,
     showToolSelector = false,
     showAgentSelector = false,
+    showUntilEnd = false,
     showThink = false,
     model,
     onModelChange,
+    onUntilEndChange,
     requireToolApproval: requireToolApprovalProp,
     onRequireToolApprovalChange,
     prompts,
@@ -209,6 +216,7 @@ function ChatInputInner(props: ChatInputInnerProps) {
   const [think, setThink] = useState(false);
   const [tools, setTools] = useState<string[]>([]);
   const [subAgents, setSubAgents] = useState<string[]>([]);
+  const [untilEndPrompt, setUntilEndPrompt] = useState<string>();
   const [requireToolApproval, setRequireToolApproval] = useState<boolean>(
     requireToolApprovalProp ?? false,
   );
@@ -234,6 +242,9 @@ function ChatInputInner(props: ChatInputInnerProps) {
     },
     setTools: (toolNames: string[]) => {
       setTools(toolNames ?? []);
+    },
+    setUntilEndPrompt: (_untilEndPrompt: string) => {
+      setUntilEndPrompt(_untilEndPrompt ?? '');
     },
     getTools: () => {
       return tools;
@@ -363,6 +374,24 @@ function ChatInputInner(props: ChatInputInnerProps) {
                   </div>
                 </ChatAgentSelector>
               )}
+              {showUntilEnd && (
+                <ChatUntilEnd
+                  value={untilEndPrompt}
+                  onChange={(v) => {
+                    setUntilEndPrompt(v);
+                    onUntilEndChange?.(v);
+                  }}
+                >
+                  <PromptInputButton
+                    size="icon-xs"
+                    variant={
+                      untilEndPrompt?.trim()?.length > 0 ? 'default' : 'ghost'
+                    }
+                  >
+                    <ShieldUserIcon size={16} />
+                  </PromptInputButton>
+                </ChatUntilEnd>
+              )}
               <Tooltip>
                 <TooltipTrigger asChild>
                   <PromptInputButton
@@ -389,6 +418,7 @@ function ChatInputInner(props: ChatInputInnerProps) {
                   className="max-w-[200px] @lg:w-[150px] @md:w-[100px] @sm:w-[32px] w-[32px]"
                 ></ChatModelSelect>
               )}
+
               <Separator orientation="vertical" />
               {onClearMessages && (
                 <AlertDialog>

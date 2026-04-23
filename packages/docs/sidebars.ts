@@ -41,6 +41,7 @@ const sidebars: SidebarsConfig = {
           label: '频道管理',
           items: ['features/channels/telegram', 'features/channels/wechat'],
         },
+        'features/crons',
         'features/agents',
         'features/mcp',
         'features/ptc',

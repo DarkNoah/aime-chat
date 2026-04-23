@@ -205,12 +205,15 @@ export const ChatToolResultPreview = React.forwardRef<
                 })}
               <ChatMessageAttachments className="mt-2 ml-0">
                 {part.output.content
-                  .filter((item: any) => item.type === 'image')
+                  .filter(
+                    (item: any) =>
+                      item.type === 'image' || item.type === 'video',
+                  )
                   .map((p, i) => {
                     return (
                       <ChatMessageAttachment
                         data={p}
-                        key={`${part.toolCallId}-image-${i}`}
+                        key={`${part.toolCallId}-${p.type}-${i}`}
                       />
                     );
                   })}

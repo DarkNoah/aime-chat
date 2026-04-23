@@ -226,7 +226,13 @@
     "force-return-full-content": "Force Return Full Content",
     "new_knowledge-base": "New Knowledge Base",
     "vector-store-type": "Vector Store Type",
-    "embedding": "Embedding"
+    "embedding": "Embedding",
+    "extend-columns": "Extend Columns",
+    "extend-columns-desc": "Add custom columns to the vector table",
+    "column-name": "Column Name",
+    "column-type": "Type",
+    "add-column": "Add Column",
+    "column-name-placeholder": "Enter column name"
   },
   "setup": {
     "welcome": {

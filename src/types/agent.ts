@@ -6,6 +6,7 @@ export type BuildAgentParams = {
   subAgents?: string[];
   modelId: string;
   requestContext?: RequestContext<ChatRequestContext>;
+  instructions?: string;
 };
 
 export type Agent = {

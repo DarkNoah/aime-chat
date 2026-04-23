@@ -71,6 +71,7 @@ export type SearchKnowledgeBaseItemResult = {
   name?: string;
   source?: string;
   sourceType?: KnowledgeBaseSourceType;
+  extendValues?: Record<string, any>;
 };
 
 export enum KnowledgeBaseEvent {

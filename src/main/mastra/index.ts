@@ -531,6 +531,7 @@ class MastraManager extends BaseManager {
       approved,
       toolCallId,
       resumeData,
+      untilEndPrompt,
     } = data;
     let { model } = data;
     console.log('Chat Input', data);
@@ -557,9 +558,9 @@ class MastraManager extends BaseManager {
     // for (const uiMessage of uiMessages) {
     //   delete uiMessage.id;
     // }
-    const fastModel = appInfo?.defaultModel?.fastModel;
+    const fastModel = appInfo?.defaultModel?.fastModel ?? model;
     const fastLanguageModel = (await providersManager.getLanguageModel(
-      fastModel || model,
+      fastModel,
     )) as LanguageModelV2;
 
     const inputMessage = uiMessages[uiMessages.length - 1];
@@ -605,6 +606,7 @@ class MastraManager extends BaseManager {
           subAgents,
           agentId: agentId,
           model: model,
+          untilEndPrompt: untilEndPrompt,
           modelId: `${providerType}:${modelId}`,
           requireToolApproval,
           workspace,
@@ -650,6 +652,7 @@ class MastraManager extends BaseManager {
         'maxContextSize',
         modelInfo?.limit?.context ?? 64 * 1000,
       );
+      requestContext.set('untilEndPrompt', untilEndPrompt);
       requestContext.set('usage', usage);
 
 
@@ -1157,61 +1160,12 @@ class MastraManager extends BaseManager {
       currentThread = await memoryStore.getThreadById({ threadId: chatId });
       if (currentThread.title == DEFAULT_TITLE) {
         try {
-
-          //                     const titleAgent = new DefaultAgent({});
-          //                     titleAgent.instructions = ({ requestContext, mastra }) => {
-          //                       return `- you will generate a short title based on the first message a user begins a conversation with
-          // - ensure it is not more than 80 characters long
-          // - the title should be a summary of the user's message
-          // - do not use quotes or colons
-          // - the entire text you return will be used as the title.`;
-          //                     };
-          const titleAgentInstance = await agentManager.buildAgent(DefaultAgent.agentName, {
-            modelId: fastModel,
-          });
-
-          const title = await titleAgentInstance.generate([
-            {
-              role: 'system', content: `- you will generate a short title based on the first message a user begins a conversation with
-- ensure it is not more than 80 characters long
-- the title should be a summary of the user's message
-- do not use quotes or colons
-- the entire text you return will be used as the title.` },
-            { role: 'user', content: inputMessage?.parts[0]?.text }]);
-          if (!title.text) {
-            throw new Error('title generation failed');
-          }
-          currentThread = await memoryStore.updateThread({
-            id: chatId,
-            title: title.text.replaceAll('\n', '').trim(),
-            metadata: currentThread.metadata,
-          });
-
-          await callback?.onThreadChanged?.({
-            id: chatId,
-            title: title.text.replaceAll('\n', '').trim(),
-            status: 'idle',
-          });
-
-          appManager.sendEvent(ChatEvent.ChatChanged, {
-            data: { type: ChatChangedType.TitleUpdated, chatId, title },
-          });
-
-          appManager.sendEvent(`chat:event:${chatId}`, {
-            type: ChatEvent.ChatChanged,
-            data: { type: ChatChangedType.TitleUpdated, chatId, title },
-          });
+          this.generateTitle({ modelId: model, userMessage: inputMessage?.parts[0]?.text, chatId, callback });
         } catch (err) {
-
-
           console.error(err)
         }
-
       }
-
     }
-
-    // const response = createUIMessageStreamResponse({ stream: stream_2 });
   }
 
   public async nextStep(
@@ -1271,7 +1225,9 @@ class MastraManager extends BaseManager {
     });
 
     const uiStreamReader = uiStream.getReader();
-    let cache = [];
+    let cache = {
+      textDelta: {}
+    };
     while (true) {
       const { done, value } = await uiStreamReader.read();
       if (done) {
@@ -1314,14 +1270,37 @@ class MastraManager extends BaseManager {
 
       }
 
-      // console.log('Stream chunk:', value);
-      // if (cache.length > 0 && cache[cache.length - 1]?.type == value.type) {
-
-
-
-      // } else {
-      //   cache = [value];
+      // if (value.type == "text-delta") {
+      //   if (cache.textDelta[value.id]) {
+      //     cache.textDelta[value.id].push(value.delta);
+      //   } else {
+      //     cache.textDelta[value.id] = [value.delta];
+      //   }
       // }
+
+      // if (cache.textDelta && Object.keys(cache.textDelta).length > 0) {
+      //   for (const id of Object.keys(cache.textDelta)) {
+      //     const textDeltas = cache.textDelta[id]
+      //     if (textDeltas.length > 10 || value.type != "text-delta") {
+      //       if (textDeltas.length > 0) {
+      //         appManager.sendEvent(`chat:event:${chatId}`, {
+      //           type: ChatEvent.ChatChunk,
+      //           data: JSON.stringify({
+      //             type: 'text-delta',
+      //             id: id,
+      //             delta: textDeltas.join(''),
+      //           }),
+      //         });
+      //       }
+      //       delete cache.textDelta[id];
+      //     }
+      //   }
+      //   continue;
+      // }
+
+
+      console.log('Stream chunk:', value);
+
 
       appManager.sendEvent(`chat:event:${chatId}`, {
         type: ChatEvent.ChatChunk,
@@ -1492,7 +1471,52 @@ ${compressedMessage}
     return injectedMessages;
   }
 
+  public async generateTitle(data: { modelId: string, userMessage: string, chatId: string, callback?: ChatCallbackEvent }) {
+    const { modelId, userMessage, chatId, callback } = data;
+    const titleAgentInstance = await agentManager.buildAgent(DefaultAgent.agentName, {
+      modelId: modelId,
+      instructions: `You will generate a short title based on the first message a user begins a conversation with
+- ensure it is not more than 80 characters long
+- the title should be a summary of the user's message
+- do not use quotes or colons
+- the entire text you return will be used as the title.`
+    });
 
+
+    const title = await titleAgentInstance.generate([
+
+      { role: 'user', content: data.userMessage }]);
+
+    const titleText = title.text.replaceAll('\n', '').trim();
+    if (!titleText) {
+      throw new Error('title generation failed');
+    }
+    const storage = this.mastra.getStorage();
+    const memoryStore = await storage.getStore('memory');
+    let currentThread = await memoryStore.getThreadById({ threadId: chatId });
+
+    currentThread = await memoryStore.updateThread({
+      id: chatId,
+      title: titleText,
+      metadata: currentThread.metadata,
+    });
+
+    await callback?.onThreadChanged?.({
+      id: chatId,
+      title: titleText,
+      status: 'idle',
+    });
+
+    appManager.sendEvent(ChatEvent.ChatChanged, {
+      data: { type: ChatChangedType.TitleUpdated, chatId, title: titleText },
+    });
+
+    appManager.sendEvent(`chat:event:${chatId}`, {
+      type: ChatEvent.ChatChanged,
+      data: { type: ChatChangedType.TitleUpdated, chatId, title: titleText },
+    });
+
+  }
 
 
 

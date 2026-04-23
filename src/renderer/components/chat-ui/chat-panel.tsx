@@ -278,6 +278,18 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
         });
       }
     };
+    const handleUntilEndChanged = async (_untilEndPrompt: string) => {
+      if (threadId && threadState) {
+        await window.electron.mastra.updateThread(threadId, {
+          title: threadState?.title,
+          metadata: {
+            ...threadState?.metadata,
+            untilEndPrompt: _untilEndPrompt,
+          },
+        });
+      }
+      chatInputRef.current?.setUntilEndPrompt(_untilEndPrompt);
+    };
 
     const handleSubmit = async (
       message: PromptInputMessage,
@@ -286,6 +298,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
         model?: string;
         webSearch?: boolean;
         think?: boolean;
+        untilEndPrompt?: string;
         tools?: string[];
         subAgents?: string[];
         requireToolApproval?: boolean;
@@ -323,6 +336,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
         tools: options?.tools,
         subAgents: options?.subAgents,
         think: options?.think,
+        untilEndPrompt: options?.untilEndPrompt,
         requireToolApproval: options?.requireToolApproval,
         runId,
         threadId,
@@ -362,6 +376,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
       chatInputRef.current?.setTools([]);
       chatInputRef.current?.setSubAgents([]);
       chatInputRef.current?.setThink(true);
+      chatInputRef.current?.setUntilEndPrompt('');
       setSuggestions(undefined);
       setRequireToolApproval(false);
       setHistoryMessages([]);
@@ -426,6 +441,9 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
               modelId?: string;
               maxTokens: number;
             },
+          );
+          chatInputRef.current?.setUntilEndPrompt(
+            _thread?.metadata?.untilEndPrompt as string,
           );
           let _agent: Agent | undefined;
           if (_thread?.metadata?.agentId) {
@@ -879,6 +897,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
             // showWebSearch
             showToolSelector
             showAgentSelector
+            showUntilEnd
             showThink
             model={modelId}
             onModelChange={handleModelChanged}
@@ -888,6 +907,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
             threadId={threadId}
             onSubmit={handleSubmit}
             onAbort={handleAbort}
+            onUntilEndChange={handleUntilEndChanged}
             status={threadState?.status}
             className="flex-1 h-full"
           ></ChatInput>

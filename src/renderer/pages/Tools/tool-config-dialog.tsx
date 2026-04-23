@@ -77,6 +77,7 @@ export function ToolConfigDialog({
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [data, setData] = useState<any>(null);
+
   const handleSubmit = async (e: any) => {
     console.log(e);
     onSubmit?.(e);
@@ -91,8 +92,9 @@ export function ToolConfigDialog({
     const getToolConfig = async () => {
       if (toolId && open) {
         const tool = await window.electron.tools.getTool(toolId);
-        console.log(tool);
-        setData(tool.value);
+        const result = configSchema.parse(tool.value);
+        console.log(tool, result);
+        setData(result);
       }
     };
     getToolConfig();

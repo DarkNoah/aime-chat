@@ -271,7 +271,7 @@ export class KnowledgeBaseManager extends BaseManager {
     };
   }
   @channel(KnowledgeBaseChannel.SearchKnowledgeBase)
-  public async searchKnowledgeBase(kb_id_or_name: string, query: string, fileTpye: 'text' | 'image' = 'text', top_k: number = 10): Promise<SearchKnowledgeBaseResult> {
+  public async searchKnowledgeBase(kb_id_or_name: string, query: string, fileTpye: 'text' | 'image' = 'text', filter?: string, top_k: number = 10): Promise<SearchKnowledgeBaseResult> {
     const kb = await this.knowledgeBaseRepository.findOne({ where: [{ id: kb_id_or_name }, { name: kb_id_or_name }] });
     if (!kb) {
       throw new Error('Knowledge base not found');
@@ -313,7 +313,7 @@ export class KnowledgeBaseManager extends BaseManager {
       embeddings = await this.calcEmbeddings(kb.embedding, [], [query]);
     }
 
-
+    const { vectorStoreConfig } = kb;
 
 
     const vectorStr = embeddings?.text_embeddings?.[0] || embeddings?.image_embeddings?.[0];
@@ -328,8 +328,9 @@ export class KnowledgeBaseManager extends BaseManager {
           metadata,
           "type",
           vector_extract(embedding) as embedding
+          ${vectorStoreConfig?.extendColumns?.length > 0 ? "," + vectorStoreConfig?.extendColumns?.map(x => `"${x.name}"`).join(',\n') : ''}
         FROM [kb_${kb.id}_${kb.vectorLength}]
-        WHERE is_enable = 1
+        WHERE is_enable = 1 ${vectorStoreConfig?.extendColumns?.length > 0 && filter ? 'AND (' + filter + ')' : ''}
       )
       SELECT *
       FROM vector_scores
@@ -351,8 +352,9 @@ export class KnowledgeBaseManager extends BaseManager {
             metadata,
             "type",
             vector_extract(embedding) as embedding
+            ${vectorStoreConfig?.extendColumns?.length > 0 ? "," + vectorStoreConfig?.extendColumns?.map(x => `"${x.name}"`).join(',\n') : ''}
           FROM [kb_${kb.id}_${kb.vectorLength}]
-          WHERE is_enable = 1
+          WHERE is_enable = 1 ${vectorStoreConfig?.extendColumns?.length > 0 && filter ? 'AND (' + filter + ')' : ''}
         )
         SELECT *
         FROM vector_scores
@@ -401,6 +403,12 @@ export class KnowledgeBaseManager extends BaseManager {
 
     const _results: SearchKnowledgeBaseItemResult[] = results.rows.map(item => {
       const kbitem = items.find(x => x.id === item.item_id)
+      const extendValues = {};
+      if (vectorStoreConfig?.extendColumns?.length > 0) {
+        for (const x of vectorStoreConfig?.extendColumns ?? []) {
+          extendValues[x.name] = item[x.name];
+        }
+      }
       return {
         id: item.id as string,
         itemId: item.item_id as string,
@@ -413,6 +421,7 @@ export class KnowledgeBaseManager extends BaseManager {
         source: kbitem.source,
         sourceType: kbitem.sourceType as KnowledgeBaseSourceType,
         content: kbitem.content,
+        extendValues: extendValues
       }
     });
 
@@ -478,8 +487,9 @@ export class KnowledgeBaseManager extends BaseManager {
     kbId: string;
     source: any;
     type: KnowledgeBaseSourceType;
+    extendColumns?: { column: string, value: any }[];
   }) {
-    const { kbId, source, type } = data;
+    const { kbId, source, type, extendColumns = [] } = data;
     const kb = await this.knowledgeBaseRepository.findOneBy({ id: kbId });
     if (!kb) {
       throw new Error('Knowledge base not found');
@@ -518,7 +528,7 @@ export class KnowledgeBaseManager extends BaseManager {
       groupId: `kb-import-${kbId}`,
       type: 'kb-import',
       name: taskName,
-      data: { kbId, source, type, kbName: kb.name },
+      data: { kbId, source, type, kbName: kb.name, extendColumns: extendColumns },
       groupMaxConcurrency: 1,
     });
 
@@ -532,10 +542,11 @@ export class KnowledgeBaseManager extends BaseManager {
     task: BackgroundTask,
     ctx: TaskContext,
   ): Promise<void> {
-    const { kbId, source, type } = task.data as {
+    const { kbId, source, type, extendColumns = [] } = task.data as {
       kbId: string;
       source: any;
       type: KnowledgeBaseSourceType;
+      extendColumns: { column: string, value: any }[];
     };
 
     const kb = await this.knowledgeBaseRepository.findOneBy({ id: kbId });
@@ -576,16 +587,11 @@ export class KnowledgeBaseManager extends BaseManager {
         console.log(source);
         const { text_embeddings: embeddings } = await this.calcEmbeddings(kb.embedding, chunks.map((chunk) => chunk.text));
 
-        // const { embeddings } = await embedMany({
-        //   model: await providersManager.getEmbeddingModel(kb.embedding),
-        //   values: chunks.map((chunk) => chunk.text),
-        // });
-
         const insertStatements = chunks.map((chunk, index) => {
           const embedding = embeddings[index];
           return {
-            sql: `INSERT INTO [kb_${kbId}_${kb.vectorLength}] (id, item_id, chunk, is_enable, type, embedding, metadata)
-        VALUES (?, ?, ?, ?, ?, vector32(?), ?)`,
+            sql: `INSERT INTO [kb_${kbId}_${kb.vectorLength}] (id, item_id, chunk, is_enable, type, embedding, metadata${extendColumns.length > 0 ? ', ' + extendColumns.map(x => `"${x.column}"`).join(', ') : ''})
+        VALUES (?, ?, ?, ?, ?, vector32(?), ? ${extendColumns.length > 0 ? ', ' + extendColumns.map(x => `?`).join(', ') : ''})`,
             args: [
               nanoid(),
               item.id,
@@ -594,6 +600,7 @@ export class KnowledgeBaseManager extends BaseManager {
               'text',
               JSON.stringify(embedding),
               JSON.stringify(chunk.metadata ?? {}),
+              ...extendColumns.map(x => x.value),
             ],
           };
         });
@@ -648,18 +655,14 @@ export class KnowledgeBaseManager extends BaseManager {
           overlap: 50,
           separators: ["\n"],
           extract: {
-            metadata: true, // Optionally extract metadata
+            metadata: true,
           },
         });
 
-        // const { embeddings } = await embedMany({
-        //   model: await providersManager.getEmbeddingModel(kb.embedding),
-        //   values: chunks.map((chunk) => chunk.text.replaceAll(/\0/g, '')),
-        // });
         const { text_embeddings: embeddings } = await this.calcEmbeddings(kb.embedding, chunks.map((chunk) => chunk.text));
         const insertStatements = chunks.map((chunk, index) => ({
-          sql: `INSERT INTO [kb_${kbId}_${kb.vectorLength}] (id, item_id, chunk, is_enable, type, embedding, metadata)
-        VALUES (?, ?, ?, ?, ?, vector32(?), ?)`,
+          sql: `INSERT INTO [kb_${kbId}_${kb.vectorLength}] (id, item_id, chunk, is_enable, type, embedding, metadata${extendColumns.length > 0 ? ', ' + extendColumns.map(x => `"${x.column}"`).join(', ') : ''})
+        VALUES (?, ?, ?, ?, ?, vector32(?), ? ${extendColumns.length > 0 ? ', ' + extendColumns.map(x => `?`).join(', ') : ''})`,
           args: [
             nanoid(),
             item.id,
@@ -668,6 +671,7 @@ export class KnowledgeBaseManager extends BaseManager {
             'text',
             JSON.stringify(embeddings[index]),
             JSON.stringify(chunk.metadata ?? {}),
+            ...extendColumns.map(x => x.value),
           ],
         }));
         await this.libSQLClient.batch(insertStatements);
@@ -740,7 +744,7 @@ export class KnowledgeBaseManager extends BaseManager {
             }).execute({
               file_source: file,
               args: {}
-            });
+            }, {});
           } else {
             content = await fs.promises.readFile(file, 'utf-8');
           }
@@ -775,8 +779,8 @@ export class KnowledgeBaseManager extends BaseManager {
           if (chunks && chunks.length > 0) {
             for (const [chunkIndex, chunk] of Object.entries(chunks)) {
               insertStatements.push({
-                sql: `INSERT INTO [kb_${kbId}_${kb.vectorLength}] (id, item_id, chunk, is_enable, type, embedding, metadata)
-              VALUES (?, ?, ?, ?, ?, vector32(?), ?)`,
+                sql: `INSERT INTO [kb_${kbId}_${kb.vectorLength}] (id, item_id, chunk, is_enable, type, embedding, metadata${extendColumns.length > 0 ? ', ' + extendColumns.map(x => `"${x.column}"`).join(', ') : ''})
+              VALUES (?, ?, ?, ?, ?, vector32(?), ? ${extendColumns.length > 0 ? ', ' + extendColumns.map(x => `?`).join(', ') : ''})`,
                 args: [
                   nanoid(),
                   item.id,
@@ -785,6 +789,7 @@ export class KnowledgeBaseManager extends BaseManager {
                   'text',
                   JSON.stringify(embeddings.text_embeddings[chunkIndex]),
                   JSON.stringify(chunk.metadata ?? {}),
+                  ...extendColumns.map(x => x.value),
                 ],
               });
             }
@@ -800,8 +805,8 @@ export class KnowledgeBaseManager extends BaseManager {
             };
             item = await this.knowledgeBaseItemRepository.save(item);
             insertStatements.push({
-              sql: `INSERT INTO [kb_${kbId}_${kb.vectorLength}] (id, item_id, chunk, is_enable, type, embedding, metadata)
-              VALUES (?, ?, ?, ?, ?, vector32(?), ?)`,
+              sql: `INSERT INTO [kb_${kbId}_${kb.vectorLength}] (id, item_id, chunk, is_enable, type, embedding, metadata${extendColumns.length > 0 ? ', ' + extendColumns.map(x => `"${x.column}"`).join(', ') : ''})
+              VALUES (?, ?, ?, ?, ?, vector32(?), ? ${extendColumns.length > 0 ? ', ' + extendColumns.map(x => `?`).join(', ') : ''})`,
               args: [
                 nanoid(),
                 item.id,
@@ -812,6 +817,7 @@ export class KnowledgeBaseManager extends BaseManager {
                 JSON.stringify({
                   mimeType: mime.lookup(file),
                 }),
+                ...extendColumns.map(x => x.value),
               ],
             });
           }

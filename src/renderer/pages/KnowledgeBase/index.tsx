@@ -33,12 +33,13 @@ import {
 import {
   CreateKnowledgeBase,
   KnowledgeBase,
+  KnowledgeBaseVectorStoreConfig,
   UpdateKnowledgeBase,
   VectorStoreType,
 } from '@/types/knowledge-base';
 import { FieldGroup } from '@/renderer/components/ui/field';
 import { useTranslation } from 'react-i18next';
-import { Controller, useForm } from 'react-hook-form';
+import { Controller, useFieldArray, useForm } from 'react-hook-form';
 import {
   Form,
   FormControl,
@@ -91,7 +92,7 @@ function KnowledgeBasePage() {
   const [kbs, setKbs] = useState<KnowledgeBase[]>([]);
   const [currentKb, setCurrentKb] = useState<KnowledgeBase | null>(null);
 
-  const form = useForm<CreateKnowledgeBase | UpdateKnowledgeBase>({
+  const form = useForm<CreateKnowledgeBase & { extendColumns?: { name: string; columnType: string }[] } | UpdateKnowledgeBase>({
     mode: 'onChange',
     defaultValues: {
       name: '',
@@ -99,7 +100,13 @@ function KnowledgeBasePage() {
       vectorStoreType: VectorStoreType.LibSQL,
       embedding: '',
       forceReturnFullContent: false,
+      extendColumns: [],
     },
+  });
+
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: 'extendColumns' as any,
   });
   const getData = async () => {
     setLoading(true);
@@ -121,6 +128,7 @@ function KnowledgeBasePage() {
     embedding: string;
     reranker?: string;
     forceReturnFullContent?: boolean;
+    extendColumns?: { name: string; columnType: string }[];
   }) => {
     if (submitting) return;
     try {
@@ -134,6 +142,11 @@ function KnowledgeBasePage() {
             forceReturnFullContent: values.forceReturnFullContent || false,
           });
         } else {
+          const extendColumns = values.extendColumns?.filter(col => col.name?.trim());
+          const vectorStoreConfig: KnowledgeBaseVectorStoreConfig | undefined =
+            extendColumns && extendColumns.length > 0
+              ? { extendColumns: extendColumns.map(col => ({ name: col.name.trim(), columnType: col.columnType as 'text' | 'blob' | 'number' | 'boolean' })) }
+              : undefined;
           const kb = await window.electron.knowledgeBase.create({
             name: values.name.trim(),
             description: values.description?.trim() || '',
@@ -141,6 +154,7 @@ function KnowledgeBasePage() {
             embedding: values.embedding.trim(),
             reranker: values.reranker?.trim() || '',
             forceReturnFullContent: values.forceReturnFullContent || false,
+            ...(vectorStoreConfig ? { vectorStoreConfig } : {}),
           });
           console.log(kb);
           navigate(`/knowledge-base/${kb.id}`);
@@ -295,16 +309,73 @@ function KnowledgeBasePage() {
                                   {...field}
                                   className="border w-full"
                                 ></ChatModelSelect>
-                                {/* <Input
-                              id="kb-embedding"
-                              placeholder="例如：text-embedding-3-large"
-                              {...field}
-                            /> */}
                               </FormControl>
                               <FormMessage />
                             </FormItem>
                           )}
                         />
+
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <Label className="text-sm font-medium">
+                              {t('knowledge-base.extend-columns')}
+                            </Label>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => append({ name: '', columnType: 'text' })}
+                            >
+                              <IconPlus className="size-3.5 mr-1" />
+                              {t('knowledge-base.add-column')}
+                            </Button>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            {t('knowledge-base.extend-columns-desc')}
+                          </p>
+                          {fields.length > 0 && (
+                            <div className="space-y-2">
+                              {fields.map((field, index) => (
+                                <div key={field.id} className="flex items-center gap-2">
+                                  <Input
+                                    placeholder={t('knowledge-base.column-name-placeholder')}
+                                    className="flex-1"
+                                    {...form.register(`extendColumns.${index}.name` as any)}
+                                  />
+                                  <Controller
+                                    control={form.control}
+                                    name={`extendColumns.${index}.columnType` as any}
+                                    render={({ field: selectField }) => (
+                                      <Select
+                                        value={selectField.value}
+                                        onValueChange={selectField.onChange}
+                                      >
+                                        <SelectTrigger className="w-[120px]">
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="text">Text</SelectItem>
+                                          <SelectItem value="number">Number</SelectItem>
+                                          <SelectItem value="boolean">Boolean</SelectItem>
+                                          <SelectItem value="blob">Blob</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    )}
+                                  />
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="size-8 shrink-0"
+                                    onClick={() => remove(index)}
+                                  >
+                                    <IconTrashX className="size-4" />
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </>
                     )}
                     <FormField
