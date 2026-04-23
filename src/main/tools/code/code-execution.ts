@@ -207,7 +207,7 @@ asyncio.run(main())
     const tempDir = path.join(temp, nanoid());
     await fs.promises.mkdir(tempDir, { recursive: true });
     const isWindows = process.platform === 'win32';
-    const uvPreCommand = isWindows ? 'uv.exe' : './uv';
+    const uvPreCommand = isWindows ? 'uv' : 'uv';
 
     const workspace = (requestContext.get('workspace' as never) as string) || tempDir;
     const allRequestContext = requestContext.all

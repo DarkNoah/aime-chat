@@ -88,7 +88,7 @@ class AgentManager extends BaseManager {
     if (!agentEntity) {
       throw new Error('Agent not found');
     }
-    let { tools = [], subAgents = [] } = params || {};
+    let { tools = [], subAgents = [], instructions } = params || {};
 
     let _skills = []; //await skillManager.getClaudeSkills();
 
@@ -154,12 +154,12 @@ class AgentManager extends BaseManager {
 
     const storage = getStorage();
 
-    let instructions = builtInAgent?.instructions ?? agentEntity.instructions;
+    let _instructions = instructions ?? builtInAgent?.instructions ?? agentEntity.instructions;
 
 
     const additionalInstructions = params?.requestContext?.get('additionalInstructions')
-    if (isString(instructions) && additionalInstructions) {
-      instructions = instructions + `\n\n
+    if (isString(_instructions) && additionalInstructions) {
+      _instructions = _instructions + `\n\n
 <system-reminder>
 ${additionalInstructions}
 </system-reminder>`;
@@ -169,7 +169,7 @@ ${additionalInstructions}
     const agent = new MastraAgent({
       id: builtInAgent?.id ?? agentEntity.id,
       name: builtInAgent?.name ?? agentEntity.name,
-      instructions: instructions ?? `You are a helpful assistant.`,
+      instructions: _instructions ?? `You are a helpful assistant.`,
       description: builtInAgent?.description ?? agentEntity.description,
       model: await providersManager.getLanguageModel(params?.modelId),
       memory: new Memory({

@@ -31,6 +31,7 @@ export type ChatInput = {
       xai?: XaiProviderOptions & Record<string, any>;
     };
   };
+  untilEndPrompt?: string;
   approved?: boolean;
   toolCallId?: string;
   resumeData?: Record<string, any>;
@@ -113,6 +114,7 @@ export type ChatTodo = {
 
 export type ChatRequestContext = {
   model?: string;
+  untilEndPrompt?: string;
   threadId?: string;
   projectId?: string;
   resourceId?: string;
@@ -140,6 +142,7 @@ export type ChatSubmitOptions = {
   webSearch?: boolean;
   think?: boolean;
   tools?: string[];
+  untilEndPrompt?: string;
   subAgents?: string[];
   approved?: boolean;
   toolCallId?: string;

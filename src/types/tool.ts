@@ -186,7 +186,7 @@ export const ToolConfig = {
     },
   },
   Extract: {
-    configSchema: z.strictObject({
+    configSchema: z.object({
       modelId: z.string().optional(),
       mode: z.enum(['fast', 'accurate']).optional().default('accurate'),
     }),

@@ -5,11 +5,12 @@ import BaseTool, { BaseToolParams } from '../base-tool';
 import fs from 'fs';
 import { ToolConfig, ToolType } from '@/types/tool';
 import { providersManager } from '@/main/providers';
-import { isUrl } from '@/utils/is';
+import { isString, isUrl } from '@/utils/is';
 import { toolsManager } from '..';
 import { Read } from '../file-system/read';
 import { WebFetch } from '../web/web-fetch';
 import { appManager } from '@/main/app';
+import { ReturnDocument } from 'typeorm';
 
 export interface ExtractParams extends BaseToolParams {
   modelId?: string;
@@ -42,7 +43,7 @@ example:
     "phone_items": { "type": "array", "items": { "type": "string", "description": "The item of the list" } },
     ...
   },
-  "required": ["name"],
+  "required": ["name"]
 }
 \`\`\`
 
@@ -68,6 +69,7 @@ Returns:
   private async readSourceContent(
     source: string,
     options?: ToolExecutionContext,
+    modeId?: string,
   ) {
     if (isUrl(source)) {
       const webFetch = await toolsManager.buildTool(
@@ -85,10 +87,18 @@ Returns:
       throw new Error('File not found');
     }
 
+    const currentModel = options?.requestContext?.get('model' as never) as string;
+
+    if (!currentModel) {
+      options?.requestContext?.set('model' as never, modeId);
+
+    }
+
+
     const read = new Read({
       forcePDFOcr: true,
       forceWordOcr: true,
-      disableVision: true,
+      disableVision: false,
     });
 
     console.log('准备OCR文件:', source);
@@ -113,7 +123,7 @@ Returns:
 
   private async generateTextExtraction(
     model: Awaited<ReturnType<typeof providersManager.getLanguageModel>>,
-    content: string,
+    content: string | { content: any[] },
     fieldsSchema: Record<string, unknown>,
     options?: ToolExecutionContext,
   ) {
@@ -128,14 +138,39 @@ Returns:
       model,
     });
 
+    let inputs = [];
+    if (isString(content)) {
+      inputs.push({
+        role: 'user',
+        content: `<content>\n${content}\n</content>`,
+      });
+    } else if ("content" in content && Array.isArray(content.content)) {
+      inputs.push({
+        role: 'user',
+        parts: content.content.map(x => {
+          if (x.type == 'image') {
+            return {
+              type: 'file',
+              url: `data:${x.mimeType};base64,${x.data}`,
+              mediaType: x.mimeType,
+            };
+          }
+          else if (x.type == 'text') {
+            return {
+              type: 'text',
+              text: x.text
+            };
+          }
+          return x
+        }),
+      });
+
+
+    }
+
     const response = await extractAgent.generate(
       [
-        {
-          role: 'user',
-          content: `<content>
-${content}
-</content>`,
-        },
+        ...inputs,
         {
           role: 'user',
           content: `Extract the following fields: \n${JSON.stringify(fieldsSchema, null, 2)}`,
@@ -165,7 +200,7 @@ ${content}
 
   private async generateStructuredExtraction(
     model: Awaited<ReturnType<typeof providersManager.getLanguageModel>>,
-    content: string,
+    content: string | { content: any[] },
     fieldsSchema: Record<string, unknown>,
     options?: ToolExecutionContext,
   ) {
@@ -176,13 +211,36 @@ ${content}
       model,
     });
 
-    const response = await extractAgent.generate(
-      [
-        {
-          role: 'user',
-          content,
-        },
-      ],
+    let inputs = [];
+    if (isString(content)) {
+      inputs.push({
+        role: 'user',
+        content,
+      });
+    } else if ("content" in content && Array.isArray(content.content)) {
+      inputs.push({
+        role: 'user',
+        parts: content.content.map(x => {
+          if (x.type == 'image') {
+            return {
+              type: 'file',
+              url: `data:${x.mimeType};base64,${x.data}`,
+              mediaType: x.mimeType,
+            };
+          }
+          else if (x.type == 'text') {
+            return {
+              type: 'text',
+              text: x.text
+            };
+          }
+          return x
+        }),
+      });
+
+
+    }
+    const response = await extractAgent.generate(inputs,
       {
         structuredOutput: {
           schema: fieldsSchema,
@@ -228,7 +286,7 @@ ${content}
     const model = await providersManager.getLanguageModel(
       modeId
     );
-    const content = await this.readSourceContent(source, options);
+    const content = await this.readSourceContent(source, options, modeId);
 
     console.log('准备提取内容...');
 

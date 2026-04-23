@@ -43,7 +43,13 @@ export function ChatMessageAttachment({
         )}
         {...props}
       >
-        <video src={data.url} controls>
+        <video
+          src={
+            data.url ??
+            `data:${data.mediaType || data.mimeType};base64,${data.data}`
+          }
+          controls
+        >
           <track kind="captions" />
         </video>
       </div>

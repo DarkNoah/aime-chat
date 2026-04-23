@@ -267,7 +267,13 @@
     "force-return-full-content": "强制返回全文",
     "new_knowledge-base": "新建知识库",
     "vector-store-type": "向量数据库类型",
-    "embedding": "向量模型"
+    "embedding": "向量模型",
+    "extend-columns": "扩展列",
+    "extend-columns-desc": "为向量表添加自定义列",
+    "column-name": "列名",
+    "column-type": "类型",
+    "add-column": "添加列",
+    "column-name-placeholder": "请输入列名"
   },
   "setup": {
     "welcome": {

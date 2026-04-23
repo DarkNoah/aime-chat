@@ -307,7 +307,7 @@ const electronHandler = {
       type: KnowledgeBaseSourceType;
     }) => ipcRenderer.invoke(KnowledgeBaseChannel.ImportSource, data),
     getKnowledgeBaseItems: (id: string, params: PaginationParams): Promise<PaginationInfo<KnowledgeBaseItem>> => ipcRenderer.invoke(KnowledgeBaseChannel.GetKnowledgeBaseItems, id, params),
-    searchKnowledgeBase: (kbId: string, query: string, fileTpye: 'text' | 'image' = 'text'): Promise<SearchKnowledgeBaseResult> => ipcRenderer.invoke(KnowledgeBaseChannel.SearchKnowledgeBase, kbId, query, fileTpye),
+    searchKnowledgeBase: (kbId: string, query: string, fileTpye: 'text' | 'image' = 'text', filter?: string, top_k: number = 10): Promise<SearchKnowledgeBaseResult> => ipcRenderer.invoke(KnowledgeBaseChannel.SearchKnowledgeBase, kbId, query, fileTpye, filter, top_k),
     deleteKnowledgeBaseItem: (id: string) => ipcRenderer.invoke(KnowledgeBaseChannel.DeleteKnowledgeBaseItem, id),
   },
   tools: {

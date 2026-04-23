@@ -78,12 +78,10 @@ export const ChatToolSelector = ({
         v.push(...tool.tools.map((t) => t.id));
         onChange?.(v);
       }
+    } else if (value?.includes(tool.id)) {
+      onChange?.(value?.filter((x) => x !== tool.id));
     } else {
-      if (value?.includes(tool.id)) {
-        onChange?.(value?.filter((x) => x !== tool.id));
-      } else {
-        onChange?.(value?.concat(tool.id));
-      }
+      onChange?.(value?.concat(tool.id));
     }
   };
 
