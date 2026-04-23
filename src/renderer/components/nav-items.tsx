@@ -11,7 +11,7 @@ import {
   SidebarMenuItem,
 } from '@/renderer/components/ui/sidebar';
 import { ModeToggle } from '@/renderer/components/mode-toggle';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 export function NavItems({
   items,
@@ -22,9 +22,11 @@ export function NavItems({
     url?: string;
     icon: Icon;
     onClick?: () => void;
+    isActive: boolean;
   }[];
 } & React.ComponentPropsWithoutRef<typeof SidebarGroup>) {
   const navigate = useNavigate();
+  const location = useLocation();
   return (
     <SidebarMenu>
       {items.map((item) => (
@@ -38,6 +40,7 @@ export function NavItems({
                 item.onClick?.();
               }
             }}
+            isActive={item.isActive ?? false}
           >
             <div className="cursor-pointer">
               <item.icon />
@@ -46,17 +49,6 @@ export function NavItems({
           </SidebarMenuButton>
         </SidebarMenuItem>
       ))}
-      {/* <SidebarMenuItem>
-        <SidebarMenuButton asChild>
-          <label>
-            <IconBrightness />
-            Dark Mode
-            <span className="ml-auto">
-              <ModeToggle />
-            </span>
-          </label>
-        </SidebarMenuButton>
-      </SidebarMenuItem> */}
     </SidebarMenu>
   );
 }

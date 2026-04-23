@@ -1,7 +1,7 @@
 {
   "name": "aime-chat",
   "description": "A foundation for scalable desktop apps",
-  "version": "0.3.26",
+  "version": "0.3.27",
   "keywords": [
     "electron",
     "boilerplate",
@@ -228,6 +228,7 @@
     "cross-env": "^7.0.3",
     "css-loader": "^7.1.2",
     "css-minimizer-webpack-plugin": "^7.0.2",
+    "csv-parse": "^6.2.1",
     "date-fns": "^4.1.0",
     "detect-port": "^2.1.0",
     "dom-to-image": "^2.6.0",
@@ -249,6 +250,7 @@
     "eslint-plugin-promise": "^7.2.1",
     "eslint-plugin-react": "^7.37.4",
     "eslint-plugin-react-hooks": "^5.2.0",
+    "exceljs": "^4.4.0",
     "express": "^5.1.0",
     "fast-glob": "^3.3.3",
     "file-loader": "^6.2.0",

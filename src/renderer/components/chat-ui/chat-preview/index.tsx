@@ -141,7 +141,7 @@ export const ChatPreview = React.forwardRef<ChatPreviewRef, ChatPreviewProps>(
             className="data-[state=off]:bg-transparent bg-secondary "
           >
             <IconWorldWww />
-            Web Preview
+            {t('chat.web_preview', 'Web Preview')}
           </ToggleGroupItem>
           {/* <ToggleGroupItem
             value={ChatPreviewType.CANVAS}
@@ -245,15 +245,17 @@ export const ChatPreview = React.forwardRef<ChatPreviewRef, ChatPreviewProps>(
               title={part?.type?.split('-').slice(1).join('-')}
             />
           </div>
-          <div
-            className={`h-full ${previewData.previewPanel === ChatPreviewType.MESSAGES ? '' : 'hidden'}`}
-          >
-            {messages && (
-              <pre className="whitespace-pre-wrap break-all p-4 bg-secondary rounded-2xl h-full overflow-y-auto text-xs">
-                {JSON.stringify(messages, null, 2)}
-              </pre>
-            )}
-          </div>
+          {!appInfo.isPackaged && (
+            <div
+              className={`h-full ${previewData.previewPanel === ChatPreviewType.MESSAGES ? '' : 'hidden'}`}
+            >
+              {messages && (
+                <pre className="whitespace-pre-wrap break-all p-4 bg-secondary rounded-2xl h-full overflow-y-auto text-xs">
+                  {JSON.stringify(messages, null, 2)}
+                </pre>
+              )}
+            </div>
+          )}
         </div>
         {previewData.previewPanel === ChatPreviewType.USAGE ? (
           <div className="h-full overflow-y-auto">

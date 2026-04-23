@@ -12,6 +12,8 @@ import fg from 'fast-glob';
 import { appManager } from '@/main/app';
 import { secretsManager } from '@/main/app/secrets';
 import { ToolConfig, ToolTags } from '@/types/tool';
+import { getDataPath } from '@/main/utils';
+import mastraManager from '@/main/mastra';
 
 const getSitecustomizePy = async (allRequestContext: Record<string, any> = {}) => {
   const appInfo = await appManager.getInfo();
@@ -103,7 +105,8 @@ Usage:
 
   constructor(config?: CodeExecutionParams) {
     super(config);
-    this.ptcOpen = config?.ptcOpen ?? false;
+    const apiServerStatus = mastraManager.httpServer?.listening
+    this.ptcOpen = config?.ptcOpen ?? apiServerStatus ?? true;
     this.description = this.getDescription();
   }
 
@@ -164,6 +167,35 @@ asyncio.run(main())
     return desc;
   };
 
+
+  isLockError = (stderr = '', code?: number) => {
+    const s = String(stderr).toLowerCase();
+    return (
+      s.includes('os error 1224') ||
+      s.includes('user mapped') ||
+      s.includes('请求的操作无法在使用用户映射区域打开的文件上执行') ||
+      s.includes('access is denied') ||
+      s.includes('the process cannot access the file')
+    );
+  }
+
+  runWithRetry = async (
+    fn: () => Promise<{ code: number; stdout?: string; stderr?: string }>,
+    retries = 4,
+  ): Promise<any> => {
+    let last: any;
+    for (let i = 0; i < retries; i++) {
+      const r = await fn();
+      if (r.code === 0) return r;
+
+      last = r;
+      if (!this.isLockError(r.stderr, r.code)) return r;
+
+      await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
+    }
+    return last;
+  }
+
   execute = async (
     inputData: z.infer<typeof this.inputSchema>,
     options?: ToolExecutionContext,
@@ -171,7 +203,7 @@ asyncio.run(main())
     const { code, packages = [], ptc } = inputData;
     const { requestContext, abortSignal } = options;
 
-    const temp = app.getPath('temp');
+    const temp = getDataPath('temp')
     const tempDir = path.join(temp, nanoid());
     await fs.promises.mkdir(tempDir, { recursive: true });
     const isWindows = process.platform === 'win32';
@@ -186,32 +218,46 @@ asyncio.run(main())
         throw new Error('UV runtime is not installed');
       }
 
-      let resultInit = await runCommand(
-        `${uvPreCommand} init "${tempDir}" && ${uvPreCommand} venv "${path.join(tempDir, '.venv')}" --seed`,
+
+      let installPackage = ''
+      if (ptc && !packages.includes('mcp')) packages.push('mcp');
+      if (packages.length > 0) {
+        installPackage = ` && ${uvPreCommand} add ${packages.join(' ')}`
+      }
+
+      let resultInit = await this.runWithRetry(() => runCommand(
+        `${uvPreCommand} init && ${uvPreCommand} --no-cache  venv --seed`,
         {
-          cwd: uvRuntime?.dir,
+          cwd: tempDir,
+          abortSignal: abortSignal
         },
-      );
+      ));
 
       if (resultInit.code !== 0) {
         throw new Error(
           `Failed to initialize UV project: ${resultInit.stderr}`,
         );
       }
+      await new Promise(resolve => setTimeout(resolve, 1000 * 2));
 
-      if (ptc && !packages.includes('mcp')) packages.push('mcp');
       if (packages.length > 0) {
-        const result = await runCommand(
-          `${uvPreCommand} add ${packages.join(' ')} --project "${tempDir}"`,
+        const resultInstall = await this.runWithRetry(() => runCommand(
+          `${uvPreCommand} --no-cache pip install ${packages.join(' ')}`,
           {
-            cwd: uvRuntime?.dir,
+            cwd: tempDir,
+            abortSignal: abortSignal
           },
-        );
-        console.log(result);
-        if (result.code !== 0) {
-          throw new Error(`Failed to add packages: ${result.stderr}`);
+        ));
+        if (resultInstall.code !== 0) {
+          throw new Error(`Failed to install packages: ${resultInstall.stderr}`);
         }
       }
+
+
+
+
+
+
       if (ptc) {
         let site_packages_path;
         if (isWindows) {
@@ -256,8 +302,11 @@ asyncio.run(main())
         {
           cwd: workspace,
           env: secretsEnv,
+          abortSignal: abortSignal
         },
+
       );
+
       return [
         `Directory: ${workspace || '(root)'}`,
         `Stdout: \n${result.stdout || '(empty)'}`,

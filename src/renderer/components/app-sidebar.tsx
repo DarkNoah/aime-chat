@@ -91,6 +91,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       title: t('sidebar.new_chat'),
       url: '/chat',
       icon: IconEdit,
+      isActive: false,
     },
     {
       title: t('sidebar.new_project'),
@@ -98,16 +99,19 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       onClick: () => {
         setOpenProjectDialog(true);
       },
+      isActive: false,
     },
     {
       title: t('sidebar.tools'),
       url: '/tools',
       icon: IconTools,
+      isActive: location.pathname.startsWith('/tools'),
     },
     {
       title: t('sidebar.market'),
       url: '/market',
       icon: IconCategory,
+      isActive: location.pathname.startsWith('/market'),
       // hidden: appInfo?.isPackaged,
     },
     {
@@ -115,17 +119,20 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       url: '/crons',
       icon: IconClock,
       hidden: appInfo?.isPackaged,
+      isActive: location.pathname.startsWith('/crons'),
     },
     {
       title: t('sidebar.knowledge_base'),
       url: '/knowledge-base',
       icon: IconBook,
+      isActive: location.pathname.startsWith('/knowledge-base'),
       // hidden: appInfo?.isPackaged,
     },
     {
       title: t('sidebar.agents'),
       url: '/agents',
       icon: IconRobot,
+      isActive: location.pathname.startsWith('/agents'),
     },
   ];
   return (

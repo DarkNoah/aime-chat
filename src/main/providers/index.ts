@@ -75,6 +75,7 @@ class ProvidersManager extends BaseManager {
         provider.isActive = value.isActive;
         provider.apiKey = value.apiKey;
         provider.apiBase = value.apiBase;
+        provider.models = value.models;
         provider.isStatic = true;
         await this.repository.save(provider);
       }

@@ -168,6 +168,7 @@ export class SkillManager {
               'skills',
               x.id.split(':')[1],
             ),
+            repo: x.value?.repo,
           };
         }),
     ];
@@ -282,6 +283,7 @@ export class SkillManager {
       }
       const skillPath = localSkill.value?.path;
       const source = localSkill.value?.source;
+      const repo = localSkill.value?.repo;
       try {
 
         const skillContent = await fs.promises.readFile(
@@ -296,6 +298,7 @@ export class SkillManager {
           content: skillInfo.content,
           path: skillPath,
           source: source,
+          repo,
           type: ToolType.SKILL,
           isActive: localSkill.isActive,
         };
@@ -308,6 +311,7 @@ export class SkillManager {
           content: undefined,
           path: skillPath,
           source,
+          repo,
           type: ToolType.SKILL,
           isActive: localSkill.isActive,
         };

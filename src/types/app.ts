@@ -23,6 +23,7 @@ export class AppInfo {
   isPackaged: boolean;
   theme: string;
   shouldUseDarkColors: boolean;
+  language: string;
   defaultModel: {
     model: string;
     fastModel: string;
@@ -120,7 +121,7 @@ export interface ScreenSource {
 
 export interface RuntimeInfo {
   uv?: {
-    status: 'installed' | 'not_installed' | 'installing';
+    status: 'installed' | 'not_installed' | 'installing' | undefined;
     installed: boolean;
     path?: string;
     dir?: string;
@@ -135,7 +136,7 @@ export interface RuntimeInfo {
     };
   };
   bun: {
-    status: 'installed' | 'not_installed' | 'installing';
+    status: 'installed' | 'not_installed' | 'installing' | undefined;
     installed: boolean;
     path?: string;
     dir?: string;
@@ -148,7 +149,7 @@ export interface RuntimeInfo {
     version?: string;
   };
   paddleOcr: {
-    status: 'installed' | 'not_installed' | 'installing';
+    status: 'installed' | 'not_installed' | 'installing' | undefined;
     installed: boolean;
     path?: string;
     dir?: string;
@@ -156,14 +157,14 @@ export interface RuntimeInfo {
     mode: 'default' | 'pp-structurev3' | 'paddleocr-vl';
   };
   qwenAudio: {
-    status: 'installed' | 'not_installed' | 'installing';
+    status: 'installed' | 'not_installed' | 'installing' | undefined;
     installed: boolean;
     path?: string;
     dir?: string;
     version?: string;
   };
   agentBrowser: {
-    status: 'installed' | 'not_installed' | 'installing';
+    status: 'installed' | 'not_installed' | 'installing' | undefined;
     installed: boolean;
     version?: string;
   }

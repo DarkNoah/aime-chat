@@ -179,7 +179,7 @@ class ToolsManager extends BaseManager {
     await this.registerBuiltInTool(WebSearch);
     await this.registerBuiltInTool(WebFetch);
 
-    await this.registerBuiltInTool(Vision);
+    // await this.registerBuiltInTool(Vision);
     await this.registerBuiltInTool(ToolToolkit);
     await this.registerBuiltInTool(ImageToolkit);
 
@@ -188,7 +188,7 @@ class ToolsManager extends BaseManager {
     // await this.registerBuiltInTool(EditImage);
     // await this.registerBuiltInTool(RemoveBackground);
     await this.registerBuiltInTool(Agent);
-    await this.registerBuiltInTool(MemoryToolkit);
+    // await this.registerBuiltInTool(MemoryToolkit);
     await this.registerBuiltInTool(Extract);
     await this.registerBuiltInTool(Translation);
     await this.registerBuiltInTool(AudioToolkit);
@@ -950,12 +950,13 @@ class ToolsManager extends BaseManager {
       const subToolEntity = await this.toolsRepository.findOne({
         where: { toolkitId: toolEntity.id, name: toolName },
       });
+      const toolKitConfig = toolEntity.value ?? {};
       if (subToolEntity) {
         toolEntity = subToolEntity;
       }
       let buildedTool = await this.buildTool(
         toolEntity.id as `${ToolType.BUILD_IN}:${string}`,
-        // toolEntity.value ?? {},
+        { ...toolKitConfig, ...(subToolEntity?.value ?? {}) }
       );
 
       if (Array.isArray(buildedTool)) {
@@ -1399,6 +1400,7 @@ class ToolsManager extends BaseManager {
           tool.value = {
             path: path.join(skillsPath, selectedSkill.id),
             source: source,
+            repo: repoUrl
             // skill: selectedSkill.path
           };
           await this.toolsRepository.save(tool);
@@ -1604,9 +1606,10 @@ class ToolsManager extends BaseManager {
 
           tools[t.id] = t;
         } else {
+          const subToolConfig = config?.[toolName] ?? {}
           const toolEntity = toolEntities.find((x) => x.id === toolName);
           const newToolkit = new tool.classType({
-            [toolEntity.name]: toolEntity.value,
+            [toolEntity.name]: { ...(toolEntity.value ?? {}), ...subToolConfig },
           }) as BaseToolkit;
           for (const _tool of newToolkit.tools) {
             if (_tool.id == toolName.substring(ToolType.BUILD_IN.length + 1)) {

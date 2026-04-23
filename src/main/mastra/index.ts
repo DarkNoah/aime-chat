@@ -1178,18 +1178,18 @@ class MastraManager extends BaseManager {
 - do not use quotes or colons
 - the entire text you return will be used as the title.` },
             { role: 'user', content: inputMessage?.parts[0]?.text }]);
-          if (!title) {
+          if (!title.text) {
             throw new Error('title generation failed');
           }
           currentThread = await memoryStore.updateThread({
             id: chatId,
-            title: title.replaceAll('\n', '').trim(),
+            title: title.text.replaceAll('\n', '').trim(),
             metadata: currentThread.metadata,
           });
 
           await callback?.onThreadChanged?.({
             id: chatId,
-            title: title.replaceAll('\n', '').trim(),
+            title: title.text.replaceAll('\n', '').trim(),
             status: 'idle',
           });
 

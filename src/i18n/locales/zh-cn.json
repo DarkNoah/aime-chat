@@ -146,7 +146,8 @@
     "force_word_ocr": "强制word使用ocr",
     "disable_vision": "不使用视觉模型",
     "slash_commands": "快捷命令",
-    "results": "结果"
+    "results": "结果",
+    "select_model": "选择一个模型"
   },
   "sidebar": {
     "new_chat": "新聊天",
@@ -178,7 +179,8 @@
     "results_count": "{{count}} 条结果",
     "file_too_large": "文件过大 ({{size}})，已截断显示",
     "retry": "重试",
-    "refresh": "刷新"
+    "refresh": "刷新",
+    "web_preview": "预览"
   },
   "tools": {
     "mcp_command": "命令",
@@ -228,7 +230,9 @@
     "libsqllisttable": "数据库列表",
     "libsqlrun": "数据库运行",
     "imagetoolkit": "图片工具包",
-    "translation": "翻译"
+    "translation": "翻译",
+    "knowledgebasetoolkit": "知识库",
+    "cronstoolkit": "自动化"
   },
   "agents": {
     "instructions": "系统提示词",

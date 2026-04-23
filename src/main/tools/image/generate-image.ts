@@ -92,7 +92,7 @@ Generation template:
       providerOptions: {
         openai: {
           response_format: 'b64_json',
-          // background: 'auto', //transparent, opaque or auto
+          background: remove_background == true ? 'transparent' : 'auto', //transparent, opaque or auto
           // output_format: 'png', // png, jpeg, or webp
         },
       },

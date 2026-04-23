@@ -115,12 +115,36 @@ export class KnowledgeBaseManager extends BaseManager {
   @channel(KnowledgeBaseChannel.Create)
   public async createKnowledgeBase(data: CreateKnowledgeBase): Promise<KnowledgeBase> {
     const kbId = nanoid();
-    const { text_embeddings: embeddings } = await this.calcEmbeddings(data.embedding, ['asdasdsad']);
+    if (!data.embedding) {
+      throw new Error('Embedding Model is required');
+    }
+    const { text_embeddings: embeddings } = await this.calcEmbeddings(data.embedding, ['Hello']);
     let embedding_length = embeddings?.length != 1 ? undefined : embeddings[0].length;
 
 
     if (!embedding_length || embedding_length == 0) {
       throw new Error('Embedding length is 0');
+    }
+    let extendColumns = [];
+    if (data?.vectorStoreConfig?.extendColumns && data?.vectorStoreConfig?.extendColumns.length > 0) {
+      extendColumns = data.vectorStoreConfig.extendColumns.map(x => {
+        let columnType = 'TEXT';
+        switch (x.columnType) {
+          case 'text':
+            columnType = 'TEXT';
+            break;
+          case 'blob':
+            columnType = 'BLOB';
+            break;
+          case 'number':
+            columnType = 'NUMBER';
+            break;
+          case 'boolean':
+            columnType = 'BOOLEAN';
+            break;
+        }
+        return `[${x.name}] ${columnType} NULL`
+      })
     }
 
     const res = await this.libSQLClient.execute({
@@ -131,7 +155,10 @@ export class KnowledgeBaseManager extends BaseManager {
       is_enable BOOLEAN,
       type TEXT NULL,
       [embedding] F32_BLOB(${embedding_length}) NULL,
-      [metadata] TEXT NULL DEFAULT '{}')`,
+      [metadata] TEXT NULL DEFAULT '{}'
+      ${extendColumns.length > 0 ? `, ${extendColumns.join(',\n')}` : ''}
+
+      )`,
       args: [],
     });
 

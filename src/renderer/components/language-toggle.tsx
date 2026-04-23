@@ -13,6 +13,7 @@ import { changeLanguage, getCurrentLanguage } from '@/i18n';
 import { Globe } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { LanguageCode, LanguageCodes } from '@/types/languages';
+import { useGlobal } from '../hooks/use-global';
 
 export interface LanguageToggleProps {
   className?: string;
@@ -23,10 +24,11 @@ export default function LanguageToggle(props: LanguageToggleProps) {
   const { t } = useTranslation();
   const [currentLang, setCurrentLang] = useState<LanguageCode>('en-us');
   const [mounted, setMounted] = useState(false);
+  const { appInfo } = useGlobal();
 
   useEffect(() => {
     setMounted(true);
-    setCurrentLang(getCurrentLanguage());
+    setCurrentLang((appInfo?.language as LanguageCode) || getCurrentLanguage());
   }, []);
 
   const handleLanguageChange = async (language: LanguageCode) => {

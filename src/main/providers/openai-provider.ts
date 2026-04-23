@@ -1,5 +1,5 @@
 import { Providers } from '@/entities/providers';
-import { BaseProvider } from './base-provider';
+import { BaseImageModelV2CallOptions, BaseProvider } from './base-provider';
 import fs from 'fs';
 import path from 'path';
 import OpenAI from 'openai';
@@ -7,6 +7,8 @@ import { ProviderCredits, ProviderTag, ProviderType } from '@/types/provider';
 import {
   EmbeddingModelV2,
   ImageModelV2,
+  ImageModelV2CallWarning,
+  ImageModelV2ProviderMetadata,
   LanguageModelV2,
   SpeechModelV2,
   TranscriptionModelV2,
@@ -16,6 +18,134 @@ import { createOpenAI } from '@ai-sdk/openai';
 import { OpenAIProvider as OpenAIProviderSDK } from '@ai-sdk/openai';
 import { OpenAICompatibleConfig } from '@mastra/core/llm';
 import { createOpenResponses } from '@ai-sdk/open-responses';
+import { isString } from '@/utils/is';
+
+
+
+export class OpenAIImageModel implements ImageModelV2 {
+  specificationVersion: 'v2' = 'v2';
+  provider: string = 'openai';
+  modelId: string;
+  providerEntity: Providers;
+
+  private baseUrl: string;
+  private readonly pollingInterval = 5000; // 5 seconds
+  private readonly maxPollingAttempts = 60; // 5 minutes max
+
+  constructor({ modelId, provider }: { modelId: string; provider: Providers }) {
+    this.providerEntity = provider;
+    this.modelId = modelId;
+    this.baseUrl = (provider.apiBase || "https://api.openai.com/v1").replace(/\/+$/, '');
+  }
+
+  maxImagesPerCall:
+    | number
+    | ((options: {
+      modelId: string;
+    }) => PromiseLike<number | undefined> | number | undefined) = 1;
+
+
+  async doGenerate(options: BaseImageModelV2CallOptions): Promise<{
+    images: Array<string> | Array<Uint8Array>;
+    warnings: Array<ImageModelV2CallWarning>;
+    providerMetadata?: ImageModelV2ProviderMetadata;
+    response: {
+      timestamp: Date;
+      modelId: string;
+      headers: Record<string, string> | undefined;
+    };
+  }> {
+    // Extract prompt text and image URLs
+    let promptText: string;
+    let imageUrls: string[] | undefined;
+    let mask: string | undefined;
+
+    if (typeof options.prompt === 'string') {
+      promptText = options.prompt;
+    } else {
+      promptText = options.prompt.text;
+      // Convert images to URLs (filter out Buffer types)
+      imageUrls = options.prompt.images
+        ?.filter((img): img is string => typeof img === 'string')
+        .filter((img) => img.startsWith('http'));
+      if (options.prompt.mask) {
+        mask = isString(options.prompt.mask) ? options.prompt.mask : options.prompt.mask.toString('base64');
+      }
+
+    }
+
+    // Build request body
+    let requestBody: Record<string, unknown> = {
+      model: this.modelId,
+      prompt: promptText,
+      size: options.size ?? 'auto',
+      n: options.n ?? 1,
+    };
+
+    // Add image_url for image editing models
+    if (imageUrls && imageUrls.length > 0) {
+      requestBody.images = imageUrls.map((url) => ({ image_url: url }));
+    }
+
+
+    if (mask) {
+      requestBody.mask = {
+        image_url: mask,
+      }
+    }
+
+    if (options?.providerOptions?.openai) {
+      requestBody = { ...requestBody, ...options?.providerOptions?.openai }
+    }
+
+
+
+    const requestOptions = {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${this.providerEntity.apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestBody),
+    };
+
+    // Submit async task
+    const res = await fetch(imageUrls && imageUrls.length > 0 ? `${this.baseUrl}/images/edit` : `${this.baseUrl}/images/generations`, {
+      ...requestOptions,
+      signal: options.abortSignal,
+    });
+
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(
+        errorData.error?.message || `Request failed: ${res.statusText}`,
+      );
+    }
+
+    const data = await res.json();
+
+    if (data.error) {
+      throw new Error(data.error.message);
+    }
+
+
+
+    return {
+      images: data.data.map((x) => x.b64_json),
+      warnings: [],
+      providerMetadata: {
+        openai: data
+      },
+      response: {
+        timestamp: new Date(),
+        modelId: this.modelId,
+        headers: undefined,
+      },
+    };
+  }
+}
+
+
 
 export class OpenAIProvider extends BaseProvider {
   name: string = 'openai';
@@ -94,7 +224,11 @@ export class OpenAIProvider extends BaseProvider {
   }
 
   async getImageGenerationList(): Promise<{ name: string; id: string }[]> {
-    return [{ id: 'dall-e-3', name: 'Dall-E 3' }];
+    return [
+      { id: 'gpt-image-2', name: 'GPT Image 2' },
+      { id: 'gpt-image-1.5', name: 'GPT Image 1.5' },
+      { id: 'gpt-image-1', name: 'GPT Image 1' },
+      { id: 'dall-e-3', name: 'Dall-E 3' }];
   }
 
   async getSpeechModelList(): Promise<{ name: string; id: string }[]> {
@@ -120,6 +254,7 @@ export class OpenAIProvider extends BaseProvider {
     }).textEmbeddingModel(modelId);
   }
   imageModel(modelId: string): ImageModelV2 {
+    return new OpenAIImageModel({ modelId, provider: this.provider });
     return createOpenAI({
       // name: 'openai',
       baseURL: this.provider.apiBase || this.defaultApiBase,
