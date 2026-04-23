@@ -7,6 +7,8 @@ import { ProviderCredits, ProviderTag, ProviderType } from '@/types/provider';
 import {
   EmbeddingModelV2,
   ImageModelV2,
+  ImageModelV2CallWarning,
+  ImageModelV2ProviderMetadata,
   LanguageModelV2,
   SpeechModelV2,
   TranscriptionModelV2,
@@ -42,49 +44,6 @@ export class OpenAIImageModel implements ImageModelV2 {
       modelId: string;
     }) => PromiseLike<number | undefined> | number | undefined) = 1;
 
-  private sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-  }
-
-  private async pollTaskResult(
-    taskId: string,
-    abortSignal?: AbortSignal,
-  ): Promise<string[]> {
-    const headers = {
-      Authorization: `Bearer ${this.providerEntity.apiKey}`,
-      'Content-Type': 'application/json',
-      'X-ModelScope-Task-Type': 'image_generation',
-    };
-
-    for (let attempt = 0; attempt < this.maxPollingAttempts; attempt++) {
-      if (abortSignal?.aborted) {
-        throw new Error('Request aborted');
-      }
-
-      const res = await fetch(`${this.baseUrl}v1/tasks/${taskId}`, {
-        method: 'GET',
-        headers,
-        signal: abortSignal,
-      });
-
-      if (!res.ok) {
-        throw new Error(`Failed to get task status: ${res.statusText}`);
-      }
-
-      const data = await res.json();
-
-      if (data.task_status === 'SUCCEED') {
-        return data.output_images || [];
-      } else if (data.task_status === 'FAILED') {
-        throw new Error(data.error?.message || 'Image generation failed');
-      }
-
-      // Task still processing, wait and retry
-      await this.sleep(this.pollingInterval);
-    }
-
-    throw new Error('Image generation timed out');
-  }
 
   async doGenerate(options: BaseImageModelV2CallOptions): Promise<{
     images: Array<string> | Array<Uint8Array>;
@@ -169,18 +128,14 @@ export class OpenAIImageModel implements ImageModelV2 {
       throw new Error(data.error.message);
     }
 
-    const taskId = data.task_id;
-    if (!taskId) {
-      throw new Error('No task_id returned from API');
-    }
 
-    // Poll for result
-    const outputImages = await this.pollTaskResult(taskId, options.abortSignal);
 
     return {
-      images: outputImages,
+      images: data.data.map((x) => x.b64_json),
       warnings: [],
-      providerMetadata: undefined,
+      providerMetadata: {
+        openai: data
+      },
       response: {
         timestamp: new Date(),
         modelId: this.modelId,
@@ -269,9 +224,11 @@ export class OpenAIProvider extends BaseProvider {
   }
 
   async getImageGenerationList(): Promise<{ name: string; id: string }[]> {
-    return [{ id: 'gpt-image-1.5', name: 'GPT Image 1.5' }, {
-      id: 'gpt-image-1', name: 'GPT Image 1'
-    }, { id: 'dall-e-3', name: 'Dall-E 3' }];
+    return [
+      { id: 'gpt-image-2', name: 'GPT Image 2' },
+      { id: 'gpt-image-1.5', name: 'GPT Image 1.5' },
+      { id: 'gpt-image-1', name: 'GPT Image 1' },
+      { id: 'dall-e-3', name: 'Dall-E 3' }];
   }
 
   async getSpeechModelList(): Promise<{ name: string; id: string }[]> {
