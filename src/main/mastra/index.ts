@@ -1270,33 +1270,39 @@ class MastraManager extends BaseManager {
 
       }
 
-      // if (value.type == "text-delta") {
-      //   if (cache.textDelta[value.id]) {
-      //     cache.textDelta[value.id].push(value.delta);
-      //   } else {
-      //     cache.textDelta[value.id] = [value.delta];
-      //   }
-      // }
+      if (value.type == "text-delta") {
+        if (cache.textDelta[value.id]) {
+          cache.textDelta[value.id].push(value.delta);
+        } else {
+          cache.textDelta[value.id] = [value.delta];
+        }
+      }
 
-      // if (cache.textDelta && Object.keys(cache.textDelta).length > 0) {
-      //   for (const id of Object.keys(cache.textDelta)) {
-      //     const textDeltas = cache.textDelta[id]
-      //     if (textDeltas.length > 10 || value.type != "text-delta") {
-      //       if (textDeltas.length > 0) {
-      //         appManager.sendEvent(`chat:event:${chatId}`, {
-      //           type: ChatEvent.ChatChunk,
-      //           data: JSON.stringify({
-      //             type: 'text-delta',
-      //             id: id,
-      //             delta: textDeltas.join(''),
-      //           }),
-      //         });
-      //       }
-      //       delete cache.textDelta[id];
-      //     }
-      //   }
-      //   continue;
-      // }
+      if (cache.textDelta && Object.keys(cache.textDelta).length > 0) {
+        for (const id of Object.keys(cache.textDelta)) {
+          const textDeltas = cache.textDelta[id]
+          if (textDeltas.length > 10 || value.type != "text-delta") {
+            if (textDeltas.length > 0) {
+              appManager.sendEvent(`chat:event:${chatId}`, {
+                type: ChatEvent.ChatChunk,
+                data: JSON.stringify({
+                  type: 'text-delta',
+                  id: id,
+                  delta: textDeltas.join(''),
+                }),
+              });
+            }
+            if (value.type != "text-delta") {
+              appManager.sendEvent(`chat:event:${chatId}`, {
+                type: ChatEvent.ChatChunk,
+                data: JSON.stringify(value),
+              });
+            }
+            delete cache.textDelta[id];
+          }
+        }
+        continue;
+      }
 
 
       console.log('Stream chunk:', value);

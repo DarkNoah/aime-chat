@@ -92,7 +92,7 @@ export function ToolConfigDialog({
     const getToolConfig = async () => {
       if (toolId && open) {
         const tool = await window.electron.tools.getTool(toolId);
-        const result = configSchema.parse(tool.value);
+        const result = configSchema.parse(tool.value ?? {});
         console.log(tool, result);
         setData(result);
       }

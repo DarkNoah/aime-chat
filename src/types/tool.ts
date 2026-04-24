@@ -70,7 +70,7 @@ export const ToolConfig = {
   },
   MusicGeneration: {
     configSchema: z.strictObject({
-      modelId: z.string(),
+      modelId: z.string().optional(),
     }),
     uiSchema: {
       modelId: {
@@ -84,7 +84,7 @@ export const ToolConfig = {
   },
   SpeechToText: {
     configSchema: z.strictObject({
-      modelId: z.string(),
+      modelId: z.string().optional(),
     }),
     uiSchema: {
       modelId: {
@@ -98,7 +98,7 @@ export const ToolConfig = {
   },
   TextToSpeech: {
     configSchema: z.strictObject({
-      modelId: z.string(),
+      modelId: z.string().optional(),
     }),
     uiSchema: {
       modelId: {
@@ -137,7 +137,7 @@ export const ToolConfig = {
   ToolToolkit: {
     configSchema: z.strictObject({
       method: z.enum(['auto', 'bm25', 'regex', 'embeddings', 'hybrid']),
-      modelId: z.string(),
+      modelId: z.string().optional(),
       numResults: z.number().optional().default(5),
     }),
     uiSchema: {
@@ -155,7 +155,7 @@ export const ToolConfig = {
   },
   WebSearch: {
     configSchema: z.strictObject({
-      providerId: z.string(),
+      providerId: z.string().optional(),
       numResults: z.number().optional().default(20),
     }),
     uiSchema: {
@@ -173,7 +173,7 @@ export const ToolConfig = {
   },
   WebFetch: {
     configSchema: z.strictObject({
-      providerId: z.string(),
+      providerId: z.string().optional(),
     }),
     uiSchema: {
       providerId: {
@@ -205,7 +205,7 @@ export const ToolConfig = {
   },
   Translation: {
     configSchema: z.strictObject({
-      modelId: z.string(),
+      modelId: z.string().optional(),
     }),
     uiSchema: {
       modelId: {
@@ -216,7 +216,7 @@ export const ToolConfig = {
   },
   Vision: {
     configSchema: z.strictObject({
-      modelId: z.string(),
+      modelId: z.string().optional(),
     }),
     uiSchema: {
       modelId: {
@@ -237,7 +237,7 @@ export const ToolConfig = {
   },
   GenerateVideo: {
     configSchema: z.strictObject({
-      modelId: z.string(),
+      modelId: z.string().optional(),
     }),
     uiSchema: {
       modelId: {
@@ -251,7 +251,7 @@ export const ToolConfig = {
   },
   GenerateImage: {
     configSchema: z.strictObject({
-      modelId: z.string(),
+      modelId: z.string().optional(),
     }),
     uiSchema: {
       modelId: {
@@ -265,7 +265,7 @@ export const ToolConfig = {
   },
   EditImage: {
     configSchema: z.strictObject({
-      modelId: z.string(),
+      modelId: z.string().optional(),
     }),
     uiSchema: {
       modelId: {

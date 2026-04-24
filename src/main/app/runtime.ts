@@ -214,6 +214,8 @@ export async function installUVRuntime() {
   }
 
   if (success) {
+    uv.status = 'installed';
+
     const uvRuntime = await getUVRuntime(true);
     if (uvRuntime?.status !== 'installed' || !uvRuntime.dir) {
       appManager.toast('Failed to initialize UV Runtime', { type: 'error' });
@@ -259,6 +261,11 @@ export async function unInstallUVRuntime() {
     'bin',
     isWindows ? 'uvw.exe' : 'uvw',
   );
+  const uv_venv_dir = path.join(
+    app.getPath('userData'),
+    '.runtime',
+    'python-runtime'
+  );
   if (fs.existsSync(uvPath)) {
     await fs.promises.rm(uvPath, { recursive: true });
   }
@@ -267,6 +274,9 @@ export async function unInstallUVRuntime() {
   }
   if (fs.existsSync(uvwPath)) {
     await fs.promises.rm(uvwPath, { recursive: true });
+  }
+  if (fs.existsSync(uv_venv_dir)) {
+    await fs.promises.rm(uv_venv_dir, { recursive: true });
   }
   await getUVRuntime(true);
 }
@@ -631,6 +641,7 @@ export async function installBunRuntime() {
   }
 
   if (success) {
+    bun.status = 'installed';
     appManager.toast('Bun Runtime installed successfully', { type: 'success' });
     return await getBunRuntime(true);
   } else {
