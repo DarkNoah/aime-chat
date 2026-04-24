@@ -18,7 +18,7 @@ import {
 } from 'electron';
 import { dbManager } from '../db';
 import { channel } from '../ipc/IpcController';
-import { CreateProvider, Provider } from '@/types/provider';
+import { CreateProvider, Provider, ProviderType } from '@/types/provider';
 import { AppChannel } from '@/types/ipc-channel';
 import {
   AppInfo,
