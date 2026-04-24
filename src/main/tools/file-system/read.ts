@@ -403,9 +403,20 @@ Usage:
       const content = await loader.load();
       result = content;
     } else if (ext === '.xls' || ext === '.xlsx') {
-      const loader = new ExcelLoader(file_source);
+      const loader = new ExcelLoader(file_source, {
+        mode: "markdown",
+        maxRow: 15,
+      });
       const content = await loader.load();
-      result = content;
+
+      for (const sheet of content) {
+        result += `Sheet: ${sheet.id}\n\n`;
+        result += `Range: ${sheet.metadata.range}\n\n`;
+        result += `Sample Data: `;
+        result += sheet.pageContent ? `\n\`\`\`markdown\n${sheet.pageContent}\n\`\`\`\n` : 'No data';
+      }
+
+
     } else if (ext === '.ppt' || ext === '.pptx') {
       const loader = new PowerPointLoader(file_source);
       const content = await loader.load();
