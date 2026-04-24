@@ -10,23 +10,29 @@ import {
 } from '../ui/dialog';
 import { Textarea } from '../ui/textarea';
 import { Button } from '../ui/button';
+import { Switch } from '../ui/switch';
+import { Label } from '../ui/label';
 import { useTranslation } from 'react-i18next';
+import { UntilEndPrompt } from '@/types/chat';
+
+const DEFAULT_VALUE: UntilEndPrompt = { enable: false, prompt: '' };
 
 export type ChatUntilEndProps = ComponentProps<typeof Dialog> & {
   children: React.ReactNode;
   className?: string;
-  value?: string;
-  onChange?: (value: string) => void;
+  value?: UntilEndPrompt;
+  onChange?: (value: UntilEndPrompt) => void;
 };
 
 export const ChatUntilEnd = ({ children, ...props }: ChatUntilEndProps) => {
-  const { value = '', onChange, className } = props;
+  const { value = DEFAULT_VALUE, onChange, className } = props;
   const [open, setOpen] = useState(false);
-  const [text, setText] = useState(value);
+  const [enable, setEnable] = useState<boolean>(value.enable);
+  const [text, setText] = useState<string>(value.prompt);
   const { t } = useTranslation();
 
   const handleConfirm = () => {
-    onChange?.(text);
+    onChange?.({ enable, prompt: text });
     setOpen(false);
   };
 
@@ -34,7 +40,10 @@ export const ChatUntilEnd = ({ children, ...props }: ChatUntilEndProps) => {
     <Dialog
       open={open}
       onOpenChange={(o) => {
-        if (o) setText(value);
+        if (o) {
+          setEnable(value.enable);
+          setText(value.prompt);
+        }
         setOpen(o);
       }}
     >
@@ -43,6 +52,16 @@ export const ChatUntilEnd = ({ children, ...props }: ChatUntilEndProps) => {
         <DialogHeader>
           <DialogTitle>{t('chat.until_end', 'Until End')}</DialogTitle>
         </DialogHeader>
+        <div className="flex flex-row items-center justify-between">
+          <Label htmlFor="until-end-enable">
+            {t('chat.until_end_enable', 'Enable')}
+          </Label>
+          <Switch
+            id="until-end-enable"
+            checked={enable}
+            onCheckedChange={setEnable}
+          />
+        </div>
         <Textarea
           className="min-h-[160px]"
           placeholder={t('chat.until_end_placeholder', 'Enter text...')}

@@ -95,10 +95,12 @@ export function ToolConfigDialog({
         const result = configSchema.parse(tool.value ?? {});
         console.log(tool, result);
         setData(result);
+      } else {
+        setData(null);
       }
     };
     getToolConfig();
-  }, [toolId, open]);
+  }, [toolId, open, configSchema]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

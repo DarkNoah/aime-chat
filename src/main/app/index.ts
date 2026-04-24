@@ -91,6 +91,7 @@ import { isBinaryFile } from 'isbinaryfile';
 import mime from 'mime';
 import { DefaultAgent } from '../mastra/agents/default-agent';
 import { CodeAgent } from '../mastra/agents/code-agent';
+import { generate } from 'fast-glob/out/managers/tasks';
 class AppManager extends BaseManager {
   repository: Repository<Providers>;
   settingsRepository: Repository<Settings>;
@@ -205,6 +206,7 @@ class AppManager extends BaseManager {
       ocrModel: process.env.DEFAULT_OCR_MODEL,
       transcriptionModel: process.env.DEFAULT_TRANSCRIPTION_MODEL,
       speechModel: process.env.DEFAULT_SPEECH_MODEL,
+      generateImageModel: process.env.DEFAULT_GENERATE_IMAGE_MODEL,
     };
     const defaultAgent = settings.find((x) => x.id === 'defaultAgent')?.value || process.env.DEFAULT_AGENT || CodeAgent.agentName;
     const defaultThink = settings.find((x) => x.id === 'defaultThink')?.value || process.env.THINK || 'medium';

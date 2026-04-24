@@ -70,7 +70,8 @@
     "secrets_delete_title": "删除密钥",
     "secrets_delete_confirm": "确定要删除此密钥吗？此操作不可撤消。",
     "secrets_description_placeholder": "可选描述",
-    "secrets_global": "全局"
+    "secrets_global": "全局",
+    "default_generate_image": "默认图片生成模型"
   },
   "common": {
     "edit": "编辑",
@@ -162,6 +163,7 @@
     "crons": "自动化"
   },
   "chat": {
+    "until_end_enable": "启用",
     "new_chat": "新聊天",
     "clear_messages_title": "清空消息",
     "clear_messages_description": "确定要清楚当前所有消息吗?",
@@ -467,5 +469,24 @@
     "last_run_at": "上次执行",
     "empty": "暂无定时任务",
     "never": "从未执行"
+  },
+  "task_manager": {
+    "title": "任务管理",
+    "description": "查看和管理所有后台任务",
+    "clear_completed": "清除已完成",
+    "tab_all": "全部",
+    "tab_active": "进行中",
+    "tab_done": "已结束",
+    "empty": "暂无任务",
+    "status_pending": "等待中",
+    "status_running": "运行中",
+    "status_paused": "已暂停",
+    "status_completed": "已完成",
+    "status_failed": "失败",
+    "status_cancelled": "已取消",
+    "action_pause": "暂停",
+    "action_resume": "继续",
+    "action_cancel": "取消",
+    "action_remove": "移除"
   }
 }

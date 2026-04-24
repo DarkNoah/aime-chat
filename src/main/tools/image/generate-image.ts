@@ -73,15 +73,20 @@ Generation template:
     const workspace = requestContext.get('workspace' as never) as string;
 
     const abortSignal = options?.abortSignal as AbortSignal;
+    const appInfo = await appManager.getInfo();
+    const modelId = this.modelId || appInfo.defaultModel.generateImageModel;
+    if (!modelId) {
+      throw new Error('Model is not set');
+    }
 
-    const providerId = this.modelId.split('/').shift();
-    const modelId = this.modelId.split('/').slice(1).join('/');
+    const providerId = modelId.split('/').shift();
+    const modelIdValue = modelId.split('/').slice(1).join('/');
 
     const provider = await providersManager.getProvider(providerId);
     if (!provider) {
       throw new Error('Provider not found');
     }
-    const imageModel = provider.imageModel(modelId);
+    const imageModel = provider.imageModel(modelIdValue);
     const image = await imageModel.doGenerate({
       prompt,
       abortSignal,
@@ -92,8 +97,8 @@ Generation template:
       providerOptions: {
         openai: {
           response_format: 'b64_json',
-          background: remove_background == true ? 'transparent' : 'auto', //transparent, opaque or auto
-          // output_format: 'png', // png, jpeg, or webp
+          // background: remove_background == true ? 'transparent' : 'auto', //transparent, opaque or auto
+          output_format: 'png', // png, jpeg, or webp
         },
       },
 

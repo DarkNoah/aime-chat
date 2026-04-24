@@ -770,7 +770,7 @@
       },
       "zai-glm-5-1": {
         "id": "zai-glm-5-1",
-        "name": "GLM-5",
+        "name": "Z.AI GLM-5.1",
         "family": "glm",
         "attachment": true,
         "reasoning": false,
@@ -25794,7 +25794,7 @@
         "id": "deepseek-v4-flash",
         "name": "DeepSeek V4 Flash",
         "family": "deepseek-flash",
-        "attachment": true,
+        "attachment": false,
         "reasoning": true,
         "tool_call": true,
         "interleaved": {
@@ -25828,7 +25828,7 @@
         "id": "deepseek-v4-pro",
         "name": "DeepSeek V4 Pro",
         "family": "deepseek-thinking",
-        "attachment": true,
+        "attachment": false,
         "reasoning": true,
         "tool_call": true,
         "interleaved": {
@@ -66992,6 +66992,74 @@
         "limit": {
           "context": 262144,
           "output": 65536
+        }
+      },
+      "deepseek/deepseek-v4-flash": {
+        "id": "deepseek/deepseek-v4-flash",
+        "name": "DeepSeek V4 Flash",
+        "family": "deepseek-flash",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "interleaved": {
+          "field": "reasoning_details"
+        },
+        "structured_output": true,
+        "temperature": true,
+        "knowledge": "2025-05",
+        "release_date": "2026-04-24",
+        "last_updated": "2026-04-24",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 0.14,
+          "output": 0.28,
+          "cache_read": 0.028
+        },
+        "limit": {
+          "context": 1048576,
+          "output": 393216
+        }
+      },
+      "deepseek/deepseek-v4-pro": {
+        "id": "deepseek/deepseek-v4-pro",
+        "name": "DeepSeek V4 Pro",
+        "family": "deepseek-thinking",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "interleaved": {
+          "field": "reasoning_details"
+        },
+        "structured_output": true,
+        "temperature": true,
+        "knowledge": "2025-05",
+        "release_date": "2026-04-24",
+        "last_updated": "2026-04-24",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 1.74,
+          "output": 3.48,
+          "cache_read": 0.145
+        },
+        "limit": {
+          "context": 1048576,
+          "output": 393216
         }
       },
       "openai/gpt-5.4": {
@@ -121021,6 +121089,40 @@
           "output": 131072
         }
       },
+      "deepseek-v4-flash": {
+        "id": "deepseek-v4-flash",
+        "name": "DeepSeek V4 Flash",
+        "family": "deepseek-flash",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "interleaved": {
+          "field": "reasoning_content"
+        },
+        "structured_output": true,
+        "temperature": true,
+        "knowledge": "2025-05",
+        "release_date": "2026-04-24",
+        "last_updated": "2026-04-24",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 0.14,
+          "output": 0.28,
+          "cache_read": 0.028
+        },
+        "limit": {
+          "context": 1000000,
+          "output": 384000
+        }
+      },
       "kimi-k2.6": {
         "id": "kimi-k2.6",
         "name": "Kimi K2.6 (3x limits)",
@@ -121054,6 +121156,40 @@
         "limit": {
           "context": 262144,
           "output": 65536
+        }
+      },
+      "deepseek-v4-pro": {
+        "id": "deepseek-v4-pro",
+        "name": "DeepSeek V4 Pro",
+        "family": "deepseek-thinking",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "interleaved": {
+          "field": "reasoning_content"
+        },
+        "structured_output": true,
+        "temperature": true,
+        "knowledge": "2025-05",
+        "release_date": "2026-04-24",
+        "last_updated": "2026-04-24",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 1.74,
+          "output": 3.48,
+          "cache_read": 0.145
+        },
+        "limit": {
+          "context": 1000000,
+          "output": 384000
         }
       },
       "minimax-m2.5": {
