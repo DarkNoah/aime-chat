@@ -174,6 +174,29 @@ export default function DefaultModel() {
           />
         </ItemActions>
       </Item>
+      <Item variant="outline">
+        <ItemContent>
+          <ItemTitle>
+            <ScanEye className="w-5 h-5" />
+            {t(
+              'settings.default_generate_image',
+              'Default Generate Image Model',
+            )}
+          </ItemTitle>
+          <ItemDescription></ItemDescription>
+        </ItemContent>
+        <ItemActions>
+          <ChatModelSelect
+            clearable
+            type={ModelType.IMAGE_GENERATION}
+            className="w-[200px] border"
+            value={appInfo?.defaultModel?.generateImageModel}
+            onChange={(model) => {
+              onChangeDefaultModel(model, 'generateImageModel');
+            }}
+          />
+        </ItemActions>
+      </Item>
     </div>
   );
 }

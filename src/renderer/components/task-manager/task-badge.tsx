@@ -1,10 +1,12 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/renderer/components/ui/button';
 import { cn } from '@/renderer/lib/utils';
 import { ListTodoIcon, Loader2Icon } from 'lucide-react';
 import { useTaskQueueStore } from '@/renderer/store/use-task-queue-store';
 
 export function TaskBadge() {
+  const { t } = useTranslation();
   const { tasks, togglePanel } = useTaskQueueStore();
 
   const activeCount = tasks.filter(
@@ -26,7 +28,7 @@ export function TaskBadge() {
         hasRunning && 'border-primary/50',
       )}
       onClick={togglePanel}
-      title="任务管理"
+      title={t('task_manager.title')}
     >
       <div className="relative">
         {hasRunning ? (

@@ -80,9 +80,10 @@ export class CodeExecution extends BaseTool {
   description = `Execute Python code. using uv runtime.
 The code will be executed with Python 3.10.
 
-Usage:
-- every time will run in a new temporary directory, which is deleted after the run is completed.
-- packages need to be reinstalled for every run if you need.
+Note:
+- Each run is executed in a new temporary directory, which is automatically deleted after completion.
+- Any required packages must be specified in the packages parameter, as dependencies are not persisted between runs.
+- If Python reports a missing module, do not install it using pip via the Bash tool. Instead, add the required dependency to the packages parameter.
 
 `;
   inputSchema = z.object({
@@ -90,7 +91,7 @@ Usage:
     packages: z
       .array(z.string())
       .optional()
-      .describe('Optional: install python packages (eg: pandas, numpy)'),
+      .describe('Optional: list all non-standard-library Python dependencies used by the code. Packages must be specified for each run because they are not persisted. Example: pandas, numpy'),
     ptc: z
       .boolean()
       .optional()
@@ -114,9 +115,10 @@ Usage:
     const desc = `Execute Python code. using uv runtime.
 The code will be executed with Python 3.10.
 
-Usage:
-- every time will run in a new temporary directory, which is deleted after the run is completed.
-- packages need to be reinstalled for every run if you need.`;
+Note:
+- Each run is executed in a new temporary directory, which is automatically deleted after completion.
+- Any required packages must be specified in the packages parameter, as dependencies are not persisted between runs.
+- If Python reports a missing module, do not install it using pip via the Bash tool. Instead, add the required dependency to the packages parameter.`;
     if (this.ptcOpen) {
       return (
         desc +

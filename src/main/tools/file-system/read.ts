@@ -29,6 +29,7 @@ import { SpeechToText } from '../audio';
 import { toolsManager } from '..';
 import { LanguageModelV2ToolResultOutput, LanguageModelV2ToolResultPart } from '@ai-sdk/provider';
 import { isArray, isObject, isString } from '@/utils/is';
+import { ProviderType } from '@/types/provider';
 
 
 const DEFAULT_MAX_LINES_TEXT_FILE = 2000;
@@ -351,7 +352,16 @@ Usage:
 
 
     const appInfo = await appManager.getInfo();
-    const defaultOcr = appInfo?.defaultModel?.ocrModel;
+    const runtimeInfo = await appManager.getRuntimeInfo();
+    let defaultOcr = appInfo?.defaultModel?.ocrModel;
+
+    if (!defaultOcr) {
+      defaultOcr = `${ProviderType.LOCAL}/system`;
+      if (runtimeInfo?.paddleOcr?.status === 'installed') {
+        defaultOcr = `${ProviderType.LOCAL}/rapidocr`;
+      }
+    }
+
 
 
     const ext = path.extname(file_source).toLowerCase();
@@ -393,9 +403,20 @@ Usage:
       const content = await loader.load();
       result = content;
     } else if (ext === '.xls' || ext === '.xlsx') {
-      const loader = new ExcelLoader(file_source);
+      const loader = new ExcelLoader(file_source, {
+        mode: "markdown",
+        maxRow: 15,
+      });
       const content = await loader.load();
-      result = content;
+
+      for (const sheet of content) {
+        result += `Sheet: ${sheet.id}\n\n`;
+        result += `Range: ${sheet.metadata.range}\n\n`;
+        result += `Sample Data: `;
+        result += sheet.pageContent ? `\n\`\`\`markdown\n${sheet.pageContent}\n\`\`\`\n` : 'No data';
+      }
+
+
     } else if (ext === '.ppt' || ext === '.pptx') {
       const loader = new PowerPointLoader(file_source);
       const content = await loader.load();

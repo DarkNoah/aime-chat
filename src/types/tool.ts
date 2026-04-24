@@ -70,7 +70,7 @@ export const ToolConfig = {
   },
   MusicGeneration: {
     configSchema: z.strictObject({
-      modelId: z.string(),
+      modelId: z.string().optional(),
     }),
     uiSchema: {
       modelId: {
@@ -78,13 +78,14 @@ export const ToolConfig = {
         'ui:title': t('common.model'),
         'ui:options': {
           type: ModelType.MUSIC,
+          clearable: true,
         },
       },
     },
   },
   SpeechToText: {
     configSchema: z.strictObject({
-      modelId: z.string(),
+      modelId: z.string().optional(),
     }),
     uiSchema: {
       modelId: {
@@ -92,13 +93,14 @@ export const ToolConfig = {
         'ui:title': t('common.model'),
         'ui:options': {
           type: ModelType.TRANSCRIPTION,
+          clearable: true,
         },
       },
     },
   },
   TextToSpeech: {
     configSchema: z.strictObject({
-      modelId: z.string(),
+      modelId: z.string().optional(),
     }),
     uiSchema: {
       modelId: {
@@ -137,7 +139,7 @@ export const ToolConfig = {
   ToolToolkit: {
     configSchema: z.strictObject({
       method: z.enum(['auto', 'bm25', 'regex', 'embeddings', 'hybrid']),
-      modelId: z.string(),
+      modelId: z.string().optional(),
       numResults: z.number().optional().default(5),
     }),
     uiSchema: {
@@ -155,7 +157,7 @@ export const ToolConfig = {
   },
   WebSearch: {
     configSchema: z.strictObject({
-      providerId: z.string(),
+      providerId: z.string().optional(),
       numResults: z.number().optional().default(20),
     }),
     uiSchema: {
@@ -173,7 +175,7 @@ export const ToolConfig = {
   },
   WebFetch: {
     configSchema: z.strictObject({
-      providerId: z.string(),
+      providerId: z.string().optional(),
     }),
     uiSchema: {
       providerId: {
@@ -205,23 +207,29 @@ export const ToolConfig = {
   },
   Translation: {
     configSchema: z.strictObject({
-      modelId: z.string(),
+      modelId: z.string().optional(),
     }),
     uiSchema: {
       modelId: {
         'ui:widget': 'modelSelector',
         'ui:title': t('common.model'),
+        'ui:options': {
+          clearable: true,
+        },
       },
     },
   },
   Vision: {
     configSchema: z.strictObject({
-      modelId: z.string(),
+      modelId: z.string().optional(),
     }),
     uiSchema: {
       modelId: {
         'ui:widget': 'modelSelector',
         'ui:title': t('common.model'),
+        'ui:options': {
+          clearable: true,
+        },
       },
     },
   },
@@ -237,7 +245,7 @@ export const ToolConfig = {
   },
   GenerateVideo: {
     configSchema: z.strictObject({
-      modelId: z.string(),
+      modelId: z.string().optional(),
     }),
     uiSchema: {
       modelId: {
@@ -251,7 +259,7 @@ export const ToolConfig = {
   },
   GenerateImage: {
     configSchema: z.strictObject({
-      modelId: z.string(),
+      modelId: z.string().optional(),
     }),
     uiSchema: {
       modelId: {
@@ -259,13 +267,14 @@ export const ToolConfig = {
         'ui:title': t('common.model'),
         'ui:options': {
           type: ModelType.IMAGE_GENERATION,
+          clearable: true,
         },
       },
     },
   },
   EditImage: {
     configSchema: z.strictObject({
-      modelId: z.string(),
+      modelId: z.string().optional(),
     }),
     uiSchema: {
       modelId: {
@@ -273,6 +282,7 @@ export const ToolConfig = {
         'ui:title': t('common.model'),
         'ui:options': {
           type: ModelType.IMAGE_GENERATION,
+          clearable: true,
         },
       },
     },

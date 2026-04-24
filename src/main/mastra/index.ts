@@ -60,6 +60,7 @@ import {
   DEFAULT_TITLE,
   ThreadEvent,
   ThreadState,
+  UntilEndPrompt,
 } from '@/types/chat';
 import { nanoid } from '@/utils/nanoid';
 import { IpcMainEvent } from 'electron';
@@ -109,6 +110,7 @@ import { getSkills } from '../utils/skills';
 import { WorkflowRunStatus } from '@mastra/core/workflows';
 import { MessageListInput } from '@mastra/core/agent/message-list';
 import { secretsManager } from '../app/secrets';
+import { Done } from '../tools/common/done';
 
 
 class MastraManager extends BaseManager {
@@ -597,6 +599,10 @@ class MastraManager extends BaseManager {
         await fs.promises.writeFile(path.join(workspace, 'memory', 'MEMORY.md'), ``, 'utf-8');
       }
 
+      if (!untilEndPrompt) {
+        untilEndPrompt = currentThread.metadata?.untilEndPrompt as UntilEndPrompt || { enable: false, prompt: '' };
+      }
+
       currentThread = await memoryStore.updateThread({
         id: chatId,
         title: currentThread.title,
@@ -633,6 +639,7 @@ class MastraManager extends BaseManager {
           reasoningTokens: 0,
           cachedInputTokens: 0,
         };
+      // const untilEndPrompt = currentThread.metadata?.untilEndPrompt as UntilEndPrompt || { enable: false, prompt: '' };
       requestContext = new RequestContext<ChatRequestContext>();
       requestContext.set('skillsLoaded', skillsLoaded);
       requestContext.set('model', model);
@@ -1029,12 +1036,7 @@ class MastraManager extends BaseManager {
         });
 
 
-        agent = await agentManager.buildAgent(agentId, {
-          modelId: model,
-          tools: tools,
-          subAgents: subAgents,
-          requestContext,
-        });
+
 
 
         const core = stream.messageList.get.all.core();
@@ -1044,17 +1046,7 @@ class MastraManager extends BaseManager {
         if (stream.status == 'suspended') {
           break;
         } else if (stream.status == 'success') {
-          // const reasoningText = await stream.reasoningText;
-          // if (reasoningText) {
-          //   const index = await getLastMessageIndex(db, 'assistant');
-          //   if (index > 0) {
-          //     const reasoningPart = db[index].content.parts.find(
-          //       (x) => x.type === 'reasoning' && !x.reasoning,
-          //     );
-          //     reasoningPart.reasoning = reasoningText;
-          //     await memoryStore.updateMessages({ messages: [...db] });
-          //   }
-          // }
+
 
           await this.saveThreadUsage(
             chatId,
@@ -1065,9 +1057,55 @@ class MastraManager extends BaseManager {
           const lastMessage = core[core.length - 1];
           if (lastMessage.role == 'tool') {
           } else if (lastMessage.role == 'assistant') {
-            break;
+            // 结束守卫
+            const { enable = false, prompt = '' } = requestContext.get('untilEndPrompt') as UntilEndPrompt || {};
+            if (enable && prompt.trim().length > 0) {
+              if (!tools.includes(`${ToolType.BUILD_IN}:${Done.toolName}`)) {
+                tools.push(`${ToolType.BUILD_IN}:${Done.toolName}`);
+              }
+              let messages: MastraDBMessage[] = [];
+              const parts = [];
+              parts.push({
+                type: 'text',
+                text: `<system-reminder>This is the until end prompt. if you sure the job is done, use the Done tool to finish the job, or continue to work on the task.</system-reminder>\n${prompt}`
+              });
+              messages.push({
+                id: nanoid(),
+                role: 'user',
+                threadId: chatId,
+                resourceId: resourceId,
+                type: 'v2',
+                createdAt: new Date(),
+                content: {
+                  format: 2,
+                  parts: parts,
+                  metadata: {
+                    systemReminder: true,
+                    isUntilEndPrompt: true,
+                  },
+                },
+              });
+              await memoryStore.saveMessages({ messages: [...messages] });
+            } else {
+              currentThread = await memoryStore.updateThread({
+                id: chatId,
+                title: currentThread.title,
+                metadata: {
+                  ...(currentThread.metadata || {}),
+                  untilEndPrompt: { enable: false, prompt },
+                },
+              });
+              break;
+            }
+
           }
         }
+        agent = await agentManager.buildAgent(agentId, {
+          modelId: model,
+          tools: tools,
+          subAgents: subAgents,
+          requestContext,
+        });
         _inputMessage = undefined;
         resume = undefined;
 
@@ -1122,6 +1160,7 @@ class MastraManager extends BaseManager {
 
 
         }
+
 
       }
 
@@ -1270,33 +1309,39 @@ class MastraManager extends BaseManager {
 
       }
 
-      // if (value.type == "text-delta") {
-      //   if (cache.textDelta[value.id]) {
-      //     cache.textDelta[value.id].push(value.delta);
-      //   } else {
-      //     cache.textDelta[value.id] = [value.delta];
-      //   }
-      // }
+      if (value.type == "text-delta") {
+        if (cache.textDelta[value.id]) {
+          cache.textDelta[value.id].push(value.delta);
+        } else {
+          cache.textDelta[value.id] = [value.delta];
+        }
+      }
 
-      // if (cache.textDelta && Object.keys(cache.textDelta).length > 0) {
-      //   for (const id of Object.keys(cache.textDelta)) {
-      //     const textDeltas = cache.textDelta[id]
-      //     if (textDeltas.length > 10 || value.type != "text-delta") {
-      //       if (textDeltas.length > 0) {
-      //         appManager.sendEvent(`chat:event:${chatId}`, {
-      //           type: ChatEvent.ChatChunk,
-      //           data: JSON.stringify({
-      //             type: 'text-delta',
-      //             id: id,
-      //             delta: textDeltas.join(''),
-      //           }),
-      //         });
-      //       }
-      //       delete cache.textDelta[id];
-      //     }
-      //   }
-      //   continue;
-      // }
+      if (cache.textDelta && Object.keys(cache.textDelta).length > 0) {
+        for (const id of Object.keys(cache.textDelta)) {
+          const textDeltas = cache.textDelta[id]
+          if (textDeltas.length > 10 || value.type != "text-delta") {
+            if (textDeltas.length > 0) {
+              appManager.sendEvent(`chat:event:${chatId}`, {
+                type: ChatEvent.ChatChunk,
+                data: JSON.stringify({
+                  type: 'text-delta',
+                  id: id,
+                  delta: textDeltas.join(''),
+                }),
+              });
+            }
+            if (value.type != "text-delta") {
+              appManager.sendEvent(`chat:event:${chatId}`, {
+                type: ChatEvent.ChatChunk,
+                data: JSON.stringify(value),
+              });
+            }
+            delete cache.textDelta[id];
+          }
+        }
+        continue;
+      }
 
 
       console.log('Stream chunk:', value);

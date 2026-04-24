@@ -23,6 +23,7 @@ import {
   ChatPreviewType,
   ChatSubmitOptions,
   ThreadState,
+  UntilEndPrompt,
 } from '@/types/chat';
 import { ChatPreview } from './chat-preview';
 import { ChatUsage } from './chat-usage';
@@ -278,7 +279,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
         });
       }
     };
-    const handleUntilEndChanged = async (_untilEndPrompt: string) => {
+    const handleUntilEndChanged = async (_untilEndPrompt: UntilEndPrompt) => {
       if (threadId && threadState) {
         await window.electron.mastra.updateThread(threadId, {
           title: threadState?.title,
@@ -298,7 +299,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
         model?: string;
         webSearch?: boolean;
         think?: boolean;
-        untilEndPrompt?: string;
+        untilEndPrompt?: UntilEndPrompt;
         tools?: string[];
         subAgents?: string[];
         requireToolApproval?: boolean;
@@ -376,7 +377,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
       chatInputRef.current?.setTools([]);
       chatInputRef.current?.setSubAgents([]);
       chatInputRef.current?.setThink(true);
-      chatInputRef.current?.setUntilEndPrompt('');
+      chatInputRef.current?.setUntilEndPrompt({ enable: false, prompt: '' });
       setSuggestions(undefined);
       setRequireToolApproval(false);
       setHistoryMessages([]);
@@ -443,7 +444,10 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
             },
           );
           chatInputRef.current?.setUntilEndPrompt(
-            _thread?.metadata?.untilEndPrompt as string,
+            (_thread?.metadata?.untilEndPrompt as UntilEndPrompt) ?? {
+              enable: false,
+              prompt: '',
+            },
           );
           let _agent: Agent | undefined;
           if (_thread?.metadata?.agentId) {

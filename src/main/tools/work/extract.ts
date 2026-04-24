@@ -273,13 +273,16 @@ Returns:
     if (!modeId) {
       throw new Error('Model is not set');
     }
+    if (!isUrl(source) && fs.statSync(source).isDirectory()) {
+      throw new Error(`'${source}' is not a file.`);
+    }
 
     let fieldsSchema;
     try {
       fieldsSchema = JSON.parse(fields);
     } catch (error) {
       return {
-        error: 'Invalid fields schema',
+        error: `Invalid fields schema, ${error.message}`,
       };
     }
 
