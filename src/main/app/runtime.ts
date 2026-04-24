@@ -585,7 +585,7 @@ export async function getBunRuntime(refresh = false) {
     bun.version = undefined;
     return bun;
   }
-  if (bun.status === 'installed' || refresh == false) {
+  if (bun.status === 'installed' && !refresh) {
     return bun;
   }
   const result = await runCommand(`${isWindows ? 'bun.exe' : 'bun'} --version`, {
