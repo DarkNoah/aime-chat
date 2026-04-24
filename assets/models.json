@@ -25790,6 +25790,40 @@
           "output": 64000
         }
       },
+      "deepseek-v4-flash": {
+        "id": "deepseek-v4-flash",
+        "name": "DeepSeek V4 Flash",
+        "family": "deepseek-flash",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "interleaved": {
+          "field": "reasoning_content"
+        },
+        "structured_output": true,
+        "temperature": true,
+        "knowledge": "2025-05",
+        "release_date": "2026-04-24",
+        "last_updated": "2026-04-24",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 0.14,
+          "output": 0.28,
+          "cache_read": 0.028
+        },
+        "limit": {
+          "context": 1000000,
+          "output": 384000
+        }
+      },
       "deepseek-v4-pro": {
         "id": "deepseek-v4-pro",
         "name": "DeepSeek V4 Pro",
@@ -32628,6 +32662,38 @@
           "output": 32768
         }
       },
+      "deepseek-v4-flash": {
+        "id": "deepseek-v4-flash",
+        "name": "DeepSeek V4 Flash",
+        "family": "deepseek",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "interleaved": {
+          "field": "reasoning_content"
+        },
+        "structured_output": true,
+        "temperature": true,
+        "release_date": "2026-04-24",
+        "last_updated": "2026-04-24",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 0.175,
+          "output": 0.35
+        },
+        "limit": {
+          "context": 1000000,
+          "output": 32768
+        }
+      },
       "openai-gpt-54-pro": {
         "id": "openai-gpt-54-pro",
         "name": "GPT-5.4 Pro",
@@ -32819,6 +32885,38 @@
         "limit": {
           "context": 1000000,
           "output": 128000
+        }
+      },
+      "deepseek-v4-pro": {
+        "id": "deepseek-v4-pro",
+        "name": "DeepSeek V4 Pro",
+        "family": "deepseek",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "interleaved": {
+          "field": "reasoning_content"
+        },
+        "structured_output": true,
+        "temperature": true,
+        "release_date": "2026-04-24",
+        "last_updated": "2026-04-24",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "cost": {
+          "input": 2.175,
+          "output": 4.35
+        },
+        "limit": {
+          "context": 1000000,
+          "output": 32768
         }
       },
       "deepseek-v3.2": {
@@ -33219,7 +33317,7 @@
         "structured_output": true,
         "temperature": true,
         "release_date": "2026-04-20",
-        "last_updated": "2026-04-20",
+        "last_updated": "2026-04-24",
         "modalities": {
           "input": [
             "text",
@@ -33231,9 +33329,9 @@
         },
         "open_weights": true,
         "cost": {
-          "input": 0.56,
-          "output": 3.5,
-          "cache_read": 0.11
+          "input": 0.7448,
+          "output": 4.655,
+          "cache_read": 0.1463
         },
         "limit": {
           "context": 256000,
