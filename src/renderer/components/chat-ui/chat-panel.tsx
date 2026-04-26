@@ -188,7 +188,6 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
         chatInputRef.current?.attachmentsClear();
       },
       setAgentId: (_agentId: string) => {
-        debugger;
         setAgentId((prev) => {
           return _agentId;
         });
@@ -396,34 +395,6 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
     useEffect(() => {
       resetChat();
       if (threadId) {
-        eventBus.on(`chat:onData:${threadId}`, (event: any) => {
-          console.log('chat:onData', event);
-          if (event.type === 'data-compress-start') {
-            setCompressing(true);
-          } else if (event.type === 'data-compress-end') {
-            setCompressing(false);
-          } else if (event.type === 'data-usage') {
-            setUsage(event.data);
-          } else if (event.type === 'data-send-event') {
-            const { target_panel, data } = event.data as {
-              target_panel: string;
-              data: any;
-            };
-            // if (target_panel === 'web_preview' && data?.url) {
-            //   setShowPreview(true);
-            //   setPreviewData((prev: ChatPreviewData) => {
-            //     return {
-            //       ...prev,
-            //       previewPanel: ChatPreviewType.WEB_PREVIEW,
-            //       webPreviewUrl: data?.url,
-            //     };
-            //   });
-            // }
-          }
-        });
-        eventBus.on(`chat:onFinish:${threadId}`, (event) => {
-          console.log('chat:onFinish', event);
-        });
         const getThread = async () => {
           // unregisterThread(threadId);
           const _thread = await ensureThread(threadId);
@@ -471,8 +442,44 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
             (_thread?.metadata?.requireToolApproval as boolean) ?? false,
           );
           setAgentId(_thread?.metadata?.agentId as string);
+          chatInputRef.current?.setUntilEndPrompt(
+            (_thread?.metadata?.untilEndPrompt as UntilEndPrompt) ?? {
+              enable: false,
+              prompt: '',
+            },
+          );
         };
         getThread();
+        eventBus.on(`chat:onData:${threadId}`, (event: any) => {
+          console.log('chat:onData', event);
+          if (event.type === 'data-compress-start') {
+            setCompressing(true);
+          } else if (event.type === 'data-compress-end') {
+            setCompressing(false);
+          } else if (event.type === 'data-usage') {
+            setUsage(event.data);
+          } else if (event.type === 'data-send-event') {
+            const { target_panel, data } = event.data as {
+              target_panel: string;
+              data: any;
+            };
+            // if (target_panel === 'web_preview' && data?.url) {
+            //   setShowPreview(true);
+            //   setPreviewData((prev: ChatPreviewData) => {
+            //     return {
+            //       ...prev,
+            //       previewPanel: ChatPreviewType.WEB_PREVIEW,
+            //       webPreviewUrl: data?.url,
+            //     };
+            //   });
+            // }
+          }
+        });
+        eventBus.on(`chat:onFinish:${threadId}`, (event) => {
+          console.log('chat:onFinish', event);
+          getThread();
+        });
+
         return () => {
           unregisterThread(threadId, true);
           eventBus.off(`chat:onData:${threadId}`);
@@ -760,95 +767,99 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
                 {/* <pre className="text-xs whitespace-pre-wrap break-all bg-secondary p-2 rounded-2xl mb-2">
                   {JSON.stringify(threadState?.messages, null, 2)}
                 </pre> */}
-                {threadState?.messages.map((message, index: number) => {
-                  let canExpandParts = [];
-                  let lastParts = [];
-                  if (
-                    message.role === 'user' ||
-                    index === (threadState?.messages.length ?? 0) - 1
-                  ) {
-                    lastParts = message.parts;
-                  } else {
-                    for (let i = message.parts.length - 1; i >= 0; i--) {
-                      if (
-                        message.parts[i].type === 'text' ||
-                        message.parts[i].type.startsWith('tool-')
-                      ) {
-                        lastParts = message.parts.slice(i);
-                        canExpandParts = message.parts.slice(0, i);
-                        break;
+                {threadState?.messages
+                  .filter((x) => x.metadata?.['systemReminder'] !== true)
+                  .map((message, index: number) => {
+                    let canExpandParts = [];
+                    let lastParts = [];
+                    if (
+                      message.role === 'user' ||
+                      index === (threadState?.messages.length ?? 0) - 1
+                    ) {
+                      lastParts = message.parts;
+                    } else {
+                      for (let i = message.parts.length - 1; i >= 0; i--) {
+                        if (
+                          message.parts[i].type === 'text' ||
+                          message.parts[i].type.startsWith('tool-')
+                        ) {
+                          lastParts = message.parts.slice(i);
+                          canExpandParts = message.parts.slice(0, i);
+                          break;
+                        }
                       }
                     }
-                  }
-                  if (
-                    !(
-                      canExpandParts.find(
-                        (x) => x.type === 'text' || x.type.startsWith('tool-'),
-                      ) ||
-                      lastParts.find(
-                        (x) => x.type === 'text' || x.type.startsWith('tool-'),
-                      )
-                    )
-                  ) {
-                    return null;
-                  }
-
-                  return (
-                    <Collapsible
-                      key={message.id}
-                      open={expandedMessages.includes(message.id)}
-                      onOpenChange={(open) =>
-                        handleExpandedMessages(message.id, open)
-                      }
-                      className="flex flex-col gap-2 mt-2"
-                    >
-                      {message.role === 'assistant' &&
+                    if (
+                      !(
                         canExpandParts.find(
                           (x) =>
                             x.type === 'text' || x.type.startsWith('tool-'),
-                        ) && (
-                          <div className="flex items-center gap-4">
-                            <CollapsibleTrigger asChild>
-                              <Button
-                                variant="outline"
-                                className="flex flex-row gap-2 items-center"
-                              >
-                                <span className="text-sm font-semibold">{`${expandedMessages.includes(message.id) ? 'Hide' : 'Show'} more details ${canExpandParts.filter((x) => x.type === 'text' || x.type.startsWith('tool-')).length} msg.`}</span>
-                                <ChevronsUpDown />
-                              </Button>
-                            </CollapsibleTrigger>
-                          </div>
-                        )}
+                        ) ||
+                        lastParts.find(
+                          (x) =>
+                            x.type === 'text' || x.type.startsWith('tool-'),
+                        )
+                      )
+                    ) {
+                      return null;
+                    }
 
-                      <CollapsibleContent className="flex flex-col gap-2">
-                        {(message.metadata as any)?.compressed === true && (
-                          <></>
-                        )}
-                        {!(message.metadata as any)?.compressed &&
-                          canExpandParts?.map((part, i) => {
-                            return renderPart(part, message, i);
-                          })}
-                      </CollapsibleContent>
-                      {lastParts.map((part, i) => {
-                        return renderPart(part, message, i);
-                      })}
-                      <ChatMessageAttachments
-                        className={`mb-2 ${message.role === 'user' ? 'ml-auto' : 'ml-0'}`}
+                    return (
+                      <Collapsible
+                        key={message.id}
+                        open={expandedMessages.includes(message.id)}
+                        onOpenChange={(open) =>
+                          handleExpandedMessages(message.id, open)
+                        }
+                        className="flex flex-col gap-2 mt-2"
                       >
-                        {lastParts
-                          ?.filter((p) => p.type === 'file')
-                          .map((part, i) => {
-                            return (
-                              <ChatMessageAttachment
-                                data={part}
-                                key={`${message.id}-${i}`}
-                              />
-                            );
-                          })}
-                      </ChatMessageAttachments>
-                    </Collapsible>
-                  );
-                })}
+                        {message.role === 'assistant' &&
+                          canExpandParts.find(
+                            (x) =>
+                              x.type === 'text' || x.type.startsWith('tool-'),
+                          ) && (
+                            <div className="flex items-center gap-4">
+                              <CollapsibleTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  className="flex flex-row gap-2 items-center"
+                                >
+                                  <span className="text-sm font-semibold">{`${expandedMessages.includes(message.id) ? 'Hide' : 'Show'} more details ${canExpandParts.filter((x) => x.type === 'text' || x.type.startsWith('tool-')).length} msg.`}</span>
+                                  <ChevronsUpDown />
+                                </Button>
+                              </CollapsibleTrigger>
+                            </div>
+                          )}
+
+                        <CollapsibleContent className="flex flex-col gap-2">
+                          {(message.metadata as any)?.compressed === true && (
+                            <></>
+                          )}
+                          {!(message.metadata as any)?.compressed &&
+                            canExpandParts?.map((part, i) => {
+                              return renderPart(part, message, i);
+                            })}
+                        </CollapsibleContent>
+                        {lastParts.map((part, i) => {
+                          return renderPart(part, message, i);
+                        })}
+                        <ChatMessageAttachments
+                          className={`mb-2 ${message.role === 'user' ? 'ml-auto' : 'ml-0'}`}
+                        >
+                          {lastParts
+                            ?.filter((p) => p.type === 'file')
+                            .map((part, i) => {
+                              return (
+                                <ChatMessageAttachment
+                                  data={part}
+                                  key={`${message.id}-${i}`}
+                                />
+                              );
+                            })}
+                        </ChatMessageAttachments>
+                      </Collapsible>
+                    );
+                  })}
               </div>
             )}
             {threadState?.status === 'submitted' && (

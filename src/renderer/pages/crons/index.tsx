@@ -573,7 +573,7 @@ function CronsPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value={EMPTY_PROJECT_VALUE}>
-                        {t('common.no_data')}
+                        {t('common.unselected_project', 'Unselected Project')}
                       </SelectItem>
                       {projects.map((project) => (
                         <SelectItem key={project.id} value={project.id || ''}>
@@ -791,8 +791,9 @@ function CronsPage() {
                   rows={4}
                   onChange={(e) => setForm({ ...form, prompt: e.target.value })}
                 />
-                <PromptInputTools>
+                <PromptInputTools className="h-[24px]">
                   <ChatAgentSelector
+                    className="h-full"
                     value={form.submitOptions.agentId}
                     mode="single"
                     onSelectedAgent={(agent) =>
@@ -863,6 +864,7 @@ function CronsPage() {
                     </div>
                   </ChatAgentSelector>
                   <ChatModelSelect
+                    className="h-full"
                     value={form.submitOptions.model}
                     onChange={(_model) =>
                       setForm({

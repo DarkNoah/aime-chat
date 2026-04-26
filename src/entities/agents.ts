@@ -48,4 +48,7 @@ export class Agents {
 
   @Column({ nullable: true })
   greeting?: string;
+
+  @Column('json', { nullable: true })
+  untilEndPrompt?: any;
 }

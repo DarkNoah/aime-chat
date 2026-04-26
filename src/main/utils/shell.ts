@@ -376,7 +376,7 @@ export const createShell = async (
   if (!isWindows) {
     const shell = spawn(
       file || 'bash',
-      file ? [_command as string] : ['-c', _command as string],
+      file ? [input_command as string] : ['-lc', input_command as string],
       {
         stdio: ['ignore', 'pipe', 'pipe'],
         detached: true, // ensure subprocess starts its own process group (esp. in Linux)
