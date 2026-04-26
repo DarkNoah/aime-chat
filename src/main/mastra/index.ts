@@ -865,6 +865,11 @@ class MastraManager extends BaseManager {
           historyMessages.messages,
         );
         let input = [...historyMessagesAISdkV5];
+
+
+
+
+
         if (_inputMessage) input.push(_inputMessage);
 
         const messages = convertToModelMessages(historyMessagesAISdkV5);
@@ -1048,6 +1053,7 @@ class MastraManager extends BaseManager {
         } else if (stream.status == 'success') {
 
 
+          _inputMessage = undefined;
           await this.saveThreadUsage(
             chatId,
             resourceId,
@@ -1063,29 +1069,20 @@ class MastraManager extends BaseManager {
               if (!tools.includes(`${ToolType.BUILD_IN}:${Done.toolName}`)) {
                 tools.push(`${ToolType.BUILD_IN}:${Done.toolName}`);
               }
-              let messages: MastraDBMessage[] = [];
-              const parts = [];
-              parts.push({
-                type: 'text',
-                text: `<system-reminder>This is the until end prompt. if you sure the job is done, use the Done tool to finish the job, or continue to work on the task.</system-reminder>\n${prompt}`
-              });
-              messages.push({
+              _inputMessage = {
                 id: nanoid(),
                 role: 'user',
-                threadId: chatId,
-                resourceId: resourceId,
-                type: 'v2',
-                createdAt: new Date(),
-                content: {
-                  format: 2,
-                  parts: parts,
-                  metadata: {
-                    systemReminder: true,
-                    isUntilEndPrompt: true,
-                  },
-                },
-              });
-              await memoryStore.saveMessages({ messages: [...messages] });
+                parts: [
+                  {
+                    type: 'text',
+                    text: `<system-reminder>This is the until end prompt. if you sure the job is done, use the Done tool to finish the job, or continue to work on the task.</system-reminder>\n${prompt}`
+                  }
+                ],
+                metadata: {
+                  systemReminder: true,
+                  isUntilEndPrompt: true,
+                }
+              } as UIMessage
             } else {
               currentThread = await memoryStore.updateThread({
                 id: chatId,
@@ -1106,7 +1103,7 @@ class MastraManager extends BaseManager {
           subAgents: subAgents,
           requestContext,
         });
-        _inputMessage = undefined;
+
         resume = undefined;
 
         if (streamOptions.abortSignal.aborted) {
@@ -1344,7 +1341,7 @@ class MastraManager extends BaseManager {
       }
 
 
-      console.log('Stream chunk:', value);
+      // console.log('Stream chunk:', value);
 
 
       appManager.sendEvent(`chat:event:${chatId}`, {

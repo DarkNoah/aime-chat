@@ -87,8 +87,8 @@ export const ChatSession = React.forwardRef<ChatSessionRef, ChatSessionProps>(
       id: threadId,
       transport: transportRef.current,
       onFinish: (event) => {
-        console.log('onFinish', event);
-        onFinish?.(event);
+        // console.log('onFinish', event);
+        // onFinish?.(event);
       },
       onData: (dataPart) => {
         console.log('onData', dataPart);
@@ -96,9 +96,9 @@ export const ChatSession = React.forwardRef<ChatSessionRef, ChatSessionProps>(
         if (dataPart.type === 'data-usage') {
           onUsageChange?.(dataPart.data);
         }
-        if (dataPart.type === 'data-step-finish') {
-          onFinish?.(dataPart.data);
-        }
+        // if (dataPart.type === 'data-step-finish') {
+        //   onFinish?.(dataPart.data);
+        // }
         if (dataPart.type === 'data-thread-changed') {
           onThreadChanged?.(dataPart.data);
         }
