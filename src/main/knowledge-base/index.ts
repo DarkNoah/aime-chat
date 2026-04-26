@@ -369,7 +369,13 @@ export class KnowledgeBaseManager extends BaseManager {
           const score = await this.calcClipCosineSimilarity(kb.embedding, vectorStr, JSON.parse(row.embedding as string));
           row.score = score;
           console.log(row, score);
-          if (score > 0.7) {
+          if (fileTpye == 'text') {
+            results.rows.push({
+              ...row,
+              score: score,
+            });
+          }
+          else if (score > 0.7) {
             results.rows.push({
               ...row,
               score: score,
@@ -735,18 +741,29 @@ export class KnowledgeBaseManager extends BaseManager {
             items: [item]
           });
           const ext = path.extname(file).toLowerCase();
+          const isImage = mime.lookup(file).startsWith('image/')
+
           if (await isBinaryFile(file) && ext != '.ts') {
-            content = await new ReadBinaryFile({
-              forcePDFOcr: true,
-              forceWordOcr: false,
-              reminder: false,
-              excludeInsideImage: true,
-            }).execute({
-              file_source: file,
-              args: {}
-            }, {});
+            try {
+              content = await new ReadBinaryFile({
+                forcePDFOcr: true,
+                forceWordOcr: false,
+                reminder: false,
+                excludeInsideImage: true,
+              }).execute({
+                file_source: file,
+                args: {}
+              }, {});
+            }
+            catch (err) {
+              console.error(err);
+            }
+
           } else {
             content = await fs.promises.readFile(file, 'utf-8');
+          }
+          if (!isImage && !content.trim()) {
+            throw new Error('File content is failed to extract');
           }
           item.content = content;
           const buffer = await fs.promises.readFile(file);
@@ -756,16 +773,20 @@ export class KnowledgeBaseManager extends BaseManager {
             kbId: kbId,
             items: [item]
           });
-          const doc = MDocument.fromText(content);
-          const chunks = await doc.chunk({
-            strategy: "recursive",
-            maxSize: 512,
-            overlap: 50,
-            separators: ["\n"],
-          });
-          item.chunkCount = chunks.length;
+          let chunks = [];
+          if (content) {
+            const doc = MDocument.fromText(content);
+            chunks = await doc.chunk({
+              strategy: "recursive",
+              maxSize: 512,
+              overlap: 50,
+              separators: ["\n"],
+            });
+            item.chunkCount = chunks.length;
+          }
+
           let embeddings: { text_embeddings: number[][], image_embeddings?: number[][] } | undefined;
-          const isImage = mime.lookup(file).startsWith('image/')
+
           if (mime.lookup(file).startsWith('image/')) {
             embeddings = await this.calcEmbeddings(kb.embedding, chunks.map((chunk) => chunk.text), [file]);
           } else {

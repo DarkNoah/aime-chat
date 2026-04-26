@@ -10,6 +10,8 @@ export class PaddleOcrApiModel implements OCRModel {
   provider: string = 'paddleocrapi';
   modelId: string;
   providerEntity: Providers;
+
+
   constructor(provider: Providers) {
     this.providerEntity = provider;
   }
@@ -124,6 +126,7 @@ export class PaddleOcrApiProvider extends BaseProvider {
   description: string;
   // defaultApiBase?: string = 'https://api.paddleocrapi.com';
   defaultApiBase?: string;
+  hasChatModel = false;
 
   constructor(provider: Providers) {
     super({ provider });

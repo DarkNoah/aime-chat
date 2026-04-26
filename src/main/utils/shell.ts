@@ -384,7 +384,7 @@ export const createShell = async (
         env: _env,
       },
     );
-    return { shell, tempFilePath, command: _command };
+    return { shell, tempFilePath, command: input_command };
   } else {
     let real_input_command: string[];
     if (isString(_command)) {

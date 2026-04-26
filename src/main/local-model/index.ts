@@ -16,6 +16,7 @@ import {
   CLIPModel,
   CLIPTextModelWithProjection,
   CLIPVisionModelWithProjection,
+  JinaCLIPImageProcessor,
   pipeline,
   PreTrainedModel,
 } from '@huggingface/transformers';
@@ -196,7 +197,7 @@ class LocalModelManager extends BaseManager {
       } else if (modelName == 'chinese-clip-vit-large-patch14-336px' || modelName == 'jina-clip-v2') {
         const [tokenizer, processor, model] = await Promise.all([
           AutoTokenizer.from_pretrained(modelPath),
-          AutoProcessor.from_pretrained(modelPath),
+          modelName == 'jina-clip-v2' ? JinaCLIPImageProcessor.from_pretrained(modelPath) : AutoProcessor.from_pretrained(modelPath),
           AutoModel.from_pretrained(modelPath),
         ]);
         entry = {
