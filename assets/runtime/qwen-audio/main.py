@@ -960,6 +960,7 @@ def _run_mlx_asr(
                 sf.write(chunk_path, audio_data[start:end], sr)
 
                 chunk_asr = asr_model.generate(chunk_path, **asr_kwargs)
+                touch()
                 chunk_text = str(getattr(chunk_asr, "text", "") or "").strip()
                 if chunk_text:
                     asr_text = f"{asr_text} {chunk_text}".strip()
@@ -1310,19 +1311,21 @@ def main() -> None:
         if not line:
             continue
         touch()
-
         try:
             req = json.loads(line)
             req_id = req.get("id")
             result = handle_request(req)
             _ok(req_id, result)
         except Exception as exc:
+
             req_id = None
             try:
                 req_id = json.loads(line).get("id")
             except Exception:
                 pass
             _err(req_id, str(exc), traceback.format_exc())
+        finally:
+            touch()
 
 
 if __name__ == "__main__":

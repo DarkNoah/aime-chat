@@ -309,7 +309,7 @@ Output: Creates directory 'foo'`),
         shell_id,
         cwd,
         _env,
-        timeout,
+        undefined,
         undefined,
         threadId,
       );

@@ -251,30 +251,30 @@ export const runCommand = async (
     cleanupAbortController();
   }
 
-  const backgroundPIDs: number[] = [];
-  if (os.platform() !== 'win32') {
-    if (fs.existsSync(tempFilePath)) {
-      const pgrepLines = fs
-        .readFileSync(tempFilePath, 'utf8')
-        .split('\n')
-        .filter(Boolean);
-      for (const line of pgrepLines) {
-        if (!/^\d+$/.test(line)) {
-          console.error(`pgrep: ${line}`);
-        }
-        const pid = Number(line);
-        // exclude the shell subprocess pid
-        if (pid !== shell.pid) {
-          backgroundPIDs.push(pid);
-        }
-      }
-      fs.unlinkSync(tempFilePath);
-    } else {
-      if (!abortSignal?.aborted) {
-        console.error('missing pgrep output');
-      }
-    }
-  }
+  // const backgroundPIDs: number[] = [];
+  // if (os.platform() !== 'win32') {
+  //   if (fs.existsSync(tempFilePath)) {
+  //     const pgrepLines = fs
+  //       .readFileSync(tempFilePath, 'utf8')
+  //       .split('\n')
+  //       .filter(Boolean);
+  //     for (const line of pgrepLines) {
+  //       if (!/^\d+$/.test(line)) {
+  //         console.error(`pgrep: ${line}`);
+  //       }
+  //       const pid = Number(line);
+  //       // exclude the shell subprocess pid
+  //       if (pid !== shell.pid) {
+  //         backgroundPIDs.push(pid);
+  //       }
+  //     }
+  //     fs.unlinkSync(tempFilePath);
+  //   } else {
+  //     if (!abortSignal?.aborted) {
+  //       console.error('missing pgrep output');
+  //     }
+  //   }
+  // }
   return {
     output,
     stdout,
@@ -283,7 +283,7 @@ export const runCommand = async (
     code,
     processSignal,
     timedOut: didTimeout(),
-    backgroundPIDs,
+    // backgroundPIDs,
     tempFilePath,
     pid: shell.pid,
   };

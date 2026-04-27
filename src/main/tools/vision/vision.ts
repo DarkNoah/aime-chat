@@ -351,12 +351,14 @@ ${ocr}
 
       const visionModelInfo = await providersManager.getModelInfo(this.modelId);
       const data = [
-        {
-          type: 'video',
-          data: fs.readFileSync(file_path).toString('base64'),
-          mimeType: mimeType,
-        },
+        // {
+        //   type: 'video',
+        //   data: fs.readFileSync(file_path).toString('base64'),
+        //   mimeType: mimeType,
+        // },
       ] as any[];
+
+
       if (asr) {
         data.push({
           type: 'text',
@@ -365,13 +367,21 @@ ${asr}`,
         });
       }
 
-      if (modelInfo.modelInfo?.modalities?.input?.includes('video')) {
-
+      if (modelInfo?.modelInfo?.modalities?.input?.includes('video')) {
+        if (fs.statSync(file_path).size < 18 * 1024 * 1024) {
+          data.push(
+            {
+              type: 'video',
+              data: fs.readFileSync(file_path).toString('base64'),
+              mimeType: mimeType,
+            }
+          )
+        }
         return {
           content: data,
         };
 
-      } else if (visionModelInfo.modelInfo?.modalities?.input?.includes('video')) {
+      } else if (visionModelInfo?.modelInfo?.modalities?.input?.includes('video')) {
         const model = provider.languageModel(this.modelId?.split('/').slice(1).join('/'));
         const understandVideoAgent = new Agent({
           id: 'understand-video-agent',
@@ -382,6 +392,15 @@ Your task is to carefully analyze the provided video and respond to the user's p
 `,
           model: model,
         });
+        if (fs.statSync(file_path).size < 18 * 1024 * 1024) {
+          data.push(
+            {
+              type: 'video',
+              data: fs.readFileSync(file_path).toString('base64'),
+              mimeType: mimeType,
+            }
+          )
+        }
 
         const result = await understandVideoAgent.generate([{
           role: 'user',
@@ -391,6 +410,13 @@ Your task is to carefully analyze the provided video and respond to the user's p
         });
         return result.text;
       }
+
+      if (data.length > 0) {
+        return {
+          content: data,
+        };
+      }
+      throw new Error('Failed to analyze video');
     } else {
       throw new Error('Unsupported file type');
     }
