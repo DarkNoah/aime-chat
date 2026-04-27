@@ -70,7 +70,8 @@
     "secrets_delete_title": "删除密钥",
     "secrets_delete_confirm": "确定要删除此密钥吗？此操作不可撤消。",
     "secrets_description_placeholder": "可选描述",
-    "secrets_global": "全局"
+    "secrets_global": "全局",
+    "default_generate_image": "默认图片生成模型"
   },
   "common": {
     "edit": "编辑",
@@ -147,7 +148,8 @@
     "disable_vision": "不使用视觉模型",
     "slash_commands": "快捷命令",
     "results": "结果",
-    "select_model": "选择一个模型"
+    "select_model": "选择一个模型",
+    "unselected_project": "未选择项目"
   },
   "sidebar": {
     "new_chat": "新聊天",
@@ -162,6 +164,13 @@
     "crons": "自动化"
   },
   "chat": {
+    "until_end": "结束守卫",
+    "until_end_enable": "启用",
+    "until_end_description": "在模型准备结束对话前,会自动按照下方的检查清单再核对一遍。只有当所有检查都通过时,模型才会调用 Done 工具真正结束本轮对话;否则会继续工作直到全部满足。",
+    "until_end_checklist_label": "检查清单",
+    "until_end_placeholder": "例如:\n1. 确认所有改动的文件都已通过 lint 检查\n2. 确认相关测试已经运行并通过\n3. 已向用户给出简明的变更总结",
+    "until_end_hint": "提示:用清晰的、可被模型逐条验证的条目来描述检查项,效果最佳。",
+    "until_end_disabled_tip": "已关闭:模型不会执行额外的结束前检查。",
     "new_chat": "新聊天",
     "clear_messages_title": "清空消息",
     "clear_messages_description": "确定要清楚当前所有消息吗?",
@@ -467,5 +476,24 @@
     "last_run_at": "上次执行",
     "empty": "暂无定时任务",
     "never": "从未执行"
+  },
+  "task_manager": {
+    "title": "任务管理",
+    "description": "查看和管理所有后台任务",
+    "clear_completed": "清除已完成",
+    "tab_all": "全部",
+    "tab_active": "进行中",
+    "tab_done": "已结束",
+    "empty": "暂无任务",
+    "status_pending": "等待中",
+    "status_running": "运行中",
+    "status_paused": "已暂停",
+    "status_completed": "已完成",
+    "status_failed": "失败",
+    "status_cancelled": "已取消",
+    "action_pause": "暂停",
+    "action_resume": "继续",
+    "action_cancel": "取消",
+    "action_remove": "移除"
   }
 }

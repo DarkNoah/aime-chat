@@ -31,6 +31,7 @@ export class AppInfo {
     ocrModel: string;
     transcriptionModel: string;
     speechModel: string;
+    generateImageModel: string;
   };
   defaultAgent: string;
   defaultThink: 'low' | 'medium' | 'high';

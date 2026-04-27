@@ -78,6 +78,7 @@ export const ToolConfig = {
         'ui:title': t('common.model'),
         'ui:options': {
           type: ModelType.MUSIC,
+          clearable: true,
         },
       },
     },
@@ -92,6 +93,7 @@ export const ToolConfig = {
         'ui:title': t('common.model'),
         'ui:options': {
           type: ModelType.TRANSCRIPTION,
+          clearable: true,
         },
       },
     },
@@ -211,6 +213,9 @@ export const ToolConfig = {
       modelId: {
         'ui:widget': 'modelSelector',
         'ui:title': t('common.model'),
+        'ui:options': {
+          clearable: true,
+        },
       },
     },
   },
@@ -222,6 +227,9 @@ export const ToolConfig = {
       modelId: {
         'ui:widget': 'modelSelector',
         'ui:title': t('common.model'),
+        'ui:options': {
+          clearable: true,
+        },
       },
     },
   },
@@ -259,6 +267,7 @@ export const ToolConfig = {
         'ui:title': t('common.model'),
         'ui:options': {
           type: ModelType.IMAGE_GENERATION,
+          clearable: true,
         },
       },
     },
@@ -273,6 +282,7 @@ export const ToolConfig = {
         'ui:title': t('common.model'),
         'ui:options': {
           type: ModelType.IMAGE_GENERATION,
+          clearable: true,
         },
       },
     },

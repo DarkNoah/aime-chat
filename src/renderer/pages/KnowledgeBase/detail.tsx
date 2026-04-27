@@ -147,6 +147,7 @@ function KnowledgeBaseDetail() {
   const [searchDialogOpen, setSearchDialogOpen] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState('');
+  const [searchMode, setSearchMode] = useState<'text' | 'image'>('text');
 
   const [draggingFiles, setDraggingFiles] = useState(false);
   const [importingFiles, setImportingFiles] = useState(false);
@@ -309,6 +310,7 @@ function KnowledgeBaseDetail() {
     }
     setSearchLoading(true);
     setSearchError('');
+    setSearchMode('text');
     setSearchDialogOpen(true);
     setCurrentSearchQuery('');
     try {
@@ -481,6 +483,7 @@ function KnowledgeBaseDetail() {
       }
       setSearchLoading(true);
       setSearchError('');
+      setSearchMode('image');
       setSearchDialogOpen(true);
       setCurrentSearchQuery('');
       const filePath = result.filePaths[0];
@@ -1022,18 +1025,30 @@ function KnowledgeBaseDetail() {
         </AlertDialogContent>
       </AlertDialog>
       <Dialog open={searchDialogOpen} onOpenChange={setSearchDialogOpen}>
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent className="sm:max-w-2xl ">
           <DialogHeader>
-            <DialogTitle>
-              {`${t('common.search')} - ${currentSearchQuery}`}
+            <DialogTitle className="truncate flex-1 min-w-0">
+              {`${t('common.search')}`}
             </DialogTitle>
           </DialogHeader>
-          <div className="max-h-[60vh] space-y-2 overflow-y-auto">
-            {searchResults.length > 0 && !searchLoading && (
-              <div className="text-xs text-muted-foreground pb-1">
-                {t('common.results', 'Results')} {searchResults.length}
-              </div>
+          <div className="text-xs text-muted-foreground break-all whitespace-pre-wrap">
+            {currentSearchQuery}
+            {searchMode === 'image' && (
+              <img
+                alt={currentSearchQuery || 'attachment'}
+                className="size-40 object-cover rounded-2xl"
+                height={50}
+                src={`file://${currentSearchQuery}`}
+                width={50}
+              />
             )}
+          </div>
+          {searchResults.length > 0 && !searchLoading && (
+            <div className="text-xs text-muted-foreground pb-1">
+              {t('common.results', 'Results')} {searchResults.length}
+            </div>
+          )}
+          <div className="max-h-[60vh] space-y-2 overflow-y-auto">
             <PhotoProvider>
               {searchLoading ? (
                 <div className="text-sm text-muted-foreground">
@@ -1056,7 +1071,7 @@ function KnowledgeBaseDetail() {
                   >
                     <ItemContent className="w-full gap-2">
                       <div className="flex items-center justify-between gap-2">
-                        <ItemTitle className="text-sm break-all">
+                        <ItemTitle className="text-sm break-all  flex-1">
                           {String(
                             result.name || result.itemId || result.id || '-',
                           )}
@@ -1080,6 +1095,11 @@ function KnowledgeBaseDetail() {
                       <pre className="bg-secondary rounded-md p-2 text-xs whitespace-pre-wrap break-all">
                         {formatSearchResult(result)}
                       </pre>
+                      {Object.keys(result.extendValues || {}).map((key) => (
+                        <div key={key}>
+                          {key}: {result.extendValues?.[key]}
+                        </div>
+                      ))}
                     </ItemContent>
                   </Item>
                 ))

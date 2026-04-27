@@ -158,6 +158,13 @@
     "crons": "Crons"
   },
   "chat": {
+    "until_end": "End Guard",
+    "until_end_enable": "Enable",
+    "until_end_description": "Before the model ends the conversation, it will re-verify the checklist below. The model is only allowed to call the Done tool when every item passes; otherwise it will keep working until they do.",
+    "until_end_checklist_label": "Checklist",
+    "until_end_placeholder": "e.g.\n1. Confirm all modified files pass lint checks\n2. Confirm related tests have been run and passed\n3. A concise summary of changes has been given to the user",
+    "until_end_hint": "Tip: clear, individually verifiable items work best.",
+    "until_end_disabled_tip": "Disabled: the model will not run any extra end-of-turn checks.",
     "new_chat": "New Chat",
     "clear_messages_title": "Clear Messages",
     "clear_messages_description": "Are you sure you want to clear all current messages?",
@@ -421,5 +428,24 @@
     "last_run_at": "Last Run",
     "empty": "No cron jobs configured",
     "never": "Never"
+  },
+  "task_manager": {
+    "title": "Task Manager",
+    "description": "View and manage all background tasks",
+    "clear_completed": "Clear completed",
+    "tab_all": "All",
+    "tab_active": "Active",
+    "tab_done": "Done",
+    "empty": "No tasks",
+    "status_pending": "Pending",
+    "status_running": "Running",
+    "status_paused": "Paused",
+    "status_completed": "Completed",
+    "status_failed": "Failed",
+    "status_cancelled": "Cancelled",
+    "action_pause": "Pause",
+    "action_resume": "Resume",
+    "action_cancel": "Cancel",
+    "action_remove": "Remove"
   }
 }

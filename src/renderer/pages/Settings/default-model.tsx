@@ -17,7 +17,15 @@ import {
   InputGroupInput,
   InputGroupButton,
 } from '@/renderer/components/ui/input-group';
-import { ArrowUpIcon, Brain, Eye, ScanEye, Zap } from 'lucide-react';
+import {
+  AudioLines,
+  Brain,
+  Eye,
+  ImagePlus,
+  ScanText,
+  Speech,
+  Zap,
+} from 'lucide-react';
 import { Input } from '@/renderer/components/ui/input';
 import { IconFolder } from '@tabler/icons-react';
 import {
@@ -117,7 +125,7 @@ export default function DefaultModel() {
       <Item variant="outline">
         <ItemContent>
           <ItemTitle>
-            <ScanEye className="w-5 h-5" />
+            <ScanText className="w-5 h-5" />
             {t('settings.default_ocr')}
           </ItemTitle>
           <ItemDescription></ItemDescription>
@@ -137,7 +145,7 @@ export default function DefaultModel() {
       <Item variant="outline">
         <ItemContent>
           <ItemTitle>
-            <ScanEye className="w-5 h-5" />
+            <AudioLines className="w-5 h-5" />
             {t('settings.default_transcription', 'Default Transcription Model')}
           </ItemTitle>
           <ItemDescription></ItemDescription>
@@ -157,7 +165,7 @@ export default function DefaultModel() {
       <Item variant="outline">
         <ItemContent>
           <ItemTitle>
-            <ScanEye className="w-5 h-5" />
+            <Speech className="w-5 h-5" />
             {t('settings.default_speech', 'Default Speech Model')}
           </ItemTitle>
           <ItemDescription></ItemDescription>
@@ -170,6 +178,29 @@ export default function DefaultModel() {
             value={appInfo?.defaultModel?.speechModel}
             onChange={(model) => {
               onChangeDefaultModel(model, 'speechModel');
+            }}
+          />
+        </ItemActions>
+      </Item>
+      <Item variant="outline">
+        <ItemContent>
+          <ItemTitle>
+            <ImagePlus className="w-5 h-5" />
+            {t(
+              'settings.default_generate_image',
+              'Default Generate Image Model',
+            )}
+          </ItemTitle>
+          <ItemDescription></ItemDescription>
+        </ItemContent>
+        <ItemActions>
+          <ChatModelSelect
+            clearable
+            type={ModelType.IMAGE_GENERATION}
+            className="w-[200px] border"
+            value={appInfo?.defaultModel?.generateImageModel}
+            onChange={(model) => {
+              onChangeDefaultModel(model, 'generateImageModel');
             }}
           />
         </ItemActions>

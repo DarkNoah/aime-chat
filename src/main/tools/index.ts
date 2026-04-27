@@ -57,6 +57,7 @@ import { Agent } from './common/agent';
 import { RequestContext } from '@mastra/core/request-context';
 import { ChatRequestContext } from '@/types/chat';
 import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
+import { Done } from './common/done';
 interface BuiltInToolContext {
   tool: BaseTool;
   abortController: AbortController;
@@ -196,6 +197,7 @@ class ToolsManager extends BaseManager {
     await this.registerBuiltInTool(KnowledgeBaseToolkit);
     await this.registerBuiltInTool(CronsToolkit);
 
+    await this.registerBuiltInTool(Done);
     if (!app.isPackaged) {
       await this.registerBuiltInTool(ExpenseManagementToolkit);
       await this.registerBuiltInTool(StreamTest);

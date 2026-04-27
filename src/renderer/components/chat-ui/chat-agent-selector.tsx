@@ -55,7 +55,7 @@ export const ChatAgentSelector = ({
   ...props
 }: ChatAgentSelectorProps) => {
   const { t } = useTranslation();
-  const { clearable = false, defaultAgentId } = props;
+  const { clearable = false, defaultAgentId, className } = props;
   const isSingleMode = props.mode === 'single';
   const singleProps = isSingleMode ? props : undefined;
   const multipleProps = !isSingleMode ? props : undefined;
@@ -175,7 +175,7 @@ export const ChatAgentSelector = ({
         {children || (
           <Badge
             variant="outline"
-            className="w-fit cursor-pointer backdrop-blur shadow flex flex-row items-center justify-between"
+            className="w-fit h-full cursor-pointer backdrop-blur shadow flex flex-row items-center justify-between"
           >
             <small className="text-xs text-muted-foreground">
               {isSingleMode && selectedSingleAgent

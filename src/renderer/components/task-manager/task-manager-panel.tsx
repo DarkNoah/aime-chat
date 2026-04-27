@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Sheet,
   SheetContent,
@@ -22,6 +23,7 @@ import { BackgroundTask } from '@/types/task-queue';
 type FilterTab = 'all' | 'active' | 'done';
 
 export function TaskManagerPanel() {
+  const { t } = useTranslation();
   const { tasks, isPanelOpen, setIsPanelOpen, clearCompleted } =
     useTaskQueueStore();
   const [activeTab, setActiveTab] = useState<FilterTab>('all');
@@ -82,7 +84,7 @@ export function TaskManagerPanel() {
       >
         <SheetHeader>
           <div className="flex items-center gap-2">
-            <SheetTitle>任务管理</SheetTitle>
+            <SheetTitle>{t('task_manager.title')}</SheetTitle>
             {hasCompletedTasks && (
               <Button
                 variant="ghost"
@@ -91,11 +93,11 @@ export function TaskManagerPanel() {
                 onClick={() => clearCompleted()}
               >
                 <Trash2Icon className="size-3" />
-                清除已完成
+                {t('task_manager.clear_completed')}
               </Button>
             )}
           </div>
-          <SheetDescription>查看和管理所有后台任务</SheetDescription>
+          <SheetDescription>{t('task_manager.description')}</SheetDescription>
         </SheetHeader>
 
         <Tabs
@@ -105,28 +107,28 @@ export function TaskManagerPanel() {
         >
           <TabsList className="w-full">
             <TabsTrigger value="all" className="flex-1">
-              全部 ({tasks.length})
+              {t('task_manager.tab_all')} ({tasks.length})
             </TabsTrigger>
             <TabsTrigger value="active" className="flex-1">
-              进行中 (
+              {t('task_manager.tab_active')} (
               {
                 tasks.filter(
-                  (t) =>
-                    t.status === 'running' ||
-                    t.status === 'paused' ||
-                    t.status === 'pending',
+                  (task) =>
+                    task.status === 'running' ||
+                    task.status === 'paused' ||
+                    task.status === 'pending',
                 ).length
               }
               )
             </TabsTrigger>
             <TabsTrigger value="done" className="flex-1">
-              已结束 (
+              {t('task_manager.tab_done')} (
               {
                 tasks.filter(
-                  (t) =>
-                    t.status === 'completed' ||
-                    t.status === 'failed' ||
-                    t.status === 'cancelled',
+                  (task) =>
+                    task.status === 'completed' ||
+                    task.status === 'failed' ||
+                    task.status === 'cancelled',
                 ).length
               }
               )
@@ -138,7 +140,7 @@ export function TaskManagerPanel() {
               {groupIds.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
                   <InboxIcon className="size-10 mb-2 opacity-40" />
-                  <p className="text-sm">暂无任务</p>
+                  <p className="text-sm">{t('task_manager.empty')}</p>
                 </div>
               ) : (
                 <div className="space-y-4 pr-4 pb-4">

@@ -85,7 +85,7 @@ import {
   ModelSelectorLogo,
   ModelSelectorName,
 } from '../ai-elements/model-selector';
-import { ChatSlashCommandConfig } from '@/types/chat';
+import { ChatSlashCommandConfig, UntilEndPrompt } from '@/types/chat';
 import { Badge } from '../ui/badge';
 import { ChatUntilEnd } from './chat-until-end';
 
@@ -142,7 +142,7 @@ export type ChatInputProps = Omit<PromptInputProps, 'onSubmit'> & {
   showUntilEnd?: boolean;
   model?: string;
   onModelChange?: (model: string) => void;
-  onUntilEndChange?: (untilEndPrompt: string) => void;
+  onUntilEndChange?: (untilEndPrompt: UntilEndPrompt) => void;
   requireToolApproval?: boolean;
   onRequireToolApprovalChange?: (requireToolApproval: boolean) => void;
   prompts?: string[];
@@ -156,7 +156,7 @@ export interface ChatInputRef {
   setTools: (toolNames: string[]) => void;
   setSubAgents: (subAgentIds: string[]) => void;
   setThink: (think: boolean) => void;
-  setUntilEndPrompt: (untilEndPrompt: string) => void;
+  setUntilEndPrompt: (untilEndPrompt: UntilEndPrompt) => void;
   getTools: () => string[];
 }
 
@@ -216,7 +216,10 @@ function ChatInputInner(props: ChatInputInnerProps) {
   const [think, setThink] = useState(false);
   const [tools, setTools] = useState<string[]>([]);
   const [subAgents, setSubAgents] = useState<string[]>([]);
-  const [untilEndPrompt, setUntilEndPrompt] = useState<string>();
+  const [untilEndPrompt, setUntilEndPrompt] = useState<UntilEndPrompt>({
+    enable: false,
+    prompt: '',
+  });
   const [requireToolApproval, setRequireToolApproval] = useState<boolean>(
     requireToolApprovalProp ?? false,
   );
@@ -243,8 +246,8 @@ function ChatInputInner(props: ChatInputInnerProps) {
     setTools: (toolNames: string[]) => {
       setTools(toolNames ?? []);
     },
-    setUntilEndPrompt: (_untilEndPrompt: string) => {
-      setUntilEndPrompt(_untilEndPrompt ?? '');
+    setUntilEndPrompt: (_untilEndPrompt: UntilEndPrompt) => {
+      setUntilEndPrompt(_untilEndPrompt ?? { enable: false, prompt: '' });
     },
     getTools: () => {
       return tools;
@@ -385,7 +388,10 @@ function ChatInputInner(props: ChatInputInnerProps) {
                   <PromptInputButton
                     size="icon-xs"
                     variant={
-                      untilEndPrompt?.trim()?.length > 0 ? 'default' : 'ghost'
+                      untilEndPrompt?.enable &&
+                      untilEndPrompt?.prompt?.trim()?.length > 0
+                        ? 'default'
+                        : 'ghost'
                     }
                   >
                     <ShieldUserIcon size={16} />

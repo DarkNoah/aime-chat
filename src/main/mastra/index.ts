@@ -60,6 +60,7 @@ import {
   DEFAULT_TITLE,
   ThreadEvent,
   ThreadState,
+  UntilEndPrompt,
 } from '@/types/chat';
 import { nanoid } from '@/utils/nanoid';
 import { IpcMainEvent } from 'electron';
@@ -109,6 +110,7 @@ import { getSkills } from '../utils/skills';
 import { WorkflowRunStatus } from '@mastra/core/workflows';
 import { MessageListInput } from '@mastra/core/agent/message-list';
 import { secretsManager } from '../app/secrets';
+import { Done } from '../tools/common/done';
 
 
 class MastraManager extends BaseManager {
@@ -597,6 +599,10 @@ class MastraManager extends BaseManager {
         await fs.promises.writeFile(path.join(workspace, 'memory', 'MEMORY.md'), ``, 'utf-8');
       }
 
+      if (!untilEndPrompt) {
+        untilEndPrompt = currentThread.metadata?.untilEndPrompt as UntilEndPrompt || { enable: false, prompt: '' };
+      }
+
       currentThread = await memoryStore.updateThread({
         id: chatId,
         title: currentThread.title,
@@ -633,6 +639,7 @@ class MastraManager extends BaseManager {
           reasoningTokens: 0,
           cachedInputTokens: 0,
         };
+      // const untilEndPrompt = currentThread.metadata?.untilEndPrompt as UntilEndPrompt || { enable: false, prompt: '' };
       requestContext = new RequestContext<ChatRequestContext>();
       requestContext.set('skillsLoaded', skillsLoaded);
       requestContext.set('model', model);
@@ -858,6 +865,11 @@ class MastraManager extends BaseManager {
           historyMessages.messages,
         );
         let input = [...historyMessagesAISdkV5];
+
+
+
+
+
         if (_inputMessage) input.push(_inputMessage);
 
         const messages = convertToModelMessages(historyMessagesAISdkV5);
@@ -1029,12 +1041,7 @@ class MastraManager extends BaseManager {
         });
 
 
-        agent = await agentManager.buildAgent(agentId, {
-          modelId: model,
-          tools: tools,
-          subAgents: subAgents,
-          requestContext,
-        });
+
 
 
         const core = stream.messageList.get.all.core();
@@ -1044,18 +1051,9 @@ class MastraManager extends BaseManager {
         if (stream.status == 'suspended') {
           break;
         } else if (stream.status == 'success') {
-          // const reasoningText = await stream.reasoningText;
-          // if (reasoningText) {
-          //   const index = await getLastMessageIndex(db, 'assistant');
-          //   if (index > 0) {
-          //     const reasoningPart = db[index].content.parts.find(
-          //       (x) => x.type === 'reasoning' && !x.reasoning,
-          //     );
-          //     reasoningPart.reasoning = reasoningText;
-          //     await memoryStore.updateMessages({ messages: [...db] });
-          //   }
-          // }
 
+
+          _inputMessage = undefined;
           await this.saveThreadUsage(
             chatId,
             resourceId,
@@ -1065,10 +1063,47 @@ class MastraManager extends BaseManager {
           const lastMessage = core[core.length - 1];
           if (lastMessage.role == 'tool') {
           } else if (lastMessage.role == 'assistant') {
-            break;
+            // 结束守卫
+            const { enable = false, prompt = '' } = requestContext.get('untilEndPrompt') as UntilEndPrompt || {};
+            if (enable && prompt.trim().length > 0) {
+              if (!tools.includes(`${ToolType.BUILD_IN}:${Done.toolName}`)) {
+                tools.push(`${ToolType.BUILD_IN}:${Done.toolName}`);
+              }
+              _inputMessage = {
+                id: nanoid(),
+                role: 'user',
+                parts: [
+                  {
+                    type: 'text',
+                    text: `<system-reminder>This is the until end prompt. if you sure the job is done, use the Done tool to finish the job, or continue to work on the task.</system-reminder>\n${prompt}`
+                  }
+                ],
+                metadata: {
+                  systemReminder: true,
+                  isUntilEndPrompt: true,
+                }
+              } as UIMessage
+            } else {
+              currentThread = await memoryStore.updateThread({
+                id: chatId,
+                title: currentThread.title,
+                metadata: {
+                  ...(currentThread.metadata || {}),
+                  untilEndPrompt: { enable: false, prompt },
+                },
+              });
+              break;
+            }
+
           }
         }
-        _inputMessage = undefined;
+        agent = await agentManager.buildAgent(agentId, {
+          modelId: model,
+          tools: tools,
+          subAgents: subAgents,
+          requestContext,
+        });
+
         resume = undefined;
 
         if (streamOptions.abortSignal.aborted) {
@@ -1122,6 +1157,7 @@ class MastraManager extends BaseManager {
 
 
         }
+
 
       }
 
@@ -1305,7 +1341,7 @@ class MastraManager extends BaseManager {
       }
 
 
-      console.log('Stream chunk:', value);
+      // console.log('Stream chunk:', value);
 
 
       appManager.sendEvent(`chat:event:${chatId}`, {

@@ -84,15 +84,20 @@ Returns:
     const workspace = requestContext.get('workspace' as never) as string;
 
     const abortSignal = options?.abortSignal as AbortSignal;
+    const appInfo = await appManager.getInfo();
+    const modelId = this.modelId || appInfo.defaultModel.generateImageModel;
+    if (!modelId) {
+      throw new Error('Model is not set');
+    }
 
-    const providerId = this.modelId.split('/').shift();
-    const modelId = this.modelId.split('/').slice(1).join('/');
+    const providerId = modelId.split('/').shift();
+    const modelIdValue = modelId.split('/').slice(1).join('/');
 
     const provider = await providersManager.getProvider(providerId);
     if (!provider) {
       throw new Error('Provider not found');
     }
-    const imageModel = provider.imageModel(modelId);
+    const imageModel = provider.imageModel(modelIdValue);
     const image = await imageModel.doGenerate({
       prompt: images.length == 0 ? prompt : { text: prompt, images },
       abortSignal,
