@@ -335,8 +335,12 @@ export async function getPaddleOcrPythonService(): Promise<{
           }
         }
       }
-      if (fs.existsSync(imagePath)) {
-        await fs.promises.rm(imagePath);
+      try {
+        if (fs.existsSync(imagePath)) {
+          await fs.promises.rm(imagePath, { force: true });
+        }
+      } catch {
+
       }
       return { text: text.trim(), result: response.result };
     },
