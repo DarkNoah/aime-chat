@@ -5,6 +5,7 @@ import {
   IconRobot,
   IconTool,
   IconBooks,
+  IconBrain,
   IconShieldLock,
   IconTargetArrow,
   IconDeviceDesktop,
@@ -50,6 +51,16 @@ const FeatureList: FeatureItem[] = [
       </>
     ),
     tags: ['RAG', '向量检索', '文档解析'],
+  },
+  {
+    title: '养成记忆',
+    Icon: IconBrain,
+    description: (
+      <>
+        Cultivation Agent 会定期整理聊天记录，把偏好、习惯和项目上下文沉淀为长期记忆 Wiki。
+      </>
+    ),
+    tags: ['长期记忆', '自动养成', '个人 Wiki'],
   },
   {
     title: '本地优先',
