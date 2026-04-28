@@ -43,6 +43,7 @@ const sidebars: SidebarsConfig = {
         },
         'features/crons',
         'features/agents',
+        'features/cultivation-memory',
         'features/mcp',
         'features/ptc',
         'features/transl',
