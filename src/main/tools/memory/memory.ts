@@ -2,130 +2,44 @@ import { ToolExecutionContext } from '@mastra/core/tools';
 import z, { ZodSchema } from 'zod';
 import BaseTool, { BaseToolParams } from '../base-tool';
 import BaseToolkit, { BaseToolkitParams } from '../base-toolkit';
-import fs from 'fs';
-import path from 'path';
-import { getDataPath } from '@/main/utils';
+import {
+  INDEX_DOC_NAME,
+  LOG_DOC_NAME,
+  MemoryRole,
+  appendToLog,
+  buildContextDigest,
+  getMemoryItemByName,
+  getOrCreateMemoryKB,
+  listMemoryPages,
+  searchMemory,
+  upsertMemoryItem,
+} from '@/main/knowledge-base/static-memory';
+import knowledgeBaseManager from '@/main/knowledge-base';
 
-const getMemoryDir = () => {
-  const dir = getDataPath('memory');
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-  return dir;
-};
-
-const getDailyDir = () => {
-  const dir = path.join(getMemoryDir(), 'daily');
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-  return dir;
-};
-
-const getMemoryFilePath = () => path.join(getMemoryDir(), 'MEMORY.md');
-
-const getDailyFilePath = (date: string) =>
-  path.join(getDailyDir(), `${date}.md`);
-
-const formatDate = (d: Date) => d.toISOString().slice(0, 10);
-
-const formatTime = (d: Date) =>
-  d.toTimeString().slice(0, 5);
-
-const readFileIfExists = (filePath: string): string | null => {
-  if (fs.existsSync(filePath)) {
-    return fs.readFileSync(filePath, 'utf-8');
-  }
-  return null;
-};
-
-export class MemoryWrite extends BaseTool {
-  static readonly toolName = 'MemoryWrite';
-  id: string = 'MemoryWrite';
-  description = `Write or append content to global memory files (Markdown-based, persistent across all sessions).
-- Use target "daily" to append timestamped entries to today's daily log (memory/daily/YYYY-MM-DD.md).
-- Use target "long_term" to write to MEMORY.md for durable facts, preferences, decisions, and conventions.
-- Daily logs are append-only with automatic timestamps. MEMORY.md supports both append and full replace.
-- Day-to-day notes and running context go to daily logs. Decisions, preferences, and durable facts go to MEMORY.md.`;
-
-  inputSchema = z.object({
-    target: z
-      .enum(['daily', 'long_term'])
-      .describe(
-        '"daily" appends to today\'s log (memory/daily/YYYY-MM-DD.md); "long_term" writes to MEMORY.md',
-      ),
-    content: z
-      .string()
-      .min(1)
-      .describe('The text content to write to memory'),
-    mode: z
-      .enum(['append', 'replace'])
-      .optional()
-      .default('append')
-      .describe(
-        '"append" adds to existing content (default); "replace" overwrites entirely (only for long_term)',
-      ),
-  });
-
-  constructor(config?: BaseToolParams) {
-    super(config);
-  }
-
-  execute = async (
-    inputData: z.infer<typeof this.inputSchema>,
-    _context: ToolExecutionContext<ZodSchema, any>,
-  ) => {
-    const { target, content, mode = 'append' } = inputData;
-
-    if (target === 'daily') {
-      const today = formatDate(new Date());
-      const filePath = getDailyFilePath(today);
-      const timestamp = formatTime(new Date());
-      const entry = `\n- [${timestamp}] ${content}\n`;
-
-      if (!fs.existsSync(filePath)) {
-        fs.writeFileSync(filePath, `# ${today}\n${entry}`, 'utf-8');
-      } else {
-        fs.appendFileSync(filePath, entry, 'utf-8');
-      }
-
-      return `Memory appended to daily log (${today}).`;
-    }
-
-    const filePath = getMemoryFilePath();
-
-    if (mode === 'replace') {
-      fs.writeFileSync(filePath, content, 'utf-8');
-      return 'MEMORY.md has been replaced with new content.';
-    }
-
-    if (!fs.existsSync(filePath)) {
-      fs.writeFileSync(filePath, `# Long-term Memory\n\n${content}\n`, 'utf-8');
-    } else {
-      fs.appendFileSync(filePath, `\n${content}\n`, 'utf-8');
-    }
-
-    return 'Content appended to MEMORY.md.';
-  };
-}
+const SYSTEM_PAGES = new Set([INDEX_DOC_NAME, LOG_DOC_NAME]);
 
 export class MemoryRead extends BaseTool {
   static readonly toolName = 'MemoryRead';
   id: string = 'MemoryRead';
-  description = `Read global memory files.
-- "recent": returns MEMORY.md + today's and yesterday's daily logs (recommended at session start).
-- "today" / "yesterday": returns the corresponding daily log.
-- "date": returns the daily log for a specific date (requires date parameter in YYYY-MM-DD format).
-- "long_term": returns MEMORY.md only.`;
+  description = `Read from the global memory wiki (a persistent, LLM-maintained knowledge base).
+- target "index": returns the full ${INDEX_DOC_NAME} (table of contents of the wiki)
+- target "log": returns the full ${LOG_DOC_NAME} (timeline of memory updates)
+- target "page": returns a specific topic page by name (requires "name")
+- target "recent": returns ${INDEX_DOC_NAME} + recent ${LOG_DOC_NAME} entries + most recently updated pages`;
 
   inputSchema = z.object({
     target: z
-      .enum(['recent', 'today', 'yesterday', 'date', 'long_term'])
-      .describe('Which memory to read'),
-    date: z
+      .enum(['index', 'log', 'page', 'recent'])
+      .describe('What to read'),
+    name: z
       .string()
       .optional()
-      .describe('Date in YYYY-MM-DD format (required when target is "date")'),
+      .describe('Page name (required when target is "page", e.g. "John Doe.md")'),
+    limit: z
+      .number()
+      .optional()
+      .default(5)
+      .describe('For "recent": number of recently updated pages to include'),
   });
 
   constructor(config?: BaseToolParams) {
@@ -136,78 +50,146 @@ export class MemoryRead extends BaseTool {
     inputData: z.infer<typeof this.inputSchema>,
     _context: ToolExecutionContext<ZodSchema, any>,
   ) => {
-    const { target, date } = inputData;
-    const now = new Date();
-    const today = formatDate(now);
-    const yesterday = formatDate(
-      new Date(now.getTime() - 24 * 60 * 60 * 1000),
-    );
-
-    if (target === 'long_term') {
-      const content = readFileIfExists(getMemoryFilePath());
-      return content ?? 'MEMORY.md does not exist yet. No long-term memories stored.';
+    const { target, name, limit = 5 } = inputData;
+    const kb = await getOrCreateMemoryKB();
+    if (!kb) {
+      return 'Global memory is not initialized yet. Please configure a default embedding model first.';
     }
 
-    if (target === 'today') {
-      const content = readFileIfExists(getDailyFilePath(today));
-      return content ?? `No daily log for ${today}.`;
+    if (target === 'index') {
+      const item = await getMemoryItemByName(INDEX_DOC_NAME);
+      return item?.content ?? `${INDEX_DOC_NAME} is empty.`;
     }
-
-    if (target === 'yesterday') {
-      const content = readFileIfExists(getDailyFilePath(yesterday));
-      return content ?? `No daily log for ${yesterday}.`;
+    if (target === 'log') {
+      const item = await getMemoryItemByName(LOG_DOC_NAME);
+      return item?.content ?? `${LOG_DOC_NAME} is empty.`;
     }
-
-    if (target === 'date') {
-      if (!date) {
-        return 'Error: date parameter is required when target is "date".';
-      }
-      const content = readFileIfExists(getDailyFilePath(date));
-      return content ?? `No daily log for ${date}.`;
+    if (target === 'page') {
+      if (!name) return 'Error: "name" is required when target is "page".';
+      const item = await getMemoryItemByName(name);
+      if (!item) return `No memory page found with name "${name}".`;
+      return item.content ?? '';
     }
 
     // target === 'recent'
     const sections: string[] = [];
+    const indexItem = await getMemoryItemByName(INDEX_DOC_NAME);
+    if (indexItem?.content) sections.push(`## ${INDEX_DOC_NAME}\n\n${indexItem.content}`);
 
-    const longTerm = readFileIfExists(getMemoryFilePath());
-    if (longTerm) {
-      sections.push(`## MEMORY.md (Long-term)\n\n${longTerm}`);
+    const logItem = await getMemoryItemByName(LOG_DOC_NAME);
+    if (logItem?.content) {
+      const lines = logItem.content.split('\n');
+      const tail = lines.slice(-30).join('\n');
+      sections.push(`## ${LOG_DOC_NAME} (recent)\n\n${tail}`);
     }
 
-    const todayLog = readFileIfExists(getDailyFilePath(today));
-    if (todayLog) {
-      sections.push(`## Daily Log: ${today}\n\n${todayLog}`);
+    const pages = await listMemoryPages();
+    if (pages.length > 0) {
+      const top = pages.slice(0, limit);
+      const pageBlocks = top.map((p) => `### ${p.name}\n\n${p.content ?? ''}`);
+      sections.push(`## Recent pages\n\n${pageBlocks.join('\n\n')}`);
     }
 
-    const yesterdayLog = readFileIfExists(getDailyFilePath(yesterday));
-    if (yesterdayLog) {
-      sections.push(`## Daily Log: ${yesterday}\n\n${yesterdayLog}`);
+    return sections.join('\n\n---\n\n') || 'Global memory is empty.';
+  };
+}
+
+export class MemoryWrite extends BaseTool {
+  static readonly toolName = 'MemoryWrite';
+  id: string = 'MemoryWrite';
+  description = `Write to the global memory wiki.
+- target "index": rewrite/append ${INDEX_DOC_NAME} (the table of contents)
+- target "log": append a timestamped entry to ${LOG_DOC_NAME} (chronological record)
+- target "page": create/update a topic page by name (e.g. "John Doe.md", "Project X.md")
+- target "daily": create/append today's daily note (YYYY-MM-DD.md)
+Use mode "replace" (default for pages) to overwrite or "append" to add to existing content.`;
+
+  inputSchema = z.object({
+    target: z
+      .enum(['index', 'log', 'page', 'daily'])
+      .describe('Where to write'),
+    name: z
+      .string()
+      .optional()
+      .describe('Page name including .md extension (required when target is "page")'),
+    content: z
+      .string()
+      .min(1)
+      .describe('Markdown content to write'),
+    mode: z
+      .enum(['append', 'replace'])
+      .optional()
+      .describe('"append" adds to existing content; "replace" overwrites entirely'),
+  });
+
+  constructor(config?: BaseToolParams) {
+    super(config);
+  }
+
+  execute = async (
+    inputData: z.infer<typeof this.inputSchema>,
+    _context: ToolExecutionContext<ZodSchema, any>,
+  ) => {
+    const { target, content, mode } = inputData;
+    let { name } = inputData;
+    const kb = await getOrCreateMemoryKB();
+    if (!kb) {
+      return 'Global memory is not initialized yet. Please configure a default embedding model first.';
     }
 
-    if (sections.length === 0) {
-      return 'No memories found. Memory files have not been created yet.';
+    if (target === 'log') {
+      await appendToLog(content);
+      return `Appended entry to ${LOG_DOC_NAME}.`;
     }
 
-    return sections.join('\n\n---\n\n');
+    if (target === 'index') {
+      await upsertMemoryItem({
+        name: INDEX_DOC_NAME,
+        role: 'index',
+        content,
+        mode: mode ?? 'replace',
+      });
+      return `${INDEX_DOC_NAME} updated.`;
+    }
+
+    if (target === 'daily') {
+      const today = new Date().toISOString().slice(0, 10);
+      name = `${today}.md`;
+      await upsertMemoryItem({
+        name,
+        role: 'daily',
+        content,
+        mode: mode ?? 'append',
+      });
+      return `Daily note ${name} updated.`;
+    }
+
+    // target === 'page'
+    if (!name) return 'Error: "name" is required when target is "page".';
+    if (!name.endsWith('.md')) name = `${name}.md`;
+    await upsertMemoryItem({
+      name,
+      role: 'page',
+      content,
+      mode: mode ?? 'replace',
+    });
+    return `Memory page "${name}" updated.`;
   };
 }
 
 export class MemorySearch extends BaseTool {
   static readonly toolName = 'MemorySearch';
   id: string = 'MemorySearch';
-  description = `Search across all global memory files (MEMORY.md and daily logs) by keyword.
-Returns matching lines with file names and line numbers.`;
+  description = `Semantic search across the global memory wiki. Returns the most relevant chunks
+from index, log and topic pages with their source page names.`;
 
   inputSchema = z.object({
-    query: z
-      .string()
-      .min(1)
-      .describe('Keyword or phrase to search for (case-insensitive)'),
-    limit: z
+    query: z.string().min(1).describe('Natural language query'),
+    top_k: z
       .number()
       .optional()
-      .default(20)
-      .describe('Maximum number of matching lines to return'),
+      .default(8)
+      .describe('Maximum number of chunks to return'),
   });
 
   constructor(config?: BaseToolParams) {
@@ -218,86 +200,35 @@ Returns matching lines with file names and line numbers.`;
     inputData: z.infer<typeof this.inputSchema>,
     _context: ToolExecutionContext<ZodSchema, any>,
   ) => {
-    const { query, limit = 20 } = inputData;
-    const queryLower = query.toLowerCase();
-
-    const filesToSearch: { name: string; filePath: string }[] = [];
-
-    const memoryFile = getMemoryFilePath();
-    if (fs.existsSync(memoryFile)) {
-      filesToSearch.push({ name: 'MEMORY.md', filePath: memoryFile });
+    const { query, top_k = 8 } = inputData;
+    const kb = await getOrCreateMemoryKB();
+    if (!kb) {
+      return 'Global memory is not initialized yet.';
     }
-
-    const dailyDir = path.join(getMemoryDir(), 'daily');
-    if (fs.existsSync(dailyDir)) {
-      const dailyFiles = fs
-        .readdirSync(dailyDir)
-        .filter((f) => f.endsWith('.md'))
-        .sort()
-        .reverse();
-      for (const f of dailyFiles) {
-        filesToSearch.push({
-          name: `daily/${f}`,
-          filePath: path.join(dailyDir, f),
-        });
-      }
+    const res = await searchMemory(query, top_k);
+    if (!res.results || res.results.length === 0) {
+      return `No matches in memory for "${query}".`;
     }
-
-    if (filesToSearch.length === 0) {
-      return 'No memory files exist yet.';
-    }
-
-    const results: { file: string; line: number; text: string }[] = [];
-
-    for (const { name, filePath } of filesToSearch) {
-      if (results.length >= limit) break;
-
-      const content = fs.readFileSync(filePath, 'utf-8');
-      const lines = content.split('\n');
-      for (let i = 0; i < lines.length; i++) {
-        if (results.length >= limit) break;
-        if (lines[i].toLowerCase().includes(queryLower)) {
-          results.push({ file: name, line: i + 1, text: lines[i] });
-        }
-      }
-    }
-
-    if (results.length === 0) {
-      return `No matches found for "${query}".`;
-    }
-
-    const formatted = results
-      .map((r) => `${r.file}:${r.line} | ${r.text}`)
-      .join('\n');
-
-    return `Found ${results.length} match(es) for "${query}":\n\n${formatted}`;
+    return res.results
+      .map((r, idx) => {
+        const score =
+          (r.hybridScore ?? r.score ?? 0).toFixed?.(3) ?? `${r.score}`;
+        return `[${idx + 1}] ${r.name ?? '(unnamed)'} (score=${score})\n${r.chunk ?? ''}`;
+      })
+      .join('\n\n---\n\n');
   };
 }
 
 export class MemoryDelete extends BaseTool {
   static readonly toolName = 'MemoryDelete';
   id: string = 'MemoryDelete';
-  description = `Delete memory content.
-- target "daily" with a date: deletes the entire daily log file for that date.
-- target "long_term" without content: deletes the entire MEMORY.md file.
-- target "long_term" with content: removes matching lines/paragraphs from MEMORY.md.`;
+  description = `Delete a topic page from the global memory wiki by name. ${INDEX_DOC_NAME} and ${LOG_DOC_NAME} cannot be deleted (they are system pages).`;
 
   inputSchema = z.object({
-    target: z
-      .enum(['daily', 'long_term'])
-      .describe('Which memory to delete from'),
-    date: z
+    name: z
       .string()
-      .optional()
-      .describe(
-        'Date in YYYY-MM-DD format (required when target is "daily")',
-      ),
-    content: z
-      .string()
-      .optional()
-      .describe(
-        'Specific text to remove from MEMORY.md. If omitted for long_term, the entire file is deleted.',
-      ),
+      .min(1)
+      .describe('Page name including .md extension'),
   });
 
   constructor(config?: BaseToolParams) {
@@ -308,35 +239,42 @@ export class MemoryDelete extends BaseTool {
     inputData: z.infer<typeof this.inputSchema>,
     _context: ToolExecutionContext<ZodSchema, any>,
   ) => {
-    const { target, date, content } = inputData;
-
-    if (target === 'daily') {
-      if (!date) {
-        return 'Error: date parameter is required when target is "daily".';
-      }
-      const filePath = getDailyFilePath(date);
-      if (!fs.existsSync(filePath)) {
-        return `No daily log found for ${date}.`;
-      }
-      fs.unlinkSync(filePath);
-      return `Daily log for ${date} has been deleted.`;
+    const { name } = inputData;
+    if (SYSTEM_PAGES.has(name)) {
+      return `Cannot delete system page "${name}".`;
     }
+    const item = await getMemoryItemByName(name);
+    if (!item) return `No memory page named "${name}".`;
+    await knowledgeBaseManager.deleteKnowledgeBaseItem(item.id);
+    return `Memory page "${name}" deleted.`;
+  };
+}
 
-    // target === 'long_term'
-    const filePath = getMemoryFilePath();
-    if (!fs.existsSync(filePath)) {
-      return 'MEMORY.md does not exist.';
-    }
+export class MemoryList extends BaseTool {
+  static readonly toolName = 'MemoryList';
+  id: string = 'MemoryList';
+  description = `List all topic pages in the global memory wiki (excluding ${INDEX_DOC_NAME} and ${LOG_DOC_NAME}). Returns name, role, and last-updated time for each page.`;
 
-    if (!content) {
-      fs.unlinkSync(filePath);
-      return 'MEMORY.md has been deleted.';
-    }
+  inputSchema = z.object({});
 
-    const existing = fs.readFileSync(filePath, 'utf-8');
-    const updated = existing.replace(content, '').replace(/\n{3,}/g, '\n\n');
-    fs.writeFileSync(filePath, updated, 'utf-8');
-    return 'Matching content removed from MEMORY.md.';
+  constructor(config?: BaseToolParams) {
+    super(config);
+  }
+
+  execute = async (
+    _inputData: z.infer<typeof this.inputSchema>,
+    _context: ToolExecutionContext<ZodSchema, any>,
+  ) => {
+    const kb = await getOrCreateMemoryKB();
+    if (!kb) return 'Global memory is not initialized yet.';
+    const pages = await listMemoryPages();
+    if (pages.length === 0) return 'No pages yet.';
+    return pages
+      .map((p) => {
+        const role = (p.metadata as any)?.role ?? 'page';
+        return `- ${p.name} (role=${role}, updated=${p.updatedAt?.toISOString?.() ?? ''})`;
+      })
+      .join('\n');
   };
 }
 
@@ -346,10 +284,11 @@ class MemoryToolkit extends BaseToolkit {
   constructor(params?: BaseToolkitParams) {
     super(
       [
-        new MemoryWrite(),
         new MemoryRead(),
+        new MemoryWrite(),
         new MemorySearch(),
         new MemoryDelete(),
+        new MemoryList(),
       ],
       params,
     );

@@ -31,7 +31,16 @@ import { useHeader } from '@/renderer/hooks/use-title';
 import { useTranslation } from 'react-i18next';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Badge } from '@/renderer/components/ui/badge';
-import { IconEdit, IconPlus, IconTrash } from '@tabler/icons-react';
+import {
+  IconEdit,
+  IconHistory,
+  IconPlayerPlay,
+  IconPlus,
+  IconTrash,
+} from '@tabler/icons-react';
+import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
+import { isBuiltinCronId } from '@/types/ipc-channel';
 import { Textarea } from '@/renderer/components/ui/textarea';
 import { ScrollArea } from '@/renderer/components/ui/scroll-area';
 import {
@@ -66,6 +75,15 @@ interface ChatSubmitOptions {
   subAgents?: string[];
   agentId?: string;
 }
+interface CronRunRecord {
+  startedAt: string;
+  endedAt?: string;
+  chatId?: string;
+  status: 'success' | 'failed' | 'running';
+  error?: string;
+  trigger?: 'schedule' | 'manual';
+}
+
 interface CronItem {
   id: string;
   name: string;
@@ -76,6 +94,10 @@ interface CronItem {
   submitOptions: ChatSubmitOptions;
   isActive: boolean;
   lastRunAt?: string;
+  lastRunEndAt?: string;
+  lastRunChatId?: string;
+  lastRunResult?: any;
+  runHistory?: CronRunRecord[];
 }
 
 interface CronFormData {
@@ -317,7 +339,11 @@ function CronsPage() {
   const [builder, setBuilder] = useState<CronBuilderState>(defaultBuilderState);
   const [tools, setTools] = useState<string[]>([]);
   const [subAgents, setSubAgents] = useState<string[]>([]);
+  const [runsDialogOpen, setRunsDialogOpen] = useState(false);
+  const [viewingCron, setViewingCron] = useState<CronItem | null>(null);
+  const [runningIds, setRunningIds] = useState<Set<string>>(() => new Set());
   const { appInfo } = useGlobal();
+  const navigate = useNavigate();
 
   const loadCrons = useCallback(async () => {
     const list = await window.electron.crons.getList();
@@ -341,6 +367,14 @@ function CronsPage() {
     loadCrons();
     loadProjects();
   }, [loadCrons, loadProjects]);
+
+  useEffect(() => {
+    if (!viewingCron) return;
+    const fresh = crons.find((item) => item.id === viewingCron.id);
+    if (fresh && fresh !== viewingCron) {
+      setViewingCron(fresh);
+    }
+  }, [crons, viewingCron]);
 
   const syncFormCron = useCallback((nextBuilder: CronBuilderState) => {
     const nextCron = getCronFromBuilder(nextBuilder);
@@ -421,15 +455,86 @@ function CronsPage() {
 
   const handleDelete = async () => {
     if (!deletingId) return;
-    await window.electron.crons.delete(deletingId);
-    setDeleteDialogOpen(false);
-    setDeletingId(null);
-    await loadCrons();
+    try {
+      await window.electron.crons.delete(deletingId);
+      setDeleteDialogOpen(false);
+      setDeletingId(null);
+      await loadCrons();
+    } catch (err: any) {
+      toast.error(err?.message || String(err));
+    }
   };
 
   const handleToggleActive = async (item: CronItem) => {
     await window.electron.crons.update(item.id, { isActive: !item.isActive });
     await loadCrons();
+  };
+
+  const handleRunNow = async (item: CronItem) => {
+    setRunningIds((prev) => {
+      const next = new Set(prev);
+      next.add(item.id);
+      return next;
+    });
+    try {
+      const res = await window.electron.crons.runNow(item.id);
+      if (res.alreadyRunning) {
+        toast.error(t('crons.run_now_already_running'));
+      } else {
+        toast.success(t('crons.run_now_started'));
+      }
+      await loadCrons();
+    } catch (err: any) {
+      toast.error(err?.message || String(err));
+    } finally {
+      setRunningIds((prev) => {
+        const next = new Set(prev);
+        next.delete(item.id);
+        return next;
+      });
+    }
+  };
+
+  const handleOpenRuns = (item: CronItem) => {
+    setViewingCron(item);
+    setRunsDialogOpen(true);
+  };
+
+  const handleOpenRunChat = (chatId?: string) => {
+    if (!chatId) return;
+    setRunsDialogOpen(false);
+    navigate(`/chat/${chatId}`);
+  };
+
+  const formatDuration = (start?: string, end?: string) => {
+    if (!start) return '-';
+    const startMs = new Date(start).getTime();
+    const endMs = end ? new Date(end).getTime() : Date.now();
+    const diff = Math.max(0, endMs - startMs);
+    if (diff < 1000) return `${diff}ms`;
+    const seconds = Math.floor(diff / 1000);
+    if (seconds < 60) return `${seconds}s`;
+    const minutes = Math.floor(seconds / 60);
+    const remainSeconds = seconds % 60;
+    if (minutes < 60) return `${minutes}m ${remainSeconds}s`;
+    const hours = Math.floor(minutes / 60);
+    return `${hours}h ${minutes % 60}m`;
+  };
+
+  const renderRunStatus = (status: CronRunRecord['status']) => {
+    if (status === 'success') {
+      return (
+        <Badge variant="secondary" className="bg-emerald-500/15 text-emerald-600">
+          {t('crons.runs_status_success')}
+        </Badge>
+      );
+    }
+    if (status === 'failed') {
+      return (
+        <Badge variant="destructive">{t('crons.runs_status_failed')}</Badge>
+      );
+    }
+    return <Badge variant="outline">{t('crons.runs_status_running')}</Badge>;
   };
 
   const projectNameMap = new Map(
@@ -524,53 +629,92 @@ function CronsPage() {
                 </TableCell>
               </TableRow>
             )}
-            {crons.map((item) => (
-              <TableRow key={item.id}>
-                <TableCell className="font-medium">{item.name}</TableCell>
-                <TableCell>
-                  <Badge variant="secondary" className="font-mono">
-                    {item.cron}
-                  </Badge>
-                </TableCell>
-                <TableCell className="max-w-[250px] truncate text-muted-foreground">
-                  {item.prompt}
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {item.projectId
-                    ? projectNameMap.get(item.projectId) || item.projectId
-                    : '-'}
-                </TableCell>
-                <TableCell>
-                  <Switch
-                    checked={item.isActive}
-                    onCheckedChange={() => handleToggleActive(item)}
-                  />
-                </TableCell>
-                <TableCell className="text-sm text-muted-foreground">
-                  {formatLastRun(item.lastRunAt)}
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex items-center justify-end gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7"
-                      onClick={() => openEditDialog(item)}
-                    >
-                      <IconEdit size={14} />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 text-destructive"
-                      onClick={() => openDeleteDialog(item.id)}
-                    >
-                      <IconTrash size={14} />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
+            {crons.map((item) => {
+              const builtin = isBuiltinCronId(item.id);
+              const running = runningIds.has(item.id);
+              return (
+                <TableRow key={item.id}>
+                  <TableCell className="font-medium">
+                    <div className="flex items-center gap-2">
+                      <span>{item.name}</span>
+                      {builtin && (
+                        <Badge variant="outline" className="text-[10px]">
+                          {t('crons.builtin_tag')}
+                        </Badge>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="secondary" className="font-mono">
+                      {item.cron}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="max-w-[250px] truncate text-muted-foreground">
+                    {item.prompt}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {item.projectId
+                      ? projectNameMap.get(item.projectId) || item.projectId
+                      : '-'}
+                  </TableCell>
+                  <TableCell>
+                    <Switch
+                      checked={item.isActive}
+                      onCheckedChange={() => handleToggleActive(item)}
+                    />
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {formatLastRun(item.lastRunAt)}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        title={t('crons.run_now')}
+                        disabled={running}
+                        onClick={() => handleRunNow(item)}
+                      >
+                        <IconPlayerPlay size={14} />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        title={t('crons.view_runs')}
+                        onClick={() => handleOpenRuns(item)}
+                      >
+                        <IconHistory size={14} />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        title={t('crons.edit')}
+                        onClick={() => openEditDialog(item)}
+                      >
+                        <IconEdit size={14} />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-destructive disabled:text-muted-foreground"
+                        disabled={builtin}
+                        title={
+                          builtin
+                            ? t('crons.builtin_cannot_delete')
+                            : t('common.delete')
+                        }
+                        onClick={() => openDeleteDialog(item.id)}
+                      >
+                        <IconTrash size={14} />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
 
@@ -936,6 +1080,101 @@ function CronsPage() {
                 }
               >
                 {t('common.save')}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={runsDialogOpen} onOpenChange={setRunsDialogOpen}>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>
+                {t('crons.runs_dialog_title')}
+                {viewingCron ? ` — ${viewingCron.name}` : ''}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="max-h-[70vh] overflow-y-auto pr-1">
+              {!viewingCron ||
+              !viewingCron.runHistory ||
+              viewingCron.runHistory.length === 0 ? (
+                <div className="py-8 text-center text-sm text-muted-foreground">
+                  {t('crons.runs_empty')}
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {[...viewingCron.runHistory]
+                    .reverse()
+                    .map((record, index) => (
+                      <Card
+                        key={`${record.startedAt}-${index}`}
+                        className="border bg-muted/20"
+                      >
+                        <CardContent className="flex flex-col gap-2 px-4 py-3">
+                          <div className="flex flex-wrap items-center gap-2">
+                            {renderRunStatus(record.status)}
+                            <Badge variant="outline" className="text-xs">
+                              {record.trigger === 'manual'
+                                ? t('crons.runs_trigger_manual')
+                                : t('crons.runs_trigger_schedule')}
+                            </Badge>
+                            <span className="text-xs text-muted-foreground">
+                              {t('crons.runs_duration')}：
+                              {formatDuration(
+                                record.startedAt,
+                                record.endedAt,
+                              )}
+                            </span>
+                          </div>
+                          <div className="grid gap-1 text-xs text-muted-foreground sm:grid-cols-2">
+                            <div>
+                              {t('crons.runs_started_at')}：
+                              {new Date(record.startedAt).toLocaleString()}
+                            </div>
+                            <div>
+                              {t('crons.runs_ended_at')}：
+                              {record.endedAt
+                                ? new Date(record.endedAt).toLocaleString()
+                                : '-'}
+                            </div>
+                          </div>
+                          {record.chatId && (
+                            <div className="flex items-center gap-2 text-xs">
+                              <span className="text-muted-foreground">
+                                {t('crons.runs_chat')}：
+                              </span>
+                              <Button
+                                variant="link"
+                                size="sm"
+                                className="h-auto px-0 py-0 text-xs"
+                                onClick={() => handleOpenRunChat(record.chatId)}
+                              >
+                                {t('crons.runs_open_chat')}
+                              </Button>
+                              <span className="font-mono text-muted-foreground">
+                                {record.chatId.slice(0, 8)}
+                              </span>
+                            </div>
+                          )}
+                          {record.error && (
+                            <div className="rounded bg-destructive/10 px-2 py-1 text-xs text-destructive">
+                              <span className="font-medium">
+                                {t('crons.runs_error')}：
+                              </span>
+                              {record.error}
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))}
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setRunsDialogOpen(false)}
+              >
+                {t('common.close', 'Close')}
               </Button>
             </DialogFooter>
           </DialogContent>

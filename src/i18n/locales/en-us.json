@@ -239,7 +239,9 @@
     "column-name": "Column Name",
     "column-type": "Type",
     "add-column": "Add Column",
-    "column-name-placeholder": "Enter column name"
+    "column-name-placeholder": "Enter column name",
+    "static-badge": "Global Memory",
+    "static-tip": "This knowledge base is the global memory wiki maintained by the Cultivation agent. index.md and log.md are system pages and cannot be deleted."
   },
   "setup": {
     "welcome": {
@@ -427,7 +429,28 @@
     "active": "Active",
     "last_run_at": "Last Run",
     "empty": "No cron jobs configured",
-    "never": "Never"
+    "never": "Never",
+    "run_now": "Run Now",
+    "view_runs": "Run History",
+    "builtin_tag": "Built-in",
+    "builtin_cannot_delete": "Built-in cron cannot be deleted",
+    "run_now_started": "Run started",
+    "run_now_already_running": "Previous run still in progress",
+    "runs_dialog_title": "Run History",
+    "runs_empty": "No runs recorded yet",
+    "runs_started_at": "Started at",
+    "runs_ended_at": "Ended at",
+    "runs_duration": "Duration",
+    "runs_status": "Status",
+    "runs_trigger": "Trigger",
+    "runs_chat": "Chat",
+    "runs_open_chat": "Open chat",
+    "runs_status_success": "Success",
+    "runs_status_failed": "Failed",
+    "runs_status_running": "Running",
+    "runs_trigger_schedule": "Schedule",
+    "runs_trigger_manual": "Manual",
+    "runs_error": "Error"
   },
   "task_manager": {
     "title": "Task Manager",

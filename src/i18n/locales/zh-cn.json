@@ -282,7 +282,9 @@
     "column-name": "列名",
     "column-type": "类型",
     "add-column": "添加列",
-    "column-name-placeholder": "请输入列名"
+    "column-name-placeholder": "请输入列名",
+    "static-badge": "全局记忆",
+    "static-tip": "这是由 Cultivation 养成 agent 自动维护的全局记忆 wiki。index.md 与 log.md 为系统页面，不可删除。"
   },
   "setup": {
     "welcome": {
@@ -475,7 +477,28 @@
     "active": "启用",
     "last_run_at": "上次执行",
     "empty": "暂无定时任务",
-    "never": "从未执行"
+    "never": "从未执行",
+    "run_now": "立即执行",
+    "view_runs": "执行记录",
+    "builtin_tag": "内置",
+    "builtin_cannot_delete": "内置任务不可删除",
+    "run_now_started": "已启动执行",
+    "run_now_already_running": "上一次执行尚未结束",
+    "runs_dialog_title": "执行记录",
+    "runs_empty": "暂无执行记录",
+    "runs_started_at": "开始时间",
+    "runs_ended_at": "结束时间",
+    "runs_duration": "耗时",
+    "runs_status": "状态",
+    "runs_trigger": "触发方式",
+    "runs_chat": "对话",
+    "runs_open_chat": "打开对话",
+    "runs_status_success": "成功",
+    "runs_status_failed": "失败",
+    "runs_status_running": "运行中",
+    "runs_trigger_schedule": "定时",
+    "runs_trigger_manual": "手动",
+    "runs_error": "错误信息"
   },
   "task_manager": {
     "title": "任务管理",

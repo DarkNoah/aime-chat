@@ -309,6 +309,16 @@ const electronHandler = {
     getKnowledgeBaseItems: (id: string, params: PaginationParams): Promise<PaginationInfo<KnowledgeBaseItem>> => ipcRenderer.invoke(KnowledgeBaseChannel.GetKnowledgeBaseItems, id, params),
     searchKnowledgeBase: (kbId: string, query: string, fileTpye: 'text' | 'image' = 'text', filter?: string, top_k: number = 10): Promise<SearchKnowledgeBaseResult> => ipcRenderer.invoke(KnowledgeBaseChannel.SearchKnowledgeBase, kbId, query, fileTpye, filter, top_k),
     deleteKnowledgeBaseItem: (id: string) => ipcRenderer.invoke(KnowledgeBaseChannel.DeleteKnowledgeBaseItem, id),
+    updateKnowledgeBaseItem: (
+      id: string,
+      data: {
+        name?: string;
+        content?: string;
+        source?: any;
+        metadata?: any;
+      },
+    ): Promise<KnowledgeBaseItem> =>
+      ipcRenderer.invoke(KnowledgeBaseChannel.UpdateKnowledgeBaseItem, id, data),
   },
   tools: {
     deleteTool: (id: string) => ipcRenderer.invoke(ToolChannel.DeleteTool, id),
@@ -462,6 +472,8 @@ const electronHandler = {
       isActive?: boolean;
     }): Promise<any> => ipcRenderer.invoke(CronsChannel.Update, id, data),
     delete: (id: string): Promise<void> => ipcRenderer.invoke(CronsChannel.Delete, id),
+    runNow: (id: string): Promise<{ started: boolean; alreadyRunning: boolean }> =>
+      ipcRenderer.invoke(CronsChannel.RunNow, id),
   },
 };
 

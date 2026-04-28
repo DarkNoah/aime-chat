@@ -51,11 +51,13 @@ import {
   getUVRuntime,
   installAgentBrowserRuntime,
   installBunRuntime,
+  installNodeRuntime,
   installPaddleOcrRuntime,
   installQwenAudioRuntime,
   installUVRuntime,
   uninstallAgentBrowserRuntime,
   uninstallBunRuntime,
+  uninstallNodeRuntime,
   uninstallPaddleOcrRuntime,
   uninstallQwenAudioRuntime,
   unInstallUVRuntime,
@@ -846,6 +848,8 @@ class AppManager extends BaseManager {
       await installPaddleOcrRuntime();
     } else if (pkg == 'bun') {
       await installBunRuntime();
+    } else if (pkg == 'node') {
+      await installNodeRuntime();
     } else if (pkg == 'qwenAudio') {
       await installQwenAudioRuntime();
     } else if (pkg == 'agentBrowser') {
@@ -861,6 +865,8 @@ class AppManager extends BaseManager {
       await uninstallPaddleOcrRuntime();
     } else if (pkg == 'bun') {
       await uninstallBunRuntime();
+    } else if (pkg == 'node') {
+      await uninstallNodeRuntime();
     } else if (pkg == 'qwenAudio') {
       await uninstallQwenAudioRuntime();
     } else if (pkg == 'agentBrowser') {

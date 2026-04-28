@@ -147,7 +147,19 @@ function Runtime() {
             </ItemDescription>
           )}
         </ItemContent>
-        <ItemActions></ItemActions>
+        <ItemActions>
+          {runtimeInfo?.node?.status === 'not_installed' && (
+            <Button onClick={() => handleInstallRuntime('node')}>
+              Install
+            </Button>
+          )}
+          {runtimeInfo?.node?.status === 'installing' && (
+            <Button disabled>
+              <Spinner />
+              Installing...
+            </Button>
+          )}
+        </ItemActions>
       </Item>
       <Item variant="outline">
         <ItemContent className="min-w-0">

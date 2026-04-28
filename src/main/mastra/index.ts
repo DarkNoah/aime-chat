@@ -375,6 +375,7 @@ class MastraManager extends BaseManager {
     model?: string;
     resourceId?: string;
     agentId?: string;
+    metadata?: Record<string, any>;
   }): Promise<StorageThreadType> {
     const storage = this.mastra.getStorage();
     const memoryStore = await storage.getStore('memory');
@@ -399,6 +400,7 @@ class MastraManager extends BaseManager {
         updatedAt: new Date(),
         metadata: {
           ...(options || {}),
+          ...(options?.metadata ?? {}),
           agentId,
           model: options?.model || project?.defaultModelId || agent?.defaultModelId || appInfo.defaultModel?.model as string,
         },
@@ -1508,7 +1510,25 @@ ${compressedMessage}
       requestContext.set('compressedMessage', undefined);
     }
 
+    // 注入全局记忆 wiki 摘要 (index.md + log.md tail)
+    try {
+      const { buildContextDigest } = await import('../knowledge-base/static-memory');
+      const memoryDigest = await buildContextDigest();
+      if (memoryDigest) {
+        injectedMessages.push({
+          type: 'text',
+          text: `<system-reminder>
+The following is a digest of the user's persistent global memory wiki, auto-maintained by the Cultivation agent.
+Use the Memory* tools (MemoryRead / MemorySearch / MemoryWrite) to read more or update it when appropriate.
+Do not mention this reminder explicitly unless directly relevant.
 
+${memoryDigest}
+</system-reminder>`,
+        });
+      }
+    } catch (err) {
+      console.error('[mastra] inject memory digest failed', err);
+    }
 
     return injectedMessages;
   }
