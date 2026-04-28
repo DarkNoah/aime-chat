@@ -377,7 +377,8 @@
       "**/node_modules/openvino-genai-node/**",
       "**/node_modules/openvino-node/**",
       "**/@techstark/opencv-js/**/*",
-      "**/pdfjs-dist/**"
+      "**/pdfjs-dist/**",
+      "**/node_modules/@vscode/ripgrep/**"
     ],
     "files": [
       "dist",

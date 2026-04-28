@@ -70,7 +70,7 @@ import {
   SearchInDirectoryResult,
   SearchResult,
 } from '@/types/common';
-import { rgPath } from '@vscode/ripgrep';
+import { getRgPath } from '../utils';
 import { execSync, spawn } from 'child_process';
 import os from 'os';
 import readline from 'readline';
@@ -568,7 +568,9 @@ class AppManager extends BaseManager {
         directory,
       ];
 
-      const child = spawn(rgPath, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+      const child = spawn(getRgPath(), args, {
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
       const results: SearchResult[] = [];
 
       const rl = readline.createInterface({
@@ -675,7 +677,9 @@ class AppManager extends BaseManager {
     args.push('-e', pattern, directory.replaceAll('\\', '/'));
 
     return new Promise((resolve) => {
-      const child = spawn(rgPath, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+      const child = spawn(getRgPath(), args, {
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
 
       const results: SearchResult[] = [];
       let total = 0;
