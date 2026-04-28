@@ -6,6 +6,8 @@ sidebar_position: 3.5
 
 养成记忆是 AIME Chat 中用于长期积累用户偏好、习惯、项目上下文和重要事实的全局记忆模块。它不是把每次对话都简单拼进上下文，而是由专门的 **Cultivation Agent** 定期读取聊天记录，提取值得长期保存的信息，并维护一套结构化的 Markdown Wiki。
 
+![养成记忆架构概览](./images/cultivation-memory/cultivation-memory-overview.png)
+
 这个模块适合用来沉淀：
 
 - 用户偏好，例如沟通语言、输出格式、代码风格
