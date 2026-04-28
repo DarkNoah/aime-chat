@@ -12,6 +12,7 @@ import { nanoid } from '@/utils/nanoid';
 class CronsManager extends BaseManager {
   repository: Repository<Crons>;
   private scheduledJobs: Map<string, Cron> = new Map();
+  private runningJobs: Set<string> = new Set();
 
   public async init() {
     this.repository = dbManager.dataSource.getRepository(Crons);
@@ -30,6 +31,12 @@ class CronsManager extends BaseManager {
     this.stopJob(cronEntity.id);
     try {
       const job = new Cron(cronEntity.cron, async () => {
+        if (this.runningJobs.has(cronEntity.id)) {
+          console.log(`[Cron] Skipped (previous run still in progress): ${cronEntity.name} (${cronEntity.id})`);
+          return;
+        }
+        this.runningJobs.add(cronEntity.id);
+        try {
         console.log(`[Cron] Triggered: ${cronEntity.name} (${cronEntity.id})`);
         cronEntity.lastRunAt = new Date();
         await this.repository.save(cronEntity);
@@ -73,6 +80,9 @@ class CronsManager extends BaseManager {
         cronEntity.lastRunResult = result;
         cronEntity.lastRunEndAt = new Date();
         await this.repository.save(cronEntity);
+        } finally {
+          this.runningJobs.delete(cronEntity.id);
+        }
       });
       this.scheduledJobs.set(cronEntity.id, job);
     } catch (err) {

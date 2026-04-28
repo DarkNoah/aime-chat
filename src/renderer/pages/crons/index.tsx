@@ -58,7 +58,14 @@ import { BotIcon, WrenchIcon } from 'lucide-react';
 import { ChatToolSelector } from '@/renderer/components/chat-ui/chat-tool-selector';
 import { ChatAgentSelector } from '@/renderer/components/chat-ui/chat-agent-selector';
 import { ChatModelSelect } from '@/renderer/components/chat-ui/chat-model-select';
-
+import { Agent } from '@/types/agent';
+import { useGlobal } from '@/renderer/hooks/use-global';
+interface ChatSubmitOptions {
+  model?: string;
+  tools?: string[];
+  subAgents?: string[];
+  agentId?: string;
+}
 interface CronItem {
   id: string;
   name: string;
@@ -66,20 +73,11 @@ interface CronItem {
   cron: string;
   projectId?: string;
   description?: string;
-  submitOptions: {
-    agentId?: string;
-    tools?: string[];
-    subAgents?: string[];
-  };
+  submitOptions: ChatSubmitOptions;
   isActive: boolean;
   lastRunAt?: string;
 }
-interface ChatSubmitOptions {
-  model?: string;
-  tools?: string[];
-  subAgents?: string[];
-  agentId?: string;
-}
+
 interface CronFormData {
   name: string;
   prompt: string;
@@ -319,6 +317,7 @@ function CronsPage() {
   const [builder, setBuilder] = useState<CronBuilderState>(defaultBuilderState);
   const [tools, setTools] = useState<string[]>([]);
   const [subAgents, setSubAgents] = useState<string[]>([]);
+  const { appInfo } = useGlobal();
 
   const loadCrons = useCallback(async () => {
     const list = await window.electron.crons.getList();
@@ -349,9 +348,26 @@ function CronsPage() {
     setForm((current) => ({ ...current, cron: nextCron }));
   }, []);
 
-  const openCreateDialog = () => {
+  const openCreateDialog = async () => {
     setEditingId(null);
-    setForm(emptyForm);
+    let agent: Agent | undefined;
+    if (appInfo.defaultAgent)
+      agent = await window.electron.agents.getAgent(appInfo.defaultAgent);
+    const model = agent?.defaultModelId || appInfo.defaultModel?.model;
+    setForm({
+      name: '',
+      prompt: '',
+      cron: '',
+      description: '',
+      submitOptions: {
+        agentId: appInfo.defaultAgent,
+        model,
+        tools: agent?.tools ?? [],
+        subAgents: agent?.subAgents ?? [],
+      },
+      projectId: '',
+      isActive: true,
+    });
     setBuilder(defaultBuilderState());
     setDialogOpen(true);
   };
@@ -366,7 +382,8 @@ function CronsPage() {
       submitOptions: {
         agentId: item.submitOptions?.agentId,
         tools: item.submitOptions?.tools ?? [],
-        subAgents: form.submitOptions?.subAgents ?? [],
+        subAgents: item.submitOptions?.subAgents ?? [],
+        model: item.submitOptions?.model,
       },
       projectId: item.projectId || '',
       isActive: item.isActive,
@@ -388,11 +405,7 @@ function CronsPage() {
       prompt: form.prompt.trim(),
       cron: form.cron.trim(),
       description: form.description.trim() || undefined,
-      submitOptions: {
-        agentId: form.submitOptions?.agentId.trim(),
-        tools: form.submitOptions?.tools ?? [],
-        subAgents: form.submitOptions?.subAgents ?? [],
-      },
+      submitOptions: form.submitOptions,
       projectId: form.projectId || undefined,
       isActive: form.isActive,
     };
@@ -448,6 +461,27 @@ function CronsPage() {
       </SelectContent>
     </Select>
   );
+
+  const handleAgentChanged = (agent: Agent) => {
+    const agentTools = [...(agent?.tools || [])];
+    const agentSubAgents = [...(agent?.subAgents || [])];
+    agentTools.push(...(form?.submitOptions?.tools || []));
+    agentSubAgents.push(...(form?.submitOptions?.subAgents || []));
+
+    setForm({
+      ...form,
+      submitOptions: {
+        ...form.submitOptions,
+        tools: [...new Set(agentTools)],
+        model:
+          form.submitOptions?.model ||
+          agent?.defaultModelId ||
+          appInfo.defaultModel?.model,
+        subAgents: [...new Set(agentSubAgents)],
+        agentId: agent?.id,
+      },
+    });
+  };
 
   return (
     <ScrollArea className="h-full">
@@ -796,15 +830,7 @@ function CronsPage() {
                     className="h-full"
                     value={form.submitOptions.agentId}
                     mode="single"
-                    onSelectedAgent={(agent) =>
-                      setForm({
-                        ...form,
-                        submitOptions: {
-                          ...form.submitOptions,
-                          agentId: agent?.id,
-                        },
-                      })
-                    }
+                    onSelectedAgent={(agent) => handleAgentChanged(agent)}
                   ></ChatAgentSelector>
                   <ChatToolSelector
                     value={form.submitOptions.tools}
