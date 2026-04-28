@@ -39,7 +39,7 @@ interface PythonClientOptions {
 interface PendingRequest {
   resolve: (value: any) => void;
   reject: (reason: Error) => void;
-  timer: ReturnType<typeof setTimeout>;
+  timer?: ReturnType<typeof setTimeout>;
 }
 
 function createPythonClient({ command, args, cwd, env }: PythonClientOptions) {
@@ -71,7 +71,7 @@ function createPythonClient({ command, args, cwd, env }: PythonClientOptions) {
       const id = msg.id;
       if (id && pending.has(id)) {
         const { resolve, reject, timer } = pending.get(id)!;
-        clearTimeout(timer);
+        timer && clearTimeout(timer);
         pending.delete(id);
         msg.ok ? resolve(msg) : reject(new Error(msg.error || 'python error'));
       }
@@ -96,19 +96,19 @@ function createPythonClient({ command, args, cwd, env }: PythonClientOptions) {
   function call(
     method: string,
     params: Record<string, any>,
-    { timeoutMs = 600_000 } = {},
+
   ): Promise<any> {
     start();
     const id = randomUUID();
     const payload = { id, method, params };
 
     return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => {
-        pending.delete(id);
-        reject(new Error(`timeout: ${method}`));
-      }, timeoutMs);
+      // const timer = setTimeout(() => {
+      //   pending.delete(id);
+      //   reject(new Error(`timeout: ${method}`));
+      // }, timeoutMs);
 
-      pending.set(id, { resolve, reject, timer });
+      pending.set(id, { resolve, reject, timer: undefined });
       proc!.stdin!.write(JSON.stringify(payload) + '\n');
     });
   }
@@ -270,6 +270,9 @@ export async function getQwenAsrPythonService(): Promise<QwenAudioService> {
                 : result.text || '',
             result,
           };
+        } catch (error) {
+          console.error('[qwen-asr-py]', error);
+          throw error;
         } finally {
           if (fs.existsSync(audioPath)) {
             await fs.promises.rm(audioPath);

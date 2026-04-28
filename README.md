@@ -2,7 +2,7 @@
   <img src="assets/banner.png" alt="AIME Chat" width="100%" />
 
   <p>
-    <img src="https://img.shields.io/badge/version-0.3.21-blue.svg" alt="Version">
+    <img src="https://img.shields.io/badge/version-0.3.29-blue.svg" alt="Version">
     <img src="https://img.shields.io/badge/platform-macOS%20|%20Windows%20|%20Linux-lightgrey.svg" alt="Platform">
     <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License">
   </p>
@@ -23,7 +23,8 @@
 - 🤖 **Multiple AI Provider Support** - Integrated with mainstream AI providers including OpenAI, DeepSeek, Google, Zhipu AI, MiniMax, Ollama, LMStudio, ModelScope, and more
 - 💬 **Intelligent Conversations** - Powerful AI Agent system based on Mastra framework, supporting streaming responses and tool calling
 - 🤝 **Open CoWork Capability** - AI is not just for chatting, it can perform actual operations like file editing, code execution, web searching, and more
-- 📚 **Knowledge Base Management** - Built-in vector database with support for document retrieval and knowledge Q&A
+- 📚 **Knowledge Base Management** - Built-in vector database with support for document retrieval, knowledge Q&A, and long-term cultivation memory
+- 🧠 **Cultivation Memory** - A scheduled Cultivation Agent extracts preferences, habits, project context, and important facts from chat history into a structured memory wiki
 - 🛠️ **Tool Integration** - Support for MCP (Model Context Protocol) client with extensible tool capabilities
 - 🎙️ **Audio Processing** - Built-in Speech-to-Text (STT) and Text-to-Speech (TTS) powered by Qwen3-TTS models
 - 🔍 **Skill System** - Search, import, and manage AI skills from Git repositories or the online skill marketplace
@@ -133,7 +134,14 @@ Supported providers include:
 - 📄 Document upload and parsing
 - 🔍 Vector storage and retrieval
 - 💡 Intelligent Q&A based on knowledge base
+- 🧠 Cultivation memory that maintains a global memory wiki from chat history
 - 📊 Knowledge base management interface
+
+### Cultivation Memory
+
+AIME Chat includes a global memory knowledge base maintained by the built-in `Cultivation` Agent. When the `Cultivation Daily` cron task is enabled, it reads newly updated user conversations, filters out automation-generated threads, deduplicates against existing memories, and writes useful long-term information into Markdown pages such as `preferences.md`, `habits.md`, and project notes.
+
+This helps future conversations automatically inherit stable preferences, working habits, important people/entities, and ongoing project context without pasting old chat logs into every prompt.
 
 ### Tool System
 

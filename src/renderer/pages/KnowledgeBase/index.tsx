@@ -457,8 +457,13 @@ function KnowledgeBasePage() {
                     onClick={() => navigate(`/knowledge-base/${kb.id}`)}
                   >
                     <ItemContent className="min-w-0">
-                      <ItemTitle className="line-clamp-1 w-auto">
-                        {kb.name}
+                      <ItemTitle className="line-clamp-1 w-auto flex flex-row items-center gap-1">
+                        <span className="truncate">{kb.name}</span>
+                        {kb.static && (
+                          <Badge variant="secondary" className="shrink-0 text-[10px]">
+                            {t('knowledge-base.static-badge', '全局记忆')}
+                          </Badge>
+                        )}
                       </ItemTitle>
 
                       {kb.description && (
@@ -495,14 +500,16 @@ function KnowledgeBasePage() {
                               <IconEdit /> {t('common.edit')}
                             </DropdownMenuItem>
 
-                            <DropdownMenuItem
-                              onSelect={(event) => {
-                                handleDelete(kb.id);
-                              }}
-                              variant="destructive"
-                            >
-                              <IconTrashX /> {t('common.delete')}
-                            </DropdownMenuItem>
+                            {!kb.static && (
+                              <DropdownMenuItem
+                                onSelect={(event) => {
+                                  handleDelete(kb.id);
+                                }}
+                                variant="destructive"
+                              >
+                                <IconTrashX /> {t('common.delete')}
+                              </DropdownMenuItem>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>

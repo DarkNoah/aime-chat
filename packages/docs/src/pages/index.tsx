@@ -123,9 +123,9 @@ const automationItems: AutomationItem[] = [
     details: ['项目上下文', '指定 Agent', '工具与子 Agent'],
   },
   {
-    title: '保留最近执行信息',
-    description: '系统会记录最近一次执行时间、结束时间和执行结果，便于观察自动化效果。',
-    details: ['lastRunAt', 'lastRunEndAt', 'lastRunResult'],
+    title: '沉淀长期养成记忆',
+    description: '内置 Cultivation Daily 任务可定期读取新增聊天记录，将偏好、习惯和项目上下文整理进全局记忆 Wiki。',
+    details: ['Cultivation Agent', '全局记忆', '增量整理'],
   },
 ];
 
@@ -355,7 +355,7 @@ function AutomationSection() {
         <SectionIntro
           eyebrow="自动化"
           title="让 AI 按计划自动工作"
-          description="源项目内置了自动化 Crons 页面，可以创建定时任务，绑定项目上下文，并指定执行所用的 Agent、模型、工具与子 Agent。"
+          description="源项目内置了自动化 Crons 页面，可以创建定时任务，绑定项目上下文，并指定执行所用的 Agent、模型、工具与子 Agent，包括用于长期记忆沉淀的 Cultivation Daily。"
         />
 
         <div className={styles.automationLayout}>
@@ -371,6 +371,9 @@ function AutomationSection() {
             </p>
             <Link className={styles.inlineLink} to="/docs/features/crons">
               查看自动化文档 <IconArrowRight size={16} />
+            </Link>
+            <Link className={styles.inlineLink} to="/docs/features/cultivation-memory">
+              了解养成记忆 <IconArrowRight size={16} />
             </Link>
           </div>
 

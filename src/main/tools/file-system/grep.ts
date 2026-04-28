@@ -2,10 +2,10 @@ import { ToolExecutionContext } from '@mastra/core/tools';
 import BaseTool from '../base-tool';
 import z from 'zod';
 import { spawn } from 'child_process';
-import { rgPath } from '@vscode/ripgrep';
 import readline from 'readline';
 import pathUtil from 'path';
 import fs from 'fs';
+import { getRgPath } from '../../utils';
 
 const MAX_LINE_LENGTH_TEXT_FILE = 2000;
 export class Grep extends BaseTool {
@@ -186,7 +186,9 @@ export class Grep extends BaseTool {
       args.push(cwd);
     }
 
-    const child = spawn(rgPath, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawn(getRgPath(), args, {
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
 
     let outputLines: string[] = [];
     let collectedCount = 0;

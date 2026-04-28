@@ -53,6 +53,7 @@ import { ImageToolkit } from './image';
 import { AgentBrowser } from './browser';
 import { KnowledgeBaseToolkit } from './knowledge-base';
 import { CronsToolkit } from './crons';
+import ChatHistoryToolkit from './chat-history';
 import { Agent } from './common/agent';
 import { RequestContext } from '@mastra/core/request-context';
 import { ChatRequestContext } from '@/types/chat';
@@ -189,7 +190,8 @@ class ToolsManager extends BaseManager {
     // await this.registerBuiltInTool(EditImage);
     // await this.registerBuiltInTool(RemoveBackground);
     await this.registerBuiltInTool(Agent);
-    // await this.registerBuiltInTool(MemoryToolkit);
+    await this.registerBuiltInTool(MemoryToolkit);
+    await this.registerBuiltInTool(ChatHistoryToolkit);
     await this.registerBuiltInTool(Extract);
     await this.registerBuiltInTool(Translation);
     await this.registerBuiltInTool(AudioToolkit);
@@ -710,7 +712,7 @@ class ToolsManager extends BaseManager {
             : 'stopped',
         isActive: tools.find((x) => x.id === tool.id)?.isActive,
       })),
-      [ToolType.BUILD_IN]: this.builtInTools.map((tool) => ({
+      [ToolType.BUILD_IN]: this.builtInTools.filter(x => !x.isHidden).map((tool) => ({
         id: tool.id,
         name: tool.id.substring(ToolType.BUILD_IN.length + 1),
         description: tool.description,

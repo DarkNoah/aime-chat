@@ -33,6 +33,7 @@ abstract class BaseTool<
   tags?: string[];
   configSchema?: ZodSchema;
   config?: T;
+  isHidden?: boolean;
 
   format?: 'mastra' | 'ai-sdk';
 

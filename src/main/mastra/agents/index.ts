@@ -21,6 +21,7 @@ import { DefaultAgent } from './default-agent';
 import { SubAgentInfo } from '@/types/task';
 import { Explore } from './explore-agent';
 import { Plan } from './plan-agent';
+import { CultivationAgent } from './cultivation-agent';
 import { stringify, parse as tomlParse } from 'smol-toml';
 import { appManager } from '@/main/app';
 import fs from 'fs';
@@ -77,6 +78,7 @@ class AgentManager extends BaseManager {
     await this.registerAgent(CodeAgent);
     await this.registerAgent(Explore);
     await this.registerAgent(Plan);
+    await this.registerAgent(CultivationAgent);
   }
 
   async buildAgent(agentId?: string, params?: BuildAgentParams) {

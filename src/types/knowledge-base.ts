@@ -34,6 +34,7 @@ export type KnowledgeBase = {
   embeddingProvider?: string;
   reranker?: string;
   returnChunkCount?: number;
+  static?: boolean;
 };
 
 export type CreateKnowledgeBase = UpdateKnowledgeBase & {

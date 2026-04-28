@@ -53,4 +53,19 @@ export class Crons {
 
   @Column({ type: 'json', nullable: true })
   lastRunResult?: any;
+
+  @Column({ nullable: true })
+  lastRunChatId?: string;
+
+  @Column({ type: 'json', nullable: true })
+  runHistory?: CronRunRecord[];
+}
+
+export interface CronRunRecord {
+  startedAt: string;
+  endedAt?: string;
+  chatId?: string;
+  status: 'success' | 'failed' | 'running';
+  error?: string;
+  trigger?: 'schedule' | 'manual';
 }

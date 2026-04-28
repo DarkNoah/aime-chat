@@ -21,6 +21,7 @@ export class Done extends BaseTool {
     'Do NOT call this tool if any check still needs to be performed, any error remains unresolved, or you plan to continue working. In those cases, keep working and call other tools instead.',
   ].join('\n');
   inputSchema = z.object({});
+  isHidden = true;
 
   constructor(config?: BaseToolParams) {
     super(config);

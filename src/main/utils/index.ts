@@ -1,8 +1,25 @@
 import { app } from 'electron';
 import path from 'path';
 import fs from 'fs';
+import { rgPath as rawRgPath } from '@vscode/ripgrep';
 
 export * from './pdf';
+
+/**
+ * 解析 @vscode/ripgrep 提供的 rgPath。
+ * 打包后 rgPath 会指向 app.asar 内部，spawn 无法执行；
+ * 需要替换为 app.asar.unpacked 中的真实磁盘文件路径。
+ */
+export const getRgPath = (): string => {
+  if (!rawRgPath) return rawRgPath;
+  if (rawRgPath.includes('app.asar') && !rawRgPath.includes('app.asar.unpacked')) {
+    return rawRgPath.replace(
+      `${path.sep}app.asar${path.sep}`,
+      `${path.sep}app.asar.unpacked${path.sep}`,
+    );
+  }
+  return rawRgPath;
+};
 
 export const getDataPath = (...paths: string[]) => {
   let userData;

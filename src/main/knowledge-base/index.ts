@@ -54,6 +54,14 @@ export class KnowledgeBaseManager extends BaseManager {
         await this.executeImportSource(task, ctx);
       },
     });
+
+    // Try to ensure the global static memory KB exists. Done lazily so we
+    // don't block app boot if no embedding provider is configured yet.
+    setTimeout(() => {
+      import('./static-memory')
+        .then((m) => m.getOrCreateMemoryKB())
+        .catch((err) => console.error('[knowledge-base] init static memory failed', err));
+    }, 0);
   }
 
 
@@ -113,8 +121,8 @@ export class KnowledgeBaseManager extends BaseManager {
 
 
   @channel(KnowledgeBaseChannel.Create)
-  public async createKnowledgeBase(data: CreateKnowledgeBase): Promise<KnowledgeBase> {
-    const kbId = nanoid();
+  public async createKnowledgeBase(data: CreateKnowledgeBase & { id?: string; static?: boolean }): Promise<KnowledgeBase> {
+    const kbId = data.id ?? nanoid();
     if (!data.embedding) {
       throw new Error('Embedding Model is required');
     }
@@ -166,6 +174,7 @@ export class KnowledgeBaseManager extends BaseManager {
       ...data,
       id: kbId,
       vectorLength: embedding_length,
+      static: data.static ?? false,
     });
   }
 
@@ -369,7 +378,13 @@ export class KnowledgeBaseManager extends BaseManager {
           const score = await this.calcClipCosineSimilarity(kb.embedding, vectorStr, JSON.parse(row.embedding as string));
           row.score = score;
           console.log(row, score);
-          if (score > 0.7) {
+          if (fileTpye == 'text') {
+            results.rows.push({
+              ...row,
+              score: score,
+            });
+          }
+          else if (score > 0.7) {
             results.rows.push({
               ...row,
               score: score,
@@ -450,6 +465,129 @@ export class KnowledgeBaseManager extends BaseManager {
       results: _results,
     }
   }
+  @channel(KnowledgeBaseChannel.UpdateKnowledgeBaseItem)
+  public async updateKnowledgeBaseItem(
+    id: string,
+    data: {
+      name?: string;
+      content?: string;
+      source?: any;
+      metadata?: any;
+    },
+  ): Promise<KnowledgeBaseItem> {
+    let item = await this.knowledgeBaseItemRepository.findOne({
+      where: { id },
+      relations: ['knowledgeBase'],
+    });
+    if (!item) {
+      throw new Error('Knowledge base item not found');
+    }
+    const kb = item.knowledgeBase;
+    if (!kb) {
+      throw new Error('Knowledge base not found');
+    }
+
+    const nextName =
+      typeof data.name === 'string' && data.name.trim().length > 0
+        ? data.name.trim()
+        : item.name;
+    const contentChanged =
+      typeof data.content === 'string' && data.content !== (item.content ?? '');
+    const nextContent = contentChanged ? data.content : item.content;
+
+    item.name = nextName;
+    if (typeof data.metadata !== 'undefined') {
+      item.metadata = { ...(item.metadata ?? {}), ...(data.metadata ?? {}) };
+    }
+    if (typeof data.source !== 'undefined') {
+      item.source = data.source;
+    } else if (
+      contentChanged &&
+      item.sourceType === KnowledgeBaseSourceType.Text &&
+      item.source &&
+      typeof item.source === 'object'
+    ) {
+      item.source = { ...item.source, content: nextContent };
+    }
+
+    if (contentChanged) {
+      item.content = nextContent;
+      item.state = KnowledgeBaseItemState.Processing;
+      item.error = undefined;
+      item = await this.knowledgeBaseItemRepository.save(item);
+      await appManager.sendEvent(KnowledgeBaseEvent.KnowledgeBaseItemsUpdated, {
+        kbId: kb.id,
+        items: [item],
+      });
+
+      try {
+        await this.libSQLClient.execute({
+          sql: `DELETE FROM [kb_${kb.id}_${kb.vectorLength}] WHERE item_id = ? AND ("type" IS NULL OR "type" = 'text')`,
+          args: [item.id],
+        });
+
+        let chunkCount = 0;
+        if (nextContent && nextContent.trim().length > 0) {
+          const doc = MDocument.fromText(nextContent);
+          const chunks = await doc.chunk({
+            strategy: 'recursive',
+            maxSize: 512,
+            overlap: 50,
+            separators: ['\n'],
+          });
+          if (chunks.length > 0) {
+            const { text_embeddings: embeddings } = await this.calcEmbeddings(
+              kb.embedding,
+              chunks.map((chunk) => chunk.text),
+            );
+            const insertStatements = chunks.map((chunk, index) => ({
+              sql: `INSERT INTO [kb_${kb.id}_${kb.vectorLength}] (id, item_id, chunk, is_enable, type, embedding, metadata)
+              VALUES (?, ?, ?, ?, ?, vector32(?), ?)`,
+              args: [
+                nanoid(),
+                item.id,
+                chunk.text,
+                true,
+                'text',
+                JSON.stringify(embeddings[index]),
+                JSON.stringify(chunk.metadata ?? {}),
+              ],
+            }));
+            await this.libSQLClient.batch(insertStatements);
+            chunkCount = chunks.length;
+          }
+        }
+
+        item.chunkCount = chunkCount;
+        item.state = KnowledgeBaseItemState.Completed;
+        item.isEnable = true;
+        item.updatedAt = new Date();
+        item = await this.knowledgeBaseItemRepository.save(item);
+      } catch (error) {
+        item.state = KnowledgeBaseItemState.Fail;
+        item.error = error instanceof Error ? error.message : String(error);
+        item = await this.knowledgeBaseItemRepository.save(item);
+        await appManager.sendEvent(
+          KnowledgeBaseEvent.KnowledgeBaseItemsUpdated,
+          {
+            kbId: kb.id,
+            items: [item],
+          },
+        );
+        throw error;
+      }
+    } else {
+      item.updatedAt = new Date();
+      item = await this.knowledgeBaseItemRepository.save(item);
+    }
+
+    await appManager.sendEvent(KnowledgeBaseEvent.KnowledgeBaseItemsUpdated, {
+      kbId: kb.id,
+      items: [item],
+    });
+    return item;
+  }
+
   @channel(KnowledgeBaseChannel.DeleteKnowledgeBaseItem)
   public async deleteKnowledgeBaseItem(id: string) {
     const item = await this.knowledgeBaseItemRepository.findOne({ where: { id }, relations: ['knowledgeBase'] });
@@ -567,8 +705,11 @@ export class KnowledgeBaseManager extends BaseManager {
       item.state = KnowledgeBaseItemState.Pending;
 
       const content = source.content.trim();
-      item.name = content.substring(0, 10);
+      item.name = source.name ?? content.substring(0, 10);
       item.content = content;
+      if (source.role) {
+        item.metadata = { ...(item.metadata ?? {}), role: source.role };
+      }
 
 
       ctx.updateProgress(50, '保存数据...');
@@ -735,18 +876,29 @@ export class KnowledgeBaseManager extends BaseManager {
             items: [item]
           });
           const ext = path.extname(file).toLowerCase();
+          const isImage = mime.lookup(file).startsWith('image/')
+
           if (await isBinaryFile(file) && ext != '.ts') {
-            content = await new ReadBinaryFile({
-              forcePDFOcr: true,
-              forceWordOcr: false,
-              reminder: false,
-              excludeInsideImage: true,
-            }).execute({
-              file_source: file,
-              args: {}
-            }, {});
+            try {
+              content = await new ReadBinaryFile({
+                forcePDFOcr: true,
+                forceWordOcr: false,
+                reminder: false,
+                excludeInsideImage: true,
+              }).execute({
+                file_source: file,
+                args: {}
+              }, {});
+            }
+            catch (err) {
+              console.error(err);
+            }
+
           } else {
             content = await fs.promises.readFile(file, 'utf-8');
+          }
+          if (!isImage && !content.trim()) {
+            throw new Error('File content is failed to extract');
           }
           item.content = content;
           const buffer = await fs.promises.readFile(file);
@@ -756,16 +908,20 @@ export class KnowledgeBaseManager extends BaseManager {
             kbId: kbId,
             items: [item]
           });
-          const doc = MDocument.fromText(content);
-          const chunks = await doc.chunk({
-            strategy: "recursive",
-            maxSize: 512,
-            overlap: 50,
-            separators: ["\n"],
-          });
-          item.chunkCount = chunks.length;
+          let chunks = [];
+          if (content) {
+            const doc = MDocument.fromText(content);
+            chunks = await doc.chunk({
+              strategy: "recursive",
+              maxSize: 512,
+              overlap: 50,
+              separators: ["\n"],
+            });
+            item.chunkCount = chunks.length;
+          }
+
           let embeddings: { text_embeddings: number[][], image_embeddings?: number[][] } | undefined;
-          const isImage = mime.lookup(file).startsWith('image/')
+
           if (mime.lookup(file).startsWith('image/')) {
             embeddings = await this.calcEmbeddings(kb.embedding, chunks.map((chunk) => chunk.text), [file]);
           } else {

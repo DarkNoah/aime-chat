@@ -51,11 +51,13 @@ import {
   getUVRuntime,
   installAgentBrowserRuntime,
   installBunRuntime,
+  installNodeRuntime,
   installPaddleOcrRuntime,
   installQwenAudioRuntime,
   installUVRuntime,
   uninstallAgentBrowserRuntime,
   uninstallBunRuntime,
+  uninstallNodeRuntime,
   uninstallPaddleOcrRuntime,
   uninstallQwenAudioRuntime,
   unInstallUVRuntime,
@@ -70,7 +72,7 @@ import {
   SearchInDirectoryResult,
   SearchResult,
 } from '@/types/common';
-import { rgPath } from '@vscode/ripgrep';
+import { getRgPath } from '../utils';
 import { execSync, spawn } from 'child_process';
 import os from 'os';
 import readline from 'readline';
@@ -568,7 +570,9 @@ class AppManager extends BaseManager {
         directory,
       ];
 
-      const child = spawn(rgPath, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+      const child = spawn(getRgPath(), args, {
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
       const results: SearchResult[] = [];
 
       const rl = readline.createInterface({
@@ -675,7 +679,9 @@ class AppManager extends BaseManager {
     args.push('-e', pattern, directory.replaceAll('\\', '/'));
 
     return new Promise((resolve) => {
-      const child = spawn(rgPath, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+      const child = spawn(getRgPath(), args, {
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
 
       const results: SearchResult[] = [];
       let total = 0;
@@ -842,6 +848,8 @@ class AppManager extends BaseManager {
       await installPaddleOcrRuntime();
     } else if (pkg == 'bun') {
       await installBunRuntime();
+    } else if (pkg == 'node') {
+      await installNodeRuntime();
     } else if (pkg == 'qwenAudio') {
       await installQwenAudioRuntime();
     } else if (pkg == 'agentBrowser') {
@@ -857,6 +865,8 @@ class AppManager extends BaseManager {
       await uninstallPaddleOcrRuntime();
     } else if (pkg == 'bun') {
       await uninstallBunRuntime();
+    } else if (pkg == 'node') {
+      await uninstallNodeRuntime();
     } else if (pkg == 'qwenAudio') {
       await uninstallQwenAudioRuntime();
     } else if (pkg == 'agentBrowser') {

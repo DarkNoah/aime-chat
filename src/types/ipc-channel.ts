@@ -90,6 +90,7 @@ export enum KnowledgeBaseChannel {
   ImportSource = 'knowledge-base:importSource',
   GetKnowledgeBaseItems = 'knowledge-base:getKnowledgeBaseItems',
   DeleteKnowledgeBaseItem = 'knowledge-base:deleteKnowledgeBaseItem',
+  UpdateKnowledgeBaseItem = 'knowledge-base:updateKnowledgeBaseItem',
   SearchKnowledgeBase = 'knowledge-base:searchKnowledgeBase',
 }
 
@@ -171,7 +172,12 @@ export enum CronsChannel {
   Create = 'crons:create',
   Update = 'crons:update',
   Delete = 'crons:delete',
+  RunNow = 'crons:runNow',
 }
+
+export const CULTIVATION_CRON_ID = 'builtin_cultivation_daily';
+export const BUILTIN_CRON_IDS = new Set<string>([CULTIVATION_CRON_ID]);
+export const isBuiltinCronId = (id: string) => BUILTIN_CRON_IDS.has(id);
 
 export enum ChannelChannel {
   GetList = 'channel:getList',

@@ -24,7 +24,8 @@ export const uv: RuntimeInfo['uv'] = {
 };
 
 export const node: RuntimeInfo['node'] = {
-  installed: undefined,
+  status: 'not_installed',
+  installed: false,
   path: undefined,
   dir: undefined,
   version: undefined,
@@ -60,6 +61,109 @@ export const agentBrowser: RuntimeInfo['agentBrowser'] = {
 };
 
 const PYTHON_RUNTIME_VERSION = '3.12';
+const NODE_RUNTIME_VERSION = '22';
+
+function getDefaultNvmDir() {
+  return process.env.NVM_DIR || path.join(app.getPath('home'), '.nvm');
+}
+
+function getNodeRuntimeCandidates() {
+  const candidates: string[] = [];
+
+  if (process.platform === 'win32') {
+    const programFiles = process.env.ProgramFiles;
+    const programFilesX86 = process.env['ProgramFiles(x86)'];
+    const appData = process.env.APPDATA;
+
+    if (programFiles) {
+      candidates.push(
+        path.join(programFiles, 'nodejs', 'node.exe'),
+        path.join(programFiles, 'nvm', `v${NODE_RUNTIME_VERSION}`, 'node.exe'),
+      );
+    }
+    if (programFilesX86) {
+      candidates.push(
+        path.join(programFilesX86, 'nodejs', 'node.exe'),
+        path.join(
+          programFilesX86,
+          'nvm',
+          `v${NODE_RUNTIME_VERSION}`,
+          'node.exe',
+        ),
+      );
+    }
+    if (appData) {
+      candidates.push(
+        path.join(appData, 'nvm', `v${NODE_RUNTIME_VERSION}`, 'node.exe'),
+      );
+    }
+
+    return candidates;
+  }
+
+  const nvmDir = getDefaultNvmDir();
+  candidates.push(
+    path.join(
+      nvmDir,
+      'versions',
+      'node',
+      `v${NODE_RUNTIME_VERSION}`,
+      'bin',
+      'node',
+    ),
+  );
+
+  return candidates;
+}
+
+function prependNodeRuntimeToPath(nodePath: string) {
+  const nodeDir = path.dirname(nodePath);
+  const delimiter = process.platform === 'win32' ? ';' : ':';
+  const pathItems = (process.env.PATH || '')
+    .split(delimiter)
+    .filter(Boolean);
+
+  if (!pathItems.includes(nodeDir)) {
+    process.env.PATH = [nodeDir, ...pathItems].join(delimiter);
+  }
+}
+
+async function findNvmCommand() {
+  if (process.platform !== 'win32') {
+    return 'nvm';
+  }
+
+  const result = await runCommand('where nvm', { timeout: 1000 * 5 });
+  if (result.code === 0) {
+    const nvmPath = result.output
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .find(
+        (line) => line.toLowerCase().endsWith('nvm.exe') && fs.existsSync(line),
+      );
+    if (nvmPath) {
+      return `"${nvmPath}"`;
+    }
+  }
+
+  const candidates = [
+    process.env.NVM_HOME
+      ? path.join(process.env.NVM_HOME, 'nvm.exe')
+      : undefined,
+    process.env.ProgramFiles
+      ? path.join(process.env.ProgramFiles, 'nvm', 'nvm.exe')
+      : undefined,
+    process.env['ProgramFiles(x86)']
+      ? path.join(process.env['ProgramFiles(x86)'], 'nvm', 'nvm.exe')
+      : undefined,
+    process.env.APPDATA
+      ? path.join(process.env.APPDATA, 'nvm', 'nvm.exe')
+      : undefined,
+  ].filter(Boolean) as string[];
+
+  const nvmPath = candidates.find((candidate) => fs.existsSync(candidate));
+  return nvmPath ? `"${nvmPath}"` : 'nvm';
+}
 
 async function getUVPythonRuntimeInfo() {
   const isWindows = process.platform === 'win32';
@@ -326,27 +430,133 @@ export async function getUVRuntime(refresh = false) {
   }
 }
 export async function getNodeRuntime(refresh = false) {
-  if (node.installed === undefined || refresh) {
-    const command =
-      process.platform == 'darwin' || process.platform == 'linux'
-        ? 'which node'
-        : 'where node';
-    const result = await runCommand(command, { timeout: 1000 * 5 });
-    if (result.code === 0 && fs.existsSync(result.output.trim())) {
-      const versionResult = await runCommand(`node --version`, {
-        timeout: 1000 * 5,
-      });
-      if (versionResult.code === 0 && versionResult.stdout.startsWith('v')) {
-        node.version = versionResult.stdout.trim();
-      }
-      node.installed = true;
-      node.path = result.output.trim();
-      node.dir = path.dirname(result.output.trim());
-      return node;
-    }
-  } else {
+  if (
+    (node.status === 'installing' && !refresh) ||
+    (node.installed && !refresh)
+  ) {
     return node;
   }
+
+  const versionResult = await runCommand('node --version', {
+    timeout: 1000 * 5,
+  });
+  if (versionResult.code === 0 && versionResult.stdout.startsWith('v')) {
+    node.status = 'installed';
+    node.installed = true;
+    node.path = undefined;
+    node.dir = undefined;
+    node.version = versionResult.stdout.trim();
+    return node;
+  }
+
+  node.status = 'not_installed';
+  node.installed = false;
+  node.path = undefined;
+  node.dir = undefined;
+  node.version = undefined;
+  return node;
+}
+
+export async function installNodeRuntime() {
+  const currentNode = await getNodeRuntime(true);
+  if (currentNode.installed) {
+    return currentNode;
+  }
+
+  if (node.status === 'installing') {
+    return node;
+  }
+
+  node.status = 'installing';
+  node.installed = false;
+
+  let success = false;
+  try {
+    if (process.platform === 'win32') {
+      const wingetResult = await runCommand(
+        'winget install CoreyButler.NVMforWindows',
+        {
+          timeout: 1000 * 60 * 10,
+        },
+      );
+      if (wingetResult.code !== 0) {
+        throw new Error(wingetResult.stderr || wingetResult.stdout);
+      }
+
+      const nvmCommand = await findNvmCommand();
+      const installResult = await runCommand(
+        `${nvmCommand} install ${NODE_RUNTIME_VERSION} && ${nvmCommand} use ${NODE_RUNTIME_VERSION}`,
+        {
+          timeout: 1000 * 60 * 10,
+        },
+      );
+      success = installResult.code === 0;
+      const nodePath = getNodeRuntimeCandidates().find((candidate) =>
+        fs.existsSync(candidate),
+      );
+      if (nodePath) {
+        prependNodeRuntimeToPath(nodePath);
+      }
+    } else if (process.platform === 'darwin' || process.platform === 'linux') {
+      const nvmDir = getDefaultNvmDir();
+      const nodePath = path.join(
+        nvmDir,
+        'versions',
+        'node',
+        `v${NODE_RUNTIME_VERSION}`,
+        'bin',
+        'node',
+      );
+
+      if (!fs.existsSync(path.join(nvmDir, 'nvm.sh'))) {
+        const installResult = await runCommand(
+          'curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash',
+          {
+            timeout: 1000 * 60 * 5,
+          },
+        );
+        if (installResult.code !== 0) {
+          throw new Error(installResult.stderr || installResult.stdout);
+        }
+      }
+
+      const nvmResult = await runCommand(
+        `export NVM_DIR="${nvmDir}"; . "$NVM_DIR/nvm.sh"; nvm install ${NODE_RUNTIME_VERSION}; nvm alias default ${NODE_RUNTIME_VERSION}; nvm use ${NODE_RUNTIME_VERSION}; "${nodePath}" --version`,
+        {
+          timeout: 1000 * 60 * 10,
+        },
+      );
+      success = nvmResult.code === 0 && fs.existsSync(nodePath);
+      if (success) {
+        prependNodeRuntimeToPath(nodePath);
+      }
+    }
+  } catch {
+    success = false;
+  }
+
+  const refreshedNode = await getNodeRuntime(true);
+  if (success && refreshedNode.installed) {
+    appManager.toast('Node Runtime installed successfully', {
+      type: 'success',
+    });
+    return refreshedNode;
+  }
+
+  node.status = 'not_installed';
+  node.installed = false;
+  appManager.toast('Failed to install Node Runtime', { type: 'error' });
+  return node;
+}
+
+export async function uninstallNodeRuntime() {
+  if (process.platform !== 'win32') {
+    const nvmDir = path.join(app.getPath('userData'), '.runtime', 'nvm');
+    if (fs.existsSync(nvmDir)) {
+      await fs.promises.rm(nvmDir, { recursive: true, force: true });
+    }
+  }
+  await getNodeRuntime(true);
 }
 
 export async function getPaddleOcrRuntime(refresh = false) {

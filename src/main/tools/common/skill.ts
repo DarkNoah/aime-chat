@@ -15,6 +15,8 @@ import { isString } from '@/utils/is';
 import unzipper from 'unzipper';
 import os from 'os';
 import { getSkills } from '@/main/utils/skills';
+import { getDataPath } from '@/main/utils';
+import { Tools } from '@/entities/tools';
 
 export interface SkillToolParams extends BaseToolParams {
   skills: SkillInfo[] | string[];
@@ -148,16 +150,16 @@ ${agrs ? 'ARGUMENTS: ' + agrs : ''}
 
 export class SkillManager {
   public async getSkills(): Promise<SkillInfo[]> {
-    const claudeSkills = await this.getClaudeSkills();
+    // const claudeSkills = await this.getClaudeSkills();
+    const localSkills2 = await this.getLocalSkills();
     const localSkills = await toolsManager.toolsRepository.find({
       where: {
         type: ToolType.SKILL,
       },
     });
     return [
-      ...claudeSkills,
+      // ...claudeSkills,
       ...localSkills
-        .filter((x) => !claudeSkills.map((y) => y.id).includes(x.id))
         .map((x) => {
           return {
             id: x.id as `${ToolType.SKILL}:${string}`,
@@ -172,6 +174,63 @@ export class SkillManager {
           };
         }),
     ];
+  }
+
+
+  async getLocalSkills(): Promise<SkillInfo[]> {
+    const skillsPath = path.join(app.getPath('userData'), 'skills');
+    if (
+      !(fs.existsSync(skillsPath) && fs.statSync(skillsPath).isDirectory())
+    ) {
+      return [];
+    }
+    const marketplaceDir = fs.readdirSync(skillsPath);
+    const skillList: SkillInfo[] = [];
+
+    const mds = await fg('**/SKILL.md', {
+      cwd: skillsPath,
+      absolute: true,
+    });
+
+    const localSkills = await toolsManager.toolsRepository.find({
+      where: {
+        type: ToolType.SKILL,
+      },
+    });
+
+    for (const md of mds) {
+      const skillName = path.basename(path.dirname(md));
+      const skillMD = await fs.promises.readFile(md, { encoding: 'utf8' });
+      const data = matter(skillMD);
+      const skill = {
+        id: `${ToolType.SKILL}:local:${skillName}`,
+        name: data.data.name,
+        description: data.data.description,
+        path: path.dirname(md),
+      } as SkillInfo;
+      let localSkill: Tools | undefined = await toolsManager.toolsRepository.findOne({
+        where: {
+          type: ToolType.SKILL,
+          id: skill.id
+        },
+      });
+      if (!localSkill) {
+        localSkill = new Tools(skill.id, skill.name, ToolType.SKILL);
+        localSkill.isActive = true;
+        localSkill.value = {
+          path: skill.path,
+        };
+      }
+      localSkill.name = skill.name;
+      localSkill.description = skill.description;
+      // localSkill.value = {
+      //   path: skill.path,
+      // };
+      await toolsManager.toolsRepository.save(localSkill);
+
+      skillList.push(skill);
+    }
+    return skillList;
   }
 
   async getClaudeSkills(): Promise<SkillInfo[]> {

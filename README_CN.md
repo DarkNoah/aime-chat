@@ -2,7 +2,7 @@
   <img src="assets/banner.png" alt="AIME Chat" width="100%" />
 
   <p>
-    <img src="https://img.shields.io/badge/version-0.3.21-blue.svg" alt="Version">
+    <img src="https://img.shields.io/badge/version-0.3.29-blue.svg" alt="Version">
     <img src="https://img.shields.io/badge/platform-macOS%20|%20Windows%20|%20Linux-lightgrey.svg" alt="Platform">
     <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License">
   </p>
@@ -23,7 +23,8 @@
 - 🤖 **多 AI 提供商支持** - 集成 OpenAI、DeepSeek、Google、智谱 AI、Ollama、LMStudio、ModelScope、MiniMax 等多个主流 AI 提供商
 - 💬 **智能对话** - 基于 Mastra 框架的强大 AI Agent 系统，支持流式响应和工具调用
 - 🤝 **Open CoWork 能力** - AI 不只是聊天，还能执行实际操作，如文件编辑、代码执行、网络搜索等
-- 📚 **知识库管理** - 内置向量数据库，支持文档检索和知识问答
+- 📚 **知识库管理** - 内置向量数据库，支持文档检索、知识问答和长期养成记忆
+- 🧠 **养成记忆** - 由定时运行的 Cultivation Agent 从聊天记录中提取偏好、习惯、项目上下文和重要事实，沉淀为结构化记忆 Wiki
 - 🛠️ **工具集成** - 支持 MCP（Model Context Protocol）客户端，可扩展各类工具能力
 - 🎙️ **语音处理** - 内置语音转文字（STT）和文字转语音（TTS）能力，基于 Qwen3-TTS 模型
 - 🔍 **Skill 技能系统** - 支持从 Git 仓库或在线技能市场搜索、导入和管理 AI 技能
@@ -133,7 +134,14 @@ aime-chat/
 - 📄 文档上传和解析
 - 🔍 向量化存储和检索
 - 💡 基于知识库的智能问答
+- 🧠 基于聊天记录自动维护全局记忆 Wiki 的养成记忆
 - 📊 知识库管理界面
+
+### 养成记忆
+
+AIME Chat 内置由 `Cultivation` Agent 维护的全局记忆知识库。启用 `Cultivation Daily` 定时任务后，系统会读取最近更新的用户聊天记录，过滤自动化任务产生的线程，与已有记忆去重，并把值得长期保留的信息写入 `preferences.md`、`habits.md`、项目笔记等 Markdown 页面。
+
+这能让后续对话自动继承稳定的用户偏好、工作习惯、重要人物/实体和持续推进的项目上下文，而不需要每次手动粘贴历史聊天。
 
 ### 工具系统
 

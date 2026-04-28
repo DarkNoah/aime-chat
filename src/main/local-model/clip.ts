@@ -86,7 +86,9 @@ export class LocalCLIPModel implements ClipModel {
 
     const images = await Promise.all(imagePaths.map(imagePath => RawImage.read(imagePath)));
     const imageInputs = await processor(images);
-    const batchSize = imageInputs.pixel_values.dims[0];
+
+
+    const batchSize = (imageInputs.pixel_values ?? imageInputs.input_ids).dims[0];
     const input_ids = new Tensor("int64", new BigInt64Array(batchSize), [batchSize, 1]);
     const attention_mask = new Tensor("int64", new BigInt64Array(batchSize).fill(1n), [batchSize, 1]);
     const output = await model({ ...imageInputs, input_ids, attention_mask });

@@ -48,6 +48,7 @@ import {
   IconAlertCircle,
   IconCheck,
   IconClock,
+  IconEdit,
   IconFile,
   IconPhoto,
   IconNetwork,
@@ -156,6 +157,10 @@ function KnowledgeBaseDetail() {
   const [pendingDeleteItem, setPendingDeleteItem] =
     useState<KnowledgeBaseItem | null>(null);
   const [deletingItem, setDeletingItem] = useState(false);
+  const [editingItem, setEditingItem] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editContent, setEditContent] = useState('');
+  const [savingItem, setSavingItem] = useState(false);
   const [fileDialogOpen, setFileDialogOpen] = useState(false);
   const [textDialogOpen, setTextDialogOpen] = useState(false);
   const [urlDialogOpen, setUrlDialogOpen] = useState(false);
@@ -415,6 +420,45 @@ function KnowledgeBaseDetail() {
     }
   };
 
+  const startEditItem = (item: KnowledgeBaseItem) => {
+    setEditName(item.name || '');
+    setEditContent(item.content || '');
+    setEditingItem(true);
+  };
+
+  const cancelEditItem = () => {
+    setEditingItem(false);
+    setEditName('');
+    setEditContent('');
+  };
+
+  const handleSaveItem = async () => {
+    if (!selectedItem || savingItem) {
+      return;
+    }
+    setSavingItem(true);
+    try {
+      const updated =
+        await window.electron.knowledgeBase.updateKnowledgeBaseItem(
+          selectedItem.id,
+          {
+            name: editName,
+            content: editContent,
+          },
+        );
+      setSelectedItem(updated);
+      setItems((prev) =>
+        prev.map((x) => (x.id === updated.id ? { ...x, ...updated } : x)),
+      );
+      setEditingItem(false);
+      toast.success(t('common.save'));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('common.error'));
+    } finally {
+      setSavingItem(false);
+    }
+  };
+
   const handleDeleteItem = async () => {
     if (!pendingDeleteItem || deletingItem) {
       return;
@@ -517,7 +561,13 @@ function KnowledgeBaseDetail() {
         {kb?.rerankerModel && (
           <Badge variant="secondary">@{kb?.rerankerModel}</Badge>
         )}
+        {kb?.static && <Badge>{t('knowledge-base.static-badge')}</Badge>}
       </div>
+      {kb?.static && (
+        <div className="rounded-md border border-dashed bg-muted/40 p-3 text-xs text-muted-foreground">
+          {t('knowledge-base.static-tip')}
+        </div>
+      )}
 
       <div className="flex flex-row gap-2">
         <Dialog
@@ -912,13 +962,29 @@ function KnowledgeBaseDetail() {
                   <Button
                     type="button"
                     size="sm"
-                    variant="destructive"
+                    variant="outline"
                     onClick={() => {
-                      setPendingDeleteItem(item);
+                      setSelectedItem(item);
+                      startEditItem(item);
                     }}
                   >
-                    <IconTrash></IconTrash>
+                    <IconEdit></IconEdit>
                   </Button>
+                  {!(
+                    kb?.static &&
+                    (item.name === 'index.md' || item.name === 'log.md')
+                  ) && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => {
+                        setPendingDeleteItem(item);
+                      }}
+                    >
+                      <IconTrash></IconTrash>
+                    </Button>
+                  )}
                 </ItemActions>
               </Item>
             ))
@@ -1113,6 +1179,7 @@ function KnowledgeBaseDetail() {
         onOpenChange={(open) => {
           if (!open) {
             setSelectedItem(null);
+            cancelEditItem();
           }
         }}
       >
@@ -1125,6 +1192,40 @@ function KnowledgeBaseDetail() {
               <Badge variant={getStateVariant(selectedItem?.state)}>
                 {selectedItem?.state || '-'}
               </Badge>
+              <div className="mr-auto flex items-center gap-2">
+                {!editingItem && selectedItem && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => startEditItem(selectedItem)}
+                  >
+                    <IconEdit className="size-4" />
+                    {t('common.edit')}
+                  </Button>
+                )}
+                {editingItem && (
+                  <>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      disabled={savingItem}
+                      onClick={cancelEditItem}
+                    >
+                      {t('common.cancel')}
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={savingItem}
+                      onClick={handleSaveItem}
+                    >
+                      {savingItem ? t('common.loading') : t('common.save')}
+                    </Button>
+                  </>
+                )}
+              </div>
             </SheetTitle>
             <SheetDescription>
               {selectedItem?.sourceType === KnowledgeBaseSourceType.Web && (
@@ -1153,9 +1254,18 @@ function KnowledgeBaseDetail() {
             </SheetDescription>
           </SheetHeader>
           <div className="space-y-2 px-4 pb-4 overflow-y-auto ">
-            <div className="text-sm font-medium break-all">
-              {selectedItem?.name || selectedItem?.source || '-'}
-            </div>
+            {editingItem ? (
+              <Input
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                placeholder={t('knowledge-base.name')}
+                disabled={savingItem}
+              />
+            ) : (
+              <div className="text-sm font-medium break-all">
+                {selectedItem?.name || selectedItem?.source || '-'}
+              </div>
+            )}
 
             {selectedItem?.metadata?.embeddingType === 'image' && (
               <PhotoProvider>
@@ -1170,22 +1280,31 @@ function KnowledgeBaseDetail() {
                 </PhotoView>
               </PhotoProvider>
             )}
-            <Tabs defaultValue="markdown">
-              <TabsList>
-                <TabsTrigger value="markdown">Markdown</TabsTrigger>
-                <TabsTrigger value="text">Text</TabsTrigger>
-              </TabsList>
-              <TabsContent value="markdown">
-                <Streamdown className="bg-secondary p-4 rounded-2xl text-wrap break-all whitespace-pre-wrap text-sm">
-                  {selectedItem?.content}
-                </Streamdown>
-              </TabsContent>
-              <TabsContent value="text">
-                <pre className="bg-secondary rounded-md p-2 text-xs whitespace-pre-wrap break-all">
-                  {selectedItem?.content}
-                </pre>
-              </TabsContent>
-            </Tabs>
+            {editingItem ? (
+              <Textarea
+                value={editContent}
+                onChange={(e) => setEditContent(e.target.value)}
+                disabled={savingItem}
+                className="whitespace-pre-wrap break-all min-h-[400px] font-mono text-xs"
+              />
+            ) : (
+              <Tabs defaultValue="markdown">
+                <TabsList>
+                  <TabsTrigger value="markdown">Markdown</TabsTrigger>
+                  <TabsTrigger value="text">Text</TabsTrigger>
+                </TabsList>
+                <TabsContent value="markdown">
+                  <Streamdown className="bg-secondary p-4 rounded-2xl text-wrap break-all whitespace-pre-wrap text-sm">
+                    {selectedItem?.content}
+                  </Streamdown>
+                </TabsContent>
+                <TabsContent value="text">
+                  <pre className="bg-secondary rounded-md p-2 text-xs whitespace-pre-wrap break-all">
+                    {selectedItem?.content}
+                  </pre>
+                </TabsContent>
+              </Tabs>
+            )}
           </div>
         </SheetContent>
       </Sheet>

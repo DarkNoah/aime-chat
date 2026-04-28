@@ -144,6 +144,7 @@ export interface RuntimeInfo {
     version?: string;
   };
   node: {
+    status: 'installed' | 'not_installed' | 'installing' | undefined;
     installed: boolean;
     path?: string;
     dir?: string;
