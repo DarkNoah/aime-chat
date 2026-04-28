@@ -185,6 +185,8 @@ _configure_hf()
 # ---------- Idle watchdog ----------
 _last_active = time.time()
 _last_active_lock = threading.Lock()
+_busy_count = 0
+_busy_lock = threading.Lock()
 
 
 def touch() -> None:
@@ -193,9 +195,32 @@ def touch() -> None:
         _last_active = time.time()
 
 
+def begin_busy() -> None:
+    """Pause the idle watchdog while a long-running request is being processed."""
+    global _busy_count
+    with _busy_lock:
+        _busy_count += 1
+
+
+def end_busy() -> None:
+    """Resume the idle watchdog after a request completes (success or error)."""
+    global _busy_count
+    with _busy_lock:
+        if _busy_count > 0:
+            _busy_count -= 1
+    touch()
+
+
+def _is_busy() -> bool:
+    with _busy_lock:
+        return _busy_count > 0
+
+
 def watchdog() -> None:
     while True:
         time.sleep(1)
+        if _is_busy():
+            continue
         with _last_active_lock:
             idle = time.time() - _last_active
         if idle > IDLE_TIMEOUT_SEC:
@@ -1311,6 +1336,7 @@ def main() -> None:
         if not line:
             continue
         touch()
+        begin_busy()
         try:
             req = json.loads(line)
             req_id = req.get("id")
@@ -1325,7 +1351,7 @@ def main() -> None:
                 pass
             _err(req_id, str(exc), traceback.format_exc())
         finally:
-            touch()
+            end_busy()
 
 
 if __name__ == "__main__":
