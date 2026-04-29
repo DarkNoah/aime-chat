@@ -41,6 +41,7 @@ import { isString } from '@/utils/is';
 import { getPaddleOcrPythonService } from '../utils/loaders/ocr-loader';
 import { OcrAccuracy, recognize } from '@napi-rs/system-ocr';
 import { getPaddleOcrRuntime } from '../app/runtime';
+import sharp from 'sharp';
 
 export type LocalEmbeddingModelId = 'Qwen/Qwen3-Embedding-0.6B' | (string & {});
 
@@ -104,11 +105,27 @@ export class LocalEmbeddingModel implements EmbeddingModelV2<string> {
 
     let embeddings: Float32Array[] = [];
     if (library == 'openvino') {
-      throw new Error('Openvino not implemented.');
-      // const { TextEmbeddingPipeline, PoolingType } = await import('openvino-genai-node')
+      // throw new Error('Openvino not implemented.');
+      if (isEmbedModel) {
+        const { TextEmbeddingPipeline, PoolingType } = await import('openvino-genai-node')
+        const pipeline = await TextEmbeddingPipeline(modelPath);
+        embeddings = (await pipeline.embedDocuments(values)) as Float32Array[];
+        const array = [];
+        for (const embedding of embeddings) {
+          const data = Array.from(embedding);
+          array.push(data);
+        }
+        return {
+          embeddings: array,
+          usage: {
+            tokens: 0,
+          },
+        };
+      }
 
-      // const pipeline = await TextEmbeddingPipeline(modelPath);
-      // embeddings = (await pipeline.embedDocuments(values)) as Float32Array[];
+
+
+
     } else if (library == 'transformers') {
       let cachedModel;
       if (isEmbedModel) {
@@ -223,32 +240,49 @@ export class LocalRerankModel implements RerankModel {
     };
   }): Promise<{ index: number; score: number; document: string }[]> {
     const appInfo = await appManager.getInfo();
+    const localModels = await localModelManager.getList('reranker');
+    const localEmbeddingModel = localModels.reranker.find((x) => x.id === this.modelId);
+    const { library, isDownloaded } = localEmbeddingModel ?? {};
+
     const modelPath = path.join(appInfo.modelPath, 'reranker', this.modelId);
+    if (library == "openvino") {
+      const { TextRerankPipeline } = await import('openvino-genai-node')
+      const pipeline = await TextRerankPipeline(modelPath, { device: "CPU" });
+      const rerankResult = await pipeline.rerank(query, documents);
+      return rerankResult.map((x) => ({
+        index: x[0],
+        score: x[1],
+        document: documents[x[0]],
+      }));
 
-    const cachedModel = await localModelManager.ensureModelLoaded(
-      'text-classification',
-      this.modelId,
-      modelPath,
-      { dtype: 'q8' },
-    );
-    const { model, tokenizer } = cachedModel;
+    } else if (library == "transformers") {
+      const cachedModel = await localModelManager.ensureModelLoaded(
+        'text-classification',
+        this.modelId,
+        modelPath,
+        { dtype: 'q8' },
+      );
+      const { model, tokenizer } = cachedModel;
 
-    const inputs = tokenizer(new Array(documents.length).fill(query), {
-      text_pair: documents,
-      padding: true,
-      truncation: true,
-    });
-    const { logits } = await model(inputs);
-    return logits
-      .sigmoid()
-      .tolist()
-      .map(([score], i) => ({
-        index: i,
-        score,
-        document: options?.return_documents ? documents[i] : undefined,
-      }))
-      .sort((a, b) => b.score - a.score)
-      .slice(0, options?.top_k || 10);
+      const inputs = tokenizer(new Array(documents.length).fill(query), {
+        text_pair: documents,
+        padding: true,
+        truncation: true,
+      });
+      const { logits } = await model(inputs);
+      return logits
+        .sigmoid()
+        .tolist()
+        .map(([score], i) => ({
+          index: i,
+          score,
+          document: options?.return_documents ? documents[i] : undefined,
+        }))
+        .sort((a, b) => b.score - a.score)
+        .slice(0, options?.top_k || 10);
+    }
+
+
   }
 }
 
@@ -475,6 +509,45 @@ export class LocalOcrModel implements OCRModel {
     const image = fs.readFileSync(options.image);
     const excludeInsideImage = options.excludeInsideImage ?? false;
     let result;
+
+    const localModels = await localModelManager.getList('ocr');
+    const localOcrModel = localModels.ocr.find((x) => x.id === this.modelId);
+    const { library, isDownloaded } = localOcrModel ?? {};
+    const appInfo = await appManager.getInfo();
+
+    if (library == "openvino") {
+      const modelPath = path.join(appInfo.modelPath, 'ocr', this.modelId);
+      const { VLMPipeline } = await import('openvino-genai-node')
+      const pipeline = await VLMPipeline(modelPath, "CPU");
+
+      const { addon: ov } = await import("openvino-node");
+
+      const meta = await sharp(image).metadata();
+      function createTestImageTensor(height: number, width: number, data) {
+        const channels = 3;
+        //const data = new Uint8Array(height * width * channels);
+
+        // Fill with gradient pattern
+        // for (let h = 0; h < height; h++) {
+        //   for (let w = 0; w < width; w++) {
+        //     const idx = (h * width + w) * channels;
+        //     data[idx] = h * 8; // R
+        //     data[idx + 1] = w * 8; // G
+        //     data[idx + 2] = 128; // B
+        //   }
+        // }
+
+        return new ov.Tensor("u8", [height, width, channels], data);
+      }
+      const imageTensor = createTestImageTensor(meta.width, meta.height, image);
+
+
+      result = await pipeline.generate("OCR:", {
+        images: [imageTensor],
+      });
+      return result.text;
+    }
+
     if (this.modelId === 'system') {
       if (path.extname(options.image).toLowerCase() === '.pdf') {
         return await this.ocrPdf(image);
@@ -616,18 +689,25 @@ export class LocalProvider extends BaseProvider {
   }
 
   async getOCRModelList(): Promise<{ name: string; id: string; }[]> {
+    const ocrModels = await localModelManager.getList('ocr');
+    const ocrs = [];
+    if (ocrModels.ocr.find((x) => x.id === 'PaddleOCR-VL-1.5-OpenVINO' && x.isDownloaded)) {
+      ocrs.push({ id: 'PaddleOCR-VL-1.5-OpenVINO', name: 'PaddleOCR-VL-1.5-OpenVINO' });
+    }
     if (process.platform == "darwin") {
       return [{ id: 'system', name: 'System OCR' },
       { id: 'paddleocr-vl', name: 'PaddleOCR-V1.5' },
       { id: 'pp-structurev3', name: 'PP-StructureV3' },
       { id: 'mlx-community/GLM-OCR-bf16', name: 'GLM-OCR' },
       { id: 'rapidocr', name: 'RapidOCR' },
+      ...ocrs,
       ];
     } else {
       return [{ id: 'system', name: 'System OCR' },
       { id: 'paddleocr-vl', name: 'PaddleOCR-V1.5' },
       { id: 'pp-structurev3', name: 'PP-StructureV3' },
       { id: 'rapidocr', name: 'RapidOCR' },
+      ...ocrs,
       ]
     }
 

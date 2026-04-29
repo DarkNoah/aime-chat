@@ -21,6 +21,8 @@
     "@vscode/ripgrep": "^1.17.0",
     "better-sqlite3": "^11.10.0",
     "onnxruntime-node": "^1.23.2",
+    "openvino-genai-node": "^2026.1.0",
+    "openvino-node": "^2026.1.0",
     "pdf-parse": "^2.4.5",
     "pdf-to-img": "^5.0.0",
     "playwright": "^1.57.0",

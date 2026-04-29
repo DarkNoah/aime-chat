@@ -31,7 +31,7 @@
       ]
     },
     {
-      "id": "Qwen/Qwen3-Embedding-0.6B",
+      "id": "Qwen3-Embedding-0.6B",
       "library": "transformers",
       "repo": "onnx-community/Qwen3-Embedding-0.6B-ONNX",
       "download": [
@@ -42,6 +42,36 @@
         {
           "source": "huggingface",
           "url": "https://huggingface.co/onnx-community/Qwen3-Embedding-0.6B-ONNX"
+        }
+      ]
+    },
+    {
+      "id": "Qwen3-Embedding-0.6B-fp16-ov",
+      "library": "openvino",
+      "repo": "OpenVINO/Qwen3-Embedding-0.6B-fp16-ov",
+      "download": [
+        {
+          "source": "modelscope",
+          "url": "https://www.modelscope.cn/models/OpenVINO/Qwen3-Embedding-0.6B-fp16-ov"
+        },
+        {
+          "source": "huggingface",
+          "url": "https://huggingface.co/OpenVINO/Qwen3-Embedding-0.6B-fp16-ov"
+        }
+      ]
+    },
+    {
+      "id": "bge-m3-fp16-ov",
+      "library": "openvino",
+      "repo": "kread/bge-m3-fp16-ov",
+      "download": [
+        {
+          "source": "modelscope",
+          "url": "https://www.modelscope.cn/models/kread/bge-m3-fp16-ov"
+        },
+        {
+          "source": "huggingface",
+          "url": "https://huggingface.co/kread/bge-m3-fp16-ov"
         }
       ]
     }
@@ -91,6 +121,51 @@
           "url": "https://huggingface.co/jinaai/jina-reranker-v2-base-multilingual"
         }
       ]
+    },
+    {
+      "id": "bge-reranker-base-openvino",
+      "library": "openvino",
+      "repo": "turingevo/bge-reranker-base-openvino",
+      "download": [
+        {
+          "source": "modelscope",
+          "url": "https://www.modelscope.cn/models/turingevo/bge-reranker-base-openvino"
+        },
+        {
+          "source": "huggingface",
+          "url": "https://huggingface.co/turingevo/bge-reranker-base-openvino"
+        }
+      ]
+    },
+    {
+      "id": "Qwen3-Reranker-8B-ov-int4",
+      "library": "openvino",
+      "repo": "rainhenry/Qwen3-Reranker-8B-ov-int4",
+      "download": [
+        {
+          "source": "modelscope",
+          "url": "https://www.modelscope.cn/models/rainhenry/Qwen3-Reranker-8B-ov-int4"
+        },
+        {
+          "source": "huggingface",
+          "url": "https://huggingface.co/rainhenry/Qwen3-Reranker-8B-ov-int4"
+        }
+      ]
+    },
+    {
+      "id": "Qwen3-Reranker-0.6B-fp16-ov",
+      "library": "openvino",
+      "repo": "OpenVINO/Qwen3-Reranker-0.6B-fp16-ov",
+      "download": [
+        {
+          "source": "modelscope",
+          "url": "https://www.modelscope.cn/models/OpenVINO/Qwen3-Reranker-0.6B-fp16-ov"
+        },
+        {
+          "source": "huggingface",
+          "url": "https://huggingface.co/OpenVINO/Qwen3-Reranker-0.6B-fp16-ov"
+        }
+      ]
     }
   ],
   "ocr": [
@@ -106,6 +181,17 @@
         {
           "source": "huggingface",
           "url": "https://huggingface.co/bukuroo/PPOCRv5-ONNX"
+        }
+      ]
+    },
+    {
+      "id": "PaddleOCR-VL-1.5-OpenVINO",
+      "library": "openvino",
+      "repo": "megemini/PaddleOCR-VL-1.5-OpenVINO",
+      "download": [
+        {
+          "source": "modelscope",
+          "url": "megemini/PaddleOCR-VL-1.5-OpenVINO"
         }
       ]
     }
