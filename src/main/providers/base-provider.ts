@@ -77,6 +77,12 @@ export interface MusicModel {
   }) => Promise<string>;
 }
 
+
+
+
+
+
+
 export interface BaseProviderParams {
   provider: Providers;
 }

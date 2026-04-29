@@ -473,22 +473,25 @@ export async function installNodeRuntime() {
   let success = false;
   try {
     if (process.platform === 'win32') {
-      const wingetResult = await runCommand(
-        'winget install CoreyButler.NVMforWindows',
-        {
-          timeout: 1000 * 60 * 10,
-        },
-      );
-      if (wingetResult.code !== 0) {
-        throw new Error(wingetResult.stderr || wingetResult.stdout);
-      }
+      // const wingetResult = await runCommand(
+      //   'winget install CoreyButler.NVMforWindows',
+      //   {
+      //     timeout: 1000 * 60 * 10,
+      //   },
+      // );
+      // if (wingetResult.code !== 0) {
+      //   throw new Error(wingetResult.stderr || wingetResult.stdout);
+      // }
 
-      const nvmCommand = await findNvmCommand();
+      // const nvmCommand = await findNvmCommand();
+      // const installResult = await runCommand(
+      //   `${nvmCommand} install ${NODE_RUNTIME_VERSION} && ${nvmCommand} use ${NODE_RUNTIME_VERSION}`,
+      //   {
+      //     timeout: 1000 * 60 * 10,
+      //   },
+      // );
       const installResult = await runCommand(
-        `${nvmCommand} install ${NODE_RUNTIME_VERSION} && ${nvmCommand} use ${NODE_RUNTIME_VERSION}`,
-        {
-          timeout: 1000 * 60 * 10,
-        },
+        `winget install OpenJS.NodeJS --version ${NODE_RUNTIME_VERSION}`
       );
       success = installResult.code === 0;
       const nodePath = getNodeRuntimeCandidates().find((candidate) =>
@@ -623,12 +626,12 @@ export async function getPaddleOcrRuntime(refresh = false) {
 }
 
 export async function installPaddleOcrRuntime() {
-  const uvRuntime = await getUVRuntime();
+  const uvRuntime = await getUVRuntime(true);
   if (uvRuntime.status !== 'installed') {
     throw new Error('UV runtime is not installed');
   }
   const isWindows = process.platform === 'win32';
-  const uvPreCommand = isWindows ? 'uv.exe' : './uv';
+  const uvPreCommand = path.join(uvRuntime?.dir, isWindows ? 'uv.exe' : './uv');
   const paddleOcrDir = path.join(app.getPath('userData'), ".runtime", 'paddleocr-runtime');
   paddleOcr.status = 'installing';
   if (fs.existsSync(paddleOcrDir)) {
@@ -946,12 +949,12 @@ export async function getQwenAudioRuntime(refresh = false) {
 }
 
 export async function installQwenAudioRuntime() {
-  const uvRuntime = await getUVRuntime();
+  const uvRuntime = await getUVRuntime(true);
   if (uvRuntime.status !== 'installed') {
     throw new Error('UV runtime is not installed');
   }
   const isWindows = process.platform === 'win32';
-  const uvPreCommand = isWindows ? 'uv.exe' : './uv';
+  const uvPreCommand = path.join(uvRuntime?.dir, isWindows ? 'uv.exe' : './uv');
   const qwenasrDir = path.join(
     app.getPath('userData'),
     '.runtime',
@@ -1138,6 +1141,10 @@ export async function uninstallQwenAudioRuntime() {
 
 
 export async function installAgentBrowserRuntime() {
+  const nodeRuntime = await getNodeRuntime(true);
+  if (nodeRuntime.status !== 'installed') {
+    throw new Error('Node Runtime is not installed');
+  }
   if (agentBrowser.status === 'installing') {
     return;
   }

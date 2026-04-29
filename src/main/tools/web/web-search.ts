@@ -281,3 +281,15 @@ const braveSearch = async (options: {
   );
   return results;
 };
+
+const minimaxSearch = async (options: {
+  query: string;
+  numResults?: number;
+  apiKey: string;
+}): Promise<z.infer<typeof webSearchResultSchema>> => {
+  const results: z.infer<typeof webSearchResultSchema> = {
+    results: [],
+    message: undefined,
+  };
+  return results;
+};
