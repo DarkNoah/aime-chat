@@ -1149,7 +1149,7 @@ export async function installAgentBrowserRuntime() {
     return;
   }
   agentBrowser.status = 'installing';
-  let success = false;
+  //let success = false;
   try {
     const result = await runCommand(`npm install -g agent-browser`)
     if (result.code === 0) {
@@ -1163,7 +1163,7 @@ export async function installAgentBrowserRuntime() {
     }
   } catch {
     appManager.toast('Failed to install Agent Browser Runtime', { type: 'error' });
-    success = false;
+    //success = false;
   }
   agentBrowser.status = 'not_installed';
   agentBrowser.installed = false;

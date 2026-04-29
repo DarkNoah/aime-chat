@@ -304,7 +304,7 @@
       "not_installed": "Not Installed",
       "install": "Install",
       "installing": "Installing...",
-      "tip": "UV runtime is recommended for running MCP servers. You can skip this step and install later in Settings."
+      "tip": "UV runtime is recommended for running code. You can skip this step and install later in Settings."
     },
     "complete": {
       "title": "You're All Set!",

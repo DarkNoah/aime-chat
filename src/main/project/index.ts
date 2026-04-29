@@ -18,11 +18,23 @@ import { ToolType } from '@/types/tool';
 import { getSkills } from '../utils/skills';
 import { runCommand } from '../utils/shell';
 import { DEFAULT_TITLE } from '@/types/chat';
+import { app } from 'electron';
+import { getDataPath } from '../utils';
 class ProjectManager extends BaseManager {
   projectsRepository: Repository<Projects>;
 
   async init() {
     this.projectsRepository = dbManager.dataSource.getRepository(Projects);
+    let project = await this.getProject("aime-chat-workspace");
+    if (!project) {
+      project = new Projects("aime-chat-workspace");
+      project.title = "workspace";
+      project.path = getDataPath('workspaces', 'aime-chat-workspace');
+
+      project.tag = "work";
+      fs.mkdirSync(project.path, { recursive: true });
+      project = await this.saveProject(project as Projects);
+    }
   }
 
   @channel(ProjectChannel.GetProject)
@@ -30,6 +42,9 @@ class ProjectManager extends BaseManager {
     const project: Project = await this.projectsRepository.findOne({
       where: { id },
     });
+    if (!project) {
+      return null;
+    }
     project.skills = [];
     const skillsPath = path.join(project?.path, '.aime-chat', 'skills');
     if (fs.existsSync(skillsPath) && fs.statSync(skillsPath).isDirectory()) {

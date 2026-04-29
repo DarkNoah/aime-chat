@@ -14,6 +14,7 @@ import { secretsManager } from '@/main/app/secrets';
 import { ToolConfig, ToolTags } from '@/types/tool';
 import { getDataPath } from '@/main/utils';
 import mastraManager from '@/main/mastra';
+import { getRuntimePython } from '@/main/utils/runtimePython';
 
 const getSitecustomizePy = async (allRequestContext: Record<string, any> = {}) => {
   const appInfo = await appManager.getInfo();
@@ -209,16 +210,18 @@ asyncio.run(main())
     const tempDir = path.join(temp, nanoid());
     await fs.promises.mkdir(tempDir, { recursive: true });
     const isWindows = process.platform === 'win32';
-    const uvPreCommand = isWindows ? 'uv' : 'uv';
+    const uvRuntime = await getUVRuntime();
+    if (uvRuntime.status !== 'installed') {
+      throw new Error('UV runtime is not installed');
+    }
+
+    const uvPreCommand = path.join(uvRuntime.dir, isWindows ? 'uv.exe' : 'uv');
 
     const workspace = (requestContext.get('workspace' as never) as string) || tempDir;
     const allRequestContext = requestContext.all
 
     try {
-      const uvRuntime = await getUVRuntime();
-      if (uvRuntime.status !== 'installed') {
-        throw new Error('UV runtime is not installed');
-      }
+
 
 
       let installPackage = ''
@@ -226,11 +229,12 @@ asyncio.run(main())
       if (packages.length > 0) {
         installPackage = ` && ${uvPreCommand} add ${packages.join(' ')}`
       }
-
+      const env = await getRuntimePython();
       let resultInit = await this.runWithRetry(() => runCommand(
         `${uvPreCommand} init && ${uvPreCommand} --no-cache  venv --seed`,
         {
           cwd: tempDir,
+          env: env,
           abortSignal: abortSignal
         },
       ));
@@ -247,6 +251,7 @@ asyncio.run(main())
           `${uvPreCommand} --no-cache pip install ${packages.join(' ')}`,
           {
             cwd: tempDir,
+            env: env,
             abortSignal: abortSignal
           },
         ));
@@ -299,11 +304,12 @@ asyncio.run(main())
       await fs.promises.writeFile(tempFile, code);
 
       const secretsEnv = await secretsManager.getSecretsEnv();
+      const _env = { ...env, ...secretsEnv };
       const result = await runCommand(
-        `"${path.join(uvRuntime?.dir, uvPreCommand)}" run --project "${tempDir}" "${tempFile}"`,
+        `"${uvPreCommand}" run --project "${tempDir}" "${tempFile}"`,
         {
           cwd: workspace,
-          env: secretsEnv,
+          env: _env,
           abortSignal: abortSignal
         },
 
