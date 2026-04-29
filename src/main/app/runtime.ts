@@ -223,7 +223,7 @@ async function getUVPythonRuntimeInfo() {
 
 async function ensurePythonRuntimeEnvironment(uvDir: string) {
   const isWindows = process.platform === 'win32';
-  const uvPreCommand = isWindows ? 'uv.exe' : './uv';
+  const uvPreCommand = path.join(uvDir, isWindows ? 'uv.exe' : './uv');
   const pythonRuntimeDir = path.join(
     app.getPath('userData'),
     '.runtime',
