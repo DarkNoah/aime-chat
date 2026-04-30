@@ -490,8 +490,12 @@ export async function installNodeRuntime() {
       //     timeout: 1000 * 60 * 10,
       //   },
       // );
+      const pscomd = `$msi = "$env:TEMP\\node-v22.22.2-x64.msi"; Invoke-WebRequest -Uri "https://nodejs.org/dist/v22.22.2/node-v22.22.2-x64.msi" -OutFile $msi; Start-Process msiexec.exe -Wait -ArgumentList "/i \`"$msi\`" /qn /norestart"`
       const installResult = await runCommand(
-        `winget install OpenJS.NodeJS --version ${NODE_RUNTIME_VERSION}`
+        pscomd ?? `winget install OpenJS.NodeJS --version ${NODE_RUNTIME_VERSION}`,
+        {
+          usePowerShell: true,
+        }
       );
       success = installResult.code === 0;
       const nodePath = getNodeRuntimeCandidates().find((candidate) =>

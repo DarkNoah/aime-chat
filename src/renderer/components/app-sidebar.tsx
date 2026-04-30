@@ -118,7 +118,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       title: t('sidebar.crons'),
       url: '/crons',
       icon: IconClock,
-      hidden: appInfo?.isPackaged,
+      // hidden: appInfo?.isPackaged,
       isActive: location.pathname.startsWith('/crons'),
     },
     {
