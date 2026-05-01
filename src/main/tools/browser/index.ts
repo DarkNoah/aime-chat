@@ -4,6 +4,7 @@ import z from "zod";
 import { ToolExecutionContext } from "@mastra/core/tools";
 import { runCommand } from "@/main/utils/shell";
 import { instancesManager } from "@/main/instances";
+import { appManager } from "@/main/app";
 
 export interface AgentBrowserParams extends BaseToolParams {
 
@@ -36,7 +37,16 @@ export class AgentBrowser extends BaseTool<BaseToolParams> {
     const workspace = requestContext?.get('workspace' as never) as string;
     const skillsLoaded = requestContext?.get('skillsLoaded' as never) as string[] || [];
     if (!skillsLoaded.includes(`${ToolType.SKILL}:local:agent-browser`) && requestContext?.size() > 0) {
-      return `You need to read agent-browser skill first.`;
+      return `You need to read ${ToolType.SKILL}:local:agent-browser skill first.`;
+    }
+    let runtimeInfo = await appManager.getRuntimeInfo();
+    if (!runtimeInfo?.agentBrowser?.installed) {
+      await appManager.installRuntime('agentBrowser');
+      runtimeInfo = await appManager.getRuntimeInfo(true);
+    }
+
+    if (!runtimeInfo?.agentBrowser?.installed) {
+      return 'Error: Agent Browser installation failed';
     }
 
     if (!command.startsWith('agent-browser')) {

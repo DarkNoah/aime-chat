@@ -132,6 +132,7 @@ class ToolsManager extends BaseManager {
       const t = createTool(tool);
       this.builtInTools.push({
         ...t,
+        isHidden: tool.isHidden,
         isToolkit,
         classType,
         id: toolEntity.id,
@@ -160,6 +161,7 @@ class ToolsManager extends BaseManager {
       }
       this.builtInTools.push({
         ...tool,
+        isHidden: toolkit.isHidden,
         isToolkit,
         classType,
         tools: tools,
@@ -944,6 +946,9 @@ class ToolsManager extends BaseManager {
           const res = await tool.execute?.(input, {});
           if (isObject(res) && Object.keys(res).length === 1 && 'result' in res && isString(res.result)) {
             return res.result;
+          }
+          if (isObject(res) && 'type' in res && res.type === 'text' && res.text) {
+            return res.text;
           }
           return res;
         } else {

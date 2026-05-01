@@ -29,13 +29,16 @@ const ProviderSelectorWidget: Widget<any, RJSFSchema, any> = ({
   const providerType = ((options as Record<string, unknown>)?.providerTag ??
     (options as Record<string, unknown>)?.type ??
     undefined) as ProviderTag | undefined;
-
+  const clearable =
+    ((options as Record<string, unknown>)?.clearable as boolean) ?? false;
   return (
     <ProviderSelector
       value={typeof value === 'string' ? value : undefined}
+      // onChange={(val) => onChange(val)}
       onValueChange={(val) => onChange(val)}
       disabled={disabled || readonly}
       type={providerType}
+      clearable={clearable}
     />
   );
 };

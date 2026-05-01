@@ -1,7 +1,7 @@
 import { ZodSchema } from 'zod';
 import BaseTool from './base-tool';
 
-export interface BaseToolkitParams {}
+export interface BaseToolkitParams { }
 
 abstract class BaseToolkit {
   static readonly toolName: string = 'BaseToolkit';
@@ -13,6 +13,7 @@ abstract class BaseToolkit {
   doc?: string;
   configSchema?: ZodSchema;
   config?: BaseToolkitParams;
+  isHidden?: boolean;
 
   constructor(tools: BaseTool[], config?: BaseToolkitParams) {
     this.tools = tools;
