@@ -163,10 +163,17 @@ class ProjectManager extends BaseManager {
     if (skill) {
       try {
         await fs.promises.rm(skill.path, { recursive: true });
+        const skillJson = await fs.promises.readFile(path.join(result.path, '.aime-chat', 'skills', 'skills.json'));
+        let skillJsonData = JSON.parse(skillJson.toString());
+        skillJsonData = skillJsonData.filter((x: any) => x.id !== skill.id);
+        if (skillJsonData.length === 0) {
+          await fs.promises.rm(path.join(result.path, '.aime-chat', 'skills', 'skills.json'));
+        } else {
+          await fs.promises.writeFile(path.join(result.path, '.aime-chat', 'skills', 'skills.json'), JSON.stringify(skillJsonData, null, 2));
+        }
       } catch (err) {
         appManager.toast('Failed to delete skill, ' + err.message, { type: 'error' });
       }
-
     }
     // return result;
   }

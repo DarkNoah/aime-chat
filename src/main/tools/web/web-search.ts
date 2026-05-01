@@ -16,6 +16,7 @@ import { OpenAIProvider } from '@/main/providers/openai-provider';
 import { ZhipuAIProvider } from '@/main/providers/zhipuai-provider';
 import { tavily } from '@tavily/core';
 import { getJson } from 'serpapi';
+import { parseHTML } from 'linkedom';
 export interface WebSearchParams extends BaseToolParams {
   providerId?: string;
   numResults?: number;
@@ -237,9 +238,104 @@ Returns:
       results: [],
       message: undefined,
     };
-    return ``
+    try {
+      const res = await this.sogouSearch(inputData, options)
+      if (res.results.length > 0) {
+        return res
+      }
+    } catch {
+
+    }
+    throw new Error('Failed to search the web');
+
   };
-}
+
+  sogouSearch = async (inputData: z.infer<typeof this.inputSchema>,
+    options?: ToolExecutionContext,): Promise<z.infer<typeof webSearchResultSchema>> => {
+    const { query } = inputData;
+    const results: z.infer<typeof webSearchResultSchema> = {
+      results: [],
+      message: undefined,
+    };
+    const response = await fetch(`https://www.sogou.com/web?query=${query}`, {
+      signal: options?.abortSignal,
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP error ${response.status}: ${response.statusText}`);
+    }
+    const data = await response.text();
+    const { document } = parseHTML(data);
+
+    const vrwraps = document.querySelectorAll('div.vrwrap');
+    for (const vrwrap of vrwraps) {
+      const title = vrwrap.querySelector('h3')?.textContent;
+      const description = vrwrap.querySelector('div')?.textContent;
+      const href = vrwrap.querySelector('a')?.getAttribute('href');
+      if (title?.trim() && href?.startsWith("/link?")) {
+
+
+        const response = await fetch(`https://www.sogou.com${href}`, {
+          signal: options?.abortSignal,
+        });
+        if (!response.ok) {
+          continue;
+        }
+        const data = await response.text();
+        const { document } = parseHTML(data);
+        const scriptText = document.querySelector('script')?.textContent ?? ''
+
+        const scriptUrl = scriptText.match(
+          /window\.location\.replace\(["']([^"']+)["']\)/
+        )?.[1]
+
+
+        results.results.push({
+          href: scriptUrl,
+          title: title?.trim(),
+          snippet: description?.trim(),
+        });
+      }
+      else if (title?.trim() && href?.startsWith("https://")) {
+        results.results.push({
+          href: href,
+          title: title?.trim(),
+          snippet: description?.trim(),
+        });
+      }
+
+
+    }
+    return results;
+
+
+
+
+    // const links = [...new Set([...document.querySelectorAll('div.results a[href^="/link"]')].map(a => a.getAttribute('href')))];
+    // for (const link of links) {
+    //   const response = await fetch(`https://www.sogou.com${link}`, {
+    //     signal: options?.abortSignal,
+    //   });
+    //   if (!response.ok) {
+    //     throw new Error(`HTTP error ${response.status}: ${response.statusText}`);
+    //   }
+    //   const data = await response.text();
+    //   const { document } = parseHTML(data);
+    //   const scriptText = document.querySelector('script')?.textContent ?? ''
+
+    //   const scriptUrl = scriptText.match(
+    //     /window\.location\.replace\(["']([^"']+)["']\)/
+    //   )?.[1]
+
+    //   const description = document.querySelector('meta[name="description"]')?.getAttribute('content');
+    //   results.results.push({
+    //     href: scriptUrl,
+    //     title: title,
+    //     snippet: description,
+    //   });
+    // }
+    // return results;
+  };
+};
 
 const braveSearch = async (options: {
   query: string;

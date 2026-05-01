@@ -34,3 +34,5 @@ npm-debug.log.*
 .env
 .env.local
 assets/windows-redist/
+.aime-chat/
+memory/
