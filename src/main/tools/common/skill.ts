@@ -107,8 +107,10 @@ ${_skills
   ) => {
     const { skill_id, agrs } = inputData;
     const { requestContext } = context ?? {};
+    let _skillId = skill_id
     if (!skill_id.startsWith(`${ToolType.SKILL}:`)) {
-      throw new Error(`please use skill id`);
+      // throw new Error(`please use skill id`);
+      _skillId = `${ToolType.SKILL}:${skill_id}`;
     }
 
     const workspace = requestContext.get('workspace' as never);
@@ -121,7 +123,7 @@ ${_skills
       const skillsPath = path.join(workspace, '.aime-chat', 'skills');
       if (fs.existsSync(skillsPath) && fs.statSync(skillsPath).isDirectory()) {
         const skills = await getSkills(skillsPath);
-        const skill = skills.find((x) => x.id === skill_id);
+        const skill = skills.find((x) => x.id === _skillId || x.id === `${ToolType.SKILL}:local:${skill_id}`);
         if (skill) {
           skillInfo = skill;
         }
@@ -129,14 +131,19 @@ ${_skills
     }
     if (!skillInfo) {
       skillInfo = await skillManager.getSkill(
-        skill_id as `${ToolType.SKILL}:${string}`,
+        _skillId as `${ToolType.SKILL}: ${string}`,
       );
+      if (!skillInfo) {
+        skillInfo = await skillManager.getSkill(
+          `${ToolType.SKILL}:local:${skill_id}` as `${ToolType.SKILL}: ${string}`,
+        );
+      }
     }
     const skillsLoaded = requestContext?.get('skillsLoaded' as never) ?? [];
-    requestContext.set('skillsLoaded' as never, [...new Set([...skillsLoaded, skill_id])] as never);
+    requestContext.set('skillsLoaded' as never, [...new Set([...skillsLoaded, _skillId])] as never);
 
     if (skillInfo)
-      return `<system-reminder>Launching skill: ${skillInfo.id}<system-reminder>
+      return `<system-reminder> Launching : \`${skillInfo.id}\`</system-reminder>
 Base directory for this skill: ${skillInfo.path}
 
 ${skillInfo.content}
@@ -144,7 +151,7 @@ ${skillInfo.content}
 
 ${agrs ? 'ARGUMENTS: ' + agrs : ''}
 `;
-    return `skill id: "${skill_id}" not found`;
+    return `skill id: "${_skillId}" not found`;
   };
 }
 

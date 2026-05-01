@@ -49,10 +49,10 @@ function Runtime() {
     setRuntimeInfo({ ...runtimeInfo, [pkg]: { status: 'installing' } });
     try {
       await window.electron.app.installRuntime(pkg);
-      getRuntimeInfo();
     } catch (err) {
       toast.error(`Failed to install ${pkg} runtime.`);
     } finally {
+      getRuntimeInfo();
       setLoading(false);
     }
   };
@@ -61,10 +61,10 @@ function Runtime() {
     setLoading(true);
     try {
       await window.electron.app.uninstallRuntime(pkg);
-      getRuntimeInfo();
     } catch (err) {
       toast.error(`Failed to uninstall ${pkg} runtime.`);
     } finally {
+      getRuntimeInfo();
       setLoading(false);
     }
   };

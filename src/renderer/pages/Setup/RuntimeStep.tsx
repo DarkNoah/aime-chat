@@ -35,16 +35,19 @@ interface SetupStepProps {
   onSkip?: () => void;
 }
 
-type RuntimeKey = 'uv' | 'bun';
+type RuntimeKey = 'uv' | 'bun' | 'node';
 
 function RuntimeStep({ onNext, onBack, onSkip }: SetupStepProps) {
   const { t } = useTranslation();
   const [runtimeInfo, setRuntimeInfo] = useState<RuntimeInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [installing, setInstalling] = useState(false);
-  const [installingMap, setInstallingMap] = useState<Record<RuntimeKey, boolean>>({
+  const [installingMap, setInstallingMap] = useState<
+    Record<RuntimeKey, boolean>
+  >({
     uv: false,
     bun: false,
+    node: false,
   });
 
   const getRuntimeInfo = async (useLoading = true) => {
@@ -106,7 +109,6 @@ function RuntimeStep({ onNext, onBack, onSkip }: SetupStepProps) {
   const isUVInstalled = runtimeInfo?.uv?.status === 'installed';
   const isBunInstalled = runtimeInfo?.bun?.status === 'installed';
 
-
   return (
     <Card className="border-0 shadow-2xl bg-card/80 backdrop-blur-sm">
       <CardHeader className="text-center pb-4">
@@ -136,11 +138,12 @@ function RuntimeStep({ onNext, onBack, onSkip }: SetupStepProps) {
                   {isUVInstalled && runtimeInfo?.uv?.version && (
                     <Badge variant="secondary">{runtimeInfo.uv.version}</Badge>
                   )}
-                  {isUVInstalled && runtimeInfo?.uv?.pythonRuntime?.pythonVersion && (
-                    <Badge variant="secondary">
-                      Python {runtimeInfo.uv.pythonRuntime.pythonVersion}
-                    </Badge>
-                  )}
+                  {isUVInstalled &&
+                    runtimeInfo?.uv?.pythonRuntime?.pythonVersion && (
+                      <Badge variant="secondary">
+                        Python {runtimeInfo.uv.pythonRuntime.pythonVersion}
+                      </Badge>
+                    )}
                 </ItemTitle>
                 <ItemDescription>{t('setup.runtime.uv_desc')}</ItemDescription>
               </ItemContent>
@@ -167,7 +170,7 @@ function RuntimeStep({ onNext, onBack, onSkip }: SetupStepProps) {
             </Item>
 
             {/* Bun Runtime */}
-            <Item variant="outline" className="rounded-lg">
+            {/* <Item variant="outline" className="rounded-lg">
               <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-green-500/10 text-green-500 shrink-0">
                 <Terminal className="w-5 h-5" />
               </div>
@@ -202,7 +205,7 @@ function RuntimeStep({ onNext, onBack, onSkip }: SetupStepProps) {
                   </Button>
                 )}
               </ItemActions>
-            </Item>
+            </Item> */}
 
             {/* Info Box */}
             <div className="p-4 rounded-lg bg-muted/50 text-sm text-muted-foreground">
@@ -224,7 +227,7 @@ function RuntimeStep({ onNext, onBack, onSkip }: SetupStepProps) {
               <SkipForward className="w-4 h-4 ml-2" />
             </Button>
           )}
-          <Button onClick={onNext} disabled={installingMap['bun'] || installingMap['uv']}>
+          <Button onClick={onNext} disabled={installingMap['uv']}>
             {t('common.next')}
             <ArrowRight className="w-4 h-4 ml-2" />
           </Button>

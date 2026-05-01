@@ -223,7 +223,7 @@ async function getUVPythonRuntimeInfo() {
 
 async function ensurePythonRuntimeEnvironment(uvDir: string) {
   const isWindows = process.platform === 'win32';
-  const uvPreCommand = isWindows ? 'uv.exe' : './uv';
+  const uvPreCommand = path.join(uvDir, isWindows ? 'uv.exe' : './uv');
   const pythonRuntimeDir = path.join(
     app.getPath('userData'),
     '.runtime',
@@ -473,22 +473,29 @@ export async function installNodeRuntime() {
   let success = false;
   try {
     if (process.platform === 'win32') {
-      const wingetResult = await runCommand(
-        'winget install CoreyButler.NVMforWindows',
-        {
-          timeout: 1000 * 60 * 10,
-        },
-      );
-      if (wingetResult.code !== 0) {
-        throw new Error(wingetResult.stderr || wingetResult.stdout);
-      }
+      // const wingetResult = await runCommand(
+      //   'winget install CoreyButler.NVMforWindows',
+      //   {
+      //     timeout: 1000 * 60 * 10,
+      //   },
+      // );
+      // if (wingetResult.code !== 0) {
+      //   throw new Error(wingetResult.stderr || wingetResult.stdout);
+      // }
 
-      const nvmCommand = await findNvmCommand();
+      // const nvmCommand = await findNvmCommand();
+      // const installResult = await runCommand(
+      //   `${nvmCommand} install ${NODE_RUNTIME_VERSION} && ${nvmCommand} use ${NODE_RUNTIME_VERSION}`,
+      //   {
+      //     timeout: 1000 * 60 * 10,
+      //   },
+      // );
+      const pscomd = `$msi = "$env:TEMP\\node-v22.22.2-x64.msi"; Invoke-WebRequest -Uri "https://nodejs.org/dist/v22.22.2/node-v22.22.2-x64.msi" -OutFile $msi; Start-Process msiexec.exe -Wait -ArgumentList "/i \`"$msi\`" /qn /norestart"`
       const installResult = await runCommand(
-        `${nvmCommand} install ${NODE_RUNTIME_VERSION} && ${nvmCommand} use ${NODE_RUNTIME_VERSION}`,
+        pscomd ?? `winget install OpenJS.NodeJS --version ${NODE_RUNTIME_VERSION}`,
         {
-          timeout: 1000 * 60 * 10,
-        },
+          usePowerShell: true,
+        }
       );
       success = installResult.code === 0;
       const nodePath = getNodeRuntimeCandidates().find((candidate) =>
@@ -623,12 +630,12 @@ export async function getPaddleOcrRuntime(refresh = false) {
 }
 
 export async function installPaddleOcrRuntime() {
-  const uvRuntime = await getUVRuntime();
+  const uvRuntime = await getUVRuntime(true);
   if (uvRuntime.status !== 'installed') {
     throw new Error('UV runtime is not installed');
   }
   const isWindows = process.platform === 'win32';
-  const uvPreCommand = isWindows ? 'uv.exe' : './uv';
+  const uvPreCommand = path.join(uvRuntime?.dir, isWindows ? 'uv.exe' : './uv');
   const paddleOcrDir = path.join(app.getPath('userData'), ".runtime", 'paddleocr-runtime');
   paddleOcr.status = 'installing';
   if (fs.existsSync(paddleOcrDir)) {
@@ -946,12 +953,12 @@ export async function getQwenAudioRuntime(refresh = false) {
 }
 
 export async function installQwenAudioRuntime() {
-  const uvRuntime = await getUVRuntime();
+  const uvRuntime = await getUVRuntime(true);
   if (uvRuntime.status !== 'installed') {
     throw new Error('UV runtime is not installed');
   }
   const isWindows = process.platform === 'win32';
-  const uvPreCommand = isWindows ? 'uv.exe' : './uv';
+  const uvPreCommand = path.join(uvRuntime?.dir, isWindows ? 'uv.exe' : './uv');
   const qwenasrDir = path.join(
     app.getPath('userData'),
     '.runtime',
@@ -1138,11 +1145,15 @@ export async function uninstallQwenAudioRuntime() {
 
 
 export async function installAgentBrowserRuntime() {
+  const nodeRuntime = await getNodeRuntime(true);
+  if (nodeRuntime.status !== 'installed') {
+    throw new Error('Node Runtime is not installed');
+  }
   if (agentBrowser.status === 'installing') {
     return;
   }
   agentBrowser.status = 'installing';
-  let success = false;
+  //let success = false;
   try {
     const result = await runCommand(`npm install -g agent-browser`)
     if (result.code === 0) {
@@ -1156,7 +1167,7 @@ export async function installAgentBrowserRuntime() {
     }
   } catch {
     appManager.toast('Failed to install Agent Browser Runtime', { type: 'error' });
-    success = false;
+    //success = false;
   }
   agentBrowser.status = 'not_installed';
   agentBrowser.installed = false;

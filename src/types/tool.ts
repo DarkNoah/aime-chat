@@ -108,6 +108,7 @@ export const ToolConfig = {
         'ui:title': t('common.model'),
         'ui:options': {
           type: ModelType.SPEECH,
+          clearable: true,
         },
       },
     },
@@ -157,7 +158,7 @@ export const ToolConfig = {
   },
   WebSearch: {
     configSchema: z.strictObject({
-      providerId: z.string().optional(),
+      providerId: z.string().optional().default('default'),
       numResults: z.number().optional().default(20),
     }),
     uiSchema: {
@@ -166,6 +167,7 @@ export const ToolConfig = {
         'ui:title': t('common.provider'),
         'ui:options': {
           type: ProviderTag.WEB_SEARCH,
+          clearable: true,
         },
       },
       numResults: {

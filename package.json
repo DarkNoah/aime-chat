@@ -1,7 +1,7 @@
 {
   "name": "aime-chat",
   "description": "A foundation for scalable desktop apps",
-  "version": "0.3.29",
+  "version": "0.3.30",
   "keywords": [
     "electron",
     "boilerplate",
@@ -376,6 +376,7 @@
       "**/node_modules/onnxruntime-node/**",
       "**/node_modules/openvino-genai-node/**",
       "**/node_modules/openvino-node/**",
+      "**/node_modules/ps-list/**",
       "**/@techstark/opencv-js/**/*",
       "**/pdfjs-dist/**",
       "**/node_modules/@vscode/ripgrep/**"

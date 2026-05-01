@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import psList from "ps-list";
 
 type CheckResult = {
   userDataDir: string;
@@ -41,7 +42,6 @@ function escapeRegExp(str: string) {
 }
 
 async function listProcesses(): Promise<Array<{ pid: number; name: string; cmdline: string }>> {
-  const psList = (await import("ps-list")).default;
   const processes = await psList();
   return processes.map((proc) => ({
     pid: proc.pid,

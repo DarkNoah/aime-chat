@@ -1432,7 +1432,7 @@ ${skill.content}
         text: `<system-reminder>
 The following skills are available for use with the Skill tool:
 
-${_skills.map((x) => `- ${x.id}: ${x.description}`).join('\n')}
+${_skills.map((x) => `- [${x.id}]: ${x.description}`).join('\n')}
 
 </system-reminder>`,
       });

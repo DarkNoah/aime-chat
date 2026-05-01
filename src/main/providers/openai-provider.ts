@@ -19,8 +19,8 @@ import { OpenAIProvider as OpenAIProviderSDK } from '@ai-sdk/openai';
 import { OpenAICompatibleConfig } from '@mastra/core/llm';
 import { createOpenResponses } from '@ai-sdk/open-responses';
 import { isString } from '@/utils/is';
-
-
+import { toFile } from "openai";
+import mime from 'mime';
 
 export class OpenAIImageModel implements ImageModelV2 {
   specificationVersion: 'v2' = 'v2';
@@ -57,7 +57,7 @@ export class OpenAIImageModel implements ImageModelV2 {
   }> {
     // Extract prompt text and image URLs
     let promptText: string;
-    let imageUrls: string[] | undefined;
+    let imageUrls: string[] = [];
     let mask: string | undefined;
 
     if (typeof options.prompt === 'string') {
@@ -65,11 +65,30 @@ export class OpenAIImageModel implements ImageModelV2 {
     } else {
       promptText = options.prompt.text;
       // Convert images to URLs (filter out Buffer types)
-      imageUrls = options.prompt.images
+      imageUrls.push(...(options.prompt.images
         ?.filter((img): img is string => typeof img === 'string')
-        .filter((img) => img.startsWith('http'));
+        ?.filter((img) => img.startsWith('http')) || []));
+      for (const img of (options.prompt?.images ?? [])) {
+        if (isString(img) && img.startsWith('http')) {
+          imageUrls.push(img);
+        } else if (Buffer.isBuffer(img)) {
+          imageUrls.push(`data:image/png;base64,` + img.toString('base64'));
+        } else if (fs.existsSync(img) && fs.statSync(img).isFile()) {
+          const mimeType = mime.lookup(img);
+          imageUrls.push(`data:${mimeType ?? 'image/png'};base64,` + fs.readFileSync(img).toString('base64'));
+        }
+      }
+
+
       if (options.prompt.mask) {
-        mask = isString(options.prompt.mask) ? options.prompt.mask : options.prompt.mask.toString('base64');
+        if (isString(options.prompt.mask) && options.prompt.mask.startsWith('http')) {
+          mask = options.prompt.mask;
+        } else if (Buffer.isBuffer(options.prompt.mask)) {
+          mask = `data:image/png;base64,` + options.prompt.mask.toString('base64');
+        } else if (fs.existsSync(options.prompt.mask) && fs.statSync(options.prompt.mask).isFile()) {
+          const mimeType = mime.lookup(options.prompt.mask);
+          mask = `data:${mimeType ?? 'image/png'};base64,` + fs.readFileSync(options.prompt.mask).toString('base64');
+        }
       }
 
     }
@@ -80,11 +99,12 @@ export class OpenAIImageModel implements ImageModelV2 {
       prompt: promptText,
       size: options.size ?? 'auto',
       n: options.n ?? 1,
+
     };
 
     // Add image_url for image editing models
     if (imageUrls && imageUrls.length > 0) {
-      requestBody.images = imageUrls.map((url) => ({ image_url: url }));
+      requestBody.images = imageUrls.map(url => { return { image_url: url } });
     }
 
 
@@ -110,13 +130,14 @@ export class OpenAIImageModel implements ImageModelV2 {
     };
 
     // Submit async task
-    const res = await fetch(imageUrls && imageUrls.length > 0 ? `${this.baseUrl}/images/edit` : `${this.baseUrl}/images/generations`, {
+    const res = await fetch(imageUrls && imageUrls.length > 0 ? `${this.baseUrl}/images/edits` : `${this.baseUrl}/images/generations`, {
       ...requestOptions,
       signal: options.abortSignal,
     });
 
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({}));
+      const errorText = await res.text().catch(() => (''));
       throw new Error(
         errorData.error?.message || `Request failed: ${res.statusText}`,
       );
