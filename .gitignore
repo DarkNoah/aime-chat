@@ -36,3 +36,5 @@ npm-debug.log.*
 assets/windows-redist/
 .aime-chat/
 memory/
+
+.cursor/

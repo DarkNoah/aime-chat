@@ -227,6 +227,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           </SidebarMenuItem>
           {appInfo?.version}
         </SidebarMenu>
+        {/* <div className="h-[32px]"></div> */}
 
         {/* <div className="flex flex-col gap-2 ">
           <Button

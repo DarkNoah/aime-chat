@@ -284,7 +284,16 @@ export class TelegramChannelRuntime {
           if (fs.existsSync(filePath) && fs.statSync(filePath).isFile() && fs.statSync(filePath).size > 0) {
             filePath = increment(filePath, { platform: 'win32', fs: true, });
           }
-
+          const response = await fetch(url);
+          if (!response.ok) {
+            throw new Error(`Error downloading document file: ${response.status} ${response.statusText}`);
+          }
+          const buffer = await response.arrayBuffer();
+          const data = Buffer.from(buffer);
+          if (!fs.existsSync(path.dirname(filePath))) {
+            fs.mkdirSync(path.dirname(filePath), { recursive: true });
+          }
+          await fs.promises.writeFile(filePath, data);
           await mastraManager.saveMessages(threadId, [{
             id: nanoid(),
             role: 'user',
@@ -300,16 +309,12 @@ export class TelegramChannelRuntime {
               }],
             },
           }])
-          const response = await fetch(url);
-          const buffer = await response.arrayBuffer();
-          const data = Buffer.from(buffer);
-          if (!fs.existsSync(path.dirname(filePath))) {
-            fs.mkdirSync(path.dirname(filePath), { recursive: true });
-          }
-          await fs.promises.writeFile(filePath, data);
-          await ctx.reply(
-            `Received document: saved to '${filePath}'`,
-          );
+          // await ctx.reply(
+          //   `Received document: saved to '${filePath}'`,
+          // );
+          await ctx.api.setMessageReaction(ctx.chat.id, ctx.message.message_id, [
+            { type: 'emoji', emoji: '👀' },
+          ]);
         } catch (error) {
           console.error("Error downloading voice file:", error);
           ctx.reply("Error downloading file: " + error.message);
@@ -327,13 +332,67 @@ export class TelegramChannelRuntime {
       if (!this.isChatAllowed(chatId)) return;
       const photo = ctx.message.photo[ctx.message.photo.length - 1];
       const file = await ctx.api.getFile(photo.file_id);
+      const url = `https://api.telegram.org/file/bot${ctx.api.token}/${file.file_path}`;
       if (file.file_path) {
-        const url = `https://api.telegram.org/file/bot${ctx.api.token}/${file.file_path}`;
-        const response = await fetch(url);
-        const buffer = await response.arrayBuffer();
-        const data = Buffer.from(buffer);
-        const filePath = path.join(app.getPath('temp'), `${nanoid()}.jpg`);
-        fs.writeFileSync(filePath, data);
+        const config = await this.getChannelConfig();
+        const projectId = config.currentProjectId;
+        const threadId = config.currentThreadId;
+        let project: Project | undefined;
+        let thread: ThreadState | undefined;
+        if (projectId) {
+          project = await projectManager.getProject(projectId);
+        }
+
+        thread = await this.resolveCurrentThread();
+        const workspacePath = project?.path || thread?.metadata?.workspace as string || '';
+        let filePath = path.join(workspacePath, ...(path.dirname(file.file_path).replaceAll('\\', '/')).split('/'), path.basename(file.file_path));
+        try {
+          if (fs.existsSync(filePath) && fs.statSync(filePath).isDirectory()) {
+            ctx.reply("Error: File path is a directory: " + filePath);
+            return;
+          }
+          if (fs.existsSync(filePath) && fs.statSync(filePath).isFile() && fs.statSync(filePath).size > 0) {
+            filePath = increment(filePath, { platform: 'win32', fs: true, });
+          }
+
+
+          const response = await fetch(url);
+          if (!response.ok) {
+            throw new Error(`Error downloading document file: ${response.status} ${response.statusText}`);
+          }
+          const buffer = await response.arrayBuffer();
+          const data = Buffer.from(buffer);
+          if (!fs.existsSync(path.dirname(filePath))) {
+            fs.mkdirSync(path.dirname(filePath), { recursive: true });
+          }
+          await fs.promises.writeFile(filePath, data);
+          await mastraManager.saveMessages(threadId, [{
+            id: nanoid(),
+            role: 'user',
+            threadId: threadId,
+            resourceId: thread?.resourceId || DEFAULT_RESOURCE_ID,
+            type: 'v2',
+            createdAt: new Date(),
+            content: {
+              format: 2,
+              parts: [{
+                type: 'text',
+                text: `<system-reminder>The user sent you a file via Telegram. The image is saved to '${filePath}'</system-reminder>`,
+              }
+              ],
+            },
+          }])
+          await ctx.api.setMessageReaction(ctx.chat.id, ctx.message.message_id, [
+            { type: 'emoji', emoji: '👀' },
+          ]);
+        } catch (error) {
+          console.error("Error downloading voice file:", error);
+          ctx.reply("Error downloading file: " + error.message);
+        } finally {
+
+        }
+      } else {
+        await ctx.reply("Error downloading photo file: " + file.file_path);
       }
 
       this.callbacks.onActivity(`Received photo from chat ${chatId}`);
@@ -452,9 +511,12 @@ export class TelegramChannelRuntime {
             fs.mkdirSync(path.dirname(filePath), { recursive: true });
           }
           await fs.promises.writeFile(filePath, data);
-          await ctx.reply(
-            `Received document: saved to '${filePath}'`,
-          );
+          // await ctx.reply(
+          //   `Received document: saved to '${filePath}'`,
+          // );
+          await ctx.api.setMessageReaction(ctx.chat.id, ctx.message.message_id, [
+            { type: 'emoji', emoji: '👀' },
+          ]);
         } catch (error) {
           console.error("Error downloading voice file:", error);
           ctx.reply("Error downloading file: " + error.message);
@@ -1026,7 +1088,11 @@ export class TelegramChannelRuntime {
     if (!channelEntity) {
       throw new Error('Channel not found');
     }
+    if (!config.currentProjectId) {
+      config['currentProjectId'] = projectManager.DEFAULT_PROJECT_ID;
+    }
     channelEntity.config = config;
+
     await this.channelRepository.save(channelEntity);
   }
 
@@ -1633,7 +1699,7 @@ export class TelegramChannelRuntime {
   };
 
   setCommandCallbackQueryHandler = (bot: Bot) => {
-    bot.callbackQuery(/^toggle:project:[A-Za-z0-9]+$/, async (ctx) => {
+    bot.callbackQuery(/^toggle:project:[A-Za-z0-9_\-@.#$%&+=]+$/, async (ctx) => {
       await ctx.answerCallbackQuery()
       const projectId = ctx.callbackQuery.data.split(":")[2];
       const project = await projectManager.getProject(projectId);

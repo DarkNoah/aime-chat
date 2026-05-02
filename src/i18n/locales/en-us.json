@@ -470,5 +470,26 @@
     "action_resume": "Resume",
     "action_cancel": "Cancel",
     "action_remove": "Remove"
+  },
+  "bash_status": {
+    "title": "Background Bash",
+    "description": "Bash commands running in the background append output here in real time.",
+    "open_panel": "View background Bash output",
+    "badge_label": "Bash",
+    "badge_running": "{{count}} running",
+    "badge_failed": "{{count}} failed",
+    "badge_done": "done",
+    "running_count": "{{count}} running",
+    "clear_completed": "Clear completed",
+    "status_running": "Running",
+    "status_completed": "Completed",
+    "status_failed": "Failed",
+    "duration_label": "Duration",
+    "duration_seconds": "{{count}}s",
+    "duration_minutes_seconds": "{{minutes}}m {{seconds}}s",
+    "exit_code": "exit {{code}}",
+    "waiting_output": "Waiting for output...",
+    "home_directory": "~",
+    "empty": "No background Bash sessions"
   }
 }

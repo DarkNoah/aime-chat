@@ -23,7 +23,9 @@ import iconv from 'iconv-lite';
 import Stream from 'stream';
 import { appManager } from '@/main/app';
 import { ToolConfig } from '@/types/tool';
+import { BashSessionUpdate, ChatEvent } from '@/types/chat';
 import { getRuntimePython } from '@/main/utils/runtimePython';
+
 const MAX_OUTPUT_LENGTH = 10000;
 // const PATH_DELIMITER = process.platform === 'win32' ? ';' : ':';
 
@@ -641,10 +643,64 @@ export class BashManager {
     };
     this.bashMap.set(bashId, bashSession);
 
+    const emitSessionUpdate = (
+      event: BashSessionUpdate['event'],
+      patch: Partial<BashSessionUpdate> = {},
+    ) => {
+      appManager.sendEvent(ChatEvent.BashSessionUpdated, {
+        data: {
+          event,
+          threadId: bashSession.threadId,
+          bashId: bashSession.bashId,
+          command: bashSession.command,
+          description: bashSession.description,
+          directory: bashSession.directory,
+          isExited: bashSession.isExited,
+          exitCode: bashSession.exitCode ?? null,
+          processSignal: bashSession.processSignal ?? null,
+          timedOut: bashSession.timedOut,
+          pid: bashSession.pid,
+          startTime: bashSession.startTime.toISOString(),
+          updatedAt: new Date().toISOString(),
+          ...patch,
+        } satisfies BashSessionUpdate,
+      }).catch((err) => {
+        console.error('failed to send bash session update', err);
+      });
+    };
+
+    let pendingStdout = '';
+    let pendingStderr = '';
+    let outputFlushTimer: ReturnType<typeof setTimeout> | undefined;
+
+    const flushOutput = () => {
+      if (outputFlushTimer) {
+        clearTimeout(outputFlushTimer);
+        outputFlushTimer = undefined;
+      }
+      if (pendingStdout) {
+        const stdoutDelta = pendingStdout;
+        pendingStdout = '';
+        emitSessionUpdate('stdout', { stdoutDelta });
+      }
+      if (pendingStderr) {
+        const stderrDelta = pendingStderr;
+        pendingStderr = '';
+        emitSessionUpdate('stderr', { stderrDelta });
+      }
+    };
+
+    const scheduleOutputFlush = () => {
+      if (!outputFlushTimer) {
+        outputFlushTimer = setTimeout(flushOutput, 100);
+      }
+    };
+
+    emitSessionUpdate('started');
+
     let exited = false;
     let stdout = '';
     let output = '';
-    let lastUpdateTime = Date.now();
 
     const appendOutput = (str: string) => {
       output += str;
@@ -663,6 +719,8 @@ export class BashManager {
           timestamp: new Date(),
         });
         appendOutput(str);
+        pendingStdout += str;
+        scheduleOutputFlush();
       }
     });
 
@@ -677,6 +735,8 @@ export class BashManager {
           timestamp: new Date(),
         });
         appendOutput(str);
+        pendingStderr += str;
+        scheduleOutputFlush();
       }
     });
 
@@ -688,6 +748,7 @@ export class BashManager {
       const wrappedCommand = Array.isArray(command) ? command.join(' ') : command;
       error.message = error.message.replace(wrappedCommand, input.command);
       bashSession.errorMessage = error.message;
+      emitSessionUpdate('error', { errorMessage: error.message });
     });
 
     let code: number | null = null;
@@ -703,6 +764,8 @@ export class BashManager {
       bashSession.isExited = true;
       bashSession.processSignal = _signal;
       bashSession.timedOut = managedAbort.didTimeout();
+      flushOutput();
+      emitSessionUpdate('exited');
       console.log('exit', `${bashSession.bashId}`);
     };
     shell.on('exit', exitHandler);
@@ -715,6 +778,7 @@ export class BashManager {
     try {
       await new Promise((resolve) => shell.on('exit', resolve));
     } finally {
+      flushOutput();
       removeAbortHandler();
       managedAbort.cleanup();
     }
