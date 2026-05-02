@@ -10,9 +10,9 @@ export function TaskBadge() {
   const { tasks, togglePanel } = useTaskQueueStore();
 
   const activeCount = tasks.filter(
-    (t) => t.status === 'running' || t.status === 'pending',
+    (task) => task.status === 'running' || task.status === 'pending',
   ).length;
-  const hasRunning = tasks.some((t) => t.status === 'running');
+  const hasRunning = tasks.some((task) => task.status === 'running');
   const hasTasks = tasks.length > 0;
 
   // 没有任何任务时不显示

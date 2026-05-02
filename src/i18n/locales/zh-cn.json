@@ -518,5 +518,26 @@
     "action_resume": "继续",
     "action_cancel": "取消",
     "action_remove": "移除"
+  },
+  "bash_status": {
+    "title": "后台 Bash",
+    "description": "后台执行的 Bash 命令输出会在这里实时追加。",
+    "open_panel": "查看后台 Bash 输出",
+    "badge_label": "Bash",
+    "badge_running": "{{count}}运行",
+    "badge_failed": "{{count}}失败",
+    "badge_done": "已完成",
+    "running_count": "{{count}} 运行中",
+    "clear_completed": "清除已完成",
+    "status_running": "运行中",
+    "status_completed": "已完成",
+    "status_failed": "失败",
+    "duration_label": "耗时",
+    "duration_seconds": "{{count}}秒",
+    "duration_minutes_seconds": "{{minutes}}分 {{seconds}}秒",
+    "exit_code": "退出码 {{code}}",
+    "waiting_output": "等待输出...",
+    "home_directory": "~",
+    "empty": "暂无后台 Bash 会话"
   }
 }

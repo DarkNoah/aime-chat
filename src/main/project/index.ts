@@ -23,13 +23,15 @@ import { getDataPath } from '../utils';
 class ProjectManager extends BaseManager {
   projectsRepository: Repository<Projects>;
 
+  public DEFAULT_PROJECT_ID = 'aime-chat-workspace';
+
   async init() {
     this.projectsRepository = dbManager.dataSource.getRepository(Projects);
-    let project = await this.getProject("aime-chat-workspace");
+    let project = await this.getProject(this.DEFAULT_PROJECT_ID);
     if (!project) {
-      project = new Projects("aime-chat-workspace");
+      project = new Projects(this.DEFAULT_PROJECT_ID);
       project.title = "workspace";
-      project.path = getDataPath('workspaces', 'aime-chat-workspace');
+      project.path = getDataPath('workspaces', this.DEFAULT_PROJECT_ID);
 
       project.tag = "work";
       fs.mkdirSync(project.path, { recursive: true });

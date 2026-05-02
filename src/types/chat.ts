@@ -52,7 +52,34 @@ export enum ChatEvent {
   ChatStepFinish = 'chat:chat-step-finish',
   ChatThreadChanged = 'chat:chat-thread-changed',
   ChatMessageChanged = 'chat:chat-message-changed',
+  BashSessionUpdated = 'chat:bash-session-updated',
 }
+
+export type BashSessionUpdateEvent =
+  | 'started'
+  | 'stdout'
+  | 'stderr'
+  | 'error'
+  | 'exited';
+
+export type BashSessionUpdate = {
+  event: BashSessionUpdateEvent;
+  threadId?: string;
+  bashId: string;
+  command: string;
+  description?: string;
+  directory?: string;
+  stdoutDelta?: string;
+  stderrDelta?: string;
+  errorMessage?: string;
+  isExited: boolean;
+  exitCode?: number | null;
+  processSignal?: string | null;
+  timedOut?: boolean;
+  pid?: number;
+  startTime: string;
+  updatedAt: string;
+};
 
 export enum ThreadEvent {
   ThreadCreated = 'thread:thread-created',

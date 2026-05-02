@@ -1,4 +1,4 @@
-import { randomUUID } from 'crypto';
+import { createCipheriv, createDecipheriv, createHash, randomBytes, randomUUID } from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import { Repository } from 'typeorm';
@@ -20,7 +20,7 @@ import { toolsManager } from '@/main/tools';
 import { SpeechToText } from '@/main/tools/audio';
 import { nanoid } from '@/utils/nanoid';
 import { ToolType } from '@/types/tool';
-import type { ThreadState } from '@/types/chat';
+import { DEFAULT_RESOURCE_ID, type ThreadState } from '@/types/chat';
 import increment from 'add-filename-increment';
 import {
   DEFAULT_WEIXIN_BASE_URL,
@@ -29,6 +29,7 @@ import {
   generateQRCodeBase64,
   fetchQRCode,
   getConfig,
+  getUploadUrl,
   getUpdates,
   pollQRStatus,
   sendMessage,
@@ -39,8 +40,12 @@ import {
   MessageState,
   MessageType,
   TypingStatus,
+  UploadMediaType,
 } from './types';
-import type { MessageItem, WeixinMessage } from './types';
+import type { CDNMedia, MessageItem, WeixinMessage } from './types';
+import { Message } from '@/main/tools/common/message';
+import { getToolMessageDescription } from '@/utils/tool-message';
+import { fetch, Agent } from 'undici';
 
 const LOGIN_SESSION_TTL_MS = 5 * 60 * 1000;
 const MAX_QR_REFRESH_COUNT = 3;
@@ -72,7 +77,62 @@ type PendingWeixinInput = {
 type PreparedInboundMessage = {
   text: string;
   preview: string;
+  shouldEnqueue: boolean;
 };
+
+type MediaDownloadCandidate = {
+  url: string;
+  aesKey?: string;
+};
+
+type PendingWeixinToolMessage = {
+  toolCallId: string;
+  toolName: string;
+  description?: string;
+  input: any;
+};
+
+function encryptAesEcb(plaintext: Buffer, key: Buffer): Buffer {
+  const cipher = createCipheriv('aes-128-ecb', key, null);
+  return Buffer.concat([cipher.update(plaintext), cipher.final()]);
+}
+
+function decryptAesEcb(ciphertext: Buffer, key: Buffer): Buffer {
+  const decipher = createDecipheriv('aes-128-ecb', key, null);
+  return Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+}
+
+function parseFilesPreviewInput(input: any): string[] {
+  if (input?.event !== 'files_preview' || typeof input.data !== 'string') {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(input.data) as { files?: unknown };
+    if (!Array.isArray(parsed.files)) {
+      return [];
+    }
+    return parsed.files.filter((file): file is string => typeof file === 'string');
+  } catch {
+    return [];
+  }
+}
+
+function parseAesKey(aesKeyBase64: string): Buffer {
+  const decoded = Buffer.from(aesKeyBase64, 'base64');
+  if (decoded.length === 16) {
+    return decoded;
+  }
+  if (
+    decoded.length === 32 &&
+    /^[0-9a-fA-F]{32}$/.test(decoded.toString('ascii'))
+  ) {
+    return Buffer.from(decoded.toString('ascii'), 'hex');
+  }
+  throw new Error(
+    `Invalid aes_key: expected 16 raw bytes or 32 hex chars, got ${decoded.length} bytes`,
+  );
+}
 
 function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -318,6 +378,11 @@ export class WeixinChannelRuntime {
     if (!channelEntity) {
       throw new Error('Channel not found');
     }
+    if (!config.currentProjectId) {
+      config['currentProjectId'] = projectManager.DEFAULT_PROJECT_ID;
+    }
+
+
     channelEntity.config = config;
     await this.channelRepository.save(channelEntity);
     this.channel.config = { ...config };
@@ -685,6 +750,10 @@ export class WeixinChannelRuntime {
       `[weixin] inbound from=${fromUserId} text=${prepared.preview.slice(0, 60)}`,
     );
 
+    if (!prepared.shouldEnqueue) {
+      return;
+    }
+
     await this.enqueueThreadMessage({
       fromUserId,
       threadId: thread.id,
@@ -735,6 +804,140 @@ export class WeixinChannelRuntime {
     this.callbacks.onActivity(
       `[weixin] replied to=${to} len=${text.length}`,
     );
+  }
+
+  private async sendFilesPreviewReply(
+    to: string,
+    toolInput: any,
+    contextToken?: string,
+  ): Promise<void> {
+    const files = parseFilesPreviewInput(toolInput);
+    if (!files.length) {
+      return;
+    }
+
+    for (const file of files) {
+      const info = await appManager.getFileInfo(file);
+      if (!info?.isExist || !info.isFile) {
+        this.callbacks.onActivity(`[weixin] skipping missing file preview: ${file}`);
+        continue;
+      }
+
+      await this.sendFileReply(to, info.path, contextToken);
+    }
+  }
+
+  private async sendFileReply(
+    to: string,
+    filePath: string,
+    contextToken?: string,
+  ): Promise<void> {
+    const token = contextToken || this.contextTokens.get(to);
+    if (!token) {
+      this.callbacks.onActivity(
+        `[weixin] skipping file reply to ${to}: no context_token`,
+      );
+      return;
+    }
+
+    const raw = await fs.promises.readFile(filePath);
+    const rawMd5 = createHash('md5').update(raw).digest('hex');
+    const key = randomBytes(16);
+    const aesKeyHex = key.toString('hex');
+    const aesKey = Buffer.from(aesKeyHex, 'ascii').toString('base64');
+    const encrypted = encryptAesEcb(raw, key);
+    const filekey = randomBytes(16).toString('hex');
+    const fileName = sanitizeFileName(path.basename(filePath));
+
+    const uploadResp = await getUploadUrl({
+      baseUrl: this.resolveBaseUrl(),
+      token: this.channel.config.botToken,
+      routeTag: this.resolveRouteTag(),
+      filekey,
+      media_type: UploadMediaType.FILE,
+      to_user_id: to,
+      rawsize: raw.length,
+      rawfilemd5: rawMd5,
+      filesize: encrypted.length,
+      no_need_thumb: true,
+      aeskey: aesKeyHex,
+    });
+
+    if (!uploadResp.upload_param) {
+      throw new Error('Weixin getuploadurl did not return upload_param');
+    }
+
+    const encryptedParam = await this.uploadCdnMedia(
+      uploadResp.upload_param,
+      filekey,
+      encrypted,
+    );
+
+    await sendMessage({
+      baseUrl: this.resolveBaseUrl(),
+      token: this.channel.config.botToken,
+      routeTag: this.resolveRouteTag(),
+      body: {
+        msg: {
+          from_user_id: '',
+          to_user_id: to,
+          client_id: generateClientId(),
+          message_type: MessageType.BOT,
+          message_state: MessageState.FINISH,
+          item_list: [
+            {
+              type: MessageItemType.FILE,
+              file_item: {
+                media: {
+                  encrypt_query_param: encryptedParam,
+                  aes_key: aesKey,
+                  encrypt_type: 1,
+                },
+                file_name: fileName,
+                md5: rawMd5,
+                len: String(raw.length),
+              },
+            },
+          ],
+          context_token: token,
+        },
+      },
+    });
+
+    this.callbacks.onActivity(
+      `[weixin] sent file to=${to} name=${fileName} size=${raw.length}`,
+    );
+  }
+
+  private async uploadCdnMedia(
+    uploadParam: string,
+    filekey: string,
+    encrypted: Buffer,
+  ): Promise<string> {
+    const base = ensureTrailingSlash(this.resolveCdnBaseUrl());
+    const url = new URL('upload', base);
+    url.searchParams.set('encrypted_query_param', uploadParam);
+    url.searchParams.set('filekey', filekey);
+
+    const response = await fetch(url.toString(), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/octet-stream',
+        'Content-Length': String(encrypted.length),
+      },
+      body: encrypted,
+      dispatcher: new Agent(),
+    });
+
+    const encryptedParam = response.headers.get('x-encrypted-param')?.trim();
+    if (!response.ok || !encryptedParam) {
+      const rawText = await response.text().catch(() => '');
+      throw new Error(
+        `Weixin CDN upload failed: ${response.status} ${response.statusText}${rawText ? ` ${rawText}` : ''}`,
+      );
+    }
+
+    return encryptedParam;
   }
 
   // ---------------------------------------------------------------------------
@@ -815,7 +1018,7 @@ export class WeixinChannelRuntime {
           typing_ticket: typingTicket,
           status: TypingStatus.TYPING,
         },
-      }).catch(() => {});
+      }).catch(() => { });
     };
 
     if (typingTicket) {
@@ -844,6 +1047,8 @@ export class WeixinChannelRuntime {
         (thread.metadata?.agentId as string) ||
         appInfo.defaultAgent;
 
+      let toolsMsg: PendingWeixinToolMessage[] = [];
+
       const result = await mastraManager.chat(
         undefined,
         {
@@ -867,20 +1072,44 @@ export class WeixinChannelRuntime {
           subAgents,
         },
         {
-          onStart: async () => {},
+          onStart: async () => { },
           onChunk: async (chunk: string) => {
             outputText += chunk;
           },
-          onEnd: async () => {},
+          onEnd: async () => { },
           onToolCall: async (toolCall) => {
+            const description = getToolMessageDescription(toolCall.toolName, toolCall.input);
+            toolsMsg.push({
+              toolCallId: toolCall.toolCallId,
+              toolName: toolCall.toolName,
+              description,
+              input: toolCall.input,
+            });
             this.callbacks.onActivity(
-              `[weixin] tool started: ${toolCall.toolName}`,
+              `[weixin] tool started: ${toolCall.toolName}${description ? `: ${description}` : ''}`,
             );
           },
           onToolCallUpdate: async (toolCallUpdate, status) => {
+            const toolMsg = toolsMsg.find(
+              (x) => x.toolCallId === toolCallUpdate.toolCallId,
+            );
             this.callbacks.onActivity(
               `[weixin] tool ${status}: ${toolCallUpdate.toolCallId}`,
             );
+
+            if (toolMsg && status === 'completed' && toolMsg.toolName === Message.toolName) {
+              await this.sendFilesPreviewReply(
+                input.fromUserId,
+                toolMsg.input,
+                input.contextToken,
+              );
+            }
+
+            if (toolMsg && status !== 'pending') {
+              toolsMsg = toolsMsg.filter(
+                (x) => x.toolCallId !== toolCallUpdate.toolCallId,
+              );
+            }
           },
         },
       );
@@ -916,7 +1145,7 @@ export class WeixinChannelRuntime {
         input.fromUserId,
         `⚠️ 处理消息失败：${errMsg}`,
         input.contextToken,
-      ).catch(() => {});
+      ).catch(() => { });
       this.callbacks.onError(err instanceof Error ? err : new Error(String(err)));
     } finally {
       if (typingTimer) clearInterval(typingTimer);
@@ -930,7 +1159,7 @@ export class WeixinChannelRuntime {
             typing_ticket: typingTicket,
             status: TypingStatus.CANCEL,
           },
-        }).catch(() => {});
+        }).catch(() => { });
       }
     }
   }
@@ -973,7 +1202,7 @@ export class WeixinChannelRuntime {
     fromUserId: string,
     thread: ThreadState,
   ): Promise<PreparedInboundMessage> {
-    const reminders: string[] = [];
+    let reminders: string[] = [];
     const userTexts: string[] = [];
     const workspaceRoot = await this.resolveWorkspaceRoot(thread);
 
@@ -988,6 +1217,7 @@ export class WeixinChannelRuntime {
 
       if (item.type === MessageItemType.VOICE && item.voice_item?.text?.trim()) {
         userTexts.push(item.voice_item.text.trim());
+        continue;
       }
 
       if (!isMediaItem(item)) {
@@ -1013,6 +1243,7 @@ export class WeixinChannelRuntime {
       }
 
       if (media?.transcription?.trim()) {
+        reminders = [];
         userTexts.push(media.transcription.trim());
       }
     }
@@ -1023,7 +1254,37 @@ export class WeixinChannelRuntime {
       reminders.join(' ').replace(/<[^>]+>/g, '').trim() ||
       '[media]';
 
-    return { text, preview };
+    if (reminders.length > 0 && userTexts.length === 0) {
+      await this.saveInboundMediaReminder(thread, reminders.join('\n\n'));
+      return { text, preview, shouldEnqueue: false };
+    }
+
+    return { text, preview, shouldEnqueue: true };
+  }
+
+  private async saveInboundMediaReminder(
+    thread: ThreadState,
+    text: string,
+  ): Promise<void> {
+    await mastraManager.saveMessages(thread.id, [
+      {
+        id: nanoid(),
+        role: 'user',
+        threadId: thread.id,
+        resourceId: thread.resourceId || DEFAULT_RESOURCE_ID,
+        type: 'v2',
+        createdAt: new Date(),
+        content: {
+          format: 2,
+          parts: [
+            {
+              type: 'text',
+              text,
+            },
+          ],
+        },
+      },
+    ]);
   }
 
   private async resolveWorkspaceRoot(thread: ThreadState): Promise<string> {
@@ -1050,30 +1311,35 @@ export class WeixinChannelRuntime {
     return this.channel.config.cdnBaseUrl?.trim() || DEFAULT_WEIXIN_CDN_BASE_URL;
   }
 
-  private resolveMediaUrls(item: MessageItem): string[] {
-    const directUrls: string[] = [];
-    const encryptParams: string[] = [];
+  private resolveMediaUrls(item: MessageItem): MediaDownloadCandidate[] {
+    const candidates: MediaDownloadCandidate[] = [];
+    const encryptParams: { param: string; aesKey?: string }[] = [];
     const bases = [...new Set([this.resolveCdnBaseUrl(), this.resolveBaseUrl()])];
+    const addCandidate = (url: string, aesKey?: string) => {
+      if (!candidates.some((candidate) => candidate.url === url && candidate.aesKey === aesKey)) {
+        candidates.push({ url, aesKey });
+      }
+    };
     const addDirect = (value?: string) => {
       const trimmed = value?.trim();
       if (!trimmed) return;
       if (/^https?:\/\//i.test(trimmed)) {
-        directUrls.push(trimmed);
+        addCandidate(trimmed);
         return;
       }
 
       for (const base of bases) {
         try {
-          directUrls.push(new URL(trimmed, ensureTrailingSlash(base)).toString());
+          addCandidate(new URL(trimmed, ensureTrailingSlash(base)).toString());
         } catch {
           // ignore invalid url candidate
         }
       }
     };
-    const addMedia = (value?: { encrypt_query_param?: string }) => {
+    const addMedia = (value?: CDNMedia & { full_url?: string }) => {
       const trimmed = value?.encrypt_query_param?.trim();
       if (!trimmed) return;
-      encryptParams.push(trimmed);
+      encryptParams.push({ param: value?.full_url?.trim() || trimmed, aesKey: value.aes_key });
     };
 
     if (item.type === MessageItemType.IMAGE) {
@@ -1092,35 +1358,34 @@ export class WeixinChannelRuntime {
       addMedia(item.video_item?.thumb_media);
     }
 
-    const urls = new Set<string>(directUrls);
-    for (const param of encryptParams) {
+    for (const { param, aesKey } of encryptParams) {
       if (/^https?:\/\//i.test(param)) {
-        urls.add(param);
+        addCandidate(param, aesKey);
         continue;
       }
-
+      //"https://novac2c.cdn.weixin.qq.com/c2c/download?encrypted_query_param=ZWs4d3lYcGxjMjdfZVJrZVBFdkNDdFdrRnU4UURRaHFidWk5XzlYNUh2akJsV1VQYk9Cck9SY2JQSmcza1lxRHhYcEhZN1hMY3V5dDZsY2laamZVbkxJSTBsWm9LYVZveXVFOUJqZl9pa2xvQnpad2RkbmE2NDQxRmtPWGozOWVMR2JiN2FPX3U0bjFzaDN0ZVB6Q1dQVXZUVkZvVFRtTXd2V3V0QXNuMFhRYzc1cDVTRDA5clk3dWpNX2Z0d0MwMEU3aXduSF9tVE9rYlhKWUgtMFFnYjlvWG1DSFp2TEVvVmVHUEpwWE91bGtVTmhad0V5VDB2d2hqRXh3RmNBSVJCZmFXeWZtQ3pCQV9oOUhCemFUVlhtX3ZzamF3RC1lTjByN3MzOUhjQVFGZF9qRTdOTnlyM2lwckFwczlud0ZCSE9GTEd6Z3pJVnZsalp2WlFuRkNSRlBGU1NpTmhCc0xicWxhSEZzVHdhNXVvbVFtZ2hOMGpqR2dIdksxSlRVVjRpSEJZeV9CR2FnYjlaTFMtZkNtbm5MZjZHRDNwZU1DUUtHa3hROV9YV1Jyak5xUDhpdWVfMWEzcnRLNTJzczlMcnlzQlpsSG5oUURLQ2txbXhzY2JvSXpMWi10U0swNmQwakhvcHZzNk43aHBfLXN4bHBGZlRRcWZUaXp4cVE5blIwRHhoeg==&taskid=f3d45b68972c4a7dced27b2742a53657"
       for (const base of bases) {
         const normalizedBase = base.replace(/\/$/, '');
         if (param.startsWith('/')) {
-          urls.add(`${normalizedBase}${param}`);
+          addCandidate(`${normalizedBase}${param}`, aesKey);
         } else if (param.startsWith('?')) {
-          urls.add(`${normalizedBase}${param}`);
+          addCandidate(`${normalizedBase}${param}`, aesKey);
         } else {
-          urls.add(`${normalizedBase}?${param.replace(/^\?/, '')}`);
-          urls.add(`${ensureTrailingSlash(normalizedBase)}${param.replace(/^\//, '')}`);
+          addCandidate(`${normalizedBase}?${param.replace(/^\?/, '')}`, aesKey);
+          addCandidate(`${ensureTrailingSlash(normalizedBase)}${param.replace(/^\//, '')}`, aesKey);
         }
       }
     }
 
-    return [...urls];
+    return candidates;
   }
 
   private async fetchMediaBuffer(item: MessageItem): Promise<Buffer | undefined> {
     const urls = this.resolveMediaUrls(item);
     let lastError: Error | undefined;
-    for (const url of urls) {
+    for (const candidate of urls) {
       try {
-        const response = await fetch(url, {
+        const response = await fetch(candidate.url, {
           headers: {
             ...(this.channel.config.botToken?.trim()
               ? { Authorization: `Bearer ${this.channel.config.botToken.trim()}` }
@@ -1129,13 +1394,17 @@ export class WeixinChannelRuntime {
               ? { SKRouteTag: this.resolveRouteTag() as string }
               : {}),
           },
+          dispatcher: new Agent()
+
         });
         if (!response.ok) {
           throw new Error(`${response.status} ${response.statusText}`);
         }
         const buffer = Buffer.from(await response.arrayBuffer());
         if (buffer.length > 0) {
-          return buffer;
+          return candidate.aesKey
+            ? decryptAesEcb(buffer, parseAesKey(candidate.aesKey))
+            : buffer;
         }
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
@@ -1177,10 +1446,8 @@ export class WeixinChannelRuntime {
     const targetDir = path.join(
       workspaceRoot,
       '.aime-chat',
-      'channels',
-      'weixin',
-      sanitizeFileName(this.channel.config.accountId || this.channel.id),
-      sanitizeFileName(fromUserId),
+      'weixin-channel',
+      'files'
     );
 
     await fs.promises.mkdir(targetDir, { recursive: true });

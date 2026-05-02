@@ -179,12 +179,12 @@ export class ChatHistoryRead extends BaseTool {
       const role = m?.role ?? 'unknown';
       if (!includeTools && role !== 'user' && role !== 'assistant' && role !== 'system') continue;
       if (sinceMs) {
-        const ts = m?.createdAt ? new Date(m.createdAt).getTime() : 0;
+        const ts = m?.metadata?.createdAt ? new Date(m.metadata.createdAt).getTime() : 0;
         if (ts < sinceMs) continue;
       }
       const text = toPlainText(m);
       if (!text.trim()) continue;
-      const ts = m?.createdAt ? new Date(m.createdAt).toISOString() : '';
+      const ts = m?.metadata?.createdAt ? new Date(m.metadata.createdAt).toISOString() : '';
       lines.push(`### ${role}${ts ? ` @ ${ts}` : ''}\n${text}`);
     }
 
