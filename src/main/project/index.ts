@@ -49,24 +49,24 @@ class ProjectManager extends BaseManager {
     }
     project.skills = [];
     const skillsPath = path.join(project?.path, '.aime-chat', 'skills');
+    // const skillJson = await fs.promises.readFile(path.join(skillsPath, 'skills.json'));
     if (fs.existsSync(skillsPath) && fs.statSync(skillsPath).isDirectory()) {
       const skills = await fs.promises.readdir(skillsPath);
 
       const skillJson = await fs.promises.readFile(path.join(skillsPath, 'skills.json'), 'utf-8').catch(() => '[]');
       const skillJsonData = JSON.parse(skillJson);
-      for (const skill of skills) {
-        if (fs.existsSync(path.join(skillsPath, skill, 'SKILL.md'))) {
-          const skillPath = path.join(skillsPath, skill);
-          const skillMdPath = path.join(skillPath, 'SKILL.md');
+      for (const skill of skillJsonData) {
+        if (fs.existsSync(path.join(skillsPath, skill.name, 'SKILL.md'))) {
+          const skillMdPath = path.join(skillsPath, skill.name, 'SKILL.md');
           const skillMd = await fs.promises.readFile(skillMdPath, 'utf-8');
           const skillData = matter(skillMd);
           project.skills.push({
-            id: `${ToolType.SKILL}:${skill}`,
+            id: skill.id,
             name: skillData.data.name,
             description: skillData.data.description,
-            path: skillPath,
+            path: path.join(skillsPath, skill.name),
             skillmd: skillData.content,
-            source: skillJsonData.find((x: any) => x.id === skill)?.source,
+            source: skill.source,
           });
         }
       }

@@ -7,4 +7,5 @@ export interface SkillInfo {
   path?: string;
   skillmd?: string;
   source?: string;
+  repo?: string;
 }

@@ -71,7 +71,8 @@
     "secrets_delete_confirm": "确定要删除此密钥吗？此操作不可撤消。",
     "secrets_description_placeholder": "可选描述",
     "secrets_global": "全局",
-    "default_generate_image": "默认图片生成模型"
+    "default_generate_image": "默认图片生成模型",
+    "instances_headless": "无头模式"
   },
   "common": {
     "edit": "编辑",
@@ -264,7 +265,8 @@
     "edit_project": "修改项目",
     "add_skills": "添加技能",
     "default_agent": "默认助手",
-    "default_model": "默认模型"
+    "default_model": "默认模型",
+    "installed_skills": "已安装技能"
   },
   "knowledge-base": {
     "add_url": "添加网址",

@@ -347,6 +347,7 @@ const electronHandler = {
     importSkills: (data: {
       repo_or_url?: string;
       files?: string[];
+      sourceSkillIds?: string[];
       path?: string;
       selectedSkills?: string[];
     }) => ipcRenderer.invoke(ToolChannel.ImportSkills, data),

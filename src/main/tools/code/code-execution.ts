@@ -227,11 +227,11 @@ asyncio.run(main())
       let installPackage = ''
       if (ptc && !packages.includes('mcp')) packages.push('mcp');
       if (packages.length > 0) {
-        installPackage = ` && ${uvPreCommand} add ${packages.join(' ')}`
+        installPackage = ` && "${uvPreCommand}" add ${packages.join(' ')}`
       }
       const env = await getRuntimePython();
       let resultInit = await this.runWithRetry(() => runCommand(
-        `${uvPreCommand} init && ${uvPreCommand} --no-cache  venv --seed`,
+        `"${uvPreCommand}" init && "${uvPreCommand}" --no-cache  venv --seed`,
         {
           cwd: tempDir,
           env: env,
@@ -248,7 +248,7 @@ asyncio.run(main())
 
       if (packages.length > 0) {
         const resultInstall = await this.runWithRetry(() => runCommand(
-          `${uvPreCommand} --no-cache pip install ${packages.join(' ')}`,
+          `"${uvPreCommand}" --no-cache pip install ${packages.join(' ')}`,
           {
             cwd: tempDir,
             env: env,

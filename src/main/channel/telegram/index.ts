@@ -11,7 +11,7 @@ import {
 import { appManager } from '../../app';
 import { HttpsProxyAgent } from 'https-proxy-agent';
 import path from 'path';
-import { app } from 'electron';
+import { app, dialog } from 'electron';
 import { nanoid } from '@/utils/nanoid';
 import { Channels } from '@/entities/channels';
 import { Repository } from 'typeorm';
@@ -34,6 +34,7 @@ import { createHash } from 'crypto';
 import increment from 'add-filename-increment'
 import { AskUserQuestion, QuestionItemSchema } from '@/main/tools/common/ask-user-question';
 import z from 'zod';
+import fetch from 'node-fetch';
 
 export const enum Commands {
   PAIR = 'pair',
@@ -207,13 +208,16 @@ export class TelegramChannelRuntime {
           agent: proxyAgent,
           compress: true,
         },
+        fetch: fetch
       },
     });
 
     bot.catch((error) => {
       const err = error instanceof Error ? error : new Error(String(error));
+      dialog.showErrorBox('Telegram Bot Error', String(err));
       this.callbacks.onError(err);
     });
+
 
     bot.on('message:text', async (ctx) => {
       const chatId = String(ctx.chat.id);

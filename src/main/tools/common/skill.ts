@@ -146,7 +146,7 @@ ${_skills
       return `<system-reminder> Launching : \`${skillInfo.id}\`</system-reminder>
 Base directory for this skill: ${skillInfo.path}
 
-${skillInfo.content}
+${skillInfo.content || skillInfo.skillmd}
 
 
 ${agrs ? 'ARGUMENTS: ' + agrs : ''}
@@ -157,15 +157,13 @@ ${agrs ? 'ARGUMENTS: ' + agrs : ''}
 
 export class SkillManager {
   public async getSkills(): Promise<SkillInfo[]> {
-    // const claudeSkills = await this.getClaudeSkills();
-    const localSkills2 = await this.getLocalSkills();
+    await this.getLocalSkills();
     const localSkills = await toolsManager.toolsRepository.find({
       where: {
         type: ToolType.SKILL,
       },
     });
     return [
-      // ...claudeSkills,
       ...localSkills
         .map((x) => {
           return {
@@ -175,8 +173,9 @@ export class SkillManager {
             path: path.join(
               app.getPath('userData'),
               'skills',
-              x.id.split(':')[1],
+              x.id.split(':').slice(2).join(':') || x.id.split(':')[1],
             ),
+            source: x.value?.source,
             repo: x.value?.repo,
           };
         }),

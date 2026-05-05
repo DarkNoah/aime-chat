@@ -13,10 +13,10 @@ export class AgentBrowser extends BaseTool<BaseToolParams> {
   static readonly toolName = 'AgentBrowser';
 
   id: string = 'AgentBrowser';
-  description = `Control the browser`;
+  description = `Control the browser use agent-browser command`;
   inputSchema = z
     .object({
-      command: z.string().describe('The command to execute'),
+      command: z.string().describe('The command to execute, eg. `agent-browser open https://www.google.com`'),
       description: z.string().optional().describe('Clear, concise description of what this command does in -10 words.'),
     })
     .strict();

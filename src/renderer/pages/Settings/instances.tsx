@@ -28,6 +28,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { InstanceInfo } from '@/types/instance';
+import { Switch } from '@/renderer/components/ui/switch';
 
 interface BrowserProfile {
   name: string;
@@ -244,6 +245,17 @@ function Instances() {
       toast.error(err.message || 'Failed to update instance');
     }
   };
+  const handleHeadlessChange = async (instanceId: string, value: boolean) => {
+    try {
+      await window.electron.instances.updateInstance(instanceId, {
+        config: { headless: value },
+      });
+      await loadInstances();
+      toast.success(t('settings.instances_config_saved'));
+    } catch (err) {
+      toast.error(err.message || 'Failed to update instance');
+    }
+  };
 
   return (
     <div className="flex flex-col gap-2 p-4">
@@ -387,6 +399,17 @@ function Instances() {
                         (e.target as HTMLInputElement).blur();
                       }
                     }}
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs text-muted-foreground">
+                    {t('settings.instances_headless')}
+                  </span>
+                  <Switch
+                    checked={instance.config?.headless ?? false}
+                    onCheckedChange={(value) =>
+                      handleHeadlessChange(instance.id, value)
+                    }
                   />
                 </div>
 

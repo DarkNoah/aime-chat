@@ -447,6 +447,7 @@ class InstancesManager extends BaseManager {
             [
               `--remote-debugging-port=${debugPort}`,
               `--user-data-dir=${config.userDataPath}`,
+              config?.headless ? '--headless' : '',
             ],
             {
               detached: true,
@@ -467,7 +468,7 @@ class InstancesManager extends BaseManager {
       if (agentBrowserRuntime.installed) {
         const httpProxy = await appManager.getProxy();
         let agentBrowserConfig = {
-          "headed": true,
+          "headed": !(config?.headless ?? true),
           // "profile": config.userDataPath,
           "cdp": wsUrl
         }

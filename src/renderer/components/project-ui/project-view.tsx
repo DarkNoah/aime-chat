@@ -9,16 +9,8 @@ import {
   ItemTitle,
 } from '../ui/item';
 import { Button } from '../ui/button';
-import { SkillImportDialog } from '@/renderer/pages/Tools/skill-import-dialog';
 import { useTranslation } from 'react-i18next';
-import { ScrollArea } from '../ui/scroll-area';
-import { Input } from '../ui/input';
-import {
-  IconExternalLink,
-  IconReload,
-  IconSearch,
-  IconTrash,
-} from '@tabler/icons-react';
+import { IconExternalLink, IconReload, IconTrash } from '@tabler/icons-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,19 +22,10 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '../ui/alert-dialog';
-import { ButtonGroup } from '../ui/button-group';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '../ui/dropdown-menu';
-import { ChevronDownIcon } from 'lucide-react';
-import { SkillSearch } from '../skills-ui/skill-search';
 import { SkillDetailDialog } from '../skills-ui/skill-detail';
 import { SkillInfo } from '@/types/skill';
 import { Spinner } from '../ui/spinner';
+import { SkillManagerDialog } from '../skills-ui/skill-manager-dialog';
 
 export type ProjectViewProps = {
   project?: Project;
@@ -56,7 +39,6 @@ export const ProjectView = React.forwardRef<ProjectViewRef, ProjectViewProps>(
   (props: ProjectViewProps, ref: ForwardedRef<ProjectViewRef>) => {
     const { project, className, onProjectChanged } = props;
     const [openSkillDialog, setOpenSkillDialog] = useState(false);
-    const [openSkillSearchDialog, setOpenSkillSearchDialog] = useState(false);
     const [selectedSkill, setSelectedSkill] = useState<SkillInfo | null>(null);
     const [openSkillDetail, setOpenSkillDetail] = useState(false);
     const [loadings, setLoadings] = useState<Record<string, boolean>>({});
@@ -91,43 +73,19 @@ export const ProjectView = React.forwardRef<ProjectViewRef, ProjectViewProps>(
             </ItemDescription> */}
           </ItemContent>
           <ItemActions>
-            <ButtonGroup>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setOpenSkillDialog(true)}
-              >
-                {t('project.add_skills')}
-              </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="!pl-2" size="sm">
-                    <ChevronDownIcon />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-44">
-                  <DropdownMenuGroup>
-                    <DropdownMenuItem
-                      onClick={() => setOpenSkillSearchDialog(true)}
-                    >
-                      <IconSearch />
-                      {t('tools.search_skills')}
-                    </DropdownMenuItem>
-                  </DropdownMenuGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </ButtonGroup>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setOpenSkillDialog(true)}
+            >
+              {t('project.add_skills')}
+            </Button>
 
-            <SkillImportDialog
+            <SkillManagerDialog
               open={openSkillDialog}
               onOpenChange={setOpenSkillDialog}
               importPath={project?.path}
-              onImportSkillsSuccess={() => onProjectChanged?.()}
-            ></SkillImportDialog>
-            <SkillSearch
-              open={openSkillSearchDialog}
-              onOpenChange={setOpenSkillSearchDialog}
-              importPath={project?.path}
+              projectSkills={project?.skills || []}
               onImportSuccess={() => onProjectChanged?.()}
             />
           </ItemActions>
