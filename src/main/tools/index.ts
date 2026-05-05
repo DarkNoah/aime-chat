@@ -1232,6 +1232,7 @@ class ToolsManager extends BaseManager {
     repo_or_url?: string;
     files?: string[];
     dirs?: string[];
+    sourceSkillIds?: string[];
     path?: string;
     selectedSkills?: string[];
     isActive?: boolean;
@@ -1248,8 +1249,50 @@ class ToolsManager extends BaseManager {
     const tmpDir = path.join(os.tmpdir(), `git-clone-${crypto.randomUUID()}`);
     let repoUrl: string;
     let gitPath: string = '';
-    const { repo_or_url, files, dirs } = data;
-    if (repo_or_url) {
+    const { repo_or_url, files, dirs, sourceSkillIds } = data;
+    if (sourceSkillIds && sourceSkillIds.length > 0) {
+      const skilljson = await fs.promises
+        .readFile(path.join(skillsPath, 'skills.json'), 'utf-8')
+        .catch(() => '[]');
+      let skilljsonData = JSON.parse(skilljson);
+
+      for (const sourceSkillId of sourceSkillIds) {
+        const sourceSkill = await skillManager.getSkill(
+          sourceSkillId as `${ToolType.SKILL}:${string}`,
+        );
+        if (!sourceSkill?.path) {
+          return {
+            success: false,
+            error: `Skill ${sourceSkillId} not found`,
+          };
+        }
+
+        const skillName = path.basename(sourceSkill.path);
+        await fs.promises.cp(
+          sourceSkill.path,
+          path.join(skillsPath, skillName),
+          { recursive: true },
+        );
+
+        skilljsonData = skilljsonData.filter((x: any) => x.id !== sourceSkillId);
+        skilljsonData.push({
+          id: sourceSkillId,
+          name: skillName,
+          source: sourceSkill.source || sourceSkill.repo || sourceSkill.path,
+        });
+      }
+
+      await fs.promises.writeFile(
+        path.join(skillsPath, 'skills.json'),
+        JSON.stringify(skilljsonData, null, 2),
+      );
+      await appManager.toast('Skills install successfully', {
+        type: 'success',
+      });
+      return {
+        success: true,
+      };
+    } else if (repo_or_url) {
       const isDirectSkillUrl =
         /^https?:\/\//i.test(repo_or_url) &&
         !repo_or_url.includes('github.com') &&

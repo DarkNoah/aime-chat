@@ -10,7 +10,26 @@ export async function getSkills(workspace: string): Promise<SkillInfo[]> {
     cwd: workspace,
     absolute: true,
   });
+  const skillJson = await fs.promises.readFile(path.join(workspace, 'skills.json'));
+  const skillJsonData = JSON.parse(skillJson.toString());
   const skillList = [];
+  for (const skill of skillJsonData) {
+    if (fs.existsSync(path.join(workspace, skill.name, 'SKILL.md'))) {
+      const skillMdPath = path.join(workspace, skill.name, 'SKILL.md');
+      const skillMd = await fs.promises.readFile(skillMdPath, 'utf-8');
+      const skillData = matter(skillMd);
+      skillList.push({
+        id: skill.id,
+        name: skillData.data.name,
+        description: skillData.data.description,
+        path: path.join(workspace, skill.name),
+        skillmd: skillData.content,
+        source: skill.source,
+      });
+    }
+  }
+  return skillList;
+
   for (const md of mds) {
     const skillPath = path.dirname(md);
     const skillMD = await fs.promises.readFile(md, { encoding: 'utf8' });
