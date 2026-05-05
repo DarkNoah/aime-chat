@@ -253,6 +253,22 @@ const electronHandler = {
       ipcRenderer.send(MastraChannel.ChatWorkflow, data),
     chatAbort: (chatId: string) =>
       ipcRenderer.invoke(MastraChannel.ChatAbort, chatId),
+    enqueueChatMessage: (data: any) =>
+      ipcRenderer.invoke(MastraChannel.EnqueueChatMessage, data),
+    requestChatQueueSendNext: (chatId: string, queuedMessageId?: string) =>
+      ipcRenderer.invoke(
+        MastraChannel.RequestChatQueueSendNext,
+        chatId,
+        queuedMessageId,
+      ),
+    removeChatQueuedMessage: (chatId: string, queuedMessageId: string) =>
+      ipcRenderer.invoke(
+        MastraChannel.RemoveChatQueuedMessage,
+        chatId,
+        queuedMessageId,
+      ),
+    getChatQueueState: (chatId: string) =>
+      ipcRenderer.invoke(MastraChannel.GetChatQueueState, chatId),
     saveMessages: (chatId: string, messages: MastraDBMessage[]) =>
       ipcRenderer.invoke(MastraChannel.SaveMessages, chatId, messages),
     clearMessages: (chatId: string) =>

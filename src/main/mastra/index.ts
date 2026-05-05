@@ -111,6 +111,7 @@ import { WorkflowRunStatus } from '@mastra/core/workflows';
 import { MessageListInput } from '@mastra/core/agent/message-list';
 import { secretsManager } from '../app/secrets';
 import { Done } from '../tools/common/done';
+import { ChatQueueManager, QueuedChatMessage } from './chat-queue';
 
 
 class MastraManager extends BaseManager {
@@ -119,7 +120,12 @@ class MastraManager extends BaseManager {
   mastra: Mastra;
   mastraThreadsUsageRepository: Repository<MastraThreadsUsage>;
   agentsRepository: Repository<Agents>;
-  threadChats: (ChatThread & { controller: AbortController })[] = [];
+  threadChats: (ChatThread & {
+    controller: AbortController;
+    queue: ChatQueueManager;
+  })[] = [];
+
+  chatQueues = new Map<string, ChatQueueManager>();
 
   statefulTransport?: StreamableHTTPServerTransport;
   constructor() {
@@ -509,6 +515,76 @@ class MastraManager extends BaseManager {
     });
   }
 
+  private getChatQueue(chatId: string) {
+    let queue = this.chatQueues.get(chatId);
+    if (!queue) {
+      queue = new ChatQueueManager(chatId);
+      this.chatQueues.set(chatId, queue);
+    }
+    return queue;
+  }
+
+  private emitChatQueueChanged(chatId: string) {
+    const queue = this.chatQueues.get(chatId);
+    const state = queue?.getState() ?? {
+      chatId,
+      items: [],
+      sendNextRequested: false,
+    };
+
+    appManager.sendEvent(`chat:event:${chatId}`, {
+      type: ChatEvent.ChatQueueChanged,
+      data: state,
+    });
+    appManager.sendEvent(ChatEvent.ChatQueueChanged, {
+      data: state,
+    });
+  }
+
+  @channel(MastraChannel.EnqueueChatMessage)
+  public async enqueueChatMessage(data: ChatInput) {
+    const queue = this.getChatQueue(data.chatId);
+    queue.enqueue(data);
+    this.emitChatQueueChanged(data.chatId);
+    return { success: true, state: queue.getState() };
+  }
+
+  @channel(MastraChannel.RequestChatQueueSendNext)
+  public async requestChatQueueSendNext(
+    chatId: string,
+    queuedMessageId?: string,
+  ) {
+    const queue = this.getChatQueue(chatId);
+    const success = queue.requestSendNext(queuedMessageId);
+    this.emitChatQueueChanged(chatId);
+    return { success, state: queue.getState() };
+  }
+
+  @channel(MastraChannel.RemoveChatQueuedMessage)
+  public async removeChatQueuedMessage(chatId: string, queuedMessageId: string) {
+    const queue = this.getChatQueue(chatId);
+    const success = queue.remove(queuedMessageId);
+    if (!queue.hasItems()) {
+      this.chatQueues.delete(chatId);
+    }
+    this.emitChatQueueChanged(chatId);
+    return {
+      success,
+      state: queue.getState(),
+    };
+  }
+
+  @channel(MastraChannel.GetChatQueueState)
+  public async getChatQueueState(chatId: string) {
+    return (
+      this.chatQueues.get(chatId)?.getState() ?? {
+        chatId,
+        items: [],
+        sendNextRequested: false,
+      }
+    );
+  }
+
   @channel(MastraChannel.Chat, { mode: 'on' })
   public async chat(event: IpcMainEvent, data: ChatInput, callback?: ChatCallbackEvent): Promise<{
     success: boolean;
@@ -568,6 +644,18 @@ class MastraManager extends BaseManager {
     )) as LanguageModelV2;
 
     const inputMessage = uiMessages[uiMessages.length - 1];
+
+    const runningChat = this.threadChats.find((chat) => chat.id === chatId);
+    if (runningChat && inputMessage?.role === 'user') {
+      runningChat.queue.enqueue({
+        ...data,
+        messages: [inputMessage],
+      });
+      this.emitChatQueueChanged(chatId);
+      return {
+        success: true,
+      };
+    }
 
     if (!model) {
       const _agentId = agentId ?? DefaultAgent.agentName;
@@ -848,6 +936,7 @@ class MastraManager extends BaseManager {
         title: 'string',
         status: 'streaming',
         controller,
+        queue: this.getChatQueue(chatId),
       });
       let _inputMessage = inputMessage;
       let resume = toolCallId
@@ -857,6 +946,25 @@ class MastraManager extends BaseManager {
           resumeData,
         }
         : undefined;
+      const applyQueuedMessage = (queuedMessage: QueuedChatMessage) => {
+        const queuedInput = queuedMessage.input;
+        _inputMessage = queuedInput.messages[
+          queuedInput.messages.length - 1
+        ] as UIMessage;
+        tools = queuedInput.tools ?? tools;
+        subAgents = queuedInput.subAgents ?? subAgents;
+        think = queuedInput.think ?? think;
+        untilEndPrompt = queuedInput.untilEndPrompt ?? untilEndPrompt;
+        requireToolApproval =
+          queuedInput.requireToolApproval ?? requireToolApproval;
+        requestContext.set('tools', tools);
+        requestContext.set('subAgents', subAgents);
+        requestContext.set('think', think);
+        requestContext.set('untilEndPrompt', untilEndPrompt);
+        streamOptions.requireToolApproval = requireToolApproval;
+        resume = undefined;
+        this.emitChatQueueChanged(chatId);
+      };
       while (true) {
         const historyMessages = await memoryStore.listMessages({
           threadId: chatId,
@@ -1063,6 +1171,20 @@ class MastraManager extends BaseManager {
             `${providerType}:${modelId}`,
           );
           const lastMessage = core[core.length - 1];
+          const activeQueue = this.chatQueues.get(chatId);
+          if (activeQueue?.shouldSendNext()) {
+            const queuedMessage = activeQueue.dequeue();
+            if (queuedMessage) {
+              applyQueuedMessage(queuedMessage);
+              agent = await agentManager.buildAgent(agentId, {
+                modelId: model,
+                tools: tools,
+                subAgents: subAgents,
+                requestContext,
+              });
+              continue;
+            }
+          }
           if (lastMessage.role == 'tool') {
           } else if (lastMessage.role == 'assistant') {
             // 结束守卫
@@ -1094,6 +1216,19 @@ class MastraManager extends BaseManager {
                   untilEndPrompt: { enable: false, prompt },
                 },
               });
+              if (activeQueue?.hasItems()) {
+                const queuedMessage = activeQueue.dequeue();
+                if (queuedMessage) {
+                  applyQueuedMessage(queuedMessage);
+                  agent = await agentManager.buildAgent(agentId, {
+                    modelId: model,
+                    tools: tools,
+                    subAgents: subAgents,
+                    requestContext,
+                  });
+                  continue;
+                }
+              }
               break;
             }
 
@@ -1194,6 +1329,10 @@ class MastraManager extends BaseManager {
         data: { type: ChatChangedType.Finish, chatId, resourceId },
       });
       this.threadChats = this.threadChats.filter((chat) => chat.id !== chatId);
+      if (!this.chatQueues.get(chatId)?.hasItems()) {
+        this.chatQueues.delete(chatId);
+      }
+      this.emitChatQueueChanged(chatId);
 
       currentThread = await memoryStore.getThreadById({ threadId: chatId });
       if (currentThread.title == DEFAULT_TITLE) {

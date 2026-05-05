@@ -42,9 +42,25 @@ export type ChatInput = {
   resumeData?: Record<string, any>;
 };
 
+export type ChatQueuedMessage = {
+  id: string;
+  chatId: string;
+  createdAt: string;
+  preview: string;
+  attachmentCount: number;
+  sendNext: boolean;
+};
+
+export type ChatQueueState = {
+  chatId: string;
+  items: ChatQueuedMessage[];
+  sendNextRequested: boolean;
+};
+
 export enum ChatEvent {
   ChatChunk = 'chat:chat-chunk',
   ChatChanged = 'chat:chat-changed',
+  ChatQueueChanged = 'chat:chat-queue-changed',
   ChatUsage = 'chat:chat-usage',
   ChatUsageChanged = 'chat:chat-usage-changed',
   ChatError = 'chat:chat-error',
@@ -91,6 +107,7 @@ export type ThreadState = StorageThreadType & {
   status: ChatStatus;
   error?: Error;
   historyMessagesCount?: number;
+  queue?: ChatQueueState;
 };
 
 export enum ChatChangedType {

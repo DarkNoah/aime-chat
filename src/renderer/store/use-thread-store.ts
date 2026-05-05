@@ -1,6 +1,6 @@
 import { ChatStatus, UIMessage } from 'ai';
 import { create } from 'zustand';
-import { ThreadState } from '@/types/chat';
+import { ChatQueueState, ThreadState } from '@/types/chat';
 
 interface ThreadStoreState {
   threadStates: Record<string, ThreadState>;
@@ -11,6 +11,7 @@ interface ThreadStoreState {
   updateError: (threadId: string, error: Error | undefined) => void;
   updateThreadState: (threadId: string, state: Partial<ThreadState>) => void;
   updateThreadMeatadata: (threadId: string, metadata: Record<string, any>) => void;
+  updateQueue: (threadId: string, queue: ChatQueueState) => void;
   removeThread: (threadId: string) => void;
   registerThread: (threadId: string, state: ThreadState) => void;
   getThreads: () => Record<string, ThreadState>;
@@ -88,6 +89,20 @@ export const useThreadStore = create<ThreadStoreState>((set, get) => ({
       threadStates: {
         ...state.threadStates,
         [threadId]: { ...state.threadStates[threadId], metadata },
+      },
+    }));
+  },
+
+  updateQueue: (threadId, queue) => {
+    set((state) => ({
+      threadStates: {
+        ...state.threadStates,
+        [threadId]: {
+          messages: state.threadStates[threadId]?.messages ?? [],
+          status: state.threadStates[threadId]?.status ?? 'ready',
+          ...state.threadStates[threadId],
+          queue,
+        },
       },
     }));
   },

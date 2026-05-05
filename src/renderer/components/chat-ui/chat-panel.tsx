@@ -34,7 +34,13 @@ import {
   ConversationEmptyState,
   ConversationScrollButton,
 } from '../ai-elements/conversation';
-import { ChevronsUpDown, CopyIcon, MessageSquareIcon } from 'lucide-react';
+import {
+  ChevronsUpDown,
+  CopyIcon,
+  MessageSquareIcon,
+  SendIcon,
+  XIcon,
+} from 'lucide-react';
 import { Agent } from '@/types/agent';
 import toast from 'react-hot-toast';
 import { useChat as useAiSdkChat } from '@ai-sdk/react';
@@ -348,6 +354,27 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
         files: message.files,
       };
       if (threadId) {
+        if (threadState?.status === 'streaming') {
+          const parts: UIMessage['parts'] = [
+            ...(message.text
+              ? [{ type: 'text' as const, text: message.text }]
+              : []),
+            ...((message.files ?? []) as UIMessage['parts']),
+          ];
+          await window.electron.mastra.enqueueChatMessage({
+            ...body,
+            chatId: threadId,
+            messages: [
+              {
+                id: nanoid(),
+                role: 'user',
+                parts,
+              },
+            ],
+          });
+          chatInputRef.current?.attachmentsClear();
+          return;
+        }
         console.log(inputMessage, body);
         sendMessage(threadId, inputMessage, body);
         chatInputRef.current?.attachmentsClear();
@@ -535,6 +562,22 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
           return prev.filter((id) => id !== messageId);
         }
       });
+    };
+
+    const handleQueueSendNext = async (queuedMessageId: string) => {
+      if (!threadId) return;
+      await window.electron.mastra.requestChatQueueSendNext(
+        threadId,
+        queuedMessageId,
+      );
+    };
+
+    const handleQueueRemove = async (queuedMessageId: string) => {
+      if (!threadId) return;
+      await window.electron.mastra.removeChatQueuedMessage(
+        threadId,
+        queuedMessageId,
+      );
     };
     const renderPart = (part, message, i) => {
       if (part.type === 'reasoning' && part.text.trim())
@@ -906,6 +949,56 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
               />
             )}
           </div>
+          {threadState?.queue?.items?.length > 0 && (
+            <div className="rounded-md border bg-background/95 p-2 shadow-sm">
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-xs font-medium">
+                  待发送队列 {threadState.queue.items.length}
+                </span>
+                {threadState.queue.sendNextRequested && (
+                  <Badge variant="secondary">下一步发送</Badge>
+                )}
+              </div>
+              <div className="flex flex-col gap-1">
+                {threadState.queue.items.map((item, index) => (
+                  <div
+                    key={item.id}
+                    className="flex min-h-8 items-center gap-2 rounded border bg-muted/30 px-2 py-1"
+                  >
+                    <Badge variant={item.sendNext ? 'default' : 'outline'}>
+                      {item.sendNext ? '下一步发送' : '待发送'}
+                    </Badge>
+                    <div className="min-w-0 flex-1 truncate text-xs">
+                      {item.preview}
+                      {item.attachmentCount > 0 && (
+                        <span className="ml-2 text-muted-foreground">
+                          {item.attachmentCount} files
+                        </span>
+                      )}
+                    </div>
+                    {index === 0 && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="size-7"
+                        onClick={() => handleQueueSendNext(item.id)}
+                      >
+                        <SendIcon className="size-3.5" />
+                      </Button>
+                    )}
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="size-7"
+                      onClick={() => handleQueueRemove(item.id)}
+                    >
+                      <XIcon className="size-3.5" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           <ChatInput
             onClearMessages={handleClearMessages}
             showModelSelect

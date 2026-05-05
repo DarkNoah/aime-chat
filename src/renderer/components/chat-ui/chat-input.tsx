@@ -223,6 +223,9 @@ function ChatInputInner(props: ChatInputInnerProps) {
   const [requireToolApproval, setRequireToolApproval] = useState<boolean>(
     requireToolApprovalProp ?? false,
   );
+  const hasPendingInput =
+    Boolean(controller.textInput.value?.trim()) ||
+    (controller.attachments.files?.length ?? 0) > 0;
 
   useEffect(() => {
     if (typeof requireToolApprovalProp === 'boolean') {
@@ -261,9 +264,7 @@ function ChatInputInner(props: ChatInputInnerProps) {
   }));
 
   const handleSubmit = () => {
-    if (status === 'streaming') {
-      onAbort?.();
-    }
+    return undefined;
   };
 
   return (
@@ -275,7 +276,12 @@ function ChatInputInner(props: ChatInputInnerProps) {
       >
         <PromptInput
           onSubmit={(e) => {
-            if (status === 'ready' || status === 'error' || !status) {
+            if (
+              status === 'ready' ||
+              status === 'error' ||
+              status === 'streaming' ||
+              !status
+            ) {
               onSubmit(e, {
                 model,
                 webSearch,
@@ -426,6 +432,23 @@ function ChatInputInner(props: ChatInputInnerProps) {
               )}
 
               <Separator orientation="vertical" />
+              {status === 'streaming' && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <PromptInputButton
+                      size="icon-xs"
+                      type="button"
+                      variant="ghost"
+                      onClick={onAbort}
+                    >
+                      <SquareIcon size={16} />
+                    </PromptInputButton>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Stop current response</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
               {onClearMessages && (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
@@ -459,8 +482,12 @@ function ChatInputInner(props: ChatInputInnerProps) {
             </PromptInputTools>
 
             <PromptInputSubmit
-              disabled={!controller.textInput.value && !status}
-              status={status === 'error' ? 'ready' : status}
+              disabled={!hasPendingInput}
+              status={
+                status === 'error' || status === 'streaming'
+                  ? 'ready'
+                  : status
+              }
               onClick={handleSubmit}
             />
           </PromptInputFooter>

@@ -21,6 +21,7 @@ import React, {
 import {
   ChatChangedType,
   ChatEvent,
+  ChatQueueState,
   ChatSubmitOptions,
   ThreadState,
 } from '@/types/chat';
@@ -205,6 +206,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     updateMessages,
     updateThreadState,
     updateThreadMeatadata,
+    updateQueue,
     keepThread,
     unkeepThread,
   } = useThreadStore();
@@ -224,9 +226,10 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         return threadStates[threadId];
       } else {
         const _thread = await window.electron.mastra.getThread(threadId);
+        const queue = await window.electron.mastra.getChatQueueState(threadId);
         console.log('registerThread', threadId, _thread);
-        registerThread(threadId, _thread);
-        return _thread;
+        registerThread(threadId, { ..._thread, queue });
+        return { ..._thread, queue };
       }
     },
     [threadStates, registerThread, keepThread],
@@ -433,6 +436,11 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       const _thread = await window.electron.mastra.getThread(chatId);
       setMessages(chatId, _thread.messages || []);
     };
+    const handleChatQueueChangedEvent = (event: {
+      data: ChatQueueState;
+    }) => {
+      updateQueue(event.data.chatId, event.data);
+    };
     window.electron.ipcRenderer.on(
       ChatEvent.ChatChanged,
       handleChatChangedEvent,
@@ -445,7 +453,15 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       ChatEvent.ChatMessageChanged,
       handleChatMessageChangedEvent,
     );
+    window.electron.ipcRenderer.on(
+      ChatEvent.ChatQueueChanged,
+      handleChatQueueChangedEvent,
+    );
     return () => {
+      window.electron.ipcRenderer.removeListener(
+        ChatEvent.ChatQueueChanged,
+        handleChatQueueChangedEvent,
+      );
       window.electron.ipcRenderer.removeListener(
         ChatEvent.ChatMessageChanged,
         handleChatMessageChangedEvent,
