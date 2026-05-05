@@ -71,7 +71,8 @@
     "secrets_delete_confirm": "确定要删除此密钥吗？此操作不可撤消。",
     "secrets_description_placeholder": "可选描述",
     "secrets_global": "全局",
-    "default_generate_image": "默认图片生成模型"
+    "default_generate_image": "默认图片生成模型",
+    "instances_headless": "无头模式"
   },
   "common": {
     "edit": "编辑",

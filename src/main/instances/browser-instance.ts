@@ -60,7 +60,7 @@ export class BrowserInstance extends BaseInstance {
             }
             : undefined,
           executablePath: this.instances?.config?.executablePath,
-          headless: false,
+          headless: this.instances?.config?.headless ?? false,
           args: [
             '--disable-blink-features=AutomationControlled',
             '--enable-webgl',
@@ -82,7 +82,7 @@ export class BrowserInstance extends BaseInstance {
         this.browser_context = await chromium.launchPersistentContext(
           this.instances?.config?.userDataPath || userDataDir,
           {
-            headless: false,
+            headless: this.instances?.config?.headless ?? false,
             proxy: httpProxy
               ? {
                 server: `${httpProxy}`,
@@ -107,7 +107,7 @@ export class BrowserInstance extends BaseInstance {
         ).newContext();
       } else {
         const browser = await chromium.launch({
-          headless: false,
+          headless: this.instances?.config?.headless ?? false,
           proxy: httpProxy
             ? {
               server: `${httpProxy}`,

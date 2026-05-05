@@ -4,7 +4,7 @@ import BaseToolkit, { BaseToolkitParams } from "../base-toolkit";
 import { ToolExecutionContext } from "@mastra/core/tools";
 import { z, ZodSchema } from "zod";
 import { CreateKnowledgeBase, KnowledgeBaseSourceType, SearchKnowledgeBaseItemResult, VectorStoreType } from "@/types/knowledge-base";
-
+import { createGraphRAGTool } from '@mastra/rag'
 
 
 export class KnowledgeBaseList extends BaseTool {
