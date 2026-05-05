@@ -91,7 +91,6 @@ export const ChatSession = React.forwardRef<ChatSessionRef, ChatSessionProps>(
         // onFinish?.(event);
       },
       onData: (dataPart) => {
-        console.log('onData', dataPart);
         onData?.(dataPart);
         if (dataPart.type === 'data-usage') {
           onUsageChange?.(dataPart.data);

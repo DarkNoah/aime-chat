@@ -6,9 +6,9 @@ import React, {
   ForwardedRef,
   Fragment,
   ReactNode,
+  useCallback,
   useEffect,
   useImperativeHandle,
-  useMemo,
   useRef,
   useState,
 } from 'react';
@@ -96,6 +96,299 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '../ui/accordion';
+
+type ChatMessageItemProps = {
+  message: UIMessage;
+  isLastMessage: boolean;
+  expanded: boolean;
+  theme: string | undefined;
+  threadId?: string;
+  interruptedLabel: string;
+  onExpandedChange: (messageId: string, open: boolean) => void;
+  onResumeChat: (
+    runId: string,
+    toolCallId: string,
+    approved?: boolean,
+    resumeData?: Record<string, any>,
+  ) => void;
+  onToolMessageClick?: (toolMessage: ToolUIPart) => void;
+};
+
+const isRenderableMessagePart = (part: any) =>
+  part.type === 'text' || part.type.startsWith('tool-');
+
+const ChatMessageItem = React.memo(
+  ({
+    message,
+    isLastMessage,
+    expanded,
+    theme,
+    threadId,
+    interruptedLabel,
+    onExpandedChange,
+    onResumeChat,
+    onToolMessageClick,
+  }: ChatMessageItemProps) => {
+    let canExpandParts = [];
+    let lastParts = [];
+
+    if (message.role === 'user' || isLastMessage) {
+      lastParts = message.parts;
+    } else {
+      for (let i = message.parts.length - 1; i >= 0; i -= 1) {
+        if (isRenderableMessagePart(message.parts[i])) {
+          lastParts = message.parts.slice(i);
+          canExpandParts = message.parts.slice(0, i);
+          break;
+        }
+      }
+    }
+
+    if (
+      !(
+        canExpandParts.find(isRenderableMessagePart) ||
+        lastParts.find(isRenderableMessagePart)
+      )
+    ) {
+      return null;
+    }
+
+    const renderPart = (part, i) => {
+      if (part.type === 'reasoning' && part.text.trim()) {
+        return (
+          <Reasoning
+            key={`${message.id}-${i}`}
+            className="w-fit"
+            defaultOpen={false}
+            isStreaming={part.state === 'streaming'}
+          >
+            <ReasoningTrigger />
+            <ReasoningContent className="whitespace-pre-wrap">
+              {part.text}
+            </ReasoningContent>
+          </Reasoning>
+        );
+      }
+
+      if (
+        part.type === 'text' &&
+        part.text.trim() &&
+        !part.text.trim().startsWith('<system-reminder>')
+      ) {
+        if (part.text.trim() === '[Request interrupted by user]') {
+          return (
+            <Alert className="w-fit bg-muted p-2" key={`${message.id}-${i}`}>
+              <AlertTitle className="text-xs flex gap-1 items-center">
+                <IconAlertCircle size={16}></IconAlertCircle>
+                {interruptedLabel}
+              </AlertTitle>
+            </Alert>
+          );
+        }
+
+        return (
+          <Fragment key={`${message.id}-${i}`}>
+            <Message from={message.role}>
+              <MessageContent>
+                <MessageResponse
+                  className={`text-xs wrap-break-word ${message.role === 'user' ? 'whitespace-break-spaces' : ''}`}
+                  mermaidConfig={{
+                    theme: theme === 'dark' ? 'dark' : 'forest',
+                  }}
+                >
+                  {part.text}
+                </MessageResponse>
+              </MessageContent>
+            </Message>
+
+            <MessageActions
+              className={
+                message.role === 'user' ? 'justify-end' : 'justify-start'
+              }
+            >
+              {message.role === 'user' && (
+                <MessageAction
+                  onClick={() => navigator.clipboard.writeText(part.text)}
+                  label="Copy"
+                >
+                  <CopyIcon className="size-3" />
+                </MessageAction>
+              )}
+
+              {message?.parts.length === i + 1 &&
+                message.role === 'assistant' &&
+                message.metadata?.usage?.inputTokens &&
+                message.metadata?.usage?.outputTokens && (
+                  <small className="text-xs text-gray-500 flex flex-row gap-1 items-center">
+                    <Label>tokens: </Label>
+                    {message.metadata?.usage?.inputTokens && (
+                      <span className="flex flex-row gap-1 items-center">
+                        <IconArrowUp size={10}></IconArrowUp>
+                        {message.metadata?.usage?.inputTokens}
+                      </span>
+                    )}
+
+                    {message.metadata?.usage?.outputTokens && (
+                      <span className="flex flex-row gap-1 items-center">
+                        <IconArrowDown size={10}></IconArrowDown>
+                        {message.metadata?.usage?.outputTokens}
+                      </span>
+                    )}
+                  </small>
+                )}
+            </MessageActions>
+          </Fragment>
+        );
+      }
+
+      if (part.type.startsWith('tool-')) {
+        const _part = part as ToolUIPart;
+        let approvalData: ToolApproval | undefined;
+        let suspendedData: ToolSuspended | undefined;
+        let isSuspended = false;
+        const metadata = message?.metadata as any;
+
+        if (_part.state === 'input-available') {
+          const pendingToolApproval =
+            metadata?.pendingToolApprovals?.[
+              _part.type.substring('tool-'.length)
+            ];
+          const suspendedTool =
+            metadata?.suspendedTools?.[_part.type.substring('tool-'.length)];
+
+          approvalData = message.parts.find(
+            (p) =>
+              p.type === 'data-tool-call-approval' &&
+              p.id === _part?.toolCallId,
+          )?.data;
+          if (
+            !approvalData &&
+            pendingToolApproval &&
+            pendingToolApproval.toolCallId === _part?.toolCallId
+          ) {
+            approvalData = pendingToolApproval;
+          }
+
+          suspendedData = message.parts.find(
+            (p) =>
+              p.type === 'data-tool-call-suspended' &&
+              p.id === _part?.toolCallId,
+          )?.data;
+
+          if (
+            !suspendedData &&
+            suspendedTool &&
+            suspendedTool.toolCallId === _part?.toolCallId
+          ) {
+            suspendedData = suspendedTool;
+          }
+
+          if (approvalData) {
+            approvalData.type = 'approval';
+            isSuspended = true;
+          }
+
+          if (suspendedData) {
+            isSuspended = true;
+          }
+        }
+
+        return (
+          <div className="flex flex-col" key={`${message.id}-${i}`}>
+            <ToolMessage
+              part={_part}
+              threadId={threadId}
+              isSuspended={isSuspended}
+              onResume={(value) => {
+                if (suspendedData?.runId) {
+                  onResumeChat(
+                    suspendedData.runId,
+                    _part?.toolCallId,
+                    undefined,
+                    value,
+                  );
+                }
+              }}
+              suspendedData={suspendedData}
+              onClick={() => {
+                onToolMessageClick?.(_part);
+              }}
+            ></ToolMessage>
+
+            {approvalData && (
+              <ToolMessageApproval
+                approval={approvalData}
+                onReject={() => {
+                  onResumeChat(approvalData.runId, _part?.toolCallId, false);
+                }}
+                onAccept={() => {
+                  onResumeChat(approvalData.runId, _part?.toolCallId, true);
+                }}
+              />
+            )}
+          </div>
+        );
+      }
+
+      return null;
+    };
+
+    const expandablePartCount = canExpandParts.filter(
+      isRenderableMessagePart,
+    ).length;
+
+    return (
+      <Collapsible
+        open={expanded}
+        onOpenChange={(open) => onExpandedChange(message.id, open)}
+        className="flex flex-col gap-2 mt-2"
+      >
+        {message.role === 'assistant' && expandablePartCount > 0 && (
+          <div className="flex items-center gap-4">
+            <CollapsibleTrigger asChild>
+              <Button
+                variant="outline"
+                className="flex flex-row gap-2 items-center"
+              >
+                <span className="text-sm font-semibold">{`${expanded ? 'Hide' : 'Show'} more details ${expandablePartCount} msg.`}</span>
+                <ChevronsUpDown />
+              </Button>
+            </CollapsibleTrigger>
+          </div>
+        )}
+
+        <CollapsibleContent className="flex flex-col gap-2">
+          {!(message.metadata as any)?.compressed &&
+            canExpandParts?.map((part, i) => renderPart(part, i))}
+        </CollapsibleContent>
+        {lastParts.map((part, i) => renderPart(part, i))}
+        <ChatMessageAttachments
+          className={`mb-2 ${message.role === 'user' ? 'ml-auto' : 'ml-0'}`}
+        >
+          {lastParts
+            ?.filter((p) => p.type === 'file')
+            .map((part, i) => {
+              return (
+                <ChatMessageAttachment data={part} key={`${message.id}-${i}`} />
+              );
+            })}
+        </ChatMessageAttachments>
+      </Collapsible>
+    );
+  },
+  (prev, next) =>
+    prev.message === next.message &&
+    prev.isLastMessage === next.isLastMessage &&
+    prev.expanded === next.expanded &&
+    prev.theme === next.theme &&
+    prev.threadId === next.threadId &&
+    prev.interruptedLabel === next.interruptedLabel &&
+    prev.onToolMessageClick === next.onToolMessageClick &&
+    prev.onResumeChat === next.onResumeChat &&
+    prev.onExpandedChange === next.onExpandedChange,
+);
+
+ChatMessageItem.displayName = 'ChatMessageItem';
 
 export type ChatPanelProps = {
   children?: React.ReactNode;
@@ -194,26 +487,29 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
       },
     }));
 
-    const handleResumeChat = async (
-      _runId: string,
-      toolCallId: string,
-      approved?: boolean,
-      resumeData?: Record<string, any>,
-    ) => {
-      const options: ChatSubmitOptions = {
-        agentId,
-        model: modelId,
-        runId: _runId,
-        projectId,
-        threadId,
-        approved,
-        resumeData,
-        tools: chatInputRef.current?.getTools(),
-        toolCallId,
-        requireToolApproval,
-      };
-      sendMessage(threadId, undefined, options);
-    };
+    const handleResumeChat = useCallback(
+      async (
+        _runId: string,
+        toolCallId: string,
+        approved?: boolean,
+        resumeData?: Record<string, any>,
+      ) => {
+        const options: ChatSubmitOptions = {
+          agentId,
+          model: modelId,
+          runId: _runId,
+          projectId,
+          threadId,
+          approved,
+          resumeData,
+          tools: chatInputRef.current?.getTools(),
+          toolCallId,
+          requireToolApproval,
+        };
+        sendMessage(threadId, undefined, options);
+      },
+      [agentId, modelId, projectId, requireToolApproval, sendMessage, threadId],
+    );
 
     const handleAbort = () => {
       stop(threadId);
@@ -451,7 +747,6 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
         };
         getThread();
         eventBus.on(`chat:onData:${threadId}`, (event: any) => {
-          console.log('chat:onData', event);
           if (event.type === 'data-compress-start') {
             setCompressing(true);
           } else if (event.type === 'data-compress-end') {
@@ -476,7 +771,6 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
           }
         });
         eventBus.on(`chat:onFinish:${threadId}`, (event) => {
-          console.log('chat:onFinish', event);
           getThread();
         });
 
@@ -527,196 +821,18 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
       console.log(data);
     };
 
-    const handleExpandedMessages = (messageId: string, open: boolean) => {
-      setExpandedMessages((prev) => {
-        if (open) {
-          return [...prev, messageId];
-        } else {
-          return prev.filter((id) => id !== messageId);
-        }
-      });
-    };
-    const renderPart = (part, message, i) => {
-      if (part.type === 'reasoning' && part.text.trim())
-        return (
-          <Reasoning
-            key={`${message.id}-${i}`}
-            className="w-fit"
-            defaultOpen={false}
-            isStreaming={part.state === 'streaming'}
-          >
-            <ReasoningTrigger />
-            <ReasoningContent className="whitespace-pre-wrap">
-              {part.text}
-            </ReasoningContent>
-          </Reasoning>
-        );
-      else if (
-        part.type === 'text' &&
-        part.text.trim() &&
-        !part.text.trim().startsWith('<system-reminder>')
-      ) {
-        if (part.text.trim() === '[Request interrupted by user]') {
-          return (
-            <Alert className="w-fit bg-muted p-2">
-              <AlertTitle className="text-xs flex gap-1 items-center">
-                <IconAlertCircle size={16}></IconAlertCircle>
-                {t('common.request_interrupted_by_user')}
-              </AlertTitle>
-            </Alert>
-          );
-        } else {
-          return (
-            <Fragment key={`${message.id}-${i}`}>
-              <Message from={message.role}>
-                <MessageContent>
-                  <MessageResponse
-                    className={`text-xs wrap-break-word ${message.role === 'user' ? 'whitespace-break-spaces' : ''}`}
-                    mermaidConfig={{
-                      theme: theme === 'dark' ? 'dark' : 'forest',
-                    }}
-                  >
-                    {part.text}
-                  </MessageResponse>
-                </MessageContent>
-              </Message>
-
-              <MessageActions
-                className={
-                  message.role === 'user' ? 'justify-end' : 'justify-start'
-                }
-              >
-                {message.role === 'user' && (
-                  <MessageAction
-                    onClick={() => navigator.clipboard.writeText(part.text)}
-                    label="Copy"
-                  >
-                    <CopyIcon className="size-3" />
-                  </MessageAction>
-                )}
-
-                {message?.parts.length === i + 1 &&
-                  message.role === 'assistant' &&
-                  message.metadata?.usage?.inputTokens &&
-                  message.metadata?.usage?.outputTokens && (
-                    <small className="text-xs text-gray-500 flex flex-row gap-1 items-center">
-                      <Label>tokens: </Label>
-                      {message.metadata?.usage?.inputTokens && (
-                        <span className="flex flex-row gap-1 items-center">
-                          <IconArrowUp size={10}></IconArrowUp>
-                          {message.metadata?.usage?.inputTokens}
-                        </span>
-                      )}
-
-                      {message.metadata?.usage?.outputTokens && (
-                        <span className="flex flex-row gap-1 items-center">
-                          <IconArrowDown size={10}></IconArrowDown>
-                          {message.metadata?.usage?.outputTokens}
-                        </span>
-                      )}
-                    </small>
-                  )}
-              </MessageActions>
-            </Fragment>
-          );
-        }
-      } else if (part.type.startsWith('tool-')) {
-        // eslint-disable-next-line no-underscore-dangle
-        const _part = part as ToolUIPart;
-        let approvalData: ToolApproval;
-        let suspendedData: ToolSuspended;
-        let isSuspended = false;
-        const metadata = message?.metadata as any;
-        if (_part.state === 'input-available') {
-          const pendingToolApproval =
-            metadata?.pendingToolApprovals?.[
-              _part.type.substring('tool-'.length)
-            ];
-          const suspendedTool =
-            metadata?.suspendedTools?.[_part.type.substring('tool-'.length)];
-          approvalData = message.parts.find(
-            (p) =>
-              p.type === 'data-tool-call-approval' &&
-              p.id === _part?.toolCallId,
-          )?.data;
-          if (
-            !approvalData &&
-            pendingToolApproval &&
-            pendingToolApproval.toolCallId === _part?.toolCallId
-          ) {
-            approvalData = pendingToolApproval;
+    const handleExpandedMessages = useCallback(
+      (messageId: string, open: boolean) => {
+        setExpandedMessages((prev) => {
+          if (open) {
+            return [...prev, messageId];
+          } else {
+            return prev.filter((id) => id !== messageId);
           }
-
-          suspendedData = message.parts.find(
-            (p) =>
-              p.type === 'data-tool-call-suspended' &&
-              p.id === _part?.toolCallId,
-          )?.data;
-
-          if (
-            !suspendedData &&
-            suspendedTool &&
-            suspendedTool.toolCallId === _part?.toolCallId
-          ) {
-            suspendedData = suspendedTool;
-          }
-
-          if (approvalData) {
-            approvalData.type = 'approval';
-            isSuspended = true;
-          }
-
-          if (suspendedData) {
-            // suspendedData.type = 'suspension';
-            isSuspended = true;
-          }
-        }
-
-        return (
-          <div className="flex flex-col">
-            <ToolMessage
-              key={`${message.id}-${i}`}
-              part={_part}
-              threadId={threadId}
-              isSuspended={isSuspended}
-              onResume={(value) => {
-                console.log(value);
-                handleResumeChat(
-                  suspendedData.runId,
-                  _part?.toolCallId,
-                  undefined,
-                  value,
-                );
-              }}
-              suspendedData={suspendedData}
-              onClick={() => {
-                console.log(_part);
-                onToolMessageClick?.(_part);
-              }}
-            ></ToolMessage>
-
-            {approvalData && (
-              <ToolMessageApproval
-                approval={approvalData}
-                onReject={() => {
-                  console.log('reject', approvalData);
-                  handleResumeChat(
-                    approvalData.runId,
-                    _part?.toolCallId,
-                    false,
-                  );
-                }}
-                onAccept={() => {
-                  console.log('accept', approvalData);
-                  handleResumeChat(approvalData.runId, _part?.toolCallId, true);
-                }}
-              />
-            )}
-          </div>
-        );
-      }
-      return null;
-    };
+        });
+      },
+      [],
+    );
 
     return (
       <div className={cn('flex flex-col h-full', className)}>
@@ -768,96 +884,25 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
                   {JSON.stringify(threadState?.messages, null, 2)}
                 </pre> */}
                 {threadState?.messages
-                  .filter((x) => x.metadata?.['systemReminder'] !== true)
+                  .filter((x) => x.metadata?.systemReminder !== true)
                   .map((message, index: number) => {
-                    let canExpandParts = [];
-                    let lastParts = [];
-                    if (
-                      message.role === 'user' ||
-                      index === (threadState?.messages.length ?? 0) - 1
-                    ) {
-                      lastParts = message.parts;
-                    } else {
-                      for (let i = message.parts.length - 1; i >= 0; i--) {
-                        if (
-                          message.parts[i].type === 'text' ||
-                          message.parts[i].type.startsWith('tool-')
-                        ) {
-                          lastParts = message.parts.slice(i);
-                          canExpandParts = message.parts.slice(0, i);
-                          break;
-                        }
-                      }
-                    }
-                    if (
-                      !(
-                        canExpandParts.find(
-                          (x) =>
-                            x.type === 'text' || x.type.startsWith('tool-'),
-                        ) ||
-                        lastParts.find(
-                          (x) =>
-                            x.type === 'text' || x.type.startsWith('tool-'),
-                        )
-                      )
-                    ) {
-                      return null;
-                    }
-
                     return (
-                      <Collapsible
+                      <ChatMessageItem
                         key={message.id}
-                        open={expandedMessages.includes(message.id)}
-                        onOpenChange={(open) =>
-                          handleExpandedMessages(message.id, open)
+                        message={message}
+                        isLastMessage={
+                          index === (threadState?.messages.length ?? 0) - 1
                         }
-                        className="flex flex-col gap-2 mt-2"
-                      >
-                        {message.role === 'assistant' &&
-                          canExpandParts.find(
-                            (x) =>
-                              x.type === 'text' || x.type.startsWith('tool-'),
-                          ) && (
-                            <div className="flex items-center gap-4">
-                              <CollapsibleTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  className="flex flex-row gap-2 items-center"
-                                >
-                                  <span className="text-sm font-semibold">{`${expandedMessages.includes(message.id) ? 'Hide' : 'Show'} more details ${canExpandParts.filter((x) => x.type === 'text' || x.type.startsWith('tool-')).length} msg.`}</span>
-                                  <ChevronsUpDown />
-                                </Button>
-                              </CollapsibleTrigger>
-                            </div>
-                          )}
-
-                        <CollapsibleContent className="flex flex-col gap-2">
-                          {(message.metadata as any)?.compressed === true && (
-                            <></>
-                          )}
-                          {!(message.metadata as any)?.compressed &&
-                            canExpandParts?.map((part, i) => {
-                              return renderPart(part, message, i);
-                            })}
-                        </CollapsibleContent>
-                        {lastParts.map((part, i) => {
-                          return renderPart(part, message, i);
-                        })}
-                        <ChatMessageAttachments
-                          className={`mb-2 ${message.role === 'user' ? 'ml-auto' : 'ml-0'}`}
-                        >
-                          {lastParts
-                            ?.filter((p) => p.type === 'file')
-                            .map((part, i) => {
-                              return (
-                                <ChatMessageAttachment
-                                  data={part}
-                                  key={`${message.id}-${i}`}
-                                />
-                              );
-                            })}
-                        </ChatMessageAttachments>
-                      </Collapsible>
+                        expanded={expandedMessages.includes(message.id)}
+                        theme={theme}
+                        threadId={threadId}
+                        interruptedLabel={t(
+                          'common.request_interrupted_by_user',
+                        )}
+                        onExpandedChange={handleExpandedMessages}
+                        onResumeChat={handleResumeChat}
+                        onToolMessageClick={onToolMessageClick}
+                      />
                     );
                   })}
               </div>
