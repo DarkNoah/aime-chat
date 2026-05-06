@@ -59,6 +59,7 @@ class UpdateManager extends BaseManager {
     // 发现新版本
     autoUpdater.on('update-available', (info: ElectronUpdateInfo) => {
       log.info('Update available:', info);
+      const previousStatus = this.updateState.status;
       const updateInfo: UpdateInfo = {
         version: info.version,
         releaseDate: info.releaseDate,
@@ -79,6 +80,12 @@ class UpdateManager extends BaseManager {
         updateInfo,
       };
       this.sendToRenderer(AppChannel.UpdateAvailable, this.updateState);
+
+      if (previousStatus !== 'downloading' && previousStatus !== 'downloaded') {
+        this.downloadUpdate().catch((error) => {
+          log.error('Auto download update failed:', error);
+        });
+      }
     });
 
     // 没有新版本
@@ -188,6 +195,7 @@ class UpdateManager extends BaseManager {
         status: 'error',
         error: error instanceof Error ? error.message : String(error),
       };
+      this.sendToRenderer(AppChannel.UpdateError, this.updateState);
       return this.updateState;
     }
   }

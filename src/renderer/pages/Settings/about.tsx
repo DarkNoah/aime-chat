@@ -6,9 +6,7 @@ import { useTranslation } from 'react-i18next';
 import logo from '@/../assets/icon.png';
 import { Button } from '@/renderer/components/ui/button';
 import { Badge } from '@/renderer/components/ui/badge';
-import { UpdateState } from '@/types/app';
-import { AppChannel } from '@/types/ipc-channel';
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback } from 'react';
 import { Progress } from '@/renderer/components/ui/progress';
 import {
   IconRefresh,
@@ -17,82 +15,17 @@ import {
   IconX,
   IconLoader2,
 } from '@tabler/icons-react';
+import { useUpdateState } from '@/renderer/hooks/use-update-state';
 
 export default function About() {
   const { t } = useTranslation();
-  const { appInfo, getAppInfo } = useGlobal();
+  const { appInfo } = useGlobal();
   const { setTitle } = useHeader();
   setTitle(t('settings.about'));
 
-  const [updateState, setUpdateState] = useState<UpdateState>({
-    status: 'idle',
-  });
-
-  // 监听更新事件
-  useEffect(() => {
-    const handleUpdateAvailable = (state: UpdateState) => {
-      setUpdateState(state);
-    };
-
-    const handleUpdateNotAvailable = (state: UpdateState) => {
-      setUpdateState(state);
-    };
-
-    const handleDownloadProgress = (state: UpdateState) => {
-      setUpdateState(state);
-    };
-
-    const handleUpdateDownloaded = (state: UpdateState) => {
-      setUpdateState(state);
-    };
-
-    const handleUpdateError = (state: UpdateState) => {
-      setUpdateState(state);
-    };
-
-    // 注册事件监听器
-    window.electron.ipcRenderer.on(
-      AppChannel.UpdateAvailable,
-      handleUpdateAvailable,
-    );
-    window.electron.ipcRenderer.on(
-      AppChannel.UpdateNotAvailable,
-      handleUpdateNotAvailable,
-    );
-    window.electron.ipcRenderer.on(
-      AppChannel.UpdateDownloadProgress,
-      handleDownloadProgress,
-    );
-    window.electron.ipcRenderer.on(
-      AppChannel.UpdateDownloaded,
-      handleUpdateDownloaded,
-    );
-    window.electron.ipcRenderer.on(AppChannel.UpdateError, handleUpdateError);
-
-    // 获取初始更新状态
-    window.electron.app.getUpdateStatus().then((state: UpdateState) => {
-      setUpdateState(state);
-    });
-
-    return () => {
-      window.electron.ipcRenderer.removeAllListeners(
-        AppChannel.UpdateAvailable,
-      );
-      window.electron.ipcRenderer.removeAllListeners(
-        AppChannel.UpdateNotAvailable,
-      );
-      window.electron.ipcRenderer.removeAllListeners(
-        AppChannel.UpdateDownloadProgress,
-      );
-      window.electron.ipcRenderer.removeAllListeners(
-        AppChannel.UpdateDownloaded,
-      );
-      window.electron.ipcRenderer.removeAllListeners(AppChannel.UpdateError);
-    };
-  }, []);
+  const updateState = useUpdateState();
 
   const handleCheckForUpdates = useCallback(async () => {
-    setUpdateState({ status: 'checking' });
     await window.electron.app.checkForUpdates();
   }, []);
 
@@ -144,7 +77,7 @@ export default function About() {
             <span className="text-xs text-muted-foreground">
               {formatBytes(updateState.progress?.transferred || 0)} /{' '}
               {formatBytes(updateState.progress?.total || 0)}
-              {' • '}
+              {' - '}
               {formatBytes(updateState.progress?.bytesPerSecond || 0)}/s
             </span>
           </div>

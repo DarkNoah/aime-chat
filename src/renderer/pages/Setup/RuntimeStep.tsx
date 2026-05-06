@@ -41,7 +41,6 @@ function RuntimeStep({ onNext, onBack, onSkip }: SetupStepProps) {
   const { t } = useTranslation();
   const [runtimeInfo, setRuntimeInfo] = useState<RuntimeInfo | null>(null);
   const [loading, setLoading] = useState(true);
-  const [installing, setInstalling] = useState(false);
   const [installingMap, setInstallingMap] = useState<
     Record<RuntimeKey, boolean>
   >({
@@ -107,7 +106,7 @@ function RuntimeStep({ onNext, onBack, onSkip }: SetupStepProps) {
   };
 
   const isUVInstalled = runtimeInfo?.uv?.status === 'installed';
-  const isBunInstalled = runtimeInfo?.bun?.status === 'installed';
+  const isNodeInstalled = runtimeInfo?.node?.status === 'installed';
 
   return (
     <Card className="border-0 shadow-2xl bg-card/80 backdrop-blur-sm">
@@ -154,14 +153,57 @@ function RuntimeStep({ onNext, onBack, onSkip }: SetupStepProps) {
                     {t('setup.runtime.installed')}
                   </Badge>
                 )}
-                {!isUVInstalled && installingMap['uv'] && (
+                {!isUVInstalled && installingMap.uv && (
                   <Button disabled size="sm">
                     <Spinner className="w-4 h-4 mr-2" />
                     {t('setup.runtime.installing')}
                   </Button>
                 )}
-                {!isUVInstalled && !installingMap['uv'] && (
+                {!isUVInstalled && !installingMap.uv && (
                   <Button size="sm" onClick={() => handleInstallRuntime('uv')}>
+                    <Download className="w-4 h-4 mr-2" />
+                    {t('setup.runtime.install')}
+                  </Button>
+                )}
+              </ItemActions>
+            </Item>
+
+            {/* Node Runtime */}
+            <Item variant="outline" className="rounded-lg">
+              <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-blue-500/10 text-blue-500 shrink-0">
+                <Terminal className="w-5 h-5" />
+              </div>
+              <ItemContent>
+                <ItemTitle className="flex items-center gap-2">
+                  Node.js
+                  {isNodeInstalled && runtimeInfo?.node?.version && (
+                    <Badge variant="secondary">
+                      {runtimeInfo.node.version}
+                    </Badge>
+                  )}
+                </ItemTitle>
+                <ItemDescription>
+                  {t('setup.runtime.node_desc')}
+                </ItemDescription>
+              </ItemContent>
+              <ItemActions>
+                {isNodeInstalled && (
+                  <Badge className="bg-green-500/10 text-green-500 hover:bg-green-500/20">
+                    <Check className="w-3 h-3 mr-1" />
+                    {t('setup.runtime.installed')}
+                  </Badge>
+                )}
+                {!isNodeInstalled && installingMap.node && (
+                  <Button disabled size="sm">
+                    <Spinner className="w-4 h-4 mr-2" />
+                    {t('setup.runtime.installing')}
+                  </Button>
+                )}
+                {!isNodeInstalled && !installingMap.node && (
+                  <Button
+                    size="sm"
+                    onClick={() => handleInstallRuntime('node')}
+                  >
                     <Download className="w-4 h-4 mr-2" />
                     {t('setup.runtime.install')}
                   </Button>
@@ -227,7 +269,10 @@ function RuntimeStep({ onNext, onBack, onSkip }: SetupStepProps) {
               <SkipForward className="w-4 h-4 ml-2" />
             </Button>
           )}
-          <Button onClick={onNext} disabled={installingMap['uv']}>
+          <Button
+            onClick={onNext}
+            disabled={installingMap.uv || installingMap.node}
+          >
             {t('common.next')}
             <ArrowRight className="w-4 h-4 ml-2" />
           </Button>

@@ -300,7 +300,7 @@
       "title": "Install Runtime",
       "description": "Install optional runtimes to enable advanced features like MCP servers and code execution.",
       "uv_desc": "Python package manager for running MCP servers and Python tools.",
-      "node_desc": "JavaScript runtime for running Bun-based MCP servers.",
+      "node_desc": "JavaScript runtime.",
       "installed": "Installed",
       "not_installed": "Not Installed",
       "install": "Install",
@@ -323,7 +323,8 @@
     "checkUpdate": "Check Update",
     "upToDate": "Up to Date",
     "downloading": "Downloading...",
-    "downloadNew": "Download New"
+    "downloadNew": "Download New",
+    "downloadedReady": "Update ready"
   },
   "providers": {
     "chat_provider": "Chat Provider",
