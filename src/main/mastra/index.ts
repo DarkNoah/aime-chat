@@ -567,7 +567,7 @@ class MastraManager extends BaseManager {
       fastModel,
     )) as LanguageModelV2;
 
-    const inputMessage = uiMessages[uiMessages.length - 1];
+    let inputMessage = uiMessages[uiMessages.length - 1];
 
     if (!model) {
       const _agentId = agentId ?? DefaultAgent.agentName;
@@ -689,6 +689,25 @@ class MastraManager extends BaseManager {
         historyMessages.messages,
       );
 
+      const inputParts = [];
+      for (const part of inputMessage.parts) {
+        if (part.type == 'file' && part.path) {
+          // const file = await fs.promises.readFile(part.path);
+          if (modelInfo?.modalities?.input?.includes('image') && part.mediaType?.startsWith('image/')) {
+            inputParts.push(part);
+          } else {
+            inputParts.push({
+              type: 'text',
+              text: `<file>${part.path}</file>`,
+            });
+          }
+
+        }
+        else {
+          inputParts.push(part);
+        }
+      }
+      inputMessage.parts = inputParts
       // historyMessages.messages;
       const input = [...historyMessagesAISdkV5, inputMessage];
 

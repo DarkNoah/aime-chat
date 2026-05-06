@@ -286,6 +286,7 @@ export function PromptInputProvider({
           url: URL.createObjectURL(file),
           mediaType: file.type,
           filename: file.name,
+          path: file.path,
         })),
       ),
     );
@@ -688,7 +689,7 @@ export const PromptInput = ({
             message: 'Too many files. Some were not added.',
           });
         }
-        const next: (FileUIPart & { id: string })[] = [];
+        const next: (FileUIPart & { id: string; path: string })[] = [];
         for (const file of capped) {
           next.push({
             id: nanoid(),
@@ -696,6 +697,7 @@ export const PromptInput = ({
             url: URL.createObjectURL(file),
             mediaType: file.type,
             filename: file.name,
+            path: file.path,
           });
         }
         return prev.concat(next);
@@ -816,10 +818,16 @@ export const PromptInput = ({
     [usingProvider, files],
   );
 
-  const handleChange: ChangeEventHandler<HTMLInputElement> = (event) => {
+  const handleChange: ChangeEventHandler<HTMLInputElement> = async (event) => {
     if (event.currentTarget.files) {
-      add(event.currentTarget.files, false);
+      for (const file of event.currentTarget.files) {
+        const path = window.electron.app.getPathForFile(file);
+        // const info = await window.electron.app.getFileInfo(path);
+        file.path = path;
+        add([file], false);
+      }
     }
+    inputRef.current.value = '';
   };
 
   const convertBlobUrlToDataUrl = async (url: string): Promise<string> => {
