@@ -98,10 +98,12 @@ import { generate } from 'fast-glob/out/managers/tasks';
 import {
   getActiveAssistantSoul,
   getAssistantSoulLibrary,
+  resetAssistantSoul as resetAssistantSoulToDefault,
   saveAssistantSoul,
 } from './assistant-soul';
 import {
   AssistantSoulLibrary,
+  normalizeAssistantSoul,
   SaveAssistantSoulInput,
 } from '@/types/assistant-soul';
 class AppManager extends BaseManager {
@@ -870,15 +872,57 @@ class AppManager extends BaseManager {
 
   @channel(AppChannel.GetAssistantSoulLibrary)
   public async getAssistantSoulLibrary(): Promise<AssistantSoulLibrary> {
-    return getAssistantSoulLibrary(true);
+    const settings = await this.settingsRepository.findOne({
+      where: { id: 'assistantSoul' },
+    });
+    return getAssistantSoulLibrary(true, settings?.value);
   }
 
   @channel(AppChannel.SaveAssistantSoul)
   public async saveAssistantSoul(
     input: SaveAssistantSoulInput,
   ): Promise<AssistantSoulLibrary> {
-    return saveAssistantSoul(input);
+    let library = await saveAssistantSoul(input);
+    const activeAssistant = library.assistants.find(
+      (assistant) => assistant.id === library.activeId,
+    );
+    const nextSettings = normalizeAssistantSoul({
+      enabled: library.enabled,
+      presetId: library.enabled ? library.activeId : undefined,
+      content: library.enabled ? activeAssistant?.content : '',
+    });
+
+    await this.settingsRepository.upsert(
+      new Settings('assistantSoul', nextSettings),
+      ['id'],
+    );
+    library = await getAssistantSoulLibrary(true, nextSettings);
+    return library;
   }
+
+  @channel(AppChannel.ResetAssistantSoul)
+  public async resetAssistantSoul(id: string): Promise<AssistantSoulLibrary> {
+    const settings = await this.settingsRepository.findOne({
+      where: { id: 'assistantSoul' },
+    });
+    let library = await resetAssistantSoulToDefault(id, settings?.value);
+    const activeAssistant = library.assistants.find(
+      (assistant) => assistant.id === library.activeId,
+    );
+    const nextSettings = normalizeAssistantSoul({
+      enabled: library.enabled,
+      presetId: library.enabled ? library.activeId : undefined,
+      content: library.enabled ? activeAssistant?.content : '',
+    });
+
+    await this.settingsRepository.upsert(
+      new Settings('assistantSoul', nextSettings),
+      ['id'],
+    );
+    library = await getAssistantSoulLibrary(true, nextSettings);
+    return library;
+  }
+
   @channel(AppChannel.InstasllRumtime)
   public async installRuntime(pkg: string) {
     appLog.write('info', '[runtime] install started', { pkg });

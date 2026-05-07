@@ -46,6 +46,7 @@ import {
 } from '../chat-message-attachment';
 import { splitContextAndFiles } from '@/utils/context-utils';
 import { FileInfo } from '@/types/common';
+import { Badge } from '../../ui/badge';
 
 export interface ChatToolGenerateImagePreviewRef {}
 
@@ -65,9 +66,16 @@ export const ChatToolGenerateImagePreview = React.forwardRef<
     const [outputImages, setOutputImages] = useState<FileInfo[]>([]);
     const [inputImages, setInputImages] = useState<FileInfo[]>([]);
 
-    const { prompt = '', images: imagePaths = [] } = part?.input as {
+    const {
+      prompt = '',
+      images: imagePaths = [],
+      remove_background = false,
+      save_path = '',
+    } = part?.input as {
       prompt?: string;
       images?: string[];
+      remove_background?: boolean;
+      save_path?: string;
     };
 
     useEffect(() => {
@@ -96,8 +104,24 @@ export const ChatToolGenerateImagePreview = React.forwardRef<
         className="w-fit bg-secondary p-2 gap-2 items-center"
       >
         <ItemContent>
-          <ItemTitle className="text-muted-foreground text-sm">
+          <ItemTitle className="text-muted-foreground text-sm flex flex-col items-start gap-2">
             {prompt}
+            {remove_background && (
+              <div className="flex max-w-full flex-wrap items-center gap-1.5">
+                {remove_background && (
+                  <Badge className="h-5 px-2 ">
+                    <IconCheck className="size-3" />
+                    Remove background
+                  </Badge>
+                )}
+              </div>
+            )}
+            {save_path && (
+              <Badge variant="outline" className="h-5 px-2 truncate">
+                <IconFile className="size-3" />
+                <span className="min-w-0 truncate">{save_path}</span>
+              </Badge>
+            )}
           </ItemTitle>
           <ItemDescription className=" ">
             <ChatMessageAttachments className="ml-0">

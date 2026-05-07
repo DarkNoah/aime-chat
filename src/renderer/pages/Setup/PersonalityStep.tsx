@@ -58,9 +58,7 @@ function PersonalityStep({ onNext, onBack, onSkip }: SetupStepProps) {
               avatarFilePath: activeAssistant.avatarFilePath,
               soulPath: activeAssistant.soulPath,
               soulFilePath: activeAssistant.soulFilePath,
-              voicePath: activeAssistant.voicePath,
-              voiceFilePath: activeAssistant.voiceFilePath,
-              voice: activeAssistant.voice,
+              voiceStyle: activeAssistant.voiceStyle,
               content: activeAssistant.content,
             }
           : appInfo?.assistantSoul,
@@ -92,7 +90,6 @@ function PersonalityStep({ onNext, onBack, onSkip }: SetupStepProps) {
             description: nextSoul.description,
             descriptionKey: nextSoul.descriptionKey,
             avatarSourcePath: nextSoul.avatarSourcePath,
-            voice: nextSoul.voice,
             content: nextSoul.content,
           }
         : undefined,

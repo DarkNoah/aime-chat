@@ -163,6 +163,8 @@ const electronHandler = {
       input: SaveAssistantSoulInput,
     ): Promise<AssistantSoulLibrary> =>
       ipcRenderer.invoke(AppChannel.SaveAssistantSoul, input),
+    resetAssistantSoul: (id: string): Promise<AssistantSoulLibrary> =>
+      ipcRenderer.invoke(AppChannel.ResetAssistantSoul, id),
     installRuntime: (pkg: string) =>
       ipcRenderer.invoke(AppChannel.InstasllRumtime, pkg),
     uninstallRuntime: (pkg: string) =>

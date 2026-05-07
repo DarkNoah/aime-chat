@@ -19,7 +19,7 @@ import { nanoid } from '@/utils/nanoid';
 import { ToolConfig } from '@/types/tool';
 import { providersManager } from '@/main/providers';
 import mime from 'mime';
-import { SpeechModelV2, TranscriptionModelV2 } from '@mastra/core/_types/@internal_ai-sdk-v5/dist';
+import type { SpeechModelV2, TranscriptionModelV2 } from '@ai-sdk/provider';
 import { appManager } from '@/main/app';
 
 // ---------------------------------------------------------------------------
@@ -1147,6 +1147,64 @@ export class MusicGeneration extends BaseTool {
 
 
 
+export interface ListVoicesParams extends BaseToolParams { }
+
+type VoiceItem = {
+  id: string;
+  audioPath: string;
+  text: string;
+};
+
+export class ListVoices extends BaseTool {
+  static readonly toolName = 'ListVoices';
+  id: string = 'ListVoices';
+  description = `List available cloned voices from the user data voices directory.
+
+Each voice is stored under userData/voices/<voice-id> and must contain both audio.wav and audio.txt. Incomplete voice folders are skipped.`;
+
+  inputSchema = z.object({});
+
+  execute = async (_inputData: z.infer<typeof this.inputSchema>) => {
+    const voicesPath = path.join(app.getPath('userData'), 'voices');
+    const voices: VoiceItem[] = [];
+
+    if (!fs.existsSync(voicesPath)) {
+      return { voicesPath, voices };
+    }
+
+    const entries = await fs.promises.readdir(voicesPath, {
+      withFileTypes: true,
+    });
+
+    for (const entry of entries
+      .filter((item) => item.isDirectory())
+      .sort((a, b) => a.name.localeCompare(b.name))) {
+      const voiceDir = path.join(voicesPath, entry.name);
+      const audioPath = path.join(voiceDir, 'audio.wav');
+      const textPath = path.join(voiceDir, 'audio.txt');
+
+      if (!fs.existsSync(audioPath) || !fs.existsSync(textPath)) {
+        continue;
+      }
+
+      try {
+        const text = await fs.promises.readFile(textPath, 'utf-8');
+        voices.push({
+          id: entry.name,
+          audioPath,
+          text,
+        });
+      } catch {
+        continue;
+      }
+    }
+
+    return { voicesPath, voices };
+  };
+}
+
+
+
 // ---------------------------------------------------------------------------
 // AudioToolkit
 // ---------------------------------------------------------------------------
@@ -1159,6 +1217,7 @@ export class AudioToolkit extends BaseToolkit {
 
   constructor(params?: AudioToolkitParams) {
     super([
+      new ListVoices(params?.[ListVoices.toolName] ?? {}),
       new SpeechToText(params?.[SpeechToText.toolName] ?? {}),
       new TextToSpeech(params?.[TextToSpeech.toolName] ?? {}),
       new MusicGeneration(params?.[MusicGeneration.toolName] ?? {})], params);
@@ -1170,4 +1229,3 @@ export class AudioToolkit extends BaseToolkit {
 }
 
 export default AudioToolkit;
-

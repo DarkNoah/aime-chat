@@ -34,6 +34,7 @@ export enum AppChannel {
   SaveSettings = 'app:saveSettings',
   GetAssistantSoulLibrary = 'app:getAssistantSoulLibrary',
   SaveAssistantSoul = 'app:saveAssistantSoul',
+  ResetAssistantSoul = 'app:resetAssistantSoul',
   InstasllRumtime = 'app:installRumtime',
   UninstallRumtime = 'app:uninstallRumtime',
   GetRuntimeInfo = 'app:getRuntimeInfo',

@@ -15,17 +15,7 @@ export type AssistantSoulDraft = AssistantSoulSettings & {
   avatarSourcePath?: string;
   soulPath?: string;
   soulFilePath?: string;
-  voicePath?: string;
-  voiceFilePath?: string;
-  voice?: AssistantVoicePreset;
-};
-
-export type AssistantVoicePreset = {
-  id: string;
-  label: string;
-  style: string;
-  speed?: number;
-  pitch?: number;
+  voiceStyle?: string;
 };
 
 export type AssistantSoulPreset = {
@@ -39,9 +29,7 @@ export type AssistantSoulPreset = {
   avatarFilePath?: string;
   soulPath?: string;
   soulFilePath?: string;
-  voicePath?: string;
-  voiceFilePath?: string;
-  voice?: AssistantVoicePreset;
+  voiceStyle?: string;
   content: string;
 };
 
