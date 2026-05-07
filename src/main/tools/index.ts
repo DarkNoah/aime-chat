@@ -1466,10 +1466,13 @@ class ToolsManager extends BaseManager {
         } else {
           const skilljson = await fs.promises.readFile(path.join(skillsPath, 'skills.json'), 'utf-8').catch(() => '[]');
           let skilljsonData = JSON.parse(skilljson);
-          skilljsonData = skilljsonData.filter((x: any) => x.id !== selectedSkill.id);
+          const skillId = `${ToolType.SKILL}:local:${selectedSkill.id}`
+          skilljsonData = skilljsonData.filter((x: any) => x.id !== skillId);
           // const source = path.join(repo_or_url, 'tree/main', selectedSkill.path, "SKILL.md")
           skilljsonData.push({
-            source, id: selectedSkill.id,
+            source,
+            name: selectedSkill.id,
+            id: skillId,
           });
           await fs.promises.writeFile(path.join(skillsPath, 'skills.json'), JSON.stringify(skilljsonData, null, 2));
         }
@@ -1521,6 +1524,17 @@ class ToolsManager extends BaseManager {
           });
         } else {
           await skillManager.parseSkill(file, path.join(skillsPath, skillName));
+
+
+          const skilljson = await fs.promises.readFile(path.join(skillsPath, 'skills.json'), 'utf-8').catch(() => '[]');
+          let skilljsonData = JSON.parse(skilljson);
+          const skillId = `${ToolType.SKILL}:local:${skillName}`
+          skilljsonData = skilljsonData.filter((x: any) => x.id !== skillId);
+          skilljsonData.push({
+            name: skillName,
+            id: skillId,
+          });
+          await fs.promises.writeFile(path.join(skillsPath, 'skills.json'), JSON.stringify(skilljsonData, null, 2));
         }
       }
       await appManager.toast('Skills install successfully', { type: 'success' });

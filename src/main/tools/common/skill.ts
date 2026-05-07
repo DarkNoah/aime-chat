@@ -454,7 +454,7 @@ ${content}`;
         absolute: true,
       });
 
-      if (files.length === 0) {
+      if (files.length !== 1) {
         throw new Error('SKILL.md not found in the zip file');
       }
 
@@ -471,7 +471,7 @@ ${content}`;
         await fs.promises.cp(sourcePath, savePath, { recursive: true });
       }
       return {
-        id: `${ToolType.SKILL}:${data.data.name}`,
+        id: `${ToolType.SKILL}:local:${path.basename(sourcePath)}`,
         name: data.data.name,
         description: data.data.description,
         // content: data.content,

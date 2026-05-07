@@ -53565,6 +53565,10 @@
         "attachment": false,
         "reasoning": true,
         "tool_call": true,
+        "interleaved": {
+          "field": "reasoning_content"
+        },
+        "structured_output": true,
         "temperature": true,
         "knowledge": "2025-01",
         "release_date": "2025-10-17",
@@ -53587,9 +53591,6 @@
         "limit": {
           "context": 200000,
           "output": 128000
-        },
-        "provider": {
-          "npm": "@ai-sdk/anthropic"
         }
       },
       "claude-opus-4-1": {
