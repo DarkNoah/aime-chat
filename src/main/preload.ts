@@ -143,6 +143,7 @@ const electronHandler = {
     ) => ipcRenderer.invoke(AppChannel.Toast, title, options),
     setTheme: (theme: string) => ipcRenderer.invoke(AppChannel.SetTheme, theme),
     openPath: (path: string) => ipcRenderer.invoke(AppChannel.OpenPath, path),
+    openLogFile: () => ipcRenderer.invoke(AppChannel.OpenLogFile),
     setProxy: (data: AppProxy) => ipcRenderer.invoke(AppChannel.SetProxy, data),
     setLanguage: (language: string) =>
       ipcRenderer.invoke(AppChannel.SetLanguage, language),

@@ -88,6 +88,7 @@ import { Translation } from '../tools/work/translation';
 import { nanoid } from '@/utils/nanoid';
 import { HookAgent, HookProxyAgent } from './hook-agent';
 import { acpManager } from './acp';
+import { appLog, getLogFilePath } from './logger';
 import { get } from 'core-js/core/dict';
 import { isBinaryFile } from 'isbinaryfile';
 import mime from 'mime';
@@ -327,6 +328,19 @@ class AppManager extends BaseManager {
     } else {
       this.toast('The path does not exist', { type: 'error' });
     }
+  }
+
+  @channel(AppChannel.OpenLogFile)
+  public async openLogFile(): Promise<void> {
+    const logFilePath = getLogFilePath();
+    if (fs.existsSync(logFilePath)) {
+      await shell.showItemInFolder(logFilePath);
+      return;
+    }
+
+    const logDirectory = path.dirname(logFilePath);
+    fs.mkdirSync(logDirectory, { recursive: true });
+    await shell.openPath(logDirectory);
   }
 
   @channel(AppChannel.GetFileInfo)
@@ -842,18 +856,50 @@ class AppManager extends BaseManager {
   }
   @channel(AppChannel.InstasllRumtime)
   public async installRuntime(pkg: string) {
-    if (pkg == 'uv') {
-      await installUVRuntime();
-    } else if (pkg == 'paddleOcr') {
-      await installPaddleOcrRuntime();
-    } else if (pkg == 'bun') {
-      await installBunRuntime();
-    } else if (pkg == 'node') {
-      await installNodeRuntime();
-    } else if (pkg == 'qwenAudio') {
-      await installQwenAudioRuntime();
-    } else if (pkg == 'agentBrowser') {
-      await installAgentBrowserRuntime();
+    appLog.write('info', '[runtime] install started', { pkg });
+    try {
+      if (pkg == 'uv') {
+        await installUVRuntime();
+      } else if (pkg == 'paddleOcr') {
+        await installPaddleOcrRuntime();
+      } else if (pkg == 'bun') {
+        await installBunRuntime();
+      } else if (pkg == 'node') {
+        await installNodeRuntime();
+      } else if (pkg == 'qwenAudio') {
+        await installQwenAudioRuntime();
+      } else if (pkg == 'agentBrowser') {
+        await installAgentBrowserRuntime();
+      } else {
+        throw new Error(`Unknown runtime package: ${pkg}`);
+      }
+
+      const runtimeInfo = await this.getRuntimeInfo(true);
+      const runtimeResult = runtimeInfo[pkg as keyof RuntimeInfo];
+      const runtimeLogData = {
+        pkg,
+        ...(runtimeResult ?? {
+          status: 'not_installed',
+          installed: false,
+          message: 'Runtime install finished without runtime info',
+        }),
+      };
+      appLog.write(
+        runtimeResult?.installed ? 'info' : 'error',
+        runtimeResult?.installed
+          ? '[runtime] install completed'
+          : '[runtime] install failed',
+        runtimeLogData,
+      );
+      return runtimeResult;
+    } catch (error) {
+      appLog.write('error', '[runtime] install failed', {
+        pkg,
+        status: 'not_installed',
+        installed: false,
+        message: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
     }
   }
 

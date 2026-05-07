@@ -59,6 +59,7 @@ import { RequestContext } from '@mastra/core/request-context';
 import { ChatRequestContext } from '@/types/chat';
 import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { Done } from './common/done';
+import { AimeChatCli } from './cli';
 interface BuiltInToolContext {
   tool: BaseTool;
   abortController: AbortController;
@@ -201,6 +202,7 @@ class ToolsManager extends BaseManager {
     await this.registerBuiltInTool(KnowledgeBaseToolkit);
     await this.registerBuiltInTool(CronsToolkit);
 
+    await this.registerBuiltInTool(AimeChatCli);
     await this.registerBuiltInTool(Done);
     if (!app.isPackaged) {
       await this.registerBuiltInTool(ExpenseManagementToolkit);
@@ -630,6 +632,7 @@ class ToolsManager extends BaseManager {
     const subtools = await this.toolsRepository.find({
       where: { isActive: isActive, toolkitId: Not(IsNull()) },
     });
+    const builtInTools = this.builtInTools.filter(x => !x.isHidden);
 
     return {
       [ToolType.MCP]: tools
@@ -674,7 +677,7 @@ class ToolsManager extends BaseManager {
             .map((subtool) => ({
               id: subtool.id,
               name: subtool.name,
-              description: subtool.description,
+              description: subtool.description ?? builtInTools.find(x => x.id === subtool.toolkitId)?.tools.find(x => x.id === subtool.name)?.description,
             })),
         })),
       [ToolType.SKILL]: tools

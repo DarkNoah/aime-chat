@@ -27,6 +27,7 @@ export enum AppChannel {
   Toast = 'app:toast',
   SetTheme = 'app:setTheme',
   OpenPath = 'app:openPath',
+  OpenLogFile = 'app:openLogFile',
   SetProxy = 'app:setProxy',
   SetLanguage = 'app:setlanguage',
   ShowOpenDialog = 'app:showOpenDialog',

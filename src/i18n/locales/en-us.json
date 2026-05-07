@@ -4,6 +4,14 @@
     "zh-cn": "中文"
   },
   "hello": "Hello2",
+  "appData": "App data",
+  "appPath": "Application path",
+  "dataPath": "Data path",
+  "logFile": "Log file",
+  "openLogFile": "Open log file",
+  "supportFiles": "Support files",
+  "supportFilesDescription": "Open the folders and logs needed for troubleshooting.",
+  "userData": "User data",
   "settings": {
     "about": "About",
     "language": "Language",

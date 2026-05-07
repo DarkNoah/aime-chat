@@ -391,6 +391,7 @@ function ChatPage() {
           onToolMessageClick={(_part) => {
             setShowPreview(true);
             setPreviewToolPart(_part);
+            console.log(_part);
             setPreviewData((data) => {
               return {
                 ...data,
@@ -404,7 +405,11 @@ function ChatPage() {
       {showPreview && (
         <>
           <ResizableHandle withHandle />
-          <ResizablePanel id="chat-preview" order={2} className={`h-full flex-1`}>
+          <ResizablePanel
+            id="chat-preview"
+            order={2}
+            className={`h-full flex-1`}
+          >
             <div className="p-2 w-full h-full">
               <ChatPreview
                 threadId={threadId}
