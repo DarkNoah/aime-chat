@@ -95,6 +95,15 @@ import mime from 'mime';
 import { DefaultAgent } from '../mastra/agents/default-agent';
 import { CodeAgent } from '../mastra/agents/code-agent';
 import { generate } from 'fast-glob/out/managers/tasks';
+import {
+  getActiveAssistantSoul,
+  getAssistantSoulLibrary,
+  saveAssistantSoul,
+} from './assistant-soul';
+import {
+  AssistantSoulLibrary,
+  SaveAssistantSoulInput,
+} from '@/types/assistant-soul';
 class AppManager extends BaseManager {
   repository: Repository<Providers>;
   settingsRepository: Repository<Settings>;
@@ -213,6 +222,9 @@ class AppManager extends BaseManager {
     };
     const defaultAgent = settings.find((x) => x.id === 'defaultAgent')?.value || process.env.DEFAULT_AGENT || CodeAgent.agentName;
     const defaultThink = settings.find((x) => x.id === 'defaultThink')?.value || process.env.THINK || 'medium';
+    const assistantSoul = await getActiveAssistantSoul(
+      settings.find((x) => x.id === 'assistantSoul')?.value,
+    );
     const preventSleepInterval = this.getPreventSleepInterval(
       settings.find((x) => x.id === 'preventSleepInterval')?.value,
     );
@@ -254,6 +266,7 @@ class AppManager extends BaseManager {
       },
       acp,
       preventSleepInterval,
+      assistantSoul,
     };
   }
 
@@ -853,6 +866,18 @@ class AppManager extends BaseManager {
     value: any;
   }): Promise<void> {
     await this.settingsRepository.upsert(settings, ['id']);
+  }
+
+  @channel(AppChannel.GetAssistantSoulLibrary)
+  public async getAssistantSoulLibrary(): Promise<AssistantSoulLibrary> {
+    return getAssistantSoulLibrary(true);
+  }
+
+  @channel(AppChannel.SaveAssistantSoul)
+  public async saveAssistantSoul(
+    input: SaveAssistantSoulInput,
+  ): Promise<AssistantSoulLibrary> {
+    return saveAssistantSoul(input);
   }
   @channel(AppChannel.InstasllRumtime)
   public async installRuntime(pkg: string) {

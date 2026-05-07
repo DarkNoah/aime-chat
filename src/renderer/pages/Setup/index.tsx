@@ -8,6 +8,7 @@ import { Check } from 'lucide-react';
 import WelcomeStep from './WelcomeStep';
 import ProviderStep from './ProviderStep';
 import ModelStep from './ModelStep';
+import PersonalityStep from './PersonalityStep';
 import RuntimeStep from './RuntimeStep';
 import CompleteStep from './CompleteStep';
 import { useTranslation } from 'react-i18next';
@@ -24,6 +25,7 @@ const steps = [
   { id: 'welcome', component: WelcomeStep },
   { id: 'provider', component: ProviderStep },
   { id: 'model', component: ModelStep },
+  { id: 'personality', component: PersonalityStep },
   { id: 'runtime', component: RuntimeStep },
   { id: 'complete', component: CompleteStep },
 ];
@@ -58,6 +60,8 @@ function SetupPage() {
   }, [handleNext]);
 
   const CurrentStepComponent = steps[currentStep].component;
+  const StepComponent =
+    CurrentStepComponent as React.ComponentType<SetupStepProps>;
 
   return (
     <div className="min-h-screen w-full flex flex-col bg-gradient-to-br from-background via-background to-muted/30">
@@ -110,7 +114,7 @@ function SetupPage() {
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.3, ease: 'easeInOut' }}
             >
-              <CurrentStepComponent
+              <StepComponent
                 onNext={handleNext}
                 onBack={currentStep > 0 ? handleBack : undefined}
                 onSkip={

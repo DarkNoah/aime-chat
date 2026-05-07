@@ -50,6 +50,10 @@ import {
 import { AddTaskOptions, BackgroundTask, TaskGroupConfig } from '@/types/task-queue';
 import { AvailableTool, ToolType } from '@/types/tool';
 import { UpdateState } from '@/types/app';
+import {
+  AssistantSoulLibrary,
+  SaveAssistantSoulInput,
+} from '@/types/assistant-soul';
 import { MastraDBMessage, StorageThreadType } from '@mastra/core/memory';
 import { UIMessage } from 'ai';
 import {
@@ -153,6 +157,12 @@ const electronHandler = {
       ipcRenderer.invoke(AppChannel.ShowOpenDialog, options),
     saveSettings: (settings: { id: string; value: any }) =>
       ipcRenderer.invoke(AppChannel.SaveSettings, settings),
+    getAssistantSoulLibrary: (): Promise<AssistantSoulLibrary> =>
+      ipcRenderer.invoke(AppChannel.GetAssistantSoulLibrary),
+    saveAssistantSoul: (
+      input: SaveAssistantSoulInput,
+    ): Promise<AssistantSoulLibrary> =>
+      ipcRenderer.invoke(AppChannel.SaveAssistantSoul, input),
     installRuntime: (pkg: string) =>
       ipcRenderer.invoke(AppChannel.InstasllRumtime, pkg),
     uninstallRuntime: (pkg: string) =>

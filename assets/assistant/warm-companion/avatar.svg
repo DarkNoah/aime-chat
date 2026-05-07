@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Warm companion assistant avatar">
+  <rect width="256" height="256" rx="48" fill="#2a2230"/>
+  <circle cx="128" cy="130" r="76" fill="#fff1df"/>
+  <path d="M66 120c4-43 28-70 62-70s58 27 62 70c-18-15-39-22-62-22s-44 7-62 22Z" fill="#d9825f"/>
+  <circle cx="96" cy="138" r="8" fill="#2a2230"/>
+  <circle cx="160" cy="138" r="8" fill="#2a2230"/>
+  <path d="M105 168c12 13 34 13 46 0" fill="none" stroke="#2a2230" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="76" cy="157" r="10" fill="#f2a99a" opacity=".65"/>
+  <circle cx="180" cy="157" r="10" fill="#f2a99a" opacity=".65"/>
+  <path d="M42 216c15-28 46-46 86-46s71 18 86 46H42Z" fill="#efb061"/>
+</svg>

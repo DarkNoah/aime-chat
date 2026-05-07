@@ -663,6 +663,10 @@ class MastraManager extends BaseManager {
       );
       requestContext.set('untilEndPrompt', untilEndPrompt);
       requestContext.set('usage', usage);
+      const assistantSoul = appInfo.assistantSoul;
+      if (assistantSoul?.enabled && assistantSoul.content?.trim()) {
+        requestContext.set('assistantSoul', assistantSoul.content.trim());
+      }
 
 
 

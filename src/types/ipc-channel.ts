@@ -32,6 +32,8 @@ export enum AppChannel {
   SetLanguage = 'app:setlanguage',
   ShowOpenDialog = 'app:showOpenDialog',
   SaveSettings = 'app:saveSettings',
+  GetAssistantSoulLibrary = 'app:getAssistantSoulLibrary',
+  SaveAssistantSoul = 'app:saveAssistantSoul',
   InstasllRumtime = 'app:installRumtime',
   UninstallRumtime = 'app:uninstallRumtime',
   GetRuntimeInfo = 'app:getRuntimeInfo',

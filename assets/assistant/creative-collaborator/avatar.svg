@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Creative collaborator assistant avatar">
+  <rect width="256" height="256" rx="48" fill="#241f38"/>
+  <circle cx="128" cy="130" r="76" fill="#fff0e8"/>
+  <path d="M65 128c7-45 31-72 63-72s56 27 63 72c-18-12-39-19-63-19s-45 7-63 19Z" fill="#6c5ce7"/>
+  <circle cx="96" cy="141" r="8" fill="#241f38"/>
+  <circle cx="160" cy="141" r="8" fill="#241f38"/>
+  <path d="M103 172c13 12 37 12 50 0" fill="none" stroke="#241f38" stroke-width="8" stroke-linecap="round"/>
+  <path d="M47 216c13-29 45-48 81-48s68 19 81 48H47Z" fill="#ff9f43"/>
+  <path d="M186 65l7 15 16 2-12 11 3 16-14-8-14 8 3-16-12-11 16-2 7-15Z" fill="#ffd166"/>
+  <path d="M63 70l5 10 12 2-9 8 2 12-10-6-10 6 2-12-9-8 12-2 5-10Z" fill="#4dd0e1"/>
+</svg>

@@ -12,6 +12,7 @@ import { appManager } from '../../app';
 import { HttpsProxyAgent } from 'https-proxy-agent';
 import path from 'path';
 import { app, dialog } from 'electron';
+import ffmpeg from 'fluent-ffmpeg';
 import { nanoid } from '@/utils/nanoid';
 import { Channels } from '@/entities/channels';
 import { Repository } from 'typeorm';
@@ -30,7 +31,7 @@ import { Project } from '@/types/project';
 import { LanguageModelUsage } from 'ai';
 import { models } from '@elevenlabs/elevenlabs-js/api';
 import { providersManager } from '@/main/providers';
-import { createHash } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 import increment from 'add-filename-increment'
 import { AskUserQuestion, QuestionItemSchema } from '@/main/tools/common/ask-user-question';
 import z from 'zod';
@@ -124,6 +125,50 @@ const TELEGRAM_TYPING_INTERVAL_MS = 4000;
 const TELEGRAM_TOOLS_PAGE_SIZE = 8;
 const TELEGRAM_PROJECTS_PAGE_SIZE = 8;
 const TELEGRAM_BUTTON_TEXT_LIMIT = 18;
+const fileTagRegex = /<file>([\s\S]*?)<\/file>/g;
+
+function extractFilePathsFromToolOutput(output: unknown): string[] {
+  const text =
+    typeof output === 'string'
+      ? output
+      : typeof (output as { text?: unknown })?.text === 'string'
+        ? String((output as { text: string }).text)
+        : typeof (output as { output?: unknown })?.output === 'string'
+          ? String((output as { output: string }).output)
+          : '';
+
+  if (!text) return [];
+
+  const files: string[] = [];
+  let match: RegExpExecArray | null;
+  while ((match = fileTagRegex.exec(text)) !== null) {
+    const filePath = match[1]?.trim();
+    if (filePath) {
+      files.push(filePath);
+    }
+  }
+  fileTagRegex.lastIndex = 0;
+  return files;
+}
+
+function convertToTelegramVoice(inputPath: string): Promise<string> {
+  const outputPath = path.join(
+    app.getPath('temp'),
+    `aime-chat-telegram-voice-${randomUUID()}.ogg`,
+  );
+
+  return new Promise((resolve, reject) => {
+    ffmpeg(inputPath)
+      .noVideo()
+      .audioChannels(1)
+      .audioFrequency(48000)
+      .audioCodec('libopus')
+      .format('ogg')
+      .on('error', reject)
+      .on('end', () => resolve(outputPath))
+      .save(outputPath);
+  });
+}
 
 function normalizeCommand(command: string): string {
   return command.replace(/^\/+/, '').trim().toLowerCase();
@@ -826,21 +871,74 @@ export class TelegramChannelRuntime {
           await this.safeEditMessageText(ctx, toolMsg.messageId, `${icon} ${toolMsg.toolName}: ${toolMsg.description ?? ''}`);
           if (status === "completed" && toolMsg.toolName == Message.toolName) {
             if (toolMsg.input.event == "files_preview") {
-              const files = JSON.parse(toolMsg.input.data).files;
-              for (const file of files) {
-                const info = await appManager.getFileInfo(file);
-                if (info && info.isExist) {
-                  if (info.isFile) {
-                    await ctx.api.sendDocument(ctx.chat.id, new InputFile(info.path))
-                  }
-                }
-              }
+              await this.sendTelegramFilesPreview(ctx, toolMsg.input);
+            } else if (toolMsg.input.event == "speech") {
+              await this.sendTelegramSpeech(ctx, toolCallUpdate.output);
             }
           }
           toolsMsg = toolsMsg.filter(x => x.toolCallId !== toolCallUpdate.toolCallId);
         }
       },
     };
+  }
+
+  private async sendTelegramFilesPreview(ctx: Context, toolInput: any): Promise<void> {
+    let files: unknown[] = [];
+    try {
+      files = JSON.parse(toolInput.data).files;
+    } catch {
+      return;
+    }
+
+    if (!Array.isArray(files)) {
+      return;
+    }
+
+    for (const file of files) {
+      if (typeof file !== 'string') continue;
+
+      const info = await appManager.getFileInfo(file);
+      if (info?.isExist && info.isFile) {
+        await ctx.api.sendDocument(ctx.chat.id, new InputFile(info.path));
+      }
+    }
+  }
+
+  private async sendTelegramSpeech(ctx: Context, output: unknown): Promise<void> {
+    const files = extractFilePathsFromToolOutput(output);
+    if (files.length === 0) {
+      this.callbacks.onActivity('[telegram] speech tool completed without audio file output');
+      return;
+    }
+
+    for (const file of files) {
+      const info = await appManager.getFileInfo(file);
+      if (!info?.isExist || !info.isFile) {
+        this.callbacks.onActivity(`[telegram] skipping missing speech audio: ${file}`);
+        continue;
+      }
+
+      let voicePath: string | undefined;
+      try {
+        voicePath = await convertToTelegramVoice(info.path);
+        await ctx.api.sendVoice(ctx.chat.id, new InputFile(voicePath));
+        this.callbacks.onActivity(`[telegram] sent speech voice: ${path.basename(info.path)}`);
+      } catch (error) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        this.callbacks.onActivity(`[telegram] speech voice send failed, falling back to audio: ${err.message}`);
+        try {
+          await ctx.api.sendAudio(ctx.chat.id, new InputFile(info.path));
+        } catch (audioError) {
+          const audioErr = audioError instanceof Error ? audioError : new Error(String(audioError));
+          this.callbacks.onActivity(`[telegram] speech audio fallback failed, sending document: ${audioErr.message}`);
+          await ctx.api.sendDocument(ctx.chat.id, new InputFile(info.path));
+        }
+      } finally {
+        if (voicePath && fs.existsSync(voicePath)) {
+          await fs.promises.rm(voicePath).catch(() => { });
+        }
+      }
+    }
   }
 
   private async enqueueTelegramWrite(threadId: string, operation: () => Promise<void>): Promise<void> {

@@ -31,6 +31,7 @@ import Instances from './instances';
 import Usage from './usage';
 import Channels from './channels';
 import Secrets from './secrets';
+import Personality from './personality';
 import {
   IconAdjustments,
   IconChartBar,
@@ -42,6 +43,7 @@ import {
   IconPlayerPlay,
   IconServer,
   IconSparkles,
+  IconMoodSmile,
   IconWand,
 } from '@tabler/icons-react';
 
@@ -79,6 +81,11 @@ function Settings() {
       key: 'default-model',
       label: t('settings.default_model'),
       icon: IconSparkles,
+    },
+    {
+      key: 'personality',
+      label: t('settings.personality'),
+      icon: IconMoodSmile,
     },
     {
       key: 'instances',
@@ -158,6 +165,7 @@ function Settings() {
           <Route path="runtime" element={<Runtime />} />
           <Route path="local-model" element={<LocalModel />} />
           <Route path="default-model" element={<DefaultModel />} />
+          <Route path="personality" element={<Personality />} />
           <Route path="instances" element={<Instances />} />
           <Route path="channels" element={<Channels />} />
           <Route path="secrets" element={<Secrets />} />
