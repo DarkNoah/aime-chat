@@ -39,6 +39,9 @@ export class Crons {
   @Column({ default: true })
   isActive!: boolean;
 
+  @Column({ default: false })
+  reuseThread!: boolean;
+
   @Column({ nullable: true })
   description?: string;
 

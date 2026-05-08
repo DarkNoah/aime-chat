@@ -12,6 +12,11 @@ import {
 import { ChatInput } from '@/types/chat';
 import mastraManager from '../mastra';
 import { nanoid } from '@/utils/nanoid';
+import {
+  buildCronThreadCreateOptions,
+  prepareCronRunStart,
+  resolveCronRunThread,
+} from './cron-thread';
 
 const RUN_HISTORY_LIMIT = 50;
 
@@ -120,27 +125,19 @@ class CronsManager extends BaseManager {
       const previousRunAt = cronEntity.lastRunAt
         ? new Date(cronEntity.lastRunAt)
         : undefined;
-      cronEntity.lastRunAt = startedAt;
-      cronEntity.lastRunEndAt = undefined;
-      cronEntity.lastRunResult = undefined;
-      cronEntity.lastRunChatId = undefined;
-      cronEntity.runHistory = this.appendRunHistory(cronEntity.runHistory, record);
+      prepareCronRunStart(
+        cronEntity,
+        startedAt,
+        this.appendRunHistory(cronEntity.runHistory, record),
+      );
       await this.repository.save(cronEntity);
 
       const { model, agentId, tools, subAgents } = cronEntity.submitOptions || {};
-      const thread = await mastraManager.createThread({
-        model,
-        agentId,
-        tools,
-        subAgents,
-        resourceId: cronEntity.projectId ? `project:${cronEntity.projectId}` : undefined,
-        metadata: {
-          cron: true,
-          cronId: cronEntity.id,
-          cronName: cronEntity.name,
-          trigger,
-        },
-      });
+      const thread = await resolveCronRunThread(
+        mastraManager,
+        cronEntity,
+        buildCronThreadCreateOptions(cronEntity),
+      );
       record.chatId = thread.id;
       cronEntity.lastRunChatId = thread.id;
       cronEntity.runHistory = this.replaceLastRun(cronEntity.runHistory, record);
@@ -158,7 +155,7 @@ class CronsManager extends BaseManager {
         `ingest_since: ${sinceIso}`,
         '',
         'Notes:',
-        '- This conversation was started by a scheduled cron job, not by the user. Do not ingest this thread itself or any other thread whose metadata.cron is true.',
+        '- This conversation was started by a scheduled cron job, not by the user. Do not ingest this thread itself or any other thread whose metadata.cronId is present.',
         '- When using ChatHistoryList / ChatHistorySearch, pass since=ingest_since so you only process new activity since the previous run.',
         '- ChatHistoryList already filters out cron-created threads by default; do not set includeCron unless explicitly asked.',
         '</cron-context>',
@@ -266,11 +263,13 @@ class CronsManager extends BaseManager {
     description?: string;
     submitOptions?: any;
     isActive?: boolean;
+    reuseThread?: boolean;
   }): Promise<Crons> {
     const entity = new Crons(data.name, data.prompt, data.cron, data.projectId);
     if (data.description !== undefined) entity.description = data.description;
     if (data.submitOptions !== undefined) entity.submitOptions = data.submitOptions;
     if (data.isActive !== undefined) entity.isActive = data.isActive;
+    if (data.reuseThread !== undefined) entity.reuseThread = data.reuseThread;
     const saved = await this.repository.save(entity);
     if (saved.isActive) {
       this.startJob(saved);
@@ -289,6 +288,7 @@ class CronsManager extends BaseManager {
       description?: string;
       submitOptions?: any;
       isActive?: boolean;
+      reuseThread?: boolean;
     },
   ): Promise<Crons> {
     const entity = await this.repository.findOneByOrFail({ id });
@@ -299,6 +299,7 @@ class CronsManager extends BaseManager {
     if (data.description !== undefined) entity.description = data.description;
     if (data.submitOptions !== undefined) entity.submitOptions = data.submitOptions;
     if (data.isActive !== undefined) entity.isActive = data.isActive;
+    if (data.reuseThread !== undefined) entity.reuseThread = data.reuseThread;
     const saved = await this.repository.save(entity);
     this.stopJob(id);
     if (saved.isActive) {

@@ -10,6 +10,7 @@ import {
   IconBolt,
   IconBook,
   IconBrandApple,
+  IconBrandDebian,
   IconClock,
   IconBrandGithub,
   IconBrandWindows,
@@ -234,6 +235,14 @@ function HomepageHeader() {
               >
                 <IconBrandWindows size={20} />
                 <span>Windows</span>
+              </Link>
+              <Link
+                className={styles.platformLink}
+                href="https://github.com/DarkNoah/aime-chat/releases/latest/download/aime-chat-linux.deb"
+                title="Linux (.deb)"
+              >
+                <IconBrandDebian size={20} />
+                <span>Linux deb</span>
               </Link>
             </div>
           </div>

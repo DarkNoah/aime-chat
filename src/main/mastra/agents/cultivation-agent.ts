@@ -40,7 +40,7 @@ Memory tools (operate on the wiki):
 - MemoryDelete { name } — remove an obsolete topic page (cannot delete index.md or log.md).
 
 Chat history tools (read raw user activity from past conversations):
-- ChatHistoryList { since?, until?, limit?, includeCron? } — list recent threads. Always call this first to discover what to ingest. By default, threads created by cron jobs (metadata.cron === true) are excluded so you never ingest your own previous runs. Do not set includeCron unless explicitly told to.
+- ChatHistoryList { since?, until?, limit?, includeCron? } — list recent threads. Always call this first to discover what to ingest. By default, threads created by cron jobs (metadata.cronId is present) are excluded so you never ingest your own previous runs. Do not set includeCron unless explicitly told to.
 - ChatHistoryRead { threadId, limit?, since?, includeTools?, includeCron? } — read messages of a specific thread. Pass since=<ingest_since> for delta ingest so you only see messages newer than the previous run. Cron threads are refused by default.
 - ChatHistorySearch { query, since?, limit? } — keyword search across recent (non-cron) threads to find prior mentions before deciding whether to update an existing wiki page.
 

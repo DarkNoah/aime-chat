@@ -84,7 +84,7 @@ Returns normal threads separately from project threads. Threads belonging to the
       .boolean()
       .optional()
       .default(false)
-      .describe('Include threads created by cron jobs (metadata.cron === true). Default false.'),
+      .describe('Include threads created by cron jobs (metadata.cronId is present). Default false.'),
   });
 
   constructor(config?: BaseToolParams) {
@@ -207,7 +207,7 @@ export class ChatHistoryRead extends BaseTool {
       .boolean()
       .optional()
       .default(false)
-      .describe('Allow reading cron-created threads (metadata.cron === true). Default false.'),
+      .describe('Allow reading cron-created threads (metadata.cronId is present). Default false.'),
   });
 
   constructor(config?: BaseToolParams) {

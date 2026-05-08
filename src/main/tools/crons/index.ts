@@ -28,8 +28,9 @@ export class CronsList extends BaseTool {
       cron: x.cron,
       prompt: x.prompt,
       isActive: x.isActive,
+      reuseThread: x.reuseThread,
       description: x.description,
-      agentId: x.agentId,
+      agentId: x.submitOptions?.agentId,
       lastRunAt: x.lastRunAt,
     }));
   };
@@ -59,6 +60,11 @@ export class CronsCreate extends BaseTool {
       .describe('Whether the cron job should be active immediately.')
       .optional()
       .default(true),
+    reuseThread: z
+      .boolean()
+      .describe('Reuse the last chat thread for future runs when it still exists.')
+      .optional()
+      .default(false),
   });
 
   constructor(params?: BaseToolParams) {
@@ -85,12 +91,14 @@ export class CronsCreate extends BaseTool {
         subAgents: subAgents,
       },
       isActive: inputData.isActive ?? true,
+      reuseThread: inputData.reuseThread ?? false,
     });
     return {
       id: result.id,
       name: result.name,
       cron: result.cron,
       isActive: result.isActive,
+      reuseThread: result.reuseThread,
     };
   };
 }
@@ -111,6 +119,10 @@ export class CronsUpdate extends BaseTool {
       .boolean()
       .describe('Enable or disable the cron job.')
       .optional(),
+    reuseThread: z
+      .boolean()
+      .describe('Reuse the last chat thread for future runs when it still exists.')
+      .optional(),
   });
 
   constructor(params?: BaseToolParams) {
@@ -121,19 +133,23 @@ export class CronsUpdate extends BaseTool {
     inputData: z.infer<typeof this.inputSchema>,
     _options?: ToolExecutionContext<ZodSchema, any>,
   ) => {
-    const { id, ...data } = inputData;
-    const appInfo = await appManager.getInfo();
+    const { id, agentId, ...data } = inputData;
     const result = await cronsManager.update(id, {
       ...data,
-      submitOptions: {
-        agentId: data.agentId ?? appInfo.defaultAgent,
-      }
-    },);
+      ...(agentId !== undefined
+        ? {
+            submitOptions: {
+              agentId,
+            },
+          }
+        : {}),
+    });
     return {
       id: result.id,
       name: result.name,
       cron: result.cron,
       isActive: result.isActive,
+      reuseThread: result.reuseThread,
     };
   };
 }

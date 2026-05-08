@@ -375,6 +375,7 @@ class MastraManager extends BaseManager {
     model?: string;
     resourceId?: string;
     agentId?: string;
+    cronId?: string;
     metadata?: Record<string, any>;
   }): Promise<StorageThreadType> {
     const storage = this.mastra.getStorage();
@@ -944,7 +945,7 @@ class MastraManager extends BaseManager {
 
         }
 
-        const bashSessions = bashManager.getBashSessions(chatId);
+        const bashSessions = await this.getVisibleBashSessions(chatId, resourceId);
         if (bashSessions.length > 0) {
           const systemReminder = [];
           for (const bashSession of bashSessions) {
@@ -1383,6 +1384,33 @@ class MastraManager extends BaseManager {
   }
 
 
+  private async getVisibleBashSessions(threadId: string, resourceId?: string) {
+    if (!resourceId?.startsWith('project:')) {
+      return bashManager.getBashSessions(threadId);
+    }
+
+    const sessionsById = new Map(
+      bashManager
+        .getBashSessions({ resourceId })
+        .map((session) => [session.bashId, session]),
+    );
+
+    const storage = this.mastra.getStorage();
+    const memoryStore = await storage.getStore('memory');
+    const projectThreads = await memoryStore
+      .listThreads({
+        perPage: false,
+        filter: { resourceId },
+      })
+      .catch(() => ({ threads: [] }));
+    const threadIds = (projectThreads.threads || []).map((thread) => thread.id);
+    for (const session of bashManager.getBashSessions(threadIds)) {
+      sessionsById.set(session.bashId, session);
+    }
+
+    return Array.from(sessionsById.values());
+  }
+
   public async getInjectMessages(requestContext: RequestContext<ChatRequestContext>, hasCompressed: boolean = false) {
 
     const injectedMessages = [];
@@ -1612,6 +1640,13 @@ ${memoryDigest}
     console.info('chatAbort', chatId);
     this.threadChats.find((chat) => chat.id === chatId)?.controller?.abort();
   }
+
+  @channel(MastraChannel.KillBashSession)
+  public async killBashSession(bashId: string): Promise<boolean> {
+    const session = await bashManager.remove(bashId);
+    return Boolean(session);
+  }
+
   @channel(MastraChannel.SaveMessages)
   public async saveMessages(
     chatId: string,

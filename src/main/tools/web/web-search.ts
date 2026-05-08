@@ -104,7 +104,7 @@ Returns:
             config?.providerId,
           )) as OpenAIProvider;
           const response = await openaiProvider.openaiClient.responses.create({
-            model: 'gpt-5.4',
+            model: 'gpt-5.5',
             tools: [{ type: 'web_search' }],
             input: query,
             include: ['web_search_call.action.sources'],

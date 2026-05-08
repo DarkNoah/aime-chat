@@ -6,6 +6,7 @@ import {
   Loader2Icon,
   TerminalIcon,
   Trash2Icon,
+  XIcon,
   XCircleIcon,
 } from 'lucide-react';
 import {
@@ -192,6 +193,7 @@ export function BashOutputPanel() {
     selectedSessionId,
     setPanelOpen,
     selectSession,
+    stopSession,
     clearCompleted,
   } = useBashSessionStore();
 
@@ -278,6 +280,17 @@ export function BashOutputPanel() {
                     <Badge variant="outline" className="h-5 px-1.5 text-[10px]">
                       {selectedSession.processSignal}
                     </Badge>
+                  )}
+                  {!selectedSession.isExited && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="ml-auto h-7 gap-1 text-xs text-destructive hover:text-destructive"
+                      onClick={() => stopSession(selectedSession.bashId)}
+                    >
+                      <XIcon className="size-3" />
+                      {t('bash_status.stop_session')}
+                    </Button>
                   )}
                 </div>
                 <TerminalOutput session={selectedSession} t={t} />
