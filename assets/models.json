@@ -5682,7 +5682,7 @@
         "id": "mimo-v2.5-pro",
         "name": "MiMo-V2.5-Pro",
         "family": "mimo",
-        "attachment": true,
+        "attachment": false,
         "reasoning": true,
         "tool_call": true,
         "interleaved": {
@@ -5798,7 +5798,7 @@
         "id": "mimo-v2-pro",
         "name": "MiMo-V2-Pro",
         "family": "mimo",
-        "attachment": true,
+        "attachment": false,
         "reasoning": true,
         "tool_call": true,
         "interleaved": {
@@ -64836,6 +64836,36 @@
           "output": 8192
         }
       },
+      "tencent/hy3-preview": {
+        "id": "tencent/hy3-preview",
+        "name": "Hy3 preview",
+        "family": "Hy",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "temperature": true,
+        "release_date": "2026-04-20",
+        "last_updated": "2026-04-20",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 0.066,
+          "output": 0.26,
+          "cache_read": 0.029,
+          "cache_write": 0.029
+        },
+        "limit": {
+          "context": 256000,
+          "output": 64000
+        }
+      },
       "poolside/laguna-m.1:free": {
         "id": "poolside/laguna-m.1:free",
         "name": "Laguna M.1",
@@ -69169,7 +69199,7 @@
         "id": "xiaomi/mimo-v2.5-pro",
         "name": "Xiaomi: MiMo-V2.5-Pro",
         "family": "mimo",
-        "attachment": true,
+        "attachment": false,
         "reasoning": true,
         "tool_call": true,
         "interleaved": {
@@ -69285,7 +69315,7 @@
         "id": "xiaomi/mimo-v2-pro",
         "name": "Xiaomi: MiMo-V2-Pro",
         "family": "mimo",
-        "attachment": true,
+        "attachment": false,
         "reasoning": true,
         "tool_call": true,
         "interleaved": {
@@ -72294,7 +72324,7 @@
         "id": "xiaomi/mimo-v2.5-pro",
         "name": "MiMo-V2.5-Pro",
         "family": "mimo",
-        "attachment": true,
+        "attachment": false,
         "reasoning": true,
         "tool_call": true,
         "interleaved": {
@@ -72407,7 +72437,7 @@
         "id": "xiaomi/mimo-v2-pro",
         "name": "MiMo V2 Pro",
         "family": "mimo",
-        "attachment": true,
+        "attachment": false,
         "reasoning": true,
         "tool_call": true,
         "temperature": true,
@@ -105929,6 +105959,38 @@
           "output": 0
         }
       },
+      "novita/kimi-k2.6": {
+        "id": "novita/kimi-k2.6",
+        "name": "Kimi-K2.6",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "temperature": true,
+        "knowledge": "2025-04",
+        "release_date": "2026-04-20",
+        "last_updated": "2026-05-02",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "video"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 0.96,
+          "output": 4.04,
+          "cache_read": 0.16
+        },
+        "limit": {
+          "context": 262144,
+          "input": 262144,
+          "output": 262144
+        }
+      },
       "novita/glm-4.6v": {
         "id": "novita/glm-4.6v",
         "name": "glm-4.6v",
@@ -106078,6 +106140,60 @@
           "context": 262144,
           "input": 245760,
           "output": 16384
+        }
+      },
+      "empiriolabs/deepseek-v4-pro-el": {
+        "id": "empiriolabs/deepseek-v4-pro-el",
+        "name": "DeepSeek-V4-Pro-EL",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "release_date": "2026-04-24",
+        "last_updated": "2026-05-02",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 1.67,
+          "output": 3.33
+        },
+        "limit": {
+          "context": 1000000,
+          "input": 1000000,
+          "output": 384000
+        }
+      },
+      "empiriolabs/deepseek-v4-flash-el": {
+        "id": "empiriolabs/deepseek-v4-flash-el",
+        "name": "DeepSeek-V4-Flash-EL",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "release_date": "2026-04-24",
+        "last_updated": "2026-05-02",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "cost": {
+          "input": 0.14,
+          "output": 0.28
+        },
+        "limit": {
+          "context": 1000000,
+          "input": 1000000,
+          "output": 384000
         }
       },
       "elevenlabs/elevenlabs-v2.5-turbo": {
@@ -121472,7 +121588,7 @@
         "id": "xiaomi/mimo-v2.5-pro",
         "name": "Xiaomi: MiMo V2.5 Pro",
         "family": "mimo",
-        "attachment": true,
+        "attachment": false,
         "reasoning": true,
         "tool_call": true,
         "interleaved": {
@@ -121585,7 +121701,7 @@
         "id": "xiaomi/mimo-v2-pro",
         "name": "Xiaomi: MiMo-V2-Pro",
         "family": "mimo",
-        "attachment": true,
+        "attachment": false,
         "reasoning": true,
         "tool_call": true,
         "temperature": true,
@@ -132698,7 +132814,7 @@
         "id": "mimo-v2-pro",
         "name": "MiMo-V2-Pro",
         "family": "mimo",
-        "attachment": true,
+        "attachment": false,
         "reasoning": true,
         "tool_call": true,
         "interleaved": {
@@ -132814,7 +132930,7 @@
         "id": "mimo-v2.5-pro",
         "name": "MiMo-V2.5-Pro",
         "family": "mimo",
-        "attachment": true,
+        "attachment": false,
         "reasoning": true,
         "tool_call": true,
         "interleaved": {
@@ -132924,7 +133040,7 @@
         "id": "mimo-v2-pro",
         "name": "MiMo-V2-Pro",
         "family": "mimo",
-        "attachment": true,
+        "attachment": false,
         "reasoning": true,
         "tool_call": true,
         "interleaved": {
@@ -133040,7 +133156,7 @@
         "id": "mimo-v2.5-pro",
         "name": "MiMo-V2.5-Pro",
         "family": "mimo",
-        "attachment": true,
+        "attachment": false,
         "reasoning": true,
         "tool_call": true,
         "interleaved": {
@@ -133117,7 +133233,7 @@
         "id": "mimo-v2.5-pro",
         "name": "MiMo-V2.5-Pro",
         "family": "mimo",
-        "attachment": true,
+        "attachment": false,
         "reasoning": true,
         "tool_call": true,
         "interleaved": {
@@ -133233,7 +133349,7 @@
         "id": "mimo-v2-pro",
         "name": "MiMo-V2-Pro",
         "family": "mimo",
-        "attachment": true,
+        "attachment": false,
         "reasoning": true,
         "tool_call": true,
         "interleaved": {

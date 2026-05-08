@@ -475,6 +475,7 @@ const electronHandler = {
       description?: string;
       agentId?: string;
       isActive?: boolean;
+      reuseThread?: boolean;
     }): Promise<any> => ipcRenderer.invoke(CronsChannel.Create, data),
     update: (id: string, data: {
       name?: string;
@@ -484,6 +485,7 @@ const electronHandler = {
       description?: string;
       agentId?: string;
       isActive?: boolean;
+      reuseThread?: boolean;
     }): Promise<any> => ipcRenderer.invoke(CronsChannel.Update, id, data),
     delete: (id: string): Promise<void> => ipcRenderer.invoke(CronsChannel.Delete, id),
     runNow: (id: string): Promise<{ started: boolean; alreadyRunning: boolean }> =>

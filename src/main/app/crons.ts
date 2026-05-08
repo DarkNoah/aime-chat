@@ -12,6 +12,7 @@ import {
 import { ChatInput } from '@/types/chat';
 import mastraManager from '../mastra';
 import { nanoid } from '@/utils/nanoid';
+import { resolveCronRunThread } from './cron-thread';
 
 const RUN_HISTORY_LIMIT = 50;
 
@@ -128,7 +129,7 @@ class CronsManager extends BaseManager {
       await this.repository.save(cronEntity);
 
       const { model, agentId, tools, subAgents } = cronEntity.submitOptions || {};
-      const thread = await mastraManager.createThread({
+      const thread = await resolveCronRunThread(mastraManager, cronEntity, {
         model,
         agentId,
         tools,
@@ -266,11 +267,13 @@ class CronsManager extends BaseManager {
     description?: string;
     submitOptions?: any;
     isActive?: boolean;
+    reuseThread?: boolean;
   }): Promise<Crons> {
     const entity = new Crons(data.name, data.prompt, data.cron, data.projectId);
     if (data.description !== undefined) entity.description = data.description;
     if (data.submitOptions !== undefined) entity.submitOptions = data.submitOptions;
     if (data.isActive !== undefined) entity.isActive = data.isActive;
+    if (data.reuseThread !== undefined) entity.reuseThread = data.reuseThread;
     const saved = await this.repository.save(entity);
     if (saved.isActive) {
       this.startJob(saved);
@@ -289,6 +292,7 @@ class CronsManager extends BaseManager {
       description?: string;
       submitOptions?: any;
       isActive?: boolean;
+      reuseThread?: boolean;
     },
   ): Promise<Crons> {
     const entity = await this.repository.findOneByOrFail({ id });
@@ -299,6 +303,7 @@ class CronsManager extends BaseManager {
     if (data.description !== undefined) entity.description = data.description;
     if (data.submitOptions !== undefined) entity.submitOptions = data.submitOptions;
     if (data.isActive !== undefined) entity.isActive = data.isActive;
+    if (data.reuseThread !== undefined) entity.reuseThread = data.reuseThread;
     const saved = await this.repository.save(entity);
     this.stopJob(id);
     if (saved.isActive) {

@@ -93,6 +93,7 @@ interface CronItem {
   description?: string;
   submitOptions: ChatSubmitOptions;
   isActive: boolean;
+  reuseThread: boolean;
   lastRunAt?: string;
   lastRunEndAt?: string;
   lastRunChatId?: string;
@@ -108,6 +109,7 @@ interface CronFormData {
   submitOptions: ChatSubmitOptions;
   projectId: string;
   isActive: boolean;
+  reuseThread: boolean;
 }
 
 type ProjectOption = Pick<Project, 'id' | 'title'>;
@@ -145,6 +147,7 @@ const emptyForm: CronFormData = {
   submitOptions: {},
   projectId: '',
   isActive: true,
+  reuseThread: false,
 };
 
 const defaultBuilderState = (): CronBuilderState => ({
@@ -401,6 +404,7 @@ function CronsPage() {
       },
       projectId: '',
       isActive: true,
+      reuseThread: false,
     });
     setBuilder(defaultBuilderState());
     setDialogOpen(true);
@@ -421,6 +425,7 @@ function CronsPage() {
       },
       projectId: item.projectId || '',
       isActive: item.isActive,
+      reuseThread: item.reuseThread ?? false,
     });
     setBuilder(parseCronToBuilder(item.cron));
     setDialogOpen(true);
@@ -442,6 +447,7 @@ function CronsPage() {
       submitOptions: form.submitOptions,
       projectId: form.projectId || undefined,
       isActive: form.isActive,
+      reuseThread: form.reuseThread,
     };
 
     if (editingId) {
@@ -1067,6 +1073,22 @@ function CronsPage() {
                   }
                 />
                 <Label>{t('crons.active')}</Label>
+              </div>
+              <div className="flex items-center justify-between gap-4 rounded-md border p-3">
+                <div className="grid gap-1">
+                  <Label>{t('crons.reuse_thread')}</Label>
+                  <p className="text-xs text-muted-foreground">
+                    {form.reuseThread
+                      ? t('crons.reuse_thread_same_description')
+                      : t('crons.reuse_thread_new_description')}
+                  </p>
+                </div>
+                <Switch
+                  checked={form.reuseThread}
+                  onCheckedChange={(checked) =>
+                    setForm({ ...form, reuseThread: checked })
+                  }
+                />
               </div>
             </div>
             <DialogFooter>
