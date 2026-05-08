@@ -4,6 +4,14 @@
     "zh-cn": "中文"
   },
   "hello": "Hello2",
+  "appData": "App data",
+  "appPath": "Application path",
+  "dataPath": "Data path",
+  "logFile": "Log file",
+  "openLogFile": "Open log file",
+  "supportFiles": "Support files",
+  "supportFilesDescription": "Open the folders and logs needed for troubleshooting.",
+  "userData": "User data",
   "settings": {
     "about": "About",
     "language": "Language",
@@ -56,6 +64,35 @@
     "think_high": "High",
     "think_medium": "Medium",
     "default_think": "Default Think Mode",
+    "personality": "Personality",
+    "personality_title": "Assistant Personality",
+    "personality_description": "Choose one assistant personality folder from user data, then edit its SOUL.md directly.",
+    "personality_enable": "Enable assistant personality",
+    "personality_enable_description": "When disabled, this content is not injected into the model.",
+    "personality_presets": "Assistant personalities",
+    "personality_presets_description": "Each folder under the user data assistants directory appears here.",
+    "personality_none": "No personality",
+    "personality_none_description": "Do not append assistant personality context to chats.",
+    "personality_voice_style": "Voice style",
+    "personality_markdown": "SOUL.md content",
+    "personality_markdown_description": "Saved text is appended to Agent instructions as system-level context.",
+    "personality_placeholder": "# SOUL.md\n\nDescribe the assistant's personality, core principles, boundaries, and voice.",
+    "personality_saved": "Assistant personality saved",
+    "personality_save_error": "Failed to save assistant personality",
+    "personality_load_error": "Failed to load assistant personalities",
+    "personality_reset": "Restore default",
+    "personality_reset_success": "Default personality restored",
+    "personality_reset_error": "Failed to restore default personality",
+    "personality_clear": "Clear and disable",
+    "personality_new": "Create personality",
+    "personality_new_description": "Create a persistent assistant folder in user data.",
+    "personality_new_default_name": "Custom Assistant",
+    "personality_custom_title": "Custom personality",
+    "personality_custom_description": "A user-created assistant personality saved in user data.",
+    "personality_name": "Personality name",
+    "personality_name_placeholder": "For example: Forge",
+    "personality_avatar": "Avatar",
+    "personality_avatar_upload": "Choose avatar",
     "channels": "Channels",
     "secrets": "Secrets",
     "secrets_description": "Manage environment variables that will be injected into tool execution.",
@@ -157,6 +194,26 @@
     "new_project": "New Project",
     "market": "Market",
     "crons": "Crons"
+  },
+  "personality": {
+    "presets": {
+      "pragmatic_engineer": {
+        "title": "Pragmatic Engineer",
+        "description": "Direct, reliable, and outcome-focused. Best for coding, project execution, and complex tasks."
+      },
+      "warm_companion": {
+        "title": "Warm Companion",
+        "description": "Patient, clear, and supportive. Best for daily collaboration, learning, and lightweight planning."
+      },
+      "rigorous_researcher": {
+        "title": "Rigorous Researcher",
+        "description": "Evidence-driven and careful with uncertainty. Best for analysis, verification, and accuracy-sensitive work."
+      },
+      "creative_collaborator": {
+        "title": "Creative Collaborator",
+        "description": "Good at exploration, expression, and shaping rough ideas into usable creative directions."
+      }
+    }
   },
   "chat": {
     "until_end": "End Guard",
@@ -296,11 +353,18 @@
       "saved_error": "Failed to save default models",
       "tip": "Tip: Fast models are cheaper and quicker, while default models provide better quality for complex tasks."
     },
+    "personality": {
+      "title": "Choose Assistant Personality",
+      "description": "Optional. Choose a preset and edit it, or skip to keep the default assistant behavior.",
+      "saved_success": "Assistant personality saved",
+      "saved_error": "Failed to save assistant personality",
+      "load_error": "Failed to load assistant personalities"
+    },
     "runtime": {
       "title": "Install Runtime",
       "description": "Install optional runtimes to enable advanced features like MCP servers and code execution.",
       "uv_desc": "Python package manager for running MCP servers and Python tools.",
-      "node_desc": "JavaScript runtime for running Bun-based MCP servers.",
+      "node_desc": "JavaScript runtime.",
       "installed": "Installed",
       "not_installed": "Not Installed",
       "install": "Install",
@@ -323,7 +387,8 @@
     "checkUpdate": "Check Update",
     "upToDate": "Up to Date",
     "downloading": "Downloading...",
-    "downloadNew": "Download New"
+    "downloadNew": "Download New",
+    "downloadedReady": "Update ready"
   },
   "providers": {
     "chat_provider": "Chat Provider",

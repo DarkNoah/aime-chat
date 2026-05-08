@@ -26,6 +26,7 @@ import {
   IconShoppingCart,
   IconCategory,
   IconClock,
+  IconDownload,
 } from '@tabler/icons-react';
 // import { NavMain } from '@/app/(pages)/nav-main';
 // import { NavSecondary } from '@/app/dashboard/nav-secondary';
@@ -60,12 +61,14 @@ import {
 import ProjectsList from './project-list';
 import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
 import { cn } from '../lib/utils';
+import { useUpdateState } from '../hooks/use-update-state';
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { appInfo } = useGlobal();
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
+  const updateState = useUpdateState();
   const [activeTab, setActiveTab] = useState(
     window.localStorage.getItem('activeTab') || 'chat',
   );
@@ -204,6 +207,22 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarFooter>
         <SidebarSeparator className="ml-0"></SidebarSeparator>
         <SidebarMenu>
+          {updateState.status === 'downloaded' && (
+            <SidebarMenuItem className="flex flex-row gap-2">
+              <SidebarMenuButton
+                onClick={() => navigate('/settings/about')}
+                className="cursor-pointer text-primary"
+              >
+                <IconDownload></IconDownload>
+                <span className="truncate">{t('update.downloadedReady')}</span>
+                {updateState.updateInfo?.version && (
+                  <Badge variant="outline" className="ml-auto text-xs">
+                    v{updateState.updateInfo.version}
+                  </Badge>
+                )}
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )}
           <SidebarMenuItem className="flex flex-row gap-2">
             <SidebarMenuButton
               onClick={() =>

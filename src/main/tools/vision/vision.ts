@@ -338,7 +338,7 @@ ${ocr}
         }, options);
         const content = await fs.promises.readFile(tempsrtOutputPath, 'utf-8');
         asr = content;
-      } catch {
+      } catch (err) {
 
       } finally {
         if (tempAudioPath && fs.existsSync(tempAudioPath)) {

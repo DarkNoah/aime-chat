@@ -50,6 +50,15 @@ export class MarketManager extends BaseManager {
             isActive: true
           });
           console.log(`Skill ${toolData.name} installed`);
+        } else if (fs.existsSync(path.join(marketPath, path.basename(file, '.json'))) && fs.statSync(path.join(marketPath, path.basename(file, '.json'))).isDirectory()) {
+          const result = await toolsManager.importSkills({
+            dirs: [path.join(marketPath, path.basename(file, '.json'))],
+            isActive: true
+          });
+          console.log(`Skill ${toolData.name} installed`);
+        } else {
+          console.log(`Skill ${toolData.name} not found`);
+
         }
 
 
@@ -75,7 +84,10 @@ export class MarketManager extends BaseManager {
     for (const item of list) {
       try {
         if (item.isDirectory() && type == ToolType.SKILL) {
-
+          const file = path.join(marketPath, item.name + '.json');
+          if (fs.existsSync(file)) {
+            continue;
+          }
           const skillMdPath = path.join(marketPath, item.name, 'SKILL.md');
           const skillMd = await fs.promises
             .readFile(skillMdPath, 'utf-8')

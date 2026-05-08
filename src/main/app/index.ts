@@ -88,12 +88,24 @@ import { Translation } from '../tools/work/translation';
 import { nanoid } from '@/utils/nanoid';
 import { HookAgent, HookProxyAgent } from './hook-agent';
 import { acpManager } from './acp';
+import { appLog, getLogFilePath } from './logger';
 import { get } from 'core-js/core/dict';
 import { isBinaryFile } from 'isbinaryfile';
 import mime from 'mime';
 import { DefaultAgent } from '../mastra/agents/default-agent';
 import { CodeAgent } from '../mastra/agents/code-agent';
 import { generate } from 'fast-glob/out/managers/tasks';
+import {
+  getActiveAssistantSoul,
+  getAssistantSoulLibrary,
+  resetAssistantSoul as resetAssistantSoulToDefault,
+  saveAssistantSoul,
+} from './assistant-soul';
+import {
+  AssistantSoulLibrary,
+  normalizeAssistantSoul,
+  SaveAssistantSoulInput,
+} from '@/types/assistant-soul';
 class AppManager extends BaseManager {
   repository: Repository<Providers>;
   settingsRepository: Repository<Settings>;
@@ -212,6 +224,9 @@ class AppManager extends BaseManager {
     };
     const defaultAgent = settings.find((x) => x.id === 'defaultAgent')?.value || process.env.DEFAULT_AGENT || CodeAgent.agentName;
     const defaultThink = settings.find((x) => x.id === 'defaultThink')?.value || process.env.THINK || 'medium';
+    const assistantSoul = await getActiveAssistantSoul(
+      settings.find((x) => x.id === 'assistantSoul')?.value,
+    );
     const preventSleepInterval = this.getPreventSleepInterval(
       settings.find((x) => x.id === 'preventSleepInterval')?.value,
     );
@@ -253,6 +268,7 @@ class AppManager extends BaseManager {
       },
       acp,
       preventSleepInterval,
+      assistantSoul,
     };
   }
 
@@ -327,6 +343,19 @@ class AppManager extends BaseManager {
     } else {
       this.toast('The path does not exist', { type: 'error' });
     }
+  }
+
+  @channel(AppChannel.OpenLogFile)
+  public async openLogFile(): Promise<void> {
+    const logFilePath = getLogFilePath();
+    if (fs.existsSync(logFilePath)) {
+      await shell.showItemInFolder(logFilePath);
+      return;
+    }
+
+    const logDirectory = path.dirname(logFilePath);
+    fs.mkdirSync(logDirectory, { recursive: true });
+    await shell.openPath(logDirectory);
   }
 
   @channel(AppChannel.GetFileInfo)
@@ -840,20 +869,106 @@ class AppManager extends BaseManager {
   }): Promise<void> {
     await this.settingsRepository.upsert(settings, ['id']);
   }
+
+  @channel(AppChannel.GetAssistantSoulLibrary)
+  public async getAssistantSoulLibrary(): Promise<AssistantSoulLibrary> {
+    const settings = await this.settingsRepository.findOne({
+      where: { id: 'assistantSoul' },
+    });
+    return getAssistantSoulLibrary(true, settings?.value);
+  }
+
+  @channel(AppChannel.SaveAssistantSoul)
+  public async saveAssistantSoul(
+    input: SaveAssistantSoulInput,
+  ): Promise<AssistantSoulLibrary> {
+    let library = await saveAssistantSoul(input);
+    const activeAssistant = library.assistants.find(
+      (assistant) => assistant.id === library.activeId,
+    );
+    const nextSettings = normalizeAssistantSoul({
+      enabled: library.enabled,
+      presetId: library.enabled ? library.activeId : undefined,
+      content: library.enabled ? activeAssistant?.content : '',
+    });
+
+    await this.settingsRepository.upsert(
+      new Settings('assistantSoul', nextSettings),
+      ['id'],
+    );
+    library = await getAssistantSoulLibrary(true, nextSettings);
+    return library;
+  }
+
+  @channel(AppChannel.ResetAssistantSoul)
+  public async resetAssistantSoul(id: string): Promise<AssistantSoulLibrary> {
+    const settings = await this.settingsRepository.findOne({
+      where: { id: 'assistantSoul' },
+    });
+    let library = await resetAssistantSoulToDefault(id, settings?.value);
+    const activeAssistant = library.assistants.find(
+      (assistant) => assistant.id === library.activeId,
+    );
+    const nextSettings = normalizeAssistantSoul({
+      enabled: library.enabled,
+      presetId: library.enabled ? library.activeId : undefined,
+      content: library.enabled ? activeAssistant?.content : '',
+    });
+
+    await this.settingsRepository.upsert(
+      new Settings('assistantSoul', nextSettings),
+      ['id'],
+    );
+    library = await getAssistantSoulLibrary(true, nextSettings);
+    return library;
+  }
+
   @channel(AppChannel.InstasllRumtime)
   public async installRuntime(pkg: string) {
-    if (pkg == 'uv') {
-      await installUVRuntime();
-    } else if (pkg == 'paddleOcr') {
-      await installPaddleOcrRuntime();
-    } else if (pkg == 'bun') {
-      await installBunRuntime();
-    } else if (pkg == 'node') {
-      await installNodeRuntime();
-    } else if (pkg == 'qwenAudio') {
-      await installQwenAudioRuntime();
-    } else if (pkg == 'agentBrowser') {
-      await installAgentBrowserRuntime();
+    appLog.write('info', '[runtime] install started', { pkg });
+    try {
+      if (pkg == 'uv') {
+        await installUVRuntime();
+      } else if (pkg == 'paddleOcr') {
+        await installPaddleOcrRuntime();
+      } else if (pkg == 'bun') {
+        await installBunRuntime();
+      } else if (pkg == 'node') {
+        await installNodeRuntime();
+      } else if (pkg == 'qwenAudio') {
+        await installQwenAudioRuntime();
+      } else if (pkg == 'agentBrowser') {
+        await installAgentBrowserRuntime();
+      } else {
+        throw new Error(`Unknown runtime package: ${pkg}`);
+      }
+
+      const runtimeInfo = await this.getRuntimeInfo(true);
+      const runtimeResult = runtimeInfo[pkg as keyof RuntimeInfo];
+      const runtimeLogData = {
+        pkg,
+        ...(runtimeResult ?? {
+          status: 'not_installed',
+          installed: false,
+          message: 'Runtime install finished without runtime info',
+        }),
+      };
+      appLog.write(
+        runtimeResult?.installed ? 'info' : 'error',
+        runtimeResult?.installed
+          ? '[runtime] install completed'
+          : '[runtime] install failed',
+        runtimeLogData,
+      );
+      return runtimeResult;
+    } catch (error) {
+      appLog.write('error', '[runtime] install failed', {
+        pkg,
+        status: 'not_installed',
+        installed: false,
+        message: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
     }
   }
 

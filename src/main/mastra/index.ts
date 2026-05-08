@@ -663,6 +663,10 @@ class MastraManager extends BaseManager {
       );
       requestContext.set('untilEndPrompt', untilEndPrompt);
       requestContext.set('usage', usage);
+      const assistantSoul = appInfo.assistantSoul;
+      if (assistantSoul?.enabled && assistantSoul.content?.trim()) {
+        requestContext.set('assistantSoul', assistantSoul.content.trim());
+      }
 
 
 
@@ -695,12 +699,12 @@ class MastraManager extends BaseManager {
           // const file = await fs.promises.readFile(part.path);
           if (modelInfo?.modalities?.input?.includes('image') && part.mediaType?.startsWith('image/')) {
             inputParts.push(part);
-          } else {
-            inputParts.push({
-              type: 'text',
-              text: `<file>${part.path}</file>`,
-            });
           }
+
+          inputParts.push({
+            type: 'text',
+            text: `<file>${part.path}</file>`,
+          });
 
         }
         else {

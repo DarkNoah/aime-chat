@@ -147,7 +147,9 @@ Generation template:
             file_path_or_url: file_path,
             save_path: save_path
           }, options);
-          results.push(save_path);
+          await fs.promises.unlink(file_path);
+          await fs.promises.rename(save_path, file_path);
+          results.push(file_path);
         }
         return results.map((x) => `<file>${x}</file>`).join('\n');
       }

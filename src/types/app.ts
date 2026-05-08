@@ -1,3 +1,5 @@
+import { AssistantSoulSettings } from './assistant-soul';
+
 export type PreventSleepInterval =
   | '5m'
   | '10m'
@@ -43,6 +45,7 @@ export class AppInfo {
   };
   acp: ACPInfo;
   preventSleepInterval: PreventSleepInterval;
+  assistantSoul: AssistantSoulSettings;
 }
 
 

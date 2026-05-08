@@ -59,6 +59,7 @@ import { RequestContext } from '@mastra/core/request-context';
 import { ChatRequestContext } from '@/types/chat';
 import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { Done } from './common/done';
+import { AimeChatCli } from './cli';
 interface BuiltInToolContext {
   tool: BaseTool;
   abortController: AbortController;
@@ -201,6 +202,7 @@ class ToolsManager extends BaseManager {
     await this.registerBuiltInTool(KnowledgeBaseToolkit);
     await this.registerBuiltInTool(CronsToolkit);
 
+    await this.registerBuiltInTool(AimeChatCli);
     await this.registerBuiltInTool(Done);
     if (!app.isPackaged) {
       await this.registerBuiltInTool(ExpenseManagementToolkit);
@@ -630,6 +632,7 @@ class ToolsManager extends BaseManager {
     const subtools = await this.toolsRepository.find({
       where: { isActive: isActive, toolkitId: Not(IsNull()) },
     });
+    const builtInTools = this.builtInTools.filter(x => !x.isHidden);
 
     return {
       [ToolType.MCP]: tools
@@ -674,7 +677,7 @@ class ToolsManager extends BaseManager {
             .map((subtool) => ({
               id: subtool.id,
               name: subtool.name,
-              description: subtool.description,
+              description: subtool.description ?? builtInTools.find(x => x.id === subtool.toolkitId)?.tools.find(x => x.id === subtool.name)?.description,
             })),
         })),
       [ToolType.SKILL]: tools
@@ -1463,10 +1466,13 @@ class ToolsManager extends BaseManager {
         } else {
           const skilljson = await fs.promises.readFile(path.join(skillsPath, 'skills.json'), 'utf-8').catch(() => '[]');
           let skilljsonData = JSON.parse(skilljson);
-          skilljsonData = skilljsonData.filter((x: any) => x.id !== selectedSkill.id);
+          const skillId = `${ToolType.SKILL}:local:${selectedSkill.id}`
+          skilljsonData = skilljsonData.filter((x: any) => x.id !== skillId);
           // const source = path.join(repo_or_url, 'tree/main', selectedSkill.path, "SKILL.md")
           skilljsonData.push({
-            source, id: selectedSkill.id,
+            source,
+            name: selectedSkill.id,
+            id: skillId,
           });
           await fs.promises.writeFile(path.join(skillsPath, 'skills.json'), JSON.stringify(skilljsonData, null, 2));
         }
@@ -1518,6 +1524,17 @@ class ToolsManager extends BaseManager {
           });
         } else {
           await skillManager.parseSkill(file, path.join(skillsPath, skillName));
+
+
+          const skilljson = await fs.promises.readFile(path.join(skillsPath, 'skills.json'), 'utf-8').catch(() => '[]');
+          let skilljsonData = JSON.parse(skilljson);
+          const skillId = `${ToolType.SKILL}:local:${skillName}`
+          skilljsonData = skilljsonData.filter((x: any) => x.id !== skillId);
+          skilljsonData.push({
+            name: skillName,
+            id: skillId,
+          });
+          await fs.promises.writeFile(path.join(skillsPath, 'skills.json'), JSON.stringify(skilljsonData, null, 2));
         }
       }
       await appManager.toast('Skills install successfully', { type: 'success' });

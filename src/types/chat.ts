@@ -160,6 +160,7 @@ export type ChatRequestContext = {
   think?: boolean;
   chunks?: { runId: string; text: string };
   additionalInstructions?: string;
+  assistantSoul?: string;
   skillsLoaded?: string[];
   fileLastReadTime?: Record<string, number>;
   compressedMessage?: string;
@@ -186,12 +187,13 @@ export type ChatSubmitOptions = {
   projectId?: string;
 };
 
-export const ChatSlashCommandConfig = [{
-  id: 'compact',
-  label: 'compact',
-  description: 'Compact the current messages',
-}]
-
+export const ChatSlashCommandConfig = [
+  {
+    id: 'compact',
+    label: 'compact',
+    description: 'Compact the current messages',
+  },
+];
 
 export type ChatCallbackEvent = {
   onStepFinish?: (event: any) => Promise<void>;
@@ -200,10 +202,13 @@ export type ChatCallbackEvent = {
     toolCallId: string;
     input: any;
   }) => Promise<void>;
-  onToolCallUpdate?: (toolCallUpdate: {
-    toolCallId: string;
-    output: any;
-  }, status: 'pending' | 'completed' | 'failed') => Promise<void>;
+  onToolCallUpdate?: (
+    toolCallUpdate: {
+      toolCallId: string;
+      output: any;
+    },
+    status: 'pending' | 'completed' | 'failed',
+  ) => Promise<void>;
   onPlanUpdate?: (plans: ChatTask[]) => Promise<void>;
   onAgentChanged?: (agent: Agent) => Promise<void>;
   onError?: (error: string) => Promise<void>;
@@ -213,4 +218,4 @@ export type ChatCallbackEvent = {
   onChunk?: (chunk: string) => Promise<void>;
   onThought?: (chunk: string) => Promise<void>;
   onThreadChanged?: (thread: ChatThread) => Promise<void>;
-}
+};

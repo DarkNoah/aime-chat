@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { Repository } from 'typeorm';
 import { app } from 'electron';
+import ffmpeg from 'fluent-ffmpeg';
 import { Channels } from '@/entities/channels';
 import {
   ChannelTestResult,
@@ -56,6 +57,7 @@ const BACKOFF_DELAY_MS = 30_000;
 const RETRY_DELAY_MS = 2_000;
 const SESSION_PAUSE_MS = 60 * 60 * 1000;
 const TYPING_REFRESH_INTERVAL_MS = 10_000;
+const fileTagRegex = /<file>([\s\S]*?)<\/file>/g;
 
 type LoginSession = {
   sessionKey: string;
@@ -91,6 +93,55 @@ type PendingWeixinToolMessage = {
   description?: string;
   input: any;
 };
+
+type AudioMetadata = {
+  duration?: number;
+  sampleRate?: number;
+};
+
+function extractFilePathsFromToolOutput(output: unknown): string[] {
+  const text =
+    typeof output === 'string'
+      ? output
+      : typeof (output as { text?: unknown })?.text === 'string'
+        ? String((output as { text: string }).text)
+        : typeof (output as { output?: unknown })?.output === 'string'
+          ? String((output as { output: string }).output)
+          : '';
+
+  if (!text) return [];
+
+  const files: string[] = [];
+  let match: RegExpExecArray | null;
+  while ((match = fileTagRegex.exec(text)) !== null) {
+    const filePath = match[1]?.trim();
+    if (filePath) {
+      files.push(filePath);
+    }
+  }
+  fileTagRegex.lastIndex = 0;
+  return files;
+}
+
+function probeAudioMetadata(filePath: string): Promise<AudioMetadata> {
+  return new Promise((resolve) => {
+    ffmpeg.ffprobe(filePath, (error, metadata) => {
+      if (error) {
+        resolve({});
+        return;
+      }
+
+      const audioStream = metadata.streams?.find((stream) => stream.codec_type === 'audio');
+      const sampleRate = Number(audioStream?.sample_rate);
+      resolve({
+        duration: Number.isFinite(metadata.format?.duration)
+          ? metadata.format?.duration
+          : undefined,
+        sampleRate: Number.isFinite(sampleRate) ? sampleRate : undefined,
+      });
+    });
+  });
+}
 
 function encryptAesEcb(plaintext: Buffer, key: Buffer): Buffer {
   const cipher = createCipheriv('aes-128-ecb', key, null);
@@ -827,6 +878,117 @@ export class WeixinChannelRuntime {
     }
   }
 
+  private async sendSpeechReply(
+    to: string,
+    output: unknown,
+    contextToken?: string,
+  ): Promise<void> {
+    const files = extractFilePathsFromToolOutput(output);
+    if (!files.length) {
+      this.callbacks.onActivity('[weixin] speech tool completed without audio file output');
+      return;
+    }
+
+    for (const file of files) {
+      const info = await appManager.getFileInfo(file);
+      if (!info?.isExist || !info.isFile) {
+        this.callbacks.onActivity(`[weixin] skipping missing speech audio: ${file}`);
+        continue;
+      }
+
+      try {
+        await this.sendVoiceReply(to, info.path, contextToken);
+      } catch (error) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        this.callbacks.onActivity(`[weixin] speech voice send failed, falling back to file: ${err.message}`);
+        await this.sendFileReply(to, info.path, contextToken);
+      }
+    }
+  }
+
+  private async sendVoiceReply(
+    to: string,
+    filePath: string,
+    contextToken?: string,
+  ): Promise<void> {
+    const token = contextToken || this.contextTokens.get(to);
+    if (!token) {
+      this.callbacks.onActivity(
+        `[weixin] skipping voice reply to ${to}: no context_token`,
+      );
+      return;
+    }
+
+    const raw = await fs.promises.readFile(filePath);
+    const rawMd5 = createHash('md5').update(raw).digest('hex');
+    const key = randomBytes(16);
+    const aesKeyHex = key.toString('hex');
+    const aesKey = Buffer.from(aesKeyHex, 'ascii').toString('base64');
+    const encrypted = encryptAesEcb(raw, key);
+    const filekey = randomBytes(16).toString('hex');
+    const metadata = await probeAudioMetadata(filePath);
+
+    const uploadResp = await getUploadUrl({
+      baseUrl: this.resolveBaseUrl(),
+      token: this.channel.config.botToken,
+      routeTag: this.resolveRouteTag(),
+      filekey,
+      media_type: UploadMediaType.VOICE,
+      to_user_id: to,
+      rawsize: raw.length,
+      rawfilemd5: rawMd5,
+      filesize: encrypted.length,
+      no_need_thumb: true,
+      aeskey: aesKeyHex,
+    });
+
+    if (!uploadResp.upload_param) {
+      throw new Error('Weixin getuploadurl did not return upload_param');
+    }
+
+    const encryptedParam = await this.uploadCdnMedia(
+      uploadResp.upload_param,
+      filekey,
+      encrypted,
+    );
+
+    await sendMessage({
+      baseUrl: this.resolveBaseUrl(),
+      token: this.channel.config.botToken,
+      routeTag: this.resolveRouteTag(),
+      body: {
+        msg: {
+          from_user_id: '',
+          to_user_id: to,
+          client_id: generateClientId(),
+          message_type: MessageType.BOT,
+          message_state: MessageState.FINISH,
+          item_list: [
+            {
+              type: MessageItemType.VOICE,
+              voice_item: {
+                media: {
+                  encrypt_query_param: encryptedParam,
+                  aes_key: aesKey,
+                  encrypt_type: 1,
+                },
+                playtime: metadata.duration
+                  ? Math.max(1, Math.round(metadata.duration))
+                  : undefined,
+                sample_rate: metadata.sampleRate,
+              },
+            },
+          ],
+          context_token: token,
+        },
+      },
+    });
+
+    this.callbacks.onActivity(
+      `[weixin] sent voice to=${to} name=${path.basename(filePath)} size=${raw.length}`,
+    );
+  }
+
   private async sendFileReply(
     to: string,
     filePath: string,
@@ -1098,11 +1260,19 @@ export class WeixinChannelRuntime {
             );
 
             if (toolMsg && status === 'completed' && toolMsg.toolName === Message.toolName) {
-              await this.sendFilesPreviewReply(
-                input.fromUserId,
-                toolMsg.input,
-                input.contextToken,
-              );
+              if (toolMsg.input?.event === 'files_preview') {
+                await this.sendFilesPreviewReply(
+                  input.fromUserId,
+                  toolMsg.input,
+                  input.contextToken,
+                );
+              } else if (toolMsg.input?.event === 'speech') {
+                await this.sendSpeechReply(
+                  input.fromUserId,
+                  toolCallUpdate.output,
+                  input.contextToken,
+                );
+              }
             }
 
             if (toolMsg && status !== 'pending') {

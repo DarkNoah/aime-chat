@@ -56,15 +56,15 @@ class ProjectManager extends BaseManager {
       const skillJson = await fs.promises.readFile(path.join(skillsPath, 'skills.json'), 'utf-8').catch(() => '[]');
       const skillJsonData = JSON.parse(skillJson);
       for (const skill of skillJsonData) {
-        if (fs.existsSync(path.join(skillsPath, skill.name, 'SKILL.md'))) {
-          const skillMdPath = path.join(skillsPath, skill.name, 'SKILL.md');
+        if (fs.existsSync(path.join(skillsPath, skill.name ?? skill.id, 'SKILL.md'))) {
+          const skillMdPath = path.join(skillsPath, skill.name ?? skill.id, 'SKILL.md');
           const skillMd = await fs.promises.readFile(skillMdPath, 'utf-8');
           const skillData = matter(skillMd);
           project.skills.push({
             id: skill.id,
             name: skillData.data.name,
             description: skillData.data.description,
-            path: path.join(skillsPath, skill.name),
+            path: path.join(skillsPath, skill.name ?? skill.id),
             skillmd: skillData.content,
             source: skill.source,
           });

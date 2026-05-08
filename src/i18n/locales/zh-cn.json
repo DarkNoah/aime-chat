@@ -4,6 +4,14 @@
     "zh-cn": "中文"
   },
   "hello": "你好",
+  "appData": "应用数据",
+  "appPath": "应用路径",
+  "dataPath": "数据目录",
+  "logFile": "日志文件",
+  "openLogFile": "打开日志文件",
+  "supportFiles": "支持文件",
+  "supportFilesDescription": "打开排查问题时需要的目录和日志。",
+  "userData": "用户数据",
   "settings": {
     "about": "关于我们",
     "language": "语言",
@@ -58,6 +66,35 @@
     "think_low": "低推理强度",
     "think_medium": "中等推理强度",
     "default_think": "默认推理模式",
+    "personality": "助手个性",
+    "personality_title": "助手个性",
+    "personality_description": "从用户数据目录中的助手个性文件夹选择一个，并直接编辑对应的 SOUL.md。",
+    "personality_enable": "启用助手个性",
+    "personality_enable_description": "关闭后不会向模型注入这段内容。",
+    "personality_presets": "助手个性",
+    "personality_presets_description": "用户数据目录 assistants 下的每个文件夹都会显示为一个助手。",
+    "personality_none": "不选用个性",
+    "personality_none_description": "聊天时不追加助手个性上下文。",
+    "personality_voice_style": "音色描述",
+    "personality_markdown": "SOUL.md 内容",
+    "personality_markdown_description": "保存后的文本会作为 system-level 上下文追加到 Agent instructions。",
+    "personality_placeholder": "# SOUL.md\n\n描述助手的个性、核心原则、边界和表达风格。",
+    "personality_saved": "助手个性已保存",
+    "personality_save_error": "保存助手个性失败",
+    "personality_load_error": "加载助手个性失败",
+    "personality_reset": "还原默认配置",
+    "personality_reset_success": "已还原默认配置",
+    "personality_reset_error": "还原默认配置失败",
+    "personality_clear": "清空并关闭",
+    "personality_new": "创建个性",
+    "personality_new_description": "新建一个可长期保存的助手文件夹。",
+    "personality_new_default_name": "自定义助手",
+    "personality_custom_title": "自定义个性",
+    "personality_custom_description": "由用户创建并保存在用户目录中的助手个性。",
+    "personality_name": "个性名称",
+    "personality_name_placeholder": "例如：Forge",
+    "personality_avatar": "头像",
+    "personality_avatar_upload": "选择头像",
     "channels": "频道管理",
     "secrets": "密钥管理",
     "secrets_description": "管理注入到工具执行环境中的环境变量。",
@@ -163,6 +200,26 @@
     "new_project": "新项目",
     "market": "市场",
     "crons": "自动化"
+  },
+  "personality": {
+    "presets": {
+      "pragmatic_engineer": {
+        "title": "务实工程型",
+        "description": "直接、可靠、关注结果，适合编码、项目推进和复杂任务落地。"
+      },
+      "warm_companion": {
+        "title": "温和陪伴型",
+        "description": "耐心、清晰、支持感更强，适合日常协作、学习和轻量规划。"
+      },
+      "rigorous_researcher": {
+        "title": "严谨研究型",
+        "description": "重视证据和边界，适合资料分析、事实核验和高准确性任务。"
+      },
+      "creative_collaborator": {
+        "title": "创意共创型",
+        "description": "更擅长发散、打磨表达和形成可执行创意方案。"
+      }
+    }
   },
   "chat": {
     "until_end": "结束守卫",
@@ -340,11 +397,18 @@
       "saved_error": "保存默认模型失败",
       "tip": "提示：快速模型更便宜、更快，而默认模型为复杂任务提供更好的质量。"
     },
+    "personality": {
+      "title": "选择助手个性",
+      "description": "可选。选择候选后可以继续修改；跳过则使用默认助手行为。",
+      "saved_success": "助手个性已保存",
+      "saved_error": "保存助手个性失败",
+      "load_error": "加载助手个性失败"
+    },
     "runtime": {
       "title": "安装运行环境",
       "description": "安装可选的运行环境以启用高级功能，如 MCP 服务器和代码执行。",
       "uv_desc": "Python 包管理器，用于运行 MCP 服务器和 Python 工具。",
-      "node_desc": "JavaScript 运行时，用于运行基于 Bun 的 MCP 服务器。",
+      "node_desc": "JavaScript 运行时",
       "installed": "已安装",
       "not_installed": "未安装",
       "install": "安装",
@@ -367,7 +431,8 @@
     "checkUpdate": "检查更新",
     "upToDate": "已是最新版本",
     "downloading": "下载中...",
-    "downloadNew": "下载新版本"
+    "downloadNew": "下载新版本",
+    "downloadedReady": "新版本已下载"
   },
   "providers": {
     "chat_provider": "对话模型",

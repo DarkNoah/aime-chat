@@ -46,6 +46,7 @@ import {
 } from '../chat-message-attachment';
 import { splitContextAndFiles } from '@/utils/context-utils';
 import { FileInfo } from '@/types/common';
+import { Badge } from '../../ui/badge';
 
 export interface GenerateImageMessageRef {}
 
@@ -92,8 +93,10 @@ export const GenerateImageMessage = React.forwardRef<
       >
         <ItemContent>
           {part?.input?.prompt && (
-            <ItemTitle className="text-muted-foreground text-sm">
-              {part?.input?.prompt}
+            <ItemTitle className="max-w-[520px] flex-col items-start gap-2 text-foreground">
+              <span className="line-clamp-2 text-sm leading-relaxed">
+                {part?.input?.prompt}
+              </span>
             </ItemTitle>
           )}
           <ItemDescription className=" ">

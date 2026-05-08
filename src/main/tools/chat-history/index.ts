@@ -4,8 +4,17 @@ import BaseTool, { BaseToolParams } from '../base-tool';
 import BaseToolkit, { BaseToolkitParams } from '../base-toolkit';
 import mastraManager from '@/main/mastra';
 import { DEFAULT_RESOURCE_ID } from '@/types/chat';
+import { projectManager } from '@/main/project';
 
 const truncate = (s: string, n: number) => (s.length > n ? `${s.slice(0, n)}…` : s);
+
+type ListedThread = {
+  thread: any;
+  project?: {
+    id: string;
+    title: string;
+  };
+};
 
 const toPlainText = (message: any): string => {
   if (!message) return '';
@@ -38,12 +47,20 @@ const toPlainText = (message: any): string => {
 const isCronThread = (t: any) =>
   t?.metadata?.cron === true || typeof t?.metadata?.cronId === 'string';
 
+const getThreadUpdatedMs = (t: any) => (t?.updatedAt ? new Date(t.updatedAt).getTime() : 0);
+
+const formatThreadLine = (t: any) => {
+  const title = t?.title ?? t?.metadata?.title ?? '(untitled)';
+  const updated = t?.updatedAt ? new Date(t.updatedAt).toISOString() : '';
+  return `- ${t.id} | ${truncate(String(title), 80)} | updated=${updated}`;
+};
+
 export class ChatHistoryList extends BaseTool {
   static readonly toolName = 'ChatHistoryList';
   id: string = 'ChatHistoryList';
   description = `List recent chat threads (real user conversations). Use this first when you need to ingest recent user activity into the global memory wiki.
 By default, threads created by scheduled cron jobs are excluded so you never re-ingest your own runs.
-Returns each thread's id, title and updated time, sorted by most recently updated.`;
+Returns normal threads separately from project threads. Threads belonging to the same project are grouped together.`;
 
   inputSchema = z.object({
     since: z
@@ -82,30 +99,86 @@ Returns each thread's id, title and updated time, sorted by most recently update
     const sinceMs = since ? Date.parse(since) : undefined;
     const untilMs = until ? Date.parse(until) : undefined;
 
-    const res = await mastraManager.getThreads({
+    const shouldIncludeThread = (t: any) => {
+      if (!includeCron && isCronThread(t)) return false;
+      const ts = getThreadUpdatedMs(t);
+      if (sinceMs && ts < sinceMs) return false;
+      if (untilMs && ts > untilMs) return false;
+      return true;
+    };
+
+    const normalRes = await mastraManager.getThreads({
       page: 0,
       size: 200,
-      // resourceId: resourceId ?? DEFAULT_RESOURCE_ID,
+      resourceId: DEFAULT_RESOURCE_ID,
     });
-    const filtered = (res.items ?? [])
-      .filter((t: any) => {
-        if (!includeCron && isCronThread(t)) return false;
-        const ts = t?.updatedAt ? new Date(t.updatedAt).getTime() : 0;
-        if (sinceMs && ts < sinceMs) return false;
-        if (untilMs && ts > untilMs) return false;
-        return true;
-      })
+
+    const listedThreads: ListedThread[] = (normalRes.items ?? [])
+      .filter(shouldIncludeThread)
+      .map((thread: any) => ({ thread }));
+
+    const projectsRes = await projectManager.getList({ page: 0, size: 200, filter: undefined });
+    const projectThreads = await Promise.all(
+      (projectsRes.items ?? []).map(async (project: any): Promise<ListedThread[]> => {
+        if (!project?.id) return [];
+        const res = await mastraManager.getThreads({
+          page: 0,
+          size: 200,
+          resourceId: `project:${project.id}`,
+        });
+        return (res.items ?? [])
+          .filter(shouldIncludeThread)
+          .map((thread: any) => ({
+            thread,
+            project: {
+              id: project.id,
+              title: project.title ?? project.id,
+            },
+          }));
+      }),
+    );
+
+    listedThreads.push(...projectThreads.flat());
+
+    const filtered = listedThreads
+      .sort((a, b) => getThreadUpdatedMs(b.thread) - getThreadUpdatedMs(a.thread))
       .slice(0, limit);
 
     if (filtered.length === 0) return 'No chat threads in the given range.';
 
-    return filtered
-      .map((t: any) => {
-        const title = t?.title ?? t?.metadata?.title ?? '(untitled)';
-        const updated = t?.updatedAt ? new Date(t.updatedAt).toISOString() : '';
-        return `- ${t.id} | ${truncate(String(title), 80)} | updated=${updated}`;
-      })
-      .join('\n');
+    const normalThreads = filtered.filter((item) => !item.project);
+    const projectGroups = new Map<string, { title: string; threads: any[]; updatedMs: number }>();
+    for (const item of filtered) {
+      if (!item.project) continue;
+      const group = projectGroups.get(item.project.id) ?? {
+        title: item.project.title,
+        threads: [],
+        updatedMs: 0,
+      };
+      group.threads.push(item.thread);
+      group.updatedMs = Math.max(group.updatedMs, getThreadUpdatedMs(item.thread));
+      projectGroups.set(item.project.id, group);
+    }
+
+    const lines: string[] = [];
+    if (normalThreads.length > 0) {
+      lines.push('Normal threads:');
+      lines.push(...normalThreads.map(({ thread }) => formatThreadLine(thread)));
+    }
+
+    const sortedProjectGroups = [...projectGroups.entries()].sort(
+      ([, a], [, b]) => b.updatedMs - a.updatedMs,
+    );
+    if (sortedProjectGroups.length > 0) {
+      if (lines.length > 0) lines.push('');
+      lines.push('Project threads:');
+      for (const [projectId, group] of sortedProjectGroups) {
+        lines.push(`Project: ${group.title} (${projectId})`);
+        lines.push(...group.threads.map(formatThreadLine));
+      }
+    }
+
+    return lines.join('\n');
   };
 }
 

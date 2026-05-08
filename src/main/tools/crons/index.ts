@@ -3,6 +3,8 @@ import BaseTool, { BaseToolParams } from '../base-tool';
 import BaseToolkit, { BaseToolkitParams } from '../base-toolkit';
 import { ToolExecutionContext } from '@mastra/core/tools';
 import { z, ZodSchema } from 'zod';
+import { agentManager } from '@/main/mastra/agents';
+import { appManager } from '@/main/app';
 
 export class CronsList extends BaseTool {
   static readonly toolName = 'CronsList';
@@ -67,12 +69,21 @@ export class CronsCreate extends BaseTool {
     inputData: z.infer<typeof this.inputSchema>,
     _options?: ToolExecutionContext<ZodSchema, any>,
   ) => {
+    const appInfo = await appManager.getInfo();
+
+    const agent = await agentManager.getAgent(inputData.agentId ?? appInfo.defaultAgent);
+    const { defaultModelId = appInfo.defaultModel?.model, tools = [], subAgents = [] } = agent;
     const result = await cronsManager.create({
       name: inputData.name,
       prompt: inputData.prompt,
       cron: inputData.cron,
       description: inputData.description,
-      agentId: inputData.agentId,
+      submitOptions: {
+        agentId: agent.id,
+        model: defaultModelId,
+        tools: tools,
+        subAgents: subAgents,
+      },
       isActive: inputData.isActive ?? true,
     });
     return {
@@ -111,7 +122,13 @@ export class CronsUpdate extends BaseTool {
     _options?: ToolExecutionContext<ZodSchema, any>,
   ) => {
     const { id, ...data } = inputData;
-    const result = await cronsManager.update(id, data);
+    const appInfo = await appManager.getInfo();
+    const result = await cronsManager.update(id, {
+      ...data,
+      submitOptions: {
+        agentId: data.agentId ?? appInfo.defaultAgent,
+      }
+    },);
     return {
       id: result.id,
       name: result.name,

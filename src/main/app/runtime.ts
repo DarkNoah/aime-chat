@@ -1,11 +1,12 @@
 import fs from 'fs';
-import { runCommand } from '../utils/shell';
+import { runCommand as runShellCommand } from '../utils/shell';
 import { app } from 'electron';
 import path from 'path';
 import { appManager } from '.';
 import { getAssetPath } from '../utils';
 import { RuntimeInfo } from '@/types/app';
 import TOML from '@iarna/toml';
+import { appLog } from './logger';
 
 export const uv: RuntimeInfo['uv'] = {
   status: 'not_installed' as 'installed' | 'not_installed' | 'installing',
@@ -62,6 +63,23 @@ export const agentBrowser: RuntimeInfo['agentBrowser'] = {
 
 const PYTHON_RUNTIME_VERSION = '3.12';
 const NODE_RUNTIME_VERSION = '22';
+
+const runCommand = async (
+  command: Parameters<typeof runShellCommand>[0],
+  options?: Parameters<typeof runShellCommand>[1],
+) => {
+  const result = await runShellCommand(command, options);
+  appLog.write(result.code === 0 ? 'info' : 'error', '[runtime] command', {
+    command: typeof command === 'string' ? command : command.join(' '),
+    code: result.code,
+    timedOut: result.timedOut,
+    stdout: result.stdout,
+    stderr: result.stderr,
+    output: result.output,
+    message: result.error?.message,
+  });
+  return result;
+};
 
 function getDefaultNvmDir() {
   return process.env.NVM_DIR || path.join(app.getPath('home'), '.nvm');

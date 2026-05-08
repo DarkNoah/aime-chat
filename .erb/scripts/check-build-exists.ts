@@ -26,9 +26,8 @@ if (!fs.existsSync(rendererPath)) {
 
 // JSDOM does not implement TextEncoder and TextDecoder
 if (!global.TextEncoder) {
-  global.TextEncoder = TextEncoder;
+  global.TextEncoder = TextEncoder as any;
 }
 if (!global.TextDecoder) {
-  // @ts-ignore
-  global.TextDecoder = TextDecoder;
+  global.TextDecoder = TextDecoder as any;
 }

@@ -40,13 +40,15 @@
     "publish": "ts-node ./.erb/scripts/clean.js dist && npm run prepare:vc-redist && npm run build && electron-builder build --publish always && npm run build:dll && pnpm install",
     "rebuild": "electron-rebuild --parallel --types prod,dev,optional --module-dir release/app",
     "prestart": "cross-env NODE_ENV=development TS_NODE_TRANSPILE_ONLY=true webpack --config ./.erb/configs/webpack.config.main.dev.ts",
-    "start": "npm run kill-port && ts-node ./.erb/scripts/check-port-in-use.js && npm run prestart && npm run start:renderer",
+    "start": "npm run kill-port && npm run kill-webpack-processes && ts-node ./.erb/scripts/check-port-in-use.js && npm run prestart && npm run start:renderer",
     "start:main": "concurrently -k \"cross-env NODE_ENV=development TS_NODE_TRANSPILE_ONLY=true webpack --watch --config ./.erb/configs/webpack.config.main.dev.ts\" \"electronmon .\"",
     "start:preload": "cross-env NODE_ENV=development TS_NODE_TRANSPILE_ONLY=true webpack --config ./.erb/configs/webpack.config.preload.dev.ts",
     "start:renderer": "cross-env NODE_ENV=development TS_NODE_TRANSPILE_ONLY=true webpack serve --config ./.erb/configs/webpack.config.renderer.dev.ts",
     "test": "jest",
     "update-models-api": "ts-node .erb/scripts/update-models-api.ts",
     "kill-port": "ts-node .erb/scripts/kill-port.js",
+    "check-webpack-processes": "ts-node .erb/scripts/check-webpack-processes.js",
+    "kill-webpack-processes": "ts-node .erb/scripts/kill-webpack-processes.js",
     "docs:server": "cd packages/docs && npm run start"
   },
   "browserslist": [
@@ -80,6 +82,7 @@
       "json"
     ],
     "moduleNameMapper": {
+      "^@/(.*)$": "<rootDir>/src/$1",
       "\\.(jpg|jpeg|png|gif|eot|otf|webp|svg|ttf|woff|woff2|mp4|webm|wav|mp3|m4a|aac|oga)$": "<rootDir>/.erb/mocks/fileMock.js",
       "\\.(css|less|sass|scss)$": "identity-obj-proxy"
     },
@@ -440,7 +443,8 @@
     },
     "linux": {
       "target": [
-        "AppImage"
+        "AppImage",
+        "deb"
       ],
       "category": "Development",
       "artifactName": "${productName}-linux.${ext}"

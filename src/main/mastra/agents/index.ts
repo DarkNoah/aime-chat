@@ -1,6 +1,11 @@
 import { BaseManager } from '../../BaseManager';
 import { Mastra } from '@mastra/core';
-import { Agent as MastraAgent, AgentConfig } from '@mastra/core/agent';
+import {
+  Agent as MastraAgent,
+  AgentConfig,
+  AgentInstructions,
+  DynamicAgentInstructions,
+} from '@mastra/core/agent';
 import { Memory, MessageHistory } from '@mastra/memory';
 import mastraManager from '../../mastra';
 import { toolsManager } from '../../tools';
@@ -33,6 +38,50 @@ import { Agent as AgentTool } from '@/main/tools/common/agent';
 
 type BuiltInAgent = BaseAgent & {
   classType: any;
+};
+
+const appendInstructionBlock = (
+  instructions: DynamicAgentInstructions | AgentInstructions | undefined,
+  block?: string,
+): DynamicAgentInstructions | AgentInstructions | undefined => {
+  if (!block?.trim()) {
+    return instructions;
+  }
+  const instructionBlock = block.trim();
+
+  const append = (value: any): AgentInstructions => {
+    if (!value) {
+      return instructionBlock;
+    }
+    if (isString(value)) {
+      return `${value}\n\n${instructionBlock}`;
+    }
+    if (Array.isArray(value)) {
+      const text = value
+        .map((item) => {
+          if (isString(item)) {
+            return item;
+          }
+          if (item && typeof item === 'object' && 'content' in item) {
+            return item.content;
+          }
+          return '';
+        })
+        .filter(Boolean)
+        .join('\n');
+      return text ? `${text}\n\n${instructionBlock}` : instructionBlock;
+    }
+    if (value && typeof value === 'object' && 'content' in value) {
+      return `${value.content}\n\n${instructionBlock}`;
+    }
+    return instructionBlock;
+  };
+
+  if (typeof instructions === 'function') {
+    return async (args: any) => append(await instructions(args));
+  }
+
+  return append(instructions);
 };
 
 class AgentManager extends BaseManager {
@@ -160,11 +209,19 @@ class AgentManager extends BaseManager {
 
 
     const additionalInstructions = params?.requestContext?.get('additionalInstructions')
-    if (isString(_instructions) && additionalInstructions) {
-      _instructions = _instructions + `\n\n
+    if (additionalInstructions) {
+      _instructions = appendInstructionBlock(_instructions, `
 <system-reminder>
 ${additionalInstructions}
-</system-reminder>`;
+</system-reminder>`);
+    }
+
+    const assistantSoul = params?.requestContext?.get('assistantSoul');
+    if (assistantSoul) {
+      _instructions = appendInstructionBlock(_instructions, `
+<assistant-soul>
+${assistantSoul}
+</assistant-soul>`);
     }
 
 

@@ -83,6 +83,7 @@ export class CodeAgent extends BaseAgent {
     `${ToolType.BUILD_IN}:${GenerateImage.toolName}`,
     `${ToolType.BUILD_IN}:${EditImage.toolName}`,
     `${ToolType.SKILL}:local:agent-browser`,
+    `${ToolType.SKILL}:local:aime-chat-docs`,
   ];
   subAgents: string[] = [`${Explore.agentName}`, `${Plan.agentName}`];
   constructor(params: BaseAgentParams) {
