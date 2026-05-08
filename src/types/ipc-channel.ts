@@ -79,6 +79,7 @@ export enum MastraChannel {
   Chat = 'mastra:chat',
   ChatWorkflow = 'mastra:chatWorkflow',
   ChatAbort = 'mastra:chatAbort',
+  KillBashSession = 'mastra:killBashSession',
   SaveMessages = 'mastra:saveMessages',
   ClearMessages = 'mastra:clearMessages',
   GetUsage = 'mastra:getUsage',
@@ -161,7 +162,6 @@ export enum TaskQueueChannel {
   TaskAdded = 'task-queue:taskAdded',
   TaskRemoved = 'task-queue:taskRemoved',
 }
-
 
 export enum SecretsChannel {
   GetList = 'secrets:getList',

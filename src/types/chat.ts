@@ -65,6 +65,7 @@ export type BashSessionUpdateEvent =
 export type BashSessionUpdate = {
   event: BashSessionUpdateEvent;
   threadId?: string;
+  resourceId?: string;
   bashId: string;
   command: string;
   description?: string;

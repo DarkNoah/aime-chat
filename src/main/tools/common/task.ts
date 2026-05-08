@@ -16,6 +16,7 @@ import { agentManager } from '@/main/mastra/agents';
 import { providersManager } from '@/main/providers';
 import { ChatTask, ChatTodo } from '@/types/chat';
 import BaseToolkit, { BaseToolkitParams } from '../base-toolkit';
+import bashManager from '../file-system/bash';
 
 
 
@@ -85,6 +86,8 @@ NOTE that you should not use this tool if there is only one trivial task to do. 
   constructor() {
     super();
   }
+
+
 
   execute = async (
     inputData: z.infer<typeof this.inputSchema>,
@@ -235,6 +238,38 @@ Returns a summary list of all tasks with:
     super();
   }
 
+  private async getVisibleBashSessions(
+    threadId: string,
+    resourceId: string | undefined,
+    memoryStore: any,
+  ) {
+    if (!resourceId?.startsWith('project:')) {
+      return bashManager.getBashSessions(threadId).filter((x) => !x.isExited);
+    }
+
+    const sessionsById = new Map(
+      bashManager
+        .getBashSessions({ resourceId })
+        .filter((x) => !x.isExited)
+        .map((session) => [session.bashId, session]),
+    );
+
+    const projectThreads = await memoryStore
+      .listThreads({
+        perPage: false,
+        filter: { resourceId },
+      })
+      .catch(() => ({ threads: [] }));
+    const threadIds = (projectThreads.threads || []).map((thread) => thread.id);
+    for (const session of bashManager
+      .getBashSessions(threadIds)
+      .filter((x) => !x.isExited)) {
+      sessionsById.set(session.bashId, session);
+    }
+
+    return Array.from(sessionsById.values());
+  }
+
   execute = async (
     inputData: z.infer<typeof this.inputSchema>,
     context: ToolExecutionContext<z.ZodSchema, any>,
@@ -248,16 +283,36 @@ Returns a summary list of all tasks with:
       threadId: threadId,
     });
     const tasks = (currentThread.metadata?.tasks as ChatTask[]) || [];
+    const bashSessions = await this.getVisibleBashSessions(
+      threadId as string,
+      currentThread.resourceId,
+      memoryStore,
+    );
 
-    if (tasks.length === 0) {
+    if (tasks.length === 0 && bashSessions.length === 0) {
       return 'No tasks found.';
     }
 
-    return tasks
+    const taskList = tasks
       .map((x) => {
         return `#${x.taskId} [${x.status}] ${x.subject}${x.blockedBy?.length ? ` [blocked by ${x.blockedBy.map((b) => '#' + b).join(', ')}]` : ''}`;
       })
       .join('\n');
+
+    const bashList =
+      bashSessions.length > 0
+        ? [
+          currentThread.resourceId?.startsWith('project:')
+            ? 'Project background Bash sessions:'
+            : 'Background Bash sessions:',
+          ...bashSessions.map(
+            (x) =>
+              `- ${x.bashId} [running] ${x.command}${x.description ? ` (${x.description})` : ''}${x.threadId ? ` thread:${x.threadId}` : ''}`,
+          ),
+        ].join('\n')
+        : '';
+
+    return [taskList, bashList].filter(Boolean).join('\n\n');
   };
 }
 

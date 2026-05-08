@@ -1,4 +1,8 @@
-import { resolveCronRunThread } from '../cron-thread';
+import {
+  buildCronThreadCreateOptions,
+  prepareCronRunStart,
+  resolveCronRunThread,
+} from '../cron-thread';
 
 describe('resolveCronRunThread', () => {
   const createThread = jest.fn();
@@ -10,12 +14,7 @@ describe('resolveCronRunThread', () => {
     tools: ['tool-a'],
     subAgents: ['agent-a'],
     resourceId: 'project:project-a',
-    metadata: {
-      cron: true,
-      cronId: 'cron-a',
-      cronName: 'Cron A',
-      trigger: 'schedule' as const,
-    },
+    cronId: 'cron-a',
   };
 
   beforeEach(() => {
@@ -62,5 +61,55 @@ describe('resolveCronRunThread', () => {
     expect(thread.id).toBe('new-thread');
     expect(getThread).not.toHaveBeenCalled();
     expect(createThread).toHaveBeenCalledWith(createOptions);
+  });
+});
+
+describe('buildCronThreadCreateOptions', () => {
+  it('passes cronId directly when creating cron threads', () => {
+    const options = buildCronThreadCreateOptions({
+      id: 'cron-a',
+      projectId: 'project-a',
+      submitOptions: {
+        model: 'test-model',
+        agentId: 'test-agent',
+        tools: ['tool-a'],
+        subAgents: ['agent-a'],
+      },
+    });
+
+    expect(options).toEqual({
+      model: 'test-model',
+      agentId: 'test-agent',
+      tools: ['tool-a'],
+      subAgents: ['agent-a'],
+      resourceId: 'project:project-a',
+      cronId: 'cron-a',
+    });
+  });
+});
+
+describe('prepareCronRunStart', () => {
+  it('keeps lastRunChatId so reuseThread can reuse the previous thread', () => {
+    const cron = {
+      lastRunAt: new Date('2026-05-08T00:00:00.000Z'),
+      lastRunEndAt: new Date('2026-05-08T00:01:00.000Z'),
+      lastRunResult: { ok: true },
+      lastRunChatId: 'previous-thread',
+      runHistory: [],
+    };
+    const startedAt = new Date('2026-05-09T00:00:00.000Z');
+    const record = {
+      startedAt: startedAt.toISOString(),
+      status: 'running' as const,
+      trigger: 'manual' as const,
+    };
+
+    prepareCronRunStart(cron, startedAt, [record]);
+
+    expect(cron.lastRunAt).toBe(startedAt);
+    expect(cron.lastRunEndAt).toBeUndefined();
+    expect(cron.lastRunResult).toBeUndefined();
+    expect(cron.lastRunChatId).toBe('previous-thread');
+    expect(cron.runHistory).toEqual([record]);
   });
 });

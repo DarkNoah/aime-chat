@@ -606,6 +606,7 @@
     "duration_seconds": "{{count}}秒",
     "duration_minutes_seconds": "{{minutes}}分 {{seconds}}秒",
     "exit_code": "退出码 {{code}}",
+    "stop_session": "停止",
     "waiting_output": "等待输出...",
     "home_directory": "~",
     "empty": "暂无后台 Bash 会话"

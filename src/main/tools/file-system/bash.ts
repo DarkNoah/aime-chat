@@ -27,6 +27,14 @@ import { BashSessionUpdate, ChatEvent } from '@/types/chat';
 import { getRuntimePython } from '@/main/utils/runtimePython';
 
 const MAX_OUTPUT_LENGTH = 10000;
+type BashSessionScope =
+  | string
+  | string[]
+  | {
+    threadId?: string;
+    threadIds?: string[];
+    resourceId?: string;
+  };
 // const PATH_DELIMITER = process.platform === 'win32' ? ';' : ':';
 
 // function prependPath(env: Record<string, string>, dir?: string) {
@@ -306,6 +314,7 @@ Output: Creates directory 'foo'`),
 
     if (run_in_background) {
       const shell_id = nanoid(8);
+      const resourceId = requestContext.get('resourceId' as never) as string;
       bashManager.runInBackground(
         { command: inputData.command, description: inputData.description },
         shell_id,
@@ -314,6 +323,7 @@ Output: Creates directory 'foo'`),
         undefined,
         undefined,
         threadId,
+        resourceId,
       );
       return `Command running in background with ID: ${shell_id}, You can use BashOutput to check its output whenever you need to see what's happening.`;
     }
@@ -333,7 +343,6 @@ Output: Creates directory 'foo'`),
       code,
       processSignal,
       timedOut,
-      backgroundPIDs,
       tempFilePath,
       pid,
     } = await runCommand(inputData.command, {
@@ -548,8 +557,9 @@ IsRunning: ${x.isExited ? 'No' : 'Yes'}`,
   };
 }
 
-export interface BashToolParams extends BaseToolkitParams {
+export interface BashToolParams extends BaseToolParams, BaseToolkitParams {
   env?: string;
+  Bash?: BashToolParams;
 }
 
 export class BashToolkit extends BaseToolkit {
@@ -574,6 +584,7 @@ export class BashToolkit extends BaseToolkit {
 export interface BashSession {
   shell: ChildProcessByStdio<null, Stream.Readable, Stream.Readable>;
   threadId?: string;
+  resourceId?: string;
   bashId: string;
   command: string;
   directory: string;
@@ -611,6 +622,7 @@ export class BashManager {
     timeout?: number,
     abortSignal?: AbortSignal,
     threadId?: string,
+    resourceId?: string,
   ) {
     const managedAbort = createManagedAbortController(timeout, abortSignal);
     const { abortController } = managedAbort;
@@ -638,6 +650,7 @@ export class BashManager {
       lastGetOutputTime: new Date(),
       abortController,
       threadId,
+      resourceId,
       description: input.description,
       timedOut: false,
     };
@@ -651,6 +664,7 @@ export class BashManager {
         data: {
           event,
           threadId: bashSession.threadId,
+          resourceId: bashSession.resourceId,
           bashId: bashSession.bashId,
           command: bashSession.command,
           description: bashSession.description,
@@ -891,11 +905,37 @@ export class BashManager {
     return new_bash_ids;
   }
 
-  getBashSessions(threadId?: string) {
+  getBashSessions(scope?: BashSessionScope) {
     const sessions = Array.from(this.bashMap.values());
-    if (threadId) {
-      return sessions.filter((session) => session.threadId === threadId);
+    if (!scope) {
+      return sessions;
     }
+
+    if (typeof scope === 'string') {
+      return sessions.filter((session) => session.threadId === scope);
+    }
+
+    if (Array.isArray(scope)) {
+      return sessions.filter(
+        (session) => !!session.threadId && scope.includes(session.threadId),
+      );
+    }
+
+    if (scope.resourceId) {
+      return sessions.filter((session) => session.resourceId === scope.resourceId);
+    }
+
+    if (scope.threadIds) {
+      return sessions.filter(
+        (session) =>
+          !!session.threadId && scope.threadIds?.includes(session.threadId),
+      );
+    }
+
+    if (scope.threadId) {
+      return sessions.filter((session) => session.threadId === scope.threadId);
+    }
+
     return sessions;
   }
 }

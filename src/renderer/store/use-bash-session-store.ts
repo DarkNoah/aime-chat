@@ -5,6 +5,7 @@ const MAX_OUTPUT_LENGTH = 200_000;
 
 export type BashSessionView = {
   threadId?: string;
+  resourceId?: string;
   bashId: string;
   command: string;
   description?: string;
@@ -30,6 +31,7 @@ type BashSessionStoreState = {
   setPanelOpen: (open: boolean) => void;
   togglePanel: () => void;
   selectSession: (bashId: string) => void;
+  stopSession: (bashId: string) => Promise<void>;
   clearCompleted: () => void;
   getRunningCount: () => number;
 };
@@ -51,6 +53,7 @@ export const useBashSessionStore = create<BashSessionStoreState>(
         const previous = state.sessions[event.bashId];
         const nextSession: BashSessionView = {
           threadId: event.threadId ?? previous?.threadId,
+          resourceId: event.resourceId ?? previous?.resourceId,
           bashId: event.bashId,
           command: event.command ?? previous?.command ?? '',
           description: event.description ?? previous?.description,
@@ -92,6 +95,10 @@ export const useBashSessionStore = create<BashSessionStoreState>(
 
     selectSession: (bashId) =>
       set({ selectedSessionId: bashId, isPanelOpen: true }),
+
+    stopSession: async (bashId) => {
+      await window.electron.mastra.killBashSession(bashId);
+    },
 
     clearCompleted: () => {
       set((state) => {

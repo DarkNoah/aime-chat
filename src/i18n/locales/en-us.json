@@ -557,6 +557,7 @@
     "duration_seconds": "{{count}}s",
     "duration_minutes_seconds": "{{minutes}}m {{seconds}}s",
     "exit_code": "exit {{code}}",
+    "stop_session": "Stop",
     "waiting_output": "Waiting for output...",
     "home_directory": "~",
     "empty": "No background Bash sessions"

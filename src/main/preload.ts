@@ -47,7 +47,11 @@ import {
   ProviderTypeList,
   UpdateProvider,
 } from '@/types/provider';
-import { AddTaskOptions, BackgroundTask, TaskGroupConfig } from '@/types/task-queue';
+import {
+  AddTaskOptions,
+  BackgroundTask,
+  TaskGroupConfig,
+} from '@/types/task-queue';
 import { AvailableTool, ToolType } from '@/types/tool';
 import { UpdateState } from '@/types/app';
 import {
@@ -78,7 +82,6 @@ import {
   WeixinLoginStartResult,
   WeixinLoginStatusResult,
 } from '@/types/channel';
-
 
 // export type Channels = 'ipc-example';
 
@@ -112,14 +115,22 @@ const electronHandler = {
     },
   },
   channels: {
-    getList: (): Promise<ChannelInfo[]> => ipcRenderer.invoke(ChannelChannel.GetList),
-    get: (id: string): Promise<ChannelInfo> => ipcRenderer.invoke(ChannelChannel.Get, id),
-    save: (data: SaveChannelInput): Promise<ChannelInfo> => ipcRenderer.invoke(ChannelChannel.Save, data),
-    delete: (id: string): Promise<void> => ipcRenderer.invoke(ChannelChannel.Delete, id),
-    start: (id: string): Promise<ChannelInfo> => ipcRenderer.invoke(ChannelChannel.Start, id),
-    stop: (id: string): Promise<ChannelInfo> => ipcRenderer.invoke(ChannelChannel.Stop, id),
-    restart: (id: string): Promise<ChannelInfo> => ipcRenderer.invoke(ChannelChannel.Restart, id),
-    testConnection: (id: string): Promise<ChannelTestResult> => ipcRenderer.invoke(ChannelChannel.TestConnection, id),
+    getList: (): Promise<ChannelInfo[]> =>
+      ipcRenderer.invoke(ChannelChannel.GetList),
+    get: (id: string): Promise<ChannelInfo> =>
+      ipcRenderer.invoke(ChannelChannel.Get, id),
+    save: (data: SaveChannelInput): Promise<ChannelInfo> =>
+      ipcRenderer.invoke(ChannelChannel.Save, data),
+    delete: (id: string): Promise<void> =>
+      ipcRenderer.invoke(ChannelChannel.Delete, id),
+    start: (id: string): Promise<ChannelInfo> =>
+      ipcRenderer.invoke(ChannelChannel.Start, id),
+    stop: (id: string): Promise<ChannelInfo> =>
+      ipcRenderer.invoke(ChannelChannel.Stop, id),
+    restart: (id: string): Promise<ChannelInfo> =>
+      ipcRenderer.invoke(ChannelChannel.Restart, id),
+    testConnection: (id: string): Promise<ChannelTestResult> =>
+      ipcRenderer.invoke(ChannelChannel.TestConnection, id),
     generatePairingCode: (id: string): Promise<ChannelPairingCodeResult> =>
       ipcRenderer.invoke(ChannelChannel.GeneratePairingCode, id),
     clearPairingCode: (id: string): Promise<ChannelInfo> =>
@@ -213,8 +224,13 @@ const electronHandler = {
     readFileContent: (
       filePath: string,
       options?: { limit?: number },
-    ): Promise<{ content: string; truncated: boolean; size: number, mimeType: string, isBinary: boolean }> =>
-      ipcRenderer.invoke(AppChannel.ReadFileContent, filePath, options),
+    ): Promise<{
+      content: string;
+      truncated: boolean;
+      size: number;
+      mimeType: string;
+      isBinary: boolean;
+    }> => ipcRenderer.invoke(AppChannel.ReadFileContent, filePath, options),
     refreshPreventSleep: (): Promise<void> =>
       ipcRenderer.invoke(AppChannel.RefreshPreventSleep),
     screenCapture: (
@@ -253,7 +269,10 @@ const electronHandler = {
       resourceId?: string;
     }): Promise<PaginationInfo<StorageThreadType>> =>
       ipcRenderer.invoke(MastraChannel.GetThreads, { page, size, resourceId }),
-    getThread: (id: string, onlyThread: boolean = false): Promise<ThreadState> =>
+    getThread: (
+      id: string,
+      onlyThread: boolean = false,
+    ): Promise<ThreadState> =>
       ipcRenderer.invoke(MastraChannel.GetThread, id, onlyThread),
     updateThread: (id: string, data: any) =>
       ipcRenderer.invoke(MastraChannel.UpdateThread, id, data),
@@ -266,6 +285,8 @@ const electronHandler = {
       ipcRenderer.send(MastraChannel.ChatWorkflow, data),
     chatAbort: (chatId: string) =>
       ipcRenderer.invoke(MastraChannel.ChatAbort, chatId),
+    killBashSession: (bashId: string): Promise<boolean> =>
+      ipcRenderer.invoke(MastraChannel.KillBashSession, bashId),
     saveMessages: (chatId: string, messages: MastraDBMessage[]) =>
       ipcRenderer.invoke(MastraChannel.SaveMessages, chatId, messages),
     clearMessages: (chatId: string) =>
@@ -319,9 +340,32 @@ const electronHandler = {
       source: any;
       type: KnowledgeBaseSourceType;
     }) => ipcRenderer.invoke(KnowledgeBaseChannel.ImportSource, data),
-    getKnowledgeBaseItems: (id: string, params: PaginationParams): Promise<PaginationInfo<KnowledgeBaseItem>> => ipcRenderer.invoke(KnowledgeBaseChannel.GetKnowledgeBaseItems, id, params),
-    searchKnowledgeBase: (kbId: string, query: string, fileTpye: 'text' | 'image' = 'text', filter?: string, top_k: number = 10): Promise<SearchKnowledgeBaseResult> => ipcRenderer.invoke(KnowledgeBaseChannel.SearchKnowledgeBase, kbId, query, fileTpye, filter, top_k),
-    deleteKnowledgeBaseItem: (id: string) => ipcRenderer.invoke(KnowledgeBaseChannel.DeleteKnowledgeBaseItem, id),
+    getKnowledgeBaseItems: (
+      id: string,
+      params: PaginationParams,
+    ): Promise<PaginationInfo<KnowledgeBaseItem>> =>
+      ipcRenderer.invoke(
+        KnowledgeBaseChannel.GetKnowledgeBaseItems,
+        id,
+        params,
+      ),
+    searchKnowledgeBase: (
+      kbId: string,
+      query: string,
+      fileTpye: 'text' | 'image' = 'text',
+      filter?: string,
+      top_k: number = 10,
+    ): Promise<SearchKnowledgeBaseResult> =>
+      ipcRenderer.invoke(
+        KnowledgeBaseChannel.SearchKnowledgeBase,
+        kbId,
+        query,
+        fileTpye,
+        filter,
+        top_k,
+      ),
+    deleteKnowledgeBaseItem: (id: string) =>
+      ipcRenderer.invoke(KnowledgeBaseChannel.DeleteKnowledgeBaseItem, id),
     updateKnowledgeBaseItem: (
       id: string,
       data: {
@@ -331,14 +375,22 @@ const electronHandler = {
         metadata?: any;
       },
     ): Promise<KnowledgeBaseItem> =>
-      ipcRenderer.invoke(KnowledgeBaseChannel.UpdateKnowledgeBaseItem, id, data),
+      ipcRenderer.invoke(
+        KnowledgeBaseChannel.UpdateKnowledgeBaseItem,
+        id,
+        data,
+      ),
   },
   tools: {
     deleteTool: (id: string) => ipcRenderer.invoke(ToolChannel.DeleteTool, id),
     saveMCPServer: (id: string | undefined, data: string) =>
       ipcRenderer.invoke(ToolChannel.SaveMCPServer, id, data),
     getMcp: (id: string) => ipcRenderer.invoke(ToolChannel.GetMcp, id),
-    getAvailableTools: ({ filter, isActive }: { filter?: string, isActive?: boolean } = { isActive: true }): Promise<Record<ToolType, Tool[]>> =>
+    getAvailableTools: (
+      { filter, isActive }: { filter?: string; isActive?: boolean } = {
+        isActive: true,
+      },
+    ): Promise<Record<ToolType, Tool[]>> =>
       ipcRenderer.invoke(ToolChannel.GetAvailableTools, { filter, isActive }),
     getList: (filter?: { type: ToolType }) =>
       ipcRenderer.invoke(ToolChannel.GetList, filter),
@@ -366,9 +418,17 @@ const electronHandler = {
     }) => ipcRenderer.invoke(ToolChannel.ImportSkills, data),
     previewGitSkill: (data: { gitUrl: string }) =>
       ipcRenderer.invoke(ToolChannel.PreviewGitSkill, data),
-    searchSkills: (query: string, limit?: number): Promise<{
+    searchSkills: (
+      query: string,
+      limit?: number,
+    ): Promise<{
       success: boolean;
-      skills: Array<{ name: string; slug: string; source: string; installs: number }>;
+      skills: Array<{
+        name: string;
+        slug: string;
+        source: string;
+        installs: number;
+      }>;
       error?: string;
     }> => ipcRenderer.invoke(ToolChannel.SearchSkills, query, limit),
   },
@@ -444,24 +504,44 @@ const electronHandler = {
       ipcRenderer.invoke(TaskQueueChannel.ClearCompleted),
   },
   instances: {
-    getInstances: (): Promise<InstanceInfo[]> => ipcRenderer.invoke(InstancesChannel.GetInstances),
-    runInstance: (id: string) => ipcRenderer.invoke(InstancesChannel.RunInstance, id),
-    stopInstance: (id: string) => ipcRenderer.invoke(InstancesChannel.StopInstance, id),
-    updateInstance: (id: string, data: any) => ipcRenderer.invoke(InstancesChannel.UpdateInstance, id, data),
-    deleteInstance: (id: string) => ipcRenderer.invoke(InstancesChannel.DeleteInstance, id),
-    createInstance: (data: any) => ipcRenderer.invoke(InstancesChannel.CreateInstance, data),
-    getInstance: (id: string) => ipcRenderer.invoke(InstancesChannel.GetInstance, id),
-    detectBrowserProfiles: () => ipcRenderer.invoke(InstancesChannel.DetectBrowserProfiles),
+    getInstances: (): Promise<InstanceInfo[]> =>
+      ipcRenderer.invoke(InstancesChannel.GetInstances),
+    runInstance: (id: string) =>
+      ipcRenderer.invoke(InstancesChannel.RunInstance, id),
+    stopInstance: (id: string) =>
+      ipcRenderer.invoke(InstancesChannel.StopInstance, id),
+    updateInstance: (id: string, data: any) =>
+      ipcRenderer.invoke(InstancesChannel.UpdateInstance, id, data),
+    deleteInstance: (id: string) =>
+      ipcRenderer.invoke(InstancesChannel.DeleteInstance, id),
+    createInstance: (data: any) =>
+      ipcRenderer.invoke(InstancesChannel.CreateInstance, data),
+    getInstance: (id: string) =>
+      ipcRenderer.invoke(InstancesChannel.GetInstance, id),
+    detectBrowserProfiles: () =>
+      ipcRenderer.invoke(InstancesChannel.DetectBrowserProfiles),
   },
   market: {
-    getMarketData: (type: ToolType.SKILL | ToolType.MCP) => ipcRenderer.invoke(MarketChannel.GetMarketData, type),
+    getMarketData: (type: ToolType.SKILL | ToolType.MCP) =>
+      ipcRenderer.invoke(MarketChannel.GetMarketData, type),
   },
   secrets: {
     getList: (): Promise<any[]> => ipcRenderer.invoke(SecretsChannel.GetList),
-    create: (data: { key: string; value: string; description?: string; global?: boolean }) =>
-      ipcRenderer.invoke(SecretsChannel.Create, data),
-    update: (id: string, data: { key?: string; value?: string; description?: string; global?: boolean }) =>
-      ipcRenderer.invoke(SecretsChannel.Update, id, data),
+    create: (data: {
+      key: string;
+      value: string;
+      description?: string;
+      global?: boolean;
+    }) => ipcRenderer.invoke(SecretsChannel.Create, data),
+    update: (
+      id: string,
+      data: {
+        key?: string;
+        value?: string;
+        description?: string;
+        global?: boolean;
+      },
+    ) => ipcRenderer.invoke(SecretsChannel.Update, id, data),
     delete: (id: string) => ipcRenderer.invoke(SecretsChannel.Delete, id),
   },
   crons: {
@@ -477,18 +557,24 @@ const electronHandler = {
       isActive?: boolean;
       reuseThread?: boolean;
     }): Promise<any> => ipcRenderer.invoke(CronsChannel.Create, data),
-    update: (id: string, data: {
-      name?: string;
-      prompt?: string;
-      cron?: string;
-      projectId?: string;
-      description?: string;
-      agentId?: string;
-      isActive?: boolean;
-      reuseThread?: boolean;
-    }): Promise<any> => ipcRenderer.invoke(CronsChannel.Update, id, data),
-    delete: (id: string): Promise<void> => ipcRenderer.invoke(CronsChannel.Delete, id),
-    runNow: (id: string): Promise<{ started: boolean; alreadyRunning: boolean }> =>
+    update: (
+      id: string,
+      data: {
+        name?: string;
+        prompt?: string;
+        cron?: string;
+        projectId?: string;
+        description?: string;
+        agentId?: string;
+        isActive?: boolean;
+        reuseThread?: boolean;
+      },
+    ): Promise<any> => ipcRenderer.invoke(CronsChannel.Update, id, data),
+    delete: (id: string): Promise<void> =>
+      ipcRenderer.invoke(CronsChannel.Delete, id),
+    runNow: (
+      id: string,
+    ): Promise<{ started: boolean; alreadyRunning: boolean }> =>
       ipcRenderer.invoke(CronsChannel.RunNow, id),
   },
 };
