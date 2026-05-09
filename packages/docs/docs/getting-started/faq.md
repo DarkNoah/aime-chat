@@ -58,5 +58,16 @@ pnpm kill-port
 ![缺少VC++ 运行库](./images/loss_vc++.png)
 - 原因: 未安装 Microsoft Visual C++ Redistributable
 
+Windows 安装包会在安装过程中检查 Visual C++ Redistributable。如果检测到运行库缺失或文件不完整，会尝试安装随包附带的 VC++ 运行库。
+
+如果仍然遇到启动失败：
+
+1. 重新运行最新的 Windows 安装包。
+2. 确认安装过程没有被系统安全软件拦截。
+3. 在 AIME Chat 的关于页面中打开日志文件，查看运行库安装和启动失败的详细信息。
+
+## 运行库安装失败
+
+如果在设置页安装 UV、Node.js、Bun、PaddleOCR 或 Qwen Audio 等运行库失败，可以先打开关于页面中的日志文件。日志中会记录运行库安装命令、退出码、标准输出和错误输出，通常能直接定位是网络下载、权限还是依赖初始化问题。
 
 
