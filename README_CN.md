@@ -2,7 +2,7 @@
   <img src="assets/banner.png" alt="AIME Chat" width="100%" />
 
   <p>
-    <img src="https://img.shields.io/badge/version-0.3.29-blue.svg" alt="Version">
+    <img src="https://img.shields.io/badge/version-0.3.34-blue.svg" alt="Version">
     <img src="https://img.shields.io/badge/platform-macOS%20|%20Windows%20|%20Linux-lightgrey.svg" alt="Platform">
     <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License">
   </p>
@@ -25,9 +25,12 @@
 - 🤝 **Open CoWork 能力** - AI 不只是聊天，还能执行实际操作，如文件编辑、代码执行、网络搜索等
 - 📚 **知识库管理** - 内置向量数据库，支持文档检索、知识问答和长期养成记忆
 - 🧠 **养成记忆** - 由定时运行的 Cultivation Agent 从聊天记录中提取偏好、习惯、项目上下文和重要事实，沉淀为结构化记忆 Wiki
+- ⏰ **自动化任务** - 支持按计划执行 AI 任务，可绑定项目上下文、指定 Agent/工具，并选择复用同一聊天线程或每次创建新线程
 - 🛠️ **工具集成** - 支持 MCP（Model Context Protocol）客户端，可扩展各类工具能力
 - 🎙️ **语音处理** - 内置语音转文字（STT）和文字转语音（TTS）能力，基于 Qwen3-TTS 模型
 - 🔍 **Skill 技能系统** - 支持从 Git 仓库或在线技能市场搜索、导入和管理 AI 技能
+- 🧑‍💻 **助手人格** - 内置助手人格可直接选择使用，并支持通过当前人格格式进行定制
+- 🖥️ **后台 Bash 会话** - 支持在当前会话或项目级范围查看长时间运行的 Bash 进程，并可在界面中直接停止
 - 📡 **频道接入** - 将 AI 能力接入微信、Telegram 等即时通讯平台
 - 🔐 **Secrets 管理** - 集中管理工具和服务所需的密钥，安全存储在本地
 - 🎨 **现代化 UI** - 使用 shadcn/ui 组件库，支持亮色/暗色主题切换
@@ -162,6 +165,7 @@ AIME Chat 内置由 `Cultivation` Agent 维护的全局记忆知识库。启用 
 | 信息提取 | Extract | 从文档中提取结构化信息 |
 | 知识库 | KnowledgeBase | 知识库检索和智能问答 |
 
+- 🧵 **后台 Bash 跟踪** - Bash 长任务会出现在任务和上下文相关界面中；项目级会话可查看整个项目范围内的后台进程
 - 🔌 **MCP 协议支持** - 可扩展第三方工具
 - ⚙️ **工具配置界面** - 可视化管理和配置工具
 - 🔍 **Skill 技能市场** - 从 Git 仓库或在线技能市场（skills.sh）搜索和导入技能
@@ -226,10 +230,12 @@ AIME Chat 支持可选的运行库，可以在设置页面中安装：
 
 | 运行库 | 说明 |
 |--------|------|
+| UV / Python | 为代码执行、OCR 和其他本地处理工具提供 Python 运行环境 |
+| Node.js / Bun | 为 Node.js 代码执行和 MCP 相关工作流提供 JavaScript 运行环境 |
 | PaddleOCR | 基于 PaddlePaddle 的 OCR 识别引擎，支持文档结构分析和从 PDF/图片中提取文字 |
 | Qwen Audio | 基于 Qwen3-TTS 的语音处理引擎，支持语音识别（ASR）和语音合成（TTS） |
 
-这些运行库通过内置的 uv 包管理器进行管理，将安装在应用数据目录中。
+这些运行库会安装在应用数据目录中。运行库安装过程会把成功、失败和命令输出等诊断信息写入应用日志，关于页面提供了直接打开日志文件的入口。
 
 ### 数据存储
 
@@ -283,4 +289,3 @@ AIME Chat 支持可选的运行库，可以在设置页面中安装：
 <div align="center">
   <sub>Built with ❤️ by Noah</sub>
 </div>
-

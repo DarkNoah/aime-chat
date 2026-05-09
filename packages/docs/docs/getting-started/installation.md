@@ -75,14 +75,15 @@ sudo apt-get install -f
 
 在开始之前，请确保您的系统满足以下要求：
 
-- **Node.js** >= 14.x
-- **npm** >= 7.x 或 **pnpm** >= 8.x（推荐）
+- **Node.js** >= 22.x
+- **npm** >= 10.x
+- **pnpm** >= 10.x
 - **Git**
 
 ### 1. 克隆项目
 
 ```bash
-git clone https://github.com/aime-chat/aime-chat.git
+git clone https://github.com/DarkNoah/aime-chat.git
 cd aime-chat
 ```
 
@@ -94,33 +95,25 @@ cd aime-chat
 pnpm install
 ```
 
-或使用 npm：
-
-```bash
-npm install
-```
-
 :::tip 提示
-首次安装可能需要较长时间，因为需要下载 Electron 和编译原生模块。
+首次安装可能需要较长时间，因为需要下载 Electron 和编译原生模块。由于 pnpm 默认可能限制依赖脚本，如果遇到二进制包缺失或原生模块初始化异常，可以执行 `pnpm approve-builds` 后再重试安装。
 :::
 
-### 3. 启动开发模式
+### 3. 开发调试
+
+当前仓库的开发调试入口以 VSCode 配置为主：
+
+- 安装依赖后打开 VSCode 调试面板
+- 选择 **Electron Main**
+- 启动调试任务
+
+也可以使用仓库脚本启动开发环境：
 
 ```bash
 pnpm start
 ```
 
-应用程序将以开发模式启动，支持热重载。
-
 ## 构建生产版本
-
-### 构建应用
-
-```bash
-pnpm build
-```
-
-### 打包桌面应用
 
 ```bash
 pnpm package
@@ -145,8 +138,6 @@ pnpm package
 - 查看 [AI 服务商配置](./ai-providers) 来配置您的 AI 服务
 - 了解 [基本使用](./basic-usage) 开始您的第一次对话
 - 遇到问题时参考 [常见问题](./faq)
-
-
 
 
 
