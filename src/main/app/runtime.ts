@@ -264,15 +264,24 @@ async function ensurePythonRuntimeEnvironment(uvDir: string) {
     await fs.promises.rm(venvDir, { recursive: true, force: true });
   }
 
-  const result = await runCommand(
-    `${uvPreCommand} venv "${venvDir}" --seed`,
+  let result = await runCommand(
+    `"${uvPreCommand}" venv "${venvDir}" --seed --clear`,
     {
       cwd: uvDir,
       timeout: 1000 * 60,
     },
   );
   await new Promise(resolve => setTimeout(resolve, 1000 * 2));
-
+  if (result.code !== 0) {
+    result = await runCommand(
+      `"${uvPreCommand}" venv "${venvDir}" --seed --clear --default-index https://mirrors.aliyun.com/pypi/simple`,
+      {
+        cwd: uvDir,
+        timeout: 1000 * 60,
+      },
+    );
+    await new Promise(resolve => setTimeout(resolve, 1000 * 2));
+  }
   if (
     result.code !== 0 ||
     !fs.existsSync(pythonPath) ||
@@ -516,6 +525,7 @@ export async function installNodeRuntime() {
         }
       );
       success = installResult.code === 0;
+
       const nodePath = getNodeRuntimeCandidates().find((candidate) =>
         fs.existsSync(candidate),
       );
