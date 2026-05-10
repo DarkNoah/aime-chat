@@ -88,6 +88,7 @@ import {
 import { ChatSlashCommandConfig, UntilEndPrompt } from '@/types/chat';
 import { Badge } from '../ui/badge';
 import { ChatUntilEnd } from './chat-until-end';
+import { getChatInputSubmitState } from './chat-input-submit-state';
 
 const DRAFT_STORAGE_KEY = 'chat-input-drafts';
 
@@ -223,6 +224,10 @@ function ChatInputInner(props: ChatInputInnerProps) {
   const [requireToolApproval, setRequireToolApproval] = useState<boolean>(
     requireToolApprovalProp ?? false,
   );
+  const hasPendingInput =
+    Boolean(controller.textInput.value?.trim()) ||
+    (controller.attachments.files?.length ?? 0) > 0;
+  const submitState = getChatInputSubmitState(status, hasPendingInput);
 
   useEffect(() => {
     if (typeof requireToolApprovalProp === 'boolean') {
@@ -260,8 +265,9 @@ function ChatInputInner(props: ChatInputInnerProps) {
     },
   }));
 
-  const handleSubmit = () => {
-    if (status === 'streaming' && !controller.textInput.value) {
+  const handleSubmit = (event: React.MouseEvent<HTMLButtonElement>) => {
+    if (status === 'streaming' && !hasPendingInput) {
+      event.preventDefault();
       onAbort?.();
     }
   };
@@ -275,6 +281,15 @@ function ChatInputInner(props: ChatInputInnerProps) {
       >
         <PromptInput
           onSubmit={(e) => {
+            if (status === 'streaming' && !hasPendingInput) {
+              onAbort?.();
+              return;
+            }
+
+            if (!hasPendingInput) {
+              return;
+            }
+
             if (
               status === 'ready' ||
               status === 'error' ||
@@ -432,6 +447,23 @@ function ChatInputInner(props: ChatInputInnerProps) {
               )}
 
               <Separator orientation="vertical" />
+              {submitState.showSecondaryStop && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <PromptInputButton
+                      size="icon-xs"
+                      type="button"
+                      variant="ghost"
+                      onClick={onAbort}
+                    >
+                      <SquareIcon size={16} />
+                    </PromptInputButton>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Stop current response</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
               {onClearMessages && (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
@@ -465,14 +497,8 @@ function ChatInputInner(props: ChatInputInnerProps) {
             </PromptInputTools>
 
             <PromptInputSubmit
-              disabled={!controller.textInput.value && !status}
-              status={
-                status === 'error' ||
-                ((status === 'streaming' || status === 'submitted') &&
-                  controller.textInput.value)
-                  ? 'ready'
-                  : status
-              }
+              disabled={submitState.disabled}
+              status={submitState.status}
               onClick={handleSubmit}
             />
           </PromptInputFooter>
