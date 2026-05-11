@@ -133,10 +133,19 @@ ${JSON.stringify(kbExtendColumns, null, 2)}`);
       }
     }
 
+    let data;
+    if (type == KnowledgeBaseSourceType.Text) {
+      data = { content: source };
+    } else if (type == KnowledgeBaseSourceType.File) {
+      data = { files: [source] };
+    } else if (type == KnowledgeBaseSourceType.Folder) {
+      data = source;
+    } else if (type == KnowledgeBaseSourceType.Web) {
+      data = { url: source };
+    }
 
 
-
-    const knowledgeBase = await knowledgeBaseManager.importSource({ kbId: kb_source, source, type, extendColumns: extendColumns.map(x => ({ column: x.column, value: x.value })) });
+    const knowledgeBase = await knowledgeBaseManager.importSource({ kbId: kb.id, source: data, type, extendColumns: extendColumns.map(x => ({ column: x.column, value: x.value })) });
     return { success: true };
   }
 }
@@ -145,6 +154,7 @@ export class KnowledgeBaseCreate extends BaseTool {
   static readonly toolName = 'KnowledgeBaseCreate';
   id: string = 'KnowledgeBaseCreate';
   description = `Create a knowledge base.
+Use skill:local:aime-chat-docs to look up the available embedding models.
 `;
 
   inputSchema = z.object({

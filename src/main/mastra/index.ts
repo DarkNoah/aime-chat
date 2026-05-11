@@ -35,6 +35,7 @@ import { toAISdkFormat, toAISdkStream } from '@mastra/ai-sdk';
 import { RequestContext } from '@mastra/core/request-context';
 import { providersManager } from '../providers';
 import { channel } from '../ipc/IpcController';
+import { api } from '../api/ApiController';
 import { PaginationInfo } from '@/types/common';
 import { MastraChannel } from '@/types/ipc-channel';
 import {
@@ -113,6 +114,43 @@ import { MessageListInput } from '@mastra/core/agent/message-list';
 import { secretsManager } from '../app/secrets';
 import { Done } from '../tools/common/done';
 
+function getQueryValue(value: unknown): string | undefined {
+  if (Array.isArray(value)) {
+    return getQueryValue(value[0]);
+  }
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  if (typeof value === 'string') {
+    return value;
+  }
+  return String(value);
+}
+
+function getNumberQuery(value: unknown, fallback: number): number {
+  const text = getQueryValue(value);
+  if (text === undefined || text === '') {
+    return fallback;
+  }
+  const number = Number(text);
+  return Number.isFinite(number) ? number : fallback;
+}
+
+function getBooleanQuery(value: unknown, fallback = false): boolean {
+  const text = getQueryValue(value);
+  if (text === undefined || text === '') {
+    return fallback;
+  }
+  return text === 'true' || text === '1';
+}
+
+function getPerPageQuery(value: unknown, fallback: number): number | false {
+  const text = getQueryValue(value);
+  if (text === 'false') {
+    return false;
+  }
+  return getNumberQuery(value, fallback);
+}
 
 class MastraManager extends BaseManager {
   app: express.Application;
@@ -130,15 +168,6 @@ class MastraManager extends BaseManager {
     this.app = express();
     this.app.use(express.json({ limit: '50mb' }));
     this.app.use(express.urlencoded({ limit: '50mb', extended: true }));
-
-    this.app.use((err, req, res, next) => {
-      console.error(err.stack);
-
-      res.status(err.status || 500).json({
-        success: false,
-        message: err.message || 'Internal Server Error',
-      });
-    });
 
     this.mastra = new Mastra({
       agents: {},
@@ -201,6 +230,20 @@ class MastraManager extends BaseManager {
       await toolsManager.mcpServer.connect(transport);
 
       await transport?.handleRequest(req, res, req.body);
+    });
+    BaseManager.registerApiRoutes(this.app);
+    this.app.use((err, req, res, next) => {
+      console.error(err.stack);
+
+      if (res.headersSent) {
+        next(err);
+        return;
+      }
+
+      res.status(err.status || 500).json({
+        success: false,
+        message: err.message || 'Internal Server Error',
+      });
     });
     const { apiServer } = await appManager.getInfo();
     if (apiServer?.enabled) {
@@ -466,6 +509,7 @@ class MastraManager extends BaseManager {
     }
     return thread;
   }
+
 
   @channel(MastraChannel.DeleteThread)
   public async deleteThread(id: string): Promise<void> {
