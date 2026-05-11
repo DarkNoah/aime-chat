@@ -261,7 +261,7 @@ function ChatInputInner(props: ChatInputInnerProps) {
   }));
 
   const handleSubmit = () => {
-    if (status === 'streaming') {
+    if (status === 'streaming' && !controller.textInput.value) {
       onAbort?.();
     }
   };
@@ -275,7 +275,13 @@ function ChatInputInner(props: ChatInputInnerProps) {
       >
         <PromptInput
           onSubmit={(e) => {
-            if (status === 'ready' || status === 'error' || !status) {
+            if (
+              status === 'ready' ||
+              status === 'error' ||
+              status === 'streaming' ||
+              status === 'submitted' ||
+              !status
+            ) {
               onSubmit(e, {
                 model,
                 webSearch,
@@ -460,7 +466,13 @@ function ChatInputInner(props: ChatInputInnerProps) {
 
             <PromptInputSubmit
               disabled={!controller.textInput.value && !status}
-              status={status === 'error' ? 'ready' : status}
+              status={
+                status === 'error' ||
+                ((status === 'streaming' || status === 'submitted') &&
+                  controller.textInput.value)
+                  ? 'ready'
+                  : status
+              }
               onClick={handleSubmit}
             />
           </PromptInputFooter>

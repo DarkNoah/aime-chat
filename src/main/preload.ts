@@ -281,6 +281,10 @@ const electronHandler = {
     deleteThread: (id: string) =>
       ipcRenderer.invoke(MastraChannel.DeleteThread, id),
     chat: (data: any) => ipcRenderer.send(MastraChannel.Chat, data),
+    enqueuePendingMessage: (data: any) =>
+      ipcRenderer.invoke(MastraChannel.EnqueuePendingMessage, data),
+    removePendingMessage: (chatId: string, id: string) =>
+      ipcRenderer.invoke(MastraChannel.RemovePendingMessage, chatId, id),
     chatWorkflow: (data: any) =>
       ipcRenderer.send(MastraChannel.ChatWorkflow, data),
     chatAbort: (chatId: string) =>

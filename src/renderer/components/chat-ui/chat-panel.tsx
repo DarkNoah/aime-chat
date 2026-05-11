@@ -34,7 +34,14 @@ import {
   ConversationEmptyState,
   ConversationScrollButton,
 } from '../ai-elements/conversation';
-import { ChevronsUpDown, CopyIcon, MessageSquareIcon } from 'lucide-react';
+import {
+  ChevronsUpDown,
+  ClockIcon,
+  CopyIcon,
+  MessageSquareIcon,
+  SendIcon,
+  XIcon,
+} from 'lucide-react';
 import { Agent } from '@/types/agent';
 import toast from 'react-hot-toast';
 import { useChat as useAiSdkChat } from '@ai-sdk/react';
@@ -112,6 +119,15 @@ type ChatMessageItemProps = {
     resumeData?: Record<string, any>,
   ) => void;
   onToolMessageClick?: (toolMessage: ToolUIPart) => void;
+};
+
+type PendingChatSubmit = {
+  id: string;
+  message: PromptInputMessage;
+  uiMessage: UIMessage;
+  options: ChatSubmitOptions;
+  createdAt: number;
+  immediate?: boolean;
 };
 
 const isRenderableMessagePart = (part: any) =>
@@ -453,6 +469,10 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
     const [suggestions, setSuggestions] = useState<string[] | undefined>();
     const [historyMessages, setHistoryMessages] = useState<UIMessage[]>([]);
     const [expandedMessages, setExpandedMessages] = useState<string[]>([]);
+    const [pendingSubmits, setPendingSubmits] = useState<PendingChatSubmit[]>(
+      [],
+    );
+    const pendingSubmitsRef = useRef<PendingChatSubmit[]>([]);
 
     useImperativeHandle(ref, () => ({
       sendMessage: (
@@ -587,6 +607,111 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
       chatInputRef.current?.setUntilEndPrompt(_untilEndPrompt);
     };
 
+    const syncPendingSubmits = useCallback((items: PendingChatSubmit[]) => {
+      pendingSubmitsRef.current = items;
+      setPendingSubmits(items);
+    }, []);
+
+    const buildPendingUIMessage = useCallback(
+      (id: string, message: PromptInputMessage): UIMessage =>
+        ({
+          id,
+          role: 'user',
+          parts: [
+            ...(message.files ?? []),
+            ...(message.text ? [{ type: 'text', text: message.text }] : []),
+          ],
+          metadata: {
+            pendingMessageId: id,
+          },
+        }) as UIMessage,
+      [],
+    );
+
+    const enqueuePendingSubmit = useCallback(
+      async (message: PromptInputMessage, options: ChatSubmitOptions) => {
+        if (!threadId) {
+          return;
+        }
+
+        const id = nanoid();
+        const uiMessage = buildPendingUIMessage(id, message);
+        const pending: PendingChatSubmit = {
+          id,
+          message,
+          uiMessage,
+          options,
+          createdAt: Date.now(),
+        };
+        syncPendingSubmits([...pendingSubmitsRef.current, pending]);
+        try {
+          await window.electron.mastra.enqueuePendingMessage({
+            id,
+            chatId: threadId,
+            message: uiMessage,
+            options,
+          });
+        } catch (err) {
+          syncPendingSubmits(
+            pendingSubmitsRef.current.filter((item) => item.id !== id),
+          );
+          toast.error(err instanceof Error ? err.message : String(err));
+        }
+      },
+      [buildPendingUIMessage, syncPendingSubmits, threadId],
+    );
+
+    const removePendingSubmit = useCallback(
+      (id: string) => {
+        syncPendingSubmits(
+          pendingSubmitsRef.current.filter((item) => item.id !== id),
+        );
+        if (threadId) {
+          window.electron.mastra.removePendingMessage(threadId, id);
+        }
+      },
+      [syncPendingSubmits, threadId],
+    );
+
+    const submitPendingImmediately = useCallback(
+      async (id: string) => {
+        if (!threadId) {
+          return;
+        }
+
+        const item = pendingSubmitsRef.current.find(
+          (pending) => pending.id === id,
+        );
+        if (!item) {
+          return;
+        }
+
+        const status = useThreadStore.getState().threadStates[threadId]?.status;
+        if (status === 'streaming' || status === 'submitted') {
+          syncPendingSubmits(
+            pendingSubmitsRef.current.map((pending) =>
+              pending.id === id ? { ...pending, immediate: true } : pending,
+            ),
+          );
+          await window.electron.mastra.enqueuePendingMessage({
+            id,
+            chatId: threadId,
+            message: item.uiMessage,
+            options: item.options,
+            immediate: true,
+          });
+          return;
+        }
+
+        syncPendingSubmits(
+          pendingSubmitsRef.current.filter((pending) => pending.id !== id),
+        );
+        await window.electron.mastra.removePendingMessage(threadId, id);
+        sendMessage(threadId, item.message, item.options);
+      },
+      [sendMessage, syncPendingSubmits, threadId],
+    );
+
     const handleSubmit = async (
       message: PromptInputMessage,
       // model?: string,
@@ -645,7 +770,14 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
       };
       if (threadId) {
         console.log(inputMessage, body);
-        sendMessage(threadId, inputMessage, body);
+        if (
+          threadState?.status === 'streaming' ||
+          threadState?.status === 'submitted'
+        ) {
+          await enqueuePendingSubmit(inputMessage, body);
+        } else {
+          sendMessage(threadId, inputMessage, body);
+        }
         chatInputRef.current?.attachmentsClear();
       } else {
         onSubmit?.(inputMessage, body);
@@ -676,6 +808,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
       setSuggestions(undefined);
       setRequireToolApproval(false);
       setHistoryMessages([]);
+      syncPendingSubmits([]);
     };
 
     const handleClearMessages = async () => {
@@ -773,11 +906,29 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
         eventBus.on(`chat:onFinish:${threadId}`, (event) => {
           getThread();
         });
+        const handlePendingConsumed = (event: {
+          data: { chatId: string; id: string };
+        }) => {
+          if (event.data.chatId !== threadId) return;
+          syncPendingSubmits(
+            pendingSubmitsRef.current.filter(
+              (item) => item.id !== event.data.id,
+            ),
+          );
+        };
+        window.electron.ipcRenderer.on(
+          ChatEvent.ChatPendingMessageConsumed,
+          handlePendingConsumed,
+        );
 
         return () => {
           unregisterThread(threadId, true);
           eventBus.off(`chat:onData:${threadId}`);
           eventBus.off(`chat:onFinish:${threadId}`);
+          window.electron.ipcRenderer.removeListener(
+            ChatEvent.ChatPendingMessageConsumed,
+            handlePendingConsumed,
+          );
         };
       } else {
         setModelId(appInfo?.defaultModel?.model);
@@ -951,6 +1102,69 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
               />
             )}
           </div>
+          {pendingSubmits.length > 0 && (
+            <div className="rounded-lg border bg-background/95 p-2 shadow-sm">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                  <ClockIcon className="size-3.5" />
+                  <span>待发送</span>
+                  <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">
+                    {pendingSubmits.length}
+                  </Badge>
+                </div>
+                <span className="text-[11px] text-muted-foreground">
+                  当前回复结束后自动发送
+                </span>
+              </div>
+              <div className="flex max-h-28 flex-col gap-1 overflow-y-auto">
+                {pendingSubmits.map((item, index) => (
+                  <div
+                    key={item.id}
+                    className="flex items-center gap-2 rounded-md bg-muted/50 px-2 py-1.5 text-xs"
+                  >
+                    <Badge
+                      variant="outline"
+                      className="h-5 shrink-0 px-1.5 text-[10px]"
+                    >
+                      #{index + 1}
+                    </Badge>
+                    <span className="min-w-0 flex-1 truncate text-muted-foreground">
+                      {item.message.text || 'Sent with attachments'}
+                    </span>
+                    {(item.message.files?.length ?? 0) > 0 && (
+                      <span className="shrink-0 text-[11px] text-muted-foreground">
+                        {item.message.files?.length} files
+                      </span>
+                    )}
+                    {item.immediate && (
+                      <span className="shrink-0 text-[11px] text-primary">
+                        优先
+                      </span>
+                    )}
+                    <Button
+                      type="button"
+                      variant={item.immediate ? 'secondary' : 'ghost'}
+                      size="icon"
+                      className="size-6 shrink-0"
+                      title="立即提交"
+                      onClick={() => submitPendingImmediately(item.id)}
+                    >
+                      <SendIcon className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-6 shrink-0"
+                      onClick={() => removePendingSubmit(item.id)}
+                    >
+                      <XIcon className="size-3.5" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           <ChatInput
             onClearMessages={handleClearMessages}
             showModelSelect

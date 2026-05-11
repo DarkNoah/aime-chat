@@ -77,6 +77,8 @@ export enum MastraChannel {
   UpdateThread = 'mastra:updateThread',
   DeleteThread = 'mastra:deleteThread',
   Chat = 'mastra:chat',
+  EnqueuePendingMessage = 'mastra:enqueuePendingMessage',
+  RemovePendingMessage = 'mastra:removePendingMessage',
   ChatWorkflow = 'mastra:chatWorkflow',
   ChatAbort = 'mastra:chatAbort',
   KillBashSession = 'mastra:killBashSession',
