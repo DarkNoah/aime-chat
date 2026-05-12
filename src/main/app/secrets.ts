@@ -6,6 +6,9 @@ import { channel } from '../ipc/IpcController';
 import { SecretsChannel } from '@/types/ipc-channel';
 import { nanoid } from '@/utils/nanoid';
 import { appManager } from './index';
+import { getDataPath } from '../utils';
+import { app } from 'electron';
+import path from 'path';
 
 class SecretsManager extends BaseManager {
   repository: Repository<Secrets>;
@@ -68,6 +71,7 @@ class SecretsManager extends BaseManager {
     if (appInfo.apiServer.enabled) {
       env['AIME_CHAT_API_BASE_URL'] = `http://localhost:${appInfo.apiServer.port}`;
     }
+    env['AIME_CHAT_SKILL_PATH'] = path.join(app.getPath('userData'), 'skills');
     return env;
   }
 

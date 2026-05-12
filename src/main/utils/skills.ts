@@ -10,7 +10,8 @@ export async function getSkills(workspace: string): Promise<SkillInfo[]> {
     cwd: workspace,
     absolute: true,
   });
-  const skillJson = await fs.promises.readFile(path.join(workspace, 'skills.json'));
+  // const skillJson = await fs.promises.readFile(path.join(workspace, 'skills.json'));
+  const skillJson = await fs.promises.readFile(path.join(workspace, 'skills.json'), 'utf-8').catch(() => '[]');
   const skillJsonData = JSON.parse(skillJson.toString());
   const skillList = [];
   for (const skill of skillJsonData) {
