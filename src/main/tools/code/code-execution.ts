@@ -231,7 +231,7 @@ asyncio.run(main())
       }
       const env = await getRuntimePython();
       let resultInit = await this.runWithRetry(() => runCommand(
-        `"${uvPreCommand}" init && "${uvPreCommand}" --no-cache  venv --seed`,
+        `"${uvPreCommand}" init && "${uvPreCommand}" --no-cache  venv --seed --default-index https://mirrors.aliyun.com/pypi/simple/`,
         {
           cwd: tempDir,
           env: env,
@@ -248,7 +248,7 @@ asyncio.run(main())
 
       if (packages.length > 0) {
         const resultInstall = await this.runWithRetry(() => runCommand(
-          `"${uvPreCommand}" --no-cache pip install ${packages.join(' ')}`,
+          `"${uvPreCommand}" --no-cache pip install ${packages.join(' ')} --default-index https://mirrors.aliyun.com/pypi/simple/`,
           {
             cwd: tempDir,
             env: env,

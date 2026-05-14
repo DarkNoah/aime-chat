@@ -106,6 +106,8 @@ import {
   normalizeAssistantSoul,
   SaveAssistantSoulInput,
 } from '@/types/assistant-soul';
+import { api } from '../api/ApiController';
+import { getCrashDumpDirectory } from './crash-reporter';
 class AppManager extends BaseManager {
   repository: Repository<Providers>;
   settingsRepository: Repository<Settings>;
@@ -204,6 +206,10 @@ class AppManager extends BaseManager {
     }
   }
 
+  @api({
+    method: 'get',
+    path: '/api/app/info',
+  })
   @channel(AppChannel.GetInfo)
   public async getInfo(): Promise<AppInfo> {
     const settings = await this.settingsRepository.find();
@@ -242,6 +248,7 @@ class AppManager extends BaseManager {
       appData: app.getPath('appData'),
       userData: app.getPath('userData'),
       dataPath: getDbPath(),
+      crashDumpPath: getCrashDumpDirectory(),
       version: app.getVersion(),
       platform: platform(),
       resourcesPath: process.resourcesPath,

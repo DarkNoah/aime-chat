@@ -50,6 +50,7 @@ export enum ChatEvent {
   ChatError = 'chat:chat-error',
   ChatAbort = 'chat:chat-abort',
   ChatStepFinish = 'chat:chat-step-finish',
+  ChatPendingMessageConsumed = 'chat:pending-message-consumed',
   ChatThreadChanged = 'chat:chat-thread-changed',
   ChatMessageChanged = 'chat:chat-message-changed',
   BashSessionUpdated = 'chat:bash-session-updated',
@@ -186,6 +187,14 @@ export type ChatSubmitOptions = {
   threadId?: string;
   agentId?: string;
   projectId?: string;
+};
+
+export type PendingChatMessageInput = {
+  id: string;
+  chatId: string;
+  message: UIMessage;
+  options?: ChatSubmitOptions;
+  immediate?: boolean;
 };
 
 export const ChatSlashCommandConfig = [

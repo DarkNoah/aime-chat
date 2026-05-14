@@ -2,7 +2,7 @@
   <img src="assets/banner.png" alt="AIME Chat" width="100%" />
 
   <p>
-    <img src="https://img.shields.io/badge/version-0.3.29-blue.svg" alt="Version">
+    <img src="https://img.shields.io/badge/version-0.3.34-blue.svg" alt="Version">
     <img src="https://img.shields.io/badge/platform-macOS%20|%20Windows%20|%20Linux-lightgrey.svg" alt="Platform">
     <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License">
   </p>
@@ -25,9 +25,12 @@
 - 🤝 **Open CoWork Capability** - AI is not just for chatting, it can perform actual operations like file editing, code execution, web searching, and more
 - 📚 **Knowledge Base Management** - Built-in vector database with support for document retrieval, knowledge Q&A, and long-term cultivation memory
 - 🧠 **Cultivation Memory** - A scheduled Cultivation Agent extracts preferences, habits, project context, and important facts from chat history into a structured memory wiki
+- ⏰ **Cron Automation** - Run scheduled AI tasks with project context, selectable agents/tools, and either reusable or per-run chat threads
 - 🛠️ **Tool Integration** - Support for MCP (Model Context Protocol) client with extensible tool capabilities
 - 🎙️ **Audio Processing** - Built-in Speech-to-Text (STT) and Text-to-Speech (TTS) powered by Qwen3-TTS models
 - 🔍 **Skill System** - Search, import, and manage AI skills from Git repositories or the online skill marketplace
+- 🧑‍💻 **Assistant Personalities** - Built-in assistant personalities can be selected instantly and customized through the current personality format
+- 🖥️ **Background Bash Sessions** - Track long-running shell processes from the current chat or the whole project, with direct stop controls in the UI
 - 📡 **Channel Integration** - Connect AI capabilities to messaging platforms like WeChat and Telegram
 - 🔐 **Secrets Management** - Centralized secret key management for tools and services, securely stored locally
 - 🎨 **Modern UI** - Built with shadcn/ui component library, supports light/dark theme switching
@@ -162,6 +165,7 @@ Rich built-in tools that AI Agents can call autonomously:
 | Information Extraction | Extract | Extract structured information from documents |
 | Knowledge Base | KnowledgeBase | Knowledge base retrieval and intelligent Q&A |
 
+- 🧵 **Background Bash Tracking** - Long-running Bash sessions are visible from task/context surfaces, including project-wide sessions when a chat is bound to a project
 - 🔌 **MCP Protocol Support** - Extensible third-party tools
 - ⚙️ **Tool Configuration UI** - Visual tool management and configuration
 - 🔍 **Skill Marketplace** - Search and import skills from Git repositories or online marketplace (skills.sh)
@@ -227,10 +231,12 @@ AIME Chat supports optional runtime libraries that can be installed from the Set
 
 | Runtime | Description |
 |---------|-------------|
+| UV / Python | Python runtime used by code execution, OCR, and other local processing tools |
+| Node.js / Bun | JavaScript runtimes used by Node.js code execution and MCP-related workflows |
 | PaddleOCR | OCR recognition engine based on PaddlePaddle, supports document structure analysis and text extraction from PDF/images |
 | Qwen Audio | Audio processing engine based on Qwen3-TTS, supports speech recognition (ASR) and text-to-speech (TTS) |
 
-These runtimes are managed via the built-in uv package manager and will be installed in the application data directory.
+These runtimes are installed under the application data directory. Runtime install attempts write detailed success and failure information to the application log, and the About page provides a direct entry for opening the log file.
 
 ### Data Storage
 
@@ -284,4 +290,3 @@ This project is licensed under the [MIT](LICENSE) License.
 <div align="center">
   <sub>Built with ❤️ by Noah</sub>
 </div>
-

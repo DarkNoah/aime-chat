@@ -31,6 +31,7 @@ import { marketManager } from './market';
 import { channelManager } from './channel';
 import { secretsManager } from './app/secrets';
 import { cronsManager } from './app/crons';
+import { initCrashReporter } from './app/crash-reporter';
 
 
 // process.env.DEFAULT_AGENT = undefined;
@@ -43,6 +44,8 @@ import { cronsManager } from './app/crons';
 // process.env.THINK = undefined;
 
 process.env.API_SERVER_ENABLED = 'true'
+
+initCrashReporter();
 
 // process.env.DEFAULT_PROVIDER_ID = "openai"
 // process.env.DEFAULT_PROVIDER_NAME = "OpenAI"

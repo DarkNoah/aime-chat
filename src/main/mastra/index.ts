@@ -35,6 +35,7 @@ import { toAISdkFormat, toAISdkStream } from '@mastra/ai-sdk';
 import { RequestContext } from '@mastra/core/request-context';
 import { providersManager } from '../providers';
 import { channel } from '../ipc/IpcController';
+import { api } from '../api/ApiController';
 import { PaginationInfo } from '@/types/common';
 import { MastraChannel } from '@/types/ipc-channel';
 import {
@@ -51,6 +52,7 @@ import {
   ChatChangedType,
   ChatEvent,
   ChatInput,
+  PendingChatMessageInput,
   ChatRequestContext,
   ChatSlashCommandConfig,
   ChatTask,
@@ -112,6 +114,43 @@ import { MessageListInput } from '@mastra/core/agent/message-list';
 import { secretsManager } from '../app/secrets';
 import { Done } from '../tools/common/done';
 
+function getQueryValue(value: unknown): string | undefined {
+  if (Array.isArray(value)) {
+    return getQueryValue(value[0]);
+  }
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  if (typeof value === 'string') {
+    return value;
+  }
+  return String(value);
+}
+
+function getNumberQuery(value: unknown, fallback: number): number {
+  const text = getQueryValue(value);
+  if (text === undefined || text === '') {
+    return fallback;
+  }
+  const number = Number(text);
+  return Number.isFinite(number) ? number : fallback;
+}
+
+function getBooleanQuery(value: unknown, fallback = false): boolean {
+  const text = getQueryValue(value);
+  if (text === undefined || text === '') {
+    return fallback;
+  }
+  return text === 'true' || text === '1';
+}
+
+function getPerPageQuery(value: unknown, fallback: number): number | false {
+  const text = getQueryValue(value);
+  if (text === 'false') {
+    return false;
+  }
+  return getNumberQuery(value, fallback);
+}
 
 class MastraManager extends BaseManager {
   app: express.Application;
@@ -120,6 +159,7 @@ class MastraManager extends BaseManager {
   mastraThreadsUsageRepository: Repository<MastraThreadsUsage>;
   agentsRepository: Repository<Agents>;
   threadChats: (ChatThread & { controller: AbortController })[] = [];
+  pendingChatMessages: Map<string, PendingChatMessageInput[]> = new Map();
 
   statefulTransport?: StreamableHTTPServerTransport;
   constructor() {
@@ -128,15 +168,6 @@ class MastraManager extends BaseManager {
     this.app = express();
     this.app.use(express.json({ limit: '50mb' }));
     this.app.use(express.urlencoded({ limit: '50mb', extended: true }));
-
-    this.app.use((err, req, res, next) => {
-      console.error(err.stack);
-
-      res.status(err.status || 500).json({
-        success: false,
-        message: err.message || 'Internal Server Error',
-      });
-    });
 
     this.mastra = new Mastra({
       agents: {},
@@ -199,6 +230,20 @@ class MastraManager extends BaseManager {
       await toolsManager.mcpServer.connect(transport);
 
       await transport?.handleRequest(req, res, req.body);
+    });
+    BaseManager.registerApiRoutes(this.app);
+    this.app.use((err, req, res, next) => {
+      console.error(err.stack);
+
+      if (res.headersSent) {
+        next(err);
+        return;
+      }
+
+      res.status(err.status || 500).json({
+        success: false,
+        message: err.message || 'Internal Server Error',
+      });
     });
     const { apiServer } = await appManager.getInfo();
     if (apiServer?.enabled) {
@@ -465,6 +510,7 @@ class MastraManager extends BaseManager {
     return thread;
   }
 
+
   @channel(MastraChannel.DeleteThread)
   public async deleteThread(id: string): Promise<void> {
     const storage = this.mastra.getStorage();
@@ -508,6 +554,59 @@ class MastraManager extends BaseManager {
     appManager.sendEvent(ChatEvent.ChatMessageChanged, {
       data: { chatId: id, resourceId: thread.resourceId || DEFAULT_RESOURCE_ID },
     });
+  }
+
+  @channel(MastraChannel.EnqueuePendingMessage)
+  public async enqueuePendingMessage(
+    input: PendingChatMessageInput,
+  ): Promise<void> {
+    const queue = this.pendingChatMessages.get(input.chatId) ?? [];
+    const index = queue.findIndex((item) => item.id === input.id);
+    if (index >= 0) {
+      queue[index] = {
+        ...queue[index],
+        ...input,
+        immediate: input.immediate ?? queue[index].immediate,
+      };
+    } else {
+      queue.push(input);
+    }
+    this.pendingChatMessages.set(input.chatId, queue);
+  }
+
+  @channel(MastraChannel.RemovePendingMessage)
+  public async removePendingMessage(chatId: string, id: string): Promise<void> {
+    const queue = this.pendingChatMessages.get(chatId) ?? [];
+    const next = queue.filter((item) => item.id !== id);
+    if (next.length > 0) {
+      this.pendingChatMessages.set(chatId, next);
+    } else {
+      this.pendingChatMessages.delete(chatId);
+    }
+  }
+
+  private consumePendingChatMessage(
+    chatId: string,
+    immediateOnly = false,
+  ): PendingChatMessageInput | undefined {
+    const queue = this.pendingChatMessages.get(chatId) ?? [];
+    if (queue.length === 0) return undefined;
+
+    const index = immediateOnly
+      ? queue.findIndex((item) => item.immediate)
+      : 0;
+    if (index < 0) return undefined;
+
+    const [pending] = queue.splice(index, 1);
+    if (queue.length > 0) {
+      this.pendingChatMessages.set(chatId, queue);
+    } else {
+      this.pendingChatMessages.delete(chatId);
+    }
+    appManager.sendEvent(ChatEvent.ChatPendingMessageConsumed, {
+      data: { chatId, id: pending.id },
+    });
+    return pending;
   }
 
   @channel(MastraChannel.Chat, { mode: 'on' })
@@ -694,25 +793,34 @@ class MastraManager extends BaseManager {
         historyMessages.messages,
       );
 
-      const inputParts = [];
-      for (const part of inputMessage.parts) {
-        if (part.type == 'file' && part.path) {
-          // const file = await fs.promises.readFile(part.path);
-          if (modelInfo?.modalities?.input?.includes('image') && part.mediaType?.startsWith('image/')) {
+      const normalizeInputMessageParts = (
+        message?: UIMessage | UIMessageWithMetadata,
+      ) => {
+        if (!message) return;
+
+        const inputParts = [];
+        for (const part of message.parts) {
+          const filePart = part as typeof part & {
+            path?: string;
+            mediaType?: string;
+          };
+          if (filePart.type == 'file' && filePart.path) {
+            // const file = await fs.promises.readFile(part.path);
+            if (modelInfo?.modalities?.input?.includes('image') && filePart.mediaType?.startsWith('image/')) {
+              inputParts.push(filePart);
+            }
+
+            inputParts.push({
+              type: 'text',
+              text: `<file>${filePart.path}</file>`,
+            });
+          } else {
             inputParts.push(part);
           }
-
-          inputParts.push({
-            type: 'text',
-            text: `<file>${part.path}</file>`,
-          });
-
         }
-        else {
-          inputParts.push(part);
-        }
-      }
-      inputMessage.parts = inputParts
+        message.parts = inputParts;
+      };
+      normalizeInputMessageParts(inputMessage);
       // historyMessages.messages;
       const input = [...historyMessagesAISdkV5, inputMessage];
 
@@ -873,7 +981,7 @@ class MastraManager extends BaseManager {
         status: 'streaming',
         controller,
       });
-      let _inputMessage = inputMessage;
+      let _inputMessage: UIMessage | undefined = inputMessage as UIMessage;
       let resume = toolCallId
         ? {
           toolCallId,
@@ -881,6 +989,46 @@ class MastraManager extends BaseManager {
           resumeData,
         }
         : undefined;
+      const prependPendingSystemReminder = (message: UIMessage) => {
+        message.parts = [
+          {
+            type: 'text',
+            text: '<system-reminder>The user submitted this message as a steer before the current response finished. Treat it as the latest direction for the ongoing work. If there is unfinished work already in progress, continue executing it while incorporating this steer.</system-reminder>',
+          },
+          ...message.parts,
+        ];
+      };
+
+      const applyPendingChatMessage = (
+        pending: PendingChatMessageInput,
+        systemReminder = false,
+      ) => {
+        if (pending.options?.tools) {
+          tools = pending.options.tools;
+          requestContext.set('tools', tools);
+        }
+        if (pending.options?.subAgents) {
+          subAgents = pending.options.subAgents;
+          requestContext.set('subAgents', subAgents);
+        }
+        if (pending.options?.think !== undefined) {
+          think = pending.options.think;
+          requestContext.set('think', think);
+        }
+        if (pending.options?.untilEndPrompt) {
+          requestContext.set('untilEndPrompt', pending.options.untilEndPrompt);
+        }
+        if (pending.options?.requireToolApproval !== undefined) {
+          requireToolApproval = pending.options.requireToolApproval;
+        }
+
+        _inputMessage = pending.message;
+        if (systemReminder) {
+          prependPendingSystemReminder(_inputMessage);
+        }
+        normalizeInputMessageParts(_inputMessage);
+        resume = undefined;
+      };
       while (true) {
         const historyMessages = await memoryStore.listMessages({
           threadId: chatId,
@@ -1087,7 +1235,10 @@ class MastraManager extends BaseManager {
             `${providerType}:${modelId}`,
           );
           const lastMessage = core[core.length - 1];
-          if (lastMessage.role == 'tool') {
+          const immediatePending = this.consumePendingChatMessage(chatId, true);
+          if (immediatePending) {
+            applyPendingChatMessage(immediatePending, true);
+          } else if (lastMessage.role == 'tool') {
           } else if (lastMessage.role == 'assistant') {
             // 结束守卫
             const { enable = false, prompt = '' } = requestContext.get('untilEndPrompt') as UntilEndPrompt || {};
@@ -1118,7 +1269,12 @@ class MastraManager extends BaseManager {
                   untilEndPrompt: { enable: false, prompt },
                 },
               });
-              break;
+              const pending = this.consumePendingChatMessage(chatId);
+              if (pending) {
+                applyPendingChatMessage(pending);
+              } else {
+                break;
+              }
             }
 
           }

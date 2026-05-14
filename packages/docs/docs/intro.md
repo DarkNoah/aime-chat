@@ -47,6 +47,15 @@ AI
 - 📄 文档上传与解析
 - 🔍 向量存储与检索
 - 💡 基于知识库的智能问答
+- 🧠 由 Cultivation Agent 自动沉淀长期记忆 Wiki
+
+### ⏰ 自动化任务
+
+通过 Crons 页面创建计划任务，让 AI 按固定时间自动执行：
+
+- 绑定项目上下文、Agent、模型、工具和子 Agent
+- 支持复用同一个聊天线程或每次创建新线程
+- 适合日报、巡检、知识整理和长期记忆养成
 
 ### 🛠️ 丰富的工具系统
 
@@ -57,14 +66,23 @@ AI Agent 可自主调用各类工具：
 | 文件系统 | Bash、Read、Write、Edit、Grep、Glob | 文件读写、搜索、编辑        |
 | 代码执行 | Python、Node.js                     | 执行 Python 和 Node.js 代码 |
 | 网络工具 | Web Fetch、Web Search               | 网页抓取与搜索              |
-| 图像处理 | RMBG                                | 图像背景移除                |
+| 图像处理 | GenerateImage、EditImage、RMBG      | 图像生成、编辑和背景移除    |
 | 视觉分析 | Vision                              | 图像识别与分析              |
+| 语音处理 | SpeechToText、TextToSpeech          | 语音转文字与文字转语音      |
 | 数据库   | LibSQL                              | 数据库操作                  |
 | 任务管理 | Todo、Task                          | 任务创建与管理              |
+
+长时间运行的 Bash 命令会显示为后台会话。项目级聊天可以汇总整个项目范围内的后台 Bash 进程，并在界面中直接停止。
 
 ### 🔌 MCP 协议支持
 
 支持 **Model Context Protocol (MCP)**，轻松扩展第三方工具能力。
+
+### 📡 频道与 Skill
+
+- 支持微信、Telegram 等频道接入
+- 支持从 Git 仓库或在线技能市场导入 Skill
+- 支持选择和定制内置助手人格
 
 ### 🎨 现代化 UI
 
@@ -112,6 +130,8 @@ pnpm start
 - **[安装指南](./getting-started/installation)** - 了解如何安装和运行
 - **[AI 服务商配置](./getting-started/ai-providers)** - 配置各类 AI 服务商
 - **[知识库使用](./features/knowledge-base)** - 构建和使用知识库
+- **[养成记忆](./features/cultivation-memory)** - 了解长期记忆 Wiki 的自动维护方式
+- **[自动化 Crons](./features/crons)** - 创建按计划执行的 AI 任务
 - **[工具系统](./features/tools)** - 了解内置工具和 MCP 扩展
 - **[Agent 管理](./features/agents)** - 自定义和管理 AI Agent
 
