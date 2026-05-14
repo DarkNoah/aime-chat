@@ -107,6 +107,7 @@ import {
   SaveAssistantSoulInput,
 } from '@/types/assistant-soul';
 import { api } from '../api/ApiController';
+import { getCrashDumpDirectory } from './crash-reporter';
 class AppManager extends BaseManager {
   repository: Repository<Providers>;
   settingsRepository: Repository<Settings>;
@@ -247,6 +248,7 @@ class AppManager extends BaseManager {
       appData: app.getPath('appData'),
       userData: app.getPath('userData'),
       dataPath: getDbPath(),
+      crashDumpPath: getCrashDumpDirectory(),
       version: app.getVersion(),
       platform: platform(),
       resourcesPath: process.resourcesPath,

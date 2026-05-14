@@ -416,7 +416,7 @@ export class KnowledgeBaseManager extends BaseManager {
       }
     }
 
-    const _results: SearchKnowledgeBaseItemResult[] = results.rows.map(item => {
+    let _results: SearchKnowledgeBaseItemResult[] = results.rows.map(item => {
       const kbitem = items.find(x => x.id === item.item_id)
       const extendValues = {};
       if (vectorStoreConfig?.extendColumns?.length > 0) {
@@ -458,7 +458,7 @@ export class KnowledgeBaseManager extends BaseManager {
       });
     }
 
-
+    _results = _results.sort((a, b) => b.hybridScore - a.hybridScore);
     return {
       query: query,
       embedding: kb.embedding,

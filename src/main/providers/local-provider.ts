@@ -115,7 +115,10 @@ export class LocalEmbeddingModel implements EmbeddingModelV2<string> {
         cachedModel = await localModelManager.ensureModelLoaded(
           'feature-extraction',
           this.modelId,
-          modelPath
+          modelPath,
+          {
+            dtype: 'q8'
+          }
         );
       } else {
         cachedModel = await localModelManager.ensureModelLoaded(

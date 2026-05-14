@@ -14,6 +14,7 @@ export class AppInfo {
   appData: string;
   homePath: string;
   dataPath: string;
+  crashDumpPath: string;
   modelPath: string;
   version: string;
   platform: string;

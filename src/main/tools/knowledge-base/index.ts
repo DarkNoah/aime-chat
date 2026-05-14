@@ -60,7 +60,7 @@ Return json format:
   inputSchema = z.object({
     query: z.string().describe('The query to search for.'),
     kb_source: z.array(z.string()).describe('knowledge base id or name.'),
-    filter: z.string().describe('Optional, The filter of the knowledge base item.').optional(),
+    filter: z.string().describe('Optional, The filter of the knowledge base item.').optional().nullable(),
     top_k: z.number().describe('The number of results to return.').optional().default(10),
     return_full_content: z.boolean().describe('Optional, Whether to return the full content of the knowledge base.').optional(),
   });
@@ -92,8 +92,8 @@ export class KnowledgeBaseAdd extends BaseTool {
   static readonly toolName = 'KnowledgeBaseAdd';
   id: string = 'KnowledgeBaseAdd';
   description = `Import a knowledge base source.
+Make sure the extended columns exist in the knowledge base in use. Use KnowledgeBaseList to retrieve the available extended columns.- if type is Text, source should be a string.
 
-- if type is Text, source should be a string.
 - if type is File, source should be a file full path.
 - if type is Folder, source should be a folder full path.
 - if type is Web, source should be a web url.
@@ -103,7 +103,7 @@ export class KnowledgeBaseAdd extends BaseTool {
     kb_source: z.string().describe('Knowledge Base id or name to add.'),
     type: z.enum([KnowledgeBaseSourceType.Text, KnowledgeBaseSourceType.File, KnowledgeBaseSourceType.Folder, KnowledgeBaseSourceType.Web]).describe('The type of the knowledge base.'),
     source: z.string().describe('The source of the knowledge base item.'),
-    extendColumns: z.array(z.object({ column: z.string(), value: z.any() })).optional().describe('The extend columns of the knowledge base item.'),
+    extendColumns: z.array(z.object({ column: z.string(), value: z.any() })).optional().nullable().describe('The extend columns of the knowledge base item.'),
   });
 
   constructor(params?: BaseToolParams) {
@@ -119,7 +119,7 @@ export class KnowledgeBaseAdd extends BaseTool {
       throw new Error('Knowledge base not found');
     }
     const kb = await knowledgeBaseManager.getKnowledgeBase(kbId);
-    const kbExtendColumns = kb.vectorStoreConfig.extendColumns ?? [];
+    const kbExtendColumns = kb.vectorStoreConfig?.extendColumns ?? [];
     if (extendColumns?.length > 0) {
       for (const column of extendColumns) {
         if (kbExtendColumns.find(x => x.name === column.column)) {
@@ -144,8 +144,7 @@ ${JSON.stringify(kbExtendColumns, null, 2)}`);
       data = { url: source };
     }
 
-
-    const knowledgeBase = await knowledgeBaseManager.importSource({ kbId: kb.id, source: data, type, extendColumns: extendColumns.map(x => ({ column: x.column, value: x.value })) });
+    const knowledgeBase = await knowledgeBaseManager.importSource({ kbId: kb.id, source: data, type, extendColumns: (extendColumns ?? []).map(x => ({ column: x.column, value: x.value })) });
     return { success: true };
   }
 }

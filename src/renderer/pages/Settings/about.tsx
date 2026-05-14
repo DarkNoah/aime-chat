@@ -24,6 +24,7 @@ import {
   IconDatabase,
   IconCpu,
   IconPackage,
+  IconBug,
 } from '@tabler/icons-react';
 import { useUpdateState } from '@/renderer/hooks/use-update-state';
 
@@ -163,6 +164,12 @@ export default function About() {
       value: t('openLogFile'),
       icon: IconFileText,
       onOpen: handleOpenLogFile,
+    },
+    {
+      label: t('crashDumpPath'),
+      value: appInfo?.crashDumpPath,
+      icon: IconBug,
+      onOpen: createOpenPathHandler(appInfo?.crashDumpPath),
     },
     {
       label: t('dataPath'),
