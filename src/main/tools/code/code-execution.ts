@@ -315,10 +315,22 @@ asyncio.run(main())
 
       );
 
+      const MAX_OUTPUT_LINES = 2000;
+      const truncateLines = (text: string, maxLines: number): string => {
+        const lines = text.split('\n');
+        if (lines.length <= maxLines) return text;
+        const headCount = Math.floor(maxLines / 2);
+        const tailCount = maxLines - headCount;
+        const omitted = lines.length - maxLines;
+        const head = lines.slice(0, headCount).join('\n');
+        const tail = lines.slice(-tailCount).join('\n');
+        return `${head}\n...[truncated ${omitted} lines, total ${lines.length} lines]...\n${tail}`;
+      };
+
       return [
         `Directory: ${workspace || '(root)'}`,
-        `Stdout: \n${result.stdout || '(empty)'}`,
-        `Stderr: \n${result.stderr || '(empty)'}`,
+        `Stdout: \n${result.stdout ? truncateLines(result.stdout, MAX_OUTPUT_LINES) : '(empty)'}`,
+        `Stderr: \n${result.stderr ? truncateLines(result.stderr, MAX_OUTPUT_LINES) : '(empty)'}`,
         `Error: ${result.error ?? '(none)'}`,
         `Exit Code: ${result.code ?? '(none)'}`,
         `Signal: ${result.processSignal ?? '(none)'}`,
