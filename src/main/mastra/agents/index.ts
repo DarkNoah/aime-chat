@@ -35,6 +35,7 @@ import { getSkills } from '@/main/utils/skills';
 import { formatCodeWithLineNumbers } from '@/main/utils/format';
 import { isArray, isString } from '@/utils/is';
 import { Agent as AgentTool } from '@/main/tools/common/agent';
+import { api } from '@/main/api/ApiController';
 
 type BuiltInAgent = BaseAgent & {
   classType: any;
@@ -285,6 +286,9 @@ ${assistantSoul}
       ],
     };
   }
+
+
+
   @channel(AgentChannel.GetList)
   public async getList(): Promise<Agent[]> {
     const agentEntities = await this.agentsRepository.find();
@@ -338,6 +342,10 @@ ${assistantSoul}
     return await this.agentsRepository.save({ ...agentEntity, ...agent, tools });
   }
 
+  @api({
+    method: 'get',
+    path: '/api/agents/available-agents'
+  })
   @channel(AgentChannel.GetAvailableAgents)
   public async getAvailableAgents(): Promise<Agent[]> {
     const agentEntities = await this.agentsRepository.find({

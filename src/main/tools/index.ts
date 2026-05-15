@@ -60,6 +60,7 @@ import { ChatRequestContext } from '@/types/chat';
 import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { Done } from './common/done';
 import { AimeChatCli } from './cli';
+import { api } from '../api/ApiController';
 interface BuiltInToolContext {
   tool: BaseTool;
   abortController: AbortController;
@@ -623,6 +624,16 @@ class ToolsManager extends BaseManager {
     });
   }
 
+  @api({
+    method: 'get',
+    path: '/api/tools/available-tools',
+    args: (req: any) => [
+      {
+        filter: req.query.filter as string,
+        isActive: req.query.isActive as boolean,
+      },
+    ],
+  })
   @channel(ToolChannel.GetAvailableTools)
   public async getAvailableTools({ filter, isActive = true }: { filter?: string, isActive?: boolean }): Promise<Record<ToolType, Tool[]>> {
     const tools = await this.toolsRepository.find({
@@ -666,7 +677,7 @@ class ToolsManager extends BaseManager {
         .map((tool) => ({
           id: tool.id,
           name: tool.name,
-          description: tool.description,
+          description: tool.description ?? builtInTools.find(x => x.id === tool.id)?.description,
           isActive: true,
           isToolkit:
             subtools.filter((subtool) => subtool.toolkitId === tool.id).length >
@@ -1005,6 +1016,16 @@ class ToolsManager extends BaseManager {
       context.abortController?.abort();
     }
   }
+
+  @api({
+    method: 'post',
+    path: '/api/tools/preview-git-skill',
+    args: (req: Express.Request) => {
+      return [{
+        gitUrl: req.body.gitUrl as string,
+      }];
+    },
+  })
   @channel(ToolChannel.PreviewGitSkill)
   public async previewGitSkill(input: { gitUrl: string }) {
     const tmpDir = path.join(os.tmpdir(), `git-clone-${crypto.randomUUID()}`);
@@ -1230,6 +1251,21 @@ class ToolsManager extends BaseManager {
     return path.basename(skillPath);
   }
 
+  @api({
+    method: 'post',
+    path: '/api/tools/import-skills',
+    args: (req: Express.Request) => {
+      return [{
+        'repo_or_url': req.body['repo_or_url'] as string,
+        sourceSkillIds: req.body.sourceSkillIds as string[],
+        files: req.body.files as string[],
+        dirs: req.body.dirs as string[],
+        path: req.body.path as string,
+        selectedSkills: req.body.selectedSkills as string[],
+        isActive: req.body.isActive as boolean,
+      }];
+    },
+  })
   @channel(ToolChannel.ImportSkills)
   public async importSkills(data: {
     repo_or_url?: string;

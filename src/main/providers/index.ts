@@ -48,6 +48,7 @@ import { MineruProvider } from './mineru-provider';
 import { ElevenlabsProvider } from './elevenlabs-provider';
 import { MiniMaxProvider } from './minimax-provider';
 import { PaddleOcrApiProvider } from './paddleocrapi-provider';
+import { api } from '../api/ApiController';
 const modelsData = require('../../../assets/models.json');
 class ProvidersManager extends BaseManager {
   repository: Repository<Providers>;
@@ -213,6 +214,13 @@ class ProvidersManager extends BaseManager {
     return proviers;
   }
 
+  @api({
+    method: 'get',
+    path: '/api/providers/available-models',
+    args: (req: any) => [
+      req.query.type as ModelType
+    ],
+  })
   @channel(ProviderChannel.GetAvailableModels)
   public async getAvailableModels(
     type: ModelType = ModelType.LLM,

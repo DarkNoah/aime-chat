@@ -1,6 +1,4 @@
 // src/decorators/ipc.ts
-import { ipcMain } from 'electron';
-
 // 主进程装饰器
 export function channel(
   channelName: string,

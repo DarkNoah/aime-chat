@@ -7,6 +7,7 @@
   "appData": "应用数据",
   "appPath": "应用路径",
   "dataPath": "数据目录",
+  "crashDumpPath": "Crash dump 路径",
   "logFile": "日志文件",
   "openLogFile": "打开日志文件",
   "supportFiles": "支持文件",

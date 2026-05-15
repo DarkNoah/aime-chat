@@ -60,6 +60,18 @@ Important:
     // this.description = this.getDescription(config?.skills ?? []);
   }
 
+  private static normalizeAimeChatDocsSkillId(skillId: string) {
+    const id = skillId.toLowerCase();
+    if (
+      id === `${ToolType.SKILL}:local:aime-chat-dosc` ||
+      id === `${ToolType.SKILL}:aime-chat-dosc`
+    ) {
+      return `${ToolType.SKILL}:local:aime-chat-docs`;
+    }
+
+    return skillId;
+  }
+
   getDescription = (skills: SkillInfo[] | string[]) => {
     let _skills: SkillInfo[] = [];
     if (skills.length > 0 && isString(skills[0])) {
@@ -107,11 +119,12 @@ ${_skills
   ) => {
     const { skill_id, agrs } = inputData;
     const { requestContext } = context ?? {};
-    let _skillId = skill_id
+    let _skillId = skill_id;
     if (!skill_id.startsWith(`${ToolType.SKILL}:`)) {
       // throw new Error(`please use skill id`);
       _skillId = `${ToolType.SKILL}:${skill_id}`;
     }
+    const lookupSkillId = Skill.normalizeAimeChatDocsSkillId(_skillId);
 
     const workspace = requestContext.get('workspace' as never);
     let skillInfo;
@@ -123,7 +136,11 @@ ${_skills
       const skillsPath = path.join(workspace, '.aime-chat', 'skills');
       if (fs.existsSync(skillsPath) && fs.statSync(skillsPath).isDirectory()) {
         const skills = await getSkills(skillsPath);
-        const skill = skills.find((x) => x.id === _skillId || x.id === `${ToolType.SKILL}:local:${skill_id}`);
+        const skill = skills.find(
+          (x) =>
+            x.id === lookupSkillId ||
+            x.id === `${ToolType.SKILL}:local:${skill_id}`,
+        );
         if (skill) {
           skillInfo = skill;
         }
@@ -131,7 +148,7 @@ ${_skills
     }
     if (!skillInfo) {
       skillInfo = await skillManager.getSkill(
-        _skillId as `${ToolType.SKILL}: ${string}`,
+        lookupSkillId as `${ToolType.SKILL}: ${string}`,
       );
       if (!skillInfo) {
         skillInfo = await skillManager.getSkill(
@@ -140,9 +157,12 @@ ${_skills
       }
     }
     const skillsLoaded = requestContext?.get('skillsLoaded' as never) ?? [];
-    requestContext.set('skillsLoaded' as never, [...new Set([...skillsLoaded, _skillId])] as never);
+    requestContext.set(
+      'skillsLoaded' as never,
+      [...new Set([...skillsLoaded, lookupSkillId])] as never,
+    );
 
-    if (skillInfo)
+    if (skillInfo) {
       return `<system-reminder> Launching : \`${skillInfo.id}\`</system-reminder>
 Base directory for this skill: ${skillInfo.path}
 
@@ -151,6 +171,7 @@ ${skillInfo.content || skillInfo.skillmd}
 
 ${agrs ? 'ARGUMENTS: ' + agrs : ''}
 `;
+    }
     return `skill id: "${_skillId}" not found`;
   };
 }

@@ -7,6 +7,7 @@
   "appData": "App data",
   "appPath": "Application path",
   "dataPath": "Data path",
+  "crashDumpPath": "Crash dump path",
   "logFile": "Log file",
   "openLogFile": "Open log file",
   "supportFiles": "Support files",

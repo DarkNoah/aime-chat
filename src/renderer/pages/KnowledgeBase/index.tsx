@@ -12,6 +12,7 @@ import {
   IconPlus,
   IconShare,
   IconTrashX,
+  IconUpload,
 } from '@tabler/icons-react';
 import {
   Dialog,
@@ -33,6 +34,8 @@ import {
 import {
   CreateKnowledgeBase,
   KnowledgeBase,
+  KnowledgeBaseSQLiteImportMode,
+  KnowledgeBaseSQLiteInfo,
   KnowledgeBaseVectorStoreConfig,
   UpdateKnowledgeBase,
   VectorStoreType,
@@ -91,6 +94,11 @@ function KnowledgeBasePage() {
   const [loading, setLoading] = useState(false);
   const [kbs, setKbs] = useState<KnowledgeBase[]>([]);
   const [currentKb, setCurrentKb] = useState<KnowledgeBase | null>(null);
+  const [importingSqlite, setImportingSqlite] = useState(false);
+  const [pendingSqliteImport, setPendingSqliteImport] = useState<{
+    filePath: string;
+    info: KnowledgeBaseSQLiteInfo;
+  } | null>(null);
 
   const form = useForm<CreateKnowledgeBase & { extendColumns?: { name: string; columnType: string }[] } | UpdateKnowledgeBase>({
     mode: 'onChange',
@@ -199,11 +207,64 @@ function KnowledgeBasePage() {
     }
   };
 
+  const executeImportSQLite = async (
+    filePath: string,
+    mode: KnowledgeBaseSQLiteImportMode,
+  ) => {
+    if (importingSqlite) return;
+    setImportingSqlite(true);
+    try {
+      const info = await window.electron.knowledgeBase.importSQLite(filePath, mode);
+      await getData();
+      setPendingSqliteImport(null);
+      navigate(`/knowledge-base/${info.id}`);
+      toast.success(t('knowledge-base.import_success', '导入成功'));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t('common.error'));
+    } finally {
+      setImportingSqlite(false);
+    }
+  };
+
+  const handleImportSQLite = async () => {
+    if (importingSqlite) return;
+    try {
+      const result = await window.electron.app.showOpenDialog({
+        title: t('knowledge-base.import_sqlite', '导入 SQLite'),
+        buttonLabel: t('knowledge-base.import_sqlite', '导入 SQLite'),
+        properties: ['openFile'],
+        filters: [{ name: 'SQLite', extensions: ['sqlite', 'db'] }],
+      });
+      if (!result.filePaths || result.filePaths.length === 0) {
+        return;
+      }
+
+      const filePath = result.filePaths[0];
+      const info = await window.electron.knowledgeBase.inspectSQLite(filePath);
+      if (kbs.some((kb) => kb.id === info.id)) {
+        setPendingSqliteImport({ filePath, info });
+        return;
+      }
+      await executeImportSQLite(filePath, 'append');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t('common.error'));
+    }
+  };
+
   return (
     <div className="h-full w-full flex flex-row justify-between">
       <div className="flex flex-col gap-2 h-full p-4 w-[--sidebar-width]">
         <div className="flex flex-row items-center gap-2">
           <Input></Input>
+          <Button
+            variant="outline"
+            size="icon"
+            disabled={importingSqlite}
+            onClick={handleImportSQLite}
+            title={t('knowledge-base.import_sqlite', '导入 SQLite')}
+          >
+            <IconUpload></IconUpload>
+          </Button>
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
               <Button
@@ -431,6 +492,57 @@ function KnowledgeBasePage() {
                   </DialogFooter>
                 </form>
               </Form>
+            </DialogContent>
+          </Dialog>
+          <Dialog
+            open={Boolean(pendingSqliteImport)}
+            onOpenChange={(nextOpen) => {
+              if (!nextOpen && !importingSqlite) {
+                setPendingSqliteImport(null);
+              }
+            }}
+          >
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>
+                  {t('knowledge-base.import_conflict', '同 ID 知识库已存在')}
+                </DialogTitle>
+              </DialogHeader>
+              <div className="text-sm text-muted-foreground break-all">
+                {pendingSqliteImport?.info.name} ({pendingSqliteImport?.info.id})
+              </div>
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  disabled={importingSqlite}
+                  onClick={() => setPendingSqliteImport(null)}
+                >
+                  {t('common.cancel')}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={importingSqlite}
+                  onClick={() => {
+                    if (!pendingSqliteImport) return;
+                    executeImportSQLite(pendingSqliteImport.filePath, 'append');
+                  }}
+                >
+                  {t('knowledge-base.import_append', '追加')}
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  disabled={importingSqlite}
+                  onClick={() => {
+                    if (!pendingSqliteImport) return;
+                    executeImportSQLite(pendingSqliteImport.filePath, 'overwrite');
+                  }}
+                >
+                  {t('knowledge-base.import_overwrite', '覆盖')}
+                </Button>
+              </DialogFooter>
             </DialogContent>
           </Dialog>
         </div>
