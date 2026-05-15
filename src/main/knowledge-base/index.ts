@@ -7,6 +7,8 @@ import {
   CreateKnowledgeBase,
   KnowledgeBaseEvent,
   KnowledgeBaseItemState,
+  KnowledgeBaseSQLiteImportMode,
+  KnowledgeBaseSQLiteInfo,
   KnowledgeBaseSourceType,
   SearchKnowledgeBaseItemResult,
   SearchKnowledgeBaseResult,
@@ -25,7 +27,7 @@ import { BackgroundTask } from '@/types/task-queue';
 import { WebFetch } from '../tools/web/web-fetch';
 import { embedMany } from 'ai';
 import { LibSQLVector } from '@mastra/libsql';
-import { getDbPath } from '../utils';
+import { getAssetPath, getDbPath } from '../utils';
 import { PaginationInfo, PaginationParams } from '@/types/common';
 import path from 'path';
 import { isBinaryFile } from 'isbinaryfile';
@@ -37,6 +39,9 @@ import localModels from '../local-model/models.json';
 import { LocalClipModel } from '../providers/local-provider';
 import mime from 'mime';
 import { LocalCLIPModel } from '../local-model/clip';
+import { exportKnowledgeBaseSQLite } from './export-sqlite';
+import { importKnowledgeBaseSQLite, inspectKnowledgeBaseSQLite } from './import-sqlite';
+import { importBundledKnowledgeBases } from './bundled-import';
 export class KnowledgeBaseManager extends BaseManager {
   knowledgeBaseRepository: Repository<KnowledgeBase>;
   knowledgeBaseItemRepository: Repository<KnowledgeBaseItem>;
@@ -54,6 +59,11 @@ export class KnowledgeBaseManager extends BaseManager {
         await this.executeImportSource(task, ctx);
       },
     });
+
+    importBundledKnowledgeBases(getAssetPath('market', 'knowledge-base')).catch(
+      (err) =>
+        console.error('[knowledge-base] import bundled knowledge bases failed', err),
+    );
 
     // Try to ensure the global static memory KB exists. Done lazily so we
     // don't block app boot if no embedding provider is configured yet.
@@ -223,6 +233,49 @@ export class KnowledgeBaseManager extends BaseManager {
   public async getKnowledgeBaseList() {
     const kbs = await this.knowledgeBaseRepository.find();
     return kbs;
+  }
+
+  @channel(KnowledgeBaseChannel.ExportSQLite)
+  public async exportSQLite(id: string, targetPath: string, exportKbId?: string): Promise<string> {
+    if (!targetPath?.trim()) {
+      throw new Error('Export path is required');
+    }
+    const kb = await this.knowledgeBaseRepository.findOneBy({ id });
+    if (!kb) {
+      throw new Error('Knowledge base not found');
+    }
+    if (!kb.vectorLength) {
+      throw new Error('Knowledge base vector length is missing');
+    }
+
+    exportKnowledgeBaseSQLite({
+      sourceDbPath: getDbPath(),
+      targetDbPath: targetPath,
+      kbId: kb.id,
+      vectorLength: kb.vectorLength,
+      exportKbId,
+    });
+    return targetPath;
+  }
+
+  @channel(KnowledgeBaseChannel.InspectSQLite)
+  public async inspectSQLite(sourcePath: string): Promise<KnowledgeBaseSQLiteInfo> {
+    if (!sourcePath?.trim()) {
+      throw new Error('Import path is required');
+    }
+    return inspectKnowledgeBaseSQLite(sourcePath);
+  }
+
+  @channel(KnowledgeBaseChannel.ImportSQLite)
+  public async importSQLite(sourcePath: string, mode: KnowledgeBaseSQLiteImportMode): Promise<KnowledgeBaseSQLiteInfo> {
+    if (!sourcePath?.trim()) {
+      throw new Error('Import path is required');
+    }
+    return importKnowledgeBaseSQLite({
+      appDbPath: getDbPath(),
+      importDbPath: sourcePath,
+      mode,
+    });
   }
 
   @channel(KnowledgeBaseChannel.GetKnowledgeBaseItems)

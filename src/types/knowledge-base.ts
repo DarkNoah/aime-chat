@@ -1,4 +1,4 @@
-import { BaseProvider } from "@/main/providers/base-provider";
+import { BaseProvider } from '@/main/providers/base-provider';
 
 export enum VectorStoreType {
   LibSQL = 'libsql',
@@ -16,12 +16,12 @@ export enum KnowledgeBaseSourceType {
   Text = 'text',
 }
 
-
 export type KnowledgeBaseVectorStoreConfig = {
-  extendColumns?: { columnType: 'text' | 'blob' | 'number' | 'boolean', name: string }[]
-}
-
-
+  extendColumns?: {
+    columnType: 'text' | 'blob' | 'number' | 'boolean';
+    name: string;
+  }[];
+};
 
 export type KnowledgeBase = {
   id: string;
@@ -32,7 +32,10 @@ export type KnowledgeBase = {
   vectorStoreConfig?: KnowledgeBaseVectorStoreConfig;
   embedding?: string;
   embeddingProvider?: string;
+  embeddingModel?: string;
+  vectorLength?: number;
   reranker?: string;
+  rerankerModel?: string;
   returnChunkCount?: number;
   static?: boolean;
 };
@@ -51,7 +54,6 @@ export type UpdateKnowledgeBase = {
   returnChunkCount?: number;
   forceReturnFullContent?: boolean;
 };
-
 
 export type SearchKnowledgeBaseResult = {
   query: string;
@@ -78,3 +80,12 @@ export type SearchKnowledgeBaseItemResult = {
 export enum KnowledgeBaseEvent {
   KnowledgeBaseItemsUpdated = 'knowledge-base:knowledge-base-items-updated',
 }
+
+export type KnowledgeBaseSQLiteImportMode = 'overwrite' | 'append';
+
+export type KnowledgeBaseSQLiteInfo = {
+  id: string;
+  name: string;
+  vectorLength: number;
+  itemCount: number;
+};

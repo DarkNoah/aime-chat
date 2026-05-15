@@ -34,6 +34,8 @@ import {
 } from '@/types/ipc-channel';
 import {
   CreateKnowledgeBase,
+  KnowledgeBaseSQLiteImportMode,
+  KnowledgeBaseSQLiteInfo,
   KnowledgeBaseSourceType,
   SearchKnowledgeBaseResult,
   UpdateKnowledgeBase,
@@ -66,6 +68,8 @@ import {
   IpcRendererEvent,
   OpenDialogOptions,
   OpenDialogReturnValue,
+  SaveDialogOptions,
+  SaveDialogReturnValue,
   webUtils,
 } from 'electron';
 import { KnowledgeBase, KnowledgeBaseItem } from '@/entities/knowledge-base';
@@ -166,6 +170,10 @@ const electronHandler = {
       options: OpenDialogOptions,
     ): Promise<OpenDialogReturnValue> =>
       ipcRenderer.invoke(AppChannel.ShowOpenDialog, options),
+    showSaveDialog: (
+      options: SaveDialogOptions,
+    ): Promise<SaveDialogReturnValue> =>
+      ipcRenderer.invoke(AppChannel.ShowSaveDialog, options),
     saveSettings: (settings: { id: string; value: any }) =>
       ipcRenderer.invoke(AppChannel.SaveSettings, settings),
     getAssistantSoulLibrary: (): Promise<AssistantSoulLibrary> =>
@@ -339,6 +347,24 @@ const electronHandler = {
     delete: (id: string) => ipcRenderer.invoke(KnowledgeBaseChannel.Delete, id),
     get: (id: string) => ipcRenderer.invoke(KnowledgeBaseChannel.Get, id),
     getList: () => ipcRenderer.invoke(KnowledgeBaseChannel.GetList),
+    exportSQLite: (
+      id: string,
+      targetPath: string,
+      exportKbId?: string,
+    ): Promise<string> =>
+      ipcRenderer.invoke(
+        KnowledgeBaseChannel.ExportSQLite,
+        id,
+        targetPath,
+        exportKbId,
+      ),
+    inspectSQLite: (sourcePath: string): Promise<KnowledgeBaseSQLiteInfo> =>
+      ipcRenderer.invoke(KnowledgeBaseChannel.InspectSQLite, sourcePath),
+    importSQLite: (
+      sourcePath: string,
+      mode: KnowledgeBaseSQLiteImportMode,
+    ): Promise<KnowledgeBaseSQLiteInfo> =>
+      ipcRenderer.invoke(KnowledgeBaseChannel.ImportSQLite, sourcePath, mode),
     importSource: (data: {
       kbId: string;
       source: any;

@@ -48,6 +48,7 @@ import {
   IconAlertCircle,
   IconCheck,
   IconClock,
+  IconDownload,
   IconEdit,
   IconFile,
   IconPhoto,
@@ -149,6 +150,9 @@ function KnowledgeBaseDetail() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState('');
   const [searchMode, setSearchMode] = useState<'text' | 'image'>('text');
+  const [exportingSqlite, setExportingSqlite] = useState(false);
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [exportKbId, setExportKbId] = useState('');
 
   const [draggingFiles, setDraggingFiles] = useState(false);
   const [importingFiles, setImportingFiles] = useState(false);
@@ -552,17 +556,117 @@ function KnowledgeBaseDetail() {
     }
   };
 
+  const openExportDialog = () => {
+    if (!id || !kb) return;
+    setExportKbId(kb.id || id);
+    setExportDialogOpen(true);
+  };
+
+  const handleExportSQLite = async () => {
+    if (!id || !kb || exportingSqlite) {
+      return;
+    }
+
+    const nextExportKbId = exportKbId.trim() || id;
+    const safeName = (kb.name || nextExportKbId).replace(
+      /[<>:"/\\|?*\x00-\x1F]/g,
+      '_',
+    );
+    try {
+      const result = await window.electron.app.showSaveDialog({
+        title: t('knowledge-base.export_sqlite', '导出 SQLite'),
+        buttonLabel: t('knowledge-base.export_sqlite', '导出 SQLite'),
+        defaultPath: `${safeName || id}.sqlite`,
+        filters: [
+          {
+            name: 'SQLite',
+            extensions: ['sqlite', 'db'],
+          },
+        ],
+        properties: ['createDirectory', 'showOverwriteConfirmation'],
+      });
+      if (result.canceled || !result.filePath) {
+        return;
+      }
+
+      setExportingSqlite(true);
+      await window.electron.knowledgeBase.exportSQLite(
+        id,
+        result.filePath,
+        nextExportKbId,
+      );
+      setExportDialogOpen(false);
+      toast.success(t('knowledge-base.export_success', '导出成功'));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t('common.error'));
+    } finally {
+      setExportingSqlite(false);
+    }
+  };
+
   return (
     <div className="p-4 flex flex-col gap-2 flex-1 min-h-0">
-      <div className="flex flex-row gap-2">
-        <Badge variant="secondary">
-          @{kb?.embeddingModel}[{kb?.vectorLength}]
-        </Badge>
-        {kb?.rerankerModel && (
-          <Badge variant="secondary">@{kb?.rerankerModel}</Badge>
-        )}
-        {kb?.static && <Badge>{t('knowledge-base.static-badge')}</Badge>}
+      <div className="flex flex-row gap-2 items-center justify-between">
+        <div className="flex flex-row gap-2 items-center min-w-0">
+          <Badge variant="secondary">
+            @{kb?.embeddingModel}[{kb?.vectorLength}]
+          </Badge>
+          {kb?.rerankerModel && (
+            <Badge variant="secondary">@{kb?.rerankerModel}</Badge>
+          )}
+          {kb?.static && <Badge>{t('knowledge-base.static-badge')}</Badge>}
+        </div>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          disabled={!kb || exportingSqlite}
+          onClick={openExportDialog}
+        >
+          <IconDownload className="size-4" />
+          {exportingSqlite
+            ? t('common.loading')
+            : t('knowledge-base.export_sqlite', '导出 SQLite')}
+        </Button>
       </div>
+      <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>
+              {t('knowledge-base.export_sqlite', '瀵煎嚭 SQLite')}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-2">
+            <div className="text-sm text-muted-foreground">
+              {t('knowledge-base.export_id', 'Export ID')}
+            </div>
+            <Input
+              value={exportKbId}
+              onChange={(event) => setExportKbId(event.target.value)}
+              disabled={exportingSqlite}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={exportingSqlite}
+              onClick={() => setExportDialogOpen(false)}
+            >
+              {t('common.cancel')}
+            </Button>
+            <Button
+              type="button"
+              disabled={!exportKbId.trim() || exportingSqlite}
+              onClick={handleExportSQLite}
+            >
+              {exportingSqlite
+                ? t('common.loading')
+                : t('knowledge-base.export_sqlite', '瀵煎嚭 SQLite')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       {kb?.static && (
         <div className="rounded-md border border-dashed bg-muted/40 p-3 text-xs text-muted-foreground">
           {t('knowledge-base.static-tip')}

@@ -11,6 +11,8 @@ import {
   OpenDialogReturnValue,
   powerSaveBlocker,
   ProxyConfig,
+  SaveDialogOptions,
+  SaveDialogReturnValue,
   screen,
   shell,
   webUtils,
@@ -867,6 +869,13 @@ class AppManager extends BaseManager {
     options: OpenDialogOptions,
   ): Promise<OpenDialogReturnValue> {
     return await dialog.showOpenDialog(this.getMainWindow(), options);
+  }
+
+  @channel(AppChannel.ShowSaveDialog)
+  public async showSaveDialog(
+    options: SaveDialogOptions,
+  ): Promise<SaveDialogReturnValue> {
+    return await dialog.showSaveDialog(this.getMainWindow(), options);
   }
 
   @channel(AppChannel.SaveSettings)

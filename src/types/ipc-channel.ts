@@ -31,6 +31,7 @@ export enum AppChannel {
   SetProxy = 'app:setProxy',
   SetLanguage = 'app:setlanguage',
   ShowOpenDialog = 'app:showOpenDialog',
+  ShowSaveDialog = 'app:showSaveDialog',
   SaveSettings = 'app:saveSettings',
   GetAssistantSoulLibrary = 'app:getAssistantSoulLibrary',
   SaveAssistantSoul = 'app:saveAssistantSoul',
@@ -99,6 +100,9 @@ export enum KnowledgeBaseChannel {
   DeleteKnowledgeBaseItem = 'knowledge-base:deleteKnowledgeBaseItem',
   UpdateKnowledgeBaseItem = 'knowledge-base:updateKnowledgeBaseItem',
   SearchKnowledgeBase = 'knowledge-base:searchKnowledgeBase',
+  ExportSQLite = 'knowledge-base:exportSQLite',
+  InspectSQLite = 'knowledge-base:inspectSQLite',
+  ImportSQLite = 'knowledge-base:importSQLite',
 }
 
 export enum ToolChannel {
