@@ -218,6 +218,10 @@ function HomepageHeader() {
             <div>
               <p className={styles.downloadLabel}>立即下载</p>
               <p className={styles.downloadText}>选择你的平台，几分钟内开始使用。</p>
+              <p className={styles.downloadNote}>
+                macOS 版本暂不支持自动更新；首次安装如提示文件损坏，请在终端执行{' '}
+                <code>xattr -cr /Applications/aime-chat.app</code> 后再打开。
+              </p>
             </div>
             <div className={styles.downloadLinks}>
               <Link
