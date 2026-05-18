@@ -59,6 +59,14 @@ const sidebars: SidebarsConfig = {
       label: 'Agent智能体',
       items: ['agents/overview', 'agents/code-agent'],
     },
+    {
+      type: 'category',
+      label: '案例',
+      items: [
+        'cases/overview',
+        'cases/extract-sn-number'
+      ],
+    },
   ],
 
   // But you can create a sidebar manually

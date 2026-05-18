@@ -320,6 +320,23 @@
   color: #404040;
 }
 
+.downloadNote {
+  max-width: 26rem;
+  margin: 0.45rem 0 0;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.downloadNote code {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+[data-theme='light'] .downloadNote {
+  color: #616161;
+}
+
 .downloadLinks {
   display: flex;
   flex-wrap: wrap;

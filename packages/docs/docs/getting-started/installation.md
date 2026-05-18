@@ -14,7 +14,7 @@ sidebar_position: 1
 
 请访问 [文档主页](/)，根据您的操作系统下载对应的安装包：
 
-- **macOS**: 下载 `.dmg` 安装包
+- **macOS**: 下载 `.dmg` 安装包。macOS 版本暂不支持自动更新；首次安装如提示文件损坏，请在终端执行 `xattr -cr /Applications/aime-chat.app` 后再打开。
 - **Windows**: 下载 `.exe` 安装程序
 - **Linux**: 下载 `.AppImage` 或 `.deb` 安装包
 
@@ -28,6 +28,14 @@ sidebar_position: 1
 
 :::note 注意
 首次启动时，如果系统提示"无法验证开发者"，请在系统偏好设置 > 安全性与隐私中点击"仍要打开"。
+
+macOS 版本暂不支持自动更新。首次安装时如果系统提示文件损坏，请在终端执行：
+
+```bash
+xattr -cr /Applications/aime-chat.app
+```
+
+然后重新打开 AIME Chat。
 :::
 
 #### Windows
@@ -138,7 +146,6 @@ pnpm package
 - 查看 [AI 服务商配置](./ai-providers) 来配置您的 AI 服务
 - 了解 [基本使用](./basic-usage) 开始您的第一次对话
 - 遇到问题时参考 [常见问题](./faq)
-
 
 
 

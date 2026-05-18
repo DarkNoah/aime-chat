@@ -291,6 +291,7 @@
     "reranker": "Reranker",
     "force-return-full-content": "Force Return Full Content",
     "new_knowledge-base": "New Knowledge Base",
+    "edit_knowledge-base": "Edit Knowledge Base",
     "vector-store-type": "Vector Store Type",
     "embedding": "Embedding",
     "extend-columns": "Extend Columns",

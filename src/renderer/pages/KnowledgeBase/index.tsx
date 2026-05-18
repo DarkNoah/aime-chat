@@ -251,6 +251,16 @@ function KnowledgeBasePage() {
     }
   };
 
+  const isEditingKnowledgeBase = Boolean(currentKb);
+  const knowledgeBaseDialogTitle = isEditingKnowledgeBase
+    ? t('knowledge-base.edit_knowledge-base')
+    : t('knowledge-base.new_knowledge-base');
+  const knowledgeBaseSubmitText = (() => {
+    if (submitting) return t('common.loading');
+    if (isEditingKnowledgeBase) return t('common.save');
+    return t('knowledge-base.new_knowledge-base');
+  })();
+
   return (
     <div className="h-full w-full flex flex-row justify-between">
       <div className="flex flex-col gap-2 h-full p-4 w-[--sidebar-width]">
@@ -277,9 +287,7 @@ function KnowledgeBasePage() {
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>
-                  {t('knowledge-base.new_knowledge-base')}
-                </DialogTitle>
+                <DialogTitle>{knowledgeBaseDialogTitle}</DialogTitle>
               </DialogHeader>
               <Form {...form}>
                 <form
@@ -487,7 +495,7 @@ function KnowledgeBasePage() {
                       type="submit"
                       disabled={!form.formState.isValid || submitting}
                     >
-                      {submitting ? '创建中…' : '创建'}
+                      {knowledgeBaseSubmitText}
                     </Button>
                   </DialogFooter>
                 </form>

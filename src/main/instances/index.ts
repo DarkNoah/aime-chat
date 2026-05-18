@@ -371,7 +371,9 @@ class InstancesManager extends BaseManager {
     const browserContext =
       browser.contexts().length > 0
         ? browser.contexts()[0]
-        : await browser.newContext();
+        : await browser.newContext({
+          ignoreHTTPSErrors: true,
+        });
 
     const cdp = await browser.newBrowserCDPSession();
     await cdp.send("Browser.setDownloadBehavior", { behavior: "default" });
@@ -470,7 +472,8 @@ class InstancesManager extends BaseManager {
         let agentBrowserConfig = {
           "headed": !(config?.headless ?? true),
           // "profile": config.userDataPath,
-          "cdp": wsUrl
+          "cdp": wsUrl,
+          "ignoreHttpsErrors": true,
         }
         if (httpProxy) {
           agentBrowserConfig['proxy'] = `http://${httpProxy}`;

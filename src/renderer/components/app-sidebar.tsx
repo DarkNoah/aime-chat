@@ -27,6 +27,7 @@ import {
   IconCategory,
   IconClock,
   IconDownload,
+  type Icon,
 } from '@tabler/icons-react';
 // import { NavMain } from '@/app/(pages)/nav-main';
 // import { NavSecondary } from '@/app/dashboard/nav-secondary';
@@ -89,7 +90,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   const [openProjectDialog, setOpenProjectDialog] = useState(false);
 
-  const navItems = [
+  const navItems: {
+    title: string;
+    url?: string;
+    icon: Icon;
+    onClick?: () => void;
+    isActive: boolean;
+    hidden?: boolean;
+  }[] = [
     {
       title: t('sidebar.new_chat'),
       url: '/chat',
@@ -211,9 +219,16 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <SidebarMenuItem className="flex flex-row gap-2">
               <SidebarMenuButton
                 onClick={() => navigate('/settings/about')}
-                className="cursor-pointer text-primary"
+                className="cursor-pointer text-primary hover:text-primary/80 transition-all duration-300 ease-in-out"
               >
-                <IconDownload></IconDownload>
+                <span className="relative inline-flex shrink-0">
+                  <IconDownload size={16}></IconDownload>
+                  <span
+                    aria-hidden="true"
+                    data-testid="update-ready-dot"
+                    className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-red-500 ring-2 ring-background"
+                  ></span>
+                </span>
                 <span className="truncate">{t('update.downloadedReady')}</span>
                 {updateState.updateInfo?.version && (
                   <Badge variant="outline" className="ml-auto text-xs">
