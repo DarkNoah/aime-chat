@@ -203,7 +203,7 @@ class ToolsManager extends BaseManager {
     await this.registerBuiltInTool(KnowledgeBaseToolkit);
     await this.registerBuiltInTool(CronsToolkit);
 
-    await this.registerBuiltInTool(AimeChatCli);
+    // await this.registerBuiltInTool(AimeChatCli);
     await this.registerBuiltInTool(Done);
     if (!app.isPackaged) {
       await this.registerBuiltInTool(ExpenseManagementToolkit);
