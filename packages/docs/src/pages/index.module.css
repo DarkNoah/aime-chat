@@ -283,8 +283,8 @@
   width: 100%;
   max-width: 42rem;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  align-items: stretch;
   gap: 1rem;
   margin-top: 1.5rem;
   padding: 1.1rem 1.2rem;
@@ -337,10 +337,43 @@
   color: #616161;
 }
 
+.downloadWarning {
+  width: 100%;
+  max-width: 42rem;
+  margin: 0.85rem 0 0;
+  padding: 0.85rem 1rem;
+  border-radius: 0.95rem;
+  border: 1px solid rgba(255, 193, 7, 0.42);
+  background: linear-gradient(135deg, rgba(255, 193, 7, 0.2), rgba(255, 146, 43, 0.14));
+  color: #ffd977;
+  font-weight: 700;
+  line-height: 1.6;
+  text-align: center;
+  box-shadow: 0 14px 34px rgba(255, 146, 43, 0.16);
+}
+
+.downloadWarning code {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+[data-theme='light'] .downloadWarning {
+  border-color: rgba(217, 119, 6, 0.28);
+  background: linear-gradient(135deg, rgba(255, 248, 222, 0.96), rgba(255, 237, 213, 0.98));
+  color: #9a3412;
+  box-shadow: 0 14px 34px rgba(217, 119, 6, 0.12);
+}
+
 .downloadLinks {
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+[data-theme='light'] .downloadLinks {
+  border-top-color: rgba(0, 0, 0, 0.08);
 }
 
 .platformLink {
