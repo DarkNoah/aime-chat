@@ -644,6 +644,7 @@ class ToolsManager extends BaseManager {
       where: { isActive: isActive, toolkitId: Not(IsNull()) },
     });
     const builtInTools = this.builtInTools.filter(x => !x.isHidden);
+    const skills = await skillManager.getSkills();
 
     return {
       [ToolType.MCP]: tools
@@ -700,6 +701,7 @@ class ToolsManager extends BaseManager {
           isActive: true,
           isToolkit: false,
           type: ToolType.SKILL,
+          repo: skills.find((skill) => skill.id === tool.id)?.repo,
         })),
     };
   }
