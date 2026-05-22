@@ -574,8 +574,8 @@ function KnowledgeBaseDetail() {
     );
     try {
       const result = await window.electron.app.showSaveDialog({
-        title: t('knowledge-base.export_sqlite', '导出 SQLite'),
-        buttonLabel: t('knowledge-base.export_sqlite', '导出 SQLite'),
+        title: t('knowledge-base.export_sqlite', '导出'),
+        buttonLabel: t('knowledge-base.export_sqlite', '导出'),
         defaultPath: `${safeName || id}.sqlite`,
         filters: [
           {
@@ -626,14 +626,14 @@ function KnowledgeBaseDetail() {
           <IconDownload className="size-4" />
           {exportingSqlite
             ? t('common.loading')
-            : t('knowledge-base.export_sqlite', '导出 SQLite')}
+            : t('knowledge-base.export_sqlite', '导出')}
         </Button>
       </div>
       <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>
-              {t('knowledge-base.export_sqlite', '瀵煎嚭 SQLite')}
+              {t('knowledge-base.export_sqlite', '导出')}
             </DialogTitle>
           </DialogHeader>
           <div className="grid gap-2">
@@ -662,7 +662,7 @@ function KnowledgeBaseDetail() {
             >
               {exportingSqlite
                 ? t('common.loading')
-                : t('knowledge-base.export_sqlite', '瀵煎嚭 SQLite')}
+                : t('knowledge-base.export_sqlite', '导出')}
             </Button>
           </DialogFooter>
         </DialogContent>

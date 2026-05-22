@@ -327,6 +327,7 @@
     "installed_skills": "已安装技能"
   },
   "knowledge-base": {
+    "export_sqlite": "导出",
     "add_url": "添加网址",
     "add_files": "添加文件",
     "add_text": "添加文本",
