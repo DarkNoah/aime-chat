@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogTrigger } from '../ui/dialog';
 import {
   Command,
   CommandEmpty,
+  CommandGroup,
   CommandInput,
   CommandItem,
   CommandList,
@@ -18,6 +19,72 @@ import {
   IconSquareCheck,
 } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
+
+export type SkillToolGroup = {
+  id: string;
+  name: string;
+  skills: Tool[];
+};
+
+export type SkillToolListItem = Tool | SkillToolGroup;
+
+const isSkillToolGroup = (tool: SkillToolListItem): tool is SkillToolGroup =>
+  'skills' in tool;
+
+const getRepoDisplayName = (repo: string) => {
+  const parts = repo.split('/').filter(Boolean);
+  if (parts.length > 1) {
+    return `${parts[parts.length - 2]}/${parts[parts.length - 1]}`;
+  }
+
+  return repo;
+};
+
+export const groupSkillsByRepo = (skills: Tool[]): SkillToolListItem[] => {
+  const groupedSkills: SkillToolListItem[] = [];
+
+  for (const skill of skills) {
+    if (!skill.repo) {
+      groupedSkills.push(skill);
+    } else {
+      const existingGroup = groupedSkills.find(
+        (item): item is SkillToolGroup =>
+          isSkillToolGroup(item) && item.id === skill.repo,
+      );
+
+      if (existingGroup) {
+        existingGroup.skills.push(skill);
+      } else {
+        groupedSkills.push({
+          id: skill.repo,
+          name: getRepoDisplayName(skill.repo),
+          skills: [skill],
+        });
+      }
+    }
+  }
+
+  return groupedSkills;
+};
+
+export const toggleSkillGroupSelection = (
+  selectedToolIds: string[],
+  group: SkillToolGroup,
+): string[] => {
+  const skillIds = group.skills.map((skill) => skill.id);
+  const selectedSkillIds = selectedToolIds.filter((id) =>
+    skillIds.includes(id),
+  );
+  const nextSelectedToolIds = selectedToolIds.filter(
+    (id) => !skillIds.includes(id),
+  );
+
+  if (selectedSkillIds.length === skillIds.length) {
+    return nextSelectedToolIds;
+  }
+
+  return nextSelectedToolIds.concat(skillIds);
+};
 
 export type ChatToolSelectorProps = ComponentProps<typeof Dialog> & {
   children: React.ReactNode;
@@ -47,11 +114,9 @@ export const ChatToolSelector = ({
     try {
       setLoading(true);
       const tools = await window.electron.tools.getAvailableTools();
-      console.log(tools);
       setData(tools);
       setLoading(false);
     } catch (error) {
-      console.error(error);
       setLoading(false);
     }
   };
@@ -71,11 +136,13 @@ export const ChatToolSelector = ({
         tool.tools.map((x) => x.id),
       );
 
-      const v = value.filter((x) => !tool.tools.map((t) => t.id).includes(x));
+      const v = value.filter(
+        (x) => !tool.tools.map((subtool) => subtool.id).includes(x),
+      );
       if (selected.length === tool.tools.length) {
         onChange?.(v);
       } else {
-        v.push(...tool.tools.map((t) => t.id));
+        v.push(...tool.tools.map((subtool) => subtool.id));
         onChange?.(v);
       }
     } else if (value?.includes(tool.id)) {
@@ -108,6 +175,25 @@ export const ChatToolSelector = ({
       );
     }
   }
+
+  const renderSkillGroupCheckIcon = (tool: SkillToolGroup) => {
+    const selectedCount = intersection(
+      tool.skills.map((skill) => skill.id),
+      value,
+    ).length;
+
+    if (selectedCount === tool.skills.length) {
+      return <IconSquareCheck className="ml-auto size-4" />;
+    }
+
+    if (selectedCount > 0) {
+      return <IconSquareAsterisk className="ml-auto size-4" />;
+    }
+
+    return <IconSquare className="ml-auto size-4" />;
+  };
+
+  const groupedSkills = groupSkillsByRepo(data[ToolType.SKILL] ?? []);
 
   return (
     <Dialog
@@ -167,7 +253,10 @@ export const ChatToolSelector = ({
                               tool.tools.map((x) => x.id),
                             );
                             const v = value.filter(
-                              (x) => !tool.tools.map((t) => t.id).includes(x),
+                              (x) =>
+                                !tool.tools
+                                  .map((subtool) => subtool.id)
+                                  .includes(x),
                             );
                             v.push(...selected);
                             onChange?.(v);
@@ -224,7 +313,10 @@ export const ChatToolSelector = ({
                               tool.tools.map((x) => x.id),
                             );
                             const v = value.filter(
-                              (x) => !tool.tools.map((t) => t.id).includes(x),
+                              (x) =>
+                                !tool.tools
+                                  .map((subtool) => subtool.id)
+                                  .includes(x),
                             );
                             v.push(...selected);
                             onChange?.(v);
@@ -254,20 +346,75 @@ export const ChatToolSelector = ({
             <TabsContent value={ToolType.SKILL}>
               <CommandList>
                 <CommandEmpty>No tools found.</CommandEmpty>
-                {data[ToolType.SKILL]?.map((tool) => (
-                  <CommandItem
-                    key={tool.id}
-                    value={tool.id}
-                    onSelect={() => handleSelect(tool)}
-                  >
-                    {tool.name}{' '}
-                    {value?.includes(tool.id) ? (
-                      <CheckIcon className="ml-auto size-4" />
-                    ) : (
-                      <div className="ml-auto size-4" />
-                    )}
-                  </CommandItem>
-                ))}
+                {groupedSkills.map((tool) =>
+                  isSkillToolGroup(tool) ? (
+                    <CommandGroup
+                      key={tool.id}
+                      className="[&_[cmdk-group]]:px-0"
+                    >
+                      <CommandItem
+                        value={`${tool.id} ${tool.name} ${tool.skills
+                          .map((skill) => skill.name)
+                          .join(' ')}`}
+                        onSelect={() =>
+                          onChange?.(toggleSkillGroupSelection(value, tool))
+                        }
+                      >
+                        {tool.name} {renderSkillGroupCheckIcon(tool)}
+                      </CommandItem>
+                      <div className="my-2">
+                        <ToggleGroup
+                          type="multiple"
+                          variant="outline"
+                          spacing={2}
+                          size="sm"
+                          className="flex-wrap"
+                          value={intersection(
+                            value,
+                            tool.skills.map((skill) => skill.id),
+                          )}
+                          onValueChange={(_value) => {
+                            const selected = intersection(
+                              _value,
+                              tool.skills.map((skill) => skill.id),
+                            );
+                            const v = value.filter(
+                              (id) =>
+                                !tool.skills
+                                  .map((skill) => skill.id)
+                                  .includes(id),
+                            );
+                            v.push(...selected);
+                            onChange?.(v);
+                          }}
+                        >
+                          {tool.skills.map((skill) => (
+                            <ToggleGroupItem
+                              key={skill.id}
+                              value={skill.id}
+                              aria-label={skill.name}
+                            >
+                              {skill.name}
+                            </ToggleGroupItem>
+                          ))}
+                        </ToggleGroup>
+                      </div>
+                    </CommandGroup>
+                  ) : (
+                    <CommandItem
+                      key={tool.id}
+                      value={tool.id}
+                      onSelect={() => handleSelect(tool)}
+                    >
+                      {tool.name}{' '}
+                      {value?.includes(tool.id) ? (
+                        <CheckIcon className="ml-auto size-4" />
+                      ) : (
+                        <div className="ml-auto size-4" />
+                      )}
+                    </CommandItem>
+                  ),
+                )}
               </CommandList>
             </TabsContent>
           </Tabs>
