@@ -39,7 +39,7 @@ jobs:
 
   publish-linux-arm64:
     name: Publish Linux arm64
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-latest
     needs: publish-linux-x64
 
     steps:
@@ -67,4 +67,4 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          pnpm exec electron-builder -- --publish always --linux --arm64
+          pnpm exec electron-builder -- --publish always --linux deb --arm64
