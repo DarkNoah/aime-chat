@@ -6,37 +6,6 @@ permissions:
   contents: write
 
 jobs:
-  publish-linux-x64:
-    name: Publish Linux x64
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout git repo
-        uses: actions/checkout@v4
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-
-      - name: Install Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - name: Install and build
-        run: |
-          pnpm install
-          pnpm run postinstall
-          pnpm run build
-
-      - name: Publish Linux draft release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          pnpm exec electron-builder -- --publish always --linux --x64
-
   publish-linux-arm64:
     name: Publish Linux arm64
     runs-on: ubuntu-24.04-arm
@@ -75,3 +44,34 @@ jobs:
           USE_SYSTEM_FPM: 'true'
         run: |
           pnpm exec electron-builder -- --publish always --linux --arm64
+
+  publish-linux-x64:
+    name: Publish Linux x64
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout git repo
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install and build
+        run: |
+          pnpm install
+          pnpm run postinstall
+          pnpm run build
+
+      - name: Publish Linux draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          pnpm exec electron-builder -- --publish always --linux --x64
