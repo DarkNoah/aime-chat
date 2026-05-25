@@ -1,7 +1,7 @@
 {
   "name": "aime-chat",
   "description": "A foundation for scalable desktop apps",
-  "version": "0.3.36",
+  "version": "0.3.37",
   "keywords": [
     "electron",
     "boilerplate",
@@ -447,7 +447,7 @@
         "deb"
       ],
       "category": "Development",
-      "artifactName": "${productName}-linux.${ext}"
+      "artifactName": "${productName}-${arch}-linux.${ext}"
     },
     "directories": {
       "app": "release/app",
