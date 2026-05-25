@@ -446,6 +446,10 @@
         "AppImage",
         "deb"
       ],
+      "arch": [
+        "x64",
+        "arm64"
+      ],
       "category": "Development",
       "artifactName": "${productName}-${arch}-linux.${ext}"
     },
