@@ -270,11 +270,19 @@ function HomepageHeader() {
               </Link>
               <Link
                 className={styles.platformLink}
-                href="https://github.com/DarkNoah/aime-chat/releases/latest/download/aime-chat-linux.deb"
-                title="Linux (.deb)"
+                href="https://github.com/DarkNoah/aime-chat/releases/latest/download/aime-chat-arm64-linux.deb"
+                title="Linux arm64 (.deb)"
               >
                 <IconBrandDebian size={20} />
-                <span>Linux deb</span>
+                <span>Linux arm64</span>
+              </Link>
+              <Link
+                className={styles.platformLink}
+                href="https://github.com/DarkNoah/aime-chat/releases/latest/download/aime-chat-x64-linux.deb"
+                title="Linux amd64 (.deb)"
+              >
+                <IconBrandDebian size={20} />
+                <span>Linux amd64</span>
               </Link>
             </div>
           </div>
