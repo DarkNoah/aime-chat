@@ -15,26 +15,30 @@ import { Button } from '../ui/button';
 import { Switch } from '../ui/switch';
 import { Label } from '../ui/label';
 import { useTranslation } from 'react-i18next';
-import { UntilEndPrompt } from '@/types/chat';
+import { GoalConfig } from '@/types/chat';
 
-const DEFAULT_VALUE: UntilEndPrompt = { enable: false, prompt: '' };
-
-export type ChatUntilEndProps = ComponentProps<typeof Dialog> & {
-  children: React.ReactNode;
-  className?: string;
-  value?: UntilEndPrompt;
-  onChange?: (value: UntilEndPrompt) => void;
+const DEFAULT_VALUE: GoalConfig = {
+  enable: false,
+  objective: '',
+  status: null,
 };
 
-export const ChatUntilEnd = ({ children, ...props }: ChatUntilEndProps) => {
+export type ChatGoalProps = ComponentProps<typeof Dialog> & {
+  children: React.ReactNode;
+  className?: string;
+  value?: GoalConfig;
+  onChange?: (value: GoalConfig) => void;
+};
+
+export const ChatGoal = ({ children, ...props }: ChatGoalProps) => {
   const { value = DEFAULT_VALUE, onChange, className } = props;
   const [open, setOpen] = useState(false);
   const [enable, setEnable] = useState<boolean>(value.enable);
-  const [text, setText] = useState<string>(value.prompt);
+  const [text, setText] = useState<string>(value.objective);
   const { t } = useTranslation();
 
   const handleConfirm = () => {
-    onChange?.({ enable, prompt: text });
+    onChange?.({ enable, objective: text, status: null });
     setOpen(false);
   };
 
@@ -44,7 +48,7 @@ export const ChatUntilEnd = ({ children, ...props }: ChatUntilEndProps) => {
       onOpenChange={(o) => {
         if (o) {
           setEnable(value.enable);
-          setText(value.prompt);
+          setText(value.objective);
         }
         setOpen(o);
       }}
@@ -56,11 +60,11 @@ export const ChatUntilEnd = ({ children, ...props }: ChatUntilEndProps) => {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ShieldCheck className="size-5 text-primary" />
-            {t('chat.until_end', 'End Guard')}
+            {t('chat.goal', 'Goal')}
           </DialogTitle>
           <DialogDescription>
             {t(
-              'chat.until_end_description',
+              'chat.goal_description',
               'Before the model ends the conversation, it will re-verify the checklist below. The model is only allowed to call the Done tool when every item passes; otherwise it will keep working until they do.',
             )}
           </DialogDescription>
@@ -68,34 +72,34 @@ export const ChatUntilEnd = ({ children, ...props }: ChatUntilEndProps) => {
 
         <div className="flex flex-row items-center justify-between rounded-md border bg-muted/40 px-3 py-2">
           <div className="flex flex-col gap-0.5">
-            <Label htmlFor="until-end-enable" className="cursor-pointer">
-              {t('chat.until_end_enable', 'Enable')}
+            <Label htmlFor="goal-enable" className="cursor-pointer">
+              {t('chat.goal_enable', 'Enable')}
             </Label>
             {!enable && (
               <span className="text-xs text-muted-foreground">
                 {t(
-                  'chat.until_end_disabled_tip',
+                  'chat.goal_disabled_tip',
                   'Disabled: the model will not run any extra end-of-turn checks.',
                 )}
               </span>
             )}
           </div>
           <Switch
-            id="until-end-enable"
+            id="goal-enable"
             checked={enable}
             onCheckedChange={setEnable}
           />
         </div>
 
         <div className="flex flex-col gap-2">
-          <Label htmlFor="until-end-checklist" className="text-sm font-medium">
-            {t('chat.until_end_checklist_label', 'Checklist')}
+          <Label htmlFor="goal-checklist" className="text-sm font-medium">
+            {t('chat.goal_checklist_label', 'Checklist')}
           </Label>
           <Textarea
-            id="until-end-checklist"
+            id="goal-checklist"
             className="min-h-[200px] font-mono text-sm leading-relaxed"
             placeholder={t(
-              'chat.until_end_placeholder',
+              'chat.goal_placeholder',
               'e.g.\n1. Confirm all modified files pass lint checks\n2. Confirm related tests have been run and passed\n3. A concise summary of changes has been given to the user',
             )}
             value={text}
@@ -103,7 +107,7 @@ export const ChatUntilEnd = ({ children, ...props }: ChatUntilEndProps) => {
           />
           <p className="text-xs text-muted-foreground">
             {t(
-              'chat.until_end_hint',
+              'chat.goal_hint',
               'Tip: clear, individually verifiable items work best.',
             )}
           </p>

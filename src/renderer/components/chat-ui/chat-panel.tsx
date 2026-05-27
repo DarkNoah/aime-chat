@@ -23,7 +23,7 @@ import {
   ChatPreviewType,
   ChatSubmitOptions,
   ThreadState,
-  UntilEndPrompt,
+  GoalConfig,
 } from '@/types/chat';
 import { ChatPreview } from './chat-preview';
 import { ChatUsage } from './chat-usage';
@@ -97,12 +97,6 @@ import {
 } from '../ui/collapsible';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '../ui/accordion';
 
 type ChatMessageItemProps = {
   message: UIMessage;
@@ -594,17 +588,17 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
         });
       }
     };
-    const handleUntilEndChanged = async (_untilEndPrompt: UntilEndPrompt) => {
+    const handleGoalChanged = async (_goal: GoalConfig) => {
       if (threadId && threadState) {
         await window.electron.mastra.updateThread(threadId, {
           title: threadState?.title,
           metadata: {
             ...threadState?.metadata,
-            untilEndPrompt: _untilEndPrompt,
+            goal: _goal,
           },
         });
       }
-      chatInputRef.current?.setUntilEndPrompt(_untilEndPrompt);
+      chatInputRef.current?.setGoal(_goal);
     };
 
     const syncPendingSubmits = useCallback((items: PendingChatSubmit[]) => {
@@ -719,7 +713,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
         model?: string;
         webSearch?: boolean;
         think?: boolean;
-        untilEndPrompt?: UntilEndPrompt;
+        goal?: GoalConfig;
         tools?: string[];
         subAgents?: string[];
         requireToolApproval?: boolean;
@@ -757,7 +751,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
         tools: options?.tools,
         subAgents: options?.subAgents,
         think: options?.think,
-        untilEndPrompt: options?.untilEndPrompt,
+        goal: options?.goal,
         requireToolApproval: options?.requireToolApproval,
         runId,
         threadId,
@@ -804,7 +798,11 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
       chatInputRef.current?.setTools([]);
       chatInputRef.current?.setSubAgents([]);
       chatInputRef.current?.setThink(true);
-      chatInputRef.current?.setUntilEndPrompt({ enable: false, prompt: '' });
+      chatInputRef.current?.setGoal({
+        enable: false,
+        objective: '',
+        status: null,
+      });
       setSuggestions(undefined);
       setRequireToolApproval(false);
       setHistoryMessages([]);
@@ -843,10 +841,11 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
               maxTokens: number;
             },
           );
-          chatInputRef.current?.setUntilEndPrompt(
-            (_thread?.metadata?.untilEndPrompt as UntilEndPrompt) ?? {
+          chatInputRef.current?.setGoal(
+            (_thread?.metadata?.goal as GoalConfig) ?? {
               enable: false,
-              prompt: '',
+              objective: '',
+              status: null,
             },
           );
           let _agent: Agent | undefined;
@@ -871,8 +870,8 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
             (_thread?.metadata?.requireToolApproval as boolean) ?? false,
           );
           setAgentId(_thread?.metadata?.agentId as string);
-          chatInputRef.current?.setUntilEndPrompt(
-            (_thread?.metadata?.untilEndPrompt as UntilEndPrompt) ?? {
+          chatInputRef.current?.setGoal(
+            (_thread?.metadata?.goal as GoalConfig) ?? {
               enable: false,
               prompt: '',
             },
@@ -1171,7 +1170,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
             // showWebSearch
             showToolSelector
             showAgentSelector
-            showUntilEnd
+            showGoal
             showThink
             model={modelId}
             onModelChange={handleModelChanged}
@@ -1181,7 +1180,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
             threadId={threadId}
             onSubmit={handleSubmit}
             onAbort={handleAbort}
-            onUntilEndChange={handleUntilEndChanged}
+            onGoalChange={handleGoalChanged}
             status={threadState?.status}
             className="flex-1 h-full"
           ></ChatInput>

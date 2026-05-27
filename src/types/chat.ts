@@ -8,9 +8,10 @@ import type { GoogleGenerativeAIProviderOptions } from '@ai-sdk/google';
 import type { OpenAIResponsesProviderOptions } from '@ai-sdk/openai';
 import type { XaiProviderOptions } from '@ai-sdk/xai';
 
-export type UntilEndPrompt = {
+export type GoalConfig = {
   enable: boolean;
-  prompt: string;
+  objective: string;
+  status: 'pending' | 'complete' | 'blocked' | null;
 };
 
 export type ChatInput = {
@@ -36,7 +37,7 @@ export type ChatInput = {
       xai?: XaiProviderOptions & Record<string, any>;
     };
   };
-  untilEndPrompt?: UntilEndPrompt;
+  goal?: GoalConfig;
   approved?: boolean;
   toolCallId?: string;
   resumeData?: Record<string, any>;
@@ -148,7 +149,7 @@ export type ChatTodo = {
 
 export type ChatRequestContext = {
   model?: string;
-  untilEndPrompt?: UntilEndPrompt;
+  goal?: GoalConfig;
   threadId?: string;
   projectId?: string;
   resourceId?: string;
@@ -177,7 +178,7 @@ export type ChatSubmitOptions = {
   webSearch?: boolean;
   think?: boolean;
   tools?: string[];
-  untilEndPrompt?: UntilEndPrompt;
+  goal?: GoalConfig;
   subAgents?: string[];
   approved?: boolean;
   toolCallId?: string;

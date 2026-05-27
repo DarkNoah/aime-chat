@@ -90,7 +90,7 @@ export type ChatToolSelectorProps = ComponentProps<typeof Dialog> & {
   children: React.ReactNode;
   className?: string;
   value?: string[];
-  showUnavailable?: boolean;
+  showGoal?: boolean;
   onChange?: (value: string[]) => void;
 };
 
@@ -98,7 +98,7 @@ export const ChatToolSelector = ({
   children,
   ...props
 }: ChatToolSelectorProps) => {
-  const { value = [], onChange, showUnavailable = false } = props;
+  const { value = [], onChange, showGoal = false } = props;
   const [loading, setLoading] = useState(false);
   const { t } = useTranslation();
   const [data, setData] = useState<{

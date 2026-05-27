@@ -61,6 +61,7 @@ import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { Done } from './common/done';
 import { AimeChatCli } from './cli';
 import { api } from '../api/ApiController';
+import { GoalToolkit } from './common/goal';
 interface BuiltInToolContext {
   tool: BaseTool;
   abortController: AbortController;
@@ -202,9 +203,12 @@ class ToolsManager extends BaseManager {
     await this.registerBuiltInTool(LibSQLToolkit);
     await this.registerBuiltInTool(KnowledgeBaseToolkit);
     await this.registerBuiltInTool(CronsToolkit);
+    await this.registerBuiltInTool(GoalToolkit);
+
+
 
     // await this.registerBuiltInTool(AimeChatCli);
-    await this.registerBuiltInTool(Done);
+    // await this.registerBuiltInTool(Done);
     if (!app.isPackaged) {
       await this.registerBuiltInTool(ExpenseManagementToolkit);
       await this.registerBuiltInTool(StreamTest);
