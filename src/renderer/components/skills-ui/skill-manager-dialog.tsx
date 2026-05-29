@@ -1,5 +1,12 @@
 /* eslint-disable no-await-in-loop */
-import { DragEvent, useCallback, useEffect, useRef, useState } from 'react';
+import {
+  DragEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   Dialog,
   DialogContent,
@@ -40,7 +47,12 @@ import {
   UploadIcon,
   XIcon,
 } from 'lucide-react';
-import { IconLoader } from '@tabler/icons-react';
+import {
+  IconLoader,
+  IconSquare,
+  IconSquareAsterisk,
+  IconSquareCheck,
+} from '@tabler/icons-react';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { FileInfo } from '@/types/common';
@@ -105,6 +117,67 @@ function isDirectSkillUrl(url: string) {
 
 function getSkillKey(skill: SkillInfo) {
   return skill.id.split(':').slice(1).join(':');
+}
+
+function intersection<T>(a: T[], b: T[]): T[] {
+  const setB = new Set(b);
+  return a.filter((item) => setB.has(item));
+}
+
+function areStringArraysEqual(a: string[], b: string[]): boolean {
+  return a.length === b.length && a.every((item, index) => item === b[index]);
+}
+
+type InstalledSkillGroup = {
+  id: string;
+  name: string;
+  skills: SkillInfo[];
+};
+
+type InstalledSkillListItem = SkillInfo | InstalledSkillGroup;
+
+function isInstalledSkillGroup(
+  skill: InstalledSkillListItem,
+): skill is InstalledSkillGroup {
+  return 'skills' in skill;
+}
+
+function getRepoDisplayName(repo: string) {
+  const parts = repo.split('/').filter(Boolean);
+  if (parts.length > 1) {
+    return `${parts[parts.length - 2]}/${parts[parts.length - 1]}`;
+  }
+
+  return repo;
+}
+
+function groupInstalledSkillsByRepo(
+  skills: SkillInfo[],
+): InstalledSkillListItem[] {
+  const groupedSkills: InstalledSkillListItem[] = [];
+
+  for (const skill of skills) {
+    if (!skill.repo) {
+      groupedSkills.push(skill);
+    } else {
+      const existingGroup = groupedSkills.find(
+        (item): item is InstalledSkillGroup =>
+          isInstalledSkillGroup(item) && item.id === skill.repo,
+      );
+
+      if (existingGroup) {
+        existingGroup.skills.push(skill);
+      } else {
+        groupedSkills.push({
+          id: skill.repo,
+          name: getRepoDisplayName(skill.repo),
+          skills: [skill],
+        });
+      }
+    }
+  }
+
+  return groupedSkills;
 }
 
 function isProjectSkill(projectSkills: SkillInfo[], skill: SkillInfo) {
@@ -632,7 +705,8 @@ function InstalledSkillTab({
   const { t } = useTranslation();
   const [skills, setSkills] = useState<SkillInfo[]>([]);
   const [loading, setLoading] = useState(false);
-  const [importing, setImporting] = useState<Record<string, boolean>>({});
+  const [selectedSkillIds, setSelectedSkillIds] = useState<string[]>([]);
+  const [importing, setImporting] = useState(false);
 
   const loadSkills = useCallback(async () => {
     setLoading(true);
@@ -652,21 +726,122 @@ function InstalledSkillTab({
     loadSkills();
   }, [loadSkills]);
 
-  const handleAdd = async (skill: SkillInfo) => {
-    setImporting((prev) => ({ ...prev, [skill.id]: true }));
+  const selectableSkillIds = useMemo(
+    () =>
+      skills
+        .filter((skill) => !isProjectSkill(projectSkills, skill))
+        .map((skill) => skill.id),
+    [projectSkills, skills],
+  );
+
+  useEffect(() => {
+    setSelectedSkillIds((prev) => {
+      const next = intersection(prev, selectableSkillIds);
+      return areStringArraysEqual(prev, next) ? prev : next;
+    });
+  }, [selectableSkillIds]);
+
+  const handleSelectSkill = (skill: SkillInfo) => {
+    if (isProjectSkill(projectSkills, skill)) return;
+
+    setSelectedSkillIds((prev) =>
+      prev.includes(skill.id)
+        ? prev.filter((id) => id !== skill.id)
+        : prev.concat(skill.id),
+    );
+  };
+
+  const toggleSkillGroupSelection = (group: InstalledSkillGroup) => {
+    const groupSkillIds = group.skills
+      .filter((skill) => !isProjectSkill(projectSkills, skill))
+      .map((skill) => skill.id);
+    if (groupSkillIds.length === 0) return;
+
+    setSelectedSkillIds((prev) => {
+      const selectedGroupSkillIds = intersection(prev, groupSkillIds);
+      const nextSelectedSkillIds = prev.filter(
+        (id) => !groupSkillIds.includes(id),
+      );
+
+      if (selectedGroupSkillIds.length === groupSkillIds.length) {
+        return nextSelectedSkillIds;
+      }
+
+      return nextSelectedSkillIds.concat(groupSkillIds);
+    });
+  };
+
+  const renderSkillGroupCheckIcon = (group: InstalledSkillGroup) => {
+    const groupSkillIds = group.skills
+      .filter((skill) => !isProjectSkill(projectSkills, skill))
+      .map((skill) => skill.id);
+    const selectedCount = intersection(selectedSkillIds, groupSkillIds).length;
+
+    if (groupSkillIds.length > 0 && selectedCount === groupSkillIds.length) {
+      return <IconSquareCheck className="ml-auto size-4" />;
+    }
+
+    if (selectedCount > 0) {
+      return <IconSquareAsterisk className="ml-auto size-4" />;
+    }
+
+    return <IconSquare className="ml-auto size-4" />;
+  };
+
+  const handleImport = async () => {
+    if (selectedSkillIds.length === 0) return;
+    setImporting(true);
     try {
       const result = await window.electron.tools.importSkills({
-        sourceSkillIds: [skill.id],
+        sourceSkillIds: selectedSkillIds,
         path: importPath,
       });
       if (result && !result.success) throw new Error(result.error);
       toast.success(t('common.import_success'));
       onImportSuccess?.();
+      setSelectedSkillIds([]);
     } catch (err: any) {
       toast.error(err.message);
     } finally {
-      setImporting((prev) => ({ ...prev, [skill.id]: false }));
+      setImporting(false);
     }
+  };
+
+  const groupedSkills = useMemo(
+    () => groupInstalledSkillsByRepo(skills),
+    [skills],
+  );
+
+  const renderSkillItem = (skill: SkillInfo) => {
+    const added = isProjectSkill(projectSkills, skill);
+
+    return (
+      <Item
+        key={skill.id}
+        variant="muted"
+        size="sm"
+        className={cn(!added && 'cursor-pointer', added && 'opacity-70')}
+        onClick={() => handleSelectSkill(skill)}
+      >
+        <ItemContent className="flex flex-row items-center gap-2">
+          <Checkbox
+            checked={selectedSkillIds.includes(skill.id)}
+            disabled={added}
+          />
+          <div className="flex min-w-0 flex-1 flex-col">
+            <ItemTitle className="truncate">{skill.name}</ItemTitle>
+            <ItemDescription className="line-clamp-2">
+              {skill.description}
+            </ItemDescription>
+          </div>
+        </ItemContent>
+        {added && (
+          <ItemActions>
+            <Badge variant="secondary">{t('common.added', 'Added')}</Badge>
+          </ItemActions>
+        )}
+      </Item>
+    );
   };
 
   return (
@@ -713,34 +888,52 @@ function InstalledSkillTab({
             {t('tools.no_skills_found', 'No skills found')}
           </div>
         )}
-        {skills.map((skill) => {
-          const added = isProjectSkill(projectSkills, skill);
-          return (
-            <Item key={skill.id} variant="muted" size="sm">
-              <ItemContent>
-                <ItemTitle className="truncate">{skill.name}</ItemTitle>
-                <ItemDescription className="line-clamp-2">
-                  {skill.description}
-                </ItemDescription>
-              </ItemContent>
-              <ItemActions>
-                <Button
-                  variant={added ? 'outline' : 'default'}
-                  size="sm"
-                  disabled={added || importing[skill.id]}
-                  onClick={() => handleAdd(skill)}
-                >
-                  {importing[skill.id] ? (
-                    <IconLoader className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <PlusIcon className="h-4 w-4" />
-                  )}
-                  {added ? t('common.added', 'Added') : t('common.add', 'Add')}
-                </Button>
-              </ItemActions>
-            </Item>
-          );
-        })}
+        {groupedSkills.map((skill) =>
+          isInstalledSkillGroup(skill) ? (
+            <div key={skill.id} className="space-y-2">
+              <Item
+                variant="outline"
+                size="sm"
+                className="cursor-pointer"
+                onClick={() => toggleSkillGroupSelection(skill)}
+              >
+                <ItemContent>
+                  <ItemTitle className="truncate">{skill.name}</ItemTitle>
+                  <ItemDescription>
+                    {skill.skills.length} {t('common.skills', 'skills')}
+                  </ItemDescription>
+                </ItemContent>
+                <ItemActions>{renderSkillGroupCheckIcon(skill)}</ItemActions>
+              </Item>
+              <div className="space-y-1.5 pl-4">
+                {skill.skills.map(renderSkillItem)}
+              </div>
+            </div>
+          ) : (
+            renderSkillItem(skill)
+          ),
+        )}
+        {skills.length > 0 && (
+          <Button
+            onClick={handleImport}
+            disabled={selectedSkillIds.length === 0 || importing}
+          >
+            {!importing ? (
+              <>
+                <PlusIcon className="h-4 w-4" />
+                {t('common.import')}{' '}
+                {selectedSkillIds.length > 0
+                  ? `(${selectedSkillIds.length})`
+                  : ''}
+              </>
+            ) : (
+              <>
+                {t('common.importing')}
+                <IconLoader className="h-4 w-4 animate-spin" />
+              </>
+            )}
+          </Button>
+        )}
       </div>
     </div>
   );

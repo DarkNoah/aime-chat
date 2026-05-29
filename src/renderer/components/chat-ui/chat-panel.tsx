@@ -28,6 +28,7 @@ import {
 import { ChatPreview } from './chat-preview';
 import { ChatUsage } from './chat-usage';
 import { ChatAgentSelector } from './chat-agent-selector';
+import { ChatGoalBanner } from './chat-goal-banner';
 import {
   Conversation,
   ConversationContent,
@@ -81,6 +82,10 @@ import {
   ChatMessageAttachment,
   ChatMessageAttachments,
 } from './chat-message-attachment';
+import {
+  parseChatMessageAttachment,
+  toChatMessageAttachmentPart,
+} from './chat-message-attachment-parser';
 import { Loader } from '../ai-elements/loader';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import { cn } from '@/renderer/lib/utils';
@@ -194,6 +199,24 @@ const ChatMessageItem = React.memo(
               </AlertTitle>
             </Alert>
           );
+        }
+
+        const parsedAttachment = parseChatMessageAttachment(part.text);
+        if (parsedAttachment) {
+          return (
+            <ChatMessageAttachments
+              className={`mb-2 ${message.role === 'user' ? 'ml-auto' : 'ml-0'}`}
+              key={`${message.id}-${i}`}
+            >
+              <ChatMessageAttachment
+                data={toChatMessageAttachmentPart(parsedAttachment)}
+              />
+            </ChatMessageAttachments>
+          );
+        }
+
+        if (part.text.trim() === '</attachment>') {
+          return null;
         }
 
         return (
@@ -431,6 +454,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
     const threadState = useThreadStore(
       useShallow((s) => s.threadStates[threadId]),
     );
+    const updateThreadState = useThreadStore((s) => s.updateThreadState);
     const [compressing, setCompressing] = useState(false);
 
     const {
@@ -592,6 +616,12 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
       if (threadId && threadState) {
         await window.electron.mastra.updateThread(threadId, {
           title: threadState?.title,
+          metadata: {
+            ...threadState?.metadata,
+            goal: _goal,
+          },
+        });
+        updateThreadState(threadId, {
           metadata: {
             ...threadState?.metadata,
             goal: _goal,
@@ -988,6 +1018,10 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
       <div className={cn('flex flex-col h-full', className)}>
         <Conversation className="h-full w-full flex-1 flex items-center justify-center overflow-y-hidden">
           <ConversationContent className="h-full" id="chat-conversation">
+            <ChatGoalBanner
+              goal={threadState?.metadata?.goal as GoalConfig | undefined}
+              onGoalChange={handleGoalChanged}
+            />
             {!threadState && agent?.greeting && (
               <div className="flex flex-col gap-2">
                 <Message from="assistant">

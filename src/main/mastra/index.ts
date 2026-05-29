@@ -77,7 +77,6 @@ import {
 } from '@mastra/core/stream';
 import { chatWorkflow, claudeCodeWorkflow } from './workflow';
 import { StorageThreadType } from '@mastra/core/memory';
-import tokenCounter, { countTokens } from '@/main/utils/tokenCounter';
 import {
   convertToCoreMessages,
   convertToInstructionContent,
@@ -92,13 +91,12 @@ import { Projects } from '@/entities/projects';
 import path from 'path';
 import fs from 'fs';
 import BaseTool, { BaseToolParams } from '../tools/base-tool';
-import zodToJsonSchema from 'zod-to-json-schema';
 import { getLastMessageIndex } from '../utils/messageUtils';
 import { MastraThreadsUsage } from '@/entities/mastra-threads-usage';
 import { Repository } from 'typeorm';
 import { dbManager } from '../db';
 const modelsData = require('../../../assets/models.json');
-import { costFromUsage, getTokenCosts } from 'tokenlens';
+import { getTokenCosts } from 'tokenlens';
 import bashManager from '../tools/file-system/bash';
 import { DefaultAgent } from './agents/default-agent';
 import { Agents } from '@/entities/agents';
@@ -114,6 +112,13 @@ import { MessageListInput } from '@mastra/core/agent/message-list';
 import { secretsManager } from '../app/secrets';
 import { Done } from '../tools/common/done';
 import { CreateGoal, GetGoal, UpdateGoal } from '../tools/common/goal';
+import {
+  resolveCompressionTokenCount,
+  resolveLanguageModelUsage,
+  TokenCountTool,
+} from './usage';
+import { filesize } from 'filesize';
+import mime from 'mime';
 
 function getQueryValue(value: unknown): string | undefined {
   if (Array.isArray(value)) {
@@ -151,6 +156,13 @@ function getPerPageQuery(value: unknown, fallback: number): number | false {
     return false;
   }
   return getNumberQuery(value, fallback);
+}
+
+function getAgentTokenTools(
+  agent?: Agent,
+): Record<string, TokenCountTool> | undefined {
+  return (agent as unknown as { tools?: Record<string, TokenCountTool> })
+    ?.tools;
 }
 
 class MastraManager extends BaseManager {
@@ -799,6 +811,7 @@ class MastraManager extends BaseManager {
         if (!message) return;
 
         const inputParts = [];
+        let fileIndex = 1;
         for (const part of message.parts) {
           const filePart = part as typeof part & {
             path?: string;
@@ -806,23 +819,37 @@ class MastraManager extends BaseManager {
           };
           if (filePart.type == 'file' && filePart.path) {
             // const file = await fs.promises.readFile(part.path);
+
+            inputParts.push({
+              type: 'text',
+              text: `<attachment id="File #${fileIndex}" path="${filePart.path}" name="${path.basename(filePart.path)}" size="${filesize(fs.statSync(filePart.path).size)}" mimeType="${mime.lookup(filePart.path) || 'application/octet-stream'}">`,
+            });
             if (modelInfo?.modalities?.input?.includes('image') && filePart.mediaType?.startsWith('image/')) {
               inputParts.push(filePart);
             }
 
+            // inputParts.push({
+            //   type: 'text',
+            //   text: `<file>${filePart.path}</file>`,
+            // });
             inputParts.push({
               type: 'text',
-              text: `<file>${filePart.path}</file>`,
+              text: `</attachment>`,
             });
+            fileIndex++;
           } else {
             inputParts.push(part);
           }
+
         }
         message.parts = inputParts;
       };
       normalizeInputMessageParts(inputMessage);
       // historyMessages.messages;
       const input = [...historyMessagesAISdkV5, inputMessage];
+      const usageInputMessages = convertToModelMessages(
+        input.filter((message): message is UIMessage => Boolean(message)),
+      );
 
       const messages = convertToModelMessages(historyMessagesAISdkV5);
 
@@ -901,17 +928,27 @@ class MastraManager extends BaseManager {
         onStepFinish: async (event) => {
           //storage.saveMessages();
           const { usage, response, text, reasoning } = event;
+          const resolvedUsage = await resolveLanguageModelUsage({
+            usage: usage as LanguageModelUsage,
+            messages: usageInputMessages,
+            tools: getAgentTokenTools(agent),
+            outputText: text,
+          });
 
           const maxContextSize = requestContext.get('maxContextSize');
-          await callback?.onUsage?.(usage, maxContextSize);
-          requestContext.set('usage' as never, usage as never);
-          const usageRate = (usage?.totalTokens / maxContextSize) * 100;
-          console.log('usage rate: ' + usageRate.toFixed(2) + '%', usage);
+          await callback?.onUsage?.(resolvedUsage, maxContextSize);
+          requestContext.set('usage' as never, resolvedUsage as never);
+          const usageRate =
+            (resolvedUsage?.totalTokens / maxContextSize) * 100;
+          console.log(
+            'usage rate: ' + usageRate.toFixed(2) + '%',
+            resolvedUsage,
+          );
 
           appManager.sendEvent(`chat:event:${chatId}`, {
             type: ChatEvent.ChatUsage,
             data: {
-              usage,
+              usage: resolvedUsage,
               usageRate: Math.round(usageRate * 100) / 100,
               modelId: `${providerType}:${modelId}`,
               maxTokens: maxContextSize,
@@ -923,7 +960,7 @@ class MastraManager extends BaseManager {
             title: currentThread.title,
             metadata: {
               ...(currentThread.metadata || {}),
-              usage,
+              usage: resolvedUsage,
               maxTokens: maxContextSize,
               model,
               modelId: `${providerType}:${modelId}`,
@@ -1183,8 +1220,10 @@ class MastraManager extends BaseManager {
           callback,
         );
 
+        let streamText = '';
         if (stream.status == 'success' && !streamOptions.abortSignal.aborted) {
           const text = await stream.text;
+          streamText = text;
           const finishReason = await stream.finishReason;
           if (finishReason == 'stop' && !text) {
             throw new Error('No content returned');
@@ -1233,6 +1272,11 @@ class MastraManager extends BaseManager {
             resourceId,
             stream.usage,
             `${providerType}:${modelId}`,
+            {
+              messages: usageInputMessages,
+              tools: getAgentTokenTools(agent),
+              outputText: streamText,
+            },
           );
           const lastMessage = core[core.length - 1];
           const immediatePending = this.consumePendingChatMessage(chatId, true);
@@ -1913,22 +1957,13 @@ ${memoryDigest}
     error?: boolean;
     errorMessage?: string;
   }> {
-    let tokenCount = await tokenCounter(messages);
-
-    for (const tool of Object.values(tools)) {
-      let inputSchema;
-      if ("shape" in tool.inputSchema) {
-        inputSchema = zodToJsonSchema(tool.inputSchema);
-      } else {
-        inputSchema = tool.inputSchema.getSchema()
-      }
-      tokenCount += countTokens(
-        tool.id + '\n' + tool.description + '\n' + JSON.stringify(inputSchema),
-      );
-    }
     const maxContextSize = options.requestContext.get('maxContextSize');
     const usage = options.requestContext.get('usage');
-    tokenCount = Math.max(tokenCount, usage?.totalTokens ?? 0);
+    const tokenCount = await resolveCompressionTokenCount({
+      messages,
+      tools,
+      usage,
+    });
     if (
       options.thresholdTokenCount &&
       tokenCount < options.thresholdTokenCount &&
@@ -2160,25 +2195,35 @@ IMPORTANT: Do NOT use any tools. You MUST respond with ONLY the <summary>...</su
     resourceId: string,
     usage: MastraModelOutput['usage'],
     modelId?: string,
+    fallback?: {
+      messages?: ModelMessage[];
+      tools?: Record<string, TokenCountTool>;
+      outputText?: string;
+    },
   ) {
-    const _usage = await usage;
+    const resolvedUsage = await resolveLanguageModelUsage({
+      usage,
+      messages: fallback?.messages,
+      tools: fallback?.tools,
+      outputText: fallback?.outputText,
+    });
 
     const providers = modelsData[modelId.split(':')[0]];
 
-    const costs = getTokenCosts({ modelId, usage: _usage, providers });
+    const costs = getTokenCosts({ modelId, usage: resolvedUsage, providers });
     try {
       const data = await this.mastraThreadsUsageRepository.save(
         new MastraThreadsUsage(
           threadId,
           resourceId,
-          _usage as LanguageModelV2Usage,
+          resolvedUsage as LanguageModelV2Usage,
           modelId,
           costs,
           costs?.totalUSD,
         ),
       );
       appManager.sendEvent(ChatEvent.ChatUsageChanged, {
-        data: { threadId, resourceId, usage: _usage, modelId, costs },
+        data: { threadId, resourceId, usage: resolvedUsage, modelId, costs },
       });
     } catch {
       console.error('Failed to save thread usage', threadId, usage);
