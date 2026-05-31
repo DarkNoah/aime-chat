@@ -7,6 +7,7 @@ import { BaseLoader } from './base-loader';
 import { getAssetPath } from '..';
 import { getQwenAudioRuntime, getUVRuntime } from '@/main/app/runtime';
 import { appManager } from '@/main/app';
+import { runCommand } from '../shell';
 
 export type AudioLoaderOptions = {
   model?: string;
@@ -134,26 +135,152 @@ export async function destroyQwenAsrService(): Promise<void> {
   }
 }
 
+async function syncQwenAudioRuntime(sourceDir: string, targetDir: string) {
+  const entries = await fs.promises.readdir(sourceDir, { withFileTypes: true });
+
+  await Promise.all(
+    entries.map(async (entry) => {
+      if (entry.name === '__pycache__' || entry.name === 'tests') {
+        return;
+      }
+
+      const sourcePath = path.join(sourceDir, entry.name);
+      const targetPath = path.join(targetDir, entry.name);
+
+      if (entry.isDirectory()) {
+        await fs.promises.mkdir(targetPath, { recursive: true });
+        await syncQwenAudioRuntime(sourcePath, targetPath);
+        return;
+      }
+
+      if (!entry.isFile()) {
+        return;
+      }
+
+      if (fs.existsSync(targetPath)) {
+        const [sourceContent, currentContent] = await Promise.all([
+          fs.promises.readFile(sourcePath),
+          fs.promises.readFile(targetPath),
+        ]);
+        if (sourceContent.equals(currentContent)) {
+          return;
+        }
+        await fs.promises.rm(targetPath);
+      }
+
+      await fs.promises.cp(sourcePath, targetPath);
+    }),
+  );
+}
+
 async function ensureRuntimeFile(runtimeDir: string): Promise<string> {
   const runtimeFile = path.join(runtimeDir, 'main.py');
-  const assetRuntimeFile = getAssetPath('runtime', 'qwen-audio', 'main.py');
+  const assetRuntimeDir = getAssetPath('runtime', 'qwen-audio');
 
   await fs.promises.mkdir(runtimeDir, { recursive: true });
-  if (!fs.existsSync(runtimeFile)) {
-    await fs.promises.cp(assetRuntimeFile, runtimeFile);
-    return runtimeFile;
-  }
-
-  const [assetContent, currentContent] = await Promise.all([
-    fs.promises.readFile(assetRuntimeFile),
-    fs.promises.readFile(runtimeFile),
-  ]);
-  if (!assetContent.equals(currentContent)) {
-    await fs.promises.rm(runtimeFile);
-    await fs.promises.cp(assetRuntimeFile, runtimeFile);
-  }
+  await syncQwenAudioRuntime(assetRuntimeDir, runtimeDir);
 
   return runtimeFile;
+}
+
+function quoteShellArg(value: string): string {
+  return `'${value.replace(/'/g, "'\\''")}'`;
+}
+
+async function getPythonPackageVersion(
+  uvBin: string,
+  runtimeDir: string,
+  packageName: string,
+  env?: Record<string, string>,
+): Promise<string | undefined> {
+  const versionScript = `from importlib import metadata; print(metadata.version(${JSON.stringify(packageName)}))`;
+  const result = await runCommand(
+    [
+      quoteShellArg(uvBin),
+      '--project',
+      quoteShellArg(runtimeDir),
+      'run',
+      'python',
+      '-c',
+      quoteShellArg(versionScript),
+    ].join(' '),
+    {
+      cwd: runtimeDir,
+      env,
+      timeout: 30_000,
+    },
+  );
+  if (result.code !== 0) {
+    return undefined;
+  }
+  return result.stdout.trim() || undefined;
+}
+
+async function ensureMlxAudioLatest(
+  uvBin: string,
+  runtimeDir: string,
+  env?: Record<string, string>,
+) {
+  if (process.platform === 'win32') {
+    return;
+  }
+
+  if (process.env.QWEN_ASR_MLX_AUDIO_UPDATE_CHECK === '0') {
+    return;
+  }
+
+  try {
+    const beforeVersion = await getPythonPackageVersion(
+      uvBin,
+      runtimeDir,
+      'mlx-audio',
+      env,
+    );
+
+    const result = await runCommand(
+      [
+        quoteShellArg(uvBin),
+        '--project',
+        quoteShellArg(runtimeDir),
+        'add',
+        'mlx-audio',
+        '--prerelease=allow',
+        '--upgrade-package',
+        'mlx-audio',
+      ].join(' '),
+      {
+        cwd: runtimeDir,
+        env,
+        timeout: 5 * 60_000,
+      },
+    );
+
+    if (result.code !== 0) {
+      console.warn(
+        '[qwen-asr-py] mlx-audio update check failed:',
+        result.stderr || result.stdout,
+      );
+      return;
+    }
+
+    const afterVersion = await getPythonPackageVersion(
+      uvBin,
+      runtimeDir,
+      'mlx-audio',
+      env,
+    );
+    if (beforeVersion && afterVersion && beforeVersion !== afterVersion) {
+      console.info(
+        `[qwen-asr-py] mlx-audio updated: ${beforeVersion} -> ${afterVersion}`,
+      );
+    } else {
+      console.info(
+        `[qwen-asr-py] mlx-audio is up to date${afterVersion ? ` (${afterVersion})` : ''}`,
+      );
+    }
+  } catch (error) {
+    console.warn('[qwen-asr-py] mlx-audio update check failed:', error);
+  }
 }
 
 export type QwenAudioService = {
@@ -163,9 +290,7 @@ export type QwenAudioService = {
       ext?: string;
     },
   ) => Promise<{ text: string; result: any }>;
-  synthesize: (
-    options: TTSOptions,
-  ) => Promise<{
+  synthesize: (options: TTSOptions) => Promise<{
     outputPath: string;
     sampleRate: number;
     duration: number;
@@ -206,19 +331,18 @@ export async function getQwenAsrPythonService(): Promise<QwenAudioService> {
     const uvBin = uvRuntime.path;
     const isWindows = process.platform === 'win32';
 
-
     const activateSourcePython = isWindows
       ? path.join(sttRuntime.dir, '.venv', 'Scripts', 'python.exe')
       : path.join(sttRuntime.dir, '.venv', 'bin', 'python');
 
-    const env = {}
+    const env: Record<string, string> = {};
 
     if (appManager.appProxy?.host && appManager.appProxy?.port) {
-      env['HTTP_PROXY'] =
-        `http://${appManager.appProxy.host}:${appManager.appProxy.port}`;
-      env['HTTPS_PROXY'] =
-        `http://${appManager.appProxy.host}:${appManager.appProxy.port}`;
+      env.HTTP_PROXY = `http://${appManager.appProxy.host}:${appManager.appProxy.port}`;
+      env.HTTPS_PROXY = `http://${appManager.appProxy.host}:${appManager.appProxy.port}`;
     }
+
+    await ensureMlxAudioLatest(uvBin, runtimeDir, env);
 
     pythonClient = createPythonClient({
       command: uvBin,
@@ -228,7 +352,7 @@ export async function getQwenAsrPythonService(): Promise<QwenAudioService> {
         PYTHONUNBUFFERED: '1',
         PYTHONUTF8: '1',
         PYTHONIOENCODING: 'utf-8',
-        ...env
+        ...env,
       },
     });
 

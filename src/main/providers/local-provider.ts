@@ -436,6 +436,7 @@ export class LocalSpeechModel implements SpeechModelV2 {
     const service = await getQwenAsrPythonService();
     const result = await service.synthesize({
       text: options.text,
+      model: this.modelId,
       language: options.language,
       voice: options.voice,
       instruct: options.instructions,
@@ -613,8 +614,11 @@ export class LocalProvider extends BaseProvider {
       return [{ id: 'Qwen/Qwen3-TTS-1.7B', name: 'Qwen3-TTS-1.7B' },
       { id: 'Qwen/Qwen3-TTS-0.6B', name: 'Qwen3-TTS-0.6B' }];
     } else {
-      return [{ id: 'mlx-community/Qwen3-TTS-1.7B-bf16', name: 'Qwen3-TTS-1.7B-bf16' },
-      { id: 'mlx-community/Qwen3-TTS-0.6B-bf16', name: 'Qwen3-TTS-0.6B-bf16' }];
+      return [{ id: 'mlx-community/Qwen3-TTS-12Hz-1.7B-Base-bf16', name: 'Qwen3-TTS-12Hz-1.7B-Base-bf16' },
+      { id: 'mlx-community/Qwen3-TTS-12Hz-0.6B-Base-bf16', name: 'Qwen3-TTS-12Hz-0.6B-Base-bf16' },
+      { id: 'mlx-community/VoxCPM2-8bit', name: 'VoxCPM2-8bit' },
+      { id: 'mlx-community/VoxCPM2-4bit', name: 'VoxCPM2-4bit' },
+      { id: 'mlx-community/VoxCPM2-bf16', name: 'VoxCPM2-bf16' }];
     }
   }
 

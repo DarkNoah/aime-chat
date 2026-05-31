@@ -9970,6 +9970,34 @@
           "output": 0
         }
       },
+      "stepfun-ai/step-3.7-flash": {
+        "id": "stepfun-ai/step-3.7-flash",
+        "name": "Step 3.7 Flash",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "temperature": true,
+        "release_date": "2026-05-28",
+        "last_updated": "2026-05-28",
+        "modalities": {
+          "input": [
+            "text",
+            "image"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "limit": {
+          "context": 256000,
+          "output": 16384
+        },
+        "cost": {
+          "input": 0,
+          "output": 0
+        }
+      },
       "stepfun-ai/step-3.5-flash": {
         "id": "stepfun-ai/step-3.5-flash",
         "name": "Step 3.5 Flash",
@@ -64860,37 +64888,6 @@
           "output": 0.8
         }
       },
-      "deepseek/deepseek-v3.2-speciale": {
-        "id": "deepseek/deepseek-v3.2-speciale",
-        "name": "DeepSeek V3.2 Speciale",
-        "family": "deepseek",
-        "attachment": false,
-        "reasoning": true,
-        "tool_call": false,
-        "structured_output": true,
-        "temperature": true,
-        "knowledge": "2024-07",
-        "release_date": "2025-12-01",
-        "last_updated": "2025-12-01",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": true,
-        "limit": {
-          "context": 163840,
-          "output": 163840
-        },
-        "cost": {
-          "input": 0.287,
-          "output": 0.431,
-          "cache_read": 0.058
-        }
-      },
       "deepseek/deepseek-v3.1-terminus": {
         "id": "deepseek/deepseek-v3.1-terminus",
         "name": "DeepSeek V3.1 Terminus",
@@ -69290,6 +69287,38 @@
         "cost": {
           "input": 0.017,
           "output": 0.112
+        }
+      },
+      "stepfun/step-3.7-flash": {
+        "id": "stepfun/step-3.7-flash",
+        "name": "Step 3.7 Flash",
+        "family": "step",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": true,
+        "release_date": "2026-05-28",
+        "last_updated": "2026-05-28",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "video"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "limit": {
+          "context": 256000,
+          "output": 256000
+        },
+        "cost": {
+          "input": 0.2,
+          "output": 1.15,
+          "cache_read": 0.04
         }
       },
       "stepfun/step-3.5-flash": {
@@ -74868,7 +74897,7 @@
         },
         "open_weights": true,
         "limit": {
-          "context": 262144,
+          "context": 196608,
           "output": 8192
         },
         "cost": {
@@ -130369,6 +130398,7 @@
           "context": 262144,
           "output": 65536
         },
+        "status": "deprecated",
         "provider": {
           "npm": "@ai-sdk/anthropic"
         },
@@ -142506,6 +142536,37 @@
           "output": 0
         }
       },
+      "anthropic-claude-opus-4.8": {
+        "id": "anthropic-claude-opus-4.8",
+        "name": "Claude Opus 4.8",
+        "family": "claude-opus",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "temperature": true,
+        "release_date": "2026-05-28",
+        "last_updated": "2026-05-29",
+        "modalities": {
+          "input": [
+            "text",
+            "image"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "limit": {
+          "context": 1000000,
+          "output": 128000
+        },
+        "cost": {
+          "input": 5,
+          "output": 25,
+          "cache_read": 0.5,
+          "cache_write": 6.25
+        }
+      },
       "qwen3.5-397b-a17b": {
         "id": "qwen3.5-397b-a17b",
         "name": "Qwen 3.5 397B A17B",
@@ -142596,6 +142657,30 @@
           "output": 5,
           "cache_read": 1,
           "cache_write": 1.25
+        }
+      },
+      "deepseek-4-flash": {
+        "id": "deepseek-4-flash",
+        "name": "Deepseek V4 Flash",
+        "family": "deepseek",
+        "attachment": false,
+        "reasoning": false,
+        "tool_call": true,
+        "temperature": true,
+        "release_date": "2026-05-27",
+        "last_updated": "2026-05-29",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "limit": {
+          "context": 262144,
+          "output": 8192
         }
       },
       "mistral-nemo-instruct-2407": {

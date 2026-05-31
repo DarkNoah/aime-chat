@@ -204,6 +204,11 @@ export const ChatSlashCommandConfig = [
     label: 'compact',
     description: 'Compact the current messages',
   },
+  {
+    id: 'goal',
+    label: 'goal',
+    description: 'Set or view the goal for a long-running task',
+  },
 ];
 
 export type ChatCallbackEvent = {
