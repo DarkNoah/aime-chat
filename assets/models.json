@@ -18487,15 +18487,15 @@
       },
       "anthropic/claude-opus-4.1": {
         "id": "anthropic/claude-opus-4.1",
-        "name": "Claude Opus 4",
+        "name": "Claude Opus 4.1",
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-03-31",
-        "release_date": "2025-05-22",
-        "last_updated": "2025-05-22",
+        "release_date": "2025-08-05",
+        "last_updated": "2025-08-05",
         "modalities": {
           "input": [
             "text",
@@ -142662,7 +142662,7 @@
         "temperature": true,
         "knowledge": "2025-01",
         "release_date": "2026-05-13",
-        "last_updated": "2026-05-30",
+        "last_updated": "2026-06-01",
         "modalities": {
           "input": [
             "text",
@@ -142679,9 +142679,9 @@
           "output": 65536
         },
         "cost": {
-          "input": 0.88,
-          "output": 3.84,
-          "cache_read": 0.09,
+          "input": 0.68,
+          "output": 3.15,
+          "cache_read": 0.07,
           "cache_write": 0
         }
       },
@@ -142762,7 +142762,7 @@
         "temperature": true,
         "knowledge": "2025-04",
         "release_date": "2026-02-16",
-        "last_updated": "2026-05-30",
+        "last_updated": "2026-06-01",
         "modalities": {
           "input": [
             "text",
@@ -142779,9 +142779,9 @@
           "output": 65536
         },
         "cost": {
-          "input": 0.48,
-          "output": 2.88,
-          "cache_read": 0.05,
+          "input": 0.43,
+          "output": 2.6,
+          "cache_read": 0.04,
           "cache_write": 0
         }
       },
@@ -142796,7 +142796,7 @@
         "temperature": true,
         "knowledge": "2025-04",
         "release_date": "2026-04-07",
-        "last_updated": "2026-05-30",
+        "last_updated": "2026-06-01",
         "modalities": {
           "input": [
             "text"
@@ -142811,9 +142811,9 @@
           "output": 131072
         },
         "cost": {
-          "input": 1.2,
-          "output": 3.6,
-          "cache_read": 0.12,
+          "input": 1,
+          "output": 3.2,
+          "cache_read": 0.1,
           "cache_write": 0
         }
       },
