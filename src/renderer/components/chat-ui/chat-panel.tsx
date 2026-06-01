@@ -23,11 +23,12 @@ import {
   ChatPreviewType,
   ChatSubmitOptions,
   ThreadState,
-  UntilEndPrompt,
+  GoalConfig,
 } from '@/types/chat';
 import { ChatPreview } from './chat-preview';
 import { ChatUsage } from './chat-usage';
 import { ChatAgentSelector } from './chat-agent-selector';
+import { ChatGoalBanner } from './chat-goal-banner';
 import {
   Conversation,
   ConversationContent,
@@ -81,6 +82,10 @@ import {
   ChatMessageAttachment,
   ChatMessageAttachments,
 } from './chat-message-attachment';
+import {
+  parseChatMessageAttachment,
+  toChatMessageAttachmentPart,
+} from './chat-message-attachment-parser';
 import { Loader } from '../ai-elements/loader';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import { cn } from '@/renderer/lib/utils';
@@ -97,12 +102,6 @@ import {
 } from '../ui/collapsible';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '../ui/accordion';
 
 type ChatMessageItemProps = {
   message: UIMessage;
@@ -200,6 +199,24 @@ const ChatMessageItem = React.memo(
               </AlertTitle>
             </Alert>
           );
+        }
+
+        const parsedAttachment = parseChatMessageAttachment(part.text);
+        if (parsedAttachment) {
+          return (
+            <ChatMessageAttachments
+              className={`mb-2 ${message.role === 'user' ? 'ml-auto' : 'ml-0'}`}
+              key={`${message.id}-${i}`}
+            >
+              <ChatMessageAttachment
+                data={toChatMessageAttachmentPart(parsedAttachment)}
+              />
+            </ChatMessageAttachments>
+          );
+        }
+
+        if (part.text.trim() === '</attachment>') {
+          return null;
         }
 
         return (
@@ -437,6 +454,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
     const threadState = useThreadStore(
       useShallow((s) => s.threadStates[threadId]),
     );
+    const updateThreadState = useThreadStore((s) => s.updateThreadState);
     const [compressing, setCompressing] = useState(false);
 
     const {
@@ -594,17 +612,23 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
         });
       }
     };
-    const handleUntilEndChanged = async (_untilEndPrompt: UntilEndPrompt) => {
+    const handleGoalChanged = async (_goal: GoalConfig) => {
       if (threadId && threadState) {
         await window.electron.mastra.updateThread(threadId, {
           title: threadState?.title,
           metadata: {
             ...threadState?.metadata,
-            untilEndPrompt: _untilEndPrompt,
+            goal: _goal,
+          },
+        });
+        updateThreadState(threadId, {
+          metadata: {
+            ...threadState?.metadata,
+            goal: _goal,
           },
         });
       }
-      chatInputRef.current?.setUntilEndPrompt(_untilEndPrompt);
+      chatInputRef.current?.setGoal(_goal);
     };
 
     const syncPendingSubmits = useCallback((items: PendingChatSubmit[]) => {
@@ -719,7 +743,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
         model?: string;
         webSearch?: boolean;
         think?: boolean;
-        untilEndPrompt?: UntilEndPrompt;
+        goal?: GoalConfig;
         tools?: string[];
         subAgents?: string[];
         requireToolApproval?: boolean;
@@ -757,7 +781,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
         tools: options?.tools,
         subAgents: options?.subAgents,
         think: options?.think,
-        untilEndPrompt: options?.untilEndPrompt,
+        goal: options?.goal,
         requireToolApproval: options?.requireToolApproval,
         runId,
         threadId,
@@ -804,7 +828,11 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
       chatInputRef.current?.setTools([]);
       chatInputRef.current?.setSubAgents([]);
       chatInputRef.current?.setThink(true);
-      chatInputRef.current?.setUntilEndPrompt({ enable: false, prompt: '' });
+      chatInputRef.current?.setGoal({
+        enable: false,
+        objective: '',
+        status: null,
+      });
       setSuggestions(undefined);
       setRequireToolApproval(false);
       setHistoryMessages([]);
@@ -843,10 +871,11 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
               maxTokens: number;
             },
           );
-          chatInputRef.current?.setUntilEndPrompt(
-            (_thread?.metadata?.untilEndPrompt as UntilEndPrompt) ?? {
+          chatInputRef.current?.setGoal(
+            (_thread?.metadata?.goal as GoalConfig) ?? {
               enable: false,
-              prompt: '',
+              objective: '',
+              status: null,
             },
           );
           let _agent: Agent | undefined;
@@ -871,8 +900,8 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
             (_thread?.metadata?.requireToolApproval as boolean) ?? false,
           );
           setAgentId(_thread?.metadata?.agentId as string);
-          chatInputRef.current?.setUntilEndPrompt(
-            (_thread?.metadata?.untilEndPrompt as UntilEndPrompt) ?? {
+          chatInputRef.current?.setGoal(
+            (_thread?.metadata?.goal as GoalConfig) ?? {
               enable: false,
               prompt: '',
             },
@@ -989,6 +1018,10 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
       <div className={cn('flex flex-col h-full', className)}>
         <Conversation className="h-full w-full flex-1 flex items-center justify-center overflow-y-hidden">
           <ConversationContent className="h-full" id="chat-conversation">
+            <ChatGoalBanner
+              goal={threadState?.metadata?.goal as GoalConfig | undefined}
+              onGoalChange={handleGoalChanged}
+            />
             {!threadState && agent?.greeting && (
               <div className="flex flex-col gap-2">
                 <Message from="assistant">
@@ -1171,7 +1204,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
             // showWebSearch
             showToolSelector
             showAgentSelector
-            showUntilEnd
+            showGoal
             showThink
             model={modelId}
             onModelChange={handleModelChanged}
@@ -1181,7 +1214,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
             threadId={threadId}
             onSubmit={handleSubmit}
             onAbort={handleAbort}
-            onUntilEndChange={handleUntilEndChanged}
+            onGoalChange={handleGoalChanged}
             status={threadState?.status}
             className="flex-1 h-full"
           ></ChatInput>

@@ -444,12 +444,14 @@ class InstancesManager extends BaseManager {
         }
 
         try {
+          const proxy = await appManager.getProxy();
           const browserProcess = spawn(
             executablePath,
             [
               `--remote-debugging-port=${debugPort}`,
               `--user-data-dir=${config.userDataPath}`,
               config?.headless ? '--headless' : '',
+              proxy ? `--proxy-server=http://${proxy}` : '',
             ],
             {
               detached: true,

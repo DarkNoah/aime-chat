@@ -38,3 +38,7 @@ assets/windows-redist/
 memory/
 
 .cursor/
+
+__pycache__/
+
+*.swp

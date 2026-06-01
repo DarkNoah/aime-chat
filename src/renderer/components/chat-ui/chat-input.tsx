@@ -11,6 +11,7 @@ import {
   SquareIcon,
   WrenchIcon,
   ShieldUserIcon,
+  ShieldCheck,
 } from 'lucide-react';
 import { ChatSlashCommand } from './chat-slash-command';
 import {
@@ -85,9 +86,8 @@ import {
   ModelSelectorLogo,
   ModelSelectorName,
 } from '../ai-elements/model-selector';
-import { ChatSlashCommandConfig, UntilEndPrompt } from '@/types/chat';
-import { Badge } from '../ui/badge';
-import { ChatUntilEnd } from './chat-until-end';
+import { ChatSlashCommandConfig, GoalConfig } from '@/types/chat';
+import { ChatGoal } from './chat-goal';
 import { getChatInputSubmitState } from './chat-input-submit-state';
 
 const DRAFT_STORAGE_KEY = 'chat-input-drafts';
@@ -140,10 +140,10 @@ export type ChatInputProps = Omit<PromptInputProps, 'onSubmit'> & {
   showModelSelect?: boolean;
   showToolSelector?: boolean;
   showAgentSelector?: boolean;
-  showUntilEnd?: boolean;
+  showGoal?: boolean;
   model?: string;
   onModelChange?: (model: string) => void;
-  onUntilEndChange?: (untilEndPrompt: UntilEndPrompt) => void;
+  onGoalChange?: (goal: GoalConfig) => void;
   requireToolApproval?: boolean;
   onRequireToolApprovalChange?: (requireToolApproval: boolean) => void;
   prompts?: string[];
@@ -157,7 +157,7 @@ export interface ChatInputRef {
   setTools: (toolNames: string[]) => void;
   setSubAgents: (subAgentIds: string[]) => void;
   setThink: (think: boolean) => void;
-  setUntilEndPrompt: (untilEndPrompt: UntilEndPrompt) => void;
+  setGoal: (goal: GoalConfig) => void;
   getTools: () => string[];
 }
 
@@ -178,11 +178,11 @@ function ChatInputInner(props: ChatInputInnerProps) {
     showModelSelect = false,
     showToolSelector = false,
     showAgentSelector = false,
-    showUntilEnd = false,
+    showGoal = false,
     showThink = false,
     model,
     onModelChange,
-    onUntilEndChange,
+    onGoalChange,
     requireToolApproval: requireToolApprovalProp,
     onRequireToolApprovalChange,
     prompts,
@@ -217,9 +217,10 @@ function ChatInputInner(props: ChatInputInnerProps) {
   const [think, setThink] = useState(false);
   const [tools, setTools] = useState<string[]>([]);
   const [subAgents, setSubAgents] = useState<string[]>([]);
-  const [untilEndPrompt, setUntilEndPrompt] = useState<UntilEndPrompt>({
+  const [goal, setGoal] = useState<GoalConfig>({
     enable: false,
-    prompt: '',
+    objective: '',
+    status: null,
   });
   const [requireToolApproval, setRequireToolApproval] = useState<boolean>(
     requireToolApprovalProp ?? false,
@@ -251,8 +252,8 @@ function ChatInputInner(props: ChatInputInnerProps) {
     setTools: (toolNames: string[]) => {
       setTools(toolNames ?? []);
     },
-    setUntilEndPrompt: (_untilEndPrompt: UntilEndPrompt) => {
-      setUntilEndPrompt(_untilEndPrompt ?? { enable: false, prompt: '' });
+    setGoal: (_goal: GoalConfig) => {
+      setGoal(_goal ?? { enable: false, objective: '', status: null });
     },
     getTools: () => {
       return tools;
@@ -398,26 +399,25 @@ function ChatInputInner(props: ChatInputInnerProps) {
                   </div>
                 </ChatAgentSelector>
               )}
-              {showUntilEnd && (
-                <ChatUntilEnd
-                  value={untilEndPrompt}
+              {showGoal && (
+                <ChatGoal
+                  value={goal}
                   onChange={(v) => {
-                    setUntilEndPrompt(v);
-                    onUntilEndChange?.(v);
+                    setGoal(v);
+                    onGoalChange?.(v);
                   }}
                 >
                   <PromptInputButton
                     size="icon-xs"
                     variant={
-                      untilEndPrompt?.enable &&
-                      untilEndPrompt?.prompt?.trim()?.length > 0
+                      goal?.enable && goal?.objective?.trim()?.length > 0
                         ? 'default'
                         : 'ghost'
                     }
                   >
-                    <ShieldUserIcon size={16} />
+                    <ShieldCheck size={16} />
                   </PromptInputButton>
-                </ChatUntilEnd>
+                </ChatGoal>
               )}
               <Tooltip>
                 <TooltipTrigger asChild>

@@ -50,5 +50,5 @@ export class Agents {
   greeting?: string;
 
   @Column('json', { nullable: true })
-  untilEndPrompt?: any;
+  goal?: any;
 }
