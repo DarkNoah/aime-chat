@@ -1119,6 +1119,15 @@ class MastraManager extends BaseManager {
               model: fastLanguageModel,
             },
           );
+
+        if (slashCommand == 'goal') {
+          const objective = _inputMessage.parts[0]?.text?.replace('/goal ', '')?.trim();
+          if (objective) {
+            requestContext.set('goal', { enable: true, objective: objective, status: 'pending' } as GoalConfig);
+          }
+        }
+
+
         if (compressError) {
           throw new Error(compressErrorMessage || 'Failed to compress messages');
         }
