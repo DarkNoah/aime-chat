@@ -21,6 +21,8 @@ jobs:
           cache: npm
 
       - name: npm install
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           npm install
 
