@@ -727,7 +727,7 @@ export async function installPaddleOcrRuntime() {
   );
 
   const result_install_paddle = await runCommand(
-    `${uvPreCommand} --project "${paddleOcrDir}" --no-cache pip install paddlepaddle${hasGPU ? '-gpu==3.2.0 -i https://www.paddlepaddle.org.cn/packages/stable/cu126/' : '==3.2.2'} --python "${activateSourcePython}"`,
+    `${uvPreCommand} --project "${paddleOcrDir}" --no-cache pip install paddlepaddle${hasGPU ? '-gpu==3.2.1 -i https://www.paddlepaddle.org.cn/packages/stable/cu126/' : '==3.2.2'} --python "${activateSourcePython}"`,
     {
       cwd: uvRuntime?.dir,
       // usePowerShell: isWindows,s
