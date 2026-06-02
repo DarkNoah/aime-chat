@@ -36,6 +36,7 @@
       "installed": "Installed",
       "not_installed": "Not installed",
       "uninstall": "Uninstall",
+      "uninstalling": "Uninstalling...",
       "open_path": "Open folder",
       "desc_uv": "Python package manager used to run MCP servers and Python tools.",
       "desc_node": "JavaScript runtime; some tools rely on Node and npm.",

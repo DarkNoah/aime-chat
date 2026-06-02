@@ -36,6 +36,7 @@
       "installed": "已安装",
       "not_installed": "未安装",
       "uninstall": "卸载",
+      "uninstalling": "卸载中...",
       "open_path": "打开目录",
       "desc_uv": "Python 包管理器，用于运行 MCP 服务器和 Python 工具。",
       "desc_node": "JavaScript 运行时，部分工具依赖 Node 与 npm。",
