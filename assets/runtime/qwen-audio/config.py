@@ -54,8 +54,11 @@ DEFAULT_QWEN_TTS_CUSTOM_MODEL = os.environ.get(
     "QWEN_TTS_CUSTOM_MODEL",
     "mlx-community/Qwen3-TTS-12Hz-1.7B-CustomVoice-bf16",
 ) if IS_DARWIN else "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice"
+# On Apple Silicon we use the quantized MLX build; on every other platform we
+# fall back to the official PyTorch weights served through the `voxcpm` package.
 DEFAULT_VOXCPM2_TTS_MODEL = os.environ.get(
-    "VOXCPM2_TTS_MODEL", "mlx-community/VoxCPM2-8bit"
+    "VOXCPM2_TTS_MODEL",
+    "mlx-community/VoxCPM2-bf16" if IS_DARWIN else "openbmb/VoxCPM2",
 )
 
 

@@ -2,7 +2,7 @@
   <img src="assets/banner.png" alt="AIME Chat" width="100%" />
 
   <p>
-    <img src="https://img.shields.io/badge/version-0.3.34-blue.svg" alt="Version">
+    <img src="https://img.shields.io/badge/version-0.3.37-blue.svg" alt="Version">
     <img src="https://img.shields.io/badge/platform-macOS%20|%20Windows%20|%20Linux-lightgrey.svg" alt="Platform">
     <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License">
   </p>
@@ -20,6 +20,7 @@
 
 ## ✨ 功能特性
 
+- 🦾 **Harness Engineering（智能体外壳工程）** - 围绕模型构建完整的 Agent 外壳（Agent = Model + Harness）：编排循环、工具、上下文与记忆、子 Agent、权限护栏和可观测性，将无状态模型变为可靠、可长时间运行的智能体
 - 🤖 **多 AI 提供商支持** - 集成 OpenAI、DeepSeek、Google、智谱 AI、Ollama、LMStudio、ModelScope、MiniMax 等多个主流 AI 提供商
 - 💬 **智能对话** - 基于 Mastra 框架的强大 AI Agent 系统，支持流式响应和工具调用
 - 🤝 **Open CoWork 能力** - AI 不只是聊天，还能执行实际操作，如文件编辑、代码执行、网络搜索等
@@ -108,6 +109,25 @@ aime-chat/
 ```
 
 ## 🎯 核心功能
+
+### Harness Engineering（智能体外壳工程）
+
+裸的 LLM 只是一个无状态的函数，只有被包裹进一层**外壳（Harness）**后，才能成为可靠的智能体。遵循业界在 2026 年正式确立的 `Agent = Model + Harness` 公式，AIME Chat 并非只是模型前面的一个聊天框，而是围绕模型构建的一套完整外壳。
+
+AIME Chat 提供的外壳分层：
+
+| 分层 | 作用 | 在 AIME Chat 中的实现 |
+|------|------|------------------------|
+| 编排循环 | 驱动「提示 → 响应 → 工具调用 → 观察 → 下一步」的循环直至任务完成 | 基于 Mastra 的 Agent 运行时，支持流式与多步工具调用 |
+| 指引（Guides） | 前置约束，引导模型行为 | Agent 指令、助手人格与 Skill 技能系统 |
+| 工具接口 | 以清晰的 Schema 提供对外部世界的受控访问 | Bash、Read/Write/Edit、Grep/Glob、代码执行、网络、视觉、OCR 及 MCP 工具 |
+| 上下文与记忆 | 在多轮与跨会话之间组装并沉淀正确的信息 | 知识库、养成记忆 Wiki，以及会话/工作记忆 |
+| 编排与子 Agent | 分派并协调多个专门 Agent | 子 Agent 配置与多 Agent 协作流程 |
+| 状态与长任务 | 持久化状态，让工作可跨多次运行延续 | 后台 Bash 会话、Goal 目标驱动执行与 Crons 自动化任务 |
+| 护栏与权限 | 约束 Agent 可执行的操作范围 | 按 Agent 的工具权限、操作审批与集中式 Secrets 管理 |
+| 可观测性 | 追踪行为，便于调试并建立信任 | 详细的运行时日志，并可从关于页面直接打开日志 |
+
+简而言之，AIME Chat 专注于把模型*周围*的一切工程化，从而让任意提供商（云端或本地）都能被打造成可靠、目标驱动的智能体。
 
 ### AI 提供商配置
 

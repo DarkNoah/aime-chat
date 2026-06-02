@@ -153,6 +153,7 @@ export interface RuntimeInfo {
     path?: string;
     dir?: string;
     version?: string;
+    npmVersion?: string;
   };
   paddleOcr: {
     status: 'installed' | 'not_installed' | 'installing' | undefined;

@@ -27,11 +27,31 @@ class TtsRoutingTests(unittest.TestCase):
             "voxtral-vllm",
         )
 
-    def test_voxcpm2_model_routes_to_mlx_audio(self):
-        self.assertEqual(
-            tts.resolve_tts_backend({"model": "mlx-community/VoxCPM2-8bit"}),
-            "mlx-audio",
-        )
+    def test_voxcpm2_model_routes_to_mlx_audio_on_darwin(self):
+        with patch.object(tts, "IS_DARWIN", True):
+            self.assertEqual(
+                tts.resolve_tts_backend({"model": "mlx-community/VoxCPM2-8bit"}),
+                "mlx-audio",
+            )
+
+    def test_voxcpm2_model_routes_to_torch_off_darwin(self):
+        with patch.object(tts, "IS_DARWIN", False):
+            self.assertEqual(
+                tts.resolve_tts_backend({"model": "openbmb/VoxCPM2"}),
+                "voxcpm2",
+            )
+
+    def test_explicit_voxcpm2_backend_follows_platform(self):
+        with patch.object(tts, "IS_DARWIN", True):
+            self.assertEqual(
+                tts.resolve_tts_backend({"backend": "voxcpm2"}),
+                "mlx-audio",
+            )
+        with patch.object(tts, "IS_DARWIN", False):
+            self.assertEqual(
+                tts.resolve_tts_backend({"backend": "voxcpm2"}),
+                "voxcpm2",
+            )
 
     def test_build_voxtral_api_payload_uses_saved_voice_id(self):
         payload = tts.build_voxtral_speech_payload(
@@ -156,6 +176,85 @@ class TtsRoutingTests(unittest.TestCase):
                 {
                     "text": "Hello, welcome to VoxCPM2!",
                     "instruct": "(A young woman, gentle and sweet voice)",
+                }
+            ],
+        )
+
+    def test_voxcpm2_torch_voice_design_prepends_instruct(self):
+        calls = []
+
+        class FakeTorchModel:
+            tts_model = SimpleNamespace(sample_rate=48000)
+
+            def generate(self, **kwargs):
+                calls.append(kwargs)
+                return [0.0, 0.1, -0.1]
+
+        with (
+            patch.object(tts, "IS_DARWIN", False),
+            patch.object(tts, "get_voxcpm2_torch_model", return_value=FakeTorchModel()),
+            patch.object(tts.sf, "write") as write_file,
+        ):
+            result = tts.method_tts(
+                {
+                    "model": "openbmb/VoxCPM2",
+                    "text": "Hello, welcome to VoxCPM2!",
+                    "instruct": "A young woman, gentle and sweet voice",
+                    "cfg_value": 2.0,
+                    "inference_timesteps": 10,
+                    "output_path": "/tmp/out.wav",
+                }
+            )
+
+        self.assertEqual(
+            calls,
+            [
+                {
+                    "text": "(A young woman, gentle and sweet voice)Hello, welcome to VoxCPM2!",
+                    "cfg_value": 2.0,
+                    "inference_timesteps": 10,
+                }
+            ],
+        )
+        self.assertEqual(result["sample_rate"], 48000)
+        self.assertEqual(result["backend"], "voxcpm2")
+        self.assertEqual(result["model"], "openbmb/VoxCPM2")
+        write_file.assert_called_once()
+
+    def test_voxcpm2_torch_ultimate_cloning_maps_ref_to_prompt(self):
+        calls = []
+
+        class FakeTorchModel:
+            tts_model = SimpleNamespace(sample_rate=48000)
+
+            def generate(self, **kwargs):
+                calls.append(kwargs)
+                return [0.0]
+
+        with (
+            patch.object(tts, "IS_DARWIN", False),
+            patch.object(tts, "get_voxcpm2_torch_model", return_value=FakeTorchModel()),
+            patch.object(tts.sf, "write"),
+            patch.object(tts.os.path, "exists", return_value=True),
+        ):
+            tts.method_tts(
+                {
+                    "model": "openbmb/VoxCPM2",
+                    "text": "This is an ultimate cloning demo.",
+                    "ref_audio": "/tmp/speaker.wav",
+                    "ref_text": "The transcript of the reference audio.",
+                    "output_path": "/tmp/out.wav",
+                }
+            )
+
+        self.assertEqual(
+            calls,
+            [
+                {
+                    "text": "This is an ultimate cloning demo.",
+                    "prompt_wav_path": "/tmp/speaker.wav",
+                    "prompt_text": "The transcript of the reference audio.",
+                    "reference_wav_path": "/tmp/speaker.wav",
                 }
             ],
         )

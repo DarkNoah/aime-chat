@@ -30,6 +30,7 @@ const sidebars: SidebarsConfig = {
       type: 'category',
       label: '功能特性',
       items: [
+        'features/harness-engineering',
         'features/knowledge-base',
         {
           type: 'category',

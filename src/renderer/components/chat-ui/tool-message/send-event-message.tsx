@@ -23,6 +23,7 @@ import { PhotoProvider, PhotoView } from 'react-photo-view';
 import { ModelViewer, isSupportedModelFile } from '../../model-viewer';
 import { cn } from '@/renderer/lib/utils';
 import { splitContextAndFiles } from '@/utils/context-utils';
+import { IconWorldWww } from '@tabler/icons-react';
 
 const toFileUrl = (filePath: string) => new URL(filePath, 'file:').href;
 
@@ -199,13 +200,15 @@ export const SendEventMessage = React.forwardRef<
       {event === 'web_preview' && (
         <Item
           variant="outline"
-          className="w-fit cursor-pointer bg-secondary p-2 gap-2 items-center"
+          className="w-full cursor-pointer bg-secondary p-2 gap-2 items-center"
           onClick={() => {
             sendEvent(threadId, 'web_preview', JSON.parse(data));
           }}
         >
-          <ItemContent>
-            <ItemTitle>Web Preview</ItemTitle>
+          <ItemContent className="min-w-0">
+            <ItemTitle>
+              <IconWorldWww></IconWorldWww> Web Preview
+            </ItemTitle>
             <ItemDescription className=" ">
               <span className="truncate block">
                 {parsedData(data)?.url ?? '-'}

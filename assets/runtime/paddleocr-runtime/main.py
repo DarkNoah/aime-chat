@@ -287,7 +287,7 @@ def get_pipeline(device: str, model_id: str = "paddleocr-vl") -> Any:
                 # On macOS, use CPU only for now
                 _pipeline = create_mlx_vlm_pipeline(model_id)
             else:
-                _pipeline = PaddleOCRVL(device="gpu" if hasGPU else device)
+                _pipeline = PaddleOCRVL(device="gpu" if hasGPU else device, pipeline_version="v1.6")
         elif model_id == "pp-structurev3":
             print("Using PPStructureV3...")
             logging.info("Using PPStructureV3...")

@@ -71,11 +71,15 @@ export const ChatToolGenerateImagePreview = React.forwardRef<
       images: imagePaths = [],
       remove_background = false,
       save_path = '',
+      size = '',
+      aspect_ratio = '',
     } = part?.input as {
       prompt?: string;
       images?: string[];
       remove_background?: boolean;
       save_path?: string;
+      size?: string;
+      aspect_ratio?: string;
     };
 
     useEffect(() => {
@@ -101,10 +105,10 @@ export const ChatToolGenerateImagePreview = React.forwardRef<
     return (
       <Item
         variant="outline"
-        className="w-fit bg-secondary p-2 gap-2 items-center"
+        className="w-full bg-secondary p-2 gap-2 items-center"
       >
-        <ItemContent>
-          <ItemTitle className="text-muted-foreground text-sm flex flex-col items-start gap-2">
+        <ItemContent className="min-w-0">
+          <ItemTitle className="text-muted-foreground text-sm flex flex-col items-start gap-2 w-full min-w-0">
             {prompt}
             {remove_background && (
               <div className="flex max-w-full flex-wrap items-center gap-1.5">
@@ -117,9 +121,28 @@ export const ChatToolGenerateImagePreview = React.forwardRef<
               </div>
             )}
             {save_path && (
-              <Badge variant="outline" className="h-5 px-2 truncate">
-                <IconFile className="size-3" />
-                <span className="min-w-0 truncate">{save_path}</span>
+              <Badge
+                variant="outline"
+                className="flex flex-row h-5 px-2 truncate w-full"
+              >
+                <IconFile className="size-3 " />
+                <span className="min-w-0 truncate flex-1">{save_path}</span>
+              </Badge>
+            )}
+            {size && (
+              <Badge
+                variant="outline"
+                className="flex flex-row h-5 px-2 truncate w-full"
+              >
+                <span className="min-w-0 truncate flex-1">{size}</span>
+              </Badge>
+            )}
+            {aspect_ratio && (
+              <Badge
+                variant="outline"
+                className="flex flex-row h-5 px-2 truncate w-full"
+              >
+                <span className="min-w-0 truncate flex-1">{aspect_ratio}</span>
               </Badge>
             )}
           </ItemTitle>

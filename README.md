@@ -2,7 +2,7 @@
   <img src="assets/banner.png" alt="AIME Chat" width="100%" />
 
   <p>
-    <img src="https://img.shields.io/badge/version-0.3.34-blue.svg" alt="Version">
+    <img src="https://img.shields.io/badge/version-0.3.37-blue.svg" alt="Version">
     <img src="https://img.shields.io/badge/platform-macOS%20|%20Windows%20|%20Linux-lightgrey.svg" alt="Platform">
     <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License">
   </p>
@@ -20,6 +20,7 @@
 
 ## ✨ Features
 
+- 🦾 **Harness Engineering** - A complete agent harness around the model (Agent = Model + Harness): orchestration loop, tools, context & memory, sub-agents, guardrails, and observability turn a stateless model into a reliable, long-running agent
 - 🤖 **Multiple AI Provider Support** - Integrated with mainstream AI providers including OpenAI, DeepSeek, Google, Zhipu AI, MiniMax, Ollama, LMStudio, ModelScope, and more
 - 💬 **Intelligent Conversations** - Powerful AI Agent system based on Mastra framework, supporting streaming responses and tool calling
 - 🤝 **Open CoWork Capability** - AI is not just for chatting, it can perform actual operations like file editing, code execution, web searching, and more
@@ -108,6 +109,25 @@ aime-chat/
 ```
 
 ## 🎯 Core Features
+
+### Harness Engineering
+
+A raw LLM is just a stateless function — it becomes a dependable agent only when wrapped in a **harness**. Following the `Agent = Model + Harness` formula that the industry formalized in 2026, AIME Chat is built as a complete harness around the model, not just a chat box in front of it.
+
+The harness layers AIME Chat provides:
+
+| Layer | What it does | In AIME Chat |
+|-------|--------------|--------------|
+| Orchestration Loop | Drives the prompt → response → tool call → observation → next step cycle until a task is done | Mastra-based Agent runtime with streaming and multi-step tool calling |
+| Guides | Feed-forward constraints that steer behavior | Agent instructions, assistant personalities, and the Skill system |
+| Tool Interfaces | Scoped access to the outside world with clear schemas | Bash, Read/Write/Edit, Grep/Glob, Code Execution, Web, Vision, OCR, and MCP tools |
+| Context & Memory | Assembling and persisting the right information across turns and sessions | Knowledge base, cultivation memory wiki, and session/working memory |
+| Orchestration & Sub-agents | Delegating and coordinating specialized agents | Sub-agent configuration and multi-agent workflows |
+| State & Long-running Tasks | Durable state so work survives across runs | Background Bash sessions, Goal-driven execution, and Cron automation |
+| Guardrails & Permissions | Enforcing what the agent is allowed to do | Per-agent tool permissions, action approval, and centralized Secrets management |
+| Observability | Tracing behavior for debugging and trust | Detailed runtime logging with direct log access from the About page |
+
+In short, AIME Chat focuses on engineering everything *around* the model so that any provider — cloud or local — can be turned into a reliable, goal-directed agent.
 
 ### AI Provider Configuration
 
