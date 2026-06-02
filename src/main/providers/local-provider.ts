@@ -612,7 +612,8 @@ export class LocalProvider extends BaseProvider {
   async getSpeechModelList(): Promise<{ name: string; id: string }[]> {
     if (process.platform !== "darwin") {
       return [{ id: 'Qwen/Qwen3-TTS-1.7B', name: 'Qwen3-TTS-1.7B' },
-      { id: 'Qwen/Qwen3-TTS-0.6B', name: 'Qwen3-TTS-0.6B' }];
+      { id: 'Qwen/Qwen3-TTS-0.6B', name: 'Qwen3-TTS-0.6B' },
+      { id: 'openbmb/VoxCPM2', name: 'VoxCPM2' }];
     } else {
       return [{ id: 'mlx-community/Qwen3-TTS-12Hz-1.7B-Base-bf16', name: 'Qwen3-TTS-12Hz-1.7B-Base-bf16' },
       { id: 'mlx-community/Qwen3-TTS-12Hz-0.6B-Base-bf16', name: 'Qwen3-TTS-12Hz-0.6B-Base-bf16' },

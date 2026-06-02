@@ -18,6 +18,21 @@ AI
 
 ## ✨ 核心特性
 
+### 🦾 Harness Engineering（智能体外壳工程）
+
+裸的 LLM 只是一个无状态的函数，只有被包裹进一层**外壳（Harness）**后，才能成为可靠的智能体。遵循业界在 2026 年正式确立的 `Agent = Model + Harness` 公式，AIME Chat 围绕模型构建了一套完整外壳：
+
+- 🔁 **编排循环** - prompt → 工具调用 → 观察 → 下一步，直至任务完成
+- 🧭 **指引** - Agent 指令、助手人格与 Skill 技能
+- 🧰 **工具接口** - 文件、代码、网络、视觉、OCR 与 MCP
+- 🧠 **上下文与记忆** - 知识库、养成记忆、会话/工作记忆
+- 🤝 **子 Agent 编排** - 多 Agent 协作
+- 💾 **状态与长任务** - 后台 Bash、Goal、Crons
+- 🛡️ **护栏与权限** - 工具权限、操作审批、Secrets 管理
+- 🔍 **可观测性** - 运行时日志与日志入口
+
+详见 [Harness Engineering](./features/harness-engineering)。
+
 ### 🤖 多模型支持
 
 集成主流 AI 服务商，一个应用满足所有需求：
@@ -128,6 +143,7 @@ pnpm start
 ## 📖 文档导航
 
 - **[安装指南](./getting-started/installation)** - 了解如何安装和运行
+- **[Harness Engineering](./features/harness-engineering)** - 理解 `Agent = Model + Harness` 的设计理念
 - **[AI 服务商配置](./getting-started/ai-providers)** - 配置各类 AI 服务商
 - **[知识库使用](./features/knowledge-base)** - 构建和使用知识库
 - **[养成记忆](./features/cultivation-memory)** - 了解长期记忆 Wiki 的自动维护方式

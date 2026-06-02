@@ -60,6 +60,12 @@ type AutomationItem = {
   details: string[];
 };
 
+type HarnessLayer = {
+  title: string;
+  description: string;
+  details: string[];
+};
+
 const providers: Provider[] = [
   { name: 'OpenAI', icon: <IconRobot size={24} />, color: '#10a37f' },
   { name: 'DeepSeek', icon: <IconSparkles size={24} />, color: '#6366f1' },
@@ -153,6 +159,33 @@ const automationItems: AutomationItem[] = [
     description:
       '内置 Cultivation Daily 任务可定期读取新增聊天记录，将偏好、习惯和项目上下文整理进全局记忆 Wiki。',
     details: ['Cultivation Agent', '全局记忆', '增量整理'],
+  },
+];
+
+const harnessLayers: HarnessLayer[] = [
+  {
+    title: '编排循环',
+    description:
+      '驱动「提示 → 响应 → 工具调用 → 观察 → 下一步」的循环，直至任务完成。',
+    details: ['Mastra 运行时', '流式响应', '多步工具调用'],
+  },
+  {
+    title: '指引与工具',
+    description:
+      'Agent 指令、助手人格与 Skill 提供前置约束，工具接口以清晰 Schema 暴露能力。',
+    details: ['Agent 指令', 'Skill 技能', 'MCP 工具'],
+  },
+  {
+    title: '上下文与记忆',
+    description:
+      '在多轮与跨会话之间组装并沉淀正确信息，对抗上下文腐烂。',
+    details: ['知识库', '养成记忆', '会话/工作记忆'],
+  },
+  {
+    title: '状态与护栏',
+    description:
+      '后台会话、Goal 与 Crons 持久化状态，工具权限与审批约束操作范围。',
+    details: ['后台 Bash', 'Goal / Crons', '权限与审批'],
   },
 ];
 
@@ -334,6 +367,60 @@ function HomepageHeader() {
         </div>
       </div>
     </header>
+  );
+}
+
+function HarnessSection() {
+  return (
+    <section className={styles.automationSection}>
+      <div className="container">
+        <SectionIntro
+          eyebrow="Harness Engineering"
+          title="Agent = Model + Harness"
+          description="裸的大语言模型只是一个无状态的函数。AIME Chat 遵循业界于 2026 年确立的外壳工程范式，围绕模型构建编排循环、工具、记忆、状态与护栏，把任意模型（云端或本地）打造成可靠、目标驱动的智能体。"
+        />
+
+        <div className={styles.automationLayout}>
+          <div className={styles.automationLeadCard}>
+            <div className={styles.automationLeadIcon}>
+              <IconRobot size={28} />
+            </div>
+            <Heading as="h3" className={styles.automationLeadTitle}>
+              不是模型前的聊天框，而是模型外的完整外壳
+            </Heading>
+            <p className={styles.automationLeadDescription}>
+              外壳工程在更高的抽象层上设计模型周围的整个运行环境——编排、工具、记忆、状态、护栏与可观测性。它包含并超越了提示词工程与上下文工程，是让自主智能体持续、可靠、安全运行的关键。
+            </p>
+            <Link
+              className={styles.inlineLink}
+              to="/docs/features/harness-engineering"
+            >
+              了解 Harness Engineering <IconArrowRight size={16} />
+            </Link>
+          </div>
+
+          <div className={styles.automationGrid}>
+            {harnessLayers.map((layer) => (
+              <div key={layer.title} className={styles.automationCard}>
+                <Heading as="h3" className={styles.automationTitle}>
+                  {layer.title}
+                </Heading>
+                <p className={styles.automationDescription}>
+                  {layer.description}
+                </p>
+                <div className={styles.automationTags}>
+                  {layer.details.map((detail) => (
+                    <span key={detail} className={styles.automationTag}>
+                      {detail}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -628,6 +715,7 @@ export default function Home(): ReactNode {
       <HomepageHeader />
       <main>
         <HomepageFeatures />
+        <HarnessSection />
         <WorkflowSection />
         <ChannelsSection />
         <AutomationSection />

@@ -45,6 +45,15 @@ _qwen_tts_backend_ready = False
 _Qwen3TTSModel = None
 _qwen_tts_torch = None
 
+# ---------- VoxCPM2 (PyTorch) model management ----------
+# Used on Windows/Linux where the MLX backend is unavailable. Backed by the
+# official `voxcpm` package (https://github.com/OpenBMB/VoxCPM).
+_voxcpm2_torch_model = None
+_voxcpm2_torch_model_key: Optional[str] = None
+_voxcpm2_torch_model_lock = threading.Lock()
+_voxcpm2_torch_backend_ready = False
+_VoxCPM = None
+
 
 def _get_sample_rate(result: Any, model: Any) -> int:
     """Best-effort sampling rate inference."""
@@ -383,6 +392,161 @@ def _run_voxcpm2_tts(
         "model": effective_model,
     }
 
+
+def _ensure_voxcpm2_torch_backend() -> Any:
+    """Import the official `voxcpm` package, installing it on demand."""
+    global _voxcpm2_torch_backend_ready, _VoxCPM
+    if _voxcpm2_torch_backend_ready and _VoxCPM is not None:
+        return _VoxCPM
+
+    try:
+        from voxcpm import VoxCPM  # type: ignore
+    except Exception:
+        print(
+            "voxcpm is missing, trying to install it with uv add...",
+            file=sys.stderr,
+        )
+        package_spec = os.environ.get("VOXCPM2_TTS_PACKAGE", "voxcpm")
+        code = os.system(f"uv add {package_spec}")
+        if code != 0:
+            raise RuntimeError("voxcpm is not installed and auto-install failed")
+        from voxcpm import VoxCPM  # type: ignore
+
+    _VoxCPM = VoxCPM
+    _voxcpm2_torch_backend_ready = True
+    return _VoxCPM
+
+
+def get_voxcpm2_torch_model(
+    model_name: Optional[str],
+    device: Optional[str] = None,
+) -> Any:
+    global _voxcpm2_torch_model, _voxcpm2_torch_model_key
+
+    VoxCPM = _ensure_voxcpm2_torch_backend()
+    resolved_model_name = (model_name or DEFAULT_VOXCPM2_TTS_MODEL).strip()
+    resolved_device = _normalize_tts_device(device or DEFAULT_DEVICE)
+    key = json.dumps(
+        {"model": resolved_model_name, "device": resolved_device},
+        sort_keys=True,
+        ensure_ascii=False,
+    )
+
+    with _voxcpm2_torch_model_lock:
+        if _voxcpm2_torch_model is not None and _voxcpm2_torch_model_key == key:
+            return _voxcpm2_torch_model
+
+        def _load(name: str) -> Any:
+            logging.info(
+                "Loading VoxCPM2 (torch) model from %s on device %s",
+                name,
+                resolved_device,
+            )
+            return VoxCPM.from_pretrained(
+                name,
+                load_denoiser=False,
+                device=resolved_device,
+            )
+
+        _voxcpm2_torch_model = load_mlx_model_with_modelscope_fallback(
+            _load, resolved_model_name
+        )
+        _voxcpm2_torch_model_key = key
+        return _voxcpm2_torch_model
+
+
+def _apply_voxcpm2_instruct(text: str, instruct: Optional[str]) -> str:
+    """VoxCPM2 voice design works by prefixing the text with a parenthesized
+    natural-language description, e.g. ``(A gentle female voice)Hello``."""
+    if not instruct:
+        return text
+    description = instruct.strip()
+    if not description:
+        return text
+    if not (description.startswith("(") and description.endswith(")")):
+        description = f"({description})"
+    return f"{description}{text}"
+
+
+def _run_voxcpm2_torch_tts(
+    text: str,
+    output_path: str,
+    model_name: Optional[str] = None,
+    instruct: Optional[str] = None,
+    ref_audio: Optional[str] = None,
+    ref_text: Optional[str] = None,
+    prompt_text: Optional[str] = None,
+    prompt_audio: Optional[str] = None,
+    inference_timesteps: Optional[int] = None,
+    cfg_value: Optional[float] = None,
+    device: Optional[str] = None,
+) -> Dict[str, Any]:
+    import numpy as np  # type: ignore
+
+    effective_model = model_name or DEFAULT_VOXCPM2_TTS_MODEL
+    model = get_voxcpm2_torch_model(effective_model, device)
+
+    kwargs: Dict[str, Any] = {"text": _apply_voxcpm2_instruct(text, instruct)}
+
+    # Continuation-style cloning needs a prompt clip paired with its transcript.
+    # `ref_audio`+`ref_text` is treated as the highest-fidelity "ultimate cloning"
+    # path (same clip used for both prompt and reference) per the VoxCPM2 docs.
+    prompt_wav = prompt_audio or (ref_audio if ref_text else None)
+    prompt_txt = prompt_text or (ref_text if ref_text else None)
+    if prompt_wav and prompt_txt:
+        kwargs["prompt_wav_path"] = prompt_wav
+        kwargs["prompt_text"] = prompt_txt
+
+    # Timbre cloning does not require a transcript.
+    if ref_audio:
+        kwargs["reference_wav_path"] = ref_audio
+
+    if cfg_value is not None:
+        kwargs["cfg_value"] = cfg_value
+    if inference_timesteps is not None:
+        kwargs["inference_timesteps"] = inference_timesteps
+
+    logging.info(
+        "Running VoxCPM2 (torch) TTS model=%s text_len=%s instruct=%s ref_audio=%s "
+        "ref_text=%s prompt_text=%s prompt_audio=%s inference_timesteps=%s cfg_value=%s",
+        effective_model,
+        len(text),
+        bool(instruct),
+        ref_audio,
+        bool(ref_text),
+        bool(prompt_text),
+        prompt_audio,
+        inference_timesteps,
+        cfg_value,
+    )
+
+    wav = model.generate(**kwargs)
+    if wav is None:
+        raise RuntimeError("TTS generation failed: no audio output returned")
+
+    sample_rate = 48000
+    tts_model = getattr(model, "tts_model", None)
+    if tts_model is not None and getattr(tts_model, "sample_rate", None):
+        sample_rate = int(tts_model.sample_rate)
+    elif getattr(model, "sample_rate", None):
+        sample_rate = int(model.sample_rate)
+
+    audio_np = np.array(wav, dtype=np.float32)
+    if audio_np.ndim > 1:
+        audio_np = audio_np.reshape(-1)
+    duration = float(len(audio_np)) / float(sample_rate) if sample_rate else 0.0
+
+    sf.write(output_path, audio_np, sample_rate)
+
+    return {
+        "output_path": output_path,
+        "sample_rate": sample_rate,
+        "duration": duration,
+        "model": effective_model,
+        "backend": "voxcpm2",
+    }
+
+
 def _run_qwen_tts(
     text: str,
     language: str,
@@ -484,10 +648,18 @@ def _is_voxcpm2_model(model_name: Optional[str]) -> bool:
     return "voxcpm2" in (model_name or "").strip().lower()
 
 
+def _voxcpm2_backend() -> str:
+    """VoxCPM2 runs through MLX on Apple Silicon and through the PyTorch
+    `voxcpm` package on every other platform (e.g. Windows/Linux)."""
+    return "mlx-audio" if IS_DARWIN else "voxcpm2"
+
+
 def resolve_tts_backend(params: Dict[str, Any]) -> str:
     explicit = _normalize_backend(params.get("backend") or params.get("tts_backend"))
     if explicit:
-        if explicit in {"mlx", "mlx-audio", "voxcpm2"}:
+        if explicit == "voxcpm2":
+            return _voxcpm2_backend()
+        if explicit in {"mlx", "mlx-audio"}:
             return "mlx-audio"
         if explicit in {"qwen", "qwen-tts", "transformers"}:
             return "qwen"
@@ -499,7 +671,7 @@ def resolve_tts_backend(params: Dict[str, Any]) -> str:
 
     model_name = params.get("model")
     if _is_voxcpm2_model(model_name):
-        return "mlx-audio"
+        return _voxcpm2_backend()
     if _is_voxtral_model(model_name):
         normalized_model = str(model_name).strip().lower()
         if normalized_model.startswith("mistralai/"):
@@ -691,6 +863,21 @@ def method_tts(params: Dict[str, Any]) -> Dict[str, Any]:
             base_url=params.get("base_url"),
         )
 
+    if backend == "voxcpm2":
+        return _run_voxcpm2_torch_tts(
+            text=text,
+            output_path=output_path,
+            model_name=model_name,
+            instruct=instruct,
+            ref_audio=ref_audio,
+            ref_text=ref_text,
+            prompt_text=prompt_text,
+            prompt_audio=prompt_audio,
+            inference_timesteps=params.get("inference_timesteps"),
+            cfg_value=params.get("cfg_value"),
+            device=params.get("device"),
+        )
+
     if backend == "mlx-audio":
         return _run_mlx_tts(
             text=text,
@@ -724,8 +911,16 @@ def method_tts(params: Dict[str, Any]) -> Dict[str, Any]:
 
 def get_tts_status() -> Dict[str, Any]:
     return {
-        "tts_loaded": (_mlx_tts_model is not None) or (_qwen_tts_model is not None),
-        "tts_model_key": _mlx_tts_model_key if _mlx_tts_model_key is not None else _qwen_tts_model_key,
+        "tts_loaded": (
+            (_mlx_tts_model is not None)
+            or (_qwen_tts_model is not None)
+            or (_voxcpm2_torch_model is not None)
+        ),
+        "tts_model_key": (
+            _mlx_tts_model_key
+            if _mlx_tts_model_key is not None
+            else (_qwen_tts_model_key or _voxcpm2_torch_model_key)
+        ),
         "default_tts_model": DEFAULT_QWEN_TTS_MODEL,
         "default_tts_voicedesign_model": DEFAULT_QWEN_TTS_VOICEDESIGN_MODEL,
         "default_voxcpm2_tts_model": DEFAULT_VOXCPM2_TTS_MODEL,

@@ -9,6 +9,7 @@ import {
   IconShieldLock,
   IconTargetArrow,
   IconDeviceDesktop,
+  IconCpu,
 } from '@tabler/icons-react';
 import styles from './styles.module.css';
 
@@ -20,6 +21,17 @@ type FeatureItem = {
 };
 
 const FeatureList: FeatureItem[] = [
+  {
+    title: 'Harness Engineering',
+    Icon: IconCpu,
+    description: (
+      <>
+        遵循 <code>Agent = Model + Harness</code>{' '}
+        范式，围绕模型构建编排循环、工具、记忆、状态与护栏，把模型变成可靠的智能体。
+      </>
+    ),
+    tags: ['编排循环', '工具与护栏', '状态与记忆'],
+  },
   {
     title: '多模型支持',
     Icon: IconRobot,

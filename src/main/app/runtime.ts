@@ -30,6 +30,7 @@ export const node: RuntimeInfo['node'] = {
   path: undefined,
   dir: undefined,
   version: undefined,
+  npmVersion: undefined,
 };
 
 export const paddleOcr: RuntimeInfo['paddleOcr'] = {
@@ -144,6 +145,41 @@ function prependNodeRuntimeToPath(nodePath: string) {
   if (!pathItems.includes(nodeDir)) {
     process.env.PATH = [nodeDir, ...pathItems].join(delimiter);
   }
+}
+
+async function resolveNodeExecutable(): Promise<string | undefined> {
+  const candidate = getNodeRuntimeCandidates().find((item) =>
+    fs.existsSync(item),
+  );
+  if (candidate) {
+    return candidate;
+  }
+
+  if (process.platform === 'win32') {
+    const result = await runCommand('where node', { timeout: 1000 * 5 });
+    if (result.code === 0) {
+      const found = result.output
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .find(
+          (line) =>
+            line.toLowerCase().endsWith('node.exe') && fs.existsSync(line),
+        );
+      if (found) {
+        return found;
+      }
+    }
+    return undefined;
+  }
+
+  const result = await runCommand('command -v node', { timeout: 1000 * 5 });
+  if (result.code === 0) {
+    const found = result.stdout.trim();
+    if (found && fs.existsSync(found)) {
+      return found;
+    }
+  }
+  return undefined;
 }
 
 async function findNvmCommand() {
@@ -456,6 +492,16 @@ export async function getUVRuntime(refresh = false) {
     return uv;
   }
 }
+function resetNodeRuntimeState() {
+  node.status = 'not_installed';
+  node.installed = false;
+  node.path = undefined;
+  node.dir = undefined;
+  node.version = undefined;
+  node.npmVersion = undefined;
+  return node;
+}
+
 export async function getNodeRuntime(refresh = false) {
   if (
     (node.status === 'installing' && !refresh) ||
@@ -464,23 +510,35 @@ export async function getNodeRuntime(refresh = false) {
     return node;
   }
 
+  // Make sure a freshly-installed Node (whose dir is only on the *system* PATH
+  // until the app restarts) is reachable from the spawned shell.
+  const nodeExecutable = await resolveNodeExecutable();
+  if (nodeExecutable) {
+    prependNodeRuntimeToPath(nodeExecutable);
+  }
+
   const versionResult = await runCommand('node --version', {
     timeout: 1000 * 5,
   });
-  if (versionResult.code === 0 && versionResult.stdout.startsWith('v')) {
-    node.status = 'installed';
-    node.installed = true;
-    node.path = undefined;
-    node.dir = undefined;
-    node.version = versionResult.stdout.trim();
-    return node;
+  const nodeVersion = versionResult.stdout.trim();
+  if (versionResult.code !== 0 || !nodeVersion.startsWith('v')) {
+    return resetNodeRuntimeState();
   }
 
-  node.status = 'not_installed';
-  node.installed = false;
-  node.path = undefined;
-  node.dir = undefined;
-  node.version = undefined;
+  // Node is only "truly usable" if npm is available too: several runtimes
+  // (e.g. agent-browser) install via `npm install -g`.
+  const npmResult = await runCommand('npm --version', {
+    timeout: 1000 * 15,
+  });
+  const npmVersion =
+    npmResult.code === 0 ? npmResult.stdout.trim() : undefined;
+
+  node.status = 'installed';
+  node.installed = true;
+  node.path = nodeExecutable;
+  node.dir = nodeExecutable ? path.dirname(nodeExecutable) : undefined;
+  node.version = nodeVersion;
+  node.npmVersion = npmVersion;
   return node;
 }
 
@@ -500,31 +558,27 @@ export async function installNodeRuntime() {
   let success = false;
   try {
     if (process.platform === 'win32') {
-      // const wingetResult = await runCommand(
-      //   'winget install CoreyButler.NVMforWindows',
-      //   {
-      //     timeout: 1000 * 60 * 10,
-      //   },
-      // );
-      // if (wingetResult.code !== 0) {
-      //   throw new Error(wingetResult.stderr || wingetResult.stdout);
-      // }
-
-      // const nvmCommand = await findNvmCommand();
-      // const installResult = await runCommand(
-      //   `${nvmCommand} install ${NODE_RUNTIME_VERSION} && ${nvmCommand} use ${NODE_RUNTIME_VERSION}`,
-      //   {
-      //     timeout: 1000 * 60 * 10,
-      //   },
-      // );
-      const pscomd = `$msi = "$env:TEMP\\node-v22.22.2-x64.msi"; Invoke-WebRequest -Uri "https://nodejs.org/dist/v22.22.2/node-v22.22.2-x64.msi" -OutFile $msi; Start-Process msiexec.exe -Wait -ArgumentList "/i \`"$msi\`" /qn /norestart"`
+      // Download the official Node.js MSI and install it silently. The MSI is a
+      // per-machine installer that writes to Program Files, so it requires
+      // elevation (`-Verb RunAs` triggers the UAC prompt). `-PassThru` lets us
+      // read msiexec's real exit code, and `exit $p.ExitCode` propagates it so
+      // `installResult.code` reflects the actual installer result instead of
+      // PowerShell's own (always 0) exit code.
+      const psScript =
+        "$ErrorActionPreference = 'Stop'; " +
+        "$msi = Join-Path $env:TEMP 'node-v22.22.2-x64.msi'; " +
+        "Invoke-WebRequest -Uri 'https://nodejs.org/dist/v22.22.2/node-v22.22.2-x64.msi' -OutFile $msi; " +
+        '$p = Start-Process msiexec.exe -Wait -PassThru -Verb RunAs -ArgumentList "/i `"$msi`" /qn /norestart"; ' +
+        'exit $p.ExitCode';
       const installResult = await runCommand(
-        pscomd ?? `winget install OpenJS.NodeJS --version ${NODE_RUNTIME_VERSION}`,
+        ['-ExecutionPolicy', 'ByPass', '-NoProfile', '-Command', psScript],
         {
           usePowerShell: true,
-        }
+          timeout: 1000 * 60 * 10,
+        },
       );
-      success = installResult.code === 0;
+      // 0 = success, 3010 = success but a reboot is required.
+      success = installResult.code === 0 || installResult.code === 3010;
 
       const nodePath = getNodeRuntimeCandidates().find((candidate) =>
         fs.existsSync(candidate),
@@ -570,8 +624,23 @@ export async function installNodeRuntime() {
     success = false;
   }
 
+  // The install command exit code (`success`) can be unreliable across
+  // platforms (elevation prompts, reboot-required codes, shell quirks), so the
+  // post-install verification is the source of truth for whether Node is
+  // actually usable.
   const refreshedNode = await getNodeRuntime(true);
-  if (success && refreshedNode.installed) {
+  if (refreshedNode.installed) {
+    if (!success) {
+      appLog.write(
+        'warn',
+        '[runtime] node install command reported failure but runtime is usable',
+        {
+          version: refreshedNode.version,
+          npmVersion: refreshedNode.npmVersion,
+          path: refreshedNode.path,
+        },
+      );
+    }
     appManager.toast('Node Runtime installed successfully', {
       type: 'success',
     });
@@ -1043,6 +1112,7 @@ export async function installQwenAudioRuntime() {
 dependencies = [
     "qwen-asr",
     "qwen-tts>=0.1.1",
+    "voxcpm",
     "torch"
 ]
 
