@@ -22,7 +22,7 @@ import {
   IconTrash,
   IconWorld,
 } from '@tabler/icons-react';
-import { useEffect, useState } from 'react';
+import { ComponentType, ReactNode, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { RuntimeInfo } from '@/types/app';
@@ -34,7 +34,7 @@ interface RuntimeDef {
   key: RuntimeKey;
   label: string;
   descKey: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: ComponentType<{ className?: string }>;
   /** tailwind color classes for the icon container */
   iconClass: string;
   canUninstall: boolean;
@@ -98,6 +98,9 @@ function Runtime() {
 
   const [runtimeInfo, setRuntimeInfo] = useState<RuntimeInfo | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [pending, setPending] = useState<
+    Partial<Record<RuntimeKey, 'install' | 'uninstall'>>
+  >({});
 
   const getRuntimeInfo = async () => {
     const data = await window.electron.app.getRuntimeInfo();
@@ -118,37 +121,31 @@ function Runtime() {
   };
 
   const handleInstallRuntime = async (pkg: RuntimeKey) => {
-    setRuntimeInfo((prev) =>
-      prev
-        ? ({ ...prev, [pkg]: { ...prev[pkg], status: 'installing' } } as RuntimeInfo)
-        : prev,
-    );
+    setPending((prev) => ({ ...prev, [pkg]: 'install' }));
     try {
       await window.electron.app.installRuntime(pkg);
     } catch (err) {
       toast.error(`Failed to install ${pkg} runtime.`);
     } finally {
-      getRuntimeInfo();
+      await getRuntimeInfo();
+      setPending((prev) => ({ ...prev, [pkg]: undefined }));
     }
   };
 
   const handleUninstallRuntime = async (pkg: RuntimeKey) => {
-    setRuntimeInfo((prev) =>
-      prev
-        ? ({ ...prev, [pkg]: { ...prev[pkg], status: 'installing' } } as RuntimeInfo)
-        : prev,
-    );
+    setPending((prev) => ({ ...prev, [pkg]: 'uninstall' }));
     try {
       await window.electron.app.uninstallRuntime(pkg);
     } catch (err) {
       toast.error(`Failed to uninstall ${pkg} runtime.`);
     } finally {
-      getRuntimeInfo();
+      await getRuntimeInfo();
+      setPending((prev) => ({ ...prev, [pkg]: undefined }));
     }
   };
 
   const renderVersionBadges = (key: RuntimeKey) => {
-    const badges: React.ReactNode[] = [];
+    const badges: ReactNode[] = [];
     const info = runtimeInfo?.[key] as any;
     if (!info) return badges;
 
@@ -183,6 +180,57 @@ function Runtime() {
       }
     }
     return badges;
+  };
+
+  const renderActions = (def: RuntimeDef, status?: string) => {
+    const action = pending[def.key];
+
+    if (action === 'uninstall') {
+      return (
+        <Button disabled size="sm" variant="ghost">
+          <Spinner className="size-4" />
+          {t('settings.runtime_page.uninstalling')}
+        </Button>
+      );
+    }
+
+    if (action === 'install' || status === 'installing') {
+      return (
+        <Button disabled size="sm">
+          <Spinner className="size-4" />
+          {t('settings.runtime_page.installing')}
+        </Button>
+      );
+    }
+
+    if (status === 'installed') {
+      return (
+        <>
+          <Badge className="bg-green-500/10 text-green-600 hover:bg-green-500/20">
+            <IconCheck className="size-3.5" />
+            {t('settings.runtime_page.installed')}
+          </Badge>
+          {def.canUninstall && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-destructive hover:text-destructive"
+              onClick={() => handleUninstallRuntime(def.key)}
+            >
+              <IconTrash className="size-4" />
+              {t('settings.runtime_page.uninstall')}
+            </Button>
+          )}
+        </>
+      );
+    }
+
+    return (
+      <Button size="sm" onClick={() => handleInstallRuntime(def.key)}>
+        <IconDownload className="size-4" />
+        {t('settings.runtime_page.install')}
+      </Button>
+    );
   };
 
   return (
@@ -247,46 +295,13 @@ function Runtime() {
                     </Button>
                   )}
                 </ItemContent>
-                <ItemActions>
-                  {status === 'installing' && (
-                    <Button disabled size="sm">
-                      <Spinner className="size-4" />
-                      {t('settings.runtime_page.installing')}
-                    </Button>
-                  )}
-                  {status === 'installed' && (
-                    <>
-                      <Badge className="bg-green-500/10 text-green-600 hover:bg-green-500/20">
-                        <IconCheck className="size-3.5" />
-                        {t('settings.runtime_page.installed')}
-                      </Badge>
-                      {def.canUninstall && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-destructive hover:text-destructive"
-                          onClick={() => handleUninstallRuntime(def.key)}
-                        >
-                          <IconTrash className="size-4" />
-                          {t('settings.runtime_page.uninstall')}
-                        </Button>
-                      )}
-                    </>
-                  )}
-                  {(status === 'not_installed' || status === undefined) && (
-                    <Button size="sm" onClick={() => handleInstallRuntime(def.key)}>
-                      <IconDownload className="size-4" />
-                      {t('settings.runtime_page.install')}
-                    </Button>
-                  )}
-                </ItemActions>
+                <ItemActions>{renderActions(def, status)}</ItemActions>
               </Item>
             );
           })}
         </div>
       </div>
     </ScrollArea>
-
   );
 }
 

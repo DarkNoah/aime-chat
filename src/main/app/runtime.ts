@@ -1167,7 +1167,7 @@ override-dependencies = ["transformers==4.57.6"]
           `"${activateSourcePython}" -c "from importlib import metadata; print(metadata.version('qwen-asr'))"`,
           {
             cwd: uvRuntime?.dir,
-            timeout: 1000 * 60,
+            // timeout: 1000 * 60,
           },
         );
 
