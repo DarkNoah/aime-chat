@@ -58,7 +58,7 @@ DEFAULT_QWEN_TTS_CUSTOM_MODEL = os.environ.get(
 # fall back to the official PyTorch weights served through the `voxcpm` package.
 DEFAULT_VOXCPM2_TTS_MODEL = os.environ.get(
     "VOXCPM2_TTS_MODEL",
-    "mlx-community/VoxCPM2-8bit" if IS_DARWIN else "openbmb/VoxCPM2",
+    "mlx-community/VoxCPM2-bf16" if IS_DARWIN else "openbmb/VoxCPM2",
 )
 
 

@@ -12126,12 +12126,6 @@
         "family": "claude-sonnet",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-03-31",
@@ -12149,8 +12143,9 @@
         },
         "open_weights": false,
         "limit": {
-          "context": 200000,
-          "output": 64000
+          "context": 216000,
+          "input": 128000,
+          "output": 16000
         },
         "cost": {
           "input": 3,
@@ -12182,9 +12177,9 @@
         },
         "open_weights": false,
         "limit": {
-          "context": 400000,
-          "input": 272000,
-          "output": 128000
+          "context": 264000,
+          "input": 128000,
+          "output": 64000
         },
         "cost": {
           "input": 0.25,
@@ -12231,21 +12226,6 @@
         "family": "claude-sonnet",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "max"
-            ]
-          },
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-08-31",
@@ -12366,8 +12346,9 @@
         },
         "open_weights": false,
         "limit": {
-          "context": 1048576,
-          "output": 65536
+          "context": 128000,
+          "input": 128000,
+          "output": 64000
         },
         "cost": {
           "input": 0.5,
@@ -12448,20 +12429,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high"
-            ]
-          },
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-03-31",
@@ -12480,7 +12447,8 @@
         "open_weights": false,
         "limit": {
           "context": 200000,
-          "output": 64000
+          "input": 168000,
+          "output": 32000
         },
         "cost": {
           "input": 5,
@@ -12495,18 +12463,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "xhigh",
-              "max"
-            ]
-          }
-        ],
         "tool_call": true,
         "temperature": false,
         "knowledge": "2026-01-31",
@@ -12524,8 +12480,9 @@
         },
         "open_weights": false,
         "limit": {
-          "context": 1000000,
-          "output": 128000
+          "context": 200000,
+          "input": 168000,
+          "output": 32000
         },
         "experimental": {
           "modes": {
@@ -12580,8 +12537,9 @@
         },
         "open_weights": false,
         "limit": {
-          "context": 1048576,
-          "output": 65536
+          "context": 128000,
+          "input": 128000,
+          "output": 64000
         },
         "cost": {
           "input": 1.25,
@@ -12801,12 +12759,6 @@
         "family": "claude-sonnet",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-07-31",
@@ -12825,7 +12777,8 @@
         "open_weights": false,
         "limit": {
           "context": 200000,
-          "output": 64000
+          "input": 168000,
+          "output": 32000
         },
         "cost": {
           "input": 3,
@@ -12874,21 +12827,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "max"
-            ]
-          },
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-05-31",
@@ -12943,12 +12881,6 @@
         "family": "claude-haiku",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-02-28",
@@ -12967,6 +12899,7 @@
         "open_weights": false,
         "limit": {
           "context": 200000,
+          "input": 136000,
           "output": 64000
         },
         "cost": {
@@ -12982,18 +12915,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "xhigh",
-              "max"
-            ]
-          }
-        ],
         "tool_call": true,
         "temperature": false,
         "release_date": "2026-05-28",
@@ -28862,18 +28783,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "xhigh",
-              "max"
-            ]
-          }
-        ],
         "tool_call": true,
         "temperature": false,
         "knowledge": "2026-01-31",
@@ -28925,12 +28834,6 @@
         "family": "claude-haiku",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-02-28",
@@ -28964,12 +28867,6 @@
         "family": "claude-sonnet",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-03-31",
@@ -29003,20 +28900,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high"
-            ]
-          },
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-03-31",
@@ -29050,12 +28933,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-03-31",
@@ -29089,12 +28966,6 @@
         "family": "claude-sonnet",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-07-31",
@@ -29128,21 +28999,6 @@
         "family": "claude-sonnet",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "max"
-            ]
-          },
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-08-31",
@@ -29227,18 +29083,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "xhigh",
-              "max"
-            ]
-          }
-        ],
         "tool_call": true,
         "temperature": false,
         "release_date": "2026-05-28",
@@ -29289,12 +29133,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-03-31",
@@ -29328,12 +29166,6 @@
         "family": "claude-sonnet",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2024-10-31",
@@ -29400,21 +29232,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "max"
-            ]
-          },
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-05-31",
@@ -45542,21 +45359,6 @@
         "family": "claude-sonnet",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "max"
-            ]
-          },
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "structured_output": true,
         "temperature": true,
@@ -54826,18 +54628,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "xhigh",
-              "max"
-            ]
-          }
-        ],
         "tool_call": true,
         "temperature": false,
         "release_date": "2026-05-28",
@@ -54873,21 +54663,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "max"
-            ]
-          },
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-05-31",
@@ -55298,12 +55073,6 @@
         "family": "claude-sonnet",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-03-31",
@@ -55337,12 +55106,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-03-31",
@@ -55440,6 +55203,38 @@
           "input": 0.3,
           "output": 1.2,
           "cache_read": 0.03,
+          "cache_write": 0.375
+        }
+      },
+      "MiniMax-M3": {
+        "id": "MiniMax-M3",
+        "name": "MiniMax-M3",
+        "family": "minimax",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "temperature": true,
+        "release_date": "2026-06-01",
+        "last_updated": "2026-06-01",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "video"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "limit": {
+          "context": 512000,
+          "output": 131072
+        },
+        "cost": {
+          "input": 0.3,
+          "output": 1.2,
+          "cache_read": 0.06,
           "cache_write": 0.375
         }
       },
@@ -56946,18 +56741,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "xhigh",
-              "max"
-            ]
-          }
-        ],
         "tool_call": true,
         "temperature": false,
         "knowledge": "2026-01-31",
@@ -57012,12 +56795,6 @@
         "family": "claude-haiku",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-02-28",
@@ -57054,12 +56831,6 @@
         "family": "claude-sonnet",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-03-31",
@@ -57235,20 +57006,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high"
-            ]
-          },
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-03-31",
@@ -57285,12 +57042,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-03-31",
@@ -57327,12 +57078,6 @@
         "family": "claude-sonnet",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-07-31",
@@ -57369,21 +57114,6 @@
         "family": "claude-sonnet",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "max"
-            ]
-          },
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-08-31",
@@ -57525,18 +57255,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "xhigh",
-              "max"
-            ]
-          }
-        ],
         "tool_call": true,
         "temperature": false,
         "release_date": "2026-05-28",
@@ -57590,12 +57308,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-03-31",
@@ -57682,12 +57394,6 @@
         "family": "claude-sonnet",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2024-10-31",
@@ -57918,21 +57624,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "max"
-            ]
-          },
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-05-31",
@@ -61534,18 +61225,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "xhigh",
-              "max"
-            ]
-          }
-        ],
         "tool_call": true,
         "temperature": false,
         "release_date": "2026-05-28",
@@ -63642,6 +63321,38 @@
           "input": 0.3,
           "output": 1.2,
           "cache_read": 0.03,
+          "cache_write": 0.375
+        }
+      },
+      "MiniMax-M3": {
+        "id": "MiniMax-M3",
+        "name": "MiniMax-M3",
+        "family": "minimax",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "temperature": true,
+        "release_date": "2026-06-01",
+        "last_updated": "2026-06-01",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "video"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "limit": {
+          "context": 512000,
+          "output": 131072
+        },
+        "cost": {
+          "input": 0.3,
+          "output": 1.2,
+          "cache_read": 0.06,
           "cache_write": 0.375
         }
       },
@@ -65877,12 +65588,12 @@
         },
         "open_weights": true,
         "limit": {
-          "context": 262144,
-          "output": 262144
+          "context": 128000,
+          "output": 32000
         },
         "cost": {
-          "input": 0.09,
-          "output": 0.3
+          "input": 0.0428,
+          "output": 0.1716
         }
       },
       "qwen/qwen3-next-80b-a3b-instruct:free": {
@@ -69349,9 +69060,9 @@
           "output": 262144
         },
         "cost": {
-          "input": 0.066,
-          "output": 0.26,
-          "cache_read": 0.029
+          "input": 0.063,
+          "output": 0.21,
+          "cache_read": 0.021
         }
       },
       "tencent/hunyuan-a13b-instruct": {
@@ -72090,21 +71801,6 @@
         "family": "claude-sonnet",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "max"
-            ]
-          },
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "structured_output": true,
         "temperature": true,
@@ -72157,20 +71853,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high"
-            ]
-          },
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "structured_output": true,
         "temperature": true,
@@ -72205,18 +71887,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "xhigh",
-              "max"
-            ]
-          }
-        ],
         "tool_call": true,
         "structured_output": true,
         "temperature": false,
@@ -72269,12 +71939,6 @@
         "family": "claude-sonnet",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "structured_output": true,
         "temperature": true,
@@ -72327,21 +71991,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "max"
-            ]
-          },
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "structured_output": true,
         "temperature": true,
@@ -72394,12 +72043,6 @@
         "family": "claude-haiku",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "structured_output": true,
         "temperature": true,
@@ -72434,12 +72077,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "structured_output": true,
         "temperature": true,
@@ -72474,18 +72111,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "xhigh",
-              "max"
-            ]
-          }
-        ],
         "tool_call": true,
         "structured_output": true,
         "temperature": false,
@@ -74838,7 +74463,7 @@
           "output": 131072
         },
         "cost": {
-          "input": 0.26,
+          "input": 0.279,
           "output": 1.2
         }
       },
@@ -78122,6 +77747,38 @@
         "open_weights": true,
         "limit": {
           "context": 204800,
+          "output": 131072
+        },
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cache_read": 0,
+          "cache_write": 0
+        }
+      },
+      "MiniMax-M3": {
+        "id": "MiniMax-M3",
+        "name": "MiniMax-M3",
+        "family": "minimax",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "temperature": true,
+        "release_date": "2026-06-01",
+        "last_updated": "2026-06-01",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "video"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "limit": {
+          "context": 512000,
           "output": 131072
         },
         "cost": {
@@ -99518,12 +99175,6 @@
         "family": "claude-sonnet",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-03-31",
@@ -99557,12 +99208,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-03-31",
@@ -99596,12 +99241,6 @@
         "family": "claude-sonnet",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-07-31",
@@ -111814,18 +111453,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "xhigh",
-              "max"
-            ]
-          }
-        ],
         "tool_call": true,
         "temperature": false,
         "release_date": "2026-05-28",
@@ -111858,12 +111485,6 @@
         "family": "claude-haiku",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "structured_output": true,
         "temperature": true,
@@ -111898,21 +111519,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "max"
-            ]
-          },
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "structured_output": true,
         "temperature": true,
@@ -111947,18 +111553,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "xhigh",
-              "max"
-            ]
-          }
-        ],
         "tool_call": true,
         "temperature": false,
         "release_date": "2026-05-28",
@@ -111991,21 +111585,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "max"
-            ]
-          },
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "structured_output": true,
         "temperature": true,
@@ -112040,12 +111619,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-03-31",
@@ -112079,21 +111652,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "max"
-            ]
-          },
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "structured_output": true,
         "temperature": true,
@@ -112128,21 +111686,6 @@
         "family": "claude-sonnet",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "max"
-            ]
-          },
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "structured_output": true,
         "temperature": true,
@@ -112177,21 +111720,6 @@
         "family": "claude-sonnet",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "max"
-            ]
-          },
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "structured_output": true,
         "temperature": true,
@@ -112226,21 +111754,6 @@
         "family": "claude-sonnet",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "max"
-            ]
-          },
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "structured_output": true,
         "temperature": true,
@@ -112275,18 +111788,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "xhigh",
-              "max"
-            ]
-          }
-        ],
         "tool_call": true,
         "temperature": false,
         "release_date": "2026-05-28",
@@ -112319,18 +111820,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "xhigh",
-              "max"
-            ]
-          }
-        ],
         "tool_call": true,
         "temperature": false,
         "release_date": "2026-05-28",
@@ -112363,21 +111852,6 @@
         "family": "claude-sonnet",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "max"
-            ]
-          },
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "structured_output": true,
         "temperature": true,
@@ -112412,18 +111886,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "xhigh",
-              "max"
-            ]
-          }
-        ],
         "tool_call": true,
         "temperature": false,
         "release_date": "2026-05-28",
@@ -112456,12 +111918,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-03-31",
@@ -112495,21 +111951,6 @@
         "family": "claude-sonnet",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "max"
-            ]
-          },
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "structured_output": true,
         "temperature": true,
@@ -112544,21 +111985,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "max"
-            ]
-          },
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "structured_output": true,
         "temperature": true,
@@ -112623,12 +112049,6 @@
         "family": "claude-sonnet",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "structured_output": true,
         "temperature": true,
@@ -112693,18 +112113,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "xhigh",
-              "max"
-            ]
-          }
-        ],
         "tool_call": true,
         "temperature": false,
         "knowledge": "2026-01-31",
@@ -112738,18 +112146,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "xhigh",
-              "max"
-            ]
-          }
-        ],
         "tool_call": true,
         "temperature": false,
         "release_date": "2026-05-28",
@@ -112782,12 +112178,6 @@
         "family": "claude-sonnet",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "structured_output": true,
         "temperature": true,
@@ -116589,18 +115979,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "xhigh",
-              "max"
-            ]
-          }
-        ],
         "tool_call": true,
         "temperature": false,
         "release_date": "2026-05-28",
@@ -116756,6 +116134,38 @@
         "open_weights": true,
         "limit": {
           "context": 204800,
+          "output": 131072
+        },
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cache_read": 0,
+          "cache_write": 0
+        }
+      },
+      "MiniMax-M3": {
+        "id": "MiniMax-M3",
+        "name": "MiniMax-M3",
+        "family": "minimax",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "temperature": true,
+        "release_date": "2026-06-01",
+        "last_updated": "2026-06-01",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "video"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "limit": {
+          "context": 512000,
           "output": 131072
         },
         "cost": {
@@ -135909,21 +135319,6 @@
         "family": "claude-sonnet",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "max"
-            ]
-          },
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-08-31",
@@ -136428,12 +135823,6 @@
         "family": "claude-haiku",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-02-28",
@@ -136565,12 +135954,6 @@
         "family": "claude-haiku",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-02-28",
@@ -136812,12 +136195,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-03-31",
@@ -137702,12 +137079,6 @@
         "family": "claude-sonnet",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-07-31",
@@ -137856,12 +137227,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-03-31",
@@ -138270,12 +137635,6 @@
         "family": "claude-sonnet",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2024-10-31",
@@ -138658,20 +138017,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high"
-            ]
-          },
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-03-31",
@@ -138835,18 +138180,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "xhigh",
-              "max"
-            ]
-          }
-        ],
         "tool_call": true,
         "temperature": false,
         "release_date": "2026-05-28",
@@ -139081,12 +138414,6 @@
         "family": "claude-sonnet",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-03-31",
@@ -139269,12 +138596,6 @@
         "family": "claude-sonnet",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-07-31",
@@ -139503,21 +138824,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "max"
-            ]
-          },
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-05-31",
@@ -139716,18 +139022,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "xhigh",
-              "max"
-            ]
-          }
-        ],
         "tool_call": true,
         "temperature": false,
         "knowledge": "2026-01-31",
@@ -146160,21 +145454,6 @@
         "family": "claude-sonnet",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "max"
-            ]
-          },
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-08-31",
@@ -146541,21 +145820,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "max"
-            ]
-          },
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-05-31",
@@ -146658,18 +145922,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "xhigh",
-              "max"
-            ]
-          }
-        ],
         "tool_call": true,
         "temperature": false,
         "knowledge": "2026-01-31",
@@ -146878,21 +146130,6 @@
         "family": "claude-sonnet",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "max"
-            ]
-          },
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-08-31",
@@ -146923,18 +146160,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "xhigh",
-              "max"
-            ]
-          }
-        ],
         "tool_call": true,
         "temperature": false,
         "knowledge": "2026-01-31",
@@ -146985,21 +146210,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "max"
-            ]
-          },
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-05-31",
@@ -147459,21 +146669,6 @@
         "family": "claude-sonnet",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "max"
-            ]
-          },
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-08-31",
@@ -147507,12 +146702,6 @@
         "family": "claude-haiku",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-02-28",
@@ -147546,12 +146735,6 @@
         "family": "claude-sonnet",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-07-31",
@@ -147585,21 +146768,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "max"
-            ]
-          },
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-05-31",
@@ -147633,18 +146801,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "xhigh",
-              "max"
-            ]
-          }
-        ],
         "tool_call": true,
         "temperature": false,
         "knowledge": "2026-01-31",
@@ -148634,12 +147790,6 @@
         "family": "claude-sonnet",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-07-31",
@@ -148905,21 +148055,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "max"
-            ]
-          },
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-05-31",
@@ -149075,18 +148210,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "xhigh",
-              "max"
-            ]
-          }
-        ],
         "tool_call": true,
         "temperature": false,
         "knowledge": "2026-01-31",
@@ -149176,20 +148299,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high"
-            ]
-          },
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-03-31",
@@ -149289,21 +148398,6 @@
         "family": "claude-sonnet",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "max"
-            ]
-          },
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-08-31",
@@ -149424,12 +148518,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-03-31",
@@ -149463,12 +148551,6 @@
         "family": "claude-sonnet",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-07-31",
@@ -149568,12 +148650,6 @@
         "family": "claude-haiku",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-02-28",
@@ -150471,12 +149547,6 @@
         "family": "claude-sonnet",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-03-31",
@@ -150510,21 +149580,6 @@
         "family": "claude-sonnet",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "max"
-            ]
-          },
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-08-31",
@@ -150558,20 +149613,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high"
-            ]
-          },
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-03-31",
@@ -150605,18 +149646,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "xhigh",
-              "max"
-            ]
-          }
-        ],
         "tool_call": true,
         "temperature": false,
         "knowledge": "2026-01-31",
@@ -150670,12 +149699,6 @@
         "family": "claude-sonnet",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-07-31",
@@ -150709,21 +149732,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "max"
-            ]
-          },
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-05-31",
@@ -150777,12 +149785,6 @@
         "family": "claude-haiku",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-02-28",
@@ -150816,12 +149818,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-03-31",
@@ -150855,12 +149851,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-03-31",
@@ -155284,21 +154274,6 @@
         "family": "claude-sonnet",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "max"
-            ]
-          },
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-08-31",
@@ -155332,12 +154307,6 @@
         "family": "claude-haiku",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-02-28",
@@ -155371,12 +154340,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-03-31",
@@ -155410,12 +154373,6 @@
         "family": "claude-sonnet",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-07-31",
@@ -155449,12 +154406,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-03-31",
@@ -155488,20 +154439,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high"
-            ]
-          },
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-03-31",
@@ -155535,12 +154472,6 @@
         "family": "claude-sonnet",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-03-31",
@@ -155574,21 +154505,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "max"
-            ]
-          },
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-05-31",
@@ -155642,18 +154558,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "xhigh",
-              "max"
-            ]
-          }
-        ],
         "tool_call": true,
         "temperature": false,
         "knowledge": "2026-01-31",
@@ -158215,21 +157119,6 @@
         "family": "claude-sonnet",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "max"
-            ]
-          },
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-08-31",
@@ -158331,12 +157220,6 @@
         "family": "claude-haiku",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-02-28",
@@ -158479,12 +157362,6 @@
         "family": "claude-sonnet",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "budget_tokens",
-            "min": 1024
-          }
-        ],
         "tool_call": true,
         "temperature": true,
         "knowledge": "2025-07-31",
@@ -158512,18 +157389,6 @@
         "family": "claude-opus",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "low",
-              "medium",
-              "high",
-              "xhigh",
-              "max"
-            ]
-          }
-        ],
         "tool_call": true,
         "temperature": false,
         "knowledge": "2026-01-31",
@@ -158564,6 +157429,902 @@
               }
             }
           }
+        }
+      }
+    }
+  },
+  "anyapi": {
+    "id": "anyapi",
+    "env": [
+      "ANYAPI_API_KEY"
+    ],
+    "npm": "@ai-sdk/openai-compatible",
+    "api": "https://api.anyapi.ai/v1",
+    "name": "AnyAPI",
+    "doc": "https://docs.anyapi.ai",
+    "models": {
+      "mistralai/mistral-large-2512": {
+        "id": "mistralai/mistral-large-2512",
+        "name": "Mistral Large 3",
+        "family": "mistral-large",
+        "attachment": true,
+        "reasoning": false,
+        "tool_call": true,
+        "temperature": true,
+        "knowledge": "2024-11",
+        "release_date": "2024-11-01",
+        "last_updated": "2025-12-02",
+        "modalities": {
+          "input": [
+            "text",
+            "image"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "limit": {
+          "context": 262144,
+          "output": 262144
+        }
+      },
+      "mistralai/devstral-2512": {
+        "id": "mistralai/devstral-2512",
+        "name": "Devstral 2",
+        "family": "devstral",
+        "attachment": false,
+        "reasoning": false,
+        "tool_call": true,
+        "temperature": true,
+        "knowledge": "2025-12",
+        "release_date": "2025-12-09",
+        "last_updated": "2025-12-09",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "limit": {
+          "context": 262144,
+          "output": 262144
+        }
+      },
+      "deepseek/deepseek-r1": {
+        "id": "deepseek/deepseek-r1",
+        "name": "DeepSeek Reasoner",
+        "family": "deepseek-thinking",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "interleaved": {
+          "field": "reasoning_content"
+        },
+        "temperature": true,
+        "knowledge": "2025-09",
+        "release_date": "2025-12-01",
+        "last_updated": "2026-02-28",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "limit": {
+          "context": 1000000,
+          "output": 384000
+        }
+      },
+      "deepseek/deepseek-chat": {
+        "id": "deepseek/deepseek-chat",
+        "name": "DeepSeek Chat",
+        "family": "deepseek",
+        "attachment": true,
+        "reasoning": false,
+        "tool_call": true,
+        "temperature": true,
+        "knowledge": "2025-09",
+        "release_date": "2025-12-01",
+        "last_updated": "2026-02-28",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "limit": {
+          "context": 1000000,
+          "output": 384000
+        }
+      },
+      "deepseek/deepseek-v4-flash": {
+        "id": "deepseek/deepseek-v4-flash",
+        "name": "DeepSeek V4 Flash",
+        "family": "deepseek-flash",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "interleaved": {
+          "field": "reasoning_content"
+        },
+        "structured_output": true,
+        "temperature": true,
+        "knowledge": "2025-05",
+        "release_date": "2026-04-24",
+        "last_updated": "2026-04-24",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "limit": {
+          "context": 1000000,
+          "output": 384000
+        }
+      },
+      "deepseek/deepseek-v4-pro": {
+        "id": "deepseek/deepseek-v4-pro",
+        "name": "DeepSeek V4 Pro",
+        "family": "deepseek-thinking",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "interleaved": {
+          "field": "reasoning_content"
+        },
+        "structured_output": true,
+        "temperature": true,
+        "knowledge": "2025-05",
+        "release_date": "2026-04-24",
+        "last_updated": "2026-04-24",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "limit": {
+          "context": 1000000,
+          "output": 384000
+        }
+      },
+      "anthropic/claude-sonnet-4-6": {
+        "id": "anthropic/claude-sonnet-4-6",
+        "name": "Claude Sonnet 4.6",
+        "family": "claude-sonnet",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "temperature": true,
+        "knowledge": "2025-08-31",
+        "release_date": "2026-02-17",
+        "last_updated": "2026-03-13",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "pdf"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "limit": {
+          "context": 1000000,
+          "output": 64000
+        }
+      },
+      "anthropic/claude-haiku-4-5": {
+        "id": "anthropic/claude-haiku-4-5",
+        "name": "Claude Haiku 4.5 (latest)",
+        "family": "claude-haiku",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "temperature": true,
+        "knowledge": "2025-02-28",
+        "release_date": "2025-10-15",
+        "last_updated": "2025-10-15",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "pdf"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "limit": {
+          "context": 200000,
+          "output": 64000
+        }
+      },
+      "anthropic/claude-sonnet-4-5": {
+        "id": "anthropic/claude-sonnet-4-5",
+        "name": "Claude Sonnet 4.5 (latest)",
+        "family": "claude-sonnet",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "temperature": true,
+        "knowledge": "2025-07-31",
+        "release_date": "2025-09-29",
+        "last_updated": "2025-09-29",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "pdf"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "limit": {
+          "context": 200000,
+          "output": 64000
+        }
+      },
+      "anthropic/claude-opus-4-6": {
+        "id": "anthropic/claude-opus-4-6",
+        "name": "Claude Opus 4.6",
+        "family": "claude-opus",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "temperature": true,
+        "knowledge": "2025-05-31",
+        "release_date": "2026-02-05",
+        "last_updated": "2026-03-13",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "pdf"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "limit": {
+          "context": 1000000,
+          "output": 128000
+        },
+        "experimental": {
+          "modes": {
+            "fast": {
+              "cost": {
+                "input": 30,
+                "output": 150,
+                "cache_read": 3,
+                "cache_write": 37.5
+              },
+              "provider": {
+                "body": {
+                  "speed": "fast"
+                },
+                "headers": {
+                  "anthropic-beta": "fast-mode-2026-02-01"
+                }
+              }
+            }
+          }
+        }
+      },
+      "anthropic/claude-opus-4-7": {
+        "id": "anthropic/claude-opus-4-7",
+        "name": "Claude Opus 4.7",
+        "family": "claude-opus",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "temperature": false,
+        "knowledge": "2026-01-31",
+        "release_date": "2026-04-16",
+        "last_updated": "2026-04-16",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "pdf"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "limit": {
+          "context": 1000000,
+          "output": 128000
+        },
+        "experimental": {
+          "modes": {
+            "fast": {
+              "cost": {
+                "input": 30,
+                "output": 150,
+                "cache_read": 3,
+                "cache_write": 37.5
+              },
+              "provider": {
+                "body": {
+                  "speed": "fast"
+                },
+                "headers": {
+                  "anthropic-beta": "fast-mode-2026-02-01"
+                }
+              }
+            }
+          }
+        }
+      },
+      "xai/grok-4.3": {
+        "id": "xai/grok-4.3",
+        "name": "Grok 4.3",
+        "family": "grok",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "temperature": true,
+        "release_date": "2026-04-17",
+        "last_updated": "2026-04-17",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "pdf"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "limit": {
+          "context": 1000000,
+          "output": 30000
+        }
+      },
+      "cohere/command-r-plus-08-2024": {
+        "id": "cohere/command-r-plus-08-2024",
+        "name": "Command R+",
+        "family": "command-r",
+        "attachment": false,
+        "reasoning": false,
+        "tool_call": true,
+        "temperature": true,
+        "knowledge": "2024-06-01",
+        "release_date": "2024-08-30",
+        "last_updated": "2024-08-30",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "limit": {
+          "context": 128000,
+          "output": 4000
+        }
+      },
+      "perplexity/sonar-pro": {
+        "id": "perplexity/sonar-pro",
+        "name": "Sonar Pro",
+        "family": "sonar-pro",
+        "attachment": true,
+        "reasoning": false,
+        "tool_call": false,
+        "temperature": true,
+        "knowledge": "2025-09-01",
+        "release_date": "2024-01-01",
+        "last_updated": "2025-09-01",
+        "modalities": {
+          "input": [
+            "text",
+            "image"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "limit": {
+          "context": 200000,
+          "output": 8192
+        }
+      },
+      "perplexity/sonar-reasoning-pro": {
+        "id": "perplexity/sonar-reasoning-pro",
+        "name": "Sonar Reasoning Pro",
+        "family": "sonar-reasoning",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": false,
+        "temperature": true,
+        "knowledge": "2025-09-01",
+        "release_date": "2024-01-01",
+        "last_updated": "2025-09-01",
+        "modalities": {
+          "input": [
+            "text",
+            "image"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "limit": {
+          "context": 128000,
+          "output": 4096
+        }
+      },
+      "google/gemini-3-flash-preview": {
+        "id": "google/gemini-3-flash-preview",
+        "name": "Gemini 3 Flash Preview",
+        "family": "gemini-flash",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": true,
+        "knowledge": "2025-01",
+        "release_date": "2025-12-17",
+        "last_updated": "2025-12-17",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "video",
+            "audio",
+            "pdf"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "limit": {
+          "context": 1048576,
+          "output": 65536
+        }
+      },
+      "google/gemini-2.5-pro": {
+        "id": "google/gemini-2.5-pro",
+        "name": "Gemini 2.5 Pro",
+        "family": "gemini-pro",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": true,
+        "knowledge": "2025-01",
+        "release_date": "2025-03-20",
+        "last_updated": "2025-06-05",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "audio",
+            "video",
+            "pdf"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "limit": {
+          "context": 1048576,
+          "output": 65536
+        }
+      },
+      "google/gemini-2.5-flash-lite": {
+        "id": "google/gemini-2.5-flash-lite",
+        "name": "Gemini 2.5 Flash-Lite",
+        "family": "gemini-flash-lite",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": true,
+        "knowledge": "2025-01",
+        "release_date": "2025-06-17",
+        "last_updated": "2025-06-17",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "audio",
+            "video",
+            "pdf"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "limit": {
+          "context": 1048576,
+          "output": 65536
+        }
+      },
+      "google/gemini-2.5-flash": {
+        "id": "google/gemini-2.5-flash",
+        "name": "Gemini 2.5 Flash",
+        "family": "gemini-flash",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": true,
+        "knowledge": "2025-01",
+        "release_date": "2025-03-20",
+        "last_updated": "2025-06-05",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "audio",
+            "video",
+            "pdf"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "limit": {
+          "context": 1048576,
+          "output": 65536
+        }
+      },
+      "google/gemini-3-pro-preview": {
+        "id": "google/gemini-3-pro-preview",
+        "name": "Gemini 3 Pro Preview",
+        "family": "gemini-pro",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": true,
+        "knowledge": "2025-01",
+        "release_date": "2025-11-18",
+        "last_updated": "2025-11-18",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "video",
+            "audio",
+            "pdf"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "limit": {
+          "context": 1048576,
+          "output": 65536
+        }
+      },
+      "openai/gpt-5-mini": {
+        "id": "openai/gpt-5-mini",
+        "name": "GPT-5 Mini",
+        "family": "gpt-mini",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": false,
+        "knowledge": "2024-05-30",
+        "release_date": "2025-08-07",
+        "last_updated": "2025-08-07",
+        "modalities": {
+          "input": [
+            "text",
+            "image"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "limit": {
+          "context": 400000,
+          "input": 272000,
+          "output": 128000
+        }
+      },
+      "openai/gpt-5.2": {
+        "id": "openai/gpt-5.2",
+        "name": "GPT-5.2",
+        "family": "gpt",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": false,
+        "knowledge": "2025-08-31",
+        "release_date": "2025-12-11",
+        "last_updated": "2025-12-11",
+        "modalities": {
+          "input": [
+            "text",
+            "image"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "limit": {
+          "context": 400000,
+          "input": 272000,
+          "output": 128000
+        }
+      },
+      "openai/o3": {
+        "id": "openai/o3",
+        "name": "o3",
+        "family": "o",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": false,
+        "knowledge": "2024-05",
+        "release_date": "2025-04-16",
+        "last_updated": "2025-04-16",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "pdf"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "limit": {
+          "context": 200000,
+          "output": 100000
+        }
+      },
+      "openai/gpt-5": {
+        "id": "openai/gpt-5",
+        "name": "GPT-5",
+        "family": "gpt",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": false,
+        "knowledge": "2024-09-30",
+        "release_date": "2025-08-07",
+        "last_updated": "2025-08-07",
+        "modalities": {
+          "input": [
+            "text",
+            "image"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "limit": {
+          "context": 400000,
+          "input": 272000,
+          "output": 128000
+        }
+      },
+      "openai/gpt-4.1-mini": {
+        "id": "openai/gpt-4.1-mini",
+        "name": "GPT-4.1 mini",
+        "family": "gpt-mini",
+        "attachment": true,
+        "reasoning": false,
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": true,
+        "knowledge": "2024-04",
+        "release_date": "2025-04-14",
+        "last_updated": "2025-04-14",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "pdf"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "limit": {
+          "context": 1047576,
+          "output": 32768
+        }
+      },
+      "openai/o4-mini": {
+        "id": "openai/o4-mini",
+        "name": "o4-mini",
+        "family": "o-mini",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": false,
+        "knowledge": "2024-05",
+        "release_date": "2025-04-16",
+        "last_updated": "2025-04-16",
+        "modalities": {
+          "input": [
+            "text",
+            "image"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "limit": {
+          "context": 200000,
+          "output": 100000
+        }
+      },
+      "openai/gpt-5.4": {
+        "id": "openai/gpt-5.4",
+        "name": "GPT-5.4",
+        "family": "gpt",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": false,
+        "knowledge": "2025-08-31",
+        "release_date": "2026-03-05",
+        "last_updated": "2026-03-05",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "pdf"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "limit": {
+          "context": 1050000,
+          "input": 922000,
+          "output": 128000
+        },
+        "experimental": {
+          "modes": {
+            "fast": {
+              "cost": {
+                "input": 5,
+                "output": 30,
+                "cache_read": 0.5
+              },
+              "provider": {
+                "body": {
+                  "service_tier": "priority"
+                }
+              }
+            }
+          }
+        }
+      },
+      "openai/o3-mini": {
+        "id": "openai/o3-mini",
+        "name": "o3-mini",
+        "family": "o-mini",
+        "attachment": false,
+        "reasoning": true,
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": false,
+        "knowledge": "2024-05",
+        "release_date": "2024-12-20",
+        "last_updated": "2025-01-29",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "limit": {
+          "context": 200000,
+          "output": 100000
+        }
+      },
+      "openai/gpt-5.1": {
+        "id": "openai/gpt-5.1",
+        "name": "GPT-5.1",
+        "family": "gpt",
+        "attachment": true,
+        "reasoning": true,
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": false,
+        "knowledge": "2024-09-30",
+        "release_date": "2025-11-13",
+        "last_updated": "2025-11-13",
+        "modalities": {
+          "input": [
+            "text",
+            "image"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "limit": {
+          "context": 400000,
+          "input": 272000,
+          "output": 128000
+        }
+      },
+      "openai/gpt-4.1": {
+        "id": "openai/gpt-4.1",
+        "name": "GPT-4.1",
+        "family": "gpt",
+        "attachment": true,
+        "reasoning": false,
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": true,
+        "knowledge": "2024-04",
+        "release_date": "2025-04-14",
+        "last_updated": "2025-04-14",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "pdf"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "limit": {
+          "context": 1047576,
+          "output": 32768
         }
       }
     }

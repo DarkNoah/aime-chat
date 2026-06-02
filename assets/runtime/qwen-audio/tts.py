@@ -437,16 +437,23 @@ def get_voxcpm2_torch_model(
             return _voxcpm2_torch_model
 
         def _load(name: str) -> Any:
+            # `name` is a local directory when resolved from cache or downloaded
+            # via the ModelScope fallback; in that case force offline loading so
+            # VoxCPM/huggingface_hub never tries to reach Hugging Face again.
+            is_local_dir = os.path.isdir(name)
             logging.info(
-                "Loading VoxCPM2 (torch) model from %s on device %s",
+                "Loading VoxCPM2 (torch) model from %s on device %s (local=%s)",
                 name,
                 resolved_device,
+                is_local_dir,
             )
-            return VoxCPM.from_pretrained(
-                name,
-                load_denoiser=False,
-                device=resolved_device,
-            )
+            load_kwargs: Dict[str, Any] = {
+                "load_denoiser": False,
+                "device": resolved_device,
+            }
+            if is_local_dir:
+                load_kwargs["local_files_only"] = True
+            return VoxCPM.from_pretrained(name, **load_kwargs)
 
         _voxcpm2_torch_model = load_mlx_model_with_modelscope_fallback(
             _load, resolved_model_name

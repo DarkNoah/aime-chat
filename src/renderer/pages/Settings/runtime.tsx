@@ -26,6 +26,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { RuntimeInfo } from '@/types/app';
+import { ScrollArea } from '@/renderer/components/ui/scroll-area';
 
 type RuntimeKey = keyof RuntimeInfo;
 
@@ -185,104 +186,107 @@ function Runtime() {
   };
 
   return (
-    <div className="flex flex-col gap-3 p-4">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <h2 className="text-lg font-semibold">
-            {t('settings.runtime_page.title')}
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            {t('settings.runtime_page.subtitle')}
-          </p>
+    <ScrollArea className="h-full">
+      <div className="flex flex-col gap-3 p-4">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <h2 className="text-lg font-semibold">
+              {t('settings.runtime_page.title')}
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              {t('settings.runtime_page.subtitle')}
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={refreshing}
+          >
+            {refreshing ? (
+              <Spinner className="size-4" />
+            ) : (
+              <IconRefresh className="size-4" />
+            )}
+            {t('settings.runtime_page.refresh')}
+          </Button>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleRefresh}
-          disabled={refreshing}
-        >
-          {refreshing ? (
-            <Spinner className="size-4" />
-          ) : (
-            <IconRefresh className="size-4" />
-          )}
-          {t('settings.runtime_page.refresh')}
-        </Button>
-      </div>
 
-      <div className="flex flex-col gap-2">
-        {RUNTIME_DEFS.map((def) => {
-          const info = runtimeInfo?.[def.key] as
-            | { status?: string; path?: string }
-            | undefined;
-          const status = info?.status;
-          const Icon = def.icon;
+        <div className="flex flex-col gap-2">
+          {RUNTIME_DEFS.map((def) => {
+            const info = runtimeInfo?.[def.key] as
+              | { status?: string; path?: string }
+              | undefined;
+            const status = info?.status;
+            const Icon = def.icon;
 
-          return (
-            <Item key={def.key} variant="outline" className="rounded-lg">
-              <div
-                className={`flex items-center justify-center w-10 h-10 rounded-lg shrink-0 ${def.iconClass}`}
-              >
-                <Icon className="w-5 h-5" />
-              </div>
-              <ItemContent className="min-w-0">
-                <ItemTitle className="flex flex-wrap items-center gap-1.5">
-                  {def.label}
-                  {renderVersionBadges(def.key)}
-                </ItemTitle>
-                <ItemDescription className="truncate">
-                  {t(def.descKey)}
-                </ItemDescription>
-                {info?.path && (
-                  <Button
-                    variant="link"
-                    size="sm"
-                    className="h-auto justify-start p-0 text-muted-foreground"
-                    onClick={() => window.electron.app.openPath(info.path!)}
-                  >
-                    <IconFolder className="size-3.5" />
-                    <span className="truncate">{info.path}</span>
-                  </Button>
-                )}
-              </ItemContent>
-              <ItemActions>
-                {status === 'installing' && (
-                  <Button disabled size="sm">
-                    <Spinner className="size-4" />
-                    {t('settings.runtime_page.installing')}
-                  </Button>
-                )}
-                {status === 'installed' && (
-                  <>
-                    <Badge className="bg-green-500/10 text-green-600 hover:bg-green-500/20">
-                      <IconCheck className="size-3.5" />
-                      {t('settings.runtime_page.installed')}
-                    </Badge>
-                    {def.canUninstall && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-destructive hover:text-destructive"
-                        onClick={() => handleUninstallRuntime(def.key)}
-                      >
-                        <IconTrash className="size-4" />
-                        {t('settings.runtime_page.uninstall')}
-                      </Button>
-                    )}
-                  </>
-                )}
-                {(status === 'not_installed' || status === undefined) && (
-                  <Button size="sm" onClick={() => handleInstallRuntime(def.key)}>
-                    <IconDownload className="size-4" />
-                    {t('settings.runtime_page.install')}
-                  </Button>
-                )}
-              </ItemActions>
-            </Item>
-          );
-        })}
+            return (
+              <Item key={def.key} variant="outline" className="rounded-lg">
+                <div
+                  className={`flex items-center justify-center w-10 h-10 rounded-lg shrink-0 ${def.iconClass}`}
+                >
+                  <Icon className="w-5 h-5" />
+                </div>
+                <ItemContent className="min-w-0">
+                  <ItemTitle className="flex flex-wrap items-center gap-1.5">
+                    {def.label}
+                    {renderVersionBadges(def.key)}
+                  </ItemTitle>
+                  <ItemDescription className="truncate">
+                    {t(def.descKey)}
+                  </ItemDescription>
+                  {info?.path && (
+                    <Button
+                      variant="link"
+                      size="sm"
+                      className="h-auto justify-start p-0 text-muted-foreground"
+                      onClick={() => window.electron.app.openPath(info.path!)}
+                    >
+                      <IconFolder className="size-3.5" />
+                      <span className="truncate">{info.path}</span>
+                    </Button>
+                  )}
+                </ItemContent>
+                <ItemActions>
+                  {status === 'installing' && (
+                    <Button disabled size="sm">
+                      <Spinner className="size-4" />
+                      {t('settings.runtime_page.installing')}
+                    </Button>
+                  )}
+                  {status === 'installed' && (
+                    <>
+                      <Badge className="bg-green-500/10 text-green-600 hover:bg-green-500/20">
+                        <IconCheck className="size-3.5" />
+                        {t('settings.runtime_page.installed')}
+                      </Badge>
+                      {def.canUninstall && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => handleUninstallRuntime(def.key)}
+                        >
+                          <IconTrash className="size-4" />
+                          {t('settings.runtime_page.uninstall')}
+                        </Button>
+                      )}
+                    </>
+                  )}
+                  {(status === 'not_installed' || status === undefined) && (
+                    <Button size="sm" onClick={() => handleInstallRuntime(def.key)}>
+                      <IconDownload className="size-4" />
+                      {t('settings.runtime_page.install')}
+                    </Button>
+                  )}
+                </ItemActions>
+              </Item>
+            );
+          })}
+        </div>
       </div>
-    </div>
+    </ScrollArea>
+
   );
 }
 

@@ -154,15 +154,22 @@ def _modelscope_cache_dir() -> Optional[str]:
     return None
 
 
-def _modelscope_model_id(model_name: str) -> str:
-    mapping_raw = os.environ.get("QWEN_ASR_MODELSCOPE_MODEL_MAP", "").strip()
-    if not mapping_raw:
-        return model_name
+# Hugging Face repo ids that differ from their ModelScope counterparts (e.g.
+# casing of the namespace). Used when falling back to ModelScope downloads.
+_DEFAULT_MODELSCOPE_MODEL_MAP: Dict[str, str] = {
+    "openbmb/VoxCPM2": "OpenBMB/VoxCPM2",
+}
 
-    try:
-        mapping: Dict[str, str] = json.loads(mapping_raw)
-    except Exception as exc:
-        raise RuntimeError("QWEN_ASR_MODELSCOPE_MODEL_MAP must be valid JSON") from exc
+
+def _modelscope_model_id(model_name: str) -> str:
+    mapping: Dict[str, str] = dict(_DEFAULT_MODELSCOPE_MODEL_MAP)
+
+    mapping_raw = os.environ.get("QWEN_ASR_MODELSCOPE_MODEL_MAP", "").strip()
+    if mapping_raw:
+        try:
+            mapping.update(json.loads(mapping_raw))
+        except Exception as exc:
+            raise RuntimeError("QWEN_ASR_MODELSCOPE_MODEL_MAP must be valid JSON") from exc
 
     return mapping.get(model_name, model_name)
 

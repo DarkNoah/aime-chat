@@ -1135,6 +1135,7 @@ explicit = true
       } else {
         pyproject = pyproject.replace('dependencies = []', `
 dependencies = [
+    "voxcpm",
     "qwen-asr",
     "qwen-tts>=0.1.1"
 ]
@@ -1166,7 +1167,7 @@ override-dependencies = ["transformers==4.57.6"]
           `"${activateSourcePython}" -c "from importlib import metadata; print(metadata.version('qwen-asr'))"`,
           {
             cwd: uvRuntime?.dir,
-            timeout: 1000 * 30,
+            timeout: 1000 * 60,
           },
         );
 
