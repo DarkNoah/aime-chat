@@ -379,11 +379,11 @@ Output: Creates directory 'foo'`),
       }
     } else {
       if (stdout && stdout.length > MAX_OUTPUT_LENGTH) {
-        stdout = truncateText(stdout, 1000);
+        stdout = truncateText(stdout, MAX_OUTPUT_LENGTH / 2);
       }
       let errorMessage = error?.toString();
       if (errorMessage && errorMessage.length > MAX_OUTPUT_LENGTH) {
-        errorMessage = truncateText(errorMessage, 1000);
+        errorMessage = truncateText(errorMessage, MAX_OUTPUT_LENGTH / 2);
       }
       llmContent = [
         `Command: ${inputData.command}`,

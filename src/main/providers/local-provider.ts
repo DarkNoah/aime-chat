@@ -632,7 +632,7 @@ export class LocalProvider extends BaseProvider {
       ];
     } else {
       return [{ id: 'system', name: 'System OCR' },
-      { id: 'paddleocr-vl', name: 'PaddleOCR-V1.5' },
+      { id: 'paddleocr-vl', name: 'PaddleOCR-V1.6' },
       { id: 'pp-structurev3', name: 'PP-StructureV3' },
       { id: 'rapidocr', name: 'RapidOCR' },
       ]
