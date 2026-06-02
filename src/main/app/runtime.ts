@@ -7,6 +7,10 @@ import { getAssetPath } from '../utils';
 import { RuntimeInfo } from '@/types/app';
 import TOML from '@iarna/toml';
 import { appLog } from './logger';
+import {
+  buildQwenAudioPyprojectToml,
+  qwenAudioHealthCheckScript,
+} from './qwen-audio-runtime';
 
 export const uv: RuntimeInfo['uv'] = {
   status: 'not_installed' as 'installed' | 'not_installed' | 'installing',
@@ -1106,44 +1110,10 @@ export async function installQwenAudioRuntime() {
       ) {
         hasGPU = true;
       }
-      let pyproject = await fs.promises.readFile(path.join(qwenasrDir, 'pyproject.toml'), 'utf-8');
-      if (hasGPU) {
-        pyproject = pyproject.replace('dependencies = []', `
-dependencies = [
-    "qwen-asr",
-    "qwen-tts>=0.1.1",
-    "voxcpm",
-    "torch"
-]
-
-[tool.uv]
-extra-index-url = [
-    "https://pypi.org/simple"
-]
-override-dependencies = ["transformers==4.57.6"]
-
-[tool.uv.sources]
-torch = [
-    { index = "torch-gpu", marker = "platform_system == 'Windows'"},
-]
-
-[[tool.uv.index]]
-name = "torch-gpu"
-url = "https://download.pytorch.org/whl/cu121"
-explicit = true
-        `)
-      } else {
-        pyproject = pyproject.replace('dependencies = []', `
-dependencies = [
-    "voxcpm",
-    "qwen-asr",
-    "qwen-tts>=0.1.1"
-]
-[tool.uv]
-override-dependencies = ["transformers==4.57.6"]
-        `);
-      }
-      await fs.promises.writeFile(path.join(qwenasrDir, 'pyproject.toml'), pyproject);
+      await fs.promises.writeFile(
+        path.join(qwenasrDir, 'pyproject.toml'),
+        buildQwenAudioPyprojectToml({ isWindows, hasGPU }),
+      );
 
       const result_sync = await runCommand(
         `${uvPreCommand} --project "${qwenasrDir}" sync --no-cache`,
@@ -1155,21 +1125,22 @@ override-dependencies = ["transformers==4.57.6"]
       if (result_sync.code === 0) {
 
 
-        const result_qwen_tts = await runCommand(
-          `${uvPreCommand} --project "${qwenasrDir}" add qwen-tts --no-cache --python "${activateSourcePython}"`,
+        const result2 = await runCommand(
+          `"${activateSourcePython}" -c "${qwenAudioHealthCheckScript(isWindows)}"`,
           {
             cwd: uvRuntime?.dir,
-            timeout: 1000 * 30,
+            timeout: 1000 * 120,
           },
         );
 
-        const result2 = await runCommand(
-          `"${activateSourcePython}" -c "from importlib import metadata; print(metadata.version('qwen-asr'))"`,
-          {
-            cwd: uvRuntime?.dir,
-            timeout: 1000 * 60,
-          },
-        );
+        if (result2.code !== 0) {
+          qwenAudio.status = 'not_installed';
+          qwenAudio.installed = false;
+          qwenAudio.path = undefined;
+          qwenAudio.dir = undefined;
+          qwenAudio.version = undefined;
+          return qwenAudio;
+        }
 
         qwenAudio.status = 'installed';
         qwenAudio.installed = true;

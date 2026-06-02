@@ -5,6 +5,7 @@ import base64
 import json
 import logging
 import os
+import re
 import sys
 import threading
 import urllib.error
@@ -187,29 +188,67 @@ def get_qwen_tts_model(
         if _qwen_tts_model is not None and _qwen_tts_model_key == key:
             return _qwen_tts_model
 
-        load_kwargs: Dict[str, Any] = {
-            "device_map": resolved_device,
-            "dtype": _resolve_torch_dtype(resolved_dtype, torch),
-        }
+        def _load(name: str) -> Any:
+            load_kwargs: Dict[str, Any] = {
+                "device_map": resolved_device,
+                "dtype": _resolve_torch_dtype(resolved_dtype, torch),
+            }
+            # When loading from a local directory (cache hit or ModelScope
+            # fallback) force offline so transformers never tries to reach
+            # Hugging Face again.
+            if os.path.isdir(name):
+                load_kwargs["local_files_only"] = True
 
-        # Flash attention is optional. If unavailable, retry without it.
-        if resolved_device.startswith("cuda"):
-            load_kwargs["attn_implementation"] = "flash_attention_2"
-        try:
-            logging.info(f"Loading qwen-tts model from {resolved_model_name} with kwargs {load_kwargs}")
-            _qwen_tts_model = Qwen3TTSModel.from_pretrained(
-                resolved_model_name, **load_kwargs
+            # Flash attention is optional. If unavailable, retry without it.
+            if resolved_device.startswith("cuda"):
+                load_kwargs["attn_implementation"] = "flash_attention_2"
+            logging.info(
+                f"Loading qwen-tts model from {name} with kwargs {load_kwargs}"
             )
-        except Exception:
-            if "attn_implementation" not in load_kwargs:
-                raise
-            load_kwargs.pop("attn_implementation", None)
-            _qwen_tts_model = Qwen3TTSModel.from_pretrained(
-                resolved_model_name, **load_kwargs
-            )
+            try:
+                return Qwen3TTSModel.from_pretrained(name, **load_kwargs)
+            except Exception:
+                if "attn_implementation" not in load_kwargs:
+                    raise
+                load_kwargs.pop("attn_implementation", None)
+                return Qwen3TTSModel.from_pretrained(name, **load_kwargs)
 
+        _qwen_tts_model = load_mlx_model_with_modelscope_fallback(
+            _load, resolved_model_name
+        )
         _qwen_tts_model_key = key
         return _qwen_tts_model
+
+
+_QWEN_TTS_VARIANT_DEFAULTS = {
+    "Base": DEFAULT_QWEN_TTS_MODEL,
+    "CustomVoice": DEFAULT_QWEN_TTS_CUSTOM_MODEL,
+    "VoiceDesign": DEFAULT_QWEN_TTS_VOICEDESIGN_MODEL,
+}
+
+
+def _resolve_qwen_tts_repo(model_name: Optional[str], variant: str) -> str:
+    """Map a (possibly "family") TTS model id to a concrete Qwen3-TTS repo.
+
+    The model picker exposes family ids such as ``Qwen/Qwen3-TTS-1.7B`` /
+    ``Qwen3-TTS-0.6B`` which are NOT real Hugging Face / ModelScope repos.
+    The actual weights live in per-mode repos following the pattern:
+        ``Qwen/Qwen3-TTS-12Hz-<size>-<Base|CustomVoice|VoiceDesign>``
+    so we reconstruct the canonical id based on the requested ``variant``.
+    """
+    name = (model_name or "").strip()
+    if not name:
+        return _QWEN_TTS_VARIANT_DEFAULTS[variant]
+
+    lowered = name.lower()
+    # Already a concrete repo (canonical ids contain "12hz") or a local dir.
+    if "12hz" in lowered or os.path.isdir(name):
+        return name
+
+    # Family id: extract the parameter size (e.g. "1.7B", "0.6B") and rebuild.
+    match = re.search(r"(\d+(?:\.\d+)?)\s*b\b", lowered)
+    size = f"{match.group(1)}B" if match else "1.7B"
+    return f"Qwen/Qwen3-TTS-12Hz-{size}-{variant}"
 
 
 def _default_qwen_speaker(language: Optional[str]) -> str:
@@ -576,7 +615,7 @@ def _run_qwen_tts(
     # 4. no mode params -> CustomVoice default speaker
     logging.info(f"Running qwen-tts with voice {voice}, instruct {instruct}, ref_audio {ref_audio}, ref_text {ref_text}")
     if voice:
-        effective_model = model_name or DEFAULT_QWEN_TTS_CUSTOM_MODEL
+        effective_model = _resolve_qwen_tts_repo(model_name, "CustomVoice")
         model = get_qwen_tts_model(effective_model)
         kwargs: Dict[str, Any] = {
             "text": text,
@@ -587,7 +626,7 @@ def _run_qwen_tts(
             kwargs["instruct"] = instruct
         wavs, sample_rate = model.generate_custom_voice(**kwargs)
     elif instruct:
-        effective_model = model_name or DEFAULT_QWEN_TTS_VOICEDESIGN_MODEL
+        effective_model = _resolve_qwen_tts_repo(model_name, "VoiceDesign")
         model = get_qwen_tts_model(effective_model)
         wavs, sample_rate = model.generate_voice_design(
             text=text,
@@ -597,7 +636,7 @@ def _run_qwen_tts(
     elif ref_audio or ref_text:
         if not ref_audio or not ref_text:
             raise ValueError("ref_audio and ref_text must be provided together")
-        effective_model = model_name or DEFAULT_QWEN_TTS_MODEL
+        effective_model = _resolve_qwen_tts_repo(model_name, "Base")
         model = get_qwen_tts_model(effective_model)
         wavs, sample_rate = model.generate_voice_clone(
             text=text,
@@ -606,7 +645,7 @@ def _run_qwen_tts(
             ref_text=ref_text,
         )
     else:
-        effective_model = model_name or DEFAULT_QWEN_TTS_CUSTOM_MODEL
+        effective_model = _resolve_qwen_tts_repo(model_name, "CustomVoice")
         model = get_qwen_tts_model(effective_model)
         wavs, sample_rate = model.generate_custom_voice(
             text=text,
