@@ -615,8 +615,8 @@ export class LocalProvider extends BaseProvider {
       { id: 'Qwen/Qwen3-TTS-0.6B', name: 'Qwen3-TTS-0.6B' },
       { id: 'openbmb/VoxCPM2', name: 'VoxCPM2' }];
     } else {
-      return [{ id: 'mlx-community/Qwen3-TTS-12Hz-1.7B-Base-bf16', name: 'Qwen3-TTS-12Hz-1.7B-Base-bf16' },
-      { id: 'mlx-community/Qwen3-TTS-12Hz-0.6B-Base-bf16', name: 'Qwen3-TTS-12Hz-0.6B-Base-bf16' },
+      return [{ id: 'mlx-community/Qwen3-TTS-1.7B', name: 'Qwen3-TTS-1.7B' },
+      { id: 'mlx-community/Qwen3-TTS-0.6B', name: 'Qwen3-TTS-0.6B' },
       { id: 'mlx-community/VoxCPM2-8bit', name: 'VoxCPM2-8bit' },
       { id: 'mlx-community/VoxCPM2-4bit', name: 'VoxCPM2-4bit' },
       { id: 'mlx-community/VoxCPM2-bf16', name: 'VoxCPM2-bf16' }];

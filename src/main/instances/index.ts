@@ -475,7 +475,7 @@ class InstancesManager extends BaseManager {
           "headed": !(config?.headless ?? true),
           // "profile": config.userDataPath,
           "cdp": wsUrl,
-          "ignoreHttpsErrors": true,
+          // "ignoreHttpsErrors": true,
         }
         if (httpProxy) {
           agentBrowserConfig['proxy'] = `http://${httpProxy}`;
