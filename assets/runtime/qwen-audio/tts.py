@@ -227,14 +227,19 @@ _QWEN_TTS_VARIANT_DEFAULTS = {
 }
 
 
-def _resolve_qwen_tts_repo(model_name: Optional[str], variant: str) -> str:
+def _resolve_qwen_tts_repo(
+    model_name: Optional[str], variant: str, *, mlx: bool = False
+) -> str:
     """Map a (possibly "family") TTS model id to a concrete Qwen3-TTS repo.
 
     The model picker exposes family ids such as ``Qwen/Qwen3-TTS-1.7B`` /
-    ``Qwen3-TTS-0.6B`` which are NOT real Hugging Face / ModelScope repos.
-    The actual weights live in per-mode repos following the pattern:
+    ``mlx-community/Qwen3-TTS-0.6B`` which are NOT real Hugging Face /
+    ModelScope repos. The actual weights live in per-mode repos following the
+    patterns:
         ``Qwen/Qwen3-TTS-12Hz-<size>-<Base|CustomVoice|VoiceDesign>``
-    so we reconstruct the canonical id based on the requested ``variant``.
+        ``mlx-community/Qwen3-TTS-12Hz-<size>-<...>-bf16``  (Apple Silicon)
+    so we reconstruct the canonical id for the requested ``variant``, picking
+    the MLX flavour when ``mlx`` is True.
     """
     name = (model_name or "").strip()
     if not name:
@@ -248,6 +253,8 @@ def _resolve_qwen_tts_repo(model_name: Optional[str], variant: str) -> str:
     # Family id: extract the parameter size (e.g. "1.7B", "0.6B") and rebuild.
     match = re.search(r"(\d+(?:\.\d+)?)\s*b\b", lowered)
     size = f"{match.group(1)}B" if match else "1.7B"
+    if mlx:
+        return f"mlx-community/Qwen3-TTS-12Hz-{size}-{variant}-bf16"
     return f"Qwen/Qwen3-TTS-12Hz-{size}-{variant}"
 
 
@@ -305,7 +312,7 @@ def _run_mlx_tts(
 
     if voice:
         # ── CustomVoice: speaker + optional emotion/style instruct ──
-        effective_model = model_name or DEFAULT_QWEN_TTS_CUSTOM_MODEL
+        effective_model = _resolve_qwen_tts_repo(model_name, "CustomVoice", mlx=True)
         model = get_mlx_tts_model(effective_model)
         kwargs: Dict[str, Any] = {
             "text": text,
@@ -320,7 +327,7 @@ def _run_mlx_tts(
 
     elif instruct:
         # ── VoiceDesign: create any voice from text description ──
-        effective_model = model_name or DEFAULT_QWEN_TTS_VOICEDESIGN_MODEL
+        effective_model = _resolve_qwen_tts_repo(model_name, "VoiceDesign", mlx=True)
         model = get_mlx_tts_model(effective_model)
         results = list(model.generate_voice_design(
             text=text,
@@ -331,7 +338,7 @@ def _run_mlx_tts(
 
     else:
         # ── Base model: predefined voice or voice cloning ──
-        effective_model = model_name or DEFAULT_QWEN_TTS_MODEL
+        effective_model = _resolve_qwen_tts_repo(model_name, "Base", mlx=True)
         model = get_mlx_tts_model(effective_model)
         kwargs = {
             "text": text,

@@ -48,7 +48,7 @@ import { splitContextAndFiles } from '@/utils/context-utils';
 import { FileInfo } from '@/types/common';
 import { Badge } from '../../ui/badge';
 
-export interface GenerateImageMessageRef {}
+export interface GenerateImageMessageRef { }
 
 export type GenerateImageMessageProps = ComponentProps<typeof Card> & {
   part: ToolUIPart;
@@ -111,7 +111,7 @@ export const GenerateImageMessage = React.forwardRef<
                     data={{
                       type: 'file',
                       mediaType: 'image/jpeg',
-                      url: `file://${image.path}`,
+                      url: `file://${image.path}?v=${Date.now()}`,
                       filename: image.name,
                     }}
                   />

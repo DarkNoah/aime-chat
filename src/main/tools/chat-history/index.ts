@@ -20,7 +20,7 @@ const toPlainText = (message: any): string => {
   if (!message) return '';
   if (typeof message.content === 'string') return message.content;
   if (Array.isArray(message?.parts)) {
-    return message.parts
+    return message.parts.filter(p => p.type !== 'reasoning')
       .map((p: any) => {
         if (p?.type === 'text' && typeof p.text === 'string') return p.text;
         if (p?.type === 'reasoning' && typeof p.text === 'string') return `[reasoning] ${p.text}`;
@@ -203,11 +203,6 @@ export class ChatHistoryRead extends BaseTool {
       .optional()
       .default(false)
       .describe('Include tool-call summaries in the output'),
-    includeCron: z
-      .boolean()
-      .optional()
-      .default(false)
-      .describe('Allow reading cron-created threads (metadata.cronId is present). Default false.'),
   });
 
   constructor(config?: BaseToolParams) {
@@ -218,7 +213,7 @@ export class ChatHistoryRead extends BaseTool {
     inputData: z.infer<typeof this.inputSchema>,
     _ctx: ToolExecutionContext<ZodSchema, any>,
   ) => {
-    const { threadId, limit = 80, since, includeTools = false, includeCron = false } = inputData;
+    const { threadId, limit = 80, since, includeTools = false } = inputData;
     const sinceMs = since ? Date.parse(since) : undefined;
 
     let messages: any[] = [];
@@ -241,13 +236,25 @@ export class ChatHistoryRead extends BaseTool {
       return `Failed to read thread "${threadId}": ${(err as Error)?.message ?? err}`;
     }
 
-    if (!includeCron && (threadMeta?.cron === true || typeof threadMeta?.cronId === 'string')) {
-      return `Thread "${threadId}" was created by a cron job and is skipped to prevent self-ingestion. Pass includeCron=true to override.`;
-    }
 
     if (!messages.length) return `Thread "${threadId}" has no messages.`;
 
     const lines: string[] = [];
+
+
+
+    lines.push(`## CHAT THREAD META`);
+    if (threadMeta?.resourceId.startsWith('project:')) {
+      const project = await projectManager.getProject(threadMeta?.resourceId?.split(':')[1]);
+      lines.push(`project: ${project?.title} (${project?.id})`);
+    }
+    lines.push(`title: ${threadMeta?.title}`);
+    lines.push(`threadId: ${threadId}`);
+    lines.push(`model: ${threadMeta?.model}`);
+    lines.push(`createdAt: ${threadMeta?.createdAt}`);
+    // lines.push('\n\n')
+
+    lines.push(`## CHAT MESSAGES`);
     for (const m of messages) {
       const role = m?.role ?? 'unknown';
       if (!includeTools && role !== 'user' && role !== 'assistant' && role !== 'system') continue;
@@ -258,7 +265,7 @@ export class ChatHistoryRead extends BaseTool {
       const text = toPlainText(m);
       if (!text.trim()) continue;
       const ts = m?.metadata?.createdAt ? new Date(m.metadata.createdAt).toISOString() : '';
-      lines.push(`### ${role}${ts ? ` @ ${ts}` : ''}\n${text}`);
+      lines.push(`[${role}]\ncontent: \n${text}`);
     }
 
     if (lines.length === 0) {

@@ -34,12 +34,15 @@ const getSitecustomizePy = async (allRequestContext: Record<string, any> = {}) =
   return `
 import asyncio
 import builtins
+import threading
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.streamable_http import streamablehttp_client
 from mcp.types import PromptReference, ResourceTemplateReference
 
 
 MCP_SERVER_URL = "${mcpServerUrl}"
+_META = ${JSON.stringify(meta)}
+
 
 async def _list_tools_async() -> list[str]:
     async with streamablehttp_client(MCP_SERVER_URL) as (read_stream, write_stream, _):
@@ -52,20 +55,54 @@ async def _call_tool_async(name: str, **kwargs):
     async with streamablehttp_client(MCP_SERVER_URL) as (read_stream, write_stream, _):
         async with ClientSession(read_stream, write_stream) as session:
             await session.initialize()
-            result = await session.call_tool(name, kwargs, meta=${JSON.stringify(meta)})
+            result = await session.call_tool(name, kwargs, meta=_META)
             texts = [c.text for c in result.content if c.type == 'text']
             return '\\n'.join(texts)
 
-def _make_async_tool_func(name: str):
-    async def _wrapper(**kwargs):
-        return await _call_tool_async(name, **kwargs)
+
+# A lazily-created background event loop running on its own thread. This lets a
+# tool be invoked synchronously (e.g. \`ListVoices()\`) without an explicit
+# \`await\` / \`asyncio.run(...)\`, and without interfering with any event loop the
+# user's own code may already be running.
+_bg_loop = None
+_bg_lock = threading.Lock()
+
+
+def _run_sync(coro):
+    global _bg_loop
+    with _bg_lock:
+        if _bg_loop is None:
+            _bg_loop = asyncio.new_event_loop()
+            threading.Thread(target=_bg_loop.run_forever, daemon=True).start()
+    return asyncio.run_coroutine_threadsafe(coro, _bg_loop).result()
+
+
+class _AwaitableStr(str):
+    """A str result that can also be awaited.
+
+    This lets a tool be called either way:
+        result = ListVoices()
+        result = await ListVoices()
+    """
+
+    def __await__(self):
+        return self.__resolved()
+
+    def __resolved(self):
+        return self
+        yield  # pragma: no cover - turns this into a generator
+
+
+def _make_tool_func(name: str):
+    def _wrapper(**kwargs):
+        return _AwaitableStr(_run_sync(_call_tool_async(name, **kwargs)))
     return _wrapper
 
 
 def _init_mcp_tools():
     tool_names = asyncio.run(_list_tools_async())
     for name in tool_names:
-        setattr(builtins, name, _make_async_tool_func(name))
+        setattr(builtins, name, _make_tool_func(name))
 
 
 _init_mcp_tools()
@@ -149,6 +186,21 @@ Programmatic Tool Calling (PTC) allows to write code that calls tools programmat
   </good-example>
 </tips>
 
+<ChatCompletion>
+ChatCompletion is a special built-in tool that calls the Chat (LLM) interface directly. It is NOT listed in the available tools list, but you can always call it in PTC mode like any other globally injected async function.
+Use it when you need the model to reason over / transform / summarize data inside your code loop (e.g. per row, per cell, per file).
+- It is async, call it with \`await ChatCompletion(...)\`.
+- It returns the assistant reply as plain text.
+Input parameters:
+- messages (required): either a plain string (treated as a single user message), or a list of message objects like [{"role": "user" | "assistant", "content": "..."}].
+- instructions (optional): a system prompt string that defines the assistant's behavior/role. Defaults to "You are a helpful assistant.".
+<good-example>
+\`\`\`py
+reply = await ChatCompletion(instructions="You are a translator, translate to English.", messages="你好")
+\`\`\`
+</good-example>
+</ChatCompletion>
+
 <example>
 available tools: [Bash, RemoveBackground, ...]
 user: "Please remove the background from the image, find all .jpg in /path/to/images", and save in /path/to/images_removed_bg
@@ -162,6 +214,34 @@ async def main():
         result_text = await RemoveBackground(url_or_file_path = image_path, save_path = "/path/to/images_removed_bg/" + os.path.basename(image_path).replace('.jpg', '_removed.jpg')))
         result = json.loads(result_text)
     print('done')
+asyncio.run(main())
+</example>
+
+<example>
+available tools: []
+user: "Read /path/to/data.xlsx, for each non-empty cell in column A, send it to ChatCompletion and write the reply into column B of the same row."
+assistant:
+import asyncio
+import openpyxl
+async def main():
+    file_path = '/path/to/data.xlsx'
+    wb = openpyxl.load_workbook(file_path)
+    ws = wb.active
+    # Iterate over column A (column index 1), skip empty cells.
+    for cell in ws['A']:
+        if cell.value is None or str(cell.value).strip() == '':
+            continue
+        try:
+            reply = await ChatCompletion(
+                instructions="You are a helpful assistant.",
+                messages=str(cell.value),
+            )
+        except Exception as e:
+            reply = "ERROR: " + str(e)
+        # Write the reply into the adjacent column B of the same row.
+        ws.cell(row=cell.row, column=cell.column + 1, value=reply)
+    wb.save(file_path)
+    print('done, processed file: ' + file_path)
 asyncio.run(main())
 </example>
 `

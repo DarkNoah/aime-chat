@@ -2,6 +2,7 @@ import { ToolChannel } from '@/types/ipc-channel';
 import { BaseManager } from '../BaseManager';
 import { channel } from '../ipc/IpcController';
 import mastraManager from '../mastra';
+import { Agent as MastraAgent } from '@mastra/core/agent';
 import { MastraMCPServerDefinition, MCPClient } from '@mastra/mcp';
 import { appManager } from '../app';
 import { McpEvent, McpClientStatus, CreateMcp } from '@/types/mcp';
@@ -16,7 +17,6 @@ import { AvailableTool, Tool, ToolEvent, ToolType } from '@/types/tool';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import BaseTool from './base-tool';
 import { StreamTest } from './test/stream-test';
-import { TodoWrite } from './common/todo-write';
 import { FileSystem } from './file-system';
 import BaseToolkit from './base-toolkit';
 import { createTool } from '@mastra/core/tools';
@@ -62,6 +62,7 @@ import { Done } from './common/done';
 import { AimeChatCli } from './cli';
 import { api } from '../api/ApiController';
 import { GoalToolkit } from './common/goal';
+import { providersManager } from '../providers';
 interface BuiltInToolContext {
   tool: BaseTool;
   abortController: AbortController;
@@ -305,7 +306,7 @@ class ToolsManager extends BaseManager {
             {
               description: _tool.description,
               inputSchema,
-              outputSchema,
+              // outputSchema,
               // outputSchema: zodToJsonSchema(builtInTool.outputSchema),
             },
             async (args, v): Promise<CallToolResult> => {
@@ -324,11 +325,12 @@ class ToolsManager extends BaseManager {
                 const result = await buildedTool.execute?.(args, {
                   requestContext,
                 });
+                const text = isObject(result) || isArray(result) ? JSON.stringify(result) : result
                 return {
                   content: [
                     {
                       type: 'text',
-                      text: isObject(result) ? JSON.stringify(result) : result,
+                      text: text,
                     },
                   ],
                   // structuredContent: result,
@@ -406,6 +408,70 @@ class ToolsManager extends BaseManager {
         );
       }
     }
+
+    // 注册Chat接口
+    const chatCompletionInputSchema = z.object({
+      instructions: z.string().optional(),
+      messages: z.union([z.array(z.object({
+        role: z.enum(['user', 'assistant']),
+        content: z.string(),
+      })), z.string()]),
+    });
+    this.mcpServer.registerTool(
+      'ChatCompletion',
+      {
+        description: 'ChatCompletion',
+        inputSchema: chatCompletionInputSchema,
+      },
+      async (args, v): Promise<CallToolResult> => {
+        try {
+          const { _meta } = v
+          const requestContext = new RequestContext<ChatRequestContext>();
+          requestContext.set('workspace', _meta?.['workspace'] as string);
+          const appInfo = await appManager.getInfo();
+          const modelId = _meta?.['model'] || appInfo.defaultModel.model;
+          requestContext.set('model', _meta?.['model'] as string);
+          const model = await providersManager.getLanguageModel(
+            modelId as string
+          );
+
+          const { instructions, messages } = args;
+
+          const agent = new MastraAgent({
+            id: 'agent',
+            name: 'Agent',
+            instructions: instructions ?? `You are a helpful assistant.`,
+            model,
+          });
+          const response = await agent.generate(messages);
+
+          if (response.error) {
+            throw new Error(response.error);
+          }
+          return {
+            content: [
+              {
+                type: 'text',
+                text: response.text
+              }
+            ],
+          }
+          debugger;
+
+        } catch (err) {
+          return {
+            isError: true,
+            content: [
+              {
+                type: "text",
+                text: err.message
+              }
+            ],
+          }
+        }
+
+      },
+    );
   }
 
   async init(): Promise<void> {
