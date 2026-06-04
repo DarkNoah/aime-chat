@@ -39,7 +39,7 @@ export type ChatModelSelectProps = {
   clearable?: boolean;
 };
 
-export interface ChatModelSelectRef {}
+export interface ChatModelSelectRef { }
 
 export const ChatModelSelect = React.forwardRef<
   ChatModelSelectRef,
@@ -108,11 +108,11 @@ export const ChatModelSelect = React.forwardRef<
               </div>
             ) : (
               <>
-                <div className="px-1  flex-1 flex flex-row items-center gap-2 min-w-0">
+                <div className="px-1  flex-1 flex flex-row items-center gap-1 min-w-0">
                   {selectedModelData?.providerType && (
                     <ModelSelectorLogo
                       provider={selectedModelData.providerType}
-                      className="size-6"
+                      className="size-4"
                     />
                   )}
                   {selectedModelData?.name && (
@@ -176,7 +176,10 @@ export const ChatModelSelect = React.forwardRef<
                       }}
                       value={m.id}
                     >
-                      <ModelSelectorLogo provider={provider.type} />
+                      <ModelSelectorLogo
+                        provider={provider.type}
+                        className="size-6"
+                      />
                       <ModelSelectorName>{m.name}</ModelSelectorName>
                       {/* <ModelSelectorLogoGroup>
                     {m.providers.map((provider) => (
