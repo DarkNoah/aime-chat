@@ -57,6 +57,15 @@ const ProviderIcon: React.FC<ProviderIconProps> = (
   props: ProviderIconProps,
 ) => {
   const { provider, size = 24, className } = props;
+  const [loadFailed, setLoadFailed] = React.useState(false);
+
+  React.useEffect(() => {
+    setLoadFailed(false);
+  }, [provider]);
+
+  if (loadFailed) {
+    return null;
+  }
   // const iconProps = {
   //   size,
   //   className,
@@ -72,8 +81,12 @@ const ProviderIcon: React.FC<ProviderIconProps> = (
       <img
         src={logos[provider] ?? `https://models.dev/logos/${provider}.svg`}
         alt={`${provider} logo`}
-        className={cn(className, `h-full`)}
+        className={cn(
+          className,
+          `h-full ${logos[provider] ? '' : 'dark:invert'}`,
+        )}
         style={{ width: size, height: size, objectFit: 'contain' }}
+        onError={() => setLoadFailed(true)}
       />
     </div>
   );

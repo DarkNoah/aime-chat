@@ -16,6 +16,7 @@ import {
 } from '@/renderer/components/ui/dialog';
 import { cn } from '@/renderer/lib/utils';
 import type { ComponentProps } from 'react';
+import React from 'react';
 
 export type ModelSelectorProps = ComponentProps<typeof Dialog>;
 
@@ -101,79 +102,92 @@ export type ModelSelectorLogoProps = Omit<
   'src' | 'alt'
 > & {
   provider:
-    | 'moonshotai-cn'
-    | 'lucidquery'
-    | 'moonshotai'
-    | 'zai-coding-plan'
-    | 'alibaba'
-    | 'xai'
-    | 'vultr'
-    | 'nvidia'
-    | 'upstage'
-    | 'groq'
-    | 'github-copilot'
-    | 'mistral'
-    | 'vercel'
-    | 'nebius'
-    | 'deepseek'
-    | 'alibaba-cn'
-    | 'google-vertex-anthropic'
-    | 'venice'
-    | 'chutes'
-    | 'cortecs'
-    | 'github-models'
-    | 'togetherai'
-    | 'azure'
-    | 'baseten'
-    | 'huggingface'
-    | 'opencode'
-    | 'fastrouter'
-    | 'google'
-    | 'google-vertex'
-    | 'cloudflare-workers-ai'
-    | 'inception'
-    | 'wandb'
-    | 'openai'
-    | 'zhipuai-coding-plan'
-    | 'perplexity'
-    | 'openrouter'
-    | 'zenmux'
-    | 'v0'
-    | 'iflowcn'
-    | 'synthetic'
-    | 'deepinfra'
-    | 'zhipuai'
-    | 'submodel'
-    | 'zai'
-    | 'inference'
-    | 'requesty'
-    | 'morph'
-    | 'lmstudio'
-    | 'anthropic'
-    | 'aihubmix'
-    | 'fireworks-ai'
-    | 'modelscope'
-    | 'llama'
-    | 'scaleway'
-    | 'amazon-bedrock'
-    | 'cerebras'
-    | (string & {});
+  | 'moonshotai-cn'
+  | 'lucidquery'
+  | 'moonshotai'
+  | 'zai-coding-plan'
+  | 'alibaba'
+  | 'xai'
+  | 'vultr'
+  | 'nvidia'
+  | 'upstage'
+  | 'groq'
+  | 'github-copilot'
+  | 'mistral'
+  | 'vercel'
+  | 'nebius'
+  | 'deepseek'
+  | 'alibaba-cn'
+  | 'google-vertex-anthropic'
+  | 'venice'
+  | 'chutes'
+  | 'cortecs'
+  | 'github-models'
+  | 'togetherai'
+  | 'azure'
+  | 'baseten'
+  | 'huggingface'
+  | 'opencode'
+  | 'fastrouter'
+  | 'google'
+  | 'google-vertex'
+  | 'cloudflare-workers-ai'
+  | 'inception'
+  | 'wandb'
+  | 'openai'
+  | 'zhipuai-coding-plan'
+  | 'perplexity'
+  | 'openrouter'
+  | 'zenmux'
+  | 'v0'
+  | 'iflowcn'
+  | 'synthetic'
+  | 'deepinfra'
+  | 'zhipuai'
+  | 'submodel'
+  | 'zai'
+  | 'inference'
+  | 'requesty'
+  | 'morph'
+  | 'lmstudio'
+  | 'anthropic'
+  | 'aihubmix'
+  | 'fireworks-ai'
+  | 'modelscope'
+  | 'llama'
+  | 'scaleway'
+  | 'amazon-bedrock'
+  | 'cerebras'
+  | (string & {});
 };
 
 export const ModelSelectorLogo = ({
   provider,
   className,
   ...props
-}: ModelSelectorLogoProps) => (
-  <img
-    {...props}
-    alt={`${provider} logo`}
-    className={cn('size-3', className)}
-    height={12}
-    src={`https://models.dev/logos/${provider}.svg`}
-    width={12}
-  />
-);
+}: ModelSelectorLogoProps) => {
+  const [loadFailed, setLoadFailed] = React.useState(false);
+
+  React.useEffect(() => {
+    setLoadFailed(false);
+  }, [provider]);
+
+  if (loadFailed) {
+    return null;
+  }
+
+  return (
+    <img
+      {...props}
+      alt={`${provider} logo`}
+      className={cn(`size-3 dark:invert`, className)}
+      height={12}
+      src={`https://models.dev/logos/${provider}.svg`}
+      width={12}
+      onError={() => setLoadFailed(true)}
+    />
+  );
+};
 
 export type ModelSelectorLogoGroupProps = ComponentProps<'div'>;
 
