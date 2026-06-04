@@ -1,6 +1,6 @@
 ---
 name: aime-chat-docs
-description: Aime Chat usage and configuration docs. Use when the user asks how Aime Chat features are configured, especially assistant personalities, SOUL.md files, local voices, available model discovery, available Agent discovery, and available tool discovery.
+description: Aime Chat usage and configuration docs. Use when the user asks how Aime Chat features are configured, especially assistant personalities, SOUL.md files, local voices, available model discovery, available Agent discovery, available tool discovery, and PTC (Programmatic Tool Calling) in CodeExecution.
 ---
 
 # Aime Chat Docs
@@ -15,3 +15,4 @@ Use this skill when answering questions about Aime Chat configuration and featur
 - **Available models**: Read [references/get-available-models.md](references/get-available-models.md) when explaining how to list configured provider models through the local API server.
 - **Available Agents**: Read [references/get-available-agents.md](references/get-available-agents.md) when explaining how to list enabled Agents through the local API server.
 - **Available tools**: Read [references/get-available-tools.md](references/get-available-tools.md) when explaining how to list enabled tools through the local API server.
+- **PTC (Programmatic Tool Calling)**: Read [references/use-ptc.md](references/use-ptc.md) when explaining how to use the CodeExecution PTC mode to call tools programmatically in code, batch tool calls in a loop, call ChatCompletion inside code, or report progress via the Message tool.

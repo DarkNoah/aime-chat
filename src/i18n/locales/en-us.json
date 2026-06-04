@@ -563,7 +563,10 @@
     "action_pause": "Pause",
     "action_resume": "Resume",
     "action_cancel": "Cancel",
-    "action_remove": "Remove"
+    "action_remove": "Remove",
+    "progress_group": "Progress",
+    "progress_running": "In progress",
+    "progress_completed": "Completed"
   },
   "bash_status": {
     "title": "Background Bash",

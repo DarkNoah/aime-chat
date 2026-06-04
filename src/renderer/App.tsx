@@ -65,6 +65,7 @@ import SetupPage from './pages/Setup';
 import { TaskBadge, TaskManagerPanel } from './components/task-manager';
 import { BashOutputPanel, BashStatusBar } from './components/bash-status';
 import { initTaskQueueIpcListeners } from './store/use-task-queue-store';
+import { initProgressIpcListeners } from './store/use-progress-store';
 import { initBashSessionIpcListeners } from './store/use-bash-session-store';
 import MarketPage from './pages/market';
 import CronsPage from './pages/crons';
@@ -156,6 +157,7 @@ function MainLayout(props: { children: ReactNode }) {
 
   useEffect(() => {
     initTaskQueueIpcListeners();
+    initProgressIpcListeners();
     initBashSessionIpcListeners();
   }, []);
 

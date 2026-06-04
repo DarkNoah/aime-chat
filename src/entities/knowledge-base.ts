@@ -135,4 +135,7 @@ export class KnowledgeBaseItem {
 
   @Column({ nullable: true })
   content?: string;
+
+  @Column('json', { nullable: true })
+  extendData?: any;
 }

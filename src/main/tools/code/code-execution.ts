@@ -202,35 +202,44 @@ reply = await ChatCompletion(instructions="You are a translator, translate to En
 </ChatCompletion>
 
 <example>
-available tools: [Bash, RemoveBackground, ...]
+available tools: [Bash, RemoveBackground, Message, ...]
 user: "Please remove the background from the image, find all .jpg in /path/to/images", and save in /path/to/images_removed_bg
 assistant:
 import asyncio
 import glob
 import os
+import json
 async def main():
     images = glob.glob('/path/to/images/**/*.jpg', recursive=True)
-    for image_path in images:
-        result_text = await RemoveBackground(url_or_file_path = image_path, save_path = "/path/to/images_removed_bg/" + os.path.basename(image_path).replace('.jpg', '_removed.jpg')))
+    total = len(images)
+    # Report progress so the user can track this long-running loop in the task manager.
+    await Message(event="progress", data=json.dumps({"id": "remove-bg", "type": "start", "title": "Removing background", "message": f"{total} images", "percent": 0}))
+    for index, image_path in enumerate(images):
+        result_text = await RemoveBackground(url_or_file_path = image_path, save_path = "/path/to/images_removed_bg/" + os.path.basename(image_path).replace('.jpg', '_removed.jpg'))
         result = json.loads(result_text)
+        # Reuse the same "id" so each update replaces the previous progress state.
+        await Message(event="progress", data=json.dumps({"id": "remove-bg", "type": "update", "message": os.path.basename(image_path), "percent": round((index + 1) / total * 100)}))
+    await Message(event="progress", data=json.dumps({"id": "remove-bg", "type": "end", "message": "All images processed", "percent": 100}))
     print('done')
 asyncio.run(main())
 </example>
 
 <example>
-available tools: []
+available tools: [Message]
 user: "Read /path/to/data.xlsx, for each non-empty cell in column A, send it to ChatCompletion and write the reply into column B of the same row."
 assistant:
 import asyncio
+import json
 import openpyxl
 async def main():
     file_path = '/path/to/data.xlsx'
     wb = openpyxl.load_workbook(file_path)
     ws = wb.active
-    # Iterate over column A (column index 1), skip empty cells.
-    for cell in ws['A']:
-        if cell.value is None or str(cell.value).strip() == '':
-            continue
+    # Collect non-empty cells in column A first so we can compute progress percent.
+    cells = [cell for cell in ws['A'] if cell.value is not None and str(cell.value).strip() != '']
+    total = len(cells)
+    await Message(event="progress", data=json.dumps({"id": "fill-column-b", "type": "start", "title": "Filling column B", "message": f"{total} rows", "percent": 0}))
+    for index, cell in enumerate(cells):
         try:
             reply = await ChatCompletion(
                 instructions="You are a helpful assistant.",
@@ -240,7 +249,10 @@ async def main():
             reply = "ERROR: " + str(e)
         # Write the reply into the adjacent column B of the same row.
         ws.cell(row=cell.row, column=cell.column + 1, value=reply)
+        # Reuse the same "id" so progress updates in place instead of stacking.
+        await Message(event="progress", data=json.dumps({"id": "fill-column-b", "type": "update", "message": f"Row {cell.row}", "percent": round((index + 1) / total * 100)}))
     wb.save(file_path)
+    await Message(event="progress", data=json.dumps({"id": "fill-column-b", "type": "end", "message": "Saved " + file_path, "percent": 100}))
     print('done, processed file: ' + file_path)
 asyncio.run(main())
 </example>
