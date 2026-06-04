@@ -56,3 +56,29 @@ export type SearchInDirectoryResult = {
   total: number;
   truncated: boolean;
 };
+
+export enum ProgressEvent {
+  ProgressUpdated = 'progress:updated',
+}
+
+export type ProgressEventType = 'start' | 'update' | 'end';
+
+export type ProgressEventData = {
+  id: string;
+  type: ProgressEventType;
+  title?: string;
+  message?: string;
+  percent?: number;
+};
+
+export type ProgressItemStatus = 'running' | 'completed';
+
+export type ProgressItem = {
+  id: string;
+  title?: string;
+  message?: string;
+  percent?: number;
+  status: ProgressItemStatus;
+  createdAt: number;
+  updatedAt: number;
+};

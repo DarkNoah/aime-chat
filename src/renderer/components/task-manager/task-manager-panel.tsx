@@ -14,11 +14,13 @@ import {
   TabsTrigger,
   TabsContent,
 } from '@/renderer/components/ui/tabs';
-import { ScrollArea } from '@/renderer/components/ui/scroll-area';
 import { useTaskQueueStore } from '@/renderer/store/use-task-queue-store';
+import { useProgressStore } from '@/renderer/store/use-progress-store';
 import { TaskItem } from './task-item';
+import { ProgressItem } from './progress-item';
 import { Trash2Icon, InboxIcon } from 'lucide-react';
 import { BackgroundTask } from '@/types/task-queue';
+import { ProgressItem as ProgressItemType } from '@/types/common';
 
 type FilterTab = 'all' | 'active' | 'done';
 
@@ -26,7 +28,28 @@ export function TaskManagerPanel() {
   const { t } = useTranslation();
   const { tasks, isPanelOpen, setIsPanelOpen, clearCompleted } =
     useTaskQueueStore();
+  const { items: progressItems, clearCompleted: clearCompletedProgress } =
+    useProgressStore();
   const [activeTab, setActiveTab] = useState<FilterTab>('all');
+
+  const filteredProgress = useMemo(() => {
+    const sorted = [...progressItems].sort((a, b) => b.updatedAt - a.updatedAt);
+    switch (activeTab) {
+      case 'active':
+        return sorted.filter((p) => p.status === 'running');
+      case 'done':
+        return sorted.filter((p) => p.status === 'completed');
+      default:
+        return sorted;
+    }
+  }, [progressItems, activeTab]);
+
+  const activeProgressCount = progressItems.filter(
+    (p) => p.status === 'running',
+  ).length;
+  const doneProgressCount = progressItems.filter(
+    (p) => p.status === 'completed',
+  ).length;
 
   // 按 groupId 分组
   const groupedTasks = useMemo(() => {
@@ -34,18 +57,18 @@ export function TaskManagerPanel() {
     switch (activeTab) {
       case 'active':
         filtered = tasks.filter(
-          (t) =>
-            t.status === 'running' ||
-            t.status === 'paused' ||
-            t.status === 'pending',
+          (task) =>
+            task.status === 'running' ||
+            task.status === 'paused' ||
+            task.status === 'pending',
         );
         break;
       case 'done':
         filtered = tasks.filter(
-          (t) =>
-            t.status === 'completed' ||
-            t.status === 'failed' ||
-            t.status === 'cancelled',
+          (task) =>
+            task.status === 'completed' ||
+            task.status === 'failed' ||
+            task.status === 'cancelled',
         );
         break;
       default:
@@ -69,12 +92,36 @@ export function TaskManagerPanel() {
   }, [tasks, activeTab]);
 
   const groupIds = Object.keys(groupedTasks);
-  const hasCompletedTasks = tasks.some(
-    (t) =>
-      t.status === 'completed' ||
-      t.status === 'failed' ||
-      t.status === 'cancelled',
-  );
+  const hasCompletedTasks =
+    tasks.some(
+      (task) =>
+        task.status === 'completed' ||
+        task.status === 'failed' ||
+        task.status === 'cancelled',
+    ) || doneProgressCount > 0;
+
+  const handleClearCompleted = () => {
+    clearCompleted();
+    clearCompletedProgress();
+  };
+
+  const totalCount = tasks.length + progressItems.length;
+  const activeCount =
+    tasks.filter(
+      (task) =>
+        task.status === 'running' ||
+        task.status === 'paused' ||
+        task.status === 'pending',
+    ).length + activeProgressCount;
+  const doneCount =
+    tasks.filter(
+      (task) =>
+        task.status === 'completed' ||
+        task.status === 'failed' ||
+        task.status === 'cancelled',
+    ).length + doneProgressCount;
+
+  const isEmpty = groupIds.length === 0 && filteredProgress.length === 0;
 
   return (
     <Sheet open={isPanelOpen} onOpenChange={setIsPanelOpen}>
@@ -90,7 +137,7 @@ export function TaskManagerPanel() {
                 variant="ghost"
                 size="sm"
                 className="gap-1 text-xs"
-                onClick={() => clearCompleted()}
+                onClick={handleClearCompleted}
               >
                 <Trash2Icon className="size-3" />
                 {t('task_manager.clear_completed')}
@@ -107,43 +154,42 @@ export function TaskManagerPanel() {
         >
           <TabsList className="w-full">
             <TabsTrigger value="all" className="flex-1">
-              {t('task_manager.tab_all')} ({tasks.length})
+              {t('task_manager.tab_all')} ({totalCount})
             </TabsTrigger>
             <TabsTrigger value="active" className="flex-1">
-              {t('task_manager.tab_active')} (
-              {
-                tasks.filter(
-                  (task) =>
-                    task.status === 'running' ||
-                    task.status === 'paused' ||
-                    task.status === 'pending',
-                ).length
-              }
-              )
+              {t('task_manager.tab_active')} ({activeCount})
             </TabsTrigger>
             <TabsTrigger value="done" className="flex-1">
-              {t('task_manager.tab_done')} (
-              {
-                tasks.filter(
-                  (task) =>
-                    task.status === 'completed' ||
-                    task.status === 'failed' ||
-                    task.status === 'cancelled',
-                ).length
-              }
-              )
+              {t('task_manager.tab_done')} ({doneCount})
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value={activeTab} className="flex-1 min-h-0 mt-0">
             <div className="h-full overflow-y-auto">
-              {groupIds.length === 0 ? (
+              {isEmpty ? (
                 <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
                   <InboxIcon className="size-10 mb-2 opacity-40" />
                   <p className="text-sm">{t('task_manager.empty')}</p>
                 </div>
               ) : (
                 <div className="space-y-4 pr-4 pb-4">
+                  {filteredProgress.length > 0 && (
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                          {t('task_manager.progress_group')}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          ({filteredProgress.length})
+                        </span>
+                      </div>
+                      <div className="space-y-2">
+                        {filteredProgress.map((item: ProgressItemType) => (
+                          <ProgressItem key={item.id} item={item} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   {groupIds.map((groupId) => (
                     <div key={groupId}>
                       <div className="flex items-center gap-2 mb-2">

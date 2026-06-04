@@ -763,6 +763,9 @@ export class KnowledgeBaseManager extends BaseManager {
       if (source.role) {
         item.metadata = { ...(item.metadata ?? {}), role: source.role };
       }
+      if (extendColumns && extendColumns.length > 0) {
+        item.extendData = Object.fromEntries(extendColumns.map(x => [x.column, x.value]));
+      }
 
 
       ctx.updateProgress(50, '保存数据...');
@@ -835,6 +838,9 @@ export class KnowledgeBaseManager extends BaseManager {
       });
       item.name = content.substring(0, 10);
       item.content = content;
+      if (extendColumns && extendColumns.length > 0) {
+        item.extendData = Object.fromEntries(extendColumns.map(x => [x.column, x.value]));
+      }
       item = await this.knowledgeBaseItemRepository.save(item);
       await appManager.sendEvent(KnowledgeBaseEvent.KnowledgeBaseItemsUpdated, {
         kbId: kbId,
@@ -905,6 +911,9 @@ export class KnowledgeBaseManager extends BaseManager {
         item.source = file;
         item.isEnable = false;
         item.state = KnowledgeBaseItemState.Pending;
+        if (extendColumns && extendColumns.length > 0) {
+          item.extendData = Object.fromEntries(extendColumns.map(x => [x.column, x.value]));
+        }
         items.push(await this.knowledgeBaseItemRepository.save(item));
       }
       await appManager.sendEvent(KnowledgeBaseEvent.KnowledgeBaseItemsUpdated, {

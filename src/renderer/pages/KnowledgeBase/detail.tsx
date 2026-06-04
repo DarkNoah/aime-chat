@@ -97,6 +97,13 @@ import {
 } from '@/renderer/components/ui/select';
 import toast from 'react-hot-toast';
 import { PhotoProvider, PhotoView } from 'react-photo-view';
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+} from '@/renderer/components/ui/card';
 
 const PAGE_SIZE = 10;
 
@@ -822,11 +829,10 @@ function KnowledgeBaseDetail() {
               }}
             />
             <div
-              className={`rounded-md border border-dashed p-6 text-center cursor-pointer transition-colors ${
-                draggingFiles
-                  ? 'border-primary bg-primary/5'
-                  : 'border-muted-foreground/40 hover:border-primary/60'
-              }`}
+              className={`rounded-md border border-dashed p-6 text-center cursor-pointer transition-colors ${draggingFiles
+                ? 'border-primary bg-primary/5'
+                : 'border-muted-foreground/40 hover:border-primary/60'
+                }`}
               onClick={() => fileInputRef.current?.click()}
               onDragEnter={(event) => {
                 event.preventDefault();
@@ -1078,17 +1084,17 @@ function KnowledgeBaseDetail() {
                     kb?.static &&
                     (item.name === 'index.md' || item.name === 'log.md')
                   ) && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => {
-                        setPendingDeleteItem(item);
-                      }}
-                    >
-                      <IconTrash></IconTrash>
-                    </Button>
-                  )}
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => {
+                          setPendingDeleteItem(item);
+                        }}
+                      >
+                        <IconTrash></IconTrash>
+                      </Button>
+                    )}
                 </ItemActions>
               </Item>
             ))
@@ -1355,9 +1361,27 @@ function KnowledgeBaseDetail() {
                     {selectedItem?.source}
                   </Button>
                 )}
+              {selectedItem?.extendData && (
+                <div className="flex flex-col gap-2">
+                  <div className="text-sm font-medium">{`${t('common.extend_data', 'Extend Data')}:`}</div>
+                  {Object.keys(selectedItem?.extendData || {}).map((key) => (
+                    <Card className="py-3">
+                      <CardHeader className="px-3">
+                        <CardTitle>{key}</CardTitle>
+                        <CardDescription className="text-xs text-muted-foreground">
+                          {selectedItem?.extendData?.[key]}
+                        </CardDescription>
+                      </CardHeader>
+                    </Card>
+                  ))}
+                </div>
+              )}
             </SheetDescription>
           </SheetHeader>
           <div className="space-y-2 px-4 pb-4 overflow-y-auto ">
+            <div className="text-sm font-medium text-muted-foreground">
+              {`${t('common.title', 'Title')}:`}
+            </div>
             {editingItem ? (
               <Input
                 value={editName}
@@ -1370,7 +1394,9 @@ function KnowledgeBaseDetail() {
                 {selectedItem?.name || selectedItem?.source || '-'}
               </div>
             )}
-
+            <div className="text-sm font-medium text-muted-foreground">
+              {`${t('common.content', 'Content')}:`}
+            </div>
             {selectedItem?.metadata?.embeddingType === 'image' && (
               <PhotoProvider>
                 <PhotoView

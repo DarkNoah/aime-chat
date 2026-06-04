@@ -206,7 +206,10 @@
     "slash_commands": "快捷命令",
     "results": "结果",
     "select_model": "选择一个模型",
-    "unselected_project": "未选择项目"
+    "unselected_project": "未选择项目",
+    "title": "标题",
+    "content": "内容",
+    "extend_data": "扩展字段"
   },
   "sidebar": {
     "new_chat": "新聊天",
@@ -612,7 +615,10 @@
     "action_pause": "暂停",
     "action_resume": "继续",
     "action_cancel": "取消",
-    "action_remove": "移除"
+    "action_remove": "移除",
+    "progress_group": "进度",
+    "progress_running": "进行中",
+    "progress_completed": "已完成"
   },
   "bash_status": {
     "title": "后台 Bash",

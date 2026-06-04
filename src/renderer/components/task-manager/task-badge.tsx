@@ -4,16 +4,23 @@ import { Button } from '@/renderer/components/ui/button';
 import { cn } from '@/renderer/lib/utils';
 import { ListTodoIcon, Loader2Icon } from 'lucide-react';
 import { useTaskQueueStore } from '@/renderer/store/use-task-queue-store';
+import { useProgressStore } from '@/renderer/store/use-progress-store';
 
 export function TaskBadge() {
   const { t } = useTranslation();
   const { tasks, togglePanel } = useTaskQueueStore();
+  const { items: progressItems } = useProgressStore();
 
-  const activeCount = tasks.filter(
-    (task) => task.status === 'running' || task.status === 'pending',
+  const runningProgress = progressItems.filter(
+    (item) => item.status === 'running',
   ).length;
-  const hasRunning = tasks.some((task) => task.status === 'running');
-  const hasTasks = tasks.length > 0;
+  const activeCount =
+    tasks.filter(
+      (task) => task.status === 'running' || task.status === 'pending',
+    ).length + runningProgress;
+  const hasRunning =
+    tasks.some((task) => task.status === 'running') || runningProgress > 0;
+  const hasTasks = tasks.length > 0 || progressItems.length > 0;
 
   // 没有任何任务时不显示
   if (!hasTasks) return null;
