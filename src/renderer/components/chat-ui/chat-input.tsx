@@ -277,7 +277,7 @@ function ChatInputInner(props: ChatInputInnerProps) {
     <>
       <ChatSlashCommand
         input=""
-        onComplete={() => {}}
+        onComplete={() => { }}
         commands={ChatSlashCommandConfig}
       >
         <PromptInput
@@ -447,27 +447,12 @@ function ChatInputInner(props: ChatInputInnerProps) {
               )}
 
               <Separator orientation="vertical" />
-              {submitState.showSecondaryStop && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <PromptInputButton
-                      size="icon-xs"
-                      type="button"
-                      variant="ghost"
-                      onClick={onAbort}
-                    >
-                      <SquareIcon size={16} />
-                    </PromptInputButton>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Stop current response</p>
-                  </TooltipContent>
-                </Tooltip>
-              )}
               {onClearMessages && (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <PromptInputButton>
+                    <PromptInputButton
+                      disabled={submitState.status === 'streaming'}
+                    >
                       <IconTrash size={16} />
                     </PromptInputButton>
                   </AlertDialogTrigger>
