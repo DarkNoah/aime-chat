@@ -1124,6 +1124,14 @@ class MastraManager extends BaseManager {
           const objective = _inputMessage.parts[0]?.text?.replace('/goal ', '')?.trim();
           if (objective) {
             requestContext.set('goal', { enable: true, objective: objective, status: 'pending' } as GoalConfig);
+            currentThread = await memoryStore.updateThread({
+              id: chatId,
+              title: currentThread.title,
+              metadata: {
+                ...(currentThread.metadata || {}),
+                goal: { enable: true, objective: objective, status: 'pending' } as GoalConfig,
+              },
+            });
           }
         }
 
