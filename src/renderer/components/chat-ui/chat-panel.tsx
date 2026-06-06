@@ -910,7 +910,8 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
           chatInputRef.current?.setGoal(
             (_thread?.metadata?.goal as GoalConfig) ?? {
               enable: false,
-              prompt: '',
+              objective: '',
+              status: null,
             },
           );
         };

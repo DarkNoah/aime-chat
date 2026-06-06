@@ -43,12 +43,40 @@ paths = glob.glob('**/*.py', recursive=True)
 
 输入参数：
 
-- `messages`（必填）：可以是一个字符串（当作单条 user 消息），也可以是消息对象列表，例如 `[{"role": "user" | "assistant", "content": "..."}]`。
+- `messages`（必填）：可以是一个字符串（当作单条 user 消息），也可以是消息对象列表，例如 `[{"role": "user" | "assistant", "content": "..."}]`。`content` 既可以是字符串，也可以是多模态分片列表（见下文图片输入）。
 - `instructions`（可选）：定义助手行为/角色的 system 提示词，默认 `"You are a helpful assistant."`。
+- `images`（可选）：图片来源列表，会作为图片附加到（最后一条）user 消息上。每一项可以是**本地文件路径**、**http(s) 链接**、**base64 字符串**或 **data URL**。需要模型支持图片输入（多模态）。
 
 ```py
 reply = await ChatCompletion(instructions="You are a translator, translate to English.", messages="你好")
 ```
+
+### 图片输入
+
+需要让模型「看」图片时，有两种写法。
+
+1）用 `images` 参数（最简单），图片会附加到对应的文字消息上：
+
+```py
+reply = await ChatCompletion(
+    messages="这张图片里有什么？",
+    images=["/path/to/photo.jpg"],
+)
+```
+
+2）在 `content` 里用多模态分片，精确控制文字和图片的顺序：
+
+```py
+reply = await ChatCompletion(messages=[
+    {"role": "user", "content": [
+        {"type": "text", "text": "对比这两张图片的差异"},
+        {"type": "image", "image": "/path/to/a.png"},
+        {"type": "image", "image": "https://example.com/b.png"},
+    ]},
+])
+```
+
+图片 `image` 字段支持本地文件路径、http(s) 链接、base64 字符串或 data URL。本地路径会自动读取并按文件类型推断 MIME。注意：图片输入要求当前模型本身支持图片（多模态），否则会报错。
 
 ## 进度上报
 

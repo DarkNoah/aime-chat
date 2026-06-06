@@ -21,13 +21,13 @@ const getSitecustomizePy = async (allRequestContext: Record<string, any> = {}) =
   const mcpServerUrl = `http://localhost:${appInfo.apiServer.port}/mcp`;
   const workspace = allRequestContext['workspace'] as string;
   const model = allRequestContext['model'] as string;
-  let meta = {}
-  if (workspace) {
-    meta['workspace'] = workspace
-  }
-  if (model) {
-    meta['model'] = model
-  }
+  let meta = allRequestContext ?? {};
+  // if (workspace) {
+  //   meta['workspace'] = workspace
+  // }
+  // if (model) {
+  //   meta['model'] = model
+  // }
 
 
 
@@ -191,6 +191,7 @@ ChatCompletion is a special built-in tool that calls the Chat (LLM) interface di
 Use it when you need the model to reason over / transform / summarize data inside your code loop (e.g. per row, per cell, per file).
 - It is async, call it with \`await ChatCompletion(...)\`.
 - It returns the assistant reply as plain text.
+- More details, please check skill:local:aime-chat-docs to view the documentation.
 Input parameters:
 - messages (required): either a plain string (treated as a single user message), or a list of message objects like [{"role": "user" | "assistant", "content": "..."}].
 - instructions (optional): a system prompt string that defines the assistant's behavior/role. Defaults to "You are a helpful assistant.".

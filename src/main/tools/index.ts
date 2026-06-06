@@ -46,6 +46,7 @@ import { Translation } from './work/translation';
 import { AudioToolkit } from './audio';
 import { runCommand } from '../utils/shell';
 import os from 'os';
+import mime from 'mime';
 import matter from 'gray-matter';
 import { LibSQLToolkit } from './database/libsql';
 import { Message } from './common/message';
@@ -410,12 +411,37 @@ class ToolsManager extends BaseManager {
     }
 
     // 注册Chat接口
+    const textPartSchema = z.object({
+      type: z.literal('text'),
+      text: z.string(),
+    });
+    const imagePartSchema = z.object({
+      type: z.literal('image'),
+      image: z
+        .string()
+        .describe(
+          'Image source: a local file path, http(s) URL, base64 string, or data URL.',
+        ),
+      mimeType: z.string().optional(),
+    });
+    const contentPartSchema = z.union([textPartSchema, imagePartSchema]);
     const chatCompletionInputSchema = z.object({
       instructions: z.string().optional(),
-      messages: z.union([z.array(z.object({
-        role: z.enum(['user', 'assistant']),
-        content: z.string(),
-      })), z.string()]),
+      messages: z.union([
+        z.array(
+          z.object({
+            role: z.enum(['user', 'assistant']),
+            content: z.union([z.string(), z.array(contentPartSchema)]),
+          }),
+        ),
+        z.string(),
+      ]),
+      images: z
+        .array(z.string())
+        .optional()
+        .describe(
+          'Optional: image sources (local file path, http(s) URL, base64 string, or data URL) attached as a user message. Requires the model to support image input.',
+        ),
     });
     this.mcpServer.registerTool(
       'ChatCompletion',
@@ -435,7 +461,102 @@ class ToolsManager extends BaseManager {
             modelId as string
           );
 
-          const { instructions, messages } = args;
+          const { instructions, messages, images } = args;
+
+          // Detect an image MIME type from the magic bytes of a base64 payload.
+          const detectBase64MimeType = (base64: string): string | undefined => {
+            try {
+              const buffer = Buffer.from(base64, 'base64');
+              if (buffer.length < 4) return undefined;
+              if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff)
+                return 'image/jpeg';
+              if (
+                buffer[0] === 0x89 &&
+                buffer[1] === 0x50 &&
+                buffer[2] === 0x4e &&
+                buffer[3] === 0x47
+              )
+                return 'image/png';
+              if (buffer[0] === 0x47 && buffer[1] === 0x49 && buffer[2] === 0x46)
+                return 'image/gif';
+              if (
+                buffer[0] === 0x52 &&
+                buffer[1] === 0x49 &&
+                buffer[2] === 0x46 &&
+                buffer[3] === 0x46 &&
+                buffer.length >= 12 &&
+                buffer.toString('ascii', 8, 12) === 'WEBP'
+              )
+                return 'image/webp';
+              if (buffer[0] === 0x42 && buffer[1] === 0x4d) return 'image/bmp';
+              return undefined;
+            } catch {
+              return undefined;
+            }
+          };
+
+          const resolveImagePart = (src: string, mimeType?: string) => {
+            if (isUrl(src)) {
+              return { type: 'image' as const, image: new URL(src) };
+            }
+            if (src.startsWith('data:')) {
+              return { type: 'image' as const, image: src };
+            }
+            if (fs.existsSync(src) && fs.statSync(src).isFile()) {
+              return {
+                type: 'image' as const,
+                image: fs.readFileSync(src).toString('base64'),
+                mimeType: mimeType || mime.lookup(src) || 'image/png',
+              };
+            }
+            // Assume the string is a raw base64 payload. Normalize it into a
+            // data URL so models that require an explicit MIME type still work.
+            const base64 = src.replace(/\s+/g, '');
+            const detectedMimeType =
+              mimeType || detectBase64MimeType(base64) || 'image/png';
+            return {
+              type: 'image' as const,
+              image: `data:${detectedMimeType};base64,${base64}`,
+              mimeType: detectedMimeType,
+            };
+          };
+
+          const normalizeContent = (
+            content: string | Array<z.infer<typeof contentPartSchema>>,
+          ) => {
+            if (typeof content === 'string') return content;
+            return content.map(part =>
+              part.type === 'image'
+                ? resolveImagePart(part.image, part.mimeType)
+                : { type: 'text' as const, text: part.text },
+            );
+          };
+
+          let normalizedMessages: any =
+            typeof messages === 'string'
+              ? [{ role: 'user', content: messages }]
+              : messages.map(message => ({
+                  role: message.role,
+                  content: normalizeContent(message.content),
+                }));
+
+          if (images && images.length > 0) {
+            const imageParts = images.map(src => resolveImagePart(src));
+            const lastUserMessage = [...normalizedMessages]
+              .reverse()
+              .find((m: any) => m.role === 'user');
+            if (lastUserMessage) {
+              const existing = lastUserMessage.content;
+              lastUserMessage.content = [
+                ...(typeof existing === 'string'
+                  ? [{ type: 'text' as const, text: existing }]
+                  : existing),
+                ...imageParts,
+              ];
+            } else {
+              normalizedMessages.push({ role: 'user', content: imageParts });
+            }
+          }
 
           const agent = new MastraAgent({
             id: 'agent',
@@ -443,7 +564,7 @@ class ToolsManager extends BaseManager {
             instructions: instructions ?? `You are a helpful assistant.`,
             model,
           });
-          const response = await agent.generate(messages);
+          const response = await agent.generate(normalizedMessages);
 
           if (response.error) {
             throw new Error(response.error);
