@@ -59,6 +59,7 @@ export type SearchInDirectoryResult = {
 
 export enum ProgressEvent {
   ProgressUpdated = 'progress:updated',
+  ProgressThreadEnded = 'progress:thread-ended',
 }
 
 export type ProgressEventType = 'start' | 'update' | 'end';
@@ -69,6 +70,12 @@ export type ProgressEventData = {
   title?: string;
   message?: string;
   percent?: number;
+  threadId?: string;
+};
+
+// 当一次执行（如代码执行）结束、中断或失败时，用于结束该线程下所有仍在进行中的进度项。
+export type ProgressThreadEndedData = {
+  threadId?: string;
 };
 
 export type ProgressItemStatus = 'running' | 'completed';
@@ -81,4 +88,5 @@ export type ProgressItem = {
   status: ProgressItemStatus;
   createdAt: number;
   updatedAt: number;
+  threadId?: string;
 };

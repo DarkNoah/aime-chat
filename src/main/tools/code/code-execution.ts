@@ -15,19 +15,24 @@ import { ToolConfig, ToolTags } from '@/types/tool';
 import { getDataPath } from '@/main/utils';
 import mastraManager from '@/main/mastra';
 import { getRuntimePython } from '@/main/utils/runtimePython';
+import { ProgressEvent, ProgressThreadEndedData } from '@/types/common';
 
 const getSitecustomizePy = async (allRequestContext: Record<string, any> = {}) => {
   const appInfo = await appManager.getInfo();
   const mcpServerUrl = `http://localhost:${appInfo.apiServer.port}/mcp`;
   const workspace = allRequestContext['workspace'] as string;
   const model = allRequestContext['model'] as string;
-  let meta = allRequestContext ?? {};
-  // if (workspace) {
-  //   meta['workspace'] = workspace
-  // }
-  // if (model) {
-  //   meta['model'] = model
-  // }
+  const threadId = allRequestContext['threadId'] as string;
+  let meta = {};
+  if (workspace) {
+    meta['workspace'] = workspace
+  }
+  if (model) {
+    meta['model'] = model
+  }
+  if (threadId) {
+    meta['threadId'] = threadId
+  }
 
 
 
@@ -435,6 +440,13 @@ asyncio.run(main())
     } catch (error) {
       throw error;
     } finally {
+      // 执行结束（包括正常结束、中断或失败）时，结束该线程下仍在进行中的进度 UI。
+      const threadId = requestContext.get('threadId' as never) as
+        | string
+        | undefined;
+      await appManager.sendEvent(ProgressEvent.ProgressThreadEnded, {
+        threadId,
+      } satisfies ProgressThreadEndedData);
       await fs.promises.rm(tempDir, { recursive: true });
     }
   };
