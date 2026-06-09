@@ -76,8 +76,13 @@ class SecretsManager extends BaseManager {
   }
 
   public async getSecrets(isGlobal: boolean | undefined = true): Promise<Secrets[]> {
-    const secrets = await this.repository.find({ where: { global: isGlobal } });
-    return secrets;
+    try {
+      const secrets = await this.repository.find({ where: { global: isGlobal } });
+      return secrets;
+    } catch (err) {
+      return [];
+    }
+
   }
 }
 

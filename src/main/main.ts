@@ -78,10 +78,11 @@ async function init() {
     await updateManager.init();
     await instancesManager.init();
     await taskQueueManager.init();
+    await secretsManager.init();
     await marketManager.init();
     await acpManager.init();
     await channelManager.init();
-    await secretsManager.init();
+
     await cronsManager.init();
   } catch (err) {
     dialog.showErrorBox('Mastra Init Error', String(err));
