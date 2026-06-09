@@ -203,6 +203,13 @@ const ChatMessageItem = React.memo(
 
         const parsedAttachment = parseChatMessageAttachment(part.text);
         if (parsedAttachment) {
+          if (
+            parsedAttachment?.mimeType?.startsWith('image/') ||
+            parsedAttachment?.mimeType?.startsWith('audio/') ||
+            parsedAttachment?.mimeType?.startsWith('video/')
+          ) {
+            return null;
+          }
           return (
             <ChatMessageAttachments
               className={`mb-2 ${message.role === 'user' ? 'ml-auto' : 'ml-0'}`}
@@ -284,7 +291,7 @@ const ChatMessageItem = React.memo(
         if (_part.state === 'input-available') {
           const pendingToolApproval =
             metadata?.pendingToolApprovals?.[
-              _part.type.substring('tool-'.length)
+            _part.type.substring('tool-'.length)
             ];
           const suspendedTool =
             metadata?.suspendedTools?.[_part.type.substring('tool-'.length)];
@@ -473,11 +480,11 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
     const [runId, setRunId] = useState<string | undefined>();
     const [usage, setUsage] = useState<
       | {
-          usage: LanguageModelUsage;
-          model: string;
-          modelId?: string;
-          maxTokens: number;
-        }
+        usage: LanguageModelUsage;
+        model: string;
+        modelId?: string;
+        maxTokens: number;
+      }
       | undefined
     >();
     const [agent, setAgent] = useState<Agent | undefined>();
@@ -499,9 +506,9 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
       ) => {
         const inputMessage = message
           ? {
-              text: message.text || 'Sent with attachments',
-              files: message.files,
-            }
+            text: message.text || 'Sent with attachments',
+            files: message.files,
+          }
           : undefined;
         const body = {
           model: options?.model,
@@ -861,7 +868,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
 
           setModelId(
             (_thread?.metadata?.model as string) ??
-              appInfo?.defaultModel?.model,
+            appInfo?.defaultModel?.model,
           );
           setUsage(
             _thread?.metadata as {
@@ -903,7 +910,8 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
           chatInputRef.current?.setGoal(
             (_thread?.metadata?.goal as GoalConfig) ?? {
               enable: false,
-              prompt: '',
+              objective: '',
+              status: null,
             },
           );
         };
@@ -969,10 +977,10 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
             chatInputRef.current?.setSubAgents(_agent?.subAgents ?? []);
             return null;
           })
-          .catch((err) => {});
+          .catch((err) => { });
         chatInputRef.current?.setThink(true);
       }
-      return () => {};
+      return () => { };
     }, [threadId]);
 
     useEffect(() => {

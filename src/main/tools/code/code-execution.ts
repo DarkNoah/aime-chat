@@ -15,18 +15,23 @@ import { ToolConfig, ToolTags } from '@/types/tool';
 import { getDataPath } from '@/main/utils';
 import mastraManager from '@/main/mastra';
 import { getRuntimePython } from '@/main/utils/runtimePython';
+import { ProgressEvent, ProgressThreadEndedData } from '@/types/common';
 
 const getSitecustomizePy = async (allRequestContext: Record<string, any> = {}) => {
   const appInfo = await appManager.getInfo();
   const mcpServerUrl = `http://localhost:${appInfo.apiServer.port}/mcp`;
   const workspace = allRequestContext['workspace'] as string;
   const model = allRequestContext['model'] as string;
-  let meta = {}
+  const threadId = allRequestContext['threadId'] as string;
+  let meta = {};
   if (workspace) {
     meta['workspace'] = workspace
   }
   if (model) {
     meta['model'] = model
+  }
+  if (threadId) {
+    meta['threadId'] = threadId
   }
 
 
@@ -191,6 +196,7 @@ ChatCompletion is a special built-in tool that calls the Chat (LLM) interface di
 Use it when you need the model to reason over / transform / summarize data inside your code loop (e.g. per row, per cell, per file).
 - It is async, call it with \`await ChatCompletion(...)\`.
 - It returns the assistant reply as plain text.
+- More details, please check skill:local:aime-chat-docs to view the documentation.
 Input parameters:
 - messages (required): either a plain string (treated as a single user message), or a list of message objects like [{"role": "user" | "assistant", "content": "..."}].
 - instructions (optional): a system prompt string that defines the assistant's behavior/role. Defaults to "You are a helpful assistant.".
@@ -434,6 +440,13 @@ asyncio.run(main())
     } catch (error) {
       throw error;
     } finally {
+      // 执行结束（包括正常结束、中断或失败）时，结束该线程下仍在进行中的进度 UI。
+      const threadId = requestContext.get('threadId' as never) as
+        | string
+        | undefined;
+      await appManager.sendEvent(ProgressEvent.ProgressThreadEnded, {
+        threadId,
+      } satisfies ProgressThreadEndedData);
       await fs.promises.rm(tempDir, { recursive: true });
     }
   };

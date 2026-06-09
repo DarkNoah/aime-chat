@@ -158,12 +158,7 @@ function getPerPageQuery(value: unknown, fallback: number): number | false {
   return getNumberQuery(value, fallback);
 }
 
-function getAgentTokenTools(
-  agent?: Agent,
-): Record<string, TokenCountTool> | undefined {
-  return (agent as unknown as { tools?: Record<string, TokenCountTool> })
-    ?.tools;
-}
+
 
 class MastraManager extends BaseManager {
   app: express.Application;
@@ -927,11 +922,15 @@ class MastraManager extends BaseManager {
 
         onStepFinish: async (event) => {
           //storage.saveMessages();
-          const { usage, response, text, reasoning } = event;
+          const { usage, request = { body: { messages: [] } }, response, text, reasoning } = event;
+
+
+          const message = request?.body?.messages ?? []
+          const systemMessage = await agent.getInstructions();
           const resolvedUsage = await resolveLanguageModelUsage({
             usage: usage as LanguageModelUsage,
-            messages: usageInputMessages,
-            tools: getAgentTokenTools(agent),
+            messages: message,
+            tools: await agent?.listTools(),
             outputText: text,
           });
 
@@ -1124,6 +1123,14 @@ class MastraManager extends BaseManager {
           const objective = _inputMessage.parts[0]?.text?.replace('/goal ', '')?.trim();
           if (objective) {
             requestContext.set('goal', { enable: true, objective: objective, status: 'pending' } as GoalConfig);
+            currentThread = await memoryStore.updateThread({
+              id: chatId,
+              title: currentThread.title,
+              metadata: {
+                ...(currentThread.metadata || {}),
+                goal: { enable: true, objective: objective, status: 'pending' } as GoalConfig,
+              },
+            });
           }
         }
 
@@ -1283,7 +1290,7 @@ class MastraManager extends BaseManager {
             `${providerType}:${modelId}`,
             {
               messages: usageInputMessages,
-              tools: getAgentTokenTools(agent),
+              tools: await agent?.listTools(),
               outputText: streamText,
             },
           );
@@ -1601,8 +1608,7 @@ Do not call update_goal unless the goal is complete or the strict blocked audit 
       }
 
       if (value.type == "tool-input-delta") {
-
-
+        continue;
       }
 
       if (value.type == "text-delta") {
@@ -1640,7 +1646,7 @@ Do not call update_goal unless the goal is complete or the strict blocked audit 
       }
 
 
-      // console.log('Stream chunk:', value);
+      console.log('Stream chunk:', value);
 
 
       appManager.sendEvent(`chat:event:${chatId}`, {

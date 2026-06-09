@@ -8,6 +8,7 @@ import { TextToSpeech } from '../audio';
 import { ToolType } from '@/types/tool';
 import player from 'play-sound';
 import { FileInfo, ProgressEvent, ProgressEventData } from '@/types/common';
+import mastraManager from '@/main/mastra';
 
 const fileTagRegex = /<file>([\s\S]*?)<\/file>/g;
 
@@ -62,6 +63,7 @@ Usage notes:
     options?: ToolExecutionContext,
   ) => {
     const { event, data } = inputData;
+    const { requestContext } = options
     const value = JSON.parse(data);
 
     if (event === 'canvas') {
@@ -82,6 +84,10 @@ Usage notes:
       const id = value.id.trim();
       const title = isString(value?.title) ? value.title.trim() : undefined;
       const message = isString(value?.message) ? value.message.trim() : undefined;
+      const threadId = requestContext.get('threadId' as never);
+      // const thread = await mastraManager.getThread(threadId);
+
+
       let percent: number | undefined;
       if (value?.percent !== undefined && value?.percent !== null && value?.percent !== '') {
         const parsed = Number(value.percent);
@@ -96,6 +102,7 @@ Usage notes:
         title,
         message,
         percent,
+        threadId,
       } satisfies ProgressEventData);
 
       const parts = [`Progress[${id}]: ${type}`];

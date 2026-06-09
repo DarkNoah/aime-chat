@@ -46,7 +46,6 @@ export const parseChatMessageAttachment = (
   if (!id || !name || !path || !size || !mimeType) {
     return null;
   }
-
   return { id, name, path, size, mimeType };
 };
 
