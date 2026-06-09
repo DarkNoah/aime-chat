@@ -3,6 +3,7 @@ import {
   ProgressEvent,
   ProgressEventData,
   ProgressItem,
+  ProgressThreadEndedData,
 } from '@/types/common';
 
 interface ProgressStoreState {
@@ -10,6 +11,9 @@ interface ProgressStoreState {
 
   // IPC event handler - called when main process pushes progress updates
   applyEvent(data: ProgressEventData): void;
+
+  // 结束某个线程下所有仍在进行中的进度项（执行结束/中断/失败时调用）
+  endThread(threadId?: string): void;
 
   // Actions
   removeItem(id: string): void;
@@ -35,6 +39,7 @@ function upsert(
       status: 'running',
       createdAt: existing?.createdAt ?? now,
       updatedAt: now,
+      threadId: data.threadId ?? existing?.threadId,
     };
     return existing
       ? items.map((item) => (item.id === data.id ? next : item))
@@ -51,6 +56,7 @@ function upsert(
       status: data.type === 'end' ? 'completed' : 'running',
       createdAt: now,
       updatedAt: now,
+      threadId: data.threadId,
     };
     return [...items, next];
   }
@@ -64,6 +70,7 @@ function upsert(
       (data.type === 'end' ? 100 : existing.percent),
     status: data.type === 'end' ? 'completed' : 'running',
     updatedAt: now,
+    threadId: data.threadId ?? existing.threadId,
   };
   return items.map((item) => (item.id === data.id ? next : item));
 }
@@ -74,6 +81,25 @@ export const useProgressStore = create<ProgressStoreState>((set, get) => ({
   applyEvent: (data: ProgressEventData) => {
     if (!data?.id || !data?.type) return;
     set((state) => ({ items: upsert(state.items, data) }));
+  },
+
+  endThread: (threadId?: string) => {
+    const now = Date.now();
+    set((state) => ({
+      items: state.items.map((item) => {
+        if (item.status !== 'running') return item;
+        // 没有 threadId 时结束所有仍在进行中的进度项；有则只结束匹配线程的。
+        if (threadId && item.threadId && item.threadId !== threadId) {
+          return item;
+        }
+        return {
+          ...item,
+          status: 'completed',
+          percent: item.percent ?? 100,
+          updatedAt: now,
+        };
+      }),
+    }));
   },
 
   removeItem: (id: string) => {
@@ -107,6 +133,14 @@ export function initProgressIpcListeners(): void {
     ProgressEvent.ProgressUpdated,
     (data: unknown) => {
       useProgressStore.getState().applyEvent(data as ProgressEventData);
+    },
+  );
+
+  window.electron.ipcRenderer.on(
+    ProgressEvent.ProgressThreadEnded,
+    (data: unknown) => {
+      const { threadId } = (data as ProgressThreadEndedData) ?? {};
+      useProgressStore.getState().endThread(threadId);
     },
   );
 }

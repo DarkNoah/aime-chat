@@ -323,6 +323,7 @@ class ToolsManager extends BaseManager {
                 const requestContext = new RequestContext<ChatRequestContext>();
                 requestContext.set('workspace', _meta?.['workspace'] as string);
                 requestContext.set('model', _meta?.['model'] as string);
+                requestContext.set('threadId', _meta?.['threadId'] as string);
                 const result = await buildedTool.execute?.(args, {
                   requestContext,
                 });
@@ -377,6 +378,7 @@ class ToolsManager extends BaseManager {
               const requestContext = new RequestContext<ChatRequestContext>();
               requestContext.set('workspace', _meta?.['workspace'] as string);
               requestContext.set('model', _meta?.['model'] as string);
+              requestContext.set('threadId', _meta?.['threadId'] as string);
 
               const result = await buildedTool.execute?.(args, {
                 requestContext,
@@ -457,6 +459,7 @@ class ToolsManager extends BaseManager {
           const appInfo = await appManager.getInfo();
           const modelId = _meta?.['model'] || appInfo.defaultModel.model;
           requestContext.set('model', _meta?.['model'] as string);
+          requestContext.set('threadId', _meta?.['threadId'] as string);
           const model = await providersManager.getLanguageModel(
             modelId as string
           );
@@ -536,9 +539,9 @@ class ToolsManager extends BaseManager {
             typeof messages === 'string'
               ? [{ role: 'user', content: messages }]
               : messages.map(message => ({
-                  role: message.role,
-                  content: normalizeContent(message.content),
-                }));
+                role: message.role,
+                content: normalizeContent(message.content),
+              }));
 
           if (images && images.length > 0) {
             const imageParts = images.map(src => resolveImagePart(src));
