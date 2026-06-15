@@ -116,10 +116,18 @@ export const ToolConfig = {
   CodeExecution: {
     configSchema: z.strictObject({
       ptcOpen: z.boolean().optional().default(true),
+      modelId: z.string().optional().describe(t('common.model')),
     }),
     uiSchema: {
       ptcOpen: {
         'ui:title': t('common.ptc_open'),
+      },
+      modelId: {
+        'ui:widget': 'modelSelector',
+        'ui:title': t('common.provider'),
+        'ui:options': {
+          clearable: true,
+        },
       },
     },
   },
