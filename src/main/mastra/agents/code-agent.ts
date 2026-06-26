@@ -1,8 +1,3 @@
-import {
-  //Agent,
-  AgentConfig,
-  AgentInstructions,
-} from '@mastra/core/agent';
 import { BaseAgent, BaseAgentParams } from './base-agent';
 import os from 'os';
 import { ToolType } from '@/types/tool';
@@ -44,6 +39,7 @@ import { GenerateImage } from '@/main/tools/image/generate-image';
 import { EditImage } from '@/main/tools/image/edit-image';
 import { MemoryRead, MemorySearch } from '@/main/tools/memory/memory';
 import { CreateGoal } from '@/main/tools/common/goal';
+import { KnowledgeBaseSearch, KnowledgeBaseList } from '@/main/tools/knowledge-base';
 
 export class CodeAgent extends BaseAgent {
   static readonly agentName = 'CodeAgent';
@@ -80,6 +76,8 @@ export class CodeAgent extends BaseAgent {
     // `${ToolType.BUILD_IN}:${LibSQLDescribeTable.toolName}`,
     // `${ToolType.BUILD_IN}:${LibSQLDatabaseInfo.toolName}`,
     // `${ToolType.BUILD_IN}:${LibSQLRun.toolName}`,
+    `${ToolType.BUILD_IN}:${KnowledgeBaseSearch.toolName}`,
+    `${ToolType.BUILD_IN}:${KnowledgeBaseList.toolName}`,
     `${ToolType.BUILD_IN}:${AgentBrowser.toolName}`,
     `${ToolType.BUILD_IN}:${GenerateImage.toolName}`,
     `${ToolType.BUILD_IN}:${EditImage.toolName}`,
