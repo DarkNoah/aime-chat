@@ -181,12 +181,24 @@ assistant: "I'm going to use the Task tool to launch the greeting-responder agen
     } = context;
     const toolCallId = agentContext.toolCallId;
     const rootAgentModel = requestContext.get('model' as never) as string;
+    const rootAgentId = requestContext.get('agentId' as never) as string;
+    let rootAgentTools = requestContext.get('tools' as never) as string[] ?? [];
+
+    rootAgentTools = [...new Set([...rootAgentTools])];
+
+    rootAgentTools = rootAgentTools.filter(x => x !== `${ToolType.BUILD_IN}:${this.id}`);
+
+
+
+
     const appInfo = await appManager.getInfo();
     if (subagent_type == 'general-purpose') {
-      subagent_type = appInfo.defaultAgent;
+
+      subagent_type = rootAgentId ?? appInfo.defaultAgent;
     }
     const agent = await agentManager.buildAgent(subagent_type, {
       modelId: rootAgentModel,
+      tools: rootAgentTools
     });
     // const model = await providersManager.getLanguageModel(model);
     const stream = await agent.stream(prompt, {
