@@ -1136,7 +1136,7 @@ export async function installQwenAudioRuntime() {
           `"${activateSourcePython}" -c "${qwenAudioHealthCheckScript(isWindows)}"`,
           {
             cwd: uvRuntime?.dir,
-            timeout: 1000 * 120,
+            // timeout: 1000 * 120,
           },
         );
 
