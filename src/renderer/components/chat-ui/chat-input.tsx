@@ -153,6 +153,7 @@ export type ChatInputProps = Omit<PromptInputProps, 'onSubmit'> & {
 export interface ChatInputRef {
   attachmentsClear: () => void;
   clearInput: () => void;
+  setInput: (input: string) => void;
   setModel: (model: string) => void;
   setTools: (toolNames: string[]) => void;
   setSubAgents: (subAgentIds: string[]) => void;
@@ -245,6 +246,9 @@ function ChatInputInner(props: ChatInputInnerProps) {
       if (threadId) {
         removeDraft(threadId);
       }
+    },
+    setInput: (input: string) => {
+      controller.textInput.setInput(input);
     },
     setModel: (_model: string) => {
       onModelChange?.(_model);

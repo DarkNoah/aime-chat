@@ -102,6 +102,7 @@ import {
 } from '../ui/collapsible';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
+import { ChatEmpty } from './chat-empty';
 
 type ChatMessageItemProps = {
   message: UIMessage;
@@ -1022,6 +1023,24 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
       [],
     );
 
+    const handleTemplateClick = async (item) => {
+      console.log(item);
+      if (item.prompt) {
+        chatInputRef.current?.setInput(item.prompt);
+      }
+      if (item.agent) {
+        try {
+          const _agent = await window.electron.agents.getAgent(item.agent);
+          console.log(_agent);
+          if (!_agent.isHidden && _agent.id !== agentId && _agent.isActive) {
+            handleAgentChange(_agent);
+          }
+        } catch {
+          console.error(`Agent ${item.agent} not found`);
+        }
+      }
+    };
+
     return (
       <div className={cn('flex flex-col h-full', className)}>
         <Conversation className="h-full w-full flex-1 flex items-center justify-center overflow-y-hidden">
@@ -1061,13 +1080,8 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
                   </Button>
                 </div>
               )}
-            {!threadState && threadState?.messages.length === 0 && (
-              <ConversationEmptyState
-                description="Messages will appear here as the conversation progresses."
-                icon={<MessageSquareIcon className="size-6" />}
-                title="Start a conversation"
-                className="h-full"
-              />
+            {(!threadState || threadState?.messages.length === 0) && (
+              <ChatEmpty className="h-full" onClick={handleTemplateClick} />
             )}
 
             {threadState?.messages.length > 0 && (
@@ -1099,6 +1113,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
                   })}
               </div>
             )}
+
             {threadState?.status === 'submitted' && (
               <Loader className="animate-spin" />
             )}
