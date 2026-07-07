@@ -1,47 +1,21 @@
 # 获取可用 Agent
 
-使用代码查询 Aime Chat 可用 Agent 时，API 地址从环境变量读取。`AIME_CHAT_API_BASE_URL` 由代码运行环境提供，例如：
-
-```text
-http://localhost:4133
-```
-
-下面所有请求都基于 `$AIME_CHAT_API_BASE_URL`。
+接口：
 
 ```http
 GET $AIME_CHAT_API_BASE_URL/api/agents/available-agents
 ```
 
-需要先启用并启动 Aime Chat 的本机 API 服务。
+API 地址从环境变量 `AIME_CHAT_API_BASE_URL` 读取（例如 `http://localhost:4133`），由代码运行环境提供。需要先启用并启动 Aime Chat 的本机 API 服务。
 
-## 优先使用代码请求
+## 优先运行脚本
 
-需要查询可用 Agent 时，优先执行代码发起 HTTP 请求。不要手写猜测 Agent 列表，也不要只根据记忆回答。
+需要查询可用 Agent 时，优先运行 [scripts/get_available_agents.py](../scripts/get_available_agents.py)。不要手写猜测 Agent 列表，也不要只根据记忆回答。
 
-请求前先检查环境变量是否存在：
-
-```py
-import os
-
-base = os.environ.get('AIME_CHAT_API_BASE_URL')
-if not base:
-    print('AIME_CHAT_API_BASE_URL is not set')
-```
-
-基础请求，并按文档输出样式提取 Agent ID 和描述：
-
-```py
-import os, json, urllib.request
-
-base = os.environ.get('AIME_CHAT_API_BASE_URL')
-if not base:
-    print('AIME_CHAT_API_BASE_URL is not set')
-else:
-    with urllib.request.urlopen(base.rstrip('/') + '/api/agents/available-agents') as r:
-        data = json.load(r)
-    print('AVAILABLE AGENTS:')
-    for agent in data:
-        print(f" - [{agent.get('id')}]: {agent.get('description') or ''}")
+```bash
+python scripts/get_available_agents.py                 # 格式化列表
+python scripts/get_available_agents.py --visible-only  # 过滤 isHidden 的 Agent
+python scripts/get_available_agents.py --json          # 输出原始 JSON
 ```
 
 输出示例：
@@ -94,7 +68,7 @@ AVAILABLE AGENTS:
 - `id` 是完整 Agent ID，调用或展示 Agent 时优先使用这个值。
 - `isActive` 为 `true` 的 Agent 才会出现在返回结果里。
 - 默认输出格式为 `AVAILABLE AGENTS:` 加 ` - [<agent-id>]: <description>` 列表。
-- `isHidden` 为 `true` 的 Agent 仍可能出现在接口结果中；如果调用场景明确只需要对用户展示的 Agent，再自行过滤。
+- `isHidden` 为 `true` 的 Agent 仍可能出现在接口结果中；如果调用场景明确只需要对用户展示的 Agent，使用 `--visible-only` 过滤。
 - `tools` 会合并内置 Agent 默认工具和用户配置工具，并去重。
 - `subAgents` 会合并内置 Agent 默认子 Agent 和用户配置子 Agent，并去重。
 - `type` 通常为 `build_in`、`custom` 或 `a2a`。

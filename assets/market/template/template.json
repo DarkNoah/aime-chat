@@ -4,129 +4,6 @@
     "description": "Template 1 description",
     "items": [
       {
-        "icon": "",
-        "title": "aaaa",
-        "description": "",
-        "prompt": "",
-        "agent": ""
-      },
-      {
-        "icon": "",
-        "title": "bbbb",
-        "description": "",
-        "prompt": ""
-      }
-    ]
-  },
-  {
-    "title": "Template 1",
-    "description": "Template 1 description",
-    "items": [
-      {
-        "icon": "",
-        "title": "aaaa",
-        "description": "aaa",
-        "prompt": "",
-        "agent": ""
-      },
-      {
-        "icon": "",
-        "title": "bbbb",
-        "description": "",
-        "prompt": ""
-      }
-    ]
-  },
-  {
-    "title": "Template 1",
-    "description": "Template 1 description",
-    "items": [
-      {
-        "icon": "",
-        "title": "aaaa",
-        "description": "aaa",
-        "prompt": "",
-        "agent": ""
-      },
-      {
-        "icon": "",
-        "title": "bbbb",
-        "description": "",
-        "prompt": ""
-      }
-    ]
-  },
-  {
-    "title": "Template 1",
-    "description": "Template 1 description",
-    "items": [
-      {
-        "icon": "",
-        "title": "aaaa",
-        "description": "aaa",
-        "prompt": "",
-        "agent": ""
-      },
-      {
-        "icon": "",
-        "title": "bbbb",
-        "description": "",
-        "prompt": ""
-      }
-    ]
-  },
-  {
-    "title": "Template 1",
-    "description": "Template 1 description",
-    "items": [
-      {
-        "icon": "",
-        "title": "aaaa",
-        "description": "aaa",
-        "prompt": "",
-        "agent": ""
-      },
-      {
-        "icon": "",
-        "title": "bbbb",
-        "description": "",
-        "prompt": ""
-      }
-    ]
-  },
-  {
-    "title": "Template 1",
-    "description": "Template 1 description",
-    "items": [
-      {
-        "icon": "",
-        "title": "aaaa",
-        "description": "aaa",
-        "prompt": "",
-        "agent": ""
-      },
-      {
-        "icon": "camera",
-        "title": "bbbb",
-        "description": "",
-        "prompt": "bbbb",
-        "agent": "CodeAgent"
-      },
-      {
-        "icon": "camera",
-        "title": "bbbb",
-        "description": "",
-        "prompt": "bbbb",
-        "agent": "CodeAgent"
-      },
-      {
-        "icon": "camera",
-        "title": "bbbb",
-        "description": "",
-        "prompt": "bbbb",
-        "agent": "CodeAgent"
-      },
-      {
         "icon": "camera",
         "title": "bbbb",
         "description": "CodeAgentCodeAgentCodeAgentCodeAgentCodeAgentCodeAgentCodeAgent",
@@ -134,6 +11,12 @@
         "color": "#ff4d4f",
         "prompt": "bbbb",
         "agent": "CodeAgent"
+      },
+      {
+        "icon": "",
+        "title": "bbbb",
+        "description": "",
+        "prompt": ""
       }
     ]
   }

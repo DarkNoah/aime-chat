@@ -1,53 +1,20 @@
 # 获取可用工具
 
-使用代码查询 Aime Chat 可用工具时，API 地址从环境变量读取。`AIME_CHAT_API_BASE_URL` 由代码运行环境提供，例如：
-
-```text
-http://localhost:4133
-```
-
-下面所有请求都基于 `$AIME_CHAT_API_BASE_URL`。
+接口：
 
 ```http
 GET $AIME_CHAT_API_BASE_URL/api/tools/available-tools
 ```
 
-需要先启用并启动 Aime Chat 的本机 API 服务。
+API 地址从环境变量 `AIME_CHAT_API_BASE_URL` 读取（例如 `http://localhost:4133`），由代码运行环境提供。需要先启用并启动 Aime Chat 的本机 API 服务。
 
-## 优先使用代码请求
+## 优先运行脚本
 
-需要查询可用工具时，优先执行代码发起 HTTP 请求。不要手写猜测工具列表，也不要只根据记忆回答。
+需要查询可用工具时，优先运行 [scripts/get_available_tools.py](../scripts/get_available_tools.py)。不要手写猜测工具列表，也不要只根据记忆回答。
 
-请求前先检查环境变量是否存在：
-
-```py
-import os
-
-base = os.environ.get('AIME_CHAT_API_BASE_URL')
-if not base:
-    print('AIME_CHAT_API_BASE_URL is not set')
-```
-
-基础请求，并按文档输出样式提取工具 ID 和描述：
-
-```py
-import os, json, urllib.request
-
-base = os.environ.get('AIME_CHAT_API_BASE_URL')
-if not base:
-    print('AIME_CHAT_API_BASE_URL is not set')
-else:
-    with urllib.request.urlopen(base.rstrip('/') + '/api/tools/available-tools') as r:
-        data = json.load(r)
-    for group, items in data.items():
-        print(group.upper() + ':')
-        for item in items:
-            if item.get('isToolkit'):
-                for t in item.get('tools') or []:
-                    print(f"- [{t.get('id')}]: {t.get('description') or ''}")
-            else:
-                print(f"- [{item.get('id')}]: {item.get('description') or ''}")
-        print()
+```bash
+python scripts/get_available_tools.py        # 按类型分组的格式化列表
+python scripts/get_available_tools.py --json # 输出原始 JSON
 ```
 
 输出示例：

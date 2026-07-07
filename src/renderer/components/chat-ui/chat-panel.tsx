@@ -499,6 +499,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
       [],
     );
     const pendingSubmitsRef = useRef<PendingChatSubmit[]>([]);
+    const [fetching, setFetching] = useState(false);
 
     useImperativeHandle(ref, () => ({
       sendMessage: (
@@ -858,6 +859,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
     };
 
     useEffect(() => {
+      setFetching(true);
       resetChat();
       if (threadId) {
         const getThread = async () => {
@@ -981,6 +983,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
           .catch((err) => { });
         chatInputRef.current?.setThink(true);
       }
+      setFetching(false);
       return () => { };
     }, [threadId]);
 
@@ -1080,9 +1083,11 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
                   </Button>
                 </div>
               )}
-            {(!threadState || threadState?.messages.length === 0) && (
-              <ChatEmpty className="h-full" onClick={handleTemplateClick} />
-            )}
+
+            {(!threadState || threadState?.messages.length === 0) &&
+              !fetching && (
+                <ChatEmpty className="h-full" onClick={handleTemplateClick} />
+              )}
 
             {threadState?.messages.length > 0 && (
               <div className="mt-6">

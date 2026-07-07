@@ -108,6 +108,20 @@ export class HookProxyAgent extends ProxyAgent {
                   }
                 }
                 jsonObject.messages[i].content = newContent;
+              } else if (isObject(content) && "result" in content && content.result && isArray(content.result)) {
+                const newContent = [];
+                for (const part of content.result) {
+                  if (part.type == 'image' && part.data && part.mimeType) {
+                    newContent.push({ type: 'image_url', image_url: { url: part.data.startsWith('data:') ? part.data : `data:${part.mimeType};base64,${part.data}` } });
+                  } else if (part.type == 'video' && part.data && part.mimeType) {
+                    newContent.push({ type: 'video_url', video_url: { url: part.data.startsWith('data:') ? part.data : `data:${part.mimeType};base64,${part.data}` } });
+                  } else if (part.type == 'text' && part.text) {
+                    newContent.push({ type: 'text', text: part.text });
+                  } else {
+                    newContent.push(part);
+                  }
+                }
+                jsonObject.messages[i].content = newContent;
               } else {
                 continue;
               }

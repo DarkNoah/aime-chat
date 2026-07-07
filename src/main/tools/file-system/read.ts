@@ -30,10 +30,76 @@ import { toolsManager } from '..';
 import { LanguageModelV2ToolResultOutput, LanguageModelV2ToolResultPart } from '@ai-sdk/provider';
 import { isArray, isObject, isString } from '@/utils/is';
 import { ProviderType } from '@/types/provider';
+import sharp from 'sharp';
 
 
 const DEFAULT_MAX_LINES_TEXT_FILE = 2000;
 const MAX_LINE_LENGTH_TEXT_FILE = 2000;
+
+// When zooming into a bbox region, upscale the crop so its short side reaches
+// this size (capped by BBOX_MAX_ZOOM_SCALE) to help the vision/OCR model see details.
+const BBOX_ZOOM_MIN_DIMENSION = 1024;
+const BBOX_MAX_ZOOM_SCALE = 4;
+
+/**
+ * Crop the given regions out of an image and zoom (upscale) them, writing each
+ * region to a temporary PNG file. Returns the list of temp file paths.
+ *
+ * Each bbox is [x1, y1, x2, y2]. Coordinates are pixels by default; if all four
+ * values are within [0, 1] they are treated as normalized coordinates.
+ */
+async function cropAndZoomImage(file_path: string, bboxes: number[][]): Promise<string[]> {
+  const metadata = await sharp(file_path).metadata();
+  const imgWidth = metadata.width;
+  const imgHeight = metadata.height;
+  if (!imgWidth || !imgHeight) {
+    throw new Error(`Unable to read image dimensions of '${file_path}'.`);
+  }
+
+  const outputs: string[] = [];
+  for (const bbox of bboxes) {
+    if (!isArray(bbox) || bbox.length !== 4) {
+      throw new Error(`Invalid bbox '${JSON.stringify(bbox)}': expected [x1, y1, x2, y2].`);
+    }
+    let [x1, y1, x2, y2] = bbox;
+    const isNormalized = [x1, y1, x2, y2].every((v) => v >= 0 && v <= 1);
+    if (isNormalized) {
+      x1 *= imgWidth;
+      x2 *= imgWidth;
+      y1 *= imgHeight;
+      y2 *= imgHeight;
+    }
+    const left = Math.max(0, Math.floor(Math.min(x1, x2)));
+    const top = Math.max(0, Math.floor(Math.min(y1, y2)));
+    const right = Math.min(imgWidth, Math.ceil(Math.max(x1, x2)));
+    const bottom = Math.min(imgHeight, Math.ceil(Math.max(y1, y2)));
+    const width = right - left;
+    const height = bottom - top;
+    if (width <= 0 || height <= 0) {
+      throw new Error(
+        `Invalid bbox [${bbox.join(', ')}]: region is empty or outside the image (image size: ${imgWidth}x${imgHeight}).`,
+      );
+    }
+
+    let pipeline = sharp(file_path).extract({ left, top, width, height });
+    const minSide = Math.min(width, height);
+    if (minSide < BBOX_ZOOM_MIN_DIMENSION) {
+      const scale = Math.min(BBOX_ZOOM_MIN_DIMENSION / minSide, BBOX_MAX_ZOOM_SCALE);
+      if (scale > 1) {
+        pipeline = pipeline.resize({
+          width: Math.round(width * scale),
+          height: Math.round(height * scale),
+          kernel: 'lanczos3',
+        });
+      }
+    }
+
+    const outPath = path.join(os.tmpdir(), `read-bbox-${nanoid()}.png`);
+    await pipeline.png().toFile(outPath);
+    outputs.push(outPath);
+  }
+  return outputs;
+}
 
 
 export interface ReadParams extends BaseToolParams {
@@ -55,6 +121,7 @@ Usage:
 - Any lines longer than ${MAX_LINE_LENGTH_TEXT_FILE} characters will be truncated
 - Results are returned using cat -n format, with line numbers starting at 1
 - This tool allows to read images (eg PNG, JPG, etc). When reading an image file the contents are presented visually by a multimodal LLM.
+- When reading an image, you can optionally pass the args parameter (a JSON string) with one or more bounding boxes, e.g. args: '{"bbox": [[x1, y1, x2, y2]]}' (pixel coordinates, origin at top-left; values between 0 and 1 are treated as normalized coordinates). Each region will be cropped from the image and zoomed in (enlarged) before being analyzed, which is useful for inspecting small details or text.
 - This tool can read PDF files (.pdf). PDFs are processed page by page, extracting both text and visual content for analysis.
 - This tool can read audio files (.wav, .mp3 etc), and returns the audio transcription content (.srt format).
 - This tool can read video files (.mp4, .mov, .webm), and returns the video transcription content (.srt format).
@@ -77,7 +144,12 @@ Usage:
         .describe(
           'The number of lines to read. Only provide if the file is too large to read at once.',
         ),
-      // agrs: z.string().optional().describe('Optional arguments for the tool'),
+      args: z
+        .string()
+        .optional()
+        .describe(
+          'Optional extra arguments as a JSON string. Only for image files: pass bounding boxes to zoom into specific regions, e.g. \'{"bbox": [[x1, y1, x2, y2], ...]}\' (top-left origin). Values are pixel coordinates by default; if all four values are within [0, 1] they are treated as normalized coordinates. Each region will be cropped and zoomed in before being analyzed.',
+        ),
       useVision: z.boolean().optional().default(false).describe('Optional: only use this when the file is an image. If set to true, it will be presented visually by a multimodal LLM, default is false.'),
     });
 
@@ -101,11 +173,10 @@ Usage:
       isError: boolean;
       systemReminder?: string[];
     }> {
-    const { file_path, offset, limit, useVision } = inputData;
+    const { file_path, offset, limit, useVision, args } = inputData;
     const appInfo = await appManager.getInfo();
     const currentModel = context?.requestContext?.get('model' as never) as string;
     const visionModelId = appInfo.defaultModel.visionModel || currentModel;
-
 
     if (!fs.existsSync(file_path)) {
       return {
@@ -146,6 +217,88 @@ Usage:
     const ext = path.extname(file_path).toLowerCase();
 
     if (await isBinaryFile(file_path) && ext != '.ts') {
+      // bbox only applies to image files; args is ignored for other file types
+      let bboxes: number[][] | undefined;
+      if (args && mime.lookup(file_path).startsWith('image/')) {
+        try {
+          const parsed = JSON.parse(args);
+          if (isObject(parsed) && isArray((parsed as any).bbox)) {
+            const bbox = (parsed as any).bbox;
+            // Accept both a single bbox [x1, y1, x2, y2] and a list of bboxes
+            bboxes = isArray(bbox[0]) ? bbox : [bbox];
+          } else if (isArray(parsed)) {
+            bboxes = isArray(parsed[0]) ? parsed : [parsed as unknown as number[]];
+          }
+        } catch (err) {
+          return {
+            isError: true,
+            systemReminder: [`<system-reminder>Error: Failed to parse args as JSON: ${err instanceof Error ? err.message : String(err)}. Expected format: '{"bbox": [[x1, y1, x2, y2], ...]}'.</system-reminder>`],
+          }
+        }
+      }
+
+      if (bboxes?.length) {
+        // Crop the requested regions and zoom in, then analyze each region
+        let croppedFiles: string[] = [];
+        try {
+          croppedFiles = await cropAndZoomImage(file_path, bboxes);
+        } catch (err) {
+          return {
+            isError: true,
+            systemReminder: [`<system-reminder>Error: Failed to crop image with the provided bbox: ${err instanceof Error ? err.message : String(err)}</system-reminder>`],
+          }
+        }
+        try {
+          const regions = croppedFiles.map((source, i) => ({
+            source,
+            label: `Zoomed region ${i + 1}/${croppedFiles.length} of '${file_path}', bbox: [${bboxes![i].join(', ')}]`,
+          }));
+
+          if (this.disableVision === true || useVision === false) {
+            const defaultOcr = appInfo?.defaultModel?.ocrModel;
+            const provider = await providersManager.getProvider(defaultOcr);
+            const ocrModel = defaultOcr.split('/').slice(1).join('/')
+            const ocrResults: string[] = [];
+            for (const { source, label } of regions) {
+              const ocr = await provider.ocrModel(ocrModel).doOCR({ image: source, abortSignal: context?.abortSignal });
+              ocrResults.push(`<system-reminder>${label}</system-reminder>\n${ocr}`);
+            }
+            return {
+              isError: false,
+              content: ocrResults.join('\n\n'),
+            }
+          }
+
+          const parts: any[] = [];
+          for (const { source, label } of regions) {
+            const result = await new Vision({
+              modelId: visionModelId,
+            }).execute({
+              source,
+              prompt: 'Please describe the image in detail.',
+            }, context);
+            parts.push({ type: 'text', text: `<system-reminder>${label}</system-reminder>` });
+            if (isObject(result) && isArray((result as any).content)) {
+              parts.push(...(result as any).content);
+            } else {
+              parts.push({ type: 'text', text: String(result) });
+            }
+          }
+          return {
+            isError: false,
+            content: { content: parts },
+          }
+        } catch (err) {
+          return {
+            isError: true,
+            systemReminder: [`<system-reminder>Error: Failed to analyze the zoomed image regions: ${err instanceof Error ? err.message : String(err)}</system-reminder>`],
+          }
+        } finally {
+          for (const f of croppedFiles) {
+            fs.promises.rm(f, { force: true }).catch(() => { });
+          }
+        }
+      }
       try {
         if (mime.lookup(file_path).startsWith('image/')) {
           if (this.disableVision === true || useVision === false) {
