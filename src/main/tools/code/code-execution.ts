@@ -16,6 +16,7 @@ import { getDataPath } from '@/main/utils';
 import mastraManager from '@/main/mastra';
 import { getRuntimePython } from '@/main/utils/runtimePython';
 import { ProgressEvent, ProgressThreadEndedData } from '@/types/common';
+import { getEnv } from '@/main/utils/getEnv';
 
 const getSitecustomizePy = async (allRequestContext: Record<string, any> = {}, modelId?: string) => {
   const appInfo = await appManager.getInfo();
@@ -404,7 +405,7 @@ asyncio.run(main())
       const tempFile = path.join(tempDir, 'main.py');
       await fs.promises.writeFile(tempFile, code);
 
-      const secretsEnv = await secretsManager.getSecretsEnv();
+      const secretsEnv = await getEnv(requestContext);
       const _env = { ...env, ...secretsEnv };
       const result = await runCommand(
         `"${uvPreCommand}" run --project "${tempDir}" "${tempFile}"`,

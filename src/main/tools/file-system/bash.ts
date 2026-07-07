@@ -25,6 +25,7 @@ import { appManager } from '@/main/app';
 import { ToolConfig } from '@/types/tool';
 import { BashSessionUpdate, ChatEvent } from '@/types/chat';
 import { getRuntimePython } from '@/main/utils/runtimePython';
+import { getEnv } from '@/main/utils/getEnv';
 
 const MAX_OUTPUT_LENGTH = 10000;
 type BashSessionScope =
@@ -302,7 +303,7 @@ Output: Creates directory 'foo'`),
     // }
     _env = await getRuntimePython(_env);
 
-    const secretsEnv = await secretsManager.getSecretsEnv();
+    const secretsEnv = await getEnv();
     _env = { ..._env, ...secretsEnv };
 
     if (env && Object.values(env).length > 0) {
