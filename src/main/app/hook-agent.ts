@@ -40,6 +40,8 @@ export class HookProxyAgent extends ProxyAgent {
 
       // 删除 Content-Length，HTTP 会自动使用 chunked 编码
       const headers = { ...(options.headers || {}) } as Record<string, string>
+      const threadId = headers['X-AIME-CHAT-THREAD-ID'];
+
       delete headers['content-length']
       delete headers['Content-Length']
       options.headers = headers

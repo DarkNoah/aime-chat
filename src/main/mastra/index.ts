@@ -892,7 +892,11 @@ class MastraManager extends BaseManager {
         providerOptions: providerOptions,
         modelSettings: {
           // maxOutputTokens: maxContextSize ?? 10000,
-          ...(options?.modelSettings ?? {})
+          ...(options?.modelSettings ?? {}),
+          headers: {
+            ...(options?.modelSettings?.headers ?? {}),
+            'X-AIME-CHAT-THREAD-ID': requestContext.get('threadId') as string,
+          }
         },
         requestContext: requestContext,
         context: convertToModelMessages(historyMessagesAISdkV5),

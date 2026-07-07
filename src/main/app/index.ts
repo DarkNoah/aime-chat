@@ -88,7 +88,7 @@ import { toolsManager } from '../tools';
 import { ToolType } from '@/types/tool';
 import { Translation } from '../tools/work/translation';
 import { nanoid } from '@/utils/nanoid';
-import { HookAgent, HookProxyAgent } from './hook-agent';
+import { HookProxyAgent } from './hook-agent';
 import { acpManager } from './acp';
 import { appLog, getLogFilePath } from './logger';
 import { get } from 'core-js/core/dict';
