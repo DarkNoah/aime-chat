@@ -1,5 +1,10 @@
 import LanguageToggle from '@/renderer/components/language-toggle';
-import { Field, FieldGroup, FieldLabel } from '@/renderer/components/ui/field';
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from '@/renderer/components/ui/field';
 import { Input } from '@/renderer/components/ui/input';
 import { Label } from '@/renderer/components/ui/label';
 import {
@@ -18,7 +23,7 @@ import { useGlobal } from '@/renderer/hooks/use-global';
 import { useHeader } from '@/renderer/hooks/use-title';
 import { AppProxy, PreventSleepInterval } from '@/types/app';
 import { useTranslation } from 'react-i18next';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTheme } from 'next-themes';
 import { Switch } from '@/renderer/components/ui/switch';
 import { IconPlayerPlay, IconPlayerStop } from '@tabler/icons-react';
@@ -45,6 +50,14 @@ export default function General() {
     appInfo?.apiServer?.port || 0,
   );
   const [acpPort, setAcpPort] = useState<number>(appInfo?.acp?.port || 0);
+  const [requestLogEnabled, setRequestLogEnabled] = useState(false);
+
+  useEffect(() => {
+    window.electron.requestLog
+      .getEnabled()
+      .then(setRequestLogEnabled)
+      .catch(() => {});
+  }, []);
 
   const onChangeTheme = async (value: string) => {
     setTheme(value);
@@ -92,14 +105,18 @@ export default function General() {
     await getAppInfo();
   };
 
-  const onChangePreventSleepInterval = async (
-    value: PreventSleepInterval,
-  ) => {
+  const onChangePreventSleepInterval = async (value: PreventSleepInterval) => {
     await window.electron.app.saveSettings({
       id: 'preventSleepInterval',
       value,
     });
     await getAppInfo();
+  };
+
+  const onChangeRequestLogEnable = async (enabled: boolean) => {
+    setRequestLogEnabled(enabled);
+    const nextEnabled = await window.electron.requestLog.setEnabled(enabled);
+    setRequestLogEnabled(nextEnabled);
   };
 
   return (
@@ -263,6 +280,19 @@ export default function General() {
           </Field>
         </div>
       )}
+      <Field>
+        <FieldLabel>{t('settings.request_logs_enable')}</FieldLabel>
+        <div className="flex flex-row items-center gap-3">
+          <Switch
+            checked={requestLogEnabled}
+            onCheckedChange={onChangeRequestLogEnable}
+          />
+          <Label>{t('settings.request_logs')}</Label>
+        </div>
+        <FieldDescription>
+          {t('settings.request_logs_enable_desc')}
+        </FieldDescription>
+      </Field>
       <Field>
         <FieldLabel>ACP Studio</FieldLabel>
         <div className="flex flex-row items-center gap-3">

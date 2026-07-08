@@ -32,6 +32,7 @@ import { channelManager } from './channel';
 import { secretsManager } from './app/secrets';
 import { cronsManager } from './app/crons';
 import { initCrashReporter } from './app/crash-reporter';
+import { requestLogManager } from './app/request-logs';
 
 
 // process.env.DEFAULT_AGENT = undefined;
@@ -67,6 +68,7 @@ initCrashReporter();
 async function init() {
   try {
     await dbManager.init();
+    await requestLogManager.init();
     await providersManager.init();
     await appManager.init();
     await mastraManager.init();

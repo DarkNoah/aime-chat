@@ -34,7 +34,7 @@ import {
 import { app } from 'electron';
 import { getAssetPath, getDbPath, getDefaultModelPath } from '../utils';
 import { platform } from 'os';
-import { Agent, ProxyAgent, setGlobalDispatcher } from 'undici';
+import { setGlobalDispatcher } from 'undici';
 import { isUrl } from '@/utils/is';
 import fs from 'fs';
 import {
@@ -88,7 +88,7 @@ import { toolsManager } from '../tools';
 import { ToolType } from '@/types/tool';
 import { Translation } from '../tools/work/translation';
 import { nanoid } from '@/utils/nanoid';
-import { HookProxyAgent } from './hook-agent';
+import { HookAgent, HookProxyAgent } from './hook-agent';
 import { acpManager } from './acp';
 import { appLog, getLogFilePath } from './logger';
 import { get } from 'core-js/core/dict';
@@ -795,10 +795,10 @@ class AppManager extends BaseManager {
       proxyConfig = { mode: 'system' };
       setGlobalDispatcher(
         systemProxy.proxyEnable
-          ? new ProxyAgent({
+          ? new HookProxyAgent({
             uri: systemProxy.proxyServer,
           })
-          : new Agent(),
+          : new HookAgent(),
       );
       if (systemProxy.proxyEnable) {
         const url = new URL(systemProxy.proxyServer);
@@ -851,7 +851,7 @@ class AppManager extends BaseManager {
       } catch { }
     } else if (data.mode == 'noproxy') {
       proxyConfig = {};
-      setGlobalDispatcher(new Agent());
+      setGlobalDispatcher(new HookAgent());
       this.appProxy = { mode: 'noproxy' };
       const settingData = new Settings('proxy', { mode: 'noproxy' });
       await this.settingsRepository.upsert(settingData, ['id']);
