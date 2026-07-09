@@ -102,7 +102,7 @@ import {
 } from '../ui/collapsible';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
-import { ChatEmpty } from './chat-empty';
+import { ChatEmpty, TemplateItem } from './chat-empty';
 
 type ChatMessageItemProps = {
   message: UIMessage;
@@ -1026,22 +1026,42 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
       [],
     );
 
-    const handleTemplateClick = async (item) => {
+    const handleTemplateClick = async (item: TemplateItem) => {
       console.log(item);
       if (item.prompt) {
         chatInputRef.current?.setInput(item.prompt);
       }
+      chatInputRef.current?.setTools([]);
+      chatInputRef.current?.setSubAgents([]);
+
+      let tools = [];
+      let subAgents = [];
+
       if (item.agent) {
         try {
           const _agent = await window.electron.agents.getAgent(item.agent);
           console.log(_agent);
-          if (!_agent.isHidden && _agent.id !== agentId && _agent.isActive) {
-            handleAgentChange(_agent);
+
+          if (!_agent.isHidden && _agent.isActive) {
+            await handleAgentChange(_agent);
+            tools.push(...(_agent.tools as string[]));
+            subAgents.push(...(_agent.subAgents as string[]));
           }
         } catch {
           console.error(`Agent ${item.agent} not found`);
         }
       }
+      if (item?.tools && item.tools.length > 0) {
+        tools.push(...item.tools);
+      }
+      if (item?.subAgents && item.subAgents.length > 0) {
+        subAgents.push(...item.subAgents);
+      }
+      tools = [...new Set(tools)];
+      chatInputRef.current?.setTools(tools);
+      subAgents = [...new Set(subAgents)];
+      chatInputRef.current?.setSubAgents(subAgents);
+
     };
 
     return (

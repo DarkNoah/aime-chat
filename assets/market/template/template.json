@@ -10,13 +10,22 @@
         "backgroundColor": "",
         "color": "#ff4d4f",
         "prompt": "bbbb",
-        "agent": "CodeAgent"
+        "agent": "CodeAgent",
+        "tools": [
+          "skill:local:pptx"
+        ]
       },
       {
-        "icon": "",
+        "icon": "camera",
         "title": "bbbb",
-        "description": "",
-        "prompt": ""
+        "description": "CodeAgentCodeAgentCodeAgentCodeAgentCodeAgentCodeAgentCodeAgent",
+        "backgroundColor": "",
+        "color": "#ff4d4f",
+        "prompt": "bbbb",
+        "agent": "CodeAgent",
+        "tools": [
+          "skill:local:xlsx"
+        ]
       }
     ]
   }

@@ -5,12 +5,14 @@ import { cn } from '@/renderer/lib/utils';
 import { Card, CardHeader, CardTitle, CardDescription } from '../ui/card';
 import { ScrollArea, ScrollBar } from '../ui/scroll-area';
 
-type TemplateItem = {
+export type TemplateItem = {
   icon?: string;
   title?: string;
   description?: string;
   prompt?: string;
   agent?: string;
+  tools?: string[];
+  subAgents?: string[];
 };
 
 export type ChatEmptyProps = {
