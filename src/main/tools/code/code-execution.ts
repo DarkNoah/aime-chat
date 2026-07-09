@@ -16,12 +16,13 @@ import { getDataPath } from '@/main/utils';
 import mastraManager from '@/main/mastra';
 import { getRuntimePython } from '@/main/utils/runtimePython';
 import { ProgressEvent, ProgressThreadEndedData } from '@/types/common';
+import { getEnv } from '@/main/utils/getEnv';
 
-const getSitecustomizePy = async (allRequestContext: Record<string, any> = {}) => {
+const getSitecustomizePy = async (allRequestContext: Record<string, any> = {}, modelId?: string) => {
   const appInfo = await appManager.getInfo();
   const mcpServerUrl = `http://localhost:${appInfo.apiServer.port}/mcp`;
   const workspace = allRequestContext['workspace'] as string;
-  const model = allRequestContext['model'] as string;
+  const model = modelId ?? allRequestContext['model'] as string;
   const threadId = allRequestContext['threadId'] as string;
   let meta = {};
   if (workspace) {
@@ -116,6 +117,7 @@ _init_mcp_tools()
 };
 export interface CodeExecutionParams extends BaseToolParams {
   ptcOpen?: boolean;
+  modelId?: string;
 }
 export class CodeExecution extends BaseTool {
   static readonly toolName = 'CodeExecution';
@@ -146,11 +148,13 @@ Note:
   tags = [ToolTags.CODE];
   configSchema = ToolConfig.CodeExecution.configSchema;
   ptcOpen: boolean = false;
+  modelId?: string;
 
   constructor(config?: CodeExecutionParams) {
     super(config);
     const apiServerStatus = mastraManager.httpServer?.listening
     this.ptcOpen = config?.ptcOpen ?? apiServerStatus ?? true;
+    this.modelId = config?.modelId;
     this.description = this.getDescription();
   }
 
@@ -391,7 +395,7 @@ asyncio.run(main())
         }
         site_packages_path = sitePackages[0];
 
-        const sitecustomize_py = await getSitecustomizePy(allRequestContext);
+        const sitecustomize_py = await getSitecustomizePy(allRequestContext, this.modelId);
         await fs.promises.writeFile(
           path.join(site_packages_path, 'sitecustomize.py'),
           sitecustomize_py,
@@ -401,7 +405,7 @@ asyncio.run(main())
       const tempFile = path.join(tempDir, 'main.py');
       await fs.promises.writeFile(tempFile, code);
 
-      const secretsEnv = await secretsManager.getSecretsEnv();
+      const secretsEnv = await getEnv(requestContext);
       const _env = { ...env, ...secretsEnv };
       const result = await runCommand(
         `"${uvPreCommand}" run --project "${tempDir}" "${tempFile}"`,

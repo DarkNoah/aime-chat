@@ -132,7 +132,7 @@ export type ChatToolResultPreviewProps = {
   className?: string;
 };
 
-export interface ChatToolResultPreviewRef {}
+export interface ChatToolResultPreviewRef { }
 
 export const ChatToolResultPreview = React.forwardRef<
   ChatToolResultPreviewRef,
@@ -274,6 +274,42 @@ export const ChatToolResultPreview = React.forwardRef<
             <AlertTitle>{part.output.message}</AlertTitle>
           </Alert>
         );
+      } else if (
+        isObject(part?.output) &&
+        'result' in part.output &&
+        isArray(part.output.result)
+      ) {
+        return (
+          <ChatMessageAttachments className="mt-2 ml-0 flex flex-col gap-2">
+            {part.output.result.map((result: any, index: number) => {
+              if (result.type === 'text') {
+                return (
+                  <Streamdown
+                    key={`${part.toolCallId}-${result.type}-${index}`}
+                    className="whitespace-normal break-all"
+                  >
+                    {result.text}
+                  </Streamdown>
+                );
+              }
+
+              if (result.type === 'image') {
+                return (
+                  <ChatMessageAttachment
+                    data={result}
+                    key={`${part.toolCallId}-${result.type}-${index}`}
+                  />
+                );
+              }
+
+              return (
+                <pre className="text-sm break-all text-wrap bg-secondary p-4 rounded-2xl">
+                  {JSON.stringify(result, null, 2)}
+                </pre>
+              );
+            })}
+          </ChatMessageAttachments>
+        );
       }
       return (
         <>
@@ -389,7 +425,7 @@ export const ChatToolResultPreview = React.forwardRef<
                       fontSize: 'var(--text-sm)',
                     },
                   }}
-                  // renderContent={this.highlightSyntax}
+                // renderContent={this.highlightSyntax}
                 />
               </div>
 

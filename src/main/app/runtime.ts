@@ -800,7 +800,7 @@ export async function installPaddleOcrRuntime() {
   );
 
   const result_install_paddle = await runCommand(
-    `${uvPreCommand} --project "${paddleOcrDir}" --no-cache pip install paddlepaddle${hasGPU ? '-gpu==3.2.1 -i https://www.paddlepaddle.org.cn/packages/stable/cu126/' : '==3.2.2'} --python "${activateSourcePython}"`,
+    `${uvPreCommand} --project "${paddleOcrDir}" pip install paddlepaddle${hasGPU ? '-gpu==3.2.1 -i https://www.paddlepaddle.org.cn/packages/stable/cu126/' : '==3.2.2'} --python "${activateSourcePython}"`,
     {
       cwd: uvRuntime?.dir,
       // usePowerShell: isWindows,s
@@ -808,6 +808,8 @@ export async function installPaddleOcrRuntime() {
   );
 
   if (result_install_paddle.code !== 0) {
+
+    appManager.toast(result_install_paddle.stderr || result_install_paddle.stdout, { type: 'error' });
     paddleOcr.status = 'not_installed';
     paddleOcr.installed = false;
     paddleOcr.path = undefined;
@@ -817,7 +819,7 @@ export async function installPaddleOcrRuntime() {
   }
 
   const result1 = await runCommand(
-    `${uvPreCommand} --project "${paddleOcrDir}" --no-cache pip install rapidocr onnxruntime "paddleocr[all]" "paddlex[ocr]" ${process.platform === 'darwin' ? 'mlx-vlm' : ''} --python "${activateSourcePython}"`,
+    `${uvPreCommand} --project "${paddleOcrDir}" pip install rapidocr onnxruntime "paddleocr[all]" "paddlex[ocr]" ${process.platform === 'darwin' ? 'mlx-vlm' : ''} --python "${activateSourcePython}"`,
     {
       cwd: uvRuntime?.dir,
       // usePowerShell: isWindows,
@@ -872,10 +874,15 @@ export async function installPaddleOcrRuntime() {
   }
 }
 export async function uninstallPaddleOcrRuntime() {
-  const paddleOcrDir = path.join(app.getPath('userData'), ".runtime", 'paddleocr-runtime');
-  if (fs.existsSync(paddleOcrDir)) {
-    await fs.promises.rm(paddleOcrDir, { recursive: true });
+  try {
+    const paddleOcrDir = path.join(app.getPath('userData'), ".runtime", 'paddleocr-runtime');
+    if (fs.existsSync(paddleOcrDir)) {
+      await fs.promises.rm(paddleOcrDir, { recursive: true });
+    }
+  } catch {
+
   }
+
   paddleOcr.status = 'not_installed';
   paddleOcr.installed = false;
   paddleOcr.path = undefined;
@@ -1129,7 +1136,7 @@ export async function installQwenAudioRuntime() {
           `"${activateSourcePython}" -c "${qwenAudioHealthCheckScript(isWindows)}"`,
           {
             cwd: uvRuntime?.dir,
-            timeout: 1000 * 120,
+            // timeout: 1000 * 120,
           },
         );
 

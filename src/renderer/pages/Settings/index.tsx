@@ -29,6 +29,7 @@ import LocalModel from './local-model';
 import DefaultModel from './default-model';
 import Instances from './instances';
 import Usage from './usage';
+import RequestLogs from './request-logs';
 import Channels from './channels';
 import Secrets from './secrets';
 import Personality from './personality';
@@ -40,6 +41,7 @@ import {
   IconCpu,
   IconInfoCircle,
   IconKey,
+  IconListDetails,
   IconPlayerPlay,
   IconServer,
   IconSparkles,
@@ -108,6 +110,11 @@ function Settings() {
       icon: IconChartBar,
     },
     {
+      key: 'request-logs',
+      label: t('settings.request_logs'),
+      icon: IconListDetails,
+    },
+    {
       key: 'about',
       label: t('settings.about'),
       icon: IconInfoCircle,
@@ -170,6 +177,7 @@ function Settings() {
           <Route path="channels" element={<Channels />} />
           <Route path="secrets" element={<Secrets />} />
           <Route path="usage" element={<Usage />} />
+          <Route path="request-logs" element={<RequestLogs />} />
         </Routes>
       </div>
     </div>

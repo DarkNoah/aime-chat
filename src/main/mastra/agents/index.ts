@@ -258,11 +258,17 @@ ${assistantSoul}
 
     return agent;
   }
+  @api({
+    method: 'get',
+    path: '/api/agents/get-agent',
+    args: (req: any) => [req.query.id as string],
+  })
   @channel(AgentChannel.GetAgent)
   public async getAgent(id: string): Promise<Agent> {
-    const agentEntity = await this.agentsRepository.findOne({
+    let agentEntity = await this.agentsRepository.findOne({
       where: { id: id },
     });
+    const appInfo = await appManager.getInfo();
     if (!agentEntity) {
       throw new Error('Agent not found');
     }
@@ -313,6 +319,10 @@ ${assistantSoul}
     });
   }
 
+  @api({
+    method: 'post',
+    path: '/api/agents/save-agent',
+  })
   @channel(AgentChannel.SaveAgent)
   public async saveAgent(agent: Agent): Promise<Agent> {
     let agentEntity;

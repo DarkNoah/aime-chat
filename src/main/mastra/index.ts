@@ -884,12 +884,20 @@ class MastraManager extends BaseManager {
 
         }
       };
+      // const maxContextSize = requestContext.get('maxContextSize');
       let streamOptions: AgentExecutionOptions<undefined> = {
         includeRawChunks: false,
         structuredOutput: undefined,
         runId: runId,
         providerOptions: providerOptions,
-        modelSettings: options?.modelSettings,
+        modelSettings: {
+          // maxOutputTokens: maxContextSize ?? 10000,
+          ...(options?.modelSettings ?? {}),
+          headers: {
+            ...(options?.modelSettings?.headers ?? {}),
+            'X-AIME-CHAT-THREAD-ID': requestContext.get('threadId') as string,
+          }
+        },
         requestContext: requestContext,
         context: convertToModelMessages(historyMessagesAISdkV5),
         maxSteps: 1,

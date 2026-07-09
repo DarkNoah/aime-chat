@@ -40,6 +40,8 @@ export const getToolMessageDescription = (toolName: string, input: any) => {
       return input?.table;
     case 'LibSQLRun':
       return input?.sql;
+    case 'KnowledgeBaseSearch':
+      return input?.query;
     default:
       return input?.description;
   }

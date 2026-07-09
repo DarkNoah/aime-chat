@@ -102,6 +102,7 @@ import {
 } from '../ui/collapsible';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
+import { ChatEmpty, TemplateItem } from './chat-empty';
 
 type ChatMessageItemProps = {
   message: UIMessage;
@@ -498,6 +499,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
       [],
     );
     const pendingSubmitsRef = useRef<PendingChatSubmit[]>([]);
+    const [fetching, setFetching] = useState(false);
 
     useImperativeHandle(ref, () => ({
       sendMessage: (
@@ -857,6 +859,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
     };
 
     useEffect(() => {
+      setFetching(true);
       resetChat();
       if (threadId) {
         const getThread = async () => {
@@ -887,9 +890,13 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
           );
           let _agent: Agent | undefined;
           if (_thread?.metadata?.agentId) {
-            _agent = await window.electron.agents.getAgent(
-              _thread?.metadata?.agentId as string,
-            );
+            try {
+              _agent = await window.electron.agents.getAgent(
+                _thread?.metadata?.agentId as string,
+              );
+            } catch (err) {
+              console.error(err);
+            }
           }
 
           if (!_thread?.metadata?.tools) {
@@ -980,6 +987,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
           .catch((err) => { });
         chatInputRef.current?.setThink(true);
       }
+      setFetching(false);
       return () => { };
     }, [threadId]);
 
@@ -1022,6 +1030,44 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
       [],
     );
 
+    const handleTemplateClick = async (item: TemplateItem) => {
+      console.log(item);
+      if (item.prompt) {
+        chatInputRef.current?.setInput(item.prompt);
+      }
+      chatInputRef.current?.setTools([]);
+      chatInputRef.current?.setSubAgents([]);
+
+      let tools = [];
+      let subAgents = [];
+
+      if (item.agent) {
+        try {
+          const _agent = await window.electron.agents.getAgent(item.agent);
+          console.log(_agent);
+
+          if (!_agent.isHidden && _agent.isActive) {
+            await handleAgentChange(_agent);
+            tools.push(...(_agent.tools as string[]));
+            subAgents.push(...(_agent.subAgents as string[]));
+          }
+        } catch {
+          console.error(`Agent ${item.agent} not found`);
+        }
+      }
+      if (item?.tools && item.tools.length > 0) {
+        tools.push(...item.tools);
+      }
+      if (item?.subAgents && item.subAgents.length > 0) {
+        subAgents.push(...item.subAgents);
+      }
+      tools = [...new Set(tools)];
+      chatInputRef.current?.setTools(tools);
+      subAgents = [...new Set(subAgents)];
+      chatInputRef.current?.setSubAgents(subAgents);
+
+    };
+
     return (
       <div className={cn('flex flex-col h-full', className)}>
         <Conversation className="h-full w-full flex-1 flex items-center justify-center overflow-y-hidden">
@@ -1061,14 +1107,11 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
                   </Button>
                 </div>
               )}
-            {!threadState && threadState?.messages.length === 0 && (
-              <ConversationEmptyState
-                description="Messages will appear here as the conversation progresses."
-                icon={<MessageSquareIcon className="size-6" />}
-                title="Start a conversation"
-                className="h-full"
-              />
-            )}
+
+            {(!threadState || threadState?.messages.length === 0) &&
+              !fetching && (
+                <ChatEmpty className="h-full" onClick={handleTemplateClick} />
+              )}
 
             {threadState?.messages.length > 0 && (
               <div className="mt-6">
@@ -1099,6 +1142,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
                   })}
               </div>
             )}
+
             {threadState?.status === 'submitted' && (
               <Loader className="animate-spin" />
             )}

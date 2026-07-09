@@ -278,6 +278,15 @@ export class KnowledgeBaseManager extends BaseManager {
     });
   }
 
+
+  @channel(KnowledgeBaseChannel.GetKnowledgeBaseItem)
+  public async getKnowledgeBaseItem(id: string): Promise<KnowledgeBaseItem> {
+    // const where: Record<string, any> = { knowledgeBaseId: id };
+
+    const item = await this.knowledgeBaseItemRepository.findOneBy({ id });
+    return item;
+  }
+
   @channel(KnowledgeBaseChannel.GetKnowledgeBaseItems)
   public async getKnowledgeBaseItems(id: string, params: PaginationParams): Promise<PaginationInfo<KnowledgeBaseItem>> {
     const { page, size, filter, filters, sort, order } = params;

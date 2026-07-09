@@ -96,6 +96,7 @@ export enum KnowledgeBaseChannel {
   Get = 'knowledge-base:get',
   GetList = 'knowledge-base:getList',
   ImportSource = 'knowledge-base:importSource',
+  GetKnowledgeBaseItem = 'knowledge-base:getKnowledgeBaseItem',
   GetKnowledgeBaseItems = 'knowledge-base:getKnowledgeBaseItems',
   DeleteKnowledgeBaseItem = 'knowledge-base:deleteKnowledgeBaseItem',
   UpdateKnowledgeBaseItem = 'knowledge-base:updateKnowledgeBaseItem',
@@ -183,6 +184,14 @@ export enum CronsChannel {
   Update = 'crons:update',
   Delete = 'crons:delete',
   RunNow = 'crons:runNow',
+}
+
+export enum RequestLogChannel {
+  GetList = 'request-log:getList',
+  GetDetail = 'request-log:getDetail',
+  Clear = 'request-log:clear',
+  SetEnabled = 'request-log:setEnabled',
+  GetEnabled = 'request-log:getEnabled',
 }
 
 export const CULTIVATION_CRON_ID = 'builtin_cultivation_daily';
