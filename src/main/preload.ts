@@ -31,6 +31,7 @@ import {
   ToolChannel,
   SecretsChannel,
   CronsChannel,
+  RequestLogChannel,
 } from '@/types/ipc-channel';
 import {
   CreateKnowledgeBase,
@@ -86,6 +87,11 @@ import {
   WeixinLoginStartResult,
   WeixinLoginStatusResult,
 } from '@/types/channel';
+import {
+  RequestLogItem,
+  RequestLogListParams,
+  RequestLogListResponse,
+} from '@/types/request-log';
 
 // export type Channels = 'ipc-example';
 
@@ -606,6 +612,19 @@ const electronHandler = {
       id: string,
     ): Promise<{ started: boolean; alreadyRunning: boolean }> =>
       ipcRenderer.invoke(CronsChannel.RunNow, id),
+  },
+  requestLog: {
+    getList: (
+      params?: RequestLogListParams,
+    ): Promise<RequestLogListResponse> =>
+      ipcRenderer.invoke(RequestLogChannel.GetList, params),
+    getDetail: (id: string): Promise<RequestLogItem | null> =>
+      ipcRenderer.invoke(RequestLogChannel.GetDetail, id),
+    clear: (): Promise<void> => ipcRenderer.invoke(RequestLogChannel.Clear),
+    setEnabled: (enabled: boolean): Promise<boolean> =>
+      ipcRenderer.invoke(RequestLogChannel.SetEnabled, enabled),
+    getEnabled: (): Promise<boolean> =>
+      ipcRenderer.invoke(RequestLogChannel.GetEnabled),
   },
 };
 

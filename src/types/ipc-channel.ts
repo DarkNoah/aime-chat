@@ -185,6 +185,14 @@ export enum CronsChannel {
   RunNow = 'crons:runNow',
 }
 
+export enum RequestLogChannel {
+  GetList = 'request-log:getList',
+  GetDetail = 'request-log:getDetail',
+  Clear = 'request-log:clear',
+  SetEnabled = 'request-log:setEnabled',
+  GetEnabled = 'request-log:getEnabled',
+}
+
 export const CULTIVATION_CRON_ID = 'builtin_cultivation_daily';
 export const BUILTIN_CRON_IDS = new Set<string>([CULTIVATION_CRON_ID]);
 export const isBuiltinCronId = (id: string) => BUILTIN_CRON_IDS.has(id);
