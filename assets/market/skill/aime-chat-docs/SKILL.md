@@ -14,7 +14,10 @@ Use this skill when answering questions about Aime Chat configuration and featur
 - **Skill management**: Read [references/manage-skills.md](references/manage-skills.md) when explaining how to create or add Aime Chat skills globally or for the current project.
 - **Available models**: Read [references/get-available-models.md](references/get-available-models.md) when explaining how to list configured provider models through the local API server.
 - **Available Agents**: Read [references/get-available-agents.md](references/get-available-agents.md) when explaining how to list enabled Agents through the local API server.
+- **Agent detail**: Read [references/get-agent.md](references/get-agent.md) when explaining how to fetch a single Agent's full config (instructions, tools, sub-agents, suggestions) by id through the local API server.
+- **Create/update Agent**: Read [references/save-agent.md](references/save-agent.md) when explaining how to create a new Agent or update an existing one (name, instructions, tools, model, tags) through the local API server.
 - **Available tools**: Read [references/get-available-tools.md](references/get-available-tools.md) when explaining how to list enabled tools through the local API server.
+- **Tool detail**: Read [references/get-tool.md](references/get-tool.md) when explaining how to fetch a single tool's detail (sub-tools, input schema, status) by id through the local API server.
 - **PTC (Programmatic Tool Calling)**: Read [references/use-ptc.md](references/use-ptc.md) when explaining how to use the CodeExecution PTC mode to call tools programmatically in code, batch tool calls in a loop, call ChatCompletion inside code, or report progress via the Message tool.
 
 ## API Scripts
@@ -23,7 +26,10 @@ The `scripts/` folder contains standalone Python scripts (standard library only,
 
 - **[scripts/get_available_models.py](scripts/get_available_models.py)**: List configured provider models. Supports `--type` (`llm`, `embedding`, `reranker`, `image_generation`, `transcription`, `speech`, `ocr`, `music`) and `--json` for raw output.
 - **[scripts/get_available_agents.py](scripts/get_available_agents.py)**: List enabled Agents as `- [<agent-id>]: <description>`. Supports `--visible-only` to exclude hidden Agents and `--json` for raw output.
-- **[scripts/get_available_tools.py](scripts/get_available_tools.py)**: List enabled tools grouped by type (`mcp`, `build-in`, `skill`), expanding toolkit sub-tools. Supports `--json` for raw output.
+- **[scripts/get_agent.py](scripts/get_agent.py)**: Get a single Agent's full config by id, e.g. `python scripts/get_agent.py --id code-agent`. Shows type, description, tools, sub-agents, suggestions, and instructions. Supports `--json` for raw output.
+- **[scripts/save_agent.py](scripts/save_agent.py)**: Create or update an Agent (always saved as active). Requires `--id` (letters/digits/-/_ only), `--name`, `--description`, `--instructions`. Optional repeatable `--suggestion`, `--tool`, and `--sub-agent`.
+- **[scripts/get_available_tools.py](scripts/get_available_tools.py)**: List enabled tools grouped by type (`mcp`, `build-in`, `skill`), expanding toolkit sub-tools. Descriptions are truncated to the first 100 characters. Supports `--json` for raw output.
+- **[scripts/get_tool.py](scripts/get_tool.py)**: Get a single tool's detail by id, e.g. `python scripts/get_tool.py --id skill:local:xlsx`. Shows type, status, description, and sub-tools. Supports `--json` for raw output.
 - **[scripts/preview_git_skill.py](scripts/preview_git_skill.py)**: Preview the skills available in a git repository, e.g. `python scripts/preview_git_skill.py https://github.com/<owner>/<repo>`.
 - **[scripts/import_skills.py](scripts/import_skills.py)**: Import skills globally or into the current project. Use `--repo-or-url` with optional repeatable `--skill` for repo installs, `--file` for `.skill`/`.zip` packages, and `--path <cwd>` for project-scoped installs (omit `--path` for global).
 

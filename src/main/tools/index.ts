@@ -933,6 +933,11 @@ class ToolsManager extends BaseManager {
     };
   }
 
+  @api({
+    method: 'get',
+    path: '/api/tools/get-tool',
+    args: (req: any) => [req.query.id as string],
+  })
   @channel(ToolChannel.GetTool)
   public async getTool(id: string) {
     let tool = await this.toolsRepository.findOne({ where: { id } });
@@ -1740,9 +1745,7 @@ class ToolsManager extends BaseManager {
           tool.value = {
             path: savePath,
           };
-          if (data.isActive === true) {
-            tool.isActive = true;
-          }
+          tool.isActive = true;
           // await this.toolsRepository.save(localSkill);
           skills.push({ tool, importPath: file, savePath });
           const skill = await skillManager.parseSkill(file, savePath);
@@ -1798,9 +1801,7 @@ class ToolsManager extends BaseManager {
               path: savePath,
             };
             tool.description = skillMdData.data.description;
-            if (data.isActive === true) {
-              tool.isActive = true;
-            }
+            tool.isActive = true;
             await this.toolsRepository.save(tool);
             await appManager.sendEvent(ToolEvent.ToolListUpdated, {
               id: tool.id,

@@ -890,9 +890,13 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
           );
           let _agent: Agent | undefined;
           if (_thread?.metadata?.agentId) {
-            _agent = await window.electron.agents.getAgent(
-              _thread?.metadata?.agentId as string,
-            );
+            try {
+              _agent = await window.electron.agents.getAgent(
+                _thread?.metadata?.agentId as string,
+              );
+            } catch (err) {
+              console.error(err);
+            }
           }
 
           if (!_thread?.metadata?.tools) {

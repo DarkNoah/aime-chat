@@ -17,6 +17,15 @@ import sys
 import urllib.error
 import urllib.request
 
+DESC_MAX_LEN = 100
+
+
+def truncate(text: str, limit: int = DESC_MAX_LEN) -> str:
+    text = " ".join((text or "").split())
+    if len(text) <= limit:
+        return text
+    return text[:limit].rstrip() + "..."
+
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="List available Aime Chat tools.")
@@ -49,9 +58,9 @@ def main() -> int:
         for item in items:
             if item.get("isToolkit"):
                 for t in item.get("tools") or []:
-                    print(f"- [{t.get('id')}]: {t.get('description') or ''}")
+                    print(f"- [{t.get('id')}]: {truncate(t.get('description'))}")
             else:
-                print(f"- [{item.get('id')}]: {item.get('description') or ''}")
+                print(f"- [{item.get('id')}]: {truncate(item.get('description'))}")
         print()
     return 0
 
