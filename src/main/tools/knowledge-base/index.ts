@@ -87,6 +87,57 @@ Return json format:
   }
 }
 
+export class KnowledgeBaseGetItem extends BaseTool {
+  static readonly toolName = 'KnowledgeBaseGetItem';
+  id: string = 'KnowledgeBaseGetItem';
+  description = `Get the Item of a knowledge base.
+Return json format:
+{
+  "id": "1",
+  "title": "file_name_or_title",
+  "content": "knowledge base content",
+  "extendData": {
+    "column1": "value1",
+    "column2": "value2",
+  }
+}
+`;
+
+  inputSchema = z.object({
+    item_id: z.string().describe('The item id of the knowledge base.'),
+    format: z.enum(['text', 'json']).describe('The format of the knowledge base item.').optional().default('text'),
+  });
+
+  constructor(params?: BaseToolParams) {
+    super(params);
+  }
+
+  execute = async (inputData: z.infer<typeof this.inputSchema>, options?: ToolExecutionContext<ZodSchema, any>) => {
+    const { item_id, format = 'text' } = inputData;
+    // const { writer } = options;
+    const knowledgeBaseItem = await knowledgeBaseManager.getKnowledgeBaseItem(item_id);
+
+    if (format === 'json') {
+
+      return {
+        id: knowledgeBaseItem.id,
+        title: knowledgeBaseItem.name,
+        content: knowledgeBaseItem.content,
+        extendData: knowledgeBaseItem.extendData,
+      }
+    }
+
+
+    return `---
+id: ${knowledgeBaseItem.id}
+title: ${knowledgeBaseItem.name}
+source: ${knowledgeBaseItem.source}
+extendData: ${JSON.stringify(knowledgeBaseItem.extendData, null, 2)}
+---
+${knowledgeBaseItem.content}
+`;
+  }
+}
 
 export class KnowledgeBaseAdd extends BaseTool {
   static readonly toolName = 'KnowledgeBaseAdd';
@@ -196,8 +247,9 @@ export class KnowledgeBaseToolkit extends BaseToolkit {
     const listConfig = params?.[KnowledgeBaseList.toolName];
     const addConfig = params?.[KnowledgeBaseAdd.toolName];
     const createConfig = params?.[KnowledgeBaseCreate.toolName];
+    const getItemConfig = params?.[KnowledgeBaseGetItem.toolName];
     super(
-      [new KnowledgeBaseSearch(searchConfig), new KnowledgeBaseList(listConfig), new KnowledgeBaseAdd(addConfig), new KnowledgeBaseCreate(createConfig)],
+      [new KnowledgeBaseSearch(searchConfig), new KnowledgeBaseList(listConfig), new KnowledgeBaseAdd(addConfig), new KnowledgeBaseCreate(createConfig), new KnowledgeBaseGetItem(getItemConfig)],
       params,
     );
   }

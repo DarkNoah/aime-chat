@@ -96,6 +96,7 @@ export enum KnowledgeBaseChannel {
   Get = 'knowledge-base:get',
   GetList = 'knowledge-base:getList',
   ImportSource = 'knowledge-base:importSource',
+  GetKnowledgeBaseItem = 'knowledge-base:getKnowledgeBaseItem',
   GetKnowledgeBaseItems = 'knowledge-base:getKnowledgeBaseItems',
   DeleteKnowledgeBaseItem = 'knowledge-base:deleteKnowledgeBaseItem',
   UpdateKnowledgeBaseItem = 'knowledge-base:updateKnowledgeBaseItem',
