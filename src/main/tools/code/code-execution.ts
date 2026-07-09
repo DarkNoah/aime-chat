@@ -196,8 +196,10 @@ Programmatic Tool Calling (PTC) allows to write code that calls tools programmat
 </tips>
 
 <ChatCompletion>
-ChatCompletion is a special built-in tool that calls the Chat (LLM) interface directly. It is NOT listed in the available tools list, but you can always call it in PTC mode like any other globally injected async function.
-Use it when you need the model to reason over / transform / summarize data inside your code loop (e.g. per row, per cell, per file).
+ChatCompletion is a special built-in function available only inside the CodeExecution tool when PTC mode is enabled. It calls the Chat (LLM) interface directly. It is not listed in the available tools list, but in PTC mode you can call it like any other globally injected async function.
+Use it when you need the model to reason over, transform, or summarize data inside your CodeExecution workflow, such as processing rows, cells, or files in a loop.
+
+- It can only be used within the current CodeExecution tool's PTC environment.
 - It is async, call it with \`await ChatCompletion(...)\`.
 - It returns the assistant reply as plain text.
 - More details, please check skill:local:aime-chat-docs to view the documentation.
