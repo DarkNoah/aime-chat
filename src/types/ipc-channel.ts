@@ -33,6 +33,8 @@ export enum AppChannel {
   ShowOpenDialog = 'app:showOpenDialog',
   ShowSaveDialog = 'app:showSaveDialog',
   SaveSettings = 'app:saveSettings',
+  SetWindowMode = 'app:setWindowMode',
+  WindowModeChanged = 'app:windowModeChanged',
   GetAssistantSoulLibrary = 'app:getAssistantSoulLibrary',
   SaveAssistantSoul = 'app:saveAssistantSoul',
   ResetAssistantSoul = 'app:resetAssistantSoul',

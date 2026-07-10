@@ -35,6 +35,7 @@ import {
 } from '@/renderer/components/ui/alert';
 import { ChatAgentSelector } from '@/renderer/components/chat-ui/chat-agent-selector';
 import { PromptInputButton } from '@/renderer/components/ai-elements/prompt-input';
+import { WindowModeSetting } from './window-mode-setting';
 
 export default function General() {
   const { t } = useTranslation();
@@ -144,6 +145,7 @@ export default function General() {
           <LanguageToggle className="w-[200px]"></LanguageToggle>
         </div>
       </Field>
+      <WindowModeSetting />
       <Field>
         <FieldLabel>{t('settings.default_agent')}</FieldLabel>
         <div className="w-full">

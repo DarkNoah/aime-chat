@@ -7,6 +7,9 @@ import {
   ScreenCaptureOptions,
   ScreenCaptureResult,
   ScreenSource,
+  SetWindowModeInput,
+  UpdateState,
+  WindowModeState,
 } from '@/types/app';
 import { ChatInput, ThreadState } from '@/types/chat';
 import {
@@ -56,7 +59,6 @@ import {
   TaskGroupConfig,
 } from '@/types/task-queue';
 import { AvailableTool, ToolType } from '@/types/tool';
-import { UpdateState } from '@/types/app';
 import {
   AssistantSoulLibrary,
   SaveAssistantSoulInput,
@@ -182,6 +184,8 @@ const electronHandler = {
       ipcRenderer.invoke(AppChannel.ShowSaveDialog, options),
     saveSettings: (settings: { id: string; value: any }) =>
       ipcRenderer.invoke(AppChannel.SaveSettings, settings),
+    setWindowMode: (input: SetWindowModeInput): Promise<WindowModeState> =>
+      ipcRenderer.invoke(AppChannel.SetWindowMode, input),
     getAssistantSoulLibrary: (): Promise<AssistantSoulLibrary> =>
       ipcRenderer.invoke(AppChannel.GetAssistantSoulLibrary),
     saveAssistantSoul: (

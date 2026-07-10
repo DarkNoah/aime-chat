@@ -30,6 +30,8 @@ import {
   ScreenCaptureOptions,
   ScreenCaptureResult,
   ScreenSource,
+  SetWindowModeInput,
+  WindowModeState,
 } from '@/types/app';
 import { app } from 'electron';
 import { getAssetPath, getDbPath, getDefaultModelPath } from '../utils';
@@ -110,6 +112,8 @@ import {
 } from '@/types/assistant-soul';
 import { api } from '../api/ApiController';
 import { getCrashDumpDirectory } from './crash-reporter';
+import { WindowModeController } from './window-mode';
+
 class AppManager extends BaseManager {
   repository: Repository<Providers>;
   settingsRepository: Repository<Settings>;
@@ -120,6 +124,18 @@ class AppManager extends BaseManager {
   readonly defaultPreventSleepInterval: PreventSleepInterval = '5m';
   defaultApiServerPort = 41100;
   defaultACPPort = 41101;
+  private readonly windowModeController = new WindowModeController({
+    getWindow: () => getMainWindow(),
+    getWorkArea: (bounds) => screen.getDisplayMatching(bounds).workArea,
+    persist: async (mode) => {
+      await this.settingsRepository.upsert(new Settings('windowMode', mode), [
+        'id',
+      ]);
+    },
+    emit: (state) => {
+      getMainWindow()?.webContents.send(AppChannel.WindowModeChanged, state);
+    },
+  });
 
   constructor() {
     super();
@@ -130,6 +146,9 @@ class AppManager extends BaseManager {
       dbManager.dataSource.getRepository(Translations);
     this.settingsRepository = dbManager.dataSource.getRepository(Settings);
     const settings = await this.settingsRepository.find();
+    this.windowModeController.initialize(settings.find(
+      (x) => x.id === 'windowMode',
+    )?.value);
     nativeTheme.themeSource =
       settings.find((x) => x.id === 'theme')?.value ?? 'system';
     const proxySetting = await this.settingsRepository.findOne({
@@ -278,7 +297,27 @@ class AppManager extends BaseManager {
       acp,
       preventSleepInterval,
       assistantSoul,
+      windowMode: this.windowModeController.getState(),
     };
+  }
+
+  public getInitialWindowSize() {
+    return this.windowModeController.getInitialWindowSize();
+  }
+
+  public getInitialWindowMinimumWidth() {
+    return this.windowModeController.getInitialMinimumWidth();
+  }
+
+  public getWindowModeState(): WindowModeState {
+    return this.windowModeController.getState();
+  }
+
+  @channel(AppChannel.SetWindowMode)
+  public async setWindowMode(
+    input: SetWindowModeInput,
+  ): Promise<WindowModeState> {
+    return this.windowModeController.setMode(input);
   }
 
   private ensurePreventSleepStarted() {

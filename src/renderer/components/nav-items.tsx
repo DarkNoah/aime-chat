@@ -32,6 +32,7 @@ export function NavItems({
       {items.map((item) => (
         <SidebarMenuItem key={item.title}>
           <SidebarMenuButton
+            tooltip={item.title}
             asChild
             onClick={() => {
               if (item.url) {

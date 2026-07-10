@@ -155,10 +155,14 @@ const createWindow = async () => {
     // await installExtensions();
   }
 
+  const initialWindowMode = appManager.getWindowModeState().current;
+  const initialWindowSize = appManager.getInitialWindowSize();
+  const initialMinimumWidth = appManager.getInitialWindowMinimumWidth();
+
   mainWindow = new BrowserWindow({
     show: false,
-    width: 1024,
-    height: 728,
+    ...initialWindowSize,
+    ...(initialMinimumWidth ? { minWidth: initialMinimumWidth } : {}),
     icon: getAssetPath('icon.png'),
     // frame: false,
     // titleBarStyle: 'hidden',
@@ -174,6 +178,10 @@ const createWindow = async () => {
         : path.join(__dirname, '../../.erb/dll/preload.js'),
     },
   });
+
+  if (initialWindowMode === 'compact') {
+    mainWindow.center();
+  }
 
   mainWindow.loadURL(resolveHtmlPath('index.html'));
 
@@ -200,6 +208,8 @@ const createWindow = async () => {
     shell.openExternal(edata.url);
     return { action: 'deny' };
   });
+
+  return mainWindow;
 };
 
 const gotSingleInstanceLock = app.requestSingleInstanceLock();
@@ -207,8 +217,6 @@ const gotSingleInstanceLock = app.requestSingleInstanceLock();
 if (!gotSingleInstanceLock) {
   app.exit(0);
 } else {
-  init();
-
   app.setAsDefaultProtocolClient('aime-chat');
   app.on('open-url', (event, url) => {
     event.preventDefault();
@@ -233,15 +241,19 @@ if (!gotSingleInstanceLock) {
 
   app
     .whenReady()
-    .then(() => {
+    .then(async () => {
+      await init();
       const filter = { urls: ['https://mmbiz.qpic.cn/*'] };
 
-      session.defaultSession.webRequest.onBeforeSendHeaders(filter, (details, callback) => {
-        details.requestHeaders['Referer'] = 'https://mp.weixin.qq.com/';
-        // 有时也需 UA 更像微信内置浏览 Chrome
-        // details.requestHeaders['User-Agent'] = 'Mozilla/5.0 ...';
-        callback({ requestHeaders: details.requestHeaders });
-      });
+      session.defaultSession.webRequest.onBeforeSendHeaders(
+        filter,
+        (details, callback) => {
+          details.requestHeaders.Referer = 'https://mp.weixin.qq.com/';
+          // 有时也需 UA 更像微信内置浏览 Chrome
+          // details.requestHeaders['User-Agent'] = 'Mozilla/5.0 ...';
+          callback({ requestHeaders: details.requestHeaders });
+        },
+      );
       createWindow();
       app.on('activate', () => {
         // On macOS it's common to re-create a window in the app when the

@@ -144,11 +144,17 @@ import { useChat } from '../hooks/use-chat';
 import { useThreadStore } from '../store/use-thread-store';
 import { useShallow } from 'zustand/react/shallow';
 import { eventBus } from '@/renderer/lib/event-bus';
+import {
+  ChatPreviewVisibility,
+  useIsCompactWindow,
+} from '../components/chat-ui/chat-preview-visibility';
 
 function ChatPage() {
   const { appInfo } = useGlobal();
   const { theme } = useTheme();
   const { t } = useTranslation();
+  const isCompactWindow = useIsCompactWindow();
+  const isCompactWindowRef = useRef(isCompactWindow);
   const chatPanelRef = useRef<ChatPanelRef>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [previewToolPart, setPreviewToolPart] = useState<
@@ -214,6 +220,13 @@ function ChatPage() {
   };
 
   useEffect(() => {
+    isCompactWindowRef.current = isCompactWindow;
+    if (isCompactWindow) {
+      setShowPreview(false);
+    }
+  }, [isCompactWindow]);
+
+  useEffect(() => {
     setShowPreview(false);
     if (threadId) {
       const { message, options } = location.state || {};
@@ -223,7 +236,9 @@ function ChatPage() {
       }
       eventBus.on(`chat:onEvent:${threadId}`, (event: any) => {
         console.log('chat:onEvent', event);
-        setShowPreview(true);
+        if (!isCompactWindowRef.current) {
+          setShowPreview(true);
+        }
         setPreviewData((data) => {
           return {
             ...data,
@@ -344,14 +359,15 @@ function ChatPage() {
             </DropdownMenuContent>
           </DropdownMenu>
         )}
-        <Button
-          variant="outline"
-          size="icon-sm"
-          onClick={() => setShowPreview(!showPreview)}
-        >
-          {!showPreview && <IconArrowBarLeft />}
-          {showPreview && <IconArrowBarRight />}
-        </Button>
+        {!isCompactWindow ? (
+          <Button
+            variant="outline"
+            size="icon-sm"
+            onClick={() => setShowPreview(!showPreview)}
+          >
+            {!showPreview ? <IconArrowBarLeft /> : <IconArrowBarRight />}
+          </Button>
+        ) : null}
       </div>,
     );
   }, [
@@ -361,6 +377,7 @@ function ChatPage() {
     appInfo.shouldUseDarkColors,
     threadState?.title,
     threadState?.metadata?.workspace,
+    isCompactWindow,
   ]);
 
   useEffect(() => {
@@ -382,14 +399,16 @@ function ChatPage() {
       <ResizablePanel
         id="chat-main"
         order={1}
-        className={`h-full  w-full justify-between min-w-[450px]`}
+        className="h-full  w-full justify-between min-w-[450px]"
       >
         <ChatPanel
           ref={chatPanelRef}
           onSubmit={handleSubmit}
           threadId={threadId}
           onToolMessageClick={(_part) => {
-            setShowPreview(true);
+            if (!isCompactWindow) {
+              setShowPreview(true);
+            }
             setPreviewToolPart(_part);
             console.log(_part);
             setPreviewData((data) => {
@@ -402,13 +421,13 @@ function ChatPage() {
         ></ChatPanel>
       </ResizablePanel>
 
-      {showPreview && (
+      <ChatPreviewVisibility visible={showPreview}>
         <>
           <ResizableHandle withHandle />
           <ResizablePanel
             id="chat-preview"
             order={2}
-            className={`h-full flex-1`}
+            className="h-full flex-1"
           >
             <div className="p-2 w-full h-full">
               <ChatPreview
@@ -423,7 +442,7 @@ function ChatPage() {
             </div>
           </ResizablePanel>
         </>
-      )}
+      </ChatPreviewVisibility>
     </ResizablePanelGroup>
   );
 }

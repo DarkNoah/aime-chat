@@ -25,6 +25,11 @@
     "theme_system": "🖥️ 跟随系统",
     "theme_light": "☀️ Light",
     "theme_dark": "🌑 黑夜模式",
+    "window_mode": "窗口模式",
+    "window_mode_normal": "正常模式",
+    "window_mode_compact": "小窗模式",
+    "window_mode_temporary_override": "当前窗口由聊天按钮临时切换，重启后将恢复为这里选择的模式。",
+    "window_mode_change_failed": "窗口模式切换失败",
     "providers": "模型供应商",
     "runtime": "运行环境",
     "runtime_page": {
@@ -295,7 +300,9 @@
     "file_too_large": "文件过大 ({{size}})，已截断显示",
     "retry": "重试",
     "refresh": "刷新",
-    "web_preview": "预览"
+    "web_preview": "预览",
+    "enter_compact_mode": "切换到小窗模式",
+    "restore_normal_window": "恢复正常窗口"
   },
   "tools": {
     "mcp_command": "命令",

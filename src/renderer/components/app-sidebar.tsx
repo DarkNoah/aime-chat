@@ -70,6 +70,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const navigate = useNavigate();
   const location = useLocation();
   const updateState = useUpdateState();
+  const isCompactWindow = appInfo?.windowMode?.current === 'compact';
   const [activeTab, setActiveTab] = useState(
     window.localStorage.getItem('activeTab') || 'chat',
   );
@@ -147,10 +148,18 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     },
   ];
   return (
-    <Sidebar collapsible="offcanvas" {...props}>
+    <Sidebar
+      collapsible={isCompactWindow ? 'icon' : 'offcanvas'}
+      {...props}
+    >
       <SidebarHeader>
         <SidebarMenu>
-          <SidebarMenuItem className="flex flex-row gap-2">
+          <SidebarMenuItem
+            className={cn(
+              'flex flex-row gap-2',
+              isCompactWindow && 'hidden',
+            )}
+          >
             <span className="text-base font-semibold">{appInfo?.name}</span>
             {appInfo?.isPackaged === false && (
               <Badge
@@ -169,55 +178,59 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         open={openProjectDialog}
         onOpenChange={setOpenProjectDialog}
       ></ChatProjectDialog>
-      <div className="flex flex-row ">
-        <Button
-          variant="link"
-          size="sm"
-          onClick={() => setActiveTab('chat')}
-          className={cn(
-            'text-xs ',
-            activeTab === 'chat'
-              ? 'text-foreground underline'
-              : 'text-muted-foreground',
-            'transition-all duration-300 ease-in-out',
-          )}
-        >
-          {t('common.chat')}
-        </Button>
-        <Button
-          variant="link"
-          size="sm"
-          onClick={() => setActiveTab('projects')}
-          className={cn(
-            'text-xs ',
-            activeTab === 'projects'
-              ? 'text-foreground underline'
-              : 'text-muted-foreground',
-            'transition-all duration-300 ease-in-out',
-          )}
-        >
-          {t('common.project')}
-        </Button>
-      </div>
-
-      <ThreadsList
-        className={`${activeTab === 'chat' ? 'block' : 'hidden'}`}
-      ></ThreadsList>
-      <ProjectsList
-        className={`${activeTab === 'projects' ? 'block' : 'hidden'}`}
-      ></ProjectsList>
+      {!isCompactWindow ? (
+        <>
+          <div className="flex flex-row">
+            <Button
+              variant="link"
+              size="sm"
+              onClick={() => setActiveTab('chat')}
+              className={cn(
+                'text-xs ',
+                activeTab === 'chat'
+                  ? 'text-foreground underline'
+                  : 'text-muted-foreground',
+                'transition-all duration-300 ease-in-out',
+              )}
+            >
+              {t('common.chat')}
+            </Button>
+            <Button
+              variant="link"
+              size="sm"
+              onClick={() => setActiveTab('projects')}
+              className={cn(
+                'text-xs ',
+                activeTab === 'projects'
+                  ? 'text-foreground underline'
+                  : 'text-muted-foreground',
+                'transition-all duration-300 ease-in-out',
+              )}
+            >
+              {t('common.project')}
+            </Button>
+          </div>
+          <ThreadsList
+            className={activeTab === 'chat' ? 'block' : 'hidden'}
+          />
+          <ProjectsList
+            className={activeTab === 'projects' ? 'block' : 'hidden'}
+          />
+        </>
+      ) : null}
       {/* <SidebarContent>
         <SidebarGroup>
           <SidebarGroupContent className="flex flex-col gap-2"></SidebarGroupContent>
         </SidebarGroup>
 
       </SidebarContent> */}
-      <SidebarFooter>
+      <SidebarFooter className={cn(isCompactWindow && 'mt-auto')}>
         <SidebarSeparator className="ml-0"></SidebarSeparator>
         <SidebarMenu>
           {updateState.status === 'downloaded' && (
             <SidebarMenuItem className="flex flex-row gap-2">
               <SidebarMenuButton
+                tooltip={t('update.downloadedReady')}
                 onClick={() => navigate('/settings/about')}
                 className="cursor-pointer text-primary hover:text-primary/80 transition-all duration-300 ease-in-out"
               >
@@ -240,6 +253,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           )}
           <SidebarMenuItem className="flex flex-row gap-2">
             <SidebarMenuButton
+              tooltip="GitHub"
               onClick={() =>
                 window.open('https://github.com/DarkNoah/aime-chat', '_blank')
               }
@@ -251,6 +265,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           </SidebarMenuItem>
           <SidebarMenuItem className="flex flex-row gap-2">
             <SidebarMenuButton
+              tooltip={t('sidebar.settings')}
               isActive={location.pathname === '/settings'}
               onClick={() => navigate('/settings')}
               className="cursor-pointer"
@@ -259,7 +274,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               {t('sidebar.settings')}
             </SidebarMenuButton>
           </SidebarMenuItem>
-          {appInfo?.version}
+          <span className={cn(isCompactWindow && 'hidden')}>
+            {appInfo?.version}
+          </span>
         </SidebarMenu>
         {/* <div className="h-[32px]"></div> */}
 

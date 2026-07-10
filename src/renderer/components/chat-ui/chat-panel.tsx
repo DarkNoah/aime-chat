@@ -103,6 +103,7 @@ import {
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { ChatEmpty, TemplateItem } from './chat-empty';
+import { WindowModeToggle } from './window-mode-toggle';
 
 type ChatMessageItemProps = {
   message: UIMessage;
@@ -1177,15 +1178,18 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
               onSelectedAgent={handleAgentChange}
             ></ChatAgentSelector>
 
-            {usage?.usage?.totalTokens > 0 && (
-              <ChatUsage
-                value={{
-                  usage: usage?.usage,
-                  maxTokens: usage?.maxTokens,
-                  modelId: usage?.modelId ?? usage?.model,
-                }}
-              />
-            )}
+            <div className="flex items-center gap-1">
+              {usage?.usage?.totalTokens > 0 ? (
+                <ChatUsage
+                  value={{
+                    usage: usage?.usage,
+                    maxTokens: usage?.maxTokens,
+                    modelId: usage?.modelId ?? usage?.model,
+                  }}
+                />
+              ) : null}
+              <WindowModeToggle />
+            </div>
           </div>
           {pendingSubmits.length > 0 && (
             <div className="rounded-lg border bg-background/95 p-2 shadow-sm">
