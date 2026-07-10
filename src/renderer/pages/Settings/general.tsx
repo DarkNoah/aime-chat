@@ -57,7 +57,7 @@ export default function General() {
     window.electron.requestLog
       .getEnabled()
       .then(setRequestLogEnabled)
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const onChangeTheme = async (value: string) => {
@@ -80,6 +80,8 @@ export default function General() {
   const onChangeApiServerEnable = async (enabled: boolean) => {
     try {
       await window.electron.app.toggleApiServerEnable(enabled);
+    } catch (err) {
+      console.error(err);
     } finally {
       // 启动可能失败（如端口被占用），无论成败都刷新一次以反映真实运行状态
       await getAppInfo();
@@ -160,7 +162,7 @@ export default function General() {
             onChange={(value) => {
               onChangeDefaultAgent(value);
             }}
-            onSelectedAgent={() => {}}
+            onSelectedAgent={() => { }}
           >
             <Button
               variant="outline"
