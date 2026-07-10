@@ -78,8 +78,12 @@ export default function General() {
   };
 
   const onChangeApiServerEnable = async (enabled: boolean) => {
-    await window.electron.app.toggleApiServerEnable(enabled);
-    await getAppInfo();
+    try {
+      await window.electron.app.toggleApiServerEnable(enabled);
+    } finally {
+      // 启动可能失败（如端口被占用），无论成败都刷新一次以反映真实运行状态
+      await getAppInfo();
+    }
   };
 
   const onChangeACPEnable = async (enabled: boolean) => {
@@ -337,7 +341,7 @@ export default function General() {
             min={1}
             max={65535}
             placeholder="Port: 1-65535"
-            disabled={appInfo?.apiServer?.enabled}
+            disabled={appInfo?.apiServer?.status === 'running'}
             value={apiServerPort}
             onChange={(e) => {
               setApiServerPort(parseInt(e.target.value, 10));
@@ -347,7 +351,7 @@ export default function General() {
             }}
           />
 
-          {appInfo?.apiServer?.enabled && (
+          {appInfo?.apiServer?.status === 'running' && (
             <Button
               variant="outline"
               onClick={() => onChangeApiServerEnable(false)}
@@ -356,7 +360,7 @@ export default function General() {
               {t('settings.apiServerStop')}
             </Button>
           )}
-          {!appInfo?.apiServer?.enabled && (
+          {appInfo?.apiServer?.status !== 'running' && (
             <Button
               variant="outline"
               onClick={() => onChangeApiServerEnable(true)}
