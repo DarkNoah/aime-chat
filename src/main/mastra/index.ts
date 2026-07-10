@@ -263,13 +263,27 @@ class MastraManager extends BaseManager {
 
   public async start(port: number) {
     if (this.httpServer?.listening) return;
-    try {
-      this.httpServer = this.app.listen(port, '127.0.0.1', () => {
+    await new Promise<void>((resolve, reject) => {
+      const server = this.app.listen(port, '127.0.0.1');
+      const onError = (err: NodeJS.ErrnoException) => {
+        server.removeListener('listening', onListening);
+        this.httpServer = undefined;
+        const message =
+          err.code === 'EADDRINUSE'
+            ? `AIME HTTP Server start failed: port ${port} is already in use`
+            : `AIME HTTP Server start failed: ${err.message}`;
+        appManager.toast(message, { type: 'error' });
+        reject(err);
+      };
+      const onListening = () => {
+        server.removeListener('error', onError);
         console.log(`Mastra HTTP Server running on port ${port}`);
-      });
-    } catch {
-      appManager.toast('AIME HTTP Server start failed', { type: 'error' });
-    }
+        resolve();
+      };
+      server.once('error', onError);
+      server.once('listening', onListening);
+      this.httpServer = server;
+    });
   }
 
   public async restart() {
