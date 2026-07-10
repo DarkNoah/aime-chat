@@ -45,6 +45,7 @@ import { ButtonGroup } from '@/renderer/components/ui/button-group';
 import { PromptInputMessage } from '@/renderer/components/ai-elements/prompt-input';
 import { useChat } from '@/renderer/hooks/use-chat';
 import { ChatPreview } from '@/renderer/components/chat-ui/chat-preview';
+import { ChatPreviewVisibility } from '@/renderer/components/chat-ui/chat-preview-visibility';
 import { ToolUIPart } from 'ai';
 import {
   ChatPreviewData,
@@ -459,25 +460,33 @@ function ProjectsPage() {
           onThreadChanged={handleThreadChanged}
         ></ChatPanel>
       </ResizablePanel>
-      <ResizableHandle withHandle />
-      <ResizablePanel id="projects-preview" order={2} className="h-full flex-1">
-        <div className="min-w-0 p-2 flex-1 h-full">
-          <ChatPreview
-            resourceId={projectResourceId}
-            workspace={project?.path}
-            part={previewToolPart}
-            previewData={previewData}
-            project={project}
-            onProjectChanged={() => {
-              console.log('onProjectChanged');
-              getProject();
-            }}
-            onPreviewDataChange={(value) => {
-              setPreviewData(value);
-            }}
-          />
-        </div>
-      </ResizablePanel>
+      <ChatPreviewVisibility>
+        <>
+          <ResizableHandle withHandle />
+          <ResizablePanel
+            id="projects-preview"
+            order={2}
+            className="h-full flex-1"
+          >
+            <div className="min-w-0 p-2 flex-1 h-full">
+              <ChatPreview
+                resourceId={projectResourceId}
+                workspace={project?.path}
+                part={previewToolPart}
+                previewData={previewData}
+                project={project}
+                onProjectChanged={() => {
+                  console.log('onProjectChanged');
+                  getProject();
+                }}
+                onPreviewDataChange={(value) => {
+                  setPreviewData(value);
+                }}
+              />
+            </div>
+          </ResizablePanel>
+        </>
+      </ChatPreviewVisibility>
     </ResizablePanelGroup>
   );
 }

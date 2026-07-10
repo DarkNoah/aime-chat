@@ -1,4 +1,4 @@
-import { AppInfo } from '@/types/app';
+import { AppInfo, WindowMode, WindowModeState } from '@/types/app';
 import { AppChannel } from '@/types/ipc-channel';
 import React, {
   createContext,
@@ -24,6 +24,10 @@ type GlobalState = {
   user?: string;
   setUser: (user?: string) => void;
   getAppInfo: () => Promise<void>;
+  setWindowMode: (
+    mode: WindowMode,
+    persist: boolean,
+  ) => Promise<WindowModeState>;
   setupStatus?: SetupStatus;
   getSetupStatus: () => Promise<SetupStatus>;
 };
@@ -35,27 +39,52 @@ export function GlobalProvider({ children }: { children: ReactNode }) {
   const [appInfo, setAppInfo] = useState<AppInfo | undefined>();
   const [setupStatus, setSetupStatus] = useState<SetupStatus | undefined>();
 
-  const getAppInfo = async () => {
+  const getAppInfo = useCallback(async () => {
     const data = await window.electron.app.getInfo();
     console.log('appInfo', data);
     setAppInfo(data);
-  };
+  }, []);
 
-  const getSetupStatus = async (): Promise<SetupStatus> => {
+  const getSetupStatus = useCallback(async (): Promise<SetupStatus> => {
     const data = await window.electron.app.getSetupStatus();
     setSetupStatus(data);
     return data;
-  };
+  }, []);
+
+  const updateWindowMode = useCallback((windowMode: WindowModeState) => {
+    setAppInfo((previous) =>
+      previous ? { ...previous, windowMode } : previous,
+    );
+  }, []);
+
+  const setWindowMode = useCallback(
+    async (mode: WindowMode, persist: boolean) => {
+      const windowMode = await window.electron.app.setWindowMode({
+        mode,
+        persist,
+      });
+      updateWindowMode(windowMode);
+      return windowMode;
+    },
+    [updateWindowMode],
+  );
 
   const contextValue = useMemo(
-    () => ({ user, setUser, appInfo, getAppInfo, setupStatus, getSetupStatus }),
-    [user, appInfo, setupStatus],
+    () => ({
+      user,
+      setUser,
+      appInfo,
+      getAppInfo,
+      setWindowMode,
+      setupStatus,
+      getSetupStatus,
+    }),
+    [user, appInfo, getAppInfo, setWindowMode, setupStatus, getSetupStatus],
   );
 
   const handleToast = useCallback(
     (title, options) => {
       console.log('Toast', title, options);
-      console.log('appInfo', contextValue.appInfo);
       const isDark = appInfo?.shouldUseDarkColors;
       toast(title as string, {
         ...options,
@@ -67,18 +96,29 @@ export function GlobalProvider({ children }: { children: ReactNode }) {
           : undefined,
       });
     },
-    [contextValue],
+    [appInfo?.shouldUseDarkColors],
   );
 
   useEffect(() => {
     getAppInfo();
     getSetupStatus();
+  }, [getAppInfo, getSetupStatus]);
+
+  useEffect(() => {
     window.electron.ipcRenderer.removeAllListeners(AppChannel.Toast);
     window.electron.ipcRenderer.on(AppChannel.Toast, handleToast);
     return () => {
       window.electron.ipcRenderer.removeListener(AppChannel.Toast, handleToast);
     };
-  }, []);
+  }, [handleToast]);
+
+  useEffect(() => {
+    const unsubscribe = window.electron.ipcRenderer.on(
+      AppChannel.WindowModeChanged,
+      (windowMode) => updateWindowMode(windowMode as WindowModeState),
+    );
+    return unsubscribe;
+  }, [updateWindowMode]);
 
   const isLoading = !appInfo || setupStatus === undefined;
 

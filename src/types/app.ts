@@ -1,5 +1,17 @@
 import { AssistantSoulSettings } from './assistant-soul';
 
+export type WindowMode = 'normal' | 'compact';
+
+export type WindowModeState = {
+  configured: WindowMode;
+  current: WindowMode;
+};
+
+export type SetWindowModeInput = {
+  mode: WindowMode;
+  persist: boolean;
+};
+
 export type PreventSleepInterval =
   | '5m'
   | '10m'
@@ -47,6 +59,7 @@ export class AppInfo {
   acp: ACPInfo;
   preventSleepInterval: PreventSleepInterval;
   assistantSoul: AssistantSoulSettings;
+  windowMode: WindowModeState;
 }
 
 

@@ -25,6 +25,11 @@
     "theme_system": "🖥️ System",
     "theme_light": "☀️ 明亮模式",
     "theme_dark": "🌑 Dark",
+    "window_mode": "Window mode",
+    "window_mode_normal": "Normal mode",
+    "window_mode_compact": "Compact mode",
+    "window_mode_temporary_override": "The current window mode was changed temporarily from chat. Restarting will restore the mode selected here.",
+    "window_mode_change_failed": "Failed to change window mode",
     "providers": "Model Provider",
     "runtime": "Runtime",
     "runtime_page": {
@@ -285,7 +290,9 @@
     "results_count": "{{count}} result(s)",
     "file_too_large": "File is too large ({{size}}), content truncated",
     "retry": "Retry",
-    "refresh": "Refresh"
+    "refresh": "Refresh",
+    "enter_compact_mode": "Switch to compact mode",
+    "restore_normal_window": "Restore normal window"
   },
   "tools": {
     "mcp_command": "Command",
