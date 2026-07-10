@@ -11,6 +11,8 @@ export const COMPACT_WINDOW_SIZE = {
   height: 720,
 } as const;
 
+export const COMPACT_WINDOW_MIN_WIDTH = 560;
+
 export type WindowModeWindow = {
   getBounds: () => Rectangle;
   getNormalBounds: () => Rectangle;
@@ -20,12 +22,15 @@ export type WindowModeWindow = {
   unmaximize: () => void;
   isFullScreen: () => boolean;
   setFullScreen: (fullScreen: boolean) => void;
+  getMinimumSize: () => number[];
+  setMinimumSize: (width: number, height: number) => void;
 };
 
 type NormalWindowSnapshot = {
   bounds: Rectangle;
   wasMaximized: boolean;
   wasFullScreen: boolean;
+  minimumSize: [number, number];
 };
 
 type WindowModeControllerOptions = {
@@ -65,6 +70,18 @@ export const getCenteredWindowBounds = (
   };
 };
 
+export const getCompactWindowBounds = (workArea: Rectangle): Rectangle => {
+  const height = Math.min(COMPACT_WINDOW_SIZE.height, workArea.height);
+  return {
+    x:
+      workArea.x +
+      Math.floor((workArea.width - COMPACT_WINDOW_MIN_WIDTH) / 2),
+    y: workArea.y + Math.floor((workArea.height - height) / 2),
+    width: COMPACT_WINDOW_MIN_WIDTH,
+    height,
+  };
+};
+
 export class WindowModeController {
   private state: WindowModeState = {
     configured: 'normal',
@@ -100,6 +117,12 @@ export class WindowModeController {
 
   getInitialWindowSize() {
     return getWindowSize(this.state.current);
+  }
+
+  getInitialMinimumWidth() {
+    return this.state.current === 'compact'
+      ? COMPACT_WINDOW_MIN_WIDTH
+      : undefined;
   }
 
   async setMode(input: SetWindowModeInput): Promise<WindowModeState> {
@@ -157,21 +180,24 @@ export class WindowModeController {
 
     if (mode === 'compact') {
       if (this.state.current !== 'compact') {
+        const [minimumWidth, minimumHeight] = window.getMinimumSize();
         this.normalWindowSnapshot = {
           bounds: window.getNormalBounds(),
           wasMaximized: window.isMaximized(),
           wasFullScreen: window.isFullScreen(),
+          minimumSize: [minimumWidth, minimumHeight],
         };
       }
 
       exitExpandedWindowStates(window);
       const anchorBounds =
         this.normalWindowSnapshot?.bounds ?? window.getBounds();
+      const minimumHeight =
+        this.normalWindowSnapshot?.minimumSize[1] ??
+        window.getMinimumSize()[1];
+      window.setMinimumSize(COMPACT_WINDOW_MIN_WIDTH, minimumHeight);
       window.setBounds(
-        getCenteredWindowBounds(
-          COMPACT_WINDOW_SIZE,
-          this.getWorkArea(anchorBounds),
-        ),
+        getCompactWindowBounds(this.getWorkArea(anchorBounds)),
       );
       return;
     }
@@ -184,6 +210,8 @@ export class WindowModeController {
         NORMAL_WINDOW_SIZE,
         this.getWorkArea(window.getBounds()),
       );
+    const [minimumWidth, minimumHeight] = snapshot?.minimumSize ?? [0, 0];
+    window.setMinimumSize(minimumWidth, minimumHeight);
     window.setBounds(normalBounds);
     this.normalWindowSnapshot = undefined;
 

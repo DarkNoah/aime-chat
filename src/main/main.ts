@@ -157,10 +157,12 @@ const createWindow = async () => {
 
   const initialWindowMode = appManager.getWindowModeState().current;
   const initialWindowSize = appManager.getInitialWindowSize();
+  const initialMinimumWidth = appManager.getInitialWindowMinimumWidth();
 
   mainWindow = new BrowserWindow({
     show: false,
     ...initialWindowSize,
+    ...(initialMinimumWidth ? { minWidth: initialMinimumWidth } : {}),
     icon: getAssetPath('icon.png'),
     // frame: false,
     // titleBarStyle: 'hidden',

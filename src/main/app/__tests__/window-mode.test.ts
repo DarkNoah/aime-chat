@@ -1,7 +1,9 @@
 import {
   COMPACT_WINDOW_SIZE,
+  COMPACT_WINDOW_MIN_WIDTH,
   NORMAL_WINDOW_SIZE,
   WindowModeController,
+  getCompactWindowBounds,
   getCenteredWindowBounds,
   normalizeWindowMode,
 } from '../window-mode';
@@ -9,6 +11,7 @@ import {
 function createWindow(options?: { maximized?: boolean; fullScreen?: boolean }) {
   let maximized = options?.maximized ?? true;
   let fullScreen = options?.fullScreen ?? false;
+  let minimumSize: [number, number] = [0, 0];
   return {
     getBounds: jest.fn(() => ({
       x: 20,
@@ -32,6 +35,10 @@ function createWindow(options?: { maximized?: boolean; fullScreen?: boolean }) {
     setFullScreen: jest.fn((value: boolean) => {
       fullScreen = value;
     }),
+    getMinimumSize: jest.fn(() => minimumSize),
+    setMinimumSize: jest.fn((width: number, height: number) => {
+      minimumSize = [width, height];
+    }),
   };
 }
 
@@ -53,6 +60,22 @@ describe('window mode', () => {
     ).toEqual({ x: 100, y: 50, width: 500, height: 600 });
   });
 
+  it('never clips compact window width below 560 pixels', () => {
+    expect(
+      getCompactWindowBounds({
+        x: 100,
+        y: 50,
+        width: 500,
+        height: 600,
+      }),
+    ).toEqual({
+      x: 70,
+      y: 50,
+      width: COMPACT_WINDOW_MIN_WIDTH,
+      height: 600,
+    });
+  });
+
   it('uses the configured mode for the initial window size', () => {
     const controller = new WindowModeController({
       getWindow: () => null,
@@ -68,6 +91,9 @@ describe('window mode', () => {
       current: 'compact',
     });
     expect(controller.getInitialWindowSize()).toEqual(COMPACT_WINDOW_SIZE);
+    expect(controller.getInitialMinimumWidth()).toBe(
+      COMPACT_WINDOW_MIN_WIDTH,
+    );
   });
 
   it('keeps configured mode unchanged for a temporary switch', async () => {
@@ -94,6 +120,10 @@ describe('window mode', () => {
       y: 90,
       ...COMPACT_WINDOW_SIZE,
     });
+    expect(window.setMinimumSize).toHaveBeenCalledWith(
+      COMPACT_WINDOW_MIN_WIDTH,
+      0,
+    );
     expect(emit).toHaveBeenCalledWith({
       configured: 'normal',
       current: 'compact',
@@ -125,6 +155,7 @@ describe('window mode', () => {
       ...NORMAL_WINDOW_SIZE,
     });
     expect(window.maximize).toHaveBeenCalledTimes(1);
+    expect(window.setMinimumSize).toHaveBeenLastCalledWith(0, 0);
   });
 
   it('rolls back the window and state when persistence fails', async () => {

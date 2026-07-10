@@ -305,6 +305,10 @@ class AppManager extends BaseManager {
     return this.windowModeController.getInitialWindowSize();
   }
 
+  public getInitialWindowMinimumWidth() {
+    return this.windowModeController.getInitialMinimumWidth();
+  }
+
   public getWindowModeState(): WindowModeState {
     return this.windowModeController.getState();
   }
