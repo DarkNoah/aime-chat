@@ -703,7 +703,7 @@ export async function getPaddleOcrRuntime(refresh = false) {
     const uvPreCommand = isWindows ? 'uv.exe' : './uv';
 
     const result2 = await runCommand(
-      `${uvPreCommand}  run --project "${paddleOcrDir}" paddleocr -v`,
+      `"${uvPreCommand}"  run --project "${paddleOcrDir}" paddleocr -v`,
       {
         cwd: uvRuntime?.dir,
         env: {
@@ -748,7 +748,7 @@ export async function installPaddleOcrRuntime() {
 
   let resultInit = await runCommand(
     // `${uv_source} && ${uvPreCommand} init "${paddleOcrDir}" --python=3.10 && ${uvPreCommand} venv "${path.join(paddleOcrDir, '.venv')}" --python=3.10`,
-    `${uv_source} && ${uvPreCommand} init "${paddleOcrDir}" --python=3.12 && ${uvPreCommand} venv "${path.join(paddleOcrDir, '.venv')}" --python=3.12 --seed`,
+    `${uv_source} && "${uvPreCommand}" init "${paddleOcrDir}" --python=3.12 && "${uvPreCommand}" venv "${path.join(paddleOcrDir, '.venv')}" --python=3.12 --seed`,
     {
       cwd: uvRuntime?.dir,
     },
@@ -800,7 +800,7 @@ export async function installPaddleOcrRuntime() {
   );
 
   const result_install_paddle = await runCommand(
-    `${uvPreCommand} --project "${paddleOcrDir}" pip install paddlepaddle${hasGPU ? '-gpu==3.2.1 -i https://www.paddlepaddle.org.cn/packages/stable/cu126/' : '==3.2.2'} --python "${activateSourcePython}"`,
+    `"${uvPreCommand}" --project "${paddleOcrDir}" pip install paddlepaddle${hasGPU ? '-gpu==3.2.1 -i https://www.paddlepaddle.org.cn/packages/stable/cu126/' : '==3.2.2'} --python "${activateSourcePython}"`,
     {
       cwd: uvRuntime?.dir,
       // usePowerShell: isWindows,s
@@ -819,7 +819,7 @@ export async function installPaddleOcrRuntime() {
   }
 
   const result1 = await runCommand(
-    `${uvPreCommand} --project "${paddleOcrDir}" pip install rapidocr onnxruntime "paddleocr[all]" "paddlex[ocr]" ${process.platform === 'darwin' ? 'mlx-vlm' : ''} --python "${activateSourcePython}"`,
+    `"${uvPreCommand}" --project "${paddleOcrDir}" pip install rapidocr onnxruntime "paddleocr[all]" "paddlex[ocr]" ${process.platform === 'darwin' ? 'mlx-vlm' : ''} --python "${activateSourcePython}"`,
     {
       cwd: uvRuntime?.dir,
       // usePowerShell: isWindows,
@@ -836,7 +836,7 @@ export async function installPaddleOcrRuntime() {
 
   if (process.platform === 'darwin') {
     const resultInstallMLX = await runCommand(
-      `${uvPreCommand} --project "${paddleOcrDir}" --no-cache add mlx-vlm --prerelease=allow `,
+      `"${uvPreCommand}" --project "${paddleOcrDir}" --no-cache add mlx-vlm --prerelease=allow `,
       {
         cwd: uvRuntime?.dir,
         // usePowerShell: isWindows,
@@ -845,14 +845,14 @@ export async function installPaddleOcrRuntime() {
     debugger;
   }
   const result2 = await runCommand(
-    `${uvPreCommand} run --project "${paddleOcrDir}" paddleocr -v`,
+    `"${uvPreCommand}" run --project "${paddleOcrDir}" paddleocr -v`,
     {
       cwd: uvRuntime?.dir,
     },
   );
 
   const result3 = await runCommand(
-    `${uvPreCommand} run --project "${paddleOcrDir}" paddleocr pp_structurev3 -i "${getAssetPath('runtime', 'paddleocr-runtime', 'test-image.png')}"`,
+    `"${uvPreCommand}" run --project "${paddleOcrDir}" paddleocr pp_structurev3 -i "${getAssetPath('runtime', 'paddleocr-runtime', 'test-image.png')}"`,
     {
       cwd: uvRuntime?.dir,
     },
@@ -1035,7 +1035,7 @@ export async function getQwenAudioRuntime(refresh = false) {
     const uvPreCommand = isWindows ? 'uv.exe' : './uv';
 
     const result2 = await runCommand(
-      `${uvPreCommand} --project "${sttDir}" run python -c "from importlib import metadata; print(metadata.version('${isWindows ? 'qwen-asr' : 'mlx-audio'}'))"`,
+      `"${uvPreCommand}" --project "${sttDir}" run python -c "from importlib import metadata; print(metadata.version('${isWindows ? 'qwen-asr' : 'mlx-audio'}'))"`,
       {
         cwd: uvRuntime?.dir,
         timeout: 1000 * 30,
@@ -1083,7 +1083,7 @@ export async function installQwenAudioRuntime() {
 
     let resultInit = await runCommand(
       // `${uv_source} && ${uvPreCommand} init "${paddleOcrDir}" --python=3.10 && ${uvPreCommand} venv "${path.join(paddleOcrDir, '.venv')}" --python=3.10`,
-      `${uv_source} && ${uvPreCommand} init "${qwenasrDir}" --python=3.12 && ${uvPreCommand} venv "${path.join(qwenasrDir, '.venv')}" --python=3.12`,
+      `${uv_source} && "${uvPreCommand}" init "${qwenasrDir}" --python=3.12 && "${uvPreCommand}" venv "${path.join(qwenasrDir, '.venv')}" --python=3.12`,
       {
         cwd: uvRuntime?.dir,
       },
@@ -1123,7 +1123,7 @@ export async function installQwenAudioRuntime() {
       );
 
       const result_sync = await runCommand(
-        `${uvPreCommand} --project "${qwenasrDir}" sync --no-cache`,
+        `"${uvPreCommand}" --project "${qwenasrDir}" sync --no-cache`,
         {
           cwd: uvRuntime?.dir,
         },
@@ -1165,14 +1165,14 @@ export async function installQwenAudioRuntime() {
       }
     } else {
       const result_install_qwenasr = await runCommand(
-        `${uvPreCommand} --project "${qwenasrDir}" add mlx-audio --prerelease=allow`,
+        `"${uvPreCommand}" --project "${qwenasrDir}" add mlx-audio soundfile --prerelease=allow`,
         {
           cwd: uvRuntime?.dir,
         },
       );
       if (result_install_qwenasr.code === 0) {
         const result2 = await runCommand(
-          `${uvPreCommand} --project "${qwenasrDir}" run python -c "from importlib import metadata; print(metadata.version('mlx-audio'))"`,
+          `"${uvPreCommand}" --project "${qwenasrDir}" run python -c "from importlib import metadata; print(metadata.version('mlx-audio'))"`,
           {
             cwd: uvRuntime?.dir,
             timeout: 1000 * 30,

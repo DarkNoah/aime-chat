@@ -8,6 +8,7 @@ import {
   convertToModelMessages,
   createUIMessageStream,
   createUIMessageStreamResponse,
+  ImagePart,
   LanguageModelUsage,
   ModelMessage,
   PrepareStepResult,
@@ -17,6 +18,7 @@ import {
   UIDataTypes,
   UIMessage,
   UITools,
+  UserContent,
   UserModelMessage,
 } from 'ai';
 import type {
@@ -808,7 +810,7 @@ class MastraManager extends BaseManager {
         const inputParts = [];
         let fileIndex = 1;
         for (const part of message.parts) {
-          const filePart = part as typeof part & {
+          let filePart = part as typeof part & {
             path?: string;
             mediaType?: string;
           };
@@ -822,11 +824,6 @@ class MastraManager extends BaseManager {
             if (modelInfo?.modalities?.input?.includes('image') && filePart.mediaType?.startsWith('image/')) {
               inputParts.push(filePart);
             }
-
-            // inputParts.push({
-            //   type: 'text',
-            //   text: `<file>${filePart.path}</file>`,
-            // });
             inputParts.push({
               type: 'text',
               text: `</attachment>`,
