@@ -257,7 +257,8 @@ class MastraManager extends BaseManager {
     });
     const { apiServer } = await appManager.getInfo();
     if (apiServer?.enabled) {
-      await this.start(apiServer.port);
+      // 启动阶段：端口被占用等错误只提示，不应阻断整个应用启动
+      await this.start(apiServer.port).catch(() => {});
     }
   }
 
