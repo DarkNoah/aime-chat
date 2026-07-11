@@ -64,6 +64,7 @@ import { AimeChatCli } from './cli';
 import { api } from '../api/ApiController';
 import { GoalToolkit } from './common/goal';
 import { providersManager } from '../providers';
+import { CreatePlan } from './common/create-plan';
 interface BuiltInToolContext {
   tool: BaseTool;
   abortController: AbortController;
@@ -206,6 +207,7 @@ class ToolsManager extends BaseManager {
     await this.registerBuiltInTool(KnowledgeBaseToolkit);
     await this.registerBuiltInTool(CronsToolkit);
     await this.registerBuiltInTool(GoalToolkit);
+    await this.registerBuiltInTool(CreatePlan);
 
 
 

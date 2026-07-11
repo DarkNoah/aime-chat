@@ -16,6 +16,7 @@ import { ZodSchema } from 'zod';
 import { ProviderCredits, ProviderTag, ProviderType } from '@/types/provider';
 import { OpenAICompatibleConfig } from '@mastra/core/llm';
 
+
 export interface BaseImageModelV2CallOptions extends Omit<
   ImageModelV2CallOptions,
   'prompt'
@@ -78,7 +79,16 @@ export interface MusicModel {
 }
 
 
+export interface VideoModel {
+  readonly provider: string;
+  readonly modelId: string;
+  doGenerate: (options: {
+    prompt: string;
+    image?: string[];
+    duration?: number;
 
+  }) => Promise<string>;
+}
 
 
 
@@ -142,6 +152,9 @@ export abstract class BaseProvider implements ProviderV2 {
   musicModel?(modelId: string): MusicModel {
     throw new Error('Method not implemented.');
   }
+  videoModel?(modelId: string): VideoModel {
+    throw new Error('Method not implemented.');
+  }
 
 
 
@@ -161,6 +174,9 @@ export abstract class BaseProvider implements ProviderV2 {
     return Promise.resolve([]);
   }
   async getSpeechModelList(): Promise<{ name: string; id: string }[]> {
+    return Promise.resolve([]);
+  }
+  async getVideoModelList(): Promise<{ name: string; id: string }[]> {
     return Promise.resolve([]);
   }
 

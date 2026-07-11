@@ -258,7 +258,7 @@ class MastraManager extends BaseManager {
     const { apiServer } = await appManager.getInfo();
     if (apiServer?.enabled) {
       // 启动阶段：端口被占用等错误只提示，不应阻断整个应用启动
-      await this.start(apiServer.port).catch(() => {});
+      await this.start(apiServer.port).catch(() => { });
     }
   }
 
@@ -787,6 +787,7 @@ class MastraManager extends BaseManager {
       );
       requestContext.set('goal', goal);
       requestContext.set('usage', usage);
+      requestContext.set('suspended', Boolean(currentThread.metadata?.suspended));
       const assistantSoul = appInfo.assistantSoul;
       if (assistantSoul?.enabled && assistantSoul.content?.trim()) {
         requestContext.set('assistantSoul', assistantSoul.content.trim());
@@ -1470,18 +1471,15 @@ Do not call update_goal unless the goal is complete or the strict blocked audit 
         // await memoryStore.saveMessages({ messages: [...db, ...messages] });
         await memoryStore.saveMessages({ messages: [...messages] });
       } else {
-        if (db_messages.length > 0 && db_messages[db_messages.length - 1].role == 'assistant') {
-          const lastMessage = db_messages[db_messages.length - 1];
-          if (lastMessage.content.parts.length > 0 && lastMessage.content.parts[lastMessage.content.parts.length - 1].type == 'text' && lastMessage.content.parts[lastMessage.content.parts.length - 1].text) {
-            //lastMessage.content.metadata
-            // await memoryStore.updateMessages({
-            //   messages: [lastMessage],
-            // });
-
-
-          }
-
-
+        if (stream.status == 'suspended') {
+          currentThread = await memoryStore.updateThread({
+            id: chatId,
+            title: currentThread.title,
+            metadata: {
+              ...(currentThread.metadata || {}),
+              suspended: true,
+            },
+          });
         }
 
 
@@ -1544,9 +1542,16 @@ Do not call update_goal unless the goal is complete or the strict blocked audit 
     const chatId = streamOptions.requestContext.get(
       'threadId' as never,
     ) as string;
+    const suspended = streamOptions.requestContext.get(
+      'suspended' as never,
+    ) as boolean;
     const runId = streamOptions.runId;
     let stream: MastraModelOutput<unknown>;
     await appManager.refreshPreventSleep();
+
+
+
+
     if (
       runId &&
       resume?.toolCallId &&

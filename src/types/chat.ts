@@ -168,6 +168,7 @@ export type ChatRequestContext = {
   fileLastReadTime?: Record<string, number>;
   compressedMessage?: string;
   usage?: LanguageModelUsage;
+  suspended?: boolean;
 };
 
 export const DEFAULT_RESOURCE_ID = 'default';
