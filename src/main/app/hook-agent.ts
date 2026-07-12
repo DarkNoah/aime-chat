@@ -38,7 +38,7 @@ function isAsyncIterable(value: unknown): value is AsyncIterable<unknown> {
   return Boolean(
     value &&
     typeof (value as AsyncIterable<unknown>)[Symbol.asyncIterator] ===
-      'function',
+    'function',
   );
 }
 
@@ -436,31 +436,29 @@ export class HookProxyAgent extends ProxyAgent {
           if (
             message.role == 'tool' &&
             isString(message.content) &&
-            message.content.startsWith('{') &&
-            message.content.endsWith('}')
+            (message.content.startsWith('{') &&
+              message.content.endsWith('}') || (message.content.startsWith('[') && message.content.endsWith(']')))
           ) {
             try {
               const content = JSON.parse(message.content);
               if (
-                isObject(content) &&
-                isArray(content.content) &&
-                content.content?.length > 0 &&
-                content.content?.find(
+                isArray(content) &&
+                content?.length > 0 &&
+                content?.find(
                   (x) =>
-                    (x.type == 'image' || x.type == 'video') &&
-                    x.data &&
-                    x.mimeType,
+                    (x.type == 'image-data' || x.type == 'video-data') &&
+                    x.data
                 )
               ) {
                 const newContent = [];
-                for (const part of content.content) {
-                  if (part.type == 'image' && part.data && part.mimeType) {
+                for (const part of content) {
+                  if (part.type == 'image-data' && part.data) {
                     newContent.push({
                       type: 'image_url',
                       image_url: {
                         url: part.data.startsWith('data:')
                           ? part.data
-                          : `data:${part.mimeType};base64,${part.data}`,
+                          : `data:${part.mediaType || part.mimeType || 'image/jpeg'};base64,${part.data}`,
                       },
                     });
                   } else if (
@@ -473,7 +471,7 @@ export class HookProxyAgent extends ProxyAgent {
                       video_url: {
                         url: part.data.startsWith('data:')
                           ? part.data
-                          : `data:${part.mimeType};base64,${part.data}`,
+                          : `data:${part.mediaType || part.mimeType};base64,${part.data}`,
                       },
                     });
                   } else {
@@ -536,7 +534,7 @@ export class HookProxyAgent extends ProxyAgent {
       //   jsonObject.input = jsonObject.input.filter(x=>x.type != 'item_reference' || (x.type == 'item_reference' && !x?.id?.startsWith('rs_')))
 
       // }
-    } catch {}
+    } catch { }
     return content;
   }
 }
