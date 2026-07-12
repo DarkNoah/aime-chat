@@ -1876,6 +1876,11 @@ class ToolsManager extends BaseManager {
   async buildTools(
     toolIds?: string[],
     config?: Record<string, any>,
+    options: {
+      requireApproval?: boolean;
+    } = {
+        requireApproval: false
+      }
   ): Promise<Record<string, BaseTool>> {
     if (!toolIds) return {};
     const tools = {};
@@ -1906,6 +1911,7 @@ class ToolsManager extends BaseManager {
           const t = createTool({
             ...newTool,
             id: tool.id.substring(ToolType.BUILD_IN.length + 1),
+            requireApproval: options?.requireApproval ?? false,
           });
 
           tools[t.id] = t;
@@ -1920,6 +1926,7 @@ class ToolsManager extends BaseManager {
               const t = createTool({
                 ..._tool,
                 id: _tool.id,
+                requireApproval: options?.requireApproval ?? false,
               });
               tools[t.id] = t;
             }

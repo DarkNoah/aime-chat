@@ -301,7 +301,7 @@ const ChatMessageItem = React.memo(
           approvalData = message.parts.find(
             (p) =>
               p.type === 'data-tool-call-approval' &&
-              p.id === _part?.toolCallId,
+              p.data.toolCallId === _part?.toolCallId,
           )?.data;
           if (
             !approvalData &&
@@ -312,10 +312,11 @@ const ChatMessageItem = React.memo(
           }
 
           suspendedData = message.parts.find(
-            (p) =>
+            (p: any) =>
               p.type === 'data-tool-call-suspended' &&
-              p.id === _part?.toolCallId,
+              p.data?.toolCallId === _part?.toolCallId,
           )?.data;
+
 
           if (
             !suspendedData &&
@@ -343,6 +344,7 @@ const ChatMessageItem = React.memo(
               isSuspended={isSuspended}
               onResume={(value) => {
                 if (suspendedData?.runId) {
+                  console.log(suspendedData)
                   onResumeChat(
                     suspendedData.runId,
                     _part?.toolCallId,

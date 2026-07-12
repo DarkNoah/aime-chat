@@ -84,7 +84,7 @@ These sections are the baseline, NOT the limit - dynamically add any other secti
     .strict();
 
   resumeSchema = z.object({
-    confirm: z.boolean(),
+    confirmed: z.boolean(),
   });
   suspendSchema = z.object({
     reason: z.string(),
@@ -107,8 +107,8 @@ These sections are the baseline, NOT the limit - dynamically add any other secti
       return context.agent?.suspend?.({ reason: 'Human approval required.' });
     }
 
-    const confirm = context.agent?.resumeData?.confirm;
-    if (!confirm) {
+    const confirmed = context.agent?.resumeData?.confirmed;
+    if (!confirmed) {
       return `User has not approved your plan.`;
     }
 

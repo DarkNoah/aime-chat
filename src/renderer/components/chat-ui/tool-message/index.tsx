@@ -37,6 +37,7 @@ import { GenerateImageMessage } from './generate-image';
 import { SendEventMessage } from './send-event-message';
 import { VisionMessage } from './vision-message';
 import { getToolMessageDescription } from '@/utils/tool-message';
+import { CreatePlanMessage } from './create-plan-message';
 
 export type ToolSuspended = {
   toolName: string;
@@ -46,7 +47,7 @@ export type ToolSuspended = {
   runId: string;
 };
 
-export interface ToolMessageRef {}
+export interface ToolMessageRef { }
 
 export type ToolMessageProps = ComponentProps<typeof Badge> & {
   threadId?: string;
@@ -135,6 +136,14 @@ export const ToolMessage = React.forwardRef<ToolMessageRef, ToolMessageProps>(
             suspendedData={suspendedData}
             onResume={onResume}
           />
+        );
+      } else if (toolName === 'CreatePlan') {
+        return (
+          <CreatePlanMessage
+            part={part}
+            suspendedData={suspendedData}
+            onResume={onResume}
+          ></CreatePlanMessage>
         );
       } else if (toolName === 'TodoWrite') {
         return <TodoWriteMessage part={part}></TodoWriteMessage>;
