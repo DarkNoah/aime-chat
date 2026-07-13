@@ -257,19 +257,34 @@ class MastraManager extends BaseManager {
     });
     const { apiServer } = await appManager.getInfo();
     if (apiServer?.enabled) {
-      await this.start(apiServer.port);
+      // 启动阶段：端口被占用等错误只提示，不应阻断整个应用启动
+      await this.start(apiServer.port).catch(() => { });
     }
   }
 
   public async start(port: number) {
     if (this.httpServer?.listening) return;
-    try {
-      this.httpServer = this.app.listen(port, '127.0.0.1', () => {
+    await new Promise<void>((resolve, reject) => {
+      const server = this.app.listen(port, '127.0.0.1');
+      const onError = (err: NodeJS.ErrnoException) => {
+        server.removeListener('listening', onListening);
+        this.httpServer = undefined;
+        const message =
+          err.code === 'EADDRINUSE'
+            ? `AIME HTTP Server start failed: port ${port} is already in use`
+            : `AIME HTTP Server start failed: ${err.message}`;
+        appManager.toast(message, { type: 'error' });
+        reject(err);
+      };
+      const onListening = () => {
+        server.removeListener('error', onError);
         console.log(`Mastra HTTP Server running on port ${port}`);
-      });
-    } catch {
-      appManager.toast('AIME HTTP Server start failed', { type: 'error' });
-    }
+        resolve();
+      };
+      server.once('error', onError);
+      server.once('listening', onListening);
+      this.httpServer = server;
+    });
   }
 
   public async restart() {
@@ -520,6 +535,28 @@ class MastraManager extends BaseManager {
     return thread;
   }
 
+  private async deleteWorkflowRuns(threadId: string, resourceId: string) {
+    const storage = this.mastra.getStorage();
+    const workflowsStore = await storage.getStore('workflows');
+    const runs = await workflowsStore.listWorkflowRuns({
+      resourceId: resourceId,
+    });
+
+    for (const run of runs.runs) {
+      if (isString(run.snapshot)) {
+        continue;
+      }
+      const _threadId = run.snapshot?.requestContext?.threadId;
+      if (threadId !== _threadId) {
+        continue;
+      }
+      await workflowsStore.deleteWorkflowRunById({
+        runId: run.runId,
+        workflowName: run.workflowName,
+      });
+    }
+  }
+
 
   @channel(MastraChannel.DeleteThread)
   public async deleteThread(id: string): Promise<void> {
@@ -528,6 +565,9 @@ class MastraManager extends BaseManager {
     const thread = await memoryStore.getThreadById({ threadId: id });
     await memoryStore.deleteThread({ threadId: id });
     const workspace = thread.metadata?.workspace as string;
+
+    await this.deleteWorkflowRuns(id, thread.resourceId);
+
     if (workspace) {
       if (fs.existsSync(workspace) && fs.statSync(workspace).isDirectory()) {
         const entries = fs.readdirSync(workspace, { withFileTypes: true });
@@ -547,6 +587,7 @@ class MastraManager extends BaseManager {
     const messages = await memoryStore.listMessages({ threadId: id });
     await memoryStore.deleteMessages(messages.messages.map((x) => x.id));
     const thread = await memoryStore.getThreadById({ threadId: id });
+    await this.deleteWorkflowRuns(id, thread.resourceId);
     await memoryStore.updateThread({
       id: id,
       title: thread.title,
@@ -558,6 +599,7 @@ class MastraManager extends BaseManager {
         usage: {},
       },
     });
+
     appManager.sendEvent(ChatEvent.ChatThreadChanged, {
       data: { chatId: id, resourceId: thread.resourceId || DEFAULT_RESOURCE_ID },
     });
@@ -617,6 +659,38 @@ class MastraManager extends BaseManager {
       data: { chatId, id: pending.id },
     });
     return pending;
+  }
+
+
+  private async declineAllToolCalls(agent: Agent, threadId: string, resourceId: string, streamOptions: AgentExecutionOptions) {
+    const suspendedRuns = await agent.listSuspendedRuns({
+      threadId: threadId,
+      resourceId: resourceId,
+    });
+    if (suspendedRuns.total === 0) {
+      return;
+    }
+    const storage = this.mastra.getStorage();
+    const workflowsStore = await storage.getStore('workflows');
+    const messagesStore = await storage.getStore('memory');
+    for (const suspendedRun of suspendedRuns.runs) {
+      for (const toolCall of suspendedRun.toolCalls) {
+        // stream = await agent.declineToolCallGenerate({
+        //   // ...streamOptions,
+        //   runId: suspendedRun.runId,
+        //   toolCallId: toolCall.toolCallId
+        // });
+        // 更新message, workflow
+
+
+
+
+        debugger;
+      }
+      // for await (const chunk of stream.textStream) {
+      //   console.log(chunk)
+      // }
+    }
   }
 
   @channel(MastraChannel.Chat, { mode: 'on' })
@@ -772,6 +846,7 @@ class MastraManager extends BaseManager {
       );
       requestContext.set('goal', goal);
       requestContext.set('usage', usage);
+
       const assistantSoul = appInfo.assistantSoul;
       if (assistantSoul?.enabled && assistantSoul.content?.trim()) {
         requestContext.set('assistantSoul', assistantSoul.content.trim());
@@ -791,6 +866,12 @@ class MastraManager extends BaseManager {
       // const recentMessage = agent.getMostRecentUserMessage(uiMessages);
       const controller = new AbortController();
       const signal = controller.signal;
+
+
+      if (!runId) {
+        await this.declineAllToolCalls(agent, chatId, resourceId, {});
+      }
+
 
       const historyMessages = await memoryStore.listMessages({
         threadId: chatId,
@@ -822,6 +903,11 @@ class MastraManager extends BaseManager {
               text: `<attachment id="File #${fileIndex}" path="${filePart.path}" name="${path.basename(filePart.path)}" size="${filesize(fs.statSync(filePart.path).size)}" mimeType="${mime.lookup(filePart.path) || 'application/octet-stream'}">`,
             });
             if (modelInfo?.modalities?.input?.includes('image') && filePart.mediaType?.startsWith('image/')) {
+              // filePart['providerMetadata'] = {
+              //   openai: {
+              //     imageDetail: 'high'
+              //   }
+              // }
               inputParts.push(filePart);
             }
             inputParts.push({
@@ -884,7 +970,7 @@ class MastraManager extends BaseManager {
       // const maxContextSize = requestContext.get('maxContextSize');
       let streamOptions: AgentExecutionOptions<undefined> = {
         includeRawChunks: false,
-        structuredOutput: undefined,
+        // structuredOutput: undefined,
         runId: runId,
         providerOptions: providerOptions,
         modelSettings: {
@@ -1455,19 +1541,7 @@ Do not call update_goal unless the goal is complete or the strict blocked audit 
         // await memoryStore.saveMessages({ messages: [...db, ...messages] });
         await memoryStore.saveMessages({ messages: [...messages] });
       } else {
-        if (db_messages.length > 0 && db_messages[db_messages.length - 1].role == 'assistant') {
-          const lastMessage = db_messages[db_messages.length - 1];
-          if (lastMessage.content.parts.length > 0 && lastMessage.content.parts[lastMessage.content.parts.length - 1].type == 'text' && lastMessage.content.parts[lastMessage.content.parts.length - 1].text) {
-            //lastMessage.content.metadata
-            // await memoryStore.updateMessages({
-            //   messages: [lastMessage],
-            // });
 
-
-          }
-
-
-        }
 
 
       }
@@ -1529,9 +1603,24 @@ Do not call update_goal unless the goal is complete or the strict blocked audit 
     const chatId = streamOptions.requestContext.get(
       'threadId' as never,
     ) as string;
+    const resourceId = streamOptions.requestContext.get(
+      'resourceId' as never,
+    ) as string;
+
     const runId = streamOptions.runId;
     let stream: MastraModelOutput<unknown>;
     await appManager.refreshPreventSleep();
+
+    const suspendedRuns = await agent.listSuspendedRuns({
+      threadId: chatId,
+      resourceId: resourceId,
+    });
+    const storage = this.mastra.getStorage();
+    const workflowsStore = await storage?.getStore("workflows");
+
+
+
+
     if (
       runId &&
       resume?.toolCallId &&
@@ -1560,6 +1649,32 @@ Do not call update_goal unless the goal is complete or the strict blocked audit 
         );
       }
     } else {
+      if (suspendedRuns.total > 0) {
+        const messagesStore = await storage.getStore('memory');
+        for (const suspendedRun of suspendedRuns.runs) {
+          for (const toolCall of suspendedRun.toolCalls) {
+            stream = await agent.declineToolCall({
+              ...streamOptions,
+              runId: suspendedRun.runId,
+              toolCallId: toolCall.toolCallId,
+            });
+            for await (const chunk of stream.fullStream) {
+              console.log(chunk)
+              // if (chunk.type = 'step-finish') {
+              //   break;
+              // }
+            }
+            const toolResults = (await stream.toolResults);
+            const toolResult = toolResults.find(x => x.runId == suspendedRun.runId)?.payload?.result;
+            const msgIndex = inputMessage.findIndex(x => x.role == 'assistant' && x.parts.find(p => p.state == 'input-available' && p.toolCallId == toolCall.toolCallId));
+            if (msgIndex != -1) {
+              inputMessage[msgIndex].parts = inputMessage[msgIndex].parts.map(p => p.toolCallId == toolCall.toolCallId ? { ...p, state: 'output-available', output: toolResult } : p);
+            }
+          }
+
+        }
+      }
+
       console.log(inputMessage);
       stream = await agent.stream(inputMessage, streamOptions);
     }

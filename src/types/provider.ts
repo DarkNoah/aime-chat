@@ -64,6 +64,7 @@ export enum ProviderType {
   MINIMAX = 'minimax',
   REPLICATE = 'replicate',
   ELEVENLABS = 'elevenlabs',
+  COMFYUI = 'comfyui',
   MOONSHOT = 'moonshotai',
   MOONSHOTCN = 'moonshotai-cn',
   MODELSCOPE = 'modelscope',
@@ -96,6 +97,7 @@ export enum ProviderTag {
   WEB_SEARCH = 'web_search',
   WEB_READER = 'web_reader',
   IMAGE_GENERATION = 'image_generation',
+  VIDEO_GENERATION = 'video_generation',
   OCR = 'ocr',
 }
 

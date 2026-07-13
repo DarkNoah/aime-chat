@@ -2,6 +2,7 @@ import { RequestContext } from '@mastra/core/request-context';
 import { ChatRequestContext } from './chat';
 
 export type BuildAgentParams = {
+  requireApproval?: boolean;
   tools?: string[];
   subAgents?: string[];
   modelId: string;

@@ -201,7 +201,9 @@ class AgentManager extends BaseManager {
       },
       [`${ToolType.BUILD_IN}:${AgentTool.toolName}`]: {
         subAgents: subAgentsInfo,
-      },
+      }
+    }, {
+      requireApproval: false,
     });
 
     const storage = getStorage();

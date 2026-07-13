@@ -18,7 +18,7 @@ import { Input } from '../../ui/input';
 import { useTranslation } from 'react-i18next';
 import { Streamdown } from '../../ai-elements/streamdown';
 
-export interface AskUserQuestionMessageRef {}
+export interface AskUserQuestionMessageRef { }
 
 export type AskUserQuestionMessageProps = ComponentProps<typeof Card> & {
   part: ToolUIPart;
@@ -35,7 +35,8 @@ export const AskUserQuestionMessage = React.forwardRef<
     props: AskUserQuestionMessageProps,
     ref: ForwardedRef<AskUserQuestionMessageRef>,
   ) => {
-    const { className, part, title, onResume, suspendedData, ...rest } = props;
+    const { className, part, title, onResume, suspendedData, ...rest } =
+      props;
     const { t } = useTranslation();
     const [selectedOptions, setSelectedOptions] = useState<
       Record<string, string[] | string>
@@ -156,8 +157,8 @@ export const AskUserQuestionMessage = React.forwardRef<
                             {selectedOptions[question.question]?.includes(
                               option?.label,
                             ) && (
-                              <IconSquareCheckFilled></IconSquareCheckFilled>
-                            )}
+                                <IconSquareCheckFilled></IconSquareCheckFilled>
+                              )}
 
                             {!selectedOptions[question.question]?.includes(
                               option?.label,
@@ -232,8 +233,24 @@ export const AskUserQuestionMessage = React.forwardRef<
           );
         })}
         {part?.state === 'input-available' && (
-          <div className="p-4">
+          <div className="p-4 flex flex-row justify-end gap-2">
             <Button
+              variant="outline"
+              className="cursor-pointer"
+              onClick={() => {
+                onResume?.({
+                  approved: false,
+                });
+              }}
+            >
+              {t('common.skip')}
+            </Button>
+            <Button
+              className="cursor-pointer"
+              disabled={
+                Object.keys(selectedOptions).length === 0 ||
+                Object.values(selectedOptions).some((x) => !x)
+              }
               onClick={() => {
                 onResume?.({
                   answers: Object.entries(selectedOptions).map(

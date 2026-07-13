@@ -16,6 +16,7 @@ import {
 import {
   Command,
   CommandEmpty,
+  CommandGroup,
   CommandInput,
   CommandItem,
   CommandList,
@@ -209,7 +210,7 @@ export const ChatAgentSelector = ({
             <CommandEmpty>
               {loading ? t('common.loading') : 'No agents found.'}
             </CommandEmpty>
-            <div className="p-2">
+            <CommandGroup className="p-2">
               {data.map((agent) => {
                 const isSelected = isSingleMode
                   ? internalSingleValue === agent.id
@@ -219,6 +220,7 @@ export const ChatAgentSelector = ({
                   <CommandItem
                     key={agent.id}
                     value={agent.id}
+                    keywords={[agent.name ?? '', agent.description ?? '']}
                     disabled={agent.isHidden}
                     onSelect={() => {
                       if (isSingleMode) {
@@ -245,7 +247,7 @@ export const ChatAgentSelector = ({
                   </CommandItem>
                 );
               })}
-            </div>
+            </CommandGroup>
           </CommandList>
         </Command>
       </DialogContent>

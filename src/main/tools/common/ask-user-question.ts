@@ -8,6 +8,7 @@ import path from 'path';
 import { nanoid } from '@/utils/nanoid';
 export interface AskUserQuestionParams extends BaseToolParams { }
 
+
 const OptionSchema = z
   .object({
     label: z
@@ -89,13 +90,23 @@ When any option has a markdown, the UI switches to a side-by-side layout with a 
     })
     .strict();
 
+  // outputSchema = z.object({
+  //   answers: z.array(
+  //     z.object({
+  //       question: z.string(),
+  //       answer: z.string(),
+  //     }),
+  //   ).optional()
+  // });
+
   resumeSchema = z.object({
     answers: z.array(
       z.object({
         question: z.string(),
         answer: z.string(),
       }),
-    ),
+    ).optional(),
+    approved: z.boolean().optional()
   });
   suspendSchema = z.object({
     reason: z.string(),
@@ -170,14 +181,37 @@ When any option has a markdown, the UI switches to a side-by-side layout with a 
     //   ],
     // });
 
-    const answers = agent?.resumeData?.answers;
-    const answerString = answers
-      .map((x) => `"${x.question}" = "${x.answer}"`)
-      .join(', ');
-    return `User has answered your questions: ${answerString}. You can now continue with the user's answers in mind.`;
+
+
+
+    if (agent?.resumeData?.answers) {
+      const answers = agent?.resumeData?.answers;
+      const answerString = answers
+        .map((x) => `"${x.question}" = "${x.answer}"`)
+        .join(', ');
+      return `User has answered your questions: ${answerString}. You can now continue with the user's answers in mind.`;
+    } else {
+      return `User cancelled questionnaire.`;
+    }
+
+
+
   };
 
   onInputAvailable = async ({ input, toolCallId }) => {
     console.log(`Weather requested for: ${input.city}`);
   };
+
+  // toModelOutput = (output: z.infer<typeof this.outputSchema>) => {
+
+
+  //   const answerString = output.answers?.map((x) => `"${x.question}" = "${x.answer}"`)
+  //     .join(', ');
+  //   return {
+  //     type: 'content',
+  //     value: [
+  //       { type: 'text', text: `User has answered your questions: ${answerString}. You can now continue with the user's answers in mind.` },
+  //     ],
+  //   };
+  // }
 }
