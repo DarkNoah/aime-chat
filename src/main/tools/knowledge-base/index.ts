@@ -64,7 +64,7 @@ Return json format:
 
   inputSchema = z.object({
     query: z.string().describe('The query to search for. Can be plain text, or a local image file path to search by image.'),
-    query_type: z.enum(['text', 'image']).describe("Optional, The type of the query. 'image' means query is a local image file path. If omitted, it is auto-detected from the query.").optional().nullable(),
+    query_type: z.enum(['text', 'image']).describe("Type of the query. Use 'text' for plain text search (default), or 'image' when query is a local image file path.").default('text'),
     kb_source: z.array(z.string()).describe('knowledge base id or name.'),
     filter: z.string().describe('Optional, The filter of the knowledge base item.').optional().nullable(),
     top_k: z.number().describe('The number of results to return.').optional().default(10),
