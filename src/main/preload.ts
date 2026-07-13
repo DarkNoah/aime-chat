@@ -98,6 +98,7 @@ import {
 // export type Channels = 'ipc-example';
 
 const electronHandler = {
+  platform: process.platform,
   ipcRenderer: {
     sendMessage(channel: string, ...args: unknown[]) {
       ipcRenderer.send(channel, ...args);

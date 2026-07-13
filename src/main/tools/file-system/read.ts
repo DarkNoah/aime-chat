@@ -45,8 +45,8 @@ const BBOX_MAX_ZOOM_SCALE = 4;
  * Crop the given regions out of an image and zoom (upscale) them, writing each
  * region to a temporary PNG file. Returns the list of temp file paths.
  *
- * Each bbox is [x1, y1, x2, y2]. Coordinates are pixels by default; if all four
- * values are within [0, 1] they are treated as normalized coordinates.
+ * Each bbox is [x1, y1, x2, y2]. Coordinates are pixel values from the original
+ * image, with the origin at the top-left corner.
  */
 async function cropAndZoomImage(file_path: string, bboxes: number[][]): Promise<string[]> {
   const metadata = await sharp(file_path).metadata();
@@ -61,14 +61,10 @@ async function cropAndZoomImage(file_path: string, bboxes: number[][]): Promise<
     if (!isArray(bbox) || bbox.length !== 4) {
       throw new Error(`Invalid bbox '${JSON.stringify(bbox)}': expected [x1, y1, x2, y2].`);
     }
-    let [x1, y1, x2, y2] = bbox;
-    const isNormalized = [x1, y1, x2, y2].every((v) => v >= 0 && v <= 1);
-    if (isNormalized) {
-      x1 *= imgWidth;
-      x2 *= imgWidth;
-      y1 *= imgHeight;
-      y2 *= imgHeight;
+    if (!bbox.every((value) => typeof value === 'number' && Number.isFinite(value))) {
+      throw new Error(`Invalid bbox '${JSON.stringify(bbox)}': coordinates must be finite pixel numbers.`);
     }
+    const [x1, y1, x2, y2] = bbox;
     const left = Math.max(0, Math.floor(Math.min(x1, x2)));
     const top = Math.max(0, Math.floor(Math.min(y1, y2)));
     const right = Math.min(imgWidth, Math.ceil(Math.max(x1, x2)));
@@ -121,7 +117,7 @@ Usage:
 - Any lines longer than ${MAX_LINE_LENGTH_TEXT_FILE} characters will be truncated
 - Results are returned using cat -n format, with line numbers starting at 1
 - This tool allows to read images (eg PNG, JPG, etc). When reading an image file the contents are presented visually by a multimodal LLM.
-- When reading an image, you can optionally pass the args parameter (a JSON string) with one or more bounding boxes, e.g. args: '{"bbox": [[x1, y1, x2, y2]]}' (pixel coordinates, origin at top-left; values between 0 and 1 are treated as normalized coordinates). Each region will be cropped from the image and zoomed in (enlarged) before being analyzed, which is useful for inspecting small details or text.
+- When reading an image, you can optionally pass the args parameter (a JSON string) with one or more bounding boxes, e.g. args: '{"bbox": [[x1, y1, x2, y2]]}'. Coordinates must be pixel values from the original image, with the origin at the top-left. Each region will be cropped from the image and zoomed in (enlarged) before being analyzed, which is useful for inspecting small details or text.
 - This tool can read PDF files (.pdf). PDFs are processed page by page, extracting both text and visual content for analysis.
 - This tool can read audio files (.wav, .mp3 etc), and returns the audio transcription content (.srt format).
 - This tool can read video files (.mp4, .mov, .webm), and returns the video transcription content (.srt format).
@@ -148,7 +144,7 @@ Usage:
         .string()
         .optional()
         .describe(
-          'Optional extra arguments as a JSON string. Only for image files: pass bounding boxes to zoom into specific regions, e.g. \'{"bbox": [[x1, y1, x2, y2], ...]}\' (top-left origin). Values are pixel coordinates by default; if all four values are within [0, 1] they are treated as normalized coordinates. Each region will be cropped and zoomed in before being analyzed.',
+          'Optional extra arguments as a JSON string. Only for image files: pass bounding boxes to zoom into specific regions, e.g. \'{"bbox": [[x1, y1, x2, y2], ...]}\'. Coordinates must be pixel values from the original image, with the origin at the top-left. Each region will be cropped and zoomed in before being analyzed.',
         ),
       useVision: z.boolean().optional().default(false).describe('Optional: only use this when the file is an image. If set to true, it will be presented visually by a multimodal LLM, default is false.'),
     });

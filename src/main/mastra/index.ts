@@ -112,7 +112,7 @@ import { getSkills } from '../utils/skills';
 import { WorkflowRunStatus } from '@mastra/core/workflows';
 import { MessageListInput } from '@mastra/core/agent/message-list';
 import { secretsManager } from '../app/secrets';
-import { Done } from '../tools/common/done';
+import sharp from 'sharp';
 import { CreateGoal, GetGoal, UpdateGoal } from '../tools/common/goal';
 import {
   resolveCompressionTokenCount,
@@ -921,7 +921,7 @@ class MastraManager extends BaseManager {
         historyMessages.messages,
       );
 
-      const normalizeInputMessageParts = (
+      const normalizeInputMessageParts = async (
         message?: UIMessage | UIMessageWithMetadata,
       ) => {
         if (!message) return;
@@ -936,11 +936,20 @@ class MastraManager extends BaseManager {
           if (filePart.type == 'file' && filePart.path) {
             // const file = await fs.promises.readFile(part.path);
 
+            const mimeType = filePart.mediaType || mime.lookup(filePart.path);
+            let extInfo = '';
+            if (mimeType?.startsWith('image/')) {
+              const metadata = await sharp(filePart.path).metadata();
+              const imgWidth = metadata.width;
+              const imgHeight = metadata.height;
+              extInfo = `width="${imgWidth}px" height="${imgHeight}px"`;
+            }
+
             inputParts.push({
               type: 'text',
-              text: `<attachment id="File #${fileIndex}" path="${filePart.path}" name="${path.basename(filePart.path)}" size="${filesize(fs.statSync(filePart.path).size)}" mimeType="${mime.lookup(filePart.path) || 'application/octet-stream'}">`,
+              text: `<attachment id="File #${fileIndex}" path="${filePart.path}" name="${path.basename(filePart.path)}" size="${filesize(fs.statSync(filePart.path).size)}" mimeType="${mimeType || 'application/octet-stream'}" ${extInfo}>`,
             });
-            if (modelInfo?.modalities?.input?.includes('image') && filePart.mediaType?.startsWith('image/')) {
+            if (modelInfo?.modalities?.input?.includes('image') && mimeType?.startsWith('image/')) {
               // filePart['providerMetadata'] = {
               //   openai: {
               //     imageDetail: 'high'
@@ -960,7 +969,7 @@ class MastraManager extends BaseManager {
         }
         message.parts = inputParts;
       };
-      normalizeInputMessageParts(inputMessage);
+      await normalizeInputMessageParts(inputMessage);
       // historyMessages.messages;
       const input = [...historyMessagesAISdkV5, inputMessage];
       const usageInputMessages = convertToModelMessages(
@@ -1164,7 +1173,7 @@ class MastraManager extends BaseManager {
         ];
       };
 
-      const applyPendingChatMessage = (
+      const applyPendingChatMessage = async (
         pending: PendingChatMessageInput,
         systemReminder = false,
       ) => {
@@ -1191,7 +1200,7 @@ class MastraManager extends BaseManager {
         if (systemReminder) {
           prependPendingSystemReminder(_inputMessage);
         }
-        normalizeInputMessageParts(_inputMessage);
+        await normalizeInputMessageParts(_inputMessage);
         resume = undefined;
       };
       while (true) {
@@ -1426,7 +1435,7 @@ class MastraManager extends BaseManager {
           const lastMessage = core[core.length - 1];
           const immediatePending = this.consumePendingChatMessage(chatId, true);
           if (immediatePending) {
-            applyPendingChatMessage(immediatePending, true);
+            await applyPendingChatMessage(immediatePending, true);
           } else if (lastMessage.role == 'tool') {
           } else if (lastMessage.role == 'assistant') {
             // 目标
@@ -1524,7 +1533,7 @@ Do not call update_goal unless the goal is complete or the strict blocked audit 
 
               const pending = this.consumePendingChatMessage(chatId);
               if (pending) {
-                applyPendingChatMessage(pending);
+                await applyPendingChatMessage(pending);
               } else {
                 break;
               }

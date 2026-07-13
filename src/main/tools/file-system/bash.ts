@@ -427,6 +427,7 @@ While the Bash tool can do similar things, it’s better to use the built-in too
         undefined,
         threadId,
         resourceId,
+        this.config?.shell === 'powershell',
       );
       return `Command running in background with ID: ${shell_id}, You can use BashOutput to check its output whenever you need to see what's happening.`;
     }
@@ -453,6 +454,7 @@ While the Bash tool can do similar things, it’s better to use the built-in too
       timeout,
       abortSignal,
       env: _env,
+      usePowerShell: this.config?.shell === 'powershell',
     });
     console.log(tempFilePath, inputData.command);
     let llmContent = '';
@@ -727,6 +729,7 @@ export class BashManager {
     abortSignal?: AbortSignal,
     threadId?: string,
     resourceId?: string,
+    usePowerShell?: boolean = false
   ) {
     const managedAbort = createManagedAbortController(timeout, abortSignal);
     const { abortController } = managedAbort;
@@ -735,6 +738,7 @@ export class BashManager {
       cwd,
       undefined,
       env,
+      usePowerShell,
     );
     if (!bashId) {
       bashId = nanoid(8);
