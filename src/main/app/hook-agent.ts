@@ -425,8 +425,6 @@ export class HookProxyAgent extends ProxyAgent {
   }
 
   protected modifyContent(content: string): string {
-    // 默认不修改，子类可以覆盖
-    // 示例：return content.replace('foo', 'bar')
     let jsonObject = null;
     try {
       jsonObject = JSON.parse(content);
@@ -462,9 +460,8 @@ export class HookProxyAgent extends ProxyAgent {
                       },
                     });
                   } else if (
-                    part.type == 'video' &&
-                    part.data &&
-                    part.mimeType
+                    part.type == 'video-data' &&
+                    part.data
                   ) {
                     newContent.push({
                       type: 'video_url',
