@@ -358,7 +358,11 @@ While the Bash tool can do similar things, it’s better to use the built-in too
     const { requestContext } = context;
     const threadId = requestContext.get('threadId' as never) as string;
     const abortSignal = context?.abortSignal;
+    let shell = this.config?.shell;
 
+    if (process.platform == 'win32' && !shell) {
+      shell = 'powershell'
+    }
     if (directory && !fs.existsSync(directory)) {
       throw new Error(`Directory ${directory} does not exist`);
     }
@@ -427,7 +431,7 @@ While the Bash tool can do similar things, it’s better to use the built-in too
         undefined,
         threadId,
         resourceId,
-        this.config?.shell === 'powershell',
+        shell === 'powershell',
       );
       return `Command running in background with ID: ${shell_id}, You can use BashOutput to check its output whenever you need to see what's happening.`;
     }
@@ -454,7 +458,7 @@ While the Bash tool can do similar things, it’s better to use the built-in too
       timeout,
       abortSignal,
       env: _env,
-      usePowerShell: this.config?.shell === 'powershell',
+      usePowerShell: shell === 'powershell',
     });
     console.log(tempFilePath, inputData.command);
     let llmContent = '';
