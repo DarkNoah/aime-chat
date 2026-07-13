@@ -1,6 +1,7 @@
 import { BaseManager } from '../BaseManager';
 import { AgentChannel, ProjectChannel } from '@/types/ipc-channel';
 import { channel } from '@/main/ipc/IpcController';
+import { api } from '@/main/api/ApiController';
 import { Agents } from '@/entities/agents';
 import { ILike, Repository } from 'typeorm';
 import { convertToInstructionContent } from '@/main/utils/convertToCoreMessages';
@@ -83,6 +84,17 @@ class ProjectManager extends BaseManager {
     return project as Project;
   }
 
+  @api({
+    method: 'get',
+    path: '/api/projects/list',
+    args: (req: any) => [
+      {
+        page: Number(req.query.page) || 0,
+        size: Number(req.query.size) || 20,
+        filter: (req.query.filter as string) || undefined,
+      },
+    ],
+  })
   @channel(ProjectChannel.GetList)
   async getList({ page, size, filter }: { page: number; size: number, filter?: string }) {
     const [projects, total] = await this.projectsRepository.findAndCount({

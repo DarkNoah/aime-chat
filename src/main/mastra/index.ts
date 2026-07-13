@@ -438,6 +438,44 @@ class MastraManager extends BaseManager {
     };
   }
 
+  @api({
+    method: 'get',
+    path: '/api/threads/running-threads',
+    args: () => [],
+  })
+  public async getRunningThreads(): Promise<
+    Array<{
+      id: string;
+      title: string;
+      resourceId: string;
+      agentId?: string;
+      model?: string;
+      status: string;
+    }>
+  > {
+    const storage = this.mastra.getStorage();
+    const memoryStore = await storage.getStore('memory');
+    const results = [];
+    for (const chat of this.threadChats) {
+      const thread = await memoryStore
+        .getThreadById({ threadId: chat.id })
+        .catch(() => undefined);
+      results.push({
+        id: chat.id,
+        title: thread?.title ?? DEFAULT_TITLE,
+        resourceId: thread?.resourceId ?? DEFAULT_RESOURCE_ID,
+        agentId: thread?.metadata?.agentId as string | undefined,
+        model: thread?.metadata?.model as string | undefined,
+        status: 'streaming',
+      });
+    }
+    return results;
+  }
+
+  @api({
+    method: 'post',
+    path: '/api/threads/create-thread',
+  })
   @channel(MastraChannel.CreateThread)
   public async createThread(options?: {
     tools?: string[];
