@@ -13,7 +13,6 @@ import {
   SearchKnowledgeBaseItemResult,
   SearchKnowledgeBaseResult,
   UpdateKnowledgeBase,
-  VectorStoreType,
 } from '@/types/knowledge-base';
 import { In, Repository } from 'typeorm';
 import { Client as LibSQLClient } from '@libsql/client';
@@ -25,8 +24,6 @@ import fs from 'fs';
 import { taskQueueManager, TaskContext } from '../task-queue';
 import { BackgroundTask } from '@/types/task-queue';
 import { WebFetch } from '../tools/web/web-fetch';
-import { embedMany } from 'ai';
-import { LibSQLVector } from '@mastra/libsql';
 import { getAssetPath, getDbPath } from '../utils';
 import { PaginationInfo, PaginationParams } from '@/types/common';
 import path from 'path';
@@ -36,12 +33,32 @@ import { appManager } from '../app';
 import { toolsManager } from '../tools';
 import { ToolType } from '@/types/tool';
 import localModels from '../local-model/models.json';
-import { LocalClipModel } from '../providers/local-provider';
 import mime from 'mime';
 import { LocalCLIPModel } from '../local-model/clip';
 import { exportKnowledgeBaseSQLite } from './export-sqlite';
 import { importKnowledgeBaseSQLite, inspectKnowledgeBaseSQLite } from './import-sqlite';
 import { importBundledKnowledgeBases } from './bundled-import';
+import {
+  backfillFtsTable,
+  buildMatchQuery,
+  createFtsTable,
+  dropFtsTable,
+  ftsTableExists,
+  getFtsTableName,
+  rrfFuse,
+  segmentText,
+} from './fts';
+
+type KnowledgeBaseChunk = {
+  text: string;
+  metadata?: Record<string, unknown>;
+};
+
+type ExtendColumnValue = {
+  column: string;
+  value: any;
+};
+
 export class KnowledgeBaseManager extends BaseManager {
   knowledgeBaseRepository: Repository<KnowledgeBase>;
   knowledgeBaseItemRepository: Repository<KnowledgeBaseItem>;
@@ -52,6 +69,7 @@ export class KnowledgeBaseManager extends BaseManager {
     this.knowledgeBaseItemRepository =
       dbManager.dataSource.getRepository(KnowledgeBaseItem);
     this.libSQLClient = dbManager.getLocalLibSQLClient();
+    void this.ensureFtsIndexes();
 
     // 注册知识库导入的后台任务 handler
     taskQueueManager.registerHandler('kb-import', {
@@ -76,7 +94,7 @@ export class KnowledgeBaseManager extends BaseManager {
 
 
   isLocalModel(modelId: string) {
-    return modelId.startsWith('local/');
+    return modelId?.startsWith('local/');
   }
 
   isLocalClipModel(modelId: string) {
@@ -120,28 +138,124 @@ export class KnowledgeBaseManager extends BaseManager {
     const modelPath = path.join(appInfo.modelPath, 'clip', modeId);
     const model = new LocalCLIPModel(modeId, modelPath);
     return model.cosineSimilarity(new Float32Array(embedding1), new Float32Array(embedding2));
-
   }
 
+  private async ensureFtsIndexes(): Promise<void> {
+    try {
+      const knowledgeBases = await this.knowledgeBaseRepository.find();
+      for (const kb of knowledgeBases) {
+        await this.ensureFtsIndex(kb);
+      }
+    } catch (error) {
+      console.error('[knowledge-base] ensure FTS indexes failed', error);
+    }
+  }
 
+  private async ensureFtsIndex(kb: KnowledgeBase): Promise<void> {
+    if (!(await ftsTableExists(this.libSQLClient, kb.id))) {
+      await backfillFtsTable(
+        this.libSQLClient,
+        kb.id,
+        kb.vectorLength ?? 0,
+      );
+    }
+  }
 
+  private async insertChunkRows(
+    kb: KnowledgeBase,
+    itemId: string,
+    chunks: KnowledgeBaseChunk[],
+    embeddings?: number[][],
+    extendColumns: ExtendColumnValue[] = [],
+  ): Promise<void> {
+    if (chunks.length === 0) return;
+    await this.ensureFtsIndex(kb);
+    if (kb.embedding && embeddings?.length !== chunks.length) {
+      throw new Error('Embedding generation failed');
+    }
 
+    const vectorTable = `kb_${kb.id}_${kb.vectorLength ?? 0}`;
+    const ftsTable = getFtsTableName(kb.id);
+    const statements = chunks.flatMap((chunk, index) => {
+      const chunkId = nanoid();
+      const commonArgs = [chunkId, itemId, chunk.text, true, 'text'];
+      const metadata = JSON.stringify(chunk.metadata ?? {});
+      const extendColumnNames = extendColumns
+        .map((column) => `"${column.column.replace(/"/g, '""')}"`)
+        .join(', ');
+      const extendPlaceholders = extendColumns.map(() => '?').join(', ');
+      const vectorStatement = kb.embedding
+        ? {
+            sql: `INSERT INTO [${vectorTable}] (id, item_id, chunk, is_enable, type, embedding, metadata${extendColumnNames ? `, ${extendColumnNames}` : ''})
+              VALUES (?, ?, ?, ?, ?, vector32(?), ?${extendPlaceholders ? `, ${extendPlaceholders}` : ''})`,
+            args: [
+              ...commonArgs,
+              JSON.stringify(embeddings[index]),
+              metadata,
+              ...extendColumns.map((column) => column.value),
+            ],
+          }
+        : {
+            sql: `INSERT INTO [${vectorTable}] (id, item_id, chunk, is_enable, type, metadata${extendColumnNames ? `, ${extendColumnNames}` : ''})
+              VALUES (?, ?, ?, ?, ?, ?${extendPlaceholders ? `, ${extendPlaceholders}` : ''})`,
+            args: [
+              ...commonArgs,
+              metadata,
+              ...extendColumns.map((column) => column.value),
+            ],
+          };
 
+      return [
+        vectorStatement,
+        {
+          sql: `INSERT INTO [${ftsTable}] (chunk_id, chunk_text) VALUES (?, ?)`,
+          args: [chunkId, segmentText(chunk.text)],
+        },
+      ];
+    });
 
+    await this.libSQLClient.batch(statements);
+  }
 
+  private async deleteChunkRows(
+    kb: KnowledgeBase,
+    itemId: string,
+    textOnly = false,
+  ): Promise<void> {
+    await this.ensureFtsIndex(kb);
+    const vectorTable = `kb_${kb.id}_${kb.vectorLength ?? 0}`;
+    const ftsTable = getFtsTableName(kb.id);
+    const typeCondition = textOnly
+      ? ` AND ("type" IS NULL OR "type" = 'text')`
+      : '';
+    await this.libSQLClient.batch([
+      {
+        sql: `DELETE FROM [${ftsTable}]
+          WHERE chunk_id IN (
+            SELECT id FROM [${vectorTable}] WHERE item_id = ?${typeCondition}
+          )`,
+        args: [itemId],
+      },
+      {
+        sql: `DELETE FROM [${vectorTable}] WHERE item_id = ?${typeCondition}`,
+        args: [itemId],
+      },
+    ]);
+  }
 
   @channel(KnowledgeBaseChannel.Create)
   public async createKnowledgeBase(data: CreateKnowledgeBase & { id?: string; static?: boolean }): Promise<KnowledgeBase> {
     const kbId = data.id ?? nanoid();
-    if (!data.embedding) {
-      throw new Error('Embedding Model is required');
-    }
-    const { text_embeddings: embeddings } = await this.calcEmbeddings(data.embedding, ['Hello']);
-    let embedding_length = embeddings?.length != 1 ? undefined : embeddings[0].length;
-
-
-    if (!embedding_length || embedding_length == 0) {
-      throw new Error('Embedding length is 0');
+    const embedding = data.embedding?.trim() || undefined;
+    let embedding_length = 0;
+    if (embedding) {
+      const result = await this.calcEmbeddings(embedding, ['Hello']);
+      const embeddings = result?.text_embeddings;
+      embedding_length =
+        embeddings?.length === 1 ? embeddings[0].length : 0;
+      if (embedding_length === 0) {
+        throw new Error('Embedding length is 0');
+      }
     }
     let extendColumns = [];
     if (data?.vectorStoreConfig?.extendColumns && data?.vectorStoreConfig?.extendColumns.length > 0) {
@@ -165,24 +279,26 @@ export class KnowledgeBaseManager extends BaseManager {
       })
     }
 
-    const res = await this.libSQLClient.execute({
+    await this.libSQLClient.execute({
       sql: `CREATE TABLE IF NOT EXISTS [kb_${kbId}_${embedding_length}] (
       id TEXT PRIMARY KEY,
       item_id TEXT,
       chunk TEXT NULL,
       is_enable BOOLEAN,
       type TEXT NULL,
-      [embedding] F32_BLOB(${embedding_length}) NULL,
+      ${embedding ? `[embedding] F32_BLOB(${embedding_length}) NULL,` : ''}
       [metadata] TEXT NULL DEFAULT '{}'
       ${extendColumns.length > 0 ? `, ${extendColumns.join(',\n')}` : ''}
 
       )`,
       args: [],
     });
+    await createFtsTable(this.libSQLClient, kbId);
 
     return await this.knowledgeBaseRepository.save({
       ...data,
       id: kbId,
+      embedding,
       vectorLength: embedding_length,
       static: data.static ?? false,
     });
@@ -203,10 +319,11 @@ export class KnowledgeBaseManager extends BaseManager {
     if (!kb) {
       throw new Error('Knowledge base not found');
     }
-    const res = await this.libSQLClient.execute({
+    await this.libSQLClient.execute({
       sql: `DROP TABLE IF EXISTS [kb_${id}_${kb.vectorLength}]`,
       args: [],
     });
+    await dropFtsTable(this.libSQLClient, id);
     await this.knowledgeBaseRepository.delete(id);
   }
 
@@ -244,7 +361,7 @@ export class KnowledgeBaseManager extends BaseManager {
     if (!kb) {
       throw new Error('Knowledge base not found');
     }
-    if (!kb.vectorLength) {
+    if (kb.vectorLength == null) {
       throw new Error('Knowledge base vector length is missing');
     }
 
@@ -271,11 +388,17 @@ export class KnowledgeBaseManager extends BaseManager {
     if (!sourcePath?.trim()) {
       throw new Error('Import path is required');
     }
-    return importKnowledgeBaseSQLite({
+    const imported = importKnowledgeBaseSQLite({
       appDbPath: getDbPath(),
       importDbPath: sourcePath,
       mode,
     });
+    await backfillFtsTable(
+      this.libSQLClient,
+      imported.id,
+      imported.vectorLength,
+    );
+    return imported;
   }
 
 
@@ -347,71 +470,79 @@ export class KnowledgeBaseManager extends BaseManager {
     if (!kb) {
       throw new Error('Knowledge base not found');
     }
-    const store = await this.getVectorStore(kb.id);
-    // let embeddings;
-    // if (this.isLocalModel(kb.embedding)) {
-    //   const modelId = kb.embedding.split('/').slice(1).join('/')
-    //   if (!this.isLocalClipModel(kb.embedding)) {
-    //     const embeddingModel = await providersManager.getEmbeddingModel(
-    //       kb.embedding,
-    //     );
-    //     const res2 = await embeddingModel.doEmbed({ values: [query] });
-    //     embeddings = res2.embeddings[0];
-    //   } else {
-    //     const model = new LocalClipModel(modelId);
-    //     const res2 = await model.doClip({ contents: [query], images: [] });
-    //     embeddings = res2.text_embeddings[0];
-    //   }
-    // } else {
-    //   const result = await embedMany({
-    //     model: await providersManager.getEmbeddingModel(kb.embedding),
-    //     values: [query],
-    //   });
-    //   embeddings = result.embeddings;
-    // }
-
-    let embeddings: {
-      text_embeddings: number[][];
-      image_embeddings?: number[][];
-    }
-    if (fileTpye == 'text') {
-      if (kb.embedding.split('/')[kb.embedding.split('/').length - 1] == 'jina-clip-v2') {
-        const QUERY_PREFIX = 'Represent the query for retrieving evidence documents: ';
-        query = QUERY_PREFIX + query;
-      }
-      embeddings = await this.calcEmbeddings(kb.embedding, [query]);
-    } else if (fileTpye == 'image') {
-      embeddings = await this.calcEmbeddings(kb.embedding, [], [query]);
-    }
-
+    await this.ensureFtsIndex(kb);
+    const originalQuery = query;
     const { vectorStoreConfig } = kb;
+    const candidateLimit = Math.max(top_k * 3, top_k);
+    const extendSelect = vectorStoreConfig?.extendColumns?.length > 0
+      ? `, ${vectorStoreConfig.extendColumns.map((column) => `"${column.name}"`).join(', ')}`
+      : '';
+    const filterCondition =
+      vectorStoreConfig?.extendColumns?.length > 0 && filter
+        ? ` AND (${filter})`
+        : '';
+    let vectorStr: number[] | undefined;
+    if (kb.embedding) {
+      let embeddingQuery = originalQuery;
+      if (
+        fileTpye === 'text' &&
+        kb.embedding.split('/').at(-1) === 'jina-clip-v2'
+      ) {
+        embeddingQuery =
+          'Represent the query for retrieving evidence documents: ' +
+          originalQuery;
+      }
+      const embeddings =
+        fileTpye === 'text'
+          ? await this.calcEmbeddings(kb.embedding, [embeddingQuery])
+          : await this.calcEmbeddings(kb.embedding, [], [originalQuery]);
+      vectorStr =
+        embeddings?.text_embeddings?.[0] ??
+        embeddings?.image_embeddings?.[0];
+    }
 
+    if (fileTpye === 'image' && !vectorStr) {
+      return {
+        query: originalQuery,
+        embedding: kb.embedding ?? '',
+        searchType: 'bm25',
+        results: [],
+      };
+    }
 
-    const vectorStr = embeddings?.text_embeddings?.[0] || embeddings?.image_embeddings?.[0];
-    const results = await this.libSQLClient.execute({
-      sql: `
-      WITH vector_scores AS (
-        SELECT
-          id,
-          item_id,
-          chunk,
-          (1-vector_distance_cos(embedding, vector32(?))) as score,
-          metadata,
-          "type",
-          vector_extract(embedding) as embedding
-          ${vectorStoreConfig?.extendColumns?.length > 0 ? "," + vectorStoreConfig?.extendColumns?.map(x => `"${x.name}"`).join(',\n') : ''}
-        FROM [kb_${kb.id}_${kb.vectorLength}]
-        WHERE is_enable = 1 ${vectorStoreConfig?.extendColumns?.length > 0 && filter ? 'AND (' + filter + ')' : ''}
-      )
-      SELECT *
-      FROM vector_scores
-      WHERE score > ? and type = 'text'
-      ORDER BY score DESC
-      LIMIT ?`,
-      args: [JSON.stringify(vectorStr), 0.5, top_k],
-    });
+    const vectorRows: any[] = [];
+    if (vectorStr) {
+      const vectorResults = await this.libSQLClient.execute({
+        sql: `
+        WITH vector_scores AS (
+          SELECT
+            id,
+            item_id,
+            chunk,
+            (1-vector_distance_cos(embedding, vector32(?))) as score,
+            metadata,
+            "type"
+            ${extendSelect}
+          FROM [kb_${kb.id}_${kb.vectorLength ?? 0}]
+          WHERE is_enable = 1${filterCondition}
+        )
+        SELECT *
+        FROM vector_scores
+        WHERE score > ? AND type = 'text'
+        ORDER BY score DESC
+        LIMIT ?`,
+        args: [JSON.stringify(vectorStr), 0.5, candidateLimit],
+      });
+      vectorRows.push(
+        ...vectorResults.rows.map((row) => ({
+          ...row,
+          id: String(row.id),
+          score: Number(row.score),
+        })),
+      );
+    }
 
-    if (this.isLocalClipModel(kb.embedding)) {
+    if (vectorStr && kb.embedding && this.isLocalClipModel(kb.embedding)) {
       const image_results = await this.libSQLClient.execute({
         sql: `
         WITH vector_scores AS (
@@ -423,37 +554,30 @@ export class KnowledgeBaseManager extends BaseManager {
             metadata,
             "type",
             vector_extract(embedding) as embedding
-            ${vectorStoreConfig?.extendColumns?.length > 0 ? "," + vectorStoreConfig?.extendColumns?.map(x => `"${x.name}"`).join(',\n') : ''}
-          FROM [kb_${kb.id}_${kb.vectorLength}]
-          WHERE is_enable = 1 ${vectorStoreConfig?.extendColumns?.length > 0 && filter ? 'AND (' + filter + ')' : ''}
+            ${extendSelect}
+          FROM [kb_${kb.id}_${kb.vectorLength ?? 0}]
+          WHERE is_enable = 1${filterCondition}
         )
         SELECT *
         FROM vector_scores
         WHERE type = 'image'
         ORDER BY score DESC
         LIMIT ?`,
-        args: [JSON.stringify(vectorStr), top_k],
+        args: [JSON.stringify(vectorStr), candidateLimit],
       });
-      if (image_results.rows.length > 0) {
-
-        for (const row of image_results.rows) {
-          const score = await this.calcClipCosineSimilarity(kb.embedding, vectorStr, JSON.parse(row.embedding as string));
-          row.score = score;
-          console.log(row, score);
-          if (fileTpye == 'text') {
-            results.rows.push({
-              ...row,
-              score: score,
-            });
-          }
-          else if (score > 0.7) {
-            results.rows.push({
-              ...row,
-              score: score,
-            });
-          }
+      for (const row of image_results.rows) {
+        const score = await this.calcClipCosineSimilarity(
+          kb.embedding,
+          vectorStr,
+          JSON.parse(row.embedding as string),
+        );
+        if (fileTpye === 'text' || score > 0.7) {
+          vectorRows.push({
+            ...row,
+            id: String(row.id),
+            score,
+          });
         }
-
       }
     }
 
@@ -464,7 +588,64 @@ export class KnowledgeBaseManager extends BaseManager {
 
 
 
-    const itemIds = [...new Set(results.rows.map(x => x.item_id))];
+    const bm25Rows: any[] = [];
+    if (fileTpye === 'text') {
+      const matchQuery = buildMatchQuery(originalQuery);
+      if (matchQuery) {
+        const ftsTable = getFtsTableName(kb.id);
+        const bm25Results = await this.libSQLClient.execute({
+          sql: `SELECT
+              chunks.id,
+              chunks.item_id,
+              chunks.chunk,
+              chunks.metadata,
+              chunks."type",
+              bm25([${ftsTable}]) AS bm25_rank
+              ${extendSelect}
+            FROM [${ftsTable}]
+            JOIN [kb_${kb.id}_${kb.vectorLength ?? 0}] AS chunks
+              ON chunks.id = [${ftsTable}].chunk_id
+            WHERE [${ftsTable}] MATCH ?
+              AND chunks.is_enable = 1
+              AND chunks."type" = 'text'${filterCondition}
+            ORDER BY bm25_rank ASC
+            LIMIT ?`,
+          args: [matchQuery, candidateLimit],
+        });
+        bm25Rows.push(
+          ...bm25Results.rows.map((row, index) => ({
+            ...row,
+            id: String(row.id),
+            bm25Score: 1 / (index + 1),
+          })),
+        );
+      }
+    }
+
+    let searchType: SearchKnowledgeBaseResult['searchType'];
+    let resultRows: any[];
+    if (vectorStr && fileTpye === 'text') {
+      searchType = 'hybrid';
+      resultRows = rrfFuse([vectorRows, bm25Rows])
+        .map((row) => ({ ...row, hybridScore: row.rrfScore }))
+        .slice(0, top_k);
+    } else if (vectorStr) {
+      searchType = 'vector';
+      resultRows = vectorRows
+        .map((row) => ({ ...row, hybridScore: row.score }))
+        .slice(0, top_k);
+    } else {
+      searchType = 'bm25';
+      resultRows = rrfFuse([bm25Rows])
+        .map((row) => ({
+          ...row,
+          score: row.rrfScore,
+          hybridScore: row.rrfScore,
+        }))
+        .slice(0, top_k);
+    }
+
+    const itemIds = [...new Set(resultRows.map((row) => String(row.item_id)))];
     const items = await this.knowledgeBaseItemRepository.find({
       where: {
         id: In(itemIds),
@@ -472,13 +653,14 @@ export class KnowledgeBaseManager extends BaseManager {
     });
     if (items.length == 0) {
       return {
-        query: query,
-        embedding: kb.embedding,
+        query: originalQuery,
+        embedding: kb.embedding ?? '',
+        searchType,
         results: [],
       }
     }
 
-    let _results: SearchKnowledgeBaseItemResult[] = results.rows.map(item => {
+    let _results: SearchKnowledgeBaseItemResult[] = resultRows.map(item => {
       const kbitem = items.find(x => x.id === item.item_id)
       const extendValues = {};
       if (vectorStoreConfig?.extendColumns?.length > 0) {
@@ -489,8 +671,9 @@ export class KnowledgeBaseManager extends BaseManager {
       return {
         id: item.id as string,
         itemId: item.item_id as string,
-        score: item.score as number,
-        hybridScore: item.hybrid_score as number ?? item.score as number,
+        score: Number(item.score ?? item.bm25Score ?? 0),
+        bm25Score: item.bm25Score as number | undefined,
+        hybridScore: Number(item.hybridScore ?? item.score ?? item.bm25Score ?? 0),
         metadata: { ...(JSON.parse(item?.metadata as string ?? '{}')), ...(kbitem?.metadata ?? {}) },
         chunk: item.chunk as string,
         type: item.type as 'text' | 'image',
@@ -502,11 +685,11 @@ export class KnowledgeBaseManager extends BaseManager {
       }
     });
 
-    if (kb.reranker && query) {
+    if (kb.reranker && originalQuery && _results.length > 0) {
       const model = await providersManager.getRerankModel(kb.reranker);
       const rereankResults = await model.doRerank({
-        query: query,
-        documents: results.rows.map(x => x.chunk as string),
+        query: originalQuery,
+        documents: _results.map(x => x.chunk ?? ''),
         options: {
           top_k: top_k,
         },
@@ -515,15 +698,21 @@ export class KnowledgeBaseManager extends BaseManager {
         const item = _results[result.index];
         if (item) {
           item.rerankScore = result.score;
-          item.hybridScore = (item.score + result.score) / 2;
+          item.hybridScore = ((item.hybridScore ?? item.score) + result.score) / 2;
         }
       });
     }
 
-    _results = _results.sort((a, b) => b.hybridScore - a.hybridScore);
+    _results = _results
+      .sort(
+        (a, b) =>
+          (b.hybridScore ?? b.score) - (a.hybridScore ?? a.score),
+      )
+      .slice(0, top_k);
     return {
-      query: query,
-      embedding: kb.embedding,
+      query: originalQuery,
+      embedding: kb.embedding ?? '',
+      searchType,
       results: _results,
     }
   }
@@ -583,10 +772,7 @@ export class KnowledgeBaseManager extends BaseManager {
       });
 
       try {
-        await this.libSQLClient.execute({
-          sql: `DELETE FROM [kb_${kb.id}_${kb.vectorLength}] WHERE item_id = ? AND ("type" IS NULL OR "type" = 'text')`,
-          args: [item.id],
-        });
+        await this.deleteChunkRows(kb, item.id, true);
 
         let chunkCount = 0;
         if (nextContent && nextContent.trim().length > 0) {
@@ -598,24 +784,15 @@ export class KnowledgeBaseManager extends BaseManager {
             separators: ['\n'],
           });
           if (chunks.length > 0) {
-            const { text_embeddings: embeddings } = await this.calcEmbeddings(
-              kb.embedding,
-              chunks.map((chunk) => chunk.text),
-            );
-            const insertStatements = chunks.map((chunk, index) => ({
-              sql: `INSERT INTO [kb_${kb.id}_${kb.vectorLength}] (id, item_id, chunk, is_enable, type, embedding, metadata)
-              VALUES (?, ?, ?, ?, ?, vector32(?), ?)`,
-              args: [
-                nanoid(),
-                item.id,
-                chunk.text,
-                true,
-                'text',
-                JSON.stringify(embeddings[index]),
-                JSON.stringify(chunk.metadata ?? {}),
-              ],
-            }));
-            await this.libSQLClient.batch(insertStatements);
+            const embeddings = kb.embedding
+              ? (
+                  await this.calcEmbeddings(
+                    kb.embedding,
+                    chunks.map((chunk) => chunk.text),
+                  )
+                )?.text_embeddings
+              : undefined;
+            await this.insertChunkRows(kb, item.id, chunks, embeddings);
             chunkCount = chunks.length;
           }
         }
@@ -656,32 +833,9 @@ export class KnowledgeBaseManager extends BaseManager {
     if (!item) {
       throw new Error('Knowledge base item not found');
     }
-    const res = await this.libSQLClient.execute({
-      sql: `DELETE FROM [kb_${item.knowledgeBaseId}_${item.knowledgeBase.vectorLength}] WHERE item_id = ?`,
-      args: [item.id],
-    });
+    await this.deleteChunkRows(item.knowledgeBase, item.id);
     await this.knowledgeBaseItemRepository.delete(id);
   }
-
-
-
-
-
-  private async getVectorStore(kbId: string) {
-    const kb = await this.knowledgeBaseRepository.findOneBy({ id: kbId });
-    if (!kb) {
-      throw new Error('Knowledge base not found');
-    }
-    if (kb.vectorStoreType == VectorStoreType.LibSQL) {
-      return new LibSQLVector({
-        id: `kb_${kb.id}_${kb.vectorLength}`,
-        url: `file:${getDbPath()}`,
-      });
-    }
-    throw new Error('Vector store type not supported');
-  }
-
-
   @channel(KnowledgeBaseChannel.ImportSource)
   public async importSource(data: {
     kbId: string;
@@ -754,10 +908,6 @@ export class KnowledgeBaseManager extends BaseManager {
       throw new Error('Knowledge base not found');
     }
     ctx.updateProgress(10, '准备导入...');
-    const store = await this.getVectorStore(kbId);
-
-
-
     if (type == KnowledgeBaseSourceType.Text && source?.content?.trim()) {
       await ctx.waitIfPaused();
       if (ctx.isCancelled()) return;
@@ -791,26 +941,21 @@ export class KnowledgeBaseManager extends BaseManager {
           overlap: 50,
         });
         console.log(source);
-        const { text_embeddings: embeddings } = await this.calcEmbeddings(kb.embedding, chunks.map((chunk) => chunk.text));
-
-        const insertStatements = chunks.map((chunk, index) => {
-          const embedding = embeddings[index];
-          return {
-            sql: `INSERT INTO [kb_${kbId}_${kb.vectorLength}] (id, item_id, chunk, is_enable, type, embedding, metadata${extendColumns.length > 0 ? ', ' + extendColumns.map(x => `"${x.column}"`).join(', ') : ''})
-        VALUES (?, ?, ?, ?, ?, vector32(?), ? ${extendColumns.length > 0 ? ', ' + extendColumns.map(x => `?`).join(', ') : ''})`,
-            args: [
-              nanoid(),
-              item.id,
-              chunk.text,
-              true,
-              'text',
-              JSON.stringify(embedding),
-              JSON.stringify(chunk.metadata ?? {}),
-              ...extendColumns.map(x => x.value),
-            ],
-          };
-        });
-        await this.libSQLClient.batch(insertStatements);
+        const embeddings = kb.embedding
+          ? (
+              await this.calcEmbeddings(
+                kb.embedding,
+                chunks.map((chunk) => chunk.text),
+              )
+            )?.text_embeddings
+          : undefined;
+        await this.insertChunkRows(
+          kb,
+          item.id,
+          chunks,
+          embeddings,
+          extendColumns,
+        );
         item.chunkCount = chunks.length;
         item.state = KnowledgeBaseItemState.Completed;
         item.isEnable = true;
@@ -868,22 +1013,21 @@ export class KnowledgeBaseManager extends BaseManager {
           },
         });
 
-        const { text_embeddings: embeddings } = await this.calcEmbeddings(kb.embedding, chunks.map((chunk) => chunk.text));
-        const insertStatements = chunks.map((chunk, index) => ({
-          sql: `INSERT INTO [kb_${kbId}_${kb.vectorLength}] (id, item_id, chunk, is_enable, type, embedding, metadata${extendColumns.length > 0 ? ', ' + extendColumns.map(x => `"${x.column}"`).join(', ') : ''})
-        VALUES (?, ?, ?, ?, ?, vector32(?), ? ${extendColumns.length > 0 ? ', ' + extendColumns.map(x => `?`).join(', ') : ''})`,
-          args: [
-            nanoid(),
-            item.id,
-            chunk.text,
-            true,
-            'text',
-            JSON.stringify(embeddings[index]),
-            JSON.stringify(chunk.metadata ?? {}),
-            ...extendColumns.map(x => x.value),
-          ],
-        }));
-        await this.libSQLClient.batch(insertStatements);
+        const embeddings = kb.embedding
+          ? (
+              await this.calcEmbeddings(
+                kb.embedding,
+                chunks.map((chunk) => chunk.text),
+              )
+            )?.text_embeddings
+          : undefined;
+        await this.insertChunkRows(
+          kb,
+          item.id,
+          chunks,
+          embeddings,
+          extendColumns,
+        );
         item.chunkCount = chunks.length;
         item.state = KnowledgeBaseItemState.Completed;
         item.isEnable = true;
@@ -992,34 +1136,31 @@ export class KnowledgeBaseManager extends BaseManager {
           }
 
           let embeddings: { text_embeddings: number[][], image_embeddings?: number[][] } | undefined;
-
-          if (mime.lookup(file).startsWith('image/')) {
-            embeddings = await this.calcEmbeddings(kb.embedding, chunks.map((chunk) => chunk.text), [file]);
-          } else {
-            embeddings = await this.calcEmbeddings(kb.embedding, chunks.map((chunk) => chunk.text));
+          if (kb.embedding) {
+            if (isImage) {
+              embeddings = await this.calcEmbeddings(
+                kb.embedding,
+                chunks.map((chunk) => chunk.text),
+                [file],
+              );
+            } else {
+              embeddings = await this.calcEmbeddings(
+                kb.embedding,
+                chunks.map((chunk) => chunk.text),
+              );
+            }
           }
           const insertStatements = [];
-          const hasText = embeddings?.text_embeddings?.[0] !== undefined;
           const hasImage = embeddings?.image_embeddings?.[0] !== undefined;
 
-
-          if (chunks && chunks.length > 0) {
-            for (const [chunkIndex, chunk] of Object.entries(chunks)) {
-              insertStatements.push({
-                sql: `INSERT INTO [kb_${kbId}_${kb.vectorLength}] (id, item_id, chunk, is_enable, type, embedding, metadata${extendColumns.length > 0 ? ', ' + extendColumns.map(x => `"${x.column}"`).join(', ') : ''})
-              VALUES (?, ?, ?, ?, ?, vector32(?), ? ${extendColumns.length > 0 ? ', ' + extendColumns.map(x => `?`).join(', ') : ''})`,
-                args: [
-                  nanoid(),
-                  item.id,
-                  chunk.text,
-                  true,
-                  'text',
-                  JSON.stringify(embeddings.text_embeddings[chunkIndex]),
-                  JSON.stringify(chunk.metadata ?? {}),
-                  ...extendColumns.map(x => x.value),
-                ],
-              });
-            }
+          if (chunks.length > 0) {
+            await this.insertChunkRows(
+              kb,
+              item.id,
+              chunks,
+              embeddings?.text_embeddings,
+              extendColumns,
+            );
           }
 
           if (hasImage) {
@@ -1032,7 +1173,7 @@ export class KnowledgeBaseManager extends BaseManager {
             };
             item = await this.knowledgeBaseItemRepository.save(item);
             insertStatements.push({
-              sql: `INSERT INTO [kb_${kbId}_${kb.vectorLength}] (id, item_id, chunk, is_enable, type, embedding, metadata${extendColumns.length > 0 ? ', ' + extendColumns.map(x => `"${x.column}"`).join(', ') : ''})
+              sql: `INSERT INTO [kb_${kbId}_${kb.vectorLength ?? 0}] (id, item_id, chunk, is_enable, type, embedding, metadata${extendColumns.length > 0 ? ', ' + extendColumns.map(x => `"${x.column}"`).join(', ') : ''})
               VALUES (?, ?, ?, ?, ?, vector32(?), ? ${extendColumns.length > 0 ? ', ' + extendColumns.map(x => `?`).join(', ') : ''})`,
               args: [
                 nanoid(),
@@ -1053,7 +1194,9 @@ export class KnowledgeBaseManager extends BaseManager {
 
 
 
-          await this.libSQLClient.batch(insertStatements);
+          if (insertStatements.length > 0) {
+            await this.libSQLClient.batch(insertStatements);
+          }
 
           item.state = KnowledgeBaseItemState.Completed;
           item.isEnable = true;

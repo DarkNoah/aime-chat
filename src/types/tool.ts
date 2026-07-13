@@ -38,12 +38,31 @@ export enum ToolEvent {
   ToolUpdated = 'tool:tool-updated',
   ToolListUpdated = 'tool:tool-list-updated',
 }
+
+
+const runtimePlatform =
+  typeof window !== 'undefined' && window.electron?.platform
+    ? window.electron.platform
+    : typeof process !== 'undefined'
+      ? process.platform
+      : undefined;
+
+const bashShellSchema =
+  runtimePlatform === 'win32'
+    ? z.enum(['powershell', 'cmd']).default('powershell')
+    : z.enum(['bash']).default('bash');
+
+
 export const ToolConfig = {
   Bash: {
     configSchema: z.strictObject({
+      shell: bashShellSchema,
       env: z.string().optional(),
     }),
     uiSchema: {
+      shell: {
+        'ui:title': t('common.shell', 'Shell'),
+      },
       env: {
         'ui:widget': 'textarea',
         'ui:title': t('common.env'),
