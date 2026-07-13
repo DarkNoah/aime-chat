@@ -23,6 +23,7 @@ import { isArray } from '@/utils/is';
 import { Input } from '../../ui/input';
 import { useTranslation } from 'react-i18next';
 import { Streamdown } from '../../ai-elements/streamdown';
+import { QueueItem, QueueItemContent, QueueItemIndicator, QueueList } from '../../ai-elements/queue';
 
 export interface CreatePlanMessageRef { }
 
@@ -67,24 +68,27 @@ export const CreatePlanMessage = React.forwardRef<
           <Streamdown className="text-wrap break-all w-full h-full whitespace-break-spaces">
             {part?.input?.plan}
           </Streamdown>
-          <h1>Todos:</h1>
+          <h1 className="mt-2">Todos:</h1>
           <hr className="my-2"></hr>
           <div className="flex flex-col gap-2">
-            {part?.input?.todos?.map((todo) => (
-              <div key={todo.id}>
-                <Item variant="outline" size="sm">
-                  <ItemTitle>{todo.content}</ItemTitle>
-                </Item>
-              </div>
-            ))}
+            <QueueList>
+              {part?.input?.todos?.map((todo, i) => {
+                const isCompleted = todo.status === 'completed';
+                return (
+                  <QueueItem key={todo.id}>
+                    <div className="flex items-center gap-2">
+                      <QueueItemIndicator completed={isCompleted} />
+                      <QueueItemContent completed={isCompleted}>
+                        {todo.content}
+                      </QueueItemContent>
+                    </div>
+                  </QueueItem>
+                );
+              })}
+            </QueueList>
           </div>
         </CardContent>
       </Card>
-      {/* <Card {...rest} className={cn('w-full', className)}>
-        <CardHeader>
-          <CardTitle>{title}</CardTitle>
-        </CardHeader>
-      </Card> */}
       {part?.state === 'input-available' && (
         <div className="p-4 flex flex-row justify-end gap-2">
           <Button
