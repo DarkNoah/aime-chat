@@ -37,7 +37,7 @@ const getSingleKnowledgeBase = (db: Database.Database) => {
     throw new Error('Only single knowledge base SQLite files are supported');
   }
   const kb = rows[0];
-  if (!kb.id || !kb.vectorLength) {
+  if (!kb.id || kb.vectorLength == null) {
     throw new Error('Invalid knowledge base metadata');
   }
   return kb;
@@ -124,6 +124,7 @@ export const importKnowledgeBaseSQLite = ({
     imported.id,
     imported.vectorLength,
   );
+  const ftsTableName = `kb_fts_${imported.id}`;
   const importDb = new Database(importDbPath, { readonly: true });
   const appDb = new Database(appDbPath);
 
@@ -158,6 +159,9 @@ export const importKnowledgeBaseSQLite = ({
     try {
       if (mode === 'overwrite') {
         if (existingKb) {
+          appDb.exec(
+            `DROP TABLE IF EXISTS ${quoteIdentifier(ftsTableName)}`,
+          );
           const oldVectorTableName = getVectorTableName(
             imported.id,
             Number(existingKb.vectorLength),

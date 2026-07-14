@@ -93,10 +93,6 @@ export const CreatePlanMessage = React.forwardRef<
         <div className="p-4 flex flex-row justify-end gap-2">
           <Button
             className="cursor-pointer"
-            disabled={
-              Object.keys(selectedOptions).length === 0 ||
-              Object.values(selectedOptions).some((x) => !x)
-            }
             onClick={() => {
               onResume?.({
                 confirmed: true,

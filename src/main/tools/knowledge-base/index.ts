@@ -1,3 +1,5 @@
+import fs from "fs";
+import path from "path";
 import knowledgeBaseManager from "@/main/knowledge-base";
 import BaseTool, { BaseToolParams } from "../base-tool";
 import BaseToolkit, { BaseToolkitParams } from "../base-toolkit";
@@ -33,6 +35,9 @@ export class KnowledgeBaseSearch extends BaseTool {
   id: string = 'KnowledgeBaseSearch';
   description = `Search for knowledge bases.
 
+The query can be text or a local image file path (.png/.jpg/.jpeg/.webp/.gif/.bmp).
+When query is an existing image file path, the search is performed by image similarity (requires the knowledge base to use a CLIP-like multimodal embedding model).
+
 Filter:
 
 
@@ -58,7 +63,8 @@ Return json format:
 `;
 
   inputSchema = z.object({
-    query: z.string().describe('The query to search for.'),
+    query: z.string().describe('The query to search for. Can be plain text, or a local image file path to search by image.'),
+    query_type: z.enum(['text', 'image']).describe("Type of the query. Use 'text' for plain text search (default), or 'image' when query is a local image file path.").default('text'),
     kb_source: z.array(z.string()).describe('knowledge base id or name.'),
     filter: z.string().describe('Optional, The filter of the knowledge base item.').optional().nullable(),
     top_k: z.number().describe('The number of results to return.').optional().default(10),
@@ -69,12 +75,33 @@ Return json format:
     super(params);
   }
 
+  private static readonly IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp'];
+
+  private resolveQueryType(query: string, queryType?: 'text' | 'image' | null): 'text' | 'image' {
+    if (queryType === 'text') {
+      return 'text';
+    }
+    const ext = path.extname(query).toLowerCase();
+    const looksLikeImage = KnowledgeBaseSearch.IMAGE_EXTENSIONS.includes(ext);
+    if (queryType === 'image') {
+      if (!looksLikeImage) {
+        throw new Error(`Query is not a supported image file (${KnowledgeBaseSearch.IMAGE_EXTENSIONS.join(', ')}): ${query}`);
+      }
+      if (!fs.existsSync(query)) {
+        throw new Error(`Image file not found: ${query}`);
+      }
+      return 'image';
+    }
+    return looksLikeImage && fs.existsSync(query) ? 'image' : 'text';
+  }
+
   execute = async (inputData: z.infer<typeof this.inputSchema>, options?: ToolExecutionContext<ZodSchema, any>) => {
-    const { query, kb_source, top_k, return_full_content = false, filter } = inputData;
+    const { query, query_type, kb_source, top_k, return_full_content = false, filter } = inputData;
     const { writer } = options;
+    const fileType = this.resolveQueryType(query, query_type);
     const results: Record<string, { id: string, name: string, score: number, content?: string }[]> = {};
     for (const source of kb_source) {
-      const knowledgeBase = await knowledgeBaseManager.searchKnowledgeBase(source, query, 'text', filter, top_k);
+      const knowledgeBase = await knowledgeBaseManager.searchKnowledgeBase(source, query, fileType, filter, top_k);
       results[source] = knowledgeBase.results.map(x => {
         let content = x.chunk;
         if (return_full_content === true) {

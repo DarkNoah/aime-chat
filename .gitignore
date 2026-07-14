@@ -42,3 +42,7 @@ memory/
 __pycache__/
 
 *.swp
+
+
+assets/market/template/
+assets/market/skill/test/

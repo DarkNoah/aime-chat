@@ -38,6 +38,11 @@ import { SendEventMessage } from './send-event-message';
 import { VisionMessage } from './vision-message';
 import { getToolMessageDescription } from '@/utils/tool-message';
 import { CreatePlanMessage } from './create-plan-message';
+import { isArray, isObject } from '@/utils/is';
+import {
+  ChatMessageAttachment,
+  ChatMessageAttachments,
+} from '../chat-message-attachment';
 
 export type ToolSuspended = {
   toolName: string;
@@ -49,7 +54,7 @@ export type ToolSuspended = {
 
 export interface ToolMessageRef { }
 
-export type ToolMessageProps = ComponentProps<typeof Badge> & {
+export type ToolMessageProps = Omit<ComponentProps<typeof Badge>, 'part'> & {
   threadId?: string;
   part?: ToolUIPart;
   title?: string;
@@ -161,6 +166,27 @@ export const ToolMessage = React.forwardRef<ToolMessageRef, ToolMessageProps>(
         );
       } else if (toolName === 'Vision') {
         return <VisionMessage threadId={threadId} part={part}></VisionMessage>;
+      } else if (
+        part?.state === 'output-available' &&
+        isObject(part?.output) &&
+        Object.keys(part?.output).length === 1
+      ) {
+        const key = Object.keys(part?.output)[0];
+        return (
+          <ChatMessageAttachments className="ml-0">
+            {part?.output[key]?.map((item: any, i: number) => {
+              if (item.type === 'image') {
+                return (
+                  <ChatMessageAttachment
+                    key={`output-image-${i}`}
+                    data={item}
+                  />
+                );
+              }
+              return null;
+            })}
+          </ChatMessageAttachments>
+        );
       }
       return null;
     };
@@ -178,7 +204,7 @@ export const ToolMessage = React.forwardRef<ToolMessageRef, ToolMessageProps>(
           {getStatusBadge(part, isSuspended)}
           <span className="font-medium text-sm">{toolName}</span>
           {part?.input && (
-            <span className=" ml-1 text-xs text-muted-foreground truncate max-w-[300px] block">
+            <span className=" ml-1 text-xs text-muted-foreground truncate max-w-[250px] block">
               {getToolMessageDescription(toolName, part?.input)}
             </span>
           )}

@@ -188,6 +188,9 @@ export const runCommand = async (
           _encoding = 'utf8';
         }
         text = iconv.decode(data, _encoding);
+        if (options?.usePowerShell) {
+          text = iconv.decode(data, 'utf8');
+        }
       } else {
         text = decodeBuffer(data);
       }
@@ -211,6 +214,9 @@ export const runCommand = async (
           _encoding = 'utf8';
         }
         text = iconv.decode(data, _encoding);
+        if (options?.usePowerShell) {
+          text = iconv.decode(data, 'utf8');
+        }
       } else {
         text = decodeBuffer(data);
       }
@@ -361,8 +367,17 @@ export const createShell = async (
     const command = isString(input_command)
       ? (parse(input_command) as string[])
       : input_command;
+
+
+    let args = isString(input_command) ? [input_command] : [...input_command];
+    args = ['-NoProfile',
+      '-NonInteractive',
+      '-Command',
+      `
+  [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false);
+  $OutputEncoding = [System.Text.UTF8Encoding]::new($false);`, ...args];
     return {
-      shell: spawn('powershell.exe', command, {
+      shell: spawn('powershell.exe', args, {
         stdio: ['ignore', 'pipe', 'pipe'],
         // detached: true, // ensure subprocess starts its own process group (esp. in Linux)
         cwd: cwd,

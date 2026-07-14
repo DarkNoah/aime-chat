@@ -1,6 +1,7 @@
 import { t } from 'i18next';
 import z from 'zod';
 import { ModelType, ProviderTag } from './provider';
+import type { SkillMetadata } from './skill-metadata';
 
 export enum ToolType {
   MCP = 'mcp',
@@ -8,7 +9,7 @@ export enum ToolType {
   SKILL = 'skill',
 }
 
-export type Tool = {
+export type Tool = SkillMetadata & {
   id: string;
   name: string;
   description: string;
@@ -24,6 +25,9 @@ export type Tool = {
   }[];
   status?: 'running' | 'stopped' | 'error' | 'starting' | undefined;
   repo?: string;
+  source?: string;
+  path?: string;
+  content?: string;
   skills?: Tool[];
 };
 
@@ -38,12 +42,31 @@ export enum ToolEvent {
   ToolUpdated = 'tool:tool-updated',
   ToolListUpdated = 'tool:tool-list-updated',
 }
+
+
+const runtimePlatform =
+  typeof window !== 'undefined' && window.electron?.platform
+    ? window.electron.platform
+    : typeof process !== 'undefined'
+      ? process.platform
+      : undefined;
+
+const bashShellSchema =
+  runtimePlatform === 'win32'
+    ? z.enum(['powershell', 'cmd']).default('powershell')
+    : z.enum(['bash']).default('bash');
+
+
 export const ToolConfig = {
   Bash: {
     configSchema: z.strictObject({
+      shell: bashShellSchema,
       env: z.string().optional(),
     }),
     uiSchema: {
+      shell: {
+        'ui:title': t('common.shell', 'Shell'),
+      },
       env: {
         'ui:widget': 'textarea',
         'ui:title': t('common.env'),

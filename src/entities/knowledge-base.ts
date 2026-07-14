@@ -35,8 +35,8 @@ export class KnowledgeBase {
   @Column('json', { nullable: true })
   vectorStoreConfig?: any;
 
-  @Column()
-  embedding: string;
+  @Column({ nullable: true })
+  embedding?: string;
 
   @Column({ nullable: true })
   vectorLength?: number;

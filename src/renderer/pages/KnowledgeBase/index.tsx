@@ -46,6 +46,7 @@ import { Controller, useFieldArray, useForm } from 'react-hook-form';
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -133,7 +134,7 @@ function KnowledgeBasePage() {
     name: string;
     description?: string;
     vectorStoreType: VectorStoreType | string;
-    embedding: string;
+    embedding?: string;
     reranker?: string;
     forceReturnFullContent?: boolean;
     extendColumns?: { name: string; columnType: string }[];
@@ -159,7 +160,7 @@ function KnowledgeBasePage() {
             name: values.name.trim(),
             description: values.description?.trim() || '',
             vectorStoreType: values.vectorStoreType as VectorStoreType,
-            embedding: values.embedding.trim(),
+            embedding: values.embedding?.trim() || undefined,
             reranker: values.reranker?.trim() || '',
             forceReturnFullContent: values.forceReturnFullContent || false,
             ...(vectorStoreConfig ? { vectorStoreConfig } : {}),
@@ -366,7 +367,6 @@ function KnowledgeBasePage() {
                         <FormField
                           name="embedding"
                           control={form.control}
-                          rules={{ required: t('common.required') as string }}
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel htmlFor="kb-embedding">
@@ -375,10 +375,17 @@ function KnowledgeBasePage() {
                               <FormControl>
                                 <ChatModelSelect
                                   type={ModelType.EMBEDDING}
+                                  clearable
                                   {...field}
                                   className="border w-full"
                                 ></ChatModelSelect>
                               </FormControl>
+                              <FormDescription>
+                                {t(
+                                  'knowledge-base.embedding_optional_hint',
+                                  '不选择模型时，将仅使用 BM25 全文检索。',
+                                )}
+                              </FormDescription>
                               <FormMessage />
                             </FormItem>
                           )}

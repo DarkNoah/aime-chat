@@ -26,6 +26,7 @@ import { SkillDetailDialog } from '../skills-ui/skill-detail';
 import { SkillInfo } from '@/types/skill';
 import { Spinner } from '../ui/spinner';
 import { SkillManagerDialog } from '../skills-ui/skill-manager-dialog';
+import { getSkillDisplayName } from '../skills-ui/skill-metadata';
 
 export type ProjectViewProps = {
   project?: Project;
@@ -120,7 +121,7 @@ export const ProjectView = React.forwardRef<ProjectViewRef, ProjectViewProps>(
                               <IconExternalLink />
                             </Button>
                           )}
-                          {skill.name}
+                          {getSkillDisplayName(skill)}
                         </ItemTitle>
 
                         <ItemDescription className="line-clamp-2 text-xs text-muted-foreground">

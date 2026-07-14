@@ -100,6 +100,8 @@ import { dbManager } from '../db';
 const modelsData = require('../../../assets/models.json');
 import { getTokenCosts } from 'tokenlens';
 import bashManager from '../tools/file-system/bash';
+import sshManager from '../tools/ssh/manager';
+import { buildSSHConnectionsReminder } from '../tools/ssh/reminder';
 import { DefaultAgent } from './agents/default-agent';
 import { Agents } from '@/entities/agents';
 import { Project } from '@/types/project';
@@ -112,7 +114,7 @@ import { getSkills } from '../utils/skills';
 import { WorkflowRunStatus } from '@mastra/core/workflows';
 import { MessageListInput } from '@mastra/core/agent/message-list';
 import { secretsManager } from '../app/secrets';
-import { Done } from '../tools/common/done';
+import sharp from 'sharp';
 import { CreateGoal, GetGoal, UpdateGoal } from '../tools/common/goal';
 import {
   resolveCompressionTokenCount,
@@ -438,6 +440,44 @@ class MastraManager extends BaseManager {
     };
   }
 
+  @api({
+    method: 'get',
+    path: '/api/threads/running-threads',
+    args: () => [],
+  })
+  public async getRunningThreads(): Promise<
+    Array<{
+      id: string;
+      title: string;
+      resourceId: string;
+      agentId?: string;
+      model?: string;
+      status: string;
+    }>
+  > {
+    const storage = this.mastra.getStorage();
+    const memoryStore = await storage.getStore('memory');
+    const results = [];
+    for (const chat of this.threadChats) {
+      const thread = await memoryStore
+        .getThreadById({ threadId: chat.id })
+        .catch(() => undefined);
+      results.push({
+        id: chat.id,
+        title: thread?.title ?? DEFAULT_TITLE,
+        resourceId: thread?.resourceId ?? DEFAULT_RESOURCE_ID,
+        agentId: thread?.metadata?.agentId as string | undefined,
+        model: thread?.metadata?.model as string | undefined,
+        status: 'streaming',
+      });
+    }
+    return results;
+  }
+
+  @api({
+    method: 'post',
+    path: '/api/threads/create-thread',
+  })
   @channel(MastraChannel.CreateThread)
   public async createThread(options?: {
     tools?: string[];
@@ -662,37 +702,6 @@ class MastraManager extends BaseManager {
   }
 
 
-  private async declineAllToolCalls(agent: Agent, threadId: string, resourceId: string, streamOptions: AgentExecutionOptions) {
-    const suspendedRuns = await agent.listSuspendedRuns({
-      threadId: threadId,
-      resourceId: resourceId,
-    });
-    if (suspendedRuns.total === 0) {
-      return;
-    }
-    const storage = this.mastra.getStorage();
-    const workflowsStore = await storage.getStore('workflows');
-    const messagesStore = await storage.getStore('memory');
-    for (const suspendedRun of suspendedRuns.runs) {
-      for (const toolCall of suspendedRun.toolCalls) {
-        // stream = await agent.declineToolCallGenerate({
-        //   // ...streamOptions,
-        //   runId: suspendedRun.runId,
-        //   toolCallId: toolCall.toolCallId
-        // });
-        // 更新message, workflow
-
-
-
-
-        debugger;
-      }
-      // for await (const chunk of stream.textStream) {
-      //   console.log(chunk)
-      // }
-    }
-  }
-
   @channel(MastraChannel.Chat, { mode: 'on' })
   public async chat(event: IpcMainEvent, data: ChatInput, callback?: ChatCallbackEvent): Promise<{
     success: boolean;
@@ -868,10 +877,6 @@ class MastraManager extends BaseManager {
       const signal = controller.signal;
 
 
-      if (!runId) {
-        await this.declineAllToolCalls(agent, chatId, resourceId, {});
-      }
-
 
       const historyMessages = await memoryStore.listMessages({
         threadId: chatId,
@@ -883,7 +888,7 @@ class MastraManager extends BaseManager {
         historyMessages.messages,
       );
 
-      const normalizeInputMessageParts = (
+      const normalizeInputMessageParts = async (
         message?: UIMessage | UIMessageWithMetadata,
       ) => {
         if (!message) return;
@@ -898,11 +903,20 @@ class MastraManager extends BaseManager {
           if (filePart.type == 'file' && filePart.path) {
             // const file = await fs.promises.readFile(part.path);
 
+            const mimeType = filePart.mediaType || mime.lookup(filePart.path);
+            let extInfo = '';
+            if (mimeType?.startsWith('image/')) {
+              const metadata = await sharp(filePart.path).metadata();
+              const imgWidth = metadata.width;
+              const imgHeight = metadata.height;
+              extInfo = `width="${imgWidth}px" height="${imgHeight}px"`;
+            }
+
             inputParts.push({
               type: 'text',
-              text: `<attachment id="File #${fileIndex}" path="${filePart.path}" name="${path.basename(filePart.path)}" size="${filesize(fs.statSync(filePart.path).size)}" mimeType="${mime.lookup(filePart.path) || 'application/octet-stream'}">`,
+              text: `<attachment id="File #${fileIndex}" path="${filePart.path}" name="${path.basename(filePart.path)}" size="${filesize(fs.statSync(filePart.path).size)}" mimeType="${mimeType || 'application/octet-stream'}" ${extInfo}>`,
             });
-            if (modelInfo?.modalities?.input?.includes('image') && filePart.mediaType?.startsWith('image/')) {
+            if (modelInfo?.modalities?.input?.includes('image') && mimeType?.startsWith('image/')) {
               // filePart['providerMetadata'] = {
               //   openai: {
               //     imageDetail: 'high'
@@ -922,7 +936,7 @@ class MastraManager extends BaseManager {
         }
         message.parts = inputParts;
       };
-      normalizeInputMessageParts(inputMessage);
+      await normalizeInputMessageParts(inputMessage);
       // historyMessages.messages;
       const input = [...historyMessagesAISdkV5, inputMessage];
       const usageInputMessages = convertToModelMessages(
@@ -1126,7 +1140,7 @@ class MastraManager extends BaseManager {
         ];
       };
 
-      const applyPendingChatMessage = (
+      const applyPendingChatMessage = async (
         pending: PendingChatMessageInput,
         systemReminder = false,
       ) => {
@@ -1153,7 +1167,7 @@ class MastraManager extends BaseManager {
         if (systemReminder) {
           prependPendingSystemReminder(_inputMessage);
         }
-        normalizeInputMessageParts(_inputMessage);
+        await normalizeInputMessageParts(_inputMessage);
         resume = undefined;
       };
       while (true) {
@@ -1388,7 +1402,7 @@ class MastraManager extends BaseManager {
           const lastMessage = core[core.length - 1];
           const immediatePending = this.consumePendingChatMessage(chatId, true);
           if (immediatePending) {
-            applyPendingChatMessage(immediatePending, true);
+            await applyPendingChatMessage(immediatePending, true);
           } else if (lastMessage.role == 'tool') {
           } else if (lastMessage.role == 'assistant') {
             // 目标
@@ -1486,7 +1500,7 @@ Do not call update_goal unless the goal is complete or the strict blocked audit 
 
               const pending = this.consumePendingChatMessage(chatId);
               if (pending) {
-                applyPendingChatMessage(pending);
+                await applyPendingChatMessage(pending);
               } else {
                 break;
               }
@@ -1903,6 +1917,16 @@ Your have a goal to achieve: ${goal.objective}
 
     }
 
+    const sshConnectionsReminder = buildSSHConnectionsReminder(
+      sshManager.getSessionSummaries(),
+    );
+    if (sshConnectionsReminder) {
+      injectedMessages.push({
+        type: 'text',
+        text: sshConnectionsReminder,
+      });
+    }
+
     // 注入tasks, 只有当hasCompressed为true时才注入
     // const tasks = requestContext.get('tasks') ?? [];
     // if (
@@ -2059,6 +2083,14 @@ ${memoryDigest}
   public async killBashSession(bashId: string): Promise<boolean> {
     const session = await bashManager.remove(bashId);
     return Boolean(session);
+  }
+
+  @channel(MastraChannel.CloseSSHSession)
+  public async closeSSHSession(connectionId: string): Promise<boolean> {
+    const session = sshManager.getSession({ connection_id: connectionId });
+    if (!session) return false;
+    await sshManager.close(session);
+    return true;
   }
 
   @channel(MastraChannel.SaveMessages)

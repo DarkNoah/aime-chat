@@ -11,11 +11,25 @@ import { Skeleton } from '@/renderer/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger } from '@/renderer/components/ui/tabs';
 import { useHeader } from '@/renderer/hooks/use-title';
 import { Tool, ToolType } from '@/types/tool';
+import type { SkillMetadata } from '@/types/skill-metadata';
 import { IconPlus } from '@tabler/icons-react';
 import { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { SkillSummary } from '@/renderer/components/skills-ui/skill-metadata';
+
+type MarketItem = SkillMetadata & {
+  id: string;
+  name: string;
+  description: string;
+  isInstalled: boolean;
+  mcpServers: Record<string, any>;
+  url?: string;
+  path?: string;
+  file?: string;
+  group?: string;
+};
 
 function MarketPage() {
   const { setTitle } = useHeader();
@@ -26,17 +40,7 @@ function MarketPage() {
     ToolType.SKILL,
   );
   const [loading, setLoading] = useState(false);
-  const [tools, setTools] = useState<
-    {
-      id: string;
-      name: string;
-      description: string;
-      isInstalled: boolean;
-      mcpServers: Record<string, any>;
-      url?: string;
-      path?: string;
-    }[]
-  >([]);
+  const [tools, setTools] = useState<MarketItem[]>([]);
 
   useEffect(() => {
     setTitle(t('sidebar.market'));
@@ -106,15 +110,27 @@ function MarketPage() {
             {tools
               .filter((tool) => tool.isInstalled)
               .map((tool) => (
-                <Item variant="outline" key={tool.id}>
+                <Item
+                  variant="outline"
+                  key={tool.id}
+                  className={
+                    activeTab === ToolType.SKILL ? 'cursor-pointer' : undefined
+                  }
+                  onClick={() =>
+                    activeTab === ToolType.SKILL
+                      ? navigate(`/tools/${tool.id}`)
+                      : undefined
+                  }
+                >
                   <ItemContent>
-                    <ItemTitle
-                      className="cursor-pointer"
-                      onClick={() => navigate(`/tools/${tool.id}`)}
-                    >
-                      <span>{tool.name}</span>
-                    </ItemTitle>
-                    <ItemDescription>{tool.description}</ItemDescription>
+                    {activeTab === ToolType.SKILL ? (
+                      <SkillSummary skill={tool} />
+                    ) : (
+                      <>
+                        <ItemTitle>{tool.name}</ItemTitle>
+                        <ItemDescription>{tool.description}</ItemDescription>
+                      </>
+                    )}
                   </ItemContent>
                 </Item>
               ))}
@@ -126,10 +142,14 @@ function MarketPage() {
               .map((tool) => (
                 <Item variant="outline" key={tool.name}>
                   <ItemContent>
-                    <ItemTitle>
-                      <span>{tool.name}</span>
-                    </ItemTitle>
-                    <ItemDescription>{tool.description}</ItemDescription>
+                    {activeTab === ToolType.SKILL ? (
+                      <SkillSummary skill={tool} />
+                    ) : (
+                      <>
+                        <ItemTitle>{tool.name}</ItemTitle>
+                        <ItemDescription>{tool.description}</ItemDescription>
+                      </>
+                    )}
                   </ItemContent>
                   <ItemActions>
                     <Button
@@ -137,15 +157,23 @@ function MarketPage() {
                       size="icon"
                       onClick={() => {
                         if (activeTab === ToolType.SKILL) {
-                          if (tool.path) {
-                            installSkill({
-                              dirs: [tool.path],
-                              isActive: true,
-                            });
-                          } else if (tool.url) {
+                          if (tool.url) {
                             installSkill({
                               repo_or_url: tool.url,
                               isActive: true,
+                              group: tool.group ?? null,
+                            });
+                          } else if (tool.path) {
+                            installSkill({
+                              dirs: [tool.path],
+                              isActive: true,
+                              group: tool.group ?? null,
+                            });
+                          } else if (tool.file) {
+                            installSkill({
+                              files: [tool.file],
+                              isActive: true,
+                              group: tool.group ?? null,
                             });
                           }
                         } else {

@@ -58,6 +58,7 @@ export type UpdateKnowledgeBase = {
 export type SearchKnowledgeBaseResult = {
   query: string;
   embedding: string;
+  searchType: 'hybrid' | 'bm25' | 'vector';
   results: SearchKnowledgeBaseItemResult[];
 };
 
@@ -65,6 +66,7 @@ export type SearchKnowledgeBaseItemResult = {
   id: string;
   itemId: string;
   score: number;
+  bm25Score?: number;
   rerankScore?: number;
   hybridScore?: number;
   metadata: any;

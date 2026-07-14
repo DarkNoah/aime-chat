@@ -7,7 +7,11 @@ import {
   XCircleIcon,
 } from 'lucide-react';
 import { cn } from '@/renderer/lib/utils';
-import { Button } from '@/renderer/components/ui/button';
+import {
+  FloatingLiquidGlassButton,
+  FloatingLiquidGlassIcon,
+  type FloatingLiquidGlassTone,
+} from '@/renderer/components/ui/floating-liquid-glass-button';
 import { useBashSessionStore } from '@/renderer/store/use-bash-session-store';
 
 export function BashStatusBar() {
@@ -33,7 +37,9 @@ export function BashStatusBar() {
 
   let statusIcon = <CheckCircleIcon className="size-3.5 text-emerald-600" />;
   if (hasRunning) {
-    statusIcon = <Loader2Icon className="size-3.5 animate-spin text-primary" />;
+    statusIcon = (
+      <Loader2Icon className="size-3.5 animate-spin text-primary motion-reduce:animate-none" />
+    );
   } else if (hasFailed) {
     statusIcon = <XCircleIcon className="size-3.5 text-destructive" />;
   }
@@ -45,45 +51,36 @@ export function BashStatusBar() {
     statusText = t('bash_status.badge_failed', { count: failedCount });
   }
 
+  let tone: FloatingLiquidGlassTone = 'success';
+  if (hasRunning) tone = 'active';
+  else if (hasFailed) tone = 'danger';
+
   return (
-    <Button
-      variant="outline"
-      size="sm"
-      className={cn(
-        'fixed bottom-4 left-4 z-50 h-9 max-w-[180px] gap-2 rounded-full px-2.5 pr-3 text-xs shadow-lg',
-        'border-border/70 bg-background/85 backdrop-blur-md hover:bg-background',
-        'dark:bg-zinc-950/85 dark:hover:bg-zinc-950',
-        hasRunning && 'border-primary/45 shadow-primary/10',
-        !hasRunning &&
-          hasFailed &&
-          'border-destructive/45 shadow-destructive/10',
-      )}
-      onClick={togglePanel}
+    <FloatingLiquidGlassButton
+      floatingId="bash-status"
+      initialBottom={16}
+      tone={tone}
+      onActivate={togglePanel}
       title={t('bash_status.open_panel')}
       aria-label={t('bash_status.open_panel')}
+      aria-haspopup="dialog"
     >
-      <span
-        className={cn(
-          'flex size-5 shrink-0 items-center justify-center rounded-full bg-muted',
-          hasRunning && 'bg-primary/10',
-          !hasRunning && hasFailed && 'bg-destructive/10',
-        )}
-      >
+      <FloatingLiquidGlassIcon tone={tone}>
         {statusIcon}
-      </span>
-      <TerminalIcon className="size-3.5 shrink-0 text-muted-foreground" />
-      <span className="shrink-0 font-medium">
+      </FloatingLiquidGlassIcon>
+      <TerminalIcon className="size-3.5 shrink-0 text-foreground/70" />
+      <span className="shrink-0 font-semibold">
         {t('bash_status.badge_label')}
       </span>
       <span
         className={cn(
-          'min-w-0 truncate text-muted-foreground tabular-nums',
+          'min-w-0 truncate text-foreground/70 tabular-nums',
           hasRunning && 'text-primary',
           !hasRunning && hasFailed && 'text-destructive',
         )}
       >
         {statusText}
       </span>
-    </Button>
+    </FloatingLiquidGlassButton>
   );
 }

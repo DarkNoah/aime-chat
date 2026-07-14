@@ -12,6 +12,7 @@ import {
   ItemActions,
   ItemContent,
   ItemDescription,
+  ItemMedia,
   ItemTitle,
 } from '@/renderer/components/ui/item';
 import { ScrollArea } from '@/renderer/components/ui/scroll-area';
@@ -51,6 +52,11 @@ import { ToolEditDialog } from './tool-edit-dialog';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { Transl } from '@/renderer/components/translations/transl';
+import {
+  getSkillDisplayName,
+  SkillIcon,
+  SkillMetadataBadges,
+} from '@/renderer/components/skills-ui/skill-metadata';
 
 function ToolDetail() {
   const location = useLocation();
@@ -212,16 +218,35 @@ function ToolDetail() {
         className="w-full flex-1 p-4 overflow-y-auto!"
       >
         <Item variant="outline">
+          {tool?.type === ToolType.SKILL ? (
+            <ItemMedia>
+              <SkillIcon skill={tool} />
+            </ItemMedia>
+          ) : null}
           <ItemContent>
             <ItemTitle className="flex items-center gap-2">
-              {tool?.name}{' '}
-              <small className="text-xs text-muted-foreground">
-                {tool?.version}
-              </small>
+              {tool?.type === ToolType.SKILL
+                ? getSkillDisplayName(tool)
+                : tool?.name}{' '}
+              {tool?.type !== ToolType.SKILL && tool?.version ? (
+                <small className="text-xs text-muted-foreground">
+                  {tool.version}
+                </small>
+              ) : null}
             </ItemTitle>
             <ItemDescription>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="outline">{tool?.type}</Badge>
+                {tool?.type === ToolType.SKILL ? (
+                  <SkillMetadataBadges skill={tool} maxTags={4} />
+                ) : null}
+
+                {tool?.type === ToolType.SKILL &&
+                getSkillDisplayName(tool) !== tool.name ? (
+                  <code className="text-xs text-muted-foreground">
+                    {tool.name}
+                  </code>
+                ) : null}
 
                 <Link
                   to={tool?.source}
@@ -381,6 +406,26 @@ function ToolDetail() {
             <div className="flex text-sm text-muted-foreground mt-2">
               <Transl>{tool?.description}</Transl>
             </div>
+            {tool.entrypoints && Object.keys(tool.entrypoints).length > 0 ? (
+              <section className="mt-4 space-y-2">
+                <h3 className="text-sm font-medium">
+                  {t('tools.skill_entrypoints')}
+                </h3>
+                <div className="overflow-hidden rounded-md border">
+                  {Object.entries(tool.entrypoints).map(([name, command]) => (
+                    <div
+                      key={name}
+                      className="grid gap-1 border-b px-3 py-2 last:border-b-0 sm:grid-cols-[7rem_minmax(0,1fr)]"
+                    >
+                      <span className="text-xs font-medium">{name}</span>
+                      <code className="break-all text-xs text-muted-foreground">
+                        {command}
+                      </code>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            ) : null}
             <div className="p-4 bg-secondary rounded-xl mt-2">
               {' '}
               <Transl useMarkdown>{tool?.content}</Transl>

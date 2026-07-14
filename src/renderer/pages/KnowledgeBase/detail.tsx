@@ -509,7 +509,7 @@ function KnowledgeBaseDetail() {
   };
 
   const handleImageSearch = async () => {
-    if (!id) {
+    if (!id || !kb?.embedding) {
       return;
     }
 
@@ -616,7 +616,7 @@ function KnowledgeBaseDetail() {
       <div className="flex flex-row gap-2 items-center justify-between">
         <div className="flex flex-row gap-2 items-center min-w-0">
           <Badge variant="secondary">
-            @{kb?.embeddingModel}[{kb?.vectorLength}]
+            @{kb?.embeddingModel ?? 'bm25'}{kb?.vectorLength ? `[${kb?.vectorLength}]` : ''}
           </Badge>
           {kb?.rerankerModel && (
             <Badge variant="secondary">@{kb?.rerankerModel}</Badge>
@@ -984,7 +984,15 @@ function KnowledgeBaseDetail() {
               <InputGroupButton
                 size="icon-xs"
                 onClick={() => handleImageSearch()}
-                disabled={searchLoading}
+                disabled={searchLoading || !kb?.embedding}
+                title={
+                  kb?.embedding
+                    ? t('knowledge-base.select_image')
+                    : t(
+                      'knowledge-base.image_search_requires_embedding',
+                      '图片检索需要配置 embedding 模型',
+                    )
+                }
               >
                 <IconPhoto />
               </InputGroupButton>

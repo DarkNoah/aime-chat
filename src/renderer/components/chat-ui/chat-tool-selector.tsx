@@ -1,5 +1,10 @@
 import { cn } from '@/renderer/lib/utils';
-import React, { useEffect, useState, type ComponentProps } from 'react';
+import React, {
+  useEffect,
+  useMemo,
+  useState,
+  type ComponentProps,
+} from 'react';
 import { Dialog, DialogContent, DialogTrigger } from '../ui/dialog';
 import {
   Command,
@@ -19,6 +24,11 @@ import {
   IconSquareCheck,
 } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
+import {
+  getSkillDisplayName,
+  getSkillSearchKeywords,
+  SkillSummary,
+} from '../skills-ui/skill-metadata';
 
 export type SkillToolGroup = {
   id: string;
@@ -193,7 +203,10 @@ export const ChatToolSelector = ({
     return <IconSquare className="ml-auto size-4" />;
   };
 
-  const groupedSkills = groupSkillsByRepo(data[ToolType.SKILL] ?? []);
+  const groupedSkills = useMemo(
+    () => groupSkillsByRepo(data[ToolType.SKILL] ?? []),
+    [data],
+  );
 
   return (
     <Dialog
@@ -354,7 +367,7 @@ export const ChatToolSelector = ({
                     >
                       <CommandItem
                         value={`${tool.id} ${tool.name} ${tool.skills
-                          .map((skill) => skill.name)
+                          .flatMap(getSkillSearchKeywords)
                           .join(' ')}`}
                         onSelect={() =>
                           onChange?.(toggleSkillGroupSelection(value, tool))
@@ -392,9 +405,9 @@ export const ChatToolSelector = ({
                             <ToggleGroupItem
                               key={skill.id}
                               value={skill.id}
-                              aria-label={skill.name}
+                              aria-label={getSkillDisplayName(skill)}
                             >
-                              {skill.name}
+                              {getSkillDisplayName(skill)}
                             </ToggleGroupItem>
                           ))}
                         </ToggleGroup>
@@ -404,9 +417,15 @@ export const ChatToolSelector = ({
                     <CommandItem
                       key={tool.id}
                       value={tool.id}
+                      keywords={getSkillSearchKeywords(tool)}
                       onSelect={() => handleSelect(tool)}
+                      className="items-start py-2"
                     >
-                      {tool.name}{' '}
+                      <SkillSummary
+                        skill={tool}
+                        compact
+                        showDescription={false}
+                      />
                       {value?.includes(tool.id) ? (
                         <CheckIcon className="ml-auto size-4" />
                       ) : (

@@ -8,7 +8,6 @@ import path from 'path';
 import { nanoid } from '@/utils/nanoid';
 import { SkillInfo } from '@/types/skill';
 import { toolsManager } from '..';
-import matter from 'gray-matter';
 import { ToolType } from '@/types/tool';
 import fg from 'fast-glob';
 import { isString } from '@/utils/is';
@@ -17,6 +16,7 @@ import os from 'os';
 import { getSkills } from '@/main/utils/skills';
 import { getDataPath } from '@/main/utils';
 import { Tools } from '@/entities/tools';
+import { readSkillPackageMetadata } from '@/main/utils/skill-metadata';
 
 export interface SkillToolParams extends BaseToolParams {
   skills: SkillInfo[] | string[];
@@ -178,29 +178,35 @@ ${agrs ? 'ARGUMENTS: ' + agrs : ''}
 
 export class SkillManager {
   public async getSkills(): Promise<SkillInfo[]> {
-    await this.getLocalSkills();
+    const discoveredSkills = await this.getLocalSkills();
     const localSkills = await toolsManager.toolsRepository.find({
       where: {
         type: ToolType.SKILL,
       },
     });
-    return [
-      ...localSkills
-        .map((x) => {
-          return {
-            id: x.id as `${ToolType.SKILL}:${string}`,
-            name: x.name,
-            description: x.description,
-            path: path.join(
-              app.getPath('userData'),
-              'skills',
-              x.id.split(':').slice(2).join(':') || x.id.split(':')[1],
-            ),
-            source: x.value?.source,
-            repo: x.value?.repo,
-          };
-        }),
-    ];
+    const discoveredById = new Map(
+      discoveredSkills.map((skill) => [skill.id, skill]),
+    );
+
+    return localSkills.map((tool) => {
+      const id = tool.id as `${ToolType.SKILL}:${string}`;
+      const discovered = discoveredById.get(id);
+      return {
+        ...discovered,
+        id,
+        name: discovered?.name || tool.name,
+        description: discovered?.description || tool.description || '',
+        path:
+          discovered?.path ||
+          path.join(
+            app.getPath('userData'),
+            'skills',
+            tool.id.split(':').slice(2).join(':') || tool.id.split(':')[1],
+          ),
+        source: tool.value?.source,
+        repo: tool.value?.repo,
+      };
+    });
   }
 
 
@@ -211,7 +217,6 @@ export class SkillManager {
     ) {
       return [];
     }
-    const marketplaceDir = fs.readdirSync(skillsPath);
     const skillList: SkillInfo[] = [];
 
     const mds = await fg('**/SKILL.md', {
@@ -219,21 +224,17 @@ export class SkillManager {
       absolute: true,
     });
 
-    const localSkills = await toolsManager.toolsRepository.find({
-      where: {
-        type: ToolType.SKILL,
-      },
-    });
-
     for (const md of mds) {
       const skillName = path.basename(path.dirname(md));
-      const skillMD = await fs.promises.readFile(md, { encoding: 'utf8' });
-      const data = matter(skillMD);
+      const skillPath = path.dirname(md);
+      const metadata = await readSkillPackageMetadata(skillPath);
+      delete metadata.content;
       const skill = {
+        ...metadata,
         id: `${ToolType.SKILL}:local:${skillName}`,
-        name: data.data.name,
-        description: data.data.description,
-        path: path.dirname(md),
+        name: metadata.name || skillName,
+        description: metadata.description || '',
+        path: skillPath,
       } as SkillInfo;
       let localSkill: Tools | undefined = await toolsManager.toolsRepository.findOne({
         where: {
@@ -244,15 +245,13 @@ export class SkillManager {
       if (!localSkill) {
         localSkill = new Tools(skill.id, skill.name, ToolType.SKILL);
         localSkill.isActive = true;
-        localSkill.value = {
-          path: skill.path,
-        };
       }
       localSkill.name = skill.name;
       localSkill.description = skill.description;
-      // localSkill.value = {
-      //   path: skill.path,
-      // };
+      localSkill.value = {
+        ...localSkill.value,
+        path: skill.path,
+      };
       await toolsManager.toolsRepository.save(localSkill);
 
       skillList.push(skill);
@@ -282,8 +281,8 @@ export class SkillManager {
         });
         for (const md of mds) {
           const skillPath = path.dirname(md);
-          const skillMD = await fs.promises.readFile(md, { encoding: 'utf8' });
-          const data = matter(skillMD);
+          const metadata = await readSkillPackageMetadata(skillPath);
+          delete metadata.content;
 
           const relativePath = path.relative(
             path.join(marketplaces, marketplace, 'skills'),
@@ -293,9 +292,10 @@ export class SkillManager {
             .replaceAll('\\', ':')
             .replaceAll('/', ':');
           const skill = {
+            ...metadata,
             id: `${ToolType.SKILL}:${marketplace}:${skillId}`,
-            name: skillId,
-            description: data.data.description,
+            name: metadata.name || skillId,
+            description: metadata.description || '',
             // isActive: false,
             path: skillPath,
           } as SkillInfo;
@@ -332,13 +332,13 @@ export class SkillManager {
     );
     if (mds.length === 1) {
       const md = mds[0];
-      const skillMD = await fs.promises.readFile(md, { encoding: 'utf8' });
-      const data = matter(skillMD);
+      const metadata = await readSkillPackageMetadata(path.dirname(md));
       return {
+        ...metadata,
         id: `${ToolType.SKILL}:${marketplace}:${id}`,
-        name: id,
-        description: data.data.description,
-        content: data.content,
+        name: metadata.name || id,
+        description: metadata.description || '',
+        content: metadata.content,
         path: path.dirname(md),
         type: ToolType.SKILL,
         isActive: false,
@@ -371,17 +371,12 @@ export class SkillManager {
       const source = localSkill.value?.source;
       const repo = localSkill.value?.repo;
       try {
-
-        const skillContent = await fs.promises.readFile(
-          path.join(skillPath, 'SKILL.md'),
-          { encoding: 'utf8' },
-        );
-        const skillInfo = matter(skillContent);
+        const skillInfo = await readSkillPackageMetadata(skillPath);
         return {
+          ...skillInfo,
           id: localSkill.id,
-          name: skillInfo.data.name,
-          description: skillInfo.data.description,
-          content: skillInfo.content,
+          name: skillInfo.name || localSkill.name,
+          description: skillInfo.description || localSkill.description || '',
           path: skillPath,
           source: source,
           repo,
@@ -479,12 +474,9 @@ ${content}`;
         throw new Error('SKILL.md not found in the zip file');
       }
 
-      // 读取并返回 SKILL.md 内容
-      const skillMD = await fs.promises.readFile(files[0], {
-        encoding: 'utf8',
-      });
       const sourcePath = path.dirname(files[0]);
-      const data = matter(skillMD);
+      const metadata = await readSkillPackageMetadata(sourcePath);
+      delete metadata.content;
       if (savePath) {
         // 确保目标目录存在
         await fs.promises.mkdir(savePath, { recursive: true });
@@ -492,9 +484,10 @@ ${content}`;
         await fs.promises.cp(sourcePath, savePath, { recursive: true });
       }
       return {
+        ...metadata,
         id: `${ToolType.SKILL}:local:${path.basename(sourcePath)}`,
-        name: data.data.name,
-        description: data.data.description,
+        name: metadata.name || path.basename(sourcePath),
+        description: metadata.description || '',
         // content: data.content,
       };
     } finally {

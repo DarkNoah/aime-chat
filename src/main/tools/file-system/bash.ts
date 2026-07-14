@@ -247,7 +247,109 @@ Output: Creates directory 'foo'`),
   constructor(config?: BashToolParams) {
     super(config);
     this.env = config?.env;
+    this.description = this.getDescription(config);
   }
+
+
+  getDescription = (
+    config: BashToolParams
+  ) => {
+    let { shell } = config;
+    if (!shell && process.platform === 'win32') {
+      shell = 'powershell';
+    }
+    if (process.platform === 'win32') {
+      if (shell === 'powershell') {
+        return `Executes a PowerShell command on Windows and returns its output.
+
+The working directory persists between commands, but PowerShell session state does not.
+
+# Windows PowerShell guidance
+ - Use PowerShell syntax and Windows commands. Bash-only commands and syntax such as \`export\`, \`source\`, \`which\`, \`chmod\`, \`find\`, \`grep\`, \`sed\`, \`awk\`, \`head\`, \`tail\`, \`touch\`, \`rm -rf\`, heredocs, and \`/dev/null\` may be unavailable or behave differently.
+ - If a dedicated tool cannot do the job, use PowerShell equivalents such as \`Get-ChildItem\`, \`Select-String\`, \`Get-Content\`, \`Set-Content\`, \`Copy-Item\`, \`Move-Item\`, \`Remove-Item\`, \`New-Item\`, and \`Get-Command\`.
+ - Use \`where.exe\` to locate executables; \`where\` by itself can resolve to a PowerShell alias.
+ - Prefer Glob, Grep, Read, Edit, and Write for file operations. They are cross-platform and easier to review.
+ - Pass environment variables through the \`env\` argument instead of setting \`$env:NAME\` in the command.
+
+# Instructions
+ - Use absolute Windows paths where practical and quote paths containing spaces (for example, \`"C:\\Program Files\\App"\`). Avoid changing directories unless necessary.
+ - Do not assume Bash flags work with similarly named Windows commands. Check the command's PowerShell syntax when uncertain.
+ - PowerShell 5.1 does not support \`&&\` or \`||\`. Use separate tool calls, or use \`;\` and inspect \`$LASTEXITCODE\` when commands must be sequenced conditionally.
+ - Run independent commands in parallel tool calls. Use one call only when commands depend on each other.
+ - The default timeout is 120000ms; the maximum is 600000ms. Use \`run_in_background\` for long-running work instead of appending \`&\` or polling with \`sleep\`.
+ - Give every command a concise description (5-10 words for simple commands; more context for complex commands).
+
+# Git
+ - Inspect with \`git status\`, \`git diff\`, and \`git log\` as needed.
+ - Commit, push, create branches, or open pull requests only when the user requests it; prefer new commits and stage specific files.
+ - Never bypass hooks or signing. Run destructive or force operations only with explicit user authorization.`;
+      }
+      else if (shell === 'cmd') {
+        return `Executes a Command Prompt (cmd.exe) command on Windows and returns its output.
+
+The working directory persists between commands, but Command Prompt session state does not.
+
+# Windows Command Prompt guidance
+ - Use cmd.exe syntax and Windows commands. Bash commands such as \`export\`, \`source\`, \`which\`, \`chmod\`, \`find\`, \`grep\`, \`sed\`, \`awk\`, \`head\`, \`tail\`, \`touch\`, \`rm\`, \`cp\`, and \`mv\` are not portable to cmd.exe.
+ - PowerShell cmdlets such as \`Get-ChildItem\` and \`Select-String\` also do not work unless PowerShell is invoked explicitly.
+ - If a dedicated tool cannot do the job, use cmd.exe commands such as \`dir\`, \`where\`, \`type\`, \`copy\`, \`move\`, \`del\`, \`mkdir\`, and \`rmdir\`.
+ - Prefer Glob, Grep, Read, Edit, and Write for file operations. They are cross-platform and easier to review.
+ - Pass environment variables through the \`env\` argument. When reading an existing variable in a command, use \`%NAME%\`; use \`NUL\` instead of \`/dev/null\`.
+
+# Instructions
+ - Use absolute Windows paths where practical and quote paths containing spaces (for example, \`"C:\\Program Files\\App"\`). Avoid changing directories unless necessary.
+ - Do not use \`;\` as a command separator. Use \`&&\` when the next command requires success, \`||\` on failure, and \`&\` only for unconditional sequencing.
+ - Run independent commands in parallel tool calls. Use one call only when commands depend on each other.
+ - Remember that characters such as \`&\`, \`|\`, \`<\`, \`>\`, \`(\`, and \`)\` have special meaning in cmd.exe and may require \`^\` escaping.
+ - The default timeout is 120000ms; the maximum is 600000ms. Use \`run_in_background\` for long-running work instead of starting a detached process or polling with timeout loops.
+ - Give every command a concise description (5-10 words for simple commands; more context for complex commands).
+
+# Git
+ - Inspect with \`git status\`, \`git diff\`, and \`git log\` as needed.
+ - Commit, push, create branches, or open pull requests only when the user requests it; prefer new commits and stage specific files.
+ - Never bypass hooks or signing. Run destructive or force operations only with explicit user authorization.`;
+      }
+    }
+
+
+    return `Executes a given bash command and returns its output.
+
+The working directory persists between commands, but shell state does not. The shell environment is initialized from the user's profile (bash or zsh).
+
+IMPORTANT: Avoid using this tool to run \`find\`, \`grep\`, \`cat\`, \`head\`, \`tail\`, \`sed\`, \`awk\`, or \`echo\` commands, unless explicitly instructed or after you have verified that a dedicated tool cannot accomplish your task. Instead, use the appropriate dedicated tool as this will provide a much better experience for the user:
+ - If you need set environment variables using the env argument (NOT \`export MY_CUSTOM_VAR=xxx\` in the command argument)
+ - File search: Use Glob (NOT find or ls)
+ - Content search: Use Grep (NOT grep or rg)
+ - Read files: Use Read (NOT cat/head/tail)
+ - Edit files: Use Edit (NOT sed/awk)
+ - Write files: Use Write (NOT echo >/cat <<EOF)
+ - Communication: Output text directly (NOT echo/printf)
+While the Bash tool can do similar things, it’s better to use the built-in tools as they provide a better user experience and make it easier to review tool calls and give permission.
+
+# Instructions
+ - If your command will create new directories or files, first use this tool to run \`ls\` to verify the parent directory exists and is the correct location.
+ - Always quote file paths that contain spaces with double quotes in your command (e.g., cd "path with spaces/file.txt")
+ - Try to maintain your current working directory throughout the session by using absolute paths and avoiding usage of \`cd\`. You may use \`cd\` if the User explicitly requests it.
+ - You may specify an optional timeout in milliseconds (up to 600000ms / 10 minutes). By default, your command will timeout after 120000ms (2 minutes).
+ - You can use the \`run_in_background\` parameter to run the command in the background. Only use this if you don't need the result immediately and are OK being notified when the command completes later. You do not need to check the output right away - you'll be notified when it finishes. You do not need to use '&' at the end of the command when using this parameter.
+ - Write a clear, concise description of what your command does. For simple commands, keep it brief (5-10 words). For complex commands (piped commands, obscure flags, or anything hard to understand at a glance), include enough context so that the user can understand what your command will do.
+ - When issuing multiple commands:
+  - If the commands are independent and can run in parallel, make multiple Bash tool calls in a single message. Example: if you need to run "git status" and "git diff", send a single message with two Bash tool calls in parallel.
+  - If the commands depend on each other and must run sequentially, use a single Bash call with '&&' to chain them together.
+  - Use ';' only when you need to run commands sequentially but don't care if earlier commands fail.
+  - DO NOT use newlines to separate commands (newlines are ok in quoted strings).
+ - For git commands:
+  - Prefer to create a new commit rather than amending an existing commit.
+  - Before running destructive operations (e.g., git reset --hard, git push --force, git checkout --), consider whether there is a safer alternative that achieves the same goal. Only use destructive operations when they are truly the best approach.
+  - Never skip hooks (--no-verify) or bypass signing (--no-gpg-sign, -c commit.gpgsign=false) unless the user has explicitly asked for it. If a hook fails, investigate and fix the underlying issue.
+ - Avoid unnecessary \`sleep\` commands:
+  - Do not sleep between commands that can run immediately — just run them.
+  - If your command is long running and you would like to be notified when it finishes – simply run your command using \`run_in_background\`. There is no need to sleep in this case.
+  - Do not retry failing commands in a sleep loop — diagnose the root cause or consider an alternative approach.
+  - If waiting for a background task you started with \`run_in_background\`, you will be notified when it completes — do not poll.
+  - If you must poll an external process, use a check command (e.g. \`gh run view\`) rather than sleeping first.
+  - If you must sleep, keep the duration short (1-5 seconds) to avoid blocking the user.`;
+  };
   execute = async (
     inputData: z.infer<typeof this.inputSchema>,
     context: ToolExecutionContext<z.ZodSchema, any>,
@@ -256,7 +358,11 @@ Output: Creates directory 'foo'`),
     const { requestContext } = context;
     const threadId = requestContext.get('threadId' as never) as string;
     const abortSignal = context?.abortSignal;
+    let shell = this.config?.shell;
 
+    if (process.platform == 'win32' && !shell) {
+      shell = 'powershell'
+    }
     if (directory && !fs.existsSync(directory)) {
       throw new Error(`Directory ${directory} does not exist`);
     }
@@ -325,6 +431,7 @@ Output: Creates directory 'foo'`),
         undefined,
         threadId,
         resourceId,
+        shell === 'powershell',
       );
       return `Command running in background with ID: ${shell_id}, You can use BashOutput to check its output whenever you need to see what's happening.`;
     }
@@ -351,6 +458,7 @@ Output: Creates directory 'foo'`),
       timeout,
       abortSignal,
       env: _env,
+      usePowerShell: shell === 'powershell',
     });
     console.log(tempFilePath, inputData.command);
     let llmContent = '';
@@ -560,7 +668,8 @@ IsRunning: ${x.isExited ? 'No' : 'Yes'}`,
 
 export interface BashToolParams extends BaseToolParams, BaseToolkitParams {
   env?: string;
-  Bash?: BashToolParams;
+  shell?: 'powershell' | 'cmd' | 'bash' | string;
+  // Bash?: BashToolParams;
 }
 
 export class BashToolkit extends BaseToolkit {
@@ -624,6 +733,7 @@ export class BashManager {
     abortSignal?: AbortSignal,
     threadId?: string,
     resourceId?: string,
+    usePowerShell?: boolean = false
   ) {
     const managedAbort = createManagedAbortController(timeout, abortSignal);
     const { abortController } = managedAbort;
@@ -632,6 +742,7 @@ export class BashManager {
       cwd,
       undefined,
       env,
+      usePowerShell,
     );
     if (!bashId) {
       bashId = nanoid(8);
