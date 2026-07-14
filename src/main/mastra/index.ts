@@ -700,37 +700,6 @@ class MastraManager extends BaseManager {
   }
 
 
-  private async declineAllToolCalls(agent: Agent, threadId: string, resourceId: string, streamOptions: AgentExecutionOptions) {
-    const suspendedRuns = await agent.listSuspendedRuns({
-      threadId: threadId,
-      resourceId: resourceId,
-    });
-    if (suspendedRuns.total === 0) {
-      return;
-    }
-    const storage = this.mastra.getStorage();
-    const workflowsStore = await storage.getStore('workflows');
-    const messagesStore = await storage.getStore('memory');
-    for (const suspendedRun of suspendedRuns.runs) {
-      for (const toolCall of suspendedRun.toolCalls) {
-        // stream = await agent.declineToolCallGenerate({
-        //   // ...streamOptions,
-        //   runId: suspendedRun.runId,
-        //   toolCallId: toolCall.toolCallId
-        // });
-        // 更新message, workflow
-
-
-
-
-        debugger;
-      }
-      // for await (const chunk of stream.textStream) {
-      //   console.log(chunk)
-      // }
-    }
-  }
-
   @channel(MastraChannel.Chat, { mode: 'on' })
   public async chat(event: IpcMainEvent, data: ChatInput, callback?: ChatCallbackEvent): Promise<{
     success: boolean;
@@ -905,10 +874,6 @@ class MastraManager extends BaseManager {
       const controller = new AbortController();
       const signal = controller.signal;
 
-
-      if (!runId) {
-        await this.declineAllToolCalls(agent, chatId, resourceId, {});
-      }
 
 
       const historyMessages = await memoryStore.listMessages({

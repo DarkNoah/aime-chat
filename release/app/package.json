@@ -20,6 +20,7 @@
     "@napi-rs/system-ocr": "^1.0.2",
     "@vscode/ripgrep": "^1.17.0",
     "better-sqlite3": "^11.10.0",
+    "node-pty": "^1.1.0",
     "onnxruntime-node": "^1.23.2",
     "pdf-parse": "^2.4.5",
     "pdf-to-img": "^5.0.0",
