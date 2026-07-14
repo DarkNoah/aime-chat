@@ -24,6 +24,7 @@ import { AskUserQuestion } from './common/ask-user-question';
 import { NodejsExecute } from './code/nodejs-execute';
 import { Skill, skillManager } from './common/skill';
 import { BashToolkit } from './file-system/bash';
+import { SSHToolkit } from './ssh';
 import { WebSearch } from './web/web-search';
 import { RemoveBackground } from './image/rmbg';
 import {
@@ -65,6 +66,7 @@ import { api } from '../api/ApiController';
 import { GoalToolkit } from './common/goal';
 import { providersManager } from '../providers';
 import { CreatePlan } from './common/create-plan';
+import { readSkillPackageMetadata } from '../utils/skill-metadata';
 interface BuiltInToolContext {
   tool: BaseTool;
   abortController: AbortController;
@@ -183,6 +185,7 @@ class ToolsManager extends BaseManager {
     await this.registerBuiltInTool(TodoToolkit);
     // await this.registerBuiltInTool(TodoWrite);
     await this.registerBuiltInTool(BashToolkit);
+    await this.registerBuiltInTool(SSHToolkit);
     await this.registerBuiltInTool(FileSystem);
     await this.registerBuiltInTool(AskUserQuestion);
     await this.registerBuiltInTool(Message);
@@ -841,6 +844,7 @@ class ToolsManager extends BaseManager {
     });
     const builtInTools = this.builtInTools.filter(x => !x.isHidden);
     const skills = await skillManager.getSkills();
+    const skillsById = new Map(skills.map((skill) => [skill.id, skill]));
 
     return {
       [ToolType.MCP]: tools
@@ -890,15 +894,20 @@ class ToolsManager extends BaseManager {
         })),
       [ToolType.SKILL]: tools
         .filter((tool) => tool.type === ToolType.SKILL)
-        .map((tool) => ({
-          id: tool.id,
-          name: tool.name,
-          description: tool.description,
-          isActive: true,
-          isToolkit: false,
-          type: ToolType.SKILL,
-          repo: skills.find((skill) => skill.id === tool.id)?.repo,
-        })),
+        .map((tool) => {
+          const skill = skillsById.get(
+            tool.id as `${ToolType.SKILL}:${string}`,
+          );
+          return {
+            ...skill,
+            id: tool.id,
+            name: skill?.name || tool.name,
+            description: skill?.description || tool.description,
+            isActive: true,
+            isToolkit: false,
+            type: ToolType.SKILL,
+          };
+        }),
     };
   }
 
@@ -1299,17 +1308,17 @@ class ToolsManager extends BaseManager {
       // Extract skill info
       const skills = await Promise.all(
         skillsToScan.map(async (skillPath) => {
-          const skillMdPath = path.join(skillPath, 'SKILL.md');
-          const skillMd = await fs.promises
-            .readFile(skillMdPath, 'utf-8')
-            .catch(() => '');
           const relativePath = path.relative(tmpDir, skillPath);
-          const data = matter(skillMd);
+          const metadata = await readSkillPackageMetadata(skillPath, {
+            inlineIcon: true,
+          });
+          delete metadata.content;
           return {
+            ...metadata,
             id: this.getImportedSkillId(skillPath, tmpDir, repoUrl),
-            name: data.data.name,
+            name: metadata.name || path.basename(skillPath),
             path: relativePath,
-            description: data.data.description,
+            description: metadata.description || '',
           };
         }),
       );
@@ -1466,6 +1475,7 @@ class ToolsManager extends BaseManager {
         path: req.body.path as string,
         selectedSkills: req.body.selectedSkills as string[],
         isActive: req.body.isActive as boolean,
+        group: req.body.group as string | null | undefined,
       }];
     },
   })
@@ -1478,6 +1488,7 @@ class ToolsManager extends BaseManager {
     path?: string;
     selectedSkills?: string[];
     isActive?: boolean;
+    group?: string | null;
   }) {
     let skillsPath;
     if (data.path) {
@@ -1567,7 +1578,14 @@ class ToolsManager extends BaseManager {
           const toolId = `${ToolType.SKILL}:local:${skillName}`;
           const tool = new Tools(toolId, skillName, ToolType.SKILL);
           tool.isActive = true;
-          tool.value = { path: skillDir, source: repo_or_url };
+          tool.value = {
+            path: skillDir,
+            source: repo_or_url,
+            repo:
+              data.group === undefined
+                ? undefined
+                : data.group || undefined,
+          };
           await this.toolsRepository.save(tool);
           await appManager.sendEvent(ToolEvent.ToolListUpdated, {
             id: toolId,
@@ -1651,17 +1669,17 @@ class ToolsManager extends BaseManager {
       // Extract skill info
       const skills = await Promise.all(
         skillsToScan.map(async (skillPath) => {
-          const skillMdPath = path.join(skillPath, 'SKILL.md');
-          const skillMd = await fs.promises
-            .readFile(skillMdPath, 'utf-8')
-            .catch(() => '');
           const relativePath = path.relative(tmpDir, skillPath);
-          const data = matter(skillMd);
+          const metadata = await readSkillPackageMetadata(skillPath, {
+            inlineIcon: true,
+          });
+          delete metadata.content;
           return {
+            ...metadata,
             id: this.getImportedSkillId(skillPath, tmpDir, repoUrl),
-            name: data.data.name,
+            name: metadata.name || path.basename(skillPath),
             path: relativePath,
-            description: data.data.description,
+            description: metadata.description || '',
           };
         }),
       );
@@ -1694,7 +1712,10 @@ class ToolsManager extends BaseManager {
           tool.value = {
             path: path.join(skillsPath, selectedSkill.id),
             source: source,
-            repo: repoUrl
+            repo:
+              data.group === undefined
+                ? repoUrl
+                : data.group || undefined,
             // skill: selectedSkill.path
           };
           await this.toolsRepository.save(tool);
@@ -1746,6 +1767,7 @@ class ToolsManager extends BaseManager {
           );
           tool.value = {
             path: savePath,
+            repo: data.group || undefined,
           };
           tool.isActive = true;
           // await this.toolsRepository.save(localSkill);
@@ -1801,6 +1823,7 @@ class ToolsManager extends BaseManager {
             );
             tool.value = {
               path: savePath,
+              repo: data.group || undefined,
             };
             tool.description = skillMdData.data.description;
             tool.isActive = true;

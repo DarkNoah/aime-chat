@@ -55,6 +55,7 @@ export enum ChatEvent {
   ChatThreadChanged = 'chat:chat-thread-changed',
   ChatMessageChanged = 'chat:chat-message-changed',
   BashSessionUpdated = 'chat:bash-session-updated',
+  SSHSessionUpdated = 'chat:ssh-session-updated',
 }
 
 export type BashSessionUpdateEvent =
@@ -80,6 +81,36 @@ export type BashSessionUpdate = {
   processSignal?: string | null;
   timedOut?: boolean;
   pid?: number;
+  startTime: string;
+  updatedAt: string;
+};
+
+export type SSHTarget =
+  | {
+      type: 'config';
+      name: string;
+    }
+  | {
+      type: 'direct';
+      host: string;
+      port?: number;
+      username?: string;
+    };
+
+export type SSHSessionUpdate = {
+  event: 'started' | 'output' | 'exited' | 'error';
+  connectionId: string;
+  target: SSHTarget;
+  state: 'running' | 'exited' | 'error';
+  outputDelta?: string;
+  screen: string;
+  cursor: {
+    row: number;
+    column: number;
+  };
+  exitCode?: number;
+  signal?: number;
+  error?: string;
   startTime: string;
   updatedAt: string;
 };

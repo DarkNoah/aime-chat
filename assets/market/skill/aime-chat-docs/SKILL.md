@@ -1,6 +1,7 @@
 ---
 name: aime-chat-docs
 description: Aime Chat usage and configuration docs with ready-to-run local API scripts. Use when the user asks how Aime Chat features are configured, especially assistant personalities, SOUL.md files, local voices, available model discovery, available Agent discovery, available tool discovery, skill import/management, and PTC (Programmatic Tool Calling) in CodeExecution. Includes Python scripts under scripts/ for calling the Aime Chat local API (list models, Agents, tools, preview and import skills, create threads, list running threads, list projects).
+autoInstall: true
 ---
 
 # Aime Chat Docs

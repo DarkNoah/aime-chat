@@ -310,6 +310,8 @@ const electronHandler = {
       ipcRenderer.invoke(MastraChannel.ChatAbort, chatId),
     killBashSession: (bashId: string): Promise<boolean> =>
       ipcRenderer.invoke(MastraChannel.KillBashSession, bashId),
+    closeSSHSession: (connectionId: string): Promise<boolean> =>
+      ipcRenderer.invoke(MastraChannel.CloseSSHSession, connectionId),
     saveMessages: (chatId: string, messages: MastraDBMessage[]) =>
       ipcRenderer.invoke(MastraChannel.SaveMessages, chatId, messages),
     clearMessages: (chatId: string) =>
@@ -453,9 +455,12 @@ const electronHandler = {
     importSkills: (data: {
       repo_or_url?: string;
       files?: string[];
+      dirs?: string[];
       sourceSkillIds?: string[];
       path?: string;
       selectedSkills?: string[];
+      isActive?: boolean;
+      group?: string | null;
     }) => ipcRenderer.invoke(ToolChannel.ImportSkills, data),
     previewGitSkill: (data: { gitUrl: string }) =>
       ipcRenderer.invoke(ToolChannel.PreviewGitSkill, data),

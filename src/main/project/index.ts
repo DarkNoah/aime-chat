@@ -14,7 +14,6 @@ import { StorageThreadType } from '@mastra/core/memory';
 import mastraManager from '../mastra';
 import fs from 'fs';
 import path from 'path';
-import matter from 'gray-matter';
 import { ToolType } from '@/types/tool';
 import { getSkills } from '../utils/skills';
 import { runCommand } from '../utils/shell';
@@ -50,27 +49,8 @@ class ProjectManager extends BaseManager {
     }
     project.skills = [];
     const skillsPath = path.join(project?.path, '.aime-chat', 'skills');
-    // const skillJson = await fs.promises.readFile(path.join(skillsPath, 'skills.json'));
     if (fs.existsSync(skillsPath) && fs.statSync(skillsPath).isDirectory()) {
-      const skills = await fs.promises.readdir(skillsPath);
-
-      const skillJson = await fs.promises.readFile(path.join(skillsPath, 'skills.json'), 'utf-8').catch(() => '[]');
-      const skillJsonData = JSON.parse(skillJson);
-      for (const skill of skillJsonData) {
-        if (fs.existsSync(path.join(skillsPath, skill.name ?? skill.id, 'SKILL.md'))) {
-          const skillMdPath = path.join(skillsPath, skill.name ?? skill.id, 'SKILL.md');
-          const skillMd = await fs.promises.readFile(skillMdPath, 'utf-8');
-          const skillData = matter(skillMd);
-          project.skills.push({
-            id: skill.id,
-            name: skillData.data.name,
-            description: skillData.data.description,
-            path: path.join(skillsPath, skill.name ?? skill.id),
-            skillmd: skillData.content,
-            source: skill.source,
-          });
-        }
-      }
+      project.skills = await getSkills(skillsPath);
     }
     const agentsMdPath = path.join(project?.path, `AGENTS.md`);
     if (fs.existsSync(agentsMdPath) && fs.statSync(agentsMdPath).isFile()) {

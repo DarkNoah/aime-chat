@@ -211,6 +211,7 @@
     "@typescript-eslint/eslint-plugin": "^8.26.1",
     "@typescript-eslint/parser": "^8.26.1",
     "@vscode/ripgrep": "^1.17.0",
+    "@xterm/headless": "6.0.0",
     "@xyflow/react": "^12.9.2",
     "a2a-ai-provider": "^0.4.0-alpha.2",
     "add-filename-increment": "^1.0.0",

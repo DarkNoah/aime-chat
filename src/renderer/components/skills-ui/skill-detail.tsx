@@ -15,6 +15,11 @@ import { FolderOpenIcon } from 'lucide-react';
 import { Button } from '@/renderer/components/ui/button';
 import { Streamdown } from '../ai-elements/streamdown';
 import { Transl } from '../translations/transl';
+import {
+  getSkillDisplayName,
+  SkillIcon,
+  SkillMetadataBadges,
+} from './skill-metadata';
 
 interface SkillDetail extends SkillInfo {
   content?: string;
@@ -62,34 +67,34 @@ export function SkillDetailDialog({
       window.electron.app.openPath(path);
     }
   };
+  const displayedSkill = detail || skill;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg max-h-[80vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle className="flex flex-col gap-2">
-            {skill?.name}
-            {/* {detail?.isActive !== undefined && (
-              <Badge variant={detail.isActive ? 'default' : 'secondary'}>
-                {detail.isActive ? t('common.active') : t('common.close')}
-              </Badge>
-            )} */}
-            {(detail?.path || skill?.path) && (
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="link"
-                  size="sm"
-                  className="h-auto p-0 text-xs text-muted-foreground hover:text-foreground truncate max-w-[360px] cursor-pointer"
-                  onClick={handleOpenPath}
-                >
-                  <FolderOpenIcon className="w-3.5 h-3.5 shrink-0" />
-                  <span className="truncate">
-                    {detail?.path || skill?.path}
-                  </span>
-                </Button>
-              </div>
-            )}
+          <DialogTitle className="flex items-center gap-3">
+            {displayedSkill ? <SkillIcon skill={displayedSkill} /> : null}
+            <span className="truncate">
+              {displayedSkill ? getSkillDisplayName(displayedSkill) : ''}
+            </span>
           </DialogTitle>
+          {displayedSkill ? (
+            <SkillMetadataBadges skill={displayedSkill} maxTags={4} />
+          ) : null}
+          {(detail?.path || skill?.path) && (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="link"
+                size="sm"
+                className="h-auto max-w-[360px] cursor-pointer truncate p-0 text-xs text-muted-foreground hover:text-foreground"
+                onClick={handleOpenPath}
+              >
+                <FolderOpenIcon className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">{detail?.path || skill?.path}</span>
+              </Button>
+            </div>
+          )}
           {skill?.description && (
             <DialogDescription className="text-xs">
               {skill.description}

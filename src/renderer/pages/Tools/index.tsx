@@ -110,6 +110,11 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/renderer/components/ui/collapsible';
+import {
+  getSkillDisplayName,
+  getSkillSearchKeywords,
+  SkillIcon,
+} from '@/renderer/components/skills-ui/skill-metadata';
 
 function Tools() {
   const { setTitle } = useHeader();
@@ -326,7 +331,14 @@ function Tools() {
             {tools[view]
               ?.filter((tool) => {
                 if (search) {
-                  return tool.name.toLowerCase().includes(search.toLowerCase());
+                  const searchText = [
+                    tool.name,
+                    ...getSkillSearchKeywords(tool),
+                    ...(tool.skills || []).flatMap(getSkillSearchKeywords),
+                  ]
+                    .join(' ')
+                    .toLowerCase();
+                  return searchText.includes(search.toLowerCase());
                 } else {
                   return true;
                 }
@@ -345,9 +357,17 @@ function Tools() {
                       className=" w-full flex flex-row justify-between flex-nowrap"
                       onClick={() => navigate(`/tools/${tool.id}`)}
                     >
+                      {view === ToolType.SKILL && !tool.skills?.length ? (
+                        <SkillIcon skill={tool} className="size-6" />
+                      ) : null}
                       <ItemContent className="min-w-0 ">
                         <ItemTitle className="line-clamp-1 w-auto">
-                          {t(`tool_name.${tool.name.toLowerCase()}`, tool.name)}
+                          {view === ToolType.SKILL
+                            ? getSkillDisplayName(tool)
+                            : t(
+                                `tool_name.${tool.name.toLowerCase()}`,
+                                tool.name,
+                              )}
                         </ItemTitle>
                         {tool.status === 'running' && (
                           <IconToggleRightFilled className="text-green-500/50"></IconToggleRightFilled>
@@ -385,12 +405,10 @@ function Tools() {
                               className=" w-full flex flex-row justify-between flex-nowrap pl-0"
                               onClick={() => navigate(`/tools/${skill.id}`)}
                             >
+                              <SkillIcon skill={skill} className="size-6" />
                               <ItemContent className="min-w-0 ">
                                 <ItemTitle className="line-clamp-1 w-auto">
-                                  {t(
-                                    `tool_name.${skill.name.toLowerCase()}`,
-                                    skill.name,
-                                  )}
+                                  {getSkillDisplayName(skill)}
                                 </ItemTitle>
                                 {skill.status === undefined &&
                                   skill.isActive !== undefined &&

@@ -56,6 +56,7 @@ import {
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { FileInfo } from '@/types/common';
+import { SkillSummary } from './skill-metadata';
 
 const SEARCH_HISTORY_KEY = 'skill-import-search-history';
 const MAX_HISTORY = 5;
@@ -474,12 +475,7 @@ function AddSkillTab({
             >
               <ItemContent className="flex flex-row items-center gap-2">
                 <Checkbox checked={selectedSkills.includes(skill.path || '')} />
-                <div className="flex min-w-0 flex-col">
-                  <ItemTitle className="truncate">{skill.name}</ItemTitle>
-                  <ItemDescription className="line-clamp-2">
-                    {skill.description}
-                  </ItemDescription>
-                </div>
+                <SkillSummary skill={skill} />
               </ItemContent>
             </Item>
           ))}
@@ -828,12 +824,7 @@ function InstalledSkillTab({
             checked={selectedSkillIds.includes(skill.id)}
             disabled={added}
           />
-          <div className="flex min-w-0 flex-1 flex-col">
-            <ItemTitle className="truncate">{skill.name}</ItemTitle>
-            <ItemDescription className="line-clamp-2">
-              {skill.description}
-            </ItemDescription>
-          </div>
+          <SkillSummary skill={skill} />
         </ItemContent>
         {added && (
           <ItemActions>
@@ -858,10 +849,7 @@ function InstalledSkillTab({
         {projectSkills.map((skill) => (
           <Item key={skill.id} variant="outline" size="sm">
             <ItemContent>
-              <ItemTitle className="truncate">{skill.name}</ItemTitle>
-              <ItemDescription className="line-clamp-2">
-                {skill.description}
-              </ItemDescription>
+              <SkillSummary skill={skill} />
             </ItemContent>
             <ItemActions>
               <Badge variant="secondary">{t('common.added', 'Added')}</Badge>

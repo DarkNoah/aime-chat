@@ -5,6 +5,9 @@ import { ToolExecutionContext } from "@mastra/core/tools";
 import { agentManager } from "@/main/mastra/agents";
 import { z } from 'zod';
 import { appManager } from "@/main/app";
+import { AgentExecutionOptions } from "@mastra/core/agent";
+import mastraManager from "@/main/mastra";
+import { getSubAgentThreadId } from "@/utils/subagent-thread";
 
 export interface AgentToolParams extends BaseToolParams {
   subAgents: SubAgentInfo[] | string[];
@@ -173,6 +176,9 @@ assistant: "I'm going to use the Task tool to launch the greeting-responder agen
     context: ToolExecutionContext<z.ZodSchema, any>,
   ) => {
     let { description, prompt, subagent_type } = inputData;
+    const storage = mastraManager.mastra.getStorage();
+    const memory = await storage.getStore('memory');
+
     const {
       writer,
       abortSignal,
@@ -182,6 +188,8 @@ assistant: "I'm going to use the Task tool to launch the greeting-responder agen
     const toolCallId = agentContext.toolCallId;
     const rootAgentModel = requestContext.get('model' as never) as string;
     const rootAgentId = requestContext.get('agentId' as never) as string;
+    const rootThreadId = requestContext.get('threadId' as never) as string;
+    const rootResourceId = requestContext.get('resourceId' as never) as string;
     let rootAgentTools = requestContext.get('tools' as never) as string[] ?? [];
 
     rootAgentTools = [...new Set([...rootAgentTools])];
@@ -200,15 +208,49 @@ assistant: "I'm going to use the Task tool to launch the greeting-responder agen
       modelId: rootAgentModel,
       tools: rootAgentTools
     });
-    // const model = await providersManager.getLanguageModel(model);
-    const stream = await agent.stream(prompt, {
-      abortSignal: abortSignal,
+
+    const threadId = getSubAgentThreadId(toolCallId);
+    const resourceId = `${rootResourceId}:${toolCallId}`;
+    const thread = await memory.saveThread({
+      thread: {
+        id: threadId,
+        title: `SubAgent:${toolCallId}`,
+        resourceId: resourceId,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        metadata: {
+          agentId: rootAgentId,
+          model: rootAgentModel,
+        },
+      },
+    });
+
+
+    let streamOptions: AgentExecutionOptions<undefined> = {
+      includeRawChunks: false,
+      modelSettings: {
+        headers: {
+          'X-AIME-CHAT-THREAD-ID': rootThreadId,
+        }
+      },
       requestContext: requestContext,
       maxSteps: 100,
-    });
-    if (abortSignal?.aborted) {
-      return `Task was aborted by the user.`;
-    }
+      memory: {
+        thread: {
+          id: threadId,
+        },
+        resource: resourceId,
+        options: {
+          readOnly: false,
+          lastMessages: false,
+        },
+      },
+      abortSignal: abortSignal,
+      savePerStep: true
+    };
+    // const model = await providersManager.getLanguageModel(model);
+    const stream = await agent.stream(prompt, streamOptions);
+
 
     for await (const chunk of stream.fullStream) {
       if (chunk.type == 'tool-result') {
@@ -237,12 +279,21 @@ assistant: "I'm going to use the Task tool to launch the greeting-responder agen
       console.log(chunk.type);
     }
 
+    if (abortSignal?.aborted) {
+      return `Task was aborted by the user.`;
+    }
+
     // await stream.textStream.pipeTo(writer);
     // await stream.fullStream.pipeTo(writer);
 
-    return (await stream.content)
-      .filter((x) => x.type === 'text')
-      .map((x) => x.text)
-      .join('\n');
+    if (stream.status === 'success') {
+
+      return stream.text || (await stream.content)
+        .filter((x) => x.type === 'text')
+        .map((x) => x.text)
+        .join('\n');
+    } else {
+      return stream.error;
+    }
   };
 }

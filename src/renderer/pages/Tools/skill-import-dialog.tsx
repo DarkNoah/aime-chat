@@ -30,11 +30,10 @@ import {
   InputGroupInput,
 } from '@/renderer/components/ui/input-group';
 import { SkillInfo } from '@/types/skill';
+import { SkillSummary } from '@/renderer/components/skills-ui/skill-metadata';
 import {
   Item,
   ItemContent,
-  ItemDescription,
-  ItemTitle,
 } from '@/renderer/components/ui/item';
 
 const SEARCH_HISTORY_KEY = 'skill-import-search-history';
@@ -378,10 +377,7 @@ export function SkillImportDialog({
               >
                 <ItemContent className="flex flex-row items-center gap-2">
                   <Checkbox checked={selectedSkills.includes(skill.path)} />
-                  <div className="flex flex-col">
-                    <ItemTitle> {skill.name}</ItemTitle>
-                    <ItemDescription> {skill.description}</ItemDescription>
-                  </div>
+                  <SkillSummary skill={skill} />
                 </ItemContent>
               </Item>
             ))}

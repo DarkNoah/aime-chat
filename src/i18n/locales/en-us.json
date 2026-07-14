@@ -308,7 +308,8 @@
     "create_skill": "Create Skill",
     "import_skill": "Import Skill",
     "import_skill_tips": "Only packaged skill files (*.skill) are supported for import.",
-    "search_skills": "Search Skills"
+    "search_skills": "Search Skills",
+    "skill_entrypoints": "Available commands"
   },
   "agents": {
     "instructions": "System Prompt",
@@ -618,5 +619,37 @@
     "waiting_output": "Waiting for output...",
     "home_directory": "~",
     "empty": "No background Bash sessions"
+  },
+  "ssh_status": {
+    "title": "SSH Connections",
+    "description": "Persistent SSH connections and their terminal screens update here in real time.",
+    "open_panel": "View SSH connections",
+    "badge_label": "SSH",
+    "badge_connected": "{{count}} connected",
+    "badge_failed": "{{count}} failed",
+    "badge_done": "closed",
+    "running_count": "{{count}} connected",
+    "clear_exited": "Clear closed",
+    "status_running": "Connected",
+    "status_exited": "Closed",
+    "status_failed": "Failed",
+    "duration_label": "Duration",
+    "duration_seconds": "{{count}}s",
+    "duration_minutes_seconds": "{{minutes}}m {{seconds}}s",
+    "exit_code": "exit {{code}}",
+    "signal": "signal {{signal}}",
+    "close_connection": "Close connection",
+    "cursor": "{{row}}:{{column}}",
+    "background": "background",
+    "secret": "Secret",
+    "key": "Key",
+    "screen": "Current screen",
+    "output_log": "Output log",
+    "state_running": "running",
+    "state_exited": "closed",
+    "state_error": "error",
+    "transfer_waiting": "Transferring files...",
+    "waiting_output": "Waiting for SSH output...",
+    "empty": "No SSH connections"
   }
 }

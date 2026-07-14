@@ -1,6 +1,7 @@
 import { t } from 'i18next';
 import z from 'zod';
 import { ModelType, ProviderTag } from './provider';
+import type { SkillMetadata } from './skill-metadata';
 
 export enum ToolType {
   MCP = 'mcp',
@@ -8,7 +9,7 @@ export enum ToolType {
   SKILL = 'skill',
 }
 
-export type Tool = {
+export type Tool = SkillMetadata & {
   id: string;
   name: string;
   description: string;
@@ -24,6 +25,9 @@ export type Tool = {
   }[];
   status?: 'running' | 'stopped' | 'error' | 'starting' | undefined;
   repo?: string;
+  source?: string;
+  path?: string;
+  content?: string;
   skills?: Tool[];
 };
 

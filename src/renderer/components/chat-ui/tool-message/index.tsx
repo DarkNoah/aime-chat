@@ -54,7 +54,7 @@ export type ToolSuspended = {
 
 export interface ToolMessageRef { }
 
-export type ToolMessageProps = ComponentProps<typeof Badge> & {
+export type ToolMessageProps = Omit<ComponentProps<typeof Badge>, 'part'> & {
   threadId?: string;
   part?: ToolUIPart;
   title?: string;

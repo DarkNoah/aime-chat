@@ -318,7 +318,8 @@
     "create_skill": "创建技能",
     "import_skill": "导入技能",
     "import_skill_tips": "只能导入打包后的skill包如 *.skill",
-    "search_skills": "搜索技能"
+    "search_skills": "搜索技能",
+    "skill_entrypoints": "可用命令"
   },
   "tool_name": {
     "codeexecution": "代码执行",
@@ -671,5 +672,37 @@
     "waiting_output": "等待输出...",
     "home_directory": "~",
     "empty": "暂无后台 Bash 会话"
+  },
+  "ssh_status": {
+    "title": "SSH 连接",
+    "description": "持久 SSH 连接及其终端屏幕会在这里实时更新。",
+    "open_panel": "查看 SSH 连接",
+    "badge_label": "SSH",
+    "badge_connected": "{{count}} 个已连接",
+    "badge_failed": "{{count}} 个失败",
+    "badge_done": "已关闭",
+    "running_count": "{{count}} 个连接中",
+    "clear_exited": "清除已关闭",
+    "status_running": "已连接",
+    "status_exited": "已关闭",
+    "status_failed": "失败",
+    "duration_label": "时长",
+    "duration_seconds": "{{count}}秒",
+    "duration_minutes_seconds": "{{minutes}}分 {{seconds}}秒",
+    "exit_code": "退出码 {{code}}",
+    "signal": "信号 {{signal}}",
+    "close_connection": "关闭连接",
+    "cursor": "{{row}}:{{column}}",
+    "background": "后台",
+    "secret": "密钥变量",
+    "key": "按键",
+    "screen": "当前屏幕",
+    "output_log": "输出记录",
+    "state_running": "运行中",
+    "state_exited": "已关闭",
+    "state_error": "错误",
+    "transfer_waiting": "正在传输文件...",
+    "waiting_output": "等待 SSH 输出...",
+    "empty": "暂无 SSH 连接"
   }
 }

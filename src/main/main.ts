@@ -33,7 +33,7 @@ import { secretsManager } from './app/secrets';
 import { cronsManager } from './app/crons';
 import { initCrashReporter } from './app/crash-reporter';
 import { requestLogManager } from './app/request-logs';
-
+import sshManager from './tools/ssh/manager';
 
 // process.env.DEFAULT_AGENT = undefined;
 // process.env.DEFAULT_MODEL = undefined;
@@ -47,6 +47,10 @@ import { requestLogManager } from './app/request-logs';
 process.env.API_SERVER_ENABLED = 'true'
 
 initCrashReporter();
+
+app.on('before-quit', () => {
+  sshManager.disposeAll();
+});
 
 // process.env.DEFAULT_PROVIDER_ID = "openai"
 // process.env.DEFAULT_PROVIDER_NAME = "OpenAI"
