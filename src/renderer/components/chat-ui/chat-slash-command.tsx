@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { BrainIcon, GlobeIcon, SquareIcon, TrashIcon } from 'lucide-react';
 import {
   Command,
@@ -17,12 +23,14 @@ export interface SlashCommandDefinition {
   description?: string;
   icon?: React.ReactNode;
   visible?: boolean;
+  group?: 'commands' | 'skills';
 }
 
 export interface ChatSlashCommandProps {
   input: string;
   /** Fill the completed command text into the input */
   onComplete: (text: string) => void;
+  onOpen?: () => void | Promise<void>;
   commands?: SlashCommandDefinition[];
   children: React.ReactNode;
 }
@@ -37,6 +45,7 @@ function getSlashQuery(input: string): string | null {
 export function ChatSlashCommand({
   input: inputProp,
   onComplete,
+  onOpen,
   commands = [],
   children,
 }: ChatSlashCommandProps) {
@@ -44,6 +53,7 @@ export function ChatSlashCommand({
   const input = controller?.textInput.value ?? inputProp;
   const query = getSlashQuery(input);
   const [selectedValue, setSelectedValue] = useState('');
+  const slashModeOpenRef = useRef(false);
   const { t } = useTranslation();
   const filtered = useMemo(() => {
     if (query === null) return [];
@@ -57,6 +67,22 @@ export function ChatSlashCommand({
   }, [commands, query]);
 
   const isOpen = query !== null && filtered.length > 0;
+
+  useEffect(() => {
+    if (query === null) {
+      slashModeOpenRef.current = false;
+      return;
+    }
+
+    if (!slashModeOpenRef.current) {
+      slashModeOpenRef.current = true;
+      if (onOpen) {
+        Promise.resolve()
+          .then(onOpen)
+          .catch(() => undefined);
+      }
+    }
+  }, [onOpen, query]);
 
   useEffect(() => {
     setSelectedValue(filtered.length > 0 ? filtered[0].id : '');
@@ -135,33 +161,49 @@ export function ChatSlashCommand({
         <Command value={selectedValue} onValueChange={setSelectedValue} loop>
           <CommandList>
             {/* <CommandEmpty>No commands found</CommandEmpty> */}
-            <CommandGroup
-              heading={t('common.slash_commands', 'Slash Commands')}
-            >
-              {filtered.map((cmd) => (
-                <CommandItem
-                  key={cmd.id}
-                  value={cmd.id}
-                  onSelect={() => {
-                    controller.textInput.setInput(`/${cmd.id} `);
-                    onComplete(`/${cmd.id} `);
-                  }}
-                  className="flex items-center gap-2 cursor-pointer"
-                >
-                  {cmd.icon && (
-                    <span className="flex items-center justify-center size-5 shrink-0 text-muted-foreground">
-                      {cmd.icon}
-                    </span>
-                  )}
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-sm font-medium">/{cmd.id}</span>
-                    <span className="text-xs text-muted-foreground truncate">
-                      {cmd.description}
-                    </span>
-                  </div>
-                </CommandItem>
-              ))}
-            </CommandGroup>
+            {[
+              {
+                id: 'commands',
+                heading: t('common.slash_commands', 'Slash Commands'),
+                commands: filtered.filter((cmd) => cmd.group !== 'skills'),
+              },
+              {
+                id: 'skills',
+                heading: t('market.skills', 'Skills'),
+                commands: filtered.filter((cmd) => cmd.group === 'skills'),
+              },
+            ].map(
+              (group) =>
+                group.commands.length > 0 && (
+                  <CommandGroup key={group.id} heading={group.heading}>
+                    {group.commands.map((cmd) => (
+                      <CommandItem
+                        key={cmd.id}
+                        value={cmd.id}
+                        onSelect={() => {
+                          controller.textInput.setInput(`/${cmd.id} `);
+                          onComplete(`/${cmd.id} `);
+                        }}
+                        className="flex items-center gap-2 cursor-pointer"
+                      >
+                        {cmd.icon && (
+                          <span className="flex items-center justify-center size-5 shrink-0 text-muted-foreground">
+                            {cmd.icon}
+                          </span>
+                        )}
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-sm font-medium">
+                            /{cmd.label}
+                          </span>
+                          <span className="text-xs text-muted-foreground truncate">
+                            {cmd.description}
+                          </span>
+                        </div>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                ),
+            )}
           </CommandList>
         </Command>
       </PopoverContent>

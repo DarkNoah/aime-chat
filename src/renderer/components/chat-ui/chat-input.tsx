@@ -13,7 +13,7 @@ import {
   ShieldUserIcon,
   ShieldCheck,
 } from 'lucide-react';
-import { ChatSlashCommand } from './chat-slash-command';
+import { ChatSlashCommand, SlashCommandDefinition } from './chat-slash-command';
 import {
   PromptInput,
   PromptInputActionAddAttachments,
@@ -89,6 +89,7 @@ import {
 import { ChatSlashCommandConfig, GoalConfig } from '@/types/chat';
 import { ChatGoal } from './chat-goal';
 import { getChatInputSubmitState } from './chat-input-submit-state';
+import { ToolType } from '@/types/tool';
 
 const DRAFT_STORAGE_KEY = 'chat-input-drafts';
 
@@ -218,6 +219,9 @@ function ChatInputInner(props: ChatInputInnerProps) {
   const [think, setThink] = useState(false);
   const [tools, setTools] = useState<string[]>([]);
   const [subAgents, setSubAgents] = useState<string[]>([]);
+  const [slashCommands, setSlashCommands] = useState<SlashCommandDefinition[]>(
+    ChatSlashCommandConfig,
+  );
   const [goal, setGoal] = useState<GoalConfig>({
     enable: false,
     objective: '',
@@ -277,12 +281,29 @@ function ChatInputInner(props: ChatInputInnerProps) {
     }
   };
 
+  const getSlashCommands = async () => {
+    const commands: SlashCommandDefinition[] = [...ChatSlashCommandConfig];
+    const availableTools = await window.electron.tools.getAvailableTools();
+
+    const skills: SlashCommandDefinition[] = availableTools[ToolType.SKILL].map(
+      (x) => ({
+        id: x.id,
+        label: x.displayName || x.name || x.id,
+        description: x.description,
+        group: 'skills',
+      }),
+    );
+    commands.push(...skills);
+    setSlashCommands(commands);
+  };
+
   return (
     <>
       <ChatSlashCommand
         input=""
         onComplete={() => { }}
-        commands={ChatSlashCommandConfig}
+        onOpen={getSlashCommands}
+        commands={slashCommands}
       >
         <PromptInput
           onSubmit={(e) => {
