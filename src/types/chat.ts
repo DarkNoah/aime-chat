@@ -19,7 +19,7 @@ export type ChatInput = {
   projectId?: string;
   messageId?: string;
   messages: Array<UIMessage | UIMessageWithMetadata>;
-  model: string;
+  model?: string;
   webSearch?: boolean;
   chatId: string;
   trigger?: string;
@@ -87,15 +87,15 @@ export type BashSessionUpdate = {
 
 export type SSHTarget =
   | {
-      type: 'config';
-      name: string;
-    }
+    type: 'config';
+    name: string;
+  }
   | {
-      type: 'direct';
-      host: string;
-      port?: number;
-      username?: string;
-    };
+    type: 'direct';
+    host: string;
+    port?: number;
+    username?: string;
+  };
 
 export type SSHSessionUpdate = {
   event: 'started' | 'output' | 'exited' | 'error';

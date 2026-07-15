@@ -1,6 +1,6 @@
 ---
 name: aime-chat-docs
-description: Aime Chat usage and configuration docs with ready-to-run local API scripts. Use when the user asks how Aime Chat features are configured, especially assistant personalities, SOUL.md files, local voices, available model discovery, available Agent discovery, available tool discovery, skill import/management, and PTC (Programmatic Tool Calling) in CodeExecution. Includes Python scripts under scripts/ for calling the Aime Chat local API (list models, Agents, tools, preview and import skills, create threads, list running threads, list projects).
+description: Aime Chat usage and configuration docs with ready-to-run local API scripts. Use when the user asks how Aime Chat features are configured, especially assistant personalities, SOUL.md files, local voices, available model discovery, available Agent discovery, available tool discovery, skill import/management, PTC (Programmatic Tool Calling) in CodeExecution, or sending text and images to an idle thread and waiting for its final reply. Includes Python scripts under scripts/ for calling the Aime Chat local API (list models, Agents, tools, preview and import skills, create threads, send thread messages, list running threads, list projects).
 autoInstall: true
 ---
 
@@ -21,6 +21,7 @@ Use this skill when answering questions about Aime Chat configuration and featur
 - **Tool detail**: Read [references/get-tool.md](references/get-tool.md) when explaining how to fetch a single tool's detail (sub-tools, input schema, status) by id through the local API server.
 - **PTC (Programmatic Tool Calling)**: Read [references/use-ptc.md](references/use-ptc.md) when explaining how to use the CodeExecution PTC mode to call tools programmatically in code, batch tool calls in a loop, call ChatCompletion inside code, or report progress via the Message tool.
 - **Create thread**: Read [references/create-thread.md](references/create-thread.md) when explaining how to create a new chat thread (optionally under a project, with an Agent and model) through the local API server.
+- **Send thread message**: Read [references/send-thread-message.md](references/send-thread-message.md) when sending text and/or local images to an existing idle thread and waiting for the final assistant text through the local API server.
 - **Running threads**: Read [references/list-running-threads.md](references/list-running-threads.md) when explaining how to list threads that are currently streaming (running) through the local API server.
 - **Projects**: Read [references/list-projects.md](references/list-projects.md) when explaining how to list projects (with pagination and title filter) through the local API server.
 
@@ -37,6 +38,7 @@ The `scripts/` folder contains standalone Python scripts (standard library only,
 - **[scripts/preview_git_skill.py](scripts/preview_git_skill.py)**: Preview the skills available in a git repository, e.g. `python scripts/preview_git_skill.py https://github.com/<owner>/<repo>`.
 - **[scripts/import_skills.py](scripts/import_skills.py)**: Import skills globally or into the current project. Use `--repo-or-url` with optional repeatable `--skill` for repo installs, `--file` for `.skill`/`.zip` packages, and `--path <cwd>` for project-scoped installs (omit `--path` for global).
 - **[scripts/create_thread.py](scripts/create_thread.py)**: Create a new chat thread. Optional `--project-id`, `--agent-id`, `--model`, and `--json` for raw output.
+- **[scripts/send_thread_message.py](scripts/send_thread_message.py)**: Send text and/or repeatable local `--image` files to an existing idle thread through the existing `chat()` API. Waits for `chat()` to finish, then prints text from the last returned message. Throws an error instead of queueing when the thread is busy.
 - **[scripts/list_running_threads.py](scripts/list_running_threads.py)**: List currently running (streaming) threads. Supports `--json` for raw output.
 - **[scripts/list_projects.py](scripts/list_projects.py)**: List projects. Optional `--filter`, `--page`, `--size`, and `--json` for raw output.
 
@@ -48,6 +50,7 @@ Example:
 python scripts/get_available_models.py --type embedding
 python scripts/import_skills.py --repo-or-url https://github.com/resciencelab/opc-skills --skill skills/reddit --path "$PWD"
 python "${AIME_CHAT_SKILL_PATH}/aime-chat-docs/scripts/create_thread.py" --project-id <project-id>
+python "${AIME_CHAT_SKILL_PATH}/aime-chat-docs/scripts/send_thread_message.py" --thread-id <thread-id> --text "请总结当前进度" --image ./screenshot.png
 python "${AIME_CHAT_SKILL_PATH}/aime-chat-docs/scripts/list_running_threads.py"
 python "${AIME_CHAT_SKILL_PATH}/aime-chat-docs/scripts/list_projects.py" --filter my
 ```

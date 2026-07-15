@@ -701,7 +701,11 @@ class MastraManager extends BaseManager {
     return pending;
   }
 
-
+  @api({
+    method: 'post',
+    path: '/api/threads/chat',
+    args: (req: Request) => [undefined, req.body],
+  })
   @channel(MastraChannel.Chat, { mode: 'on' })
   public async chat(event: IpcMainEvent, data: ChatInput, callback?: ChatCallbackEvent): Promise<{
     success: boolean;
@@ -718,7 +722,7 @@ class MastraManager extends BaseManager {
       projectId,
       messages: uiMessages,
       webSearch,
-      think,
+      think = true,
       tools = [],
       subAgents = [],
       runId,
@@ -731,6 +735,9 @@ class MastraManager extends BaseManager {
       goal,
     } = data;
     let { model } = data;
+    if (this.threadChats.some((chat) => chat.id === chatId)) {
+      throw new Error(`Thread ${chatId} is not idle`);
+    }
     console.log('Chat Input', data);
     const storage = this.mastra.getStorage();
 
@@ -749,6 +756,34 @@ class MastraManager extends BaseManager {
       }
     }
     const appInfo = await appManager.getInfo();
+    const threadMetadata = currentThread.metadata ?? {};
+
+    let agent: Agent;
+    if (!agentId) {
+      agentId = (threadMetadata?.agentId as string) ?? DefaultAgent.agentName
+    }
+
+    model ||= threadMetadata.model as string | undefined;
+    if (data.tools === undefined && Array.isArray(threadMetadata.tools)) {
+      tools = threadMetadata.tools as string[];
+    }
+
+    const agentEntity = await this.agentsRepository.findOne({
+      where: { id: agentId },
+    });
+    if (tools.length === 0) {
+      tools = agentEntity.tools as string[];
+    }
+    if (
+      data.subAgents === undefined &&
+      Array.isArray(threadMetadata.subAgents)
+    ) {
+      subAgents = threadMetadata.subAgents as string[];
+    }
+
+    if (subAgents.length === 0) {
+      subAgents = agentEntity.subAgents as string[];
+    }
 
 
 
@@ -763,10 +798,6 @@ class MastraManager extends BaseManager {
     let inputMessage = uiMessages[uiMessages.length - 1];
 
     if (!model) {
-      const _agentId = agentId ?? DefaultAgent.agentName;
-      const agentEntity = await this.agentsRepository.findOne({
-        where: { id: _agentId },
-      });
       model =
         agentEntity?.defaultModelId ||
         (await appManager.getInfo())?.defaultModel?.model;
@@ -781,7 +812,7 @@ class MastraManager extends BaseManager {
       await providersManager.getModelInfo(model);
 
     let stream: MastraModelOutput<unknown>;
-    let agent: Agent;
+
     let requestContext;
     try {
       // const info = modelsData[provider.type]?.models[_modeId] || {};
@@ -1197,10 +1228,41 @@ class MastraManager extends BaseManager {
         const system = await convertToInstructionContent(instructions);
 
         let slashCommand;
-        const slashCommands = ChatSlashCommandConfig.map(x => x.id)
-        if (_inputMessage && _inputMessage.role == 'user' && _inputMessage.parts.length == 1) {
-          slashCommand = slashCommands.find(x => _inputMessage.parts[0].text.startsWith("/" + x))
+        const slashCommands = ChatSlashCommandConfig.map(x => x.id);
+        const skills = await skillManager.getSkills();
+        if (_inputMessage && _inputMessage.role == 'user') {
+          const text = _inputMessage.parts.find(x => x.type == 'text' && x.text?.startsWith("/"))?.text;
+          if (text) {
+            slashCommand = slashCommands.find(x => text.startsWith("/" + x));
+            if (!slashCommand) {
+              const skill = skills.find(x => text.startsWith("/" + x.id + ' ') || text == "/" + x.id);
+              if (skill) {
+                slashCommand = skill.id;
+                if (skill) {
+                  if (!tools.includes(skill.id)) {
+                    tools.push(skill.id);
+                    currentThread = await memoryStore.updateThread({
+                      id: chatId,
+                      title: currentThread.title,
+                      metadata: {
+                        ...(currentThread.metadata || {}),
+                        tools: tools,
+                      },
+                    });
+                    appManager.sendEvent(`chat:event:${chatId}`, {
+                      type: ChatEvent.ChatThreadChanged,
+                      data: {},
+                    });
+
+                  }
+                }
+              }
+            }
+          }
         }
+
+
+
 
 
 
@@ -1238,6 +1300,9 @@ class MastraManager extends BaseManager {
             });
           }
         }
+
+
+
 
 
         if (compressError) {
