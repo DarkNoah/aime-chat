@@ -31,6 +31,7 @@ import { LanguageModelV2ToolResultOutput, LanguageModelV2ToolResultPart } from '
 import { isArray, isObject, isString } from '@/utils/is';
 import { ProviderType } from '@/types/provider';
 import sharp from 'sharp';
+import { readTextFileRange } from './text-file-reader';
 
 
 const DEFAULT_MAX_LINES_TEXT_FILE = 2000;
@@ -348,20 +349,25 @@ Usage:
 
 
 
-    const content = await fs.promises.readFile(file_path, 'utf-8');
-
-    const lines = content.split(/\r?\n/);
-    const originalLineCount = lines.length;
     const startLine = offset || 0;
     const effectiveLimit =
       limit === undefined
         ? DEFAULT_MAX_LINES_TEXT_FILE
         : Math.min(limit, DEFAULT_MAX_LINES_TEXT_FILE);
+    const {
+      lines: selectedLines,
+      originalLineCount,
+      linesWereTruncatedInLength,
+    } = await readTextFileRange(
+      file_path,
+      startLine,
+      effectiveLimit,
+      MAX_LINE_LENGTH_TEXT_FILE,
+    );
     // Ensure endLine does not exceed originalLineCount
     const endLine = Math.min(startLine + effectiveLimit, originalLineCount);
     // Ensure selectedLines doesn't try to slice beyond array bounds if startLine is too high
     const actualStartLine = Math.min(startLine, originalLineCount);
-    let selectedLines = lines.slice(actualStartLine, endLine);
 
     if (startLine >= originalLineCount) {
       return {
@@ -369,15 +375,6 @@ Usage:
         systemReminder: [`<system-reminder>Error: offset is out of range, offset: ${startLine}, originalLineCount: ${originalLineCount}.</system-reminder>`],
       }
     }
-
-    let linesWereTruncatedInLength = false;
-    selectedLines = selectedLines.map((line) => {
-      if (line.length > MAX_LINE_LENGTH_TEXT_FILE) {
-        linesWereTruncatedInLength = true;
-        return `${line.substring(0, MAX_LINE_LENGTH_TEXT_FILE)}... [truncated]`;
-      }
-      return line;
-    });
 
     const contentRangeTruncated = endLine < originalLineCount;
     const isTruncated = contentRangeTruncated || linesWereTruncatedInLength;
