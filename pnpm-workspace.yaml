@@ -12,6 +12,7 @@ onlyBuiltDependencies:
   - core-js-pure
   - electron
   - electron-winstaller
+  - node-pty
   - onnxruntime-node
   - openvino-genai-node
   - openvino-node
