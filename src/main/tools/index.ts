@@ -67,6 +67,7 @@ import { GoalToolkit } from './common/goal';
 import { providersManager } from '../providers';
 import { CreatePlan } from './common/create-plan';
 import { readSkillPackageMetadata } from '../utils/skill-metadata';
+import { InteractiveHtml } from './common/interactive-html';
 interface BuiltInToolContext {
   tool: BaseTool;
   abortController: AbortController;
@@ -211,6 +212,7 @@ class ToolsManager extends BaseManager {
     await this.registerBuiltInTool(CronsToolkit);
     await this.registerBuiltInTool(GoalToolkit);
     await this.registerBuiltInTool(CreatePlan);
+    await this.registerBuiltInTool(InteractiveHtml);
 
 
 

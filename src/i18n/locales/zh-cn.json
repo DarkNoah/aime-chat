@@ -319,7 +319,12 @@
     "import_skill": "导入技能",
     "import_skill_tips": "只能导入打包后的skill包如 *.skill",
     "search_skills": "搜索技能",
-    "skill_entrypoints": "可用命令"
+    "skill_entrypoints": "可用命令",
+    "interactive_html_title": "交互式内容",
+    "interactive_html_tips": "提示",
+    "interactive_html_submitted": "交互结果已提交",
+    "interactive_html_error": "交互组件错误：{{error}}",
+    "interactive_html_invalid_resume_data": "resumeData 必须是可 JSON 序列化的对象"
   },
   "tool_name": {
     "codeexecution": "代码执行",

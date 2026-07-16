@@ -40,6 +40,7 @@ import { EditImage } from '@/main/tools/image/edit-image';
 import { MemoryRead, MemorySearch } from '@/main/tools/memory/memory';
 import { CreateGoal } from '@/main/tools/common/goal';
 import { KnowledgeBaseSearch, KnowledgeBaseList, KnowledgeBaseGetItem } from '@/main/tools/knowledge-base';
+import { InteractiveHtml } from '@/main/tools/common/interactive-html';
 
 export class CodeAgent extends BaseAgent {
   static readonly agentName = 'CodeAgent';
@@ -51,6 +52,7 @@ export class CodeAgent extends BaseAgent {
   tools: string[] = [
     // `${ToolType.BUILD_IN}:${TodoWrite.toolName}`,
     `${ToolType.BUILD_IN}:${AskUserQuestion.toolName}`,
+    `${ToolType.BUILD_IN}:${InteractiveHtml.toolName}`,
     // `${ToolType.BUILD_IN}:${Task.toolName}`,
     `${ToolType.BUILD_IN}:${Bash.toolName}`,
     `${ToolType.BUILD_IN}:${BashOutput.toolName}`,

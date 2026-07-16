@@ -309,7 +309,12 @@
     "import_skill": "Import Skill",
     "import_skill_tips": "Only packaged skill files (*.skill) are supported for import.",
     "search_skills": "Search Skills",
-    "skill_entrypoints": "Available commands"
+    "skill_entrypoints": "Available commands",
+    "interactive_html_title": "Interactive content",
+    "interactive_html_tips": "Tips",
+    "interactive_html_submitted": "Interaction submitted",
+    "interactive_html_error": "Interaction error: {{error}}",
+    "interactive_html_invalid_resume_data": "resumeData must be a JSON-serializable object"
   },
   "agents": {
     "instructions": "System Prompt",

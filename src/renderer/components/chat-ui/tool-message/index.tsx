@@ -43,6 +43,7 @@ import {
   ChatMessageAttachment,
   ChatMessageAttachments,
 } from '../chat-message-attachment';
+import { InteractiveHtmlMessage } from './interactive-html-message';
 
 export type ToolSuspended = {
   toolName: string;
@@ -149,6 +150,14 @@ export const ToolMessage = React.forwardRef<ToolMessageRef, ToolMessageProps>(
             suspendedData={suspendedData}
             onResume={onResume}
           ></CreatePlanMessage>
+        );
+      } else if (toolName === 'InteractiveHtml') {
+        return (
+          <InteractiveHtmlMessage
+            part={part}
+            suspendedData={suspendedData}
+            onResume={onResume}
+          />
         );
       } else if (toolName === 'TodoWrite') {
         return <TodoWriteMessage part={part}></TodoWriteMessage>;
