@@ -52,7 +52,7 @@ export class CodeAgent extends BaseAgent {
   tools: string[] = [
     // `${ToolType.BUILD_IN}:${TodoWrite.toolName}`,
     `${ToolType.BUILD_IN}:${AskUserQuestion.toolName}`,
-    `${ToolType.BUILD_IN}:${InteractiveHtml.toolName}`,
+    // `${ToolType.BUILD_IN}:${InteractiveHtml.toolName}`,
     // `${ToolType.BUILD_IN}:${Task.toolName}`,
     `${ToolType.BUILD_IN}:${Bash.toolName}`,
     `${ToolType.BUILD_IN}:${BashOutput.toolName}`,
