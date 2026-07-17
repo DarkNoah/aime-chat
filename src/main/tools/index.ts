@@ -5,7 +5,14 @@ import mastraManager from '../mastra';
 import { Agent as MastraAgent } from '@mastra/core/agent';
 import { MastraMCPServerDefinition, MCPClient } from '@mastra/mcp';
 import { appManager } from '../app';
-import { McpEvent, McpClientStatus, CreateMcp } from '@/types/mcp';
+import {
+  CreateMcp,
+  InstallMcpBundleInput,
+  InstallMcpBundleResult,
+  McpBundlePreview,
+  McpClientStatus,
+  McpEvent,
+} from '@/types/mcp';
 import { nanoid } from '@/utils/nanoid';
 import fs from 'fs';
 import path from 'path';
@@ -38,6 +45,7 @@ import ExpenseManagementToolkit from './test/expense_management';
 import ToolToolkit from './common/tool';
 import { Vision } from './vision/vision';
 import MemoryToolkit from './memory/memory';
+import { mcpBundleManager } from './mcp-bundle';
 import TodoToolkit from './common/task';
 import { WebFetch } from './web/web-fetch';
 import { Extract } from './work/extract';
@@ -289,6 +297,7 @@ class ToolsManager extends BaseManager {
         command: mcpConfig.command,
         args: mcpConfig.args,
         env: mcpConfig.env,
+        cwd: mcpConfig.cwd,
       } as MastraMCPServerDefinition;
     }
     return servers;
@@ -714,7 +723,11 @@ class ToolsManager extends BaseManager {
   }
 
   @channel(ToolChannel.SaveMCPServer)
-  public async saveMCPServer(id: string | undefined, data: string) {
+  public async saveMCPServer(
+    id: string | undefined,
+    data: string,
+    enabledByDefault = false,
+  ) {
     const config = JSON.parse(data);
     if (!('mcpServers' in config)) {
       throw new Error('Invalid config');
@@ -740,6 +753,10 @@ class ToolsManager extends BaseManager {
     let servers = this.configToMastraMCPServerDefinition(value);
 
     const _id = id || `${ToolType.MCP}:${nanoid()}`;
+    const existingTool = id
+      ? await this.toolsRepository.findOne({ where: { id } })
+      : undefined;
+    const shouldBeActive = enabledByDefault || existingTool?.isActive === true;
     const mcp = new MCPClient({
       id: _id,
       servers: { [key]: servers as MastraMCPServerDefinition },
@@ -752,12 +769,12 @@ class ToolsManager extends BaseManager {
     const mcpClient = {
       id: _id,
       mcp,
-      status: 'stopped' as McpClientStatus,
+      status: (shouldBeActive ? 'starting' : 'stopped') as McpClientStatus,
       error: undefined,
     };
     const mcpStatus = {
       id: _id,
-      status: 'stopped' as McpClientStatus,
+      status: (shouldBeActive ? 'starting' : 'stopped') as McpClientStatus,
       error: undefined,
     };
 
@@ -768,6 +785,7 @@ class ToolsManager extends BaseManager {
       tool.mcpConfig = {
         [key]: value,
       };
+      tool.isActive = shouldBeActive;
       await this.toolsRepository.save(tool);
       await appManager.sendEvent(ToolEvent.ToolListUpdated, {
         id: _id,
@@ -781,7 +799,104 @@ class ToolsManager extends BaseManager {
         mcpStatus.status,
         mcpStatus.error,
       );
+      throw error;
     }
+
+    if (shouldBeActive) {
+      void (async () => {
+        try {
+          mcpClient.mcp.tools = await mcpClient.mcp.listTools();
+          mcpClient.status = 'running';
+          mcpClient.error = undefined;
+        } catch (error: any) {
+          mcpClient.status = 'error';
+          mcpClient.error = error as Error;
+        }
+        await this.sendMcpClientUpdatedEvent(
+          _id,
+          mcpClient.status,
+          mcpClient.error,
+        );
+      })();
+    }
+    return _id;
+  }
+
+  @channel(ToolChannel.PreviewMCPBundle)
+  public async previewMCPBundle(filePath: string): Promise<McpBundlePreview> {
+    const preview = await mcpBundleManager.preview(filePath);
+    const existingTool = await this.toolsRepository.findOne({
+      where: { name: preview.name, type: ToolType.MCP },
+    });
+    if (!existingTool) {
+      return preview;
+    }
+
+    const existingBundle = await mcpBundleManager.findInstalled(preview.name);
+    return {
+      ...preview,
+      installed: {
+        toolId: existingTool.id,
+        version: existingBundle?.version,
+        isBundle: Boolean(existingBundle),
+      },
+    };
+  }
+
+  @channel(ToolChannel.InstallMCPBundle)
+  public async installMCPBundle(
+    input: InstallMcpBundleInput,
+  ): Promise<InstallMcpBundleResult> {
+    const preview = await mcpBundleManager.preview(input.filePath);
+    let replaceTool: Tools | null = null;
+    if (input.replaceToolId) {
+      replaceTool = await this.toolsRepository.findOne({
+        where: { id: input.replaceToolId },
+      });
+      if (
+        !replaceTool ||
+        replaceTool.type !== ToolType.MCP ||
+        replaceTool.name !== preview.name
+      ) {
+        throw new Error('The installed MCP server does not match this bundle.');
+      }
+    }
+
+    const previousBundle = replaceTool
+      ? await mcpBundleManager.findInstalled(preview.name)
+      : undefined;
+    const installed = await mcpBundleManager.install(
+      input.filePath,
+      input.userConfig,
+    );
+    let id: string;
+    try {
+      id = await this.saveMCPServer(
+        replaceTool?.id,
+        JSON.stringify({
+          mcpServers: { [installed.name]: installed.mcpConfig },
+        }),
+        true,
+      );
+    } catch (error) {
+      await mcpBundleManager.rollback(installed.installPath);
+      throw error;
+    }
+
+    if (
+      previousBundle &&
+      previousBundle.installPath !== installed.installPath
+    ) {
+      try {
+        await mcpBundleManager.rollback(previousBundle.installPath);
+      } catch (error) {
+        console.warn(
+          `[MCP Bundle] Failed to remove the previous ${installed.name} installation:`,
+          error,
+        );
+      }
+    }
+    return { id, name: installed.name };
   }
 
   @channel(ToolChannel.GetMcp)
@@ -807,6 +922,7 @@ class ToolsManager extends BaseManager {
       }
       this.mcpClients = this.mcpClients.filter((x) => x.id !== id);
       await this.toolsRepository.delete(id);
+      await mcpBundleManager.removeInstalled(tool.name);
     } else if (id.startsWith(`${ToolType.SKILL}:`)) {
       const tool = await this.toolsRepository.findOne({ where: { id } });
       if (!tool) {

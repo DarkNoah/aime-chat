@@ -53,6 +53,8 @@ export const getToolMessageDescription = (toolName: string, input: any) => {
       return input?.sql;
     case 'KnowledgeBaseSearch':
       return input?.query;
+    case 'Message':
+      return input?.data?.message;
     default:
       return input?.description;
   }

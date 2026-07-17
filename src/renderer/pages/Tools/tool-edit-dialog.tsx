@@ -2,6 +2,7 @@ import { Button } from '@/renderer/components/ui/button';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -17,7 +18,6 @@ import {
 import { FieldGroup } from '@/renderer/components/ui/field';
 import { useForm } from 'react-hook-form';
 import { CreateMcp, ImportMcp } from '@/types/mcp';
-import { nanoid } from '@/utils/nanoid';
 import {
   Form,
   FormControl,
@@ -35,6 +35,7 @@ import {
   SelectValue,
 } from '@/renderer/components/ui/select';
 import { Input } from '@/renderer/components/ui/input';
+import { McpBundleImportPanel } from '@/renderer/components/mcp-bundle-import';
 
 export function ToolEditDialog({
   toolId,
@@ -51,9 +52,10 @@ export function ToolEditDialog({
 }) {
   const { t } = useTranslation();
   // const [open, setOpen] = useState(false);
-  const [createMCPMode, setCreateMCPMode] = useState<'general' | 'json'>(
-    'general',
-  );
+  const [createMCPMode, setCreateMCPMode] = useState<
+    'general' | 'json' | 'bundle'
+  >('general');
+  const [bundlePath, setBundlePath] = useState<string>();
   const [submitting, setSubmitting] = useState(false);
   const form = useForm<ImportMcp>({
     mode: 'onChange',
@@ -78,16 +80,20 @@ export function ToolEditDialog({
   const selectedType = createMcpForm.watch('type');
 
   const handleImport = async (value: ImportMcp) => {
+    setSubmitting(true);
     try {
       await window.electron.tools.saveMCPServer(toolId, value.mcpConfig);
       onOpenChange?.(false);
       form.reset();
     } catch (err) {
       toast.error(err.message);
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleCreateMcp = async (value: CreateMcp) => {
+    setSubmitting(true);
     try {
       const config = {
         mcpServers: {},
@@ -124,6 +130,8 @@ export function ToolEditDialog({
       form.reset();
     } catch (err) {
       toast.error(err.message);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -156,7 +164,6 @@ export function ToolEditDialog({
             createMcpForm.setValue('headers', mcpConfig[key].headers);
           }
         }
-        console.log(tool);
       }
     };
     getTool();
@@ -165,14 +172,23 @@ export function ToolEditDialog({
     }
   }, [toolId, open]);
 
+  useEffect(() => {
+    if (open && toolId) {
+      setCreateMCPMode('general');
+    }
+  }, [open, toolId]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>
             {toolId ? t('tools.edit_mcp') : t('tools.add_mcp')}
           </DialogTitle>
+          <DialogDescription>
+            {t('tools.mcp_import_description')}
+          </DialogDescription>
         </DialogHeader>
         <ToggleGroup
           type="single"
@@ -180,23 +196,45 @@ export function ToolEditDialog({
           spacing={2}
           size="sm"
           value={createMCPMode}
+          className={`grid w-full ${toolId ? 'grid-cols-2' : 'grid-cols-3'}`}
           onValueChange={(value) => {
-            setCreateMCPMode(value as 'general' | 'json');
+            if (value) {
+              setCreateMCPMode(value as 'general' | 'json' | 'bundle');
+            }
           }}
         >
           <ToggleGroupItem
             value="general"
             className="data-[state=off]:bg-transparent bg-secondary "
           >
-            General
+            {t('tools.mcp_import_manual')}
           </ToggleGroupItem>
           <ToggleGroupItem
             value="json"
             className="data-[state=off]:bg-transparent bg-secondary "
           >
-            Json
+            JSON
           </ToggleGroupItem>
+          {!toolId ? (
+            <ToggleGroupItem
+              value="bundle"
+              className="data-[state=off]:bg-transparent bg-secondary"
+            >
+              MCP Bundle
+            </ToggleGroupItem>
+          ) : null}
         </ToggleGroup>
+
+        {createMCPMode === 'bundle' && !toolId ? (
+          <McpBundleImportPanel
+            sourcePath={bundlePath}
+            onSourcePathChange={setBundlePath}
+            onInstalled={() => {
+              setBundlePath(undefined);
+              onOpenChange?.(false);
+            }}
+          />
+        ) : null}
 
         {createMCPMode === 'json' && form && (
           <Form {...form}>
@@ -213,7 +251,8 @@ export function ToolEditDialog({
                       <FormControl>
                         <Textarea
                           id="mcpConfig"
-                          placeholder={`{\n"mcpservers":{\n\t"mcp-name":{\n\t\t"command": "command",\n\t\t"args": ["arg1", "arg2"],\n\t\t"env": "env"\n\t\t}\n\t}\n}`}
+                          className="min-h-64 font-mono text-xs"
+                          placeholder={`{\n  "mcpServers": {\n    "mcp-name": {\n      "command": "command",\n      "args": ["arg1", "arg2"],\n      "env": {}\n    }\n  }\n}`}
                           {...field}
                         />
                       </FormControl>
@@ -228,7 +267,9 @@ export function ToolEditDialog({
                   type="submit"
                   disabled={!form.formState.isValid || submitting}
                 >
-                  {submitting ? '创建中…' : '创建'}
+                  {submitting
+                    ? t('common.submitting')
+                    : t('common.submit')}
                 </Button>
               </DialogFooter>
             </form>
@@ -249,7 +290,11 @@ export function ToolEditDialog({
                     <FormItem>
                       <FormLabel htmlFor="name">{t('common.name')}</FormLabel>
                       <FormControl>
-                        <Input id="name" placeholder="请输入名称" {...field} />
+                        <Input
+                          id="name"
+                          placeholder={t('tools.mcp_name_placeholder')}
+                          {...field}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -268,7 +313,9 @@ export function ToolEditDialog({
                           onValueChange={field.onChange}
                         >
                           <SelectTrigger>
-                            <SelectValue placeholder="请选择类型" />
+                            <SelectValue
+                              placeholder={t('tools.mcp_type_placeholder')}
+                            />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="stdio">Stdio</SelectItem>

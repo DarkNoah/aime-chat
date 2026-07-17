@@ -115,6 +115,8 @@ export enum ToolChannel {
   ImportSkills = 'tool:importSkills',
   PreviewGitSkill = 'tool:previewGitSkill',
   SaveMCPServer = 'tool:saveMCPServer',
+  PreviewMCPBundle = 'tool:previewMCPBundle',
+  InstallMCPBundle = 'tool:installMCPBundle',
   ReconnectMCP = 'tool:reconnectMCP',
   GetMcp = 'tool:getMcp',
   DeleteTool = 'tool:deleteTool',

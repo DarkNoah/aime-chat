@@ -334,6 +334,7 @@ function ChatInputInner(props: ChatInputInnerProps) {
             }
           }}
           className={cn('flex flex-col relative', className)}
+          data-mcpb-drop-exclude="true"
           globalDrop
           multiple
         >
