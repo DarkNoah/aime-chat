@@ -238,7 +238,8 @@
     "unselected_project": "未选择项目",
     "title": "标题",
     "content": "内容",
-    "extend_data": "扩展字段"
+    "extend_data": "扩展字段",
+    "retry": "重试"
   },
   "sidebar": {
     "new_chat": "新聊天",
@@ -301,6 +302,7 @@
     "results_count": "{{count}} 条结果",
     "file_too_large": "文件过大 ({{size}})，已截断显示",
     "retry": "重试",
+    "chat_retrying": "请求失败，{{delay}} 秒后进行第 {{attempt}}/{{max}} 次重试",
     "refresh": "刷新",
     "web_preview": "预览",
     "enter_compact_mode": "切换到小窗模式",

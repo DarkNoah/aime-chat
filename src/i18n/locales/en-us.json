@@ -229,7 +229,8 @@
     "env": "ENV",
     "force_word_ocr": "Force word use ocr",
     "disable_vision": "Disable Vision Model",
-    "select_model": "Select a model"
+    "select_model": "Select a model",
+    "retry": "Retry"
   },
   "sidebar": {
     "new_chat": "New Chat",
@@ -292,6 +293,7 @@
     "results_count": "{{count}} result(s)",
     "file_too_large": "File is too large ({{size}}), content truncated",
     "retry": "Retry",
+    "chat_retrying": "Request failed, retrying {{attempt}}/{{max}} in {{delay}}s",
     "refresh": "Refresh",
     "enter_compact_mode": "Switch to compact mode",
     "restore_normal_window": "Restore normal window"
