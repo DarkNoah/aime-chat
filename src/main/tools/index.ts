@@ -912,6 +912,13 @@ class ToolsManager extends BaseManager {
 
   @channel(ToolChannel.DeleteTool)
   public async deleteTool(id: string) {
+    return this.deleteToolInternal(id, true);
+  }
+
+  private async deleteToolInternal(
+    id: string,
+    notifyListUpdated: boolean,
+  ) {
     if (id.startsWith(`${ToolType.MCP}:`)) {
       const tool = await this.toolsRepository.findOne({ where: { id } });
       if (!tool) {
@@ -936,10 +943,12 @@ class ToolsManager extends BaseManager {
       }
     }
 
-    await appManager.sendEvent(ToolEvent.ToolListUpdated, {
-      id,
-      status: 'deleted',
-    });
+    if (notifyListUpdated) {
+      await appManager.sendEvent(ToolEvent.ToolListUpdated, {
+        id,
+        status: 'deleted',
+      });
+    }
   }
 
   @api({
@@ -1608,6 +1617,7 @@ class ToolsManager extends BaseManager {
         path: req.body.path as string,
         selectedSkills: req.body.selectedSkills as string[],
         installAllSkills: req.body.installAllSkills as boolean,
+        replaceSkillIds: req.body.replaceSkillIds as string[],
         isActive: req.body.isActive as boolean,
         group: req.body.group as string | null | undefined,
       }];
@@ -1622,6 +1632,7 @@ class ToolsManager extends BaseManager {
     path?: string;
     selectedSkills?: string[];
     installAllSkills?: boolean;
+    replaceSkillIds?: string[];
     isActive?: boolean;
     group?: string | null;
   }) {
@@ -1837,6 +1848,37 @@ class ToolsManager extends BaseManager {
         selectedSkills = [skills[0]];
       }
 
+      const replaceSkillIds = [...new Set(data.replaceSkillIds || [])];
+      const isReplacingSkillGroup = replaceSkillIds.length > 0;
+      if (isReplacingSkillGroup) {
+        if (!data.group || data.path) {
+          await fs.promises.rm(tmpDir, { recursive: true, force: true });
+          return {
+            success: false,
+            error: 'A global skill group is required for replacement',
+          };
+        }
+
+        const existingSkills = await this.toolsRepository.findBy({
+          id: In(replaceSkillIds),
+          type: ToolType.SKILL,
+        });
+        if (
+          existingSkills.length !== replaceSkillIds.length ||
+          existingSkills.some((tool) => tool.value?.repo !== data.group)
+        ) {
+          await fs.promises.rm(tmpDir, { recursive: true, force: true });
+          return {
+            success: false,
+            error: 'Skill group changed before replacement could start',
+          };
+        }
+
+        for (const skillId of replaceSkillIds) {
+          await this.deleteToolInternal(skillId, false);
+        }
+      }
+
       for (const selectedSkill of selectedSkills) {
         await fs.promises.cp(
           path.join(tmpDir, selectedSkill.path),
@@ -1863,10 +1905,12 @@ class ToolsManager extends BaseManager {
             // skill: selectedSkill.path
           };
           await this.toolsRepository.save(tool);
-          await appManager.sendEvent(ToolEvent.ToolListUpdated, {
-            id: `${ToolType.SKILL}:local:${selectedSkill.id}`,
-            status: 'created',
-          });
+          if (!isReplacingSkillGroup) {
+            await appManager.sendEvent(ToolEvent.ToolListUpdated, {
+              id: `${ToolType.SKILL}:local:${selectedSkill.id}`,
+              status: 'created',
+            });
+          }
         } else {
           const skilljson = await fs.promises.readFile(path.join(skillsPath, 'skills.json'), 'utf-8').catch(() => '[]');
           let skilljsonData = JSON.parse(skilljson);
@@ -1883,6 +1927,12 @@ class ToolsManager extends BaseManager {
       }
 
       await fs.promises.rmdir(tmpDir, { recursive: true });
+      if (isReplacingSkillGroup) {
+        await appManager.sendEvent(ToolEvent.ToolListUpdated, {
+          id: data.group,
+          status: 'updated',
+        });
+      }
       await appManager.toast('Skills install successfully', { type: 'success' });
       return {
         success: true,

@@ -93,7 +93,10 @@ import { Projects } from '@/entities/projects';
 import path from 'path';
 import fs from 'fs';
 import BaseTool, { BaseToolParams } from '../tools/base-tool';
-import { getLastMessageIndex } from '../utils/messageUtils';
+import {
+  filterFilePartsForModel,
+  getLastMessageIndex,
+} from '../utils/messageUtils';
 import { MastraThreadsUsage } from '@/entities/mastra-threads-usage';
 import { Repository } from 'typeorm';
 import { dbManager } from '../db';
@@ -1283,6 +1286,7 @@ class MastraManager extends BaseManager {
               force: slashCommand == 'compact',
               disableKeepMessage: true,
               model: fastLanguageModel,
+              modelId: fastModel,
             },
           );
 
@@ -2181,6 +2185,7 @@ ${memoryDigest}
       force?: boolean;
       disableKeepMessage?: boolean;
       model: LanguageModelV2;
+      modelId: string;
     },
   ): Promise<{
     compressedMessage?: ModelMessage;
@@ -2232,10 +2237,18 @@ ${memoryDigest}
       keepMessages = [];
     }
 
-    const inputMessages = summaryMessages.filter((x) => x.role !== 'system');
+    let inputMessages = summaryMessages.filter((x) => x.role !== 'system');
     compressAgent.model = options.model;
 
     try {
+      const compressionModelInfo = await providersManager.getModelInfo(
+        options.modelId,
+      );
+      const supportsVision =
+        compressionModelInfo?.modelInfo?.modalities?.input?.includes('image') ??
+        false;
+      inputMessages = filterFilePartsForModel(inputMessages, supportsVision);
+
       const response = await compressAgent.generate([
         ...inputMessages,
         {

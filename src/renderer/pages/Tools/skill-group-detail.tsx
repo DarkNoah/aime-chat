@@ -57,29 +57,32 @@ export default function SkillGroupDetail() {
 
   const groupName = useMemo(() => getRepoDisplayName(repo), [repo]);
 
-  const loadSkills = useCallback(async () => {
-    if (!repo) {
-      setSkills([]);
-      setLoading(false);
-      return;
-    }
+  const loadSkills = useCallback(
+    async (showLoading = true) => {
+      if (!repo) {
+        setSkills([]);
+        if (showLoading) setLoading(false);
+        return;
+      }
 
-    setLoading(true);
-    try {
-      const data = await window.electron.tools.getList({
-        type: ToolType.SKILL,
-      });
-      setSkills(
-        (data?.[ToolType.SKILL] || []).filter(
-          (skill: Tool) => skill.repo === repo,
-        ),
-      );
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : String(error));
-    } finally {
-      setLoading(false);
-    }
-  }, [repo]);
+      if (showLoading) setLoading(true);
+      try {
+        const data = await window.electron.tools.getList({
+          type: ToolType.SKILL,
+        });
+        setSkills(
+          (data?.[ToolType.SKILL] || []).filter(
+            (skill: Tool) => skill.repo === repo,
+          ),
+        );
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : String(error));
+      } finally {
+        if (showLoading) setLoading(false);
+      }
+    },
+    [repo],
+  );
 
   useEffect(() => {
     setTitle(groupName);
@@ -87,7 +90,7 @@ export default function SkillGroupDetail() {
 
   useEffect(() => {
     loadSkills();
-    const handleToolListUpdated = () => loadSkills();
+    const handleToolListUpdated = () => loadSkills(false);
     window.electron.ipcRenderer.on(
       ToolEvent.ToolListUpdated,
       handleToolListUpdated,
@@ -105,23 +108,21 @@ export default function SkillGroupDetail() {
 
     setUpdating(true);
     try {
-      await Promise.all(
-        skills.map((skill) => window.electron.tools.deleteTool(skill.id)),
-      );
-
       const result = await window.electron.tools.importSkills({
         repo_or_url: repo,
         installAllSkills: true,
+        replaceSkillIds: skills.map((skill) => skill.id),
         group: repo,
       });
       if (result && !result.success) {
         throw new Error(result.error);
       }
 
-      await loadSkills();
+      await loadSkills(false);
       toast.success(t('tools.skill_group_update_success'));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : String(error));
+      await loadSkills(false);
     } finally {
       setUpdating(false);
     }

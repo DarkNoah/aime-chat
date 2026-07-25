@@ -471,6 +471,7 @@ const electronHandler = {
       path?: string;
       selectedSkills?: string[];
       installAllSkills?: boolean;
+      replaceSkillIds?: string[];
       isActive?: boolean;
       group?: string | null;
     }) => ipcRenderer.invoke(ToolChannel.ImportSkills, data),
