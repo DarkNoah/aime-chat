@@ -76,6 +76,7 @@ import { providersManager } from '../providers';
 import { CreatePlan } from './common/create-plan';
 import { readSkillPackageMetadata } from '../utils/skill-metadata';
 import { InteractiveHtml } from './common/interactive-html';
+import { hasHiddenPathSegment } from './skill-path';
 interface BuiltInToolContext {
   tool: BaseTool;
   abortController: AbortController;
@@ -1276,6 +1277,15 @@ class ToolsManager extends BaseManager {
     }
   }
 
+  @api({
+    method: 'post',
+    path: '/api/tools/execute-tool',
+    args: (req: any) => [
+      req.body.id as string,
+      req.body.toolName as string,
+      req.body.input ?? {},
+    ],
+  })
   @channel(ToolChannel.ExecuteTool)
   public async executeTool(id: string, toolName: string, input: any) {
     let toolEntity = await this.toolsRepository.findOne({ where: { id } });
@@ -1402,8 +1412,9 @@ class ToolsManager extends BaseManager {
 
       // Find skills in the cloned repo
       let skillsToScan: string[] = [];
+      const hiddenGitPath = hasHiddenPathSegment(gitPath);
 
-      if (gitPath) {
+      if (gitPath && !hiddenGitPath) {
         // Specific path provided
         const targetPath = path.join(tmpDir, gitPath);
         if (
@@ -1419,9 +1430,13 @@ class ToolsManager extends BaseManager {
         }
       }
       // If no specific path or no skill found at path, scan entire repo
-      if (skillsToScan.length === 0) {
-        skillsToScan = await this.getSkillsInDir(tmpDir, true);
+      if (skillsToScan.length === 0 && !hiddenGitPath) {
+        skillsToScan = await this.getSkillsInDir(tmpDir);
       }
+      skillsToScan = skillsToScan.filter(
+        (skillPath) =>
+          !hasHiddenPathSegment(path.relative(tmpDir, skillPath)),
+      );
 
       // Extract skill info
       const skills = await Promise.all(
@@ -1497,7 +1512,7 @@ class ToolsManager extends BaseManager {
     throw new Error('Invalid GitHub URL format');
   }
 
-  private async getSkillsInDir(dirPath: string, includeDotFiles: boolean = false): Promise<string[]> {
+  private async getSkillsInDir(dirPath: string): Promise<string[]> {
     const skills: string[] = [];
     const currentSkillMPath = path.join(dirPath, 'SKILL.md');
     const currentExists = await fs.promises
@@ -1513,7 +1528,7 @@ class ToolsManager extends BaseManager {
     const entries = await fs.promises.readdir(dirPath, { withFileTypes: true });
     for (const entry of entries) {
       // Skip hidden directories like .git
-      if (entry.name.startsWith('.') && !includeDotFiles) continue;
+      if (entry.name.startsWith('.')) continue;
 
       if (entry.isDirectory()) {
         const skillPath = path.join(dirPath, entry.name);
@@ -1525,7 +1540,7 @@ class ToolsManager extends BaseManager {
         if (exists) {
           skills.push(skillPath);
         } else {
-          const subSkills = await this.getSkillsInDir(skillPath, includeDotFiles);
+          const subSkills = await this.getSkillsInDir(skillPath);
           skills.push(...subSkills);
         }
       }
@@ -1592,6 +1607,7 @@ class ToolsManager extends BaseManager {
         dirs: req.body.dirs as string[],
         path: req.body.path as string,
         selectedSkills: req.body.selectedSkills as string[],
+        installAllSkills: req.body.installAllSkills as boolean,
         isActive: req.body.isActive as boolean,
         group: req.body.group as string | null | undefined,
       }];
@@ -1605,6 +1621,7 @@ class ToolsManager extends BaseManager {
     sourceSkillIds?: string[];
     path?: string;
     selectedSkills?: string[];
+    installAllSkills?: boolean;
     isActive?: boolean;
     group?: string | null;
   }) {
@@ -1762,8 +1779,9 @@ class ToolsManager extends BaseManager {
       }
       // Find skills in the cloned repo
       let skillsToScan: string[] = [];
+      const hiddenGitPath = hasHiddenPathSegment(gitPath);
 
-      if (gitPath) {
+      if (gitPath && !hiddenGitPath) {
         // Specific path provided
         const targetPath = path.join(tmpDir, gitPath);
         if (
@@ -1780,9 +1798,13 @@ class ToolsManager extends BaseManager {
       }
 
       // If no specific path or no skill found at path, scan entire repo
-      if (skillsToScan.length === 0) {
-        skillsToScan = await this.getSkillsInDir(tmpDir, true);
+      if (skillsToScan.length === 0 && !hiddenGitPath) {
+        skillsToScan = await this.getSkillsInDir(tmpDir);
       }
+      skillsToScan = skillsToScan.filter(
+        (skillPath) =>
+          !hasHiddenPathSegment(path.relative(tmpDir, skillPath)),
+      );
 
       // Extract skill info
       const skills = await Promise.all(
@@ -1801,15 +1823,19 @@ class ToolsManager extends BaseManager {
           };
         }),
       );
-      let selectedSkills = []
-      if (data?.selectedSkills !== undefined) {
+      let selectedSkills = [];
+      if (data.installAllSkills) {
+        selectedSkills = skills;
+      } else if (data?.selectedSkills !== undefined) {
         selectedSkills = skills.filter((x) =>
           data?.selectedSkills?.includes(x.path),
         );
-      } else if (data.repo_or_url.endsWith('/SKILL.md') && skills.length == 1) {
+      } else if (
+        data.repo_or_url.endsWith('/SKILL.md') &&
+        skills.length === 1
+      ) {
         selectedSkills = [skills[0]];
       }
-
 
       for (const selectedSkill of selectedSkills) {
         await fs.promises.cp(
@@ -1921,8 +1947,12 @@ class ToolsManager extends BaseManager {
     } else if (dirs && dirs.length > 0) {
       for (const dir of dirs) {
         const skillDir = await this.findSkillDirectory(dir);
-        if (skillDir) {
-          const skills = await this.getSkillsInDir(skillDir, true);
+        const hiddenSkillDir =
+          path.basename(path.resolve(dir)).startsWith('.') ||
+          (skillDir &&
+            hasHiddenPathSegment(path.relative(path.resolve(dir), skillDir)));
+        if (skillDir && !hiddenSkillDir) {
+          const skills = await this.getSkillsInDir(skillDir);
           for (const skill of skills) {
             const skillMdPath = path.join(skill, 'SKILL.md');
             const skillMd = await fs.promises.readFile(skillMdPath, 'utf-8').catch(() => '');

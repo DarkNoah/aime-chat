@@ -6,6 +6,7 @@ import { cn } from '@/renderer/lib/utils';
 export type SkillDisplayData = SkillMetadata & {
   name: string;
   description?: string;
+  path?: string;
 };
 
 export function getSkillDisplayName(skill: SkillDisplayData) {
@@ -89,12 +90,14 @@ export function SkillSummary({
   skill,
   compact = false,
   showDescription = true,
+  showPath = false,
   maxTags = 2,
   className,
 }: {
   skill: SkillDisplayData;
   compact?: boolean;
   showDescription?: boolean;
+  showPath?: boolean;
   maxTags?: number;
   className?: string;
 }) {
@@ -119,6 +122,14 @@ export function SkillSummary({
           <span className="truncate text-xs text-muted-foreground">
             {skill.category}
           </span>
+        ) : null}
+        {showPath && skill.path ? (
+          <code
+            className="truncate text-xs text-muted-foreground"
+            title={skill.path}
+          >
+            {skill.path}
+          </code>
         ) : null}
         {showDescription && skill.description ? (
           <p className="line-clamp-2 text-sm leading-normal text-muted-foreground">
