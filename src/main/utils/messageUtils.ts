@@ -1,5 +1,6 @@
 import { ModelMessage } from 'ai';
 import { MastraDBMessage } from '@mastra/core/agent';
+import { isObject } from '@/utils/is';
 
 export const getLastMessageIndex = async (
   messages: (ModelMessage | MastraDBMessage)[],
@@ -21,7 +22,7 @@ export const filterFilePartsForModel = (
     return messages;
   }
 
-  return messages.map((message) => {
+  let _messages = messages.map((message: any) => {
     if (!Array.isArray(message.content)) {
       return message;
     }
@@ -36,4 +37,30 @@ export const filterFilePartsForModel = (
       content,
     };
   });
+  _messages = _messages.map((message: any) => {
+    if (message.role === 'tool') {
+
+      const _content = message.content.map((part: any) => {
+        if (part.type === 'tool-result') {
+          if (part.output.type == 'json') {
+            let _output = part.output;
+            if (_output.type == 'json' && isObject(_output.value) && _output.value.content && Array.isArray(_output.value.content)) {
+              _output.value.content = _output.value.content.filter((item: any) => item.type !== 'image' && item.type !== 'audio' && item.type !== 'video');
+            }
+            return {
+              ...part,
+              output: _output,
+            };
+          }
+        }
+        return part;
+      });
+      return {
+        ...message,
+        content: _content,
+      };
+    }
+    return message;
+  });
+  return _messages;
 };

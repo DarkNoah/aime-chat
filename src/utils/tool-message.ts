@@ -54,7 +54,19 @@ export const getToolMessageDescription = (toolName: string, input: any) => {
     case 'KnowledgeBaseSearch':
       return input?.query;
     case 'Message':
-      return input?.data?.message;
+      let data;
+      let output;
+      try {
+        data = JSON.parse(input?.data ?? '{}');
+        if (data?.files) {
+          output = "+" + data?.files?.length + " files";
+        } else if (data?.message) {
+          output = data?.message;
+        }
+      } catch {
+        output = input?.data;
+      }
+      return output;
     default:
       return input?.description;
   }
