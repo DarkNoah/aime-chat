@@ -937,13 +937,13 @@ export async function installBunRuntime() {
   let success = false;
   try {
     fs.mkdirSync(bunPath, { recursive: true });
-    if (process.platform === 'darwin') {
+    if (process.platform != 'win32') {
       const result = await runCommand(
         `curl -fsSL https://bun.sh/install | bash`,
         { env: { BUN_INSTALL: bunPath } },
       );
       if (result.code === 0) success = true;
-    } else if (process.platform === 'win32') {
+    } else {
       const result = await runCommand(
         [
           '-ExecutionPolicy',
