@@ -385,7 +385,8 @@
       "**/node_modules/ps-list/**",
       "**/@techstark/opencv-js/**/*",
       "**/pdfjs-dist/**",
-      "**/node_modules/@vscode/ripgrep/**"
+      "**/node_modules/@vscode/ripgrep/**",
+      "**/node_modules/@img/sharp-*/**/*"
     ],
     "files": [
       "dist",
