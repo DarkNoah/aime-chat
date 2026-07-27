@@ -356,12 +356,12 @@ export async function installUVRuntime() {
   uv.status = 'installing';
   let success = false;
   try {
-    if (process.platform === 'darwin') {
+    if (process.platform != 'win32') {
       const result = await runCommand(
         `curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR="${path.dirname(uvPath)}" UV_NO_MODIFY_PATH=1 sh`,
       );
       if (result.code === 0) success = true;
-    } else if (process.platform === 'win32') {
+    } else {
       const result = await runCommand(
         [
           '-ExecutionPolicy',
