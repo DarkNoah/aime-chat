@@ -407,7 +407,12 @@ While the Bash tool can do similar things, it’s better to use the built-in too
     // if (!hasSystemPython && runtimePythonBinDir) {
     //   prependPath(_env, runtimePythonBinDir);
     // }
-    _env = await getRuntimePython(_env);
+    try {
+      _env = await getRuntimePython(_env);
+    } catch {
+
+    }
+
 
     const secretsEnv = await getEnv();
     _env = { ..._env, ...secretsEnv };

@@ -50,3 +50,5 @@ assets/market/skill/test/
 docs/superpowers/
 .superpowers/
 .worktrees/
+
+tmp/

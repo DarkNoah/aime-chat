@@ -364,18 +364,19 @@ export const createShell = async (
   }
 
   if (isWindows && usePowerShell) {
-    const command = isString(input_command)
-      ? (parse(input_command) as string[])
-      : input_command;
-
-
-    let args = isString(input_command) ? [input_command] : [...input_command];
-    args = ['-NoProfile',
-      '-NonInteractive',
-      '-Command',
-      `
+    const utf8Setup = `
   [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false);
-  $OutputEncoding = [System.Text.UTF8Encoding]::new($false);`, ...args];
+  $OutputEncoding = [System.Text.UTF8Encoding]::new($false);`;
+    let args = isString(input_command) ? [input_command] : [...input_command];
+    const commandIndex = args.findIndex(
+      (arg) => arg.toLowerCase() === '-command',
+    );
+    if (commandIndex === -1) {
+      args = ['-Command', utf8Setup, ...args];
+    } else {
+      args.splice(commandIndex + 1, 0, utf8Setup);
+    }
+    args = ['-NoProfile', '-NonInteractive', ...args];
     return {
       shell: spawn('powershell.exe', args, {
         stdio: ['ignore', 'pipe', 'pipe'],
