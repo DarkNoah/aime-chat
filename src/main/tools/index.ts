@@ -31,7 +31,6 @@ import { AskUserQuestion } from './common/ask-user-question';
 import { NodejsExecute } from './code/nodejs-execute';
 import { Skill, skillManager } from './common/skill';
 import { BashToolkit } from './file-system/bash';
-import { SSHToolkit } from './ssh';
 import { WebSearch } from './web/web-search';
 import { RemoveBackground } from './image/rmbg';
 import {
@@ -195,7 +194,6 @@ class ToolsManager extends BaseManager {
     await this.registerBuiltInTool(TodoToolkit);
     // await this.registerBuiltInTool(TodoWrite);
     await this.registerBuiltInTool(BashToolkit);
-    await this.registerBuiltInTool(SSHToolkit);
     await this.registerBuiltInTool(FileSystem);
     await this.registerBuiltInTool(AskUserQuestion);
     await this.registerBuiltInTool(Message);

@@ -29,7 +29,6 @@ import {
 } from '../chat-message-attachment';
 import { ChatToolGenerateImagePreview } from './chat-tool-generate-image-preview';
 import { ChatToolBashPreview } from './chat-tool-bash-preview';
-import { ChatToolSSHPreview } from './chat-tool-ssh-preview';
 import { ChatToolAgentHistoryPreview } from './chat-tool-agent-history-preview';
 import { FileIcon } from '../../file-icon';
 import { PhotoProvider, PhotoView } from 'react-photo-view';
@@ -182,14 +181,6 @@ export const ChatToolResultPreview = React.forwardRef<
         );
       }
       if (toolName === 'Bash') {
-        return null;
-      }
-      if (
-        toolName === 'SSHConnection' ||
-        toolName === 'SSHInput' ||
-        toolName === 'SSHOutput' ||
-        toolName === 'SSHTransfer'
-      ) {
         return null;
       }
       if (
@@ -454,11 +445,6 @@ export const ChatToolResultPreview = React.forwardRef<
         }
         case 'Bash':
           return <ChatToolBashPreview part={part} />;
-        case 'SSHConnection':
-        case 'SSHInput':
-        case 'SSHOutput':
-        case 'SSHTransfer':
-          return <ChatToolSSHPreview part={part} />;
 
         default:
           return (

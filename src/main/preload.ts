@@ -317,8 +317,6 @@ const electronHandler = {
       ipcRenderer.invoke(MastraChannel.ChatAbort, chatId),
     killBashSession: (bashId: string): Promise<boolean> =>
       ipcRenderer.invoke(MastraChannel.KillBashSession, bashId),
-    closeSSHSession: (connectionId: string): Promise<boolean> =>
-      ipcRenderer.invoke(MastraChannel.CloseSSHSession, connectionId),
     saveMessages: (chatId: string, messages: MastraDBMessage[]) =>
       ipcRenderer.invoke(MastraChannel.SaveMessages, chatId, messages),
     clearMessages: (chatId: string) =>

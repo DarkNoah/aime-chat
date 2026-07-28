@@ -86,7 +86,6 @@ export enum MastraChannel {
   ChatWorkflow = 'mastra:chatWorkflow',
   ChatAbort = 'mastra:chatAbort',
   KillBashSession = 'mastra:killBashSession',
-  CloseSSHSession = 'mastra:closeSSHSession',
   SaveMessages = 'mastra:saveMessages',
   ClearMessages = 'mastra:clearMessages',
   GetUsage = 'mastra:getUsage',

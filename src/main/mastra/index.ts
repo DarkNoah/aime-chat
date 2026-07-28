@@ -103,8 +103,6 @@ import { dbManager } from '../db';
 const modelsData = require('../../../assets/models.json');
 import { getTokenCosts } from 'tokenlens';
 import bashManager from '../tools/file-system/bash';
-import sshManager from '../tools/ssh/manager';
-import { buildSSHConnectionsReminder } from '../tools/ssh/reminder';
 import { DefaultAgent } from './agents/default-agent';
 import { Agents } from '@/entities/agents';
 import { Project } from '@/types/project';
@@ -2076,16 +2074,6 @@ Your have a goal to achieve: ${goal.objective}
 
     }
 
-    const sshConnectionsReminder = buildSSHConnectionsReminder(
-      sshManager.getSessionSummaries(),
-    );
-    if (sshConnectionsReminder) {
-      injectedMessages.push({
-        type: 'text',
-        text: sshConnectionsReminder,
-      });
-    }
-
     // 注入tasks, 只有当hasCompressed为true时才注入
     // const tasks = requestContext.get('tasks') ?? [];
     // if (
@@ -2242,14 +2230,6 @@ ${memoryDigest}
   public async killBashSession(bashId: string): Promise<boolean> {
     const session = await bashManager.remove(bashId);
     return Boolean(session);
-  }
-
-  @channel(MastraChannel.CloseSSHSession)
-  public async closeSSHSession(connectionId: string): Promise<boolean> {
-    const session = sshManager.getSession({ connection_id: connectionId });
-    if (!session) return false;
-    await sshManager.close(session);
-    return true;
   }
 
   @channel(MastraChannel.SaveMessages)
