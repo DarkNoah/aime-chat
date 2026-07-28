@@ -39,8 +39,11 @@ import {
 import { AudioLoader, getQwenAsrPythonService } from '../utils/loaders/audio-loader';
 import { isString } from '@/utils/is';
 import { getPaddleOcrPythonService } from '../utils/loaders/ocr-loader';
-import { OcrAccuracy, recognize } from '@napi-rs/system-ocr';
 import { getPaddleOcrRuntime } from '../app/runtime';
+import {
+  isSystemOcrSupported,
+  recognizeWithSystemOcr,
+} from '../utils/system-ocr';
 
 export type LocalEmbeddingModelId = 'Qwen/Qwen3-Embedding-0.6B' | (string & {});
 
@@ -478,13 +481,17 @@ export class LocalOcrModel implements OCRModel {
   async doOCR(options: { image: string, excludeInsideImage?: boolean }): Promise<string> {
     const image = fs.readFileSync(options.image);
     const excludeInsideImage = options.excludeInsideImage ?? false;
+    const modelId =
+      this.modelId === 'system' && !isSystemOcrSupported()
+        ? 'rapidocr'
+        : this.modelId;
     let result;
-    if (this.modelId === 'system') {
+    if (modelId === 'system') {
       if (path.extname(options.image).toLowerCase() === '.pdf') {
         return await this.ocrPdf(image);
       }
       try {
-        result = await recognize(image, OcrAccuracy.Accurate);
+        result = await recognizeWithSystemOcr(image);
         return result.text;
       } catch (err) {
         if (err.code == 'GenericFailure') {
@@ -501,7 +508,7 @@ export class LocalOcrModel implements OCRModel {
     result = await service.recognize(image.buffer, {
       noCache: false,
       ext: path.extname(options.image).toLowerCase(),
-      modelId: this.modelId,
+      modelId,
     });
     let text = result.text;
     if (excludeInsideImage) {
@@ -536,7 +543,7 @@ export class LocalOcrModel implements OCRModel {
     for (const page of images.pages) {
       let pageText = '';
       for (const image of page.images) {
-        const result = await recognize(image.data, OcrAccuracy.Accurate);
+        const result = await recognizeWithSystemOcr(image.data);
         pageText += result.text;
       }
       texts.push(pageText);
@@ -623,22 +630,26 @@ export class LocalProvider extends BaseProvider {
     }
   }
 
-  async getOCRModelList(): Promise<{ name: string; id: string; }[]> {
-    if (process.platform == "darwin") {
-      return [{ id: 'system', name: 'System OCR' },
-      { id: 'paddleocr-vl', name: 'PaddleOCR-V1.5' },
-      { id: 'pp-structurev3', name: 'PP-StructureV3' },
-      { id: 'mlx-community/GLM-OCR-bf16', name: 'GLM-OCR' },
-      { id: 'rapidocr', name: 'RapidOCR' },
-      ];
-    } else {
-      return [{ id: 'system', name: 'System OCR' },
-      { id: 'paddleocr-vl', name: 'PaddleOCR-V1.6' },
-      { id: 'pp-structurev3', name: 'PP-StructureV3' },
-      { id: 'rapidocr', name: 'RapidOCR' },
-      ]
+  async getOCRModelList(): Promise<{ name: string; id: string }[]> {
+    const models =
+      process.platform === 'darwin'
+        ? [
+            { id: 'paddleocr-vl', name: 'PaddleOCR-V1.5' },
+            { id: 'pp-structurev3', name: 'PP-StructureV3' },
+            { id: 'mlx-community/GLM-OCR-bf16', name: 'GLM-OCR' },
+            { id: 'rapidocr', name: 'RapidOCR' },
+          ]
+        : [
+            { id: 'paddleocr-vl', name: 'PaddleOCR-V1.6' },
+            { id: 'pp-structurev3', name: 'PP-StructureV3' },
+            { id: 'rapidocr', name: 'RapidOCR' },
+          ];
+
+    if (isSystemOcrSupported()) {
+      models.unshift({ id: 'system', name: 'System OCR' });
     }
 
+    return models;
   }
 
   getCredits(): Promise<ProviderCredits | undefined> {

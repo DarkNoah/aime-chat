@@ -1,31 +1,16 @@
 import { createTool, ToolExecutionContext } from '@mastra/core/tools';
-import { generateText } from 'ai';
 import z from 'zod';
 import BaseTool from '../base-tool';
-import { app } from 'electron';
 import fs from 'fs';
 import path from 'path';
-import { nanoid } from '@/utils/nanoid';
-import BaseToolkit, { BaseToolkitParams } from '../base-toolkit';
-import { truncateText } from '@/utils/common';
-import os from 'os';
-import stripAnsi from 'strip-ansi';
-import { spawn } from 'child_process';
-import { glob } from 'fast-glob';
-import { RequestContext } from '@mastra/core/request-context';
 import { needReadFile, updateFileModTime } from '.';
 
 export class Write extends BaseTool {
   static readonly toolName = 'Write';
   id: string = 'Write';
-  description: string = `Writes a file to the local filesystem.
+  description: string = `Writes a file to the local filesystem, overwriting if one exists.
 
-Usage:
-- This tool will overwrite the existing file if there is one at the provided path.
-- If this is an existing file, you MUST use the Read tool first to read the file's contents. This tool will fail if you did not read the file first.
-- ALWAYS prefer editing existing files in the codebase. NEVER write new files unless explicitly required.
-- NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.
-- Only use emojis if the user explicitly requests it. Avoid writing emojis to files unless asked.`;
+When to use: creating a new file, or fully replacing one you've already Read. Overwriting an existing file you haven't Read will fail. For partial changes, use Edit instead.`;
   inputSchema = z
     .object({
       file_path: z

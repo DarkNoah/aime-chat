@@ -156,9 +156,21 @@ function ProjectsPage() {
     }
   }, [projectResourceId]);
 
-  const handleCreateThread = async (options) => {
-    const thread = await window.electron.mastra.createThread({
-      ...options,
+  const handleCreateThread = async (options = {}) => {
+    let thread;
+    const _options: any = { ...options };
+    if (threadId) {
+      try {
+        thread = await window.electron.mastra.getThread(threadId);
+      } catch { }
+    }
+    _options.tools ??= thread?.metadata?.tools;
+    _options.subAgents ??= thread?.metadata?.subAgents;
+    _options.modedId ??= thread?.metadata?.model;
+    _options.agentId ??= thread?.metadata?.agentId;
+
+    thread = await window.electron.mastra.createThread({
+      ..._options,
       resourceId: projectResourceId,
     });
     console.log(thread);
@@ -220,7 +232,7 @@ function ProjectsPage() {
         eventBus.off(`chat:onEvent:${threadId}`);
       };
     }
-    return () => {};
+    return () => { };
   }, [threadId]);
 
   useEffect(() => {

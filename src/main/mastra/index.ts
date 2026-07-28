@@ -93,15 +93,16 @@ import { Projects } from '@/entities/projects';
 import path from 'path';
 import fs from 'fs';
 import BaseTool, { BaseToolParams } from '../tools/base-tool';
-import { getLastMessageIndex } from '../utils/messageUtils';
+import {
+  filterFilePartsForModel,
+  getLastMessageIndex,
+} from '../utils/messageUtils';
 import { MastraThreadsUsage } from '@/entities/mastra-threads-usage';
 import { Repository } from 'typeorm';
 import { dbManager } from '../db';
 const modelsData = require('../../../assets/models.json');
 import { getTokenCosts } from 'tokenlens';
 import bashManager from '../tools/file-system/bash';
-import sshManager from '../tools/ssh/manager';
-import { buildSSHConnectionsReminder } from '../tools/ssh/reminder';
 import { DefaultAgent } from './agents/default-agent';
 import { Agents } from '@/entities/agents';
 import { Project } from '@/types/project';
@@ -123,6 +124,28 @@ import {
 } from './usage';
 import { filesize } from 'filesize';
 import mime from 'mime';
+
+const CHAT_RETRY_DELAYS = [2000, 4000, 8000] as const;
+
+const waitForChatRetry = (delay: number, signal: AbortSignal) =>
+  new Promise<void>((resolve) => {
+    if (signal.aborted) {
+      resolve();
+      return;
+    }
+
+    let timeout: ReturnType<typeof setTimeout>;
+    const handleAbort = () => {
+      clearTimeout(timeout);
+      resolve();
+    };
+    timeout = setTimeout(() => {
+      signal.removeEventListener('abort', handleAbort);
+      resolve();
+    }, delay);
+
+    signal.addEventListener('abort', handleAbort, { once: true });
+  });
 
 function getQueryValue(value: unknown): string | undefined {
   if (Array.isArray(value)) {
@@ -701,7 +724,11 @@ class MastraManager extends BaseManager {
     return pending;
   }
 
-
+  @api({
+    method: 'post',
+    path: '/api/threads/chat',
+    args: (req: Request) => [undefined, req.body],
+  })
   @channel(MastraChannel.Chat, { mode: 'on' })
   public async chat(event: IpcMainEvent, data: ChatInput, callback?: ChatCallbackEvent): Promise<{
     success: boolean;
@@ -718,7 +745,7 @@ class MastraManager extends BaseManager {
       projectId,
       messages: uiMessages,
       webSearch,
-      think,
+      think = true,
       tools = [],
       subAgents = [],
       runId,
@@ -731,6 +758,9 @@ class MastraManager extends BaseManager {
       goal,
     } = data;
     let { model } = data;
+    if (this.threadChats.some((chat) => chat.id === chatId)) {
+      throw new Error(`Thread ${chatId} is not idle`);
+    }
     console.log('Chat Input', data);
     const storage = this.mastra.getStorage();
 
@@ -749,6 +779,34 @@ class MastraManager extends BaseManager {
       }
     }
     const appInfo = await appManager.getInfo();
+    const threadMetadata = currentThread.metadata ?? {};
+
+    let agent: Agent;
+    if (!agentId) {
+      agentId = (threadMetadata?.agentId as string) ?? DefaultAgent.agentName
+    }
+
+    model ||= threadMetadata.model as string | undefined;
+    if (data.tools === undefined && Array.isArray(threadMetadata.tools)) {
+      tools = threadMetadata.tools as string[];
+    }
+
+    const agentEntity = await this.agentsRepository.findOne({
+      where: { id: agentId },
+    });
+    if (tools.length === 0) {
+      tools = agentEntity.tools as string[];
+    }
+    if (
+      data.subAgents === undefined &&
+      Array.isArray(threadMetadata.subAgents)
+    ) {
+      subAgents = threadMetadata.subAgents as string[];
+    }
+
+    if (subAgents.length === 0) {
+      subAgents = agentEntity.subAgents as string[];
+    }
 
 
 
@@ -763,10 +821,6 @@ class MastraManager extends BaseManager {
     let inputMessage = uiMessages[uiMessages.length - 1];
 
     if (!model) {
-      const _agentId = agentId ?? DefaultAgent.agentName;
-      const agentEntity = await this.agentsRepository.findOne({
-        where: { id: _agentId },
-      });
       model =
         agentEntity?.defaultModelId ||
         (await appManager.getInfo())?.defaultModel?.model;
@@ -781,8 +835,9 @@ class MastraManager extends BaseManager {
       await providersManager.getModelInfo(model);
 
     let stream: MastraModelOutput<unknown>;
-    let agent: Agent;
+
     let requestContext;
+    const retryState: { attempt: number; streamError?: Error } = { attempt: 0 };
     try {
       // const info = modelsData[provider.type]?.models[_modeId] || {};
       const workspace =
@@ -1073,18 +1128,10 @@ class MastraManager extends BaseManager {
         },
         onError: async ({ error }: { error: Error | string }) => {
           console.error(error);
-          let errMsg = 'Unknown error';
-          if (isString(error)) {
-            errMsg = error;
-          } else {
-            errMsg = error?.message || error?.name;
-          }
-
-          appManager.sendEvent(`chat:event:${chatId}`, {
-            type: ChatEvent.ChatError,
-            data: errMsg,
-          });
-          await callback?.onError?.(errMsg);
+          retryState.streamError =
+            error instanceof Error ? error : new Error(error);
+          // Retry and final error reporting are handled by the loop below.
+          // Emitting ChatError here would close the renderer stream too early.
         },
         onChunk: async (chunk) => {
           // console.log('Stream chunk:', chunk);
@@ -1171,6 +1218,8 @@ class MastraManager extends BaseManager {
         resume = undefined;
       };
       while (true) {
+        // prettier-ignore
+        try {
         const historyMessages = await memoryStore.listMessages({
           threadId: chatId,
           resourceId: resourceId,
@@ -1179,6 +1228,15 @@ class MastraManager extends BaseManager {
         const historyMessagesAISdkV5 = toAISdkV5Messages(
           historyMessages.messages,
         );
+        const inputMessageId = _inputMessage?.id;
+        if (
+          inputMessageId &&
+          historyMessagesAISdkV5.some(
+            (message) => message.id === inputMessageId,
+          )
+        ) {
+          _inputMessage = undefined;
+        }
         let input = [...historyMessagesAISdkV5];
 
 
@@ -1197,10 +1255,41 @@ class MastraManager extends BaseManager {
         const system = await convertToInstructionContent(instructions);
 
         let slashCommand;
-        const slashCommands = ChatSlashCommandConfig.map(x => x.id)
-        if (_inputMessage && _inputMessage.role == 'user' && _inputMessage.parts.length == 1) {
-          slashCommand = slashCommands.find(x => _inputMessage.parts[0].text.startsWith("/" + x))
+        const slashCommands = ChatSlashCommandConfig.map(x => x.id);
+        const skills = await skillManager.getSkills();
+        if (_inputMessage && _inputMessage.role == 'user') {
+          const text = _inputMessage.parts.find(x => x.type == 'text' && x.text?.startsWith("/"))?.text;
+          if (text) {
+            slashCommand = slashCommands.find(x => text.startsWith("/" + x));
+            if (!slashCommand) {
+              const skill = skills.find(x => text.startsWith("/" + x.id + ' ') || text == "/" + x.id);
+              if (skill) {
+                slashCommand = skill.id;
+                if (skill) {
+                  if (!tools.includes(skill.id)) {
+                    tools.push(skill.id);
+                    currentThread = await memoryStore.updateThread({
+                      id: chatId,
+                      title: currentThread.title,
+                      metadata: {
+                        ...(currentThread.metadata || {}),
+                        tools: tools,
+                      },
+                    });
+                    appManager.sendEvent(`chat:event:${chatId}`, {
+                      type: ChatEvent.ChatThreadChanged,
+                      data: {},
+                    });
+
+                  }
+                }
+              }
+            }
+          }
         }
+
+
+
 
 
 
@@ -1221,6 +1310,7 @@ class MastraManager extends BaseManager {
               force: slashCommand == 'compact',
               disableKeepMessage: true,
               model: fastLanguageModel,
+              modelId: fastModel,
             },
           );
 
@@ -1238,6 +1328,9 @@ class MastraManager extends BaseManager {
             });
           }
         }
+
+
+
 
 
         if (compressError) {
@@ -1333,6 +1426,7 @@ class MastraManager extends BaseManager {
           }
         }
 
+        retryState.streamError = undefined;
         stream = await this.nextStep(
           agent,
           input,
@@ -1340,6 +1434,9 @@ class MastraManager extends BaseManager {
           resume,
           callback,
         );
+        if (retryState.streamError) {
+          throw retryState.streamError;
+        }
 
         let streamText = '';
         if (stream.status == 'success' && !streamOptions.abortSignal.aborted) {
@@ -1349,6 +1446,20 @@ class MastraManager extends BaseManager {
           if (finishReason == 'stop' && !text) {
             throw new Error('No content returned');
           }
+        }
+        if (stream.error) {
+          throw stream.error;
+        }
+        if (retryState.attempt > 0) {
+          retryState.attempt = 0;
+          appManager.sendEvent(`chat:event:${chatId}`, {
+            type: ChatEvent.ChatChunk,
+            data: JSON.stringify({
+              type: 'data-chat-retry-end',
+              data: {},
+            }),
+            transient: true,
+          });
         }
 
 
@@ -1520,15 +1631,44 @@ Do not call update_goal unless the goal is complete or the strict blocked audit 
         if (streamOptions.abortSignal.aborted) {
           break;
         }
-        if (stream.error) {
-          throw stream.error;
+        } catch (err) {
+          if (streamOptions.abortSignal.aborted) {
+            break;
+          }
+          if (retryState.attempt >= CHAT_RETRY_DELAYS.length) {
+            throw err;
+          }
+
+          retryState.attempt += 1;
+          const delay = CHAT_RETRY_DELAYS[retryState.attempt - 1];
+          const errorMessage =
+            err instanceof Error ? err.message : String(err || 'Unknown error');
+          console.warn(
+            `Chat ${chatId} failed; retrying ${retryState.attempt}/${CHAT_RETRY_DELAYS.length} in ${delay}ms`,
+            err,
+          );
+          appManager.sendEvent(`chat:event:${chatId}`, {
+            type: ChatEvent.ChatChunk,
+            data: JSON.stringify({
+              type: 'data-chat-retry',
+              data: {
+                attempt: retryState.attempt,
+                maxRetries: CHAT_RETRY_DELAYS.length,
+                delay,
+                error: errorMessage,
+              },
+            }),
+            transient: true,
+          });
+          await waitForChatRetry(delay, streamOptions.abortSignal);
+          if (streamOptions.abortSignal.aborted) {
+            break;
+          }
         }
       }
-      const db_messages = stream.messageList.get.all.db();
+      const db_messages = stream?.messageList.get.all.db() ?? [];
       if (streamOptions.abortSignal.aborted) {
         const chunks = requestContext.get('chunks');
-        const persisted = stream.messageList.getPersisted.input.db();
-        const db = stream.messageList.get.input.db();
         // const core = stream.messageList.get.input.core();
         let messages: MastraDBMessage[] = [];
         const parts = [];
@@ -1566,20 +1706,31 @@ Do not call update_goal unless the goal is complete or the strict blocked audit 
 
       return {
         success: true,
-        status: stream.status,
+        status: stream?.status,
         aborted: streamOptions.abortSignal.aborted,
-        runId: stream.runId,
+        runId: stream?.runId,
         messages: db_messages
       }
     } catch (err) {
       console.error(err);
       appManager.sendEvent(`chat:event:${chatId}`, {
-        type: ChatEvent.ChatError,
-        data: err?.message || 'Unknown error',
+        type: ChatEvent.ChatChunk,
+        data: JSON.stringify({
+          type: 'data-chat-retry-end',
+          data: {},
+        }),
+        transient: true,
       });
+      const errorMessage =
+        err instanceof Error ? err.message : String(err || 'Unknown error');
+      appManager.sendEvent(`chat:event:${chatId}`, {
+        type: ChatEvent.ChatError,
+        data: errorMessage,
+      });
+      await callback?.onError?.(errorMessage);
       return {
         success: false,
-        error: err?.message || 'Unknown error',
+        error: errorMessage,
         status: stream?.status,
       }
     } finally {
@@ -1712,6 +1863,12 @@ Do not call update_goal unless the goal is complete or the strict blocked audit 
       // console.log(value)
       if (value.type == 'reasoning-delta') {
         await callback?.onThought?.(value.delta);
+        continue;
+      }
+      if (value.type == 'error') {
+        // The chat loop retries stream errors and emits ChatError only after
+        // all retries are exhausted. Forwarding this chunk would fail the UI
+        // stream before that retry policy can run.
         continue;
       }
 
@@ -1917,16 +2074,6 @@ Your have a goal to achieve: ${goal.objective}
 
     }
 
-    const sshConnectionsReminder = buildSSHConnectionsReminder(
-      sshManager.getSessionSummaries(),
-    );
-    if (sshConnectionsReminder) {
-      injectedMessages.push({
-        type: 'text',
-        text: sshConnectionsReminder,
-      });
-    }
-
     // 注入tasks, 只有当hasCompressed为true时才注入
     // const tasks = requestContext.get('tasks') ?? [];
     // if (
@@ -2085,14 +2232,6 @@ ${memoryDigest}
     return Boolean(session);
   }
 
-  @channel(MastraChannel.CloseSSHSession)
-  public async closeSSHSession(connectionId: string): Promise<boolean> {
-    const session = sshManager.getSession({ connection_id: connectionId });
-    if (!session) return false;
-    await sshManager.close(session);
-    return true;
-  }
-
   @channel(MastraChannel.SaveMessages)
   public async saveMessages(
     chatId: string,
@@ -2116,6 +2255,7 @@ ${memoryDigest}
       force?: boolean;
       disableKeepMessage?: boolean;
       model: LanguageModelV2;
+      modelId: string;
     },
   ): Promise<{
     compressedMessage?: ModelMessage;
@@ -2167,10 +2307,18 @@ ${memoryDigest}
       keepMessages = [];
     }
 
-    const inputMessages = summaryMessages.filter((x) => x.role !== 'system');
+    let inputMessages = summaryMessages.filter((x) => x.role !== 'system');
     compressAgent.model = options.model;
 
     try {
+      const compressionModelInfo = await providersManager.getModelInfo(
+        options.modelId,
+      );
+      const supportsVision =
+        compressionModelInfo?.modelInfo?.modalities?.input?.includes('image') ??
+        false;
+      inputMessages = filterFilePartsForModel(inputMessages, supportsVision);
+
       const response = await compressAgent.generate([
         ...inputMessages,
         {

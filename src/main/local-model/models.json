@@ -202,6 +202,21 @@
       ]
     },
     {
+      "id": "clip-vit-base-patch16",
+      "repo": "Xenova/clip-vit-base-patch16",
+      "library": "transformers",
+      "download": [
+        {
+          "source": "modelscope",
+          "url": "https://www.modelscope.cn/models/Xenova/clip-vit-base-patch16"
+        },
+        {
+          "source": "huggingface",
+          "url": "https://huggingface.co/Xenova/clip-vit-base-patch16"
+        }
+      ]
+    },
+    {
       "id": "jina-clip-v2",
       "library": "transformers",
       "repo": "jinaai/jina-clip-v2",

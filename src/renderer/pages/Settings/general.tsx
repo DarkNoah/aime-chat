@@ -126,6 +126,11 @@ export default function General() {
     setRequestLogEnabled(nextEnabled);
   };
 
+  const onChangeInsecureTls = async (enabled: boolean) => {
+    await window.electron.app.setInsecureTls(enabled);
+    await getAppInfo();
+  };
+
   return (
     <FieldGroup className="p-4 overflow-y-auto">
       <Field className="max-w-[200px]">
@@ -288,6 +293,17 @@ export default function General() {
           </Field>
         </div>
       )}
+      <Field>
+        <FieldLabel>{t('settings.insecure_tls')}</FieldLabel>
+        <div className="flex flex-row items-center gap-3">
+          <Switch
+            checked={!!appInfo?.insecureTls}
+            onCheckedChange={onChangeInsecureTls}
+          />
+          <Label>{t('settings.insecure_tls_label')}</Label>
+        </div>
+        <FieldDescription>{t('settings.insecure_tls_desc')}</FieldDescription>
+      </Field>
       <Field>
         <FieldLabel>{t('settings.request_logs_enable')}</FieldLabel>
         <div className="flex flex-row items-center gap-3">

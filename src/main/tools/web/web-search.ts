@@ -35,16 +35,10 @@ export const webSearchResultSchema = z.object({
 export class WebSearch extends BaseTool<WebSearchParams> {
   static readonly toolName = 'WebSearch';
   id: string = 'WebSearch';
-  description = `- Allows to search the web and use the results to inform responses
-- Provides up-to-date information for current events and recent data
-- Returns search result information formatted as search result blocks
-- Use this tool for accessing information beyond ai model knowledge cutoff
-- Searches are performed automatically within a single API call
+  description = `Search the web. Returns result blocks with titles and URLs.
 
-Usage notes:
-  - Domain filtering is supported to include or block specific websites
-  - Web search is only available in the US
-  - Account for "Today's date" in <env>. For example, if <env> says "Today's date: 2025-07-01", and the user wants the latest docs, do not use 2024 in the search query. Use 2025.
+- The current month is ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long' })} — use this when searching for recent information.
+- After answering from results, end with a "Sources:" list of the URLs you used as markdown links.
 
 Returns:
   List of search results with the following fields:

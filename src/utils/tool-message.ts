@@ -14,17 +14,6 @@ export const getToolMessageDescription = (toolName: string, input: any) => {
     case 'KillBash':
     case 'BashOutput':
       return input?.shell_id;
-    case 'SSHConnection':
-      if (input?.connection_id) return input.connection_id;
-      if (input?.target?.type === 'config') return input.target.name;
-      if (input?.target?.type === 'direct') {
-        return `${input.target.username ? `${input.target.username}@` : ''}${input.target.host}:${input.target.port ?? 22}`;
-      }
-      return input?.action;
-    case 'SSHInput':
-    case 'SSHOutput':
-    case 'SSHTransfer':
-      return input?.connection_id;
     case 'GenerateImage':
     case 'EditImage':
       return input?.prompt ?? '';
@@ -53,6 +42,20 @@ export const getToolMessageDescription = (toolName: string, input: any) => {
       return input?.sql;
     case 'KnowledgeBaseSearch':
       return input?.query;
+    case 'Message':
+      let data;
+      let output;
+      try {
+        data = JSON.parse(input?.data ?? '{}');
+        if (data?.files) {
+          output = "+" + data?.files?.length + " files";
+        } else if (data?.message) {
+          output = data?.message;
+        }
+      } catch {
+        output = input?.data;
+      }
+      return output;
     default:
       return input?.description;
   }

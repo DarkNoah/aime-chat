@@ -91,6 +91,11 @@ import { ToolType } from '@/types/tool';
 import { Translation } from '../tools/work/translation';
 import { nanoid } from '@/utils/nanoid';
 import { HookAgent, HookProxyAgent } from './hook-agent';
+import {
+  getTlsConnectOptions,
+  isInsecureTlsEnabled,
+  setInsecureTlsEnabled,
+} from './insecure-tls';
 import { acpManager } from './acp';
 import { appLog, getLogFilePath } from './logger';
 import { get } from 'core-js/core/dict';
@@ -151,6 +156,9 @@ class AppManager extends BaseManager {
     )?.value);
     nativeTheme.themeSource =
       settings.find((x) => x.id === 'theme')?.value ?? 'system';
+    setInsecureTlsEnabled(
+      Boolean(settings.find((x) => x.id === 'insecureTls')?.value?.enabled),
+    );
     const proxySetting = await this.settingsRepository.findOne({
       where: { id: 'proxy' },
     });
@@ -298,6 +306,7 @@ class AppManager extends BaseManager {
       preventSleepInterval,
       assistantSoul,
       windowMode: this.windowModeController.getState(),
+      insecureTls: isInsecureTlsEnabled(),
     };
   }
 
@@ -836,8 +845,11 @@ class AppManager extends BaseManager {
         systemProxy.proxyEnable
           ? new HookProxyAgent({
             uri: systemProxy.proxyServer,
+            connect: getTlsConnectOptions(),
           })
-          : new HookAgent(),
+          : new HookAgent({
+            connect: getTlsConnectOptions(),
+          }),
       );
       if (systemProxy.proxyEnable) {
         const url = new URL(systemProxy.proxyServer);
@@ -874,6 +886,7 @@ class AppManager extends BaseManager {
         setGlobalDispatcher(
           new HookProxyAgent({
             uri: proxyConfig.proxyRules,
+            connect: getTlsConnectOptions(),
           }),
         );
         this.appProxy = {
@@ -890,7 +903,9 @@ class AppManager extends BaseManager {
       } catch { }
     } else if (data.mode == 'noproxy') {
       proxyConfig = {};
-      setGlobalDispatcher(new HookAgent());
+      setGlobalDispatcher(new HookAgent({
+        connect: getTlsConnectOptions(),
+      }));
       this.appProxy = { mode: 'noproxy' };
       const settingData = new Settings('proxy', { mode: 'noproxy' });
       await this.settingsRepository.upsert(settingData, ['id']);
@@ -1115,6 +1130,18 @@ class AppManager extends BaseManager {
     } else {
       await acpManager.stop();
     }
+  }
+
+  @channel(AppChannel.SetInsecureTls)
+  public async setInsecureTls(enabled: boolean): Promise<boolean> {
+    setInsecureTlsEnabled(enabled);
+    await this.settingsRepository.upsert(
+      new Settings('insecureTls', { enabled }),
+      ['id'],
+    );
+    // 重建全局 dispatcher，使新的 TLS 策略对后续请求立即生效
+    await this.setProxy(this.appProxy);
+    return isInsecureTlsEnabled();
   }
   @channel(AppChannel.GetSetupStatus)
   public async getSetupStatus(): Promise<{

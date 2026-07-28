@@ -1,4 +1,3 @@
-import { OcrAccuracy, recognize } from '@napi-rs/system-ocr';
 import { BaseLoader } from './base-loader';
 import fs from 'fs';
 import { appManager } from '@/main/app';

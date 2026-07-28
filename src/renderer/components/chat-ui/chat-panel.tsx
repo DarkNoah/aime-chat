@@ -40,6 +40,7 @@ import {
   ClockIcon,
   CopyIcon,
   MessageSquareIcon,
+  RefreshCwIcon,
   SendIcon,
   XIcon,
 } from 'lucide-react';
@@ -131,8 +132,84 @@ type PendingChatSubmit = {
   immediate?: boolean;
 };
 
+type ChatRetryState = {
+  attempt: number;
+  maxRetries: number;
+  delay: number;
+  error?: string;
+};
+
 const isRenderableMessagePart = (part: any) =>
   part.type === 'text' || part.type.startsWith('tool-');
+
+const getLastResponsePart = (message: UIMessage) => {
+  for (let index = message.parts.length - 1; index >= 0; index -= 1) {
+    const part = message.parts[index];
+    if (
+      part.type === 'text' ||
+      part.type === 'reasoning' ||
+      part.type.startsWith('tool-')
+    ) {
+      return part;
+    }
+  }
+  return undefined;
+};
+
+const hasPendingToolInteraction = (message: UIMessage, part: any) => {
+  if (!part?.type?.startsWith('tool-') || !part.toolCallId) {
+    return false;
+  }
+
+  const matchesToolCall = (value: any) => value?.toolCallId === part.toolCallId;
+  const metadata = message.metadata as any;
+
+  return (
+    message.parts.some(
+      (messagePart: any) =>
+        (messagePart.type === 'data-tool-call-approval' ||
+          messagePart.type === 'data-tool-call-suspended') &&
+        matchesToolCall(messagePart.data),
+    ) ||
+    Object.values(metadata?.pendingToolApprovals ?? {}).some(matchesToolCall) ||
+    Object.values(metadata?.suspendedTools ?? {}).some(matchesToolCall)
+  );
+};
+
+const shouldShowManualRetry = (
+  messages: UIMessage[] | undefined,
+  status: ThreadState['status'] | undefined,
+) => {
+  if (status !== 'ready' && status !== 'error') {
+    return false;
+  }
+
+  const visibleMessages =
+    messages?.filter(
+      (message) => (message.metadata as any)?.systemReminder !== true,
+    ) ?? [];
+  const lastMessage = visibleMessages[visibleMessages.length - 1];
+  if (!lastMessage) {
+    return false;
+  }
+  if (lastMessage.role === 'user') {
+    return true;
+  }
+  if (lastMessage.role !== 'assistant') {
+    return false;
+  }
+
+  const lastPart = getLastResponsePart(lastMessage);
+  if (
+    lastPart?.type === 'text' &&
+    typeof lastPart.text === 'string' &&
+    lastPart.text.trim()
+  ) {
+    return false;
+  }
+
+  return !hasPendingToolInteraction(lastMessage, lastPart);
+};
 
 const ChatMessageItem = React.memo(
   ({
@@ -467,6 +544,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
     );
     const updateThreadState = useThreadStore((s) => s.updateThreadState);
     const [compressing, setCompressing] = useState(false);
+    const [retrying, setRetrying] = useState<ChatRetryState | undefined>();
 
     const {
       ensureThread,
@@ -560,6 +638,27 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
       },
       [agentId, modelId, projectId, requireToolApproval, sendMessage, threadId],
     );
+
+    const handleRetry = useCallback(() => {
+      if (!threadId) {
+        return;
+      }
+      sendMessage(threadId, undefined, {
+        agentId,
+        model: modelId,
+        projectId,
+        threadId,
+        tools: chatInputRef.current?.getTools(),
+        requireToolApproval,
+      });
+    }, [
+      agentId,
+      modelId,
+      projectId,
+      requireToolApproval,
+      sendMessage,
+      threadId,
+    ]);
 
     const handleAbort = () => {
       stop(threadId);
@@ -835,6 +934,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
       // clearError(threadId);
       setUsage(undefined);
       setCompressing(false);
+      setRetrying(undefined);
       // setThread(undefined);
       setAgentId(undefined);
       chatInputRef.current?.setTools([]);
@@ -931,6 +1031,10 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
             setCompressing(true);
           } else if (event.type === 'data-compress-end') {
             setCompressing(false);
+          } else if (event.type === 'data-chat-retry') {
+            setRetrying(event.data as ChatRetryState);
+          } else if (event.type === 'data-chat-retry-end') {
+            setRetrying(undefined);
           } else if (event.type === 'data-usage') {
             setUsage(event.data);
           } else if (event.type === 'data-send-event') {
@@ -951,6 +1055,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
           }
         });
         eventBus.on(`chat:onFinish:${threadId}`, (event) => {
+          setRetrying(undefined);
           getThread();
         });
         const handlePendingConsumed = (event: {
@@ -1155,6 +1260,23 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
                 <span className="text-xs">{t('common.compressing')}</span>
               </div>
             )}
+            {retrying && threadState?.status === 'streaming' && (
+              <Alert className="w-fit bg-muted">
+                <Loader className="size-4 animate-spin" />
+                <AlertTitle className="text-xs">
+                  {t('common.chat_retrying', {
+                    attempt: retrying.attempt,
+                    max: retrying.maxRetries,
+                    delay: Math.ceil(retrying.delay / 1000),
+                  })}
+                </AlertTitle>
+                {retrying.error && (
+                  <AlertDescription className="text-xs">
+                    {retrying.error}
+                  </AlertDescription>
+                )}
+              </Alert>
+            )}
             {threadState?.error && (
               <Alert variant="destructive" className="bg-red-200 w-fit">
                 <AlertTitle className="font-extrabold">Error</AlertTitle>
@@ -1162,6 +1284,21 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
                   {threadState?.error.message}
                 </AlertDescription>
               </Alert>
+            )}
+            {shouldShowManualRetry(
+              threadState?.messages,
+              threadState?.status,
+            ) && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-fit"
+                onClick={handleRetry}
+              >
+                <RefreshCwIcon className="size-3.5" />
+                {t('common.retry')}
+              </Button>
             )}
             {threadState?.messages.length > 0 && <div className="pb-20"></div>}
           </ConversationContent>

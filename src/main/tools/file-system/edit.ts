@@ -7,16 +7,11 @@ import { needReadFile, updateFileModTime, formatCodeWithLineNumbers } from '.';
 export class Edit extends BaseTool {
   static readonly toolName = 'Edit';
   id: string = 'Edit';
-  description: string = `Performs exact string replacements in files.
+  description: string = `Performs exact string replacement in a file.
 
-Usage:
-
-- You must use your \`Read\` tool at least once in the conversation before editing. This tool will error if you attempt an edit without reading the file.
-- When editing text from Read tool output, ensure you preserve the exact indentation (tabs/spaces) as it appears AFTER the line number prefix. The line number prefix format is: spaces + line number + tab. Everything after that tab is the actual file content to match. Never include any part of the line number prefix in the old_string or new_string.
-- ALWAYS prefer editing existing files in the codebase. NEVER write new files unless explicitly required.
-- Only use emojis if the user explicitly requests it. Avoid adding emojis to files unless asked.
-- The edit will FAIL if \`old_string\` is not unique in the file. Either provide a larger string with more surrounding context to make it unique or use \`replace_all\` to change every instance of \`old_string\`.
-- Use \`replace_all\` for replacing and renaming strings across the file. This parameter is useful if you want to rename a variable for instance.`;
+- You must Read the file in this conversation before editing, or the call will fail.
+- \`old_string\` must match the file exactly, including indentation, and be unique — the edit fails otherwise. Strip the Read line prefix (line number + tab) before matching.
+- \`replace_all: true\` replaces every occurrence instead.`;
 
   inputSchema = z.object({
     file_path: z.string().describe('The absolute path to the file to modify'),
@@ -230,9 +225,9 @@ const safeReplace = (
 ) => {
   const replacer = replaceAll
     ? (str: string, search: string, replace: string) =>
-        str.replaceAll(search, () => replace)
+      str.replaceAll(search, () => replace)
     : (str: string, search: string, replace: string) =>
-        str.replace(search, () => replace);
+      str.replace(search, () => replace);
 
   if (replaceValue !== '') {
     return replacer(sourceString, searchValue, replaceValue);
@@ -263,11 +258,11 @@ const patchFile = (
       edit.old_string === ''
         ? edit.new_string
         : safeReplace(
-            contents,
-            edit.old_string,
-            edit.new_string,
-            edit.replace_all,
-          );
+          contents,
+          edit.old_string,
+          edit.new_string,
+          edit.replace_all,
+        );
 
     if (contents === W && edit.old_string != edit.new_string)
       throw new Error('String not found in file. Failed to apply edit.');

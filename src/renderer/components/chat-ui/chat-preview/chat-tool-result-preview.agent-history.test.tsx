@@ -25,10 +25,6 @@ jest.mock('./chat-tool-bash-preview', () => ({
   ChatToolBashPreview: () => null,
 }));
 
-jest.mock('./chat-tool-ssh-preview', () => ({
-  ChatToolSSHPreview: () => null,
-}));
-
 jest.mock('./chat-tool-agent-history-preview', () => ({
   ChatToolAgentHistoryPreview: ({ toolCallId }: { toolCallId: string }) => (
     <div data-testid="agent-history-preview">{toolCallId}</div>

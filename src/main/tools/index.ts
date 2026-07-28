@@ -5,7 +5,14 @@ import mastraManager from '../mastra';
 import { Agent as MastraAgent } from '@mastra/core/agent';
 import { MastraMCPServerDefinition, MCPClient } from '@mastra/mcp';
 import { appManager } from '../app';
-import { McpEvent, McpClientStatus, CreateMcp } from '@/types/mcp';
+import {
+  CreateMcp,
+  InstallMcpBundleInput,
+  InstallMcpBundleResult,
+  McpBundlePreview,
+  McpClientStatus,
+  McpEvent,
+} from '@/types/mcp';
 import { nanoid } from '@/utils/nanoid';
 import fs from 'fs';
 import path from 'path';
@@ -24,7 +31,6 @@ import { AskUserQuestion } from './common/ask-user-question';
 import { NodejsExecute } from './code/nodejs-execute';
 import { Skill, skillManager } from './common/skill';
 import { BashToolkit } from './file-system/bash';
-import { SSHToolkit } from './ssh';
 import { WebSearch } from './web/web-search';
 import { RemoveBackground } from './image/rmbg';
 import {
@@ -38,6 +44,7 @@ import ExpenseManagementToolkit from './test/expense_management';
 import ToolToolkit from './common/tool';
 import { Vision } from './vision/vision';
 import MemoryToolkit from './memory/memory';
+import { mcpBundleManager } from './mcp-bundle';
 import TodoToolkit from './common/task';
 import { WebFetch } from './web/web-fetch';
 import { Extract } from './work/extract';
@@ -67,6 +74,8 @@ import { GoalToolkit } from './common/goal';
 import { providersManager } from '../providers';
 import { CreatePlan } from './common/create-plan';
 import { readSkillPackageMetadata } from '../utils/skill-metadata';
+import { InteractiveHtml } from './common/interactive-html';
+import { hasHiddenPathSegment } from './skill-path';
 interface BuiltInToolContext {
   tool: BaseTool;
   abortController: AbortController;
@@ -185,7 +194,6 @@ class ToolsManager extends BaseManager {
     await this.registerBuiltInTool(TodoToolkit);
     // await this.registerBuiltInTool(TodoWrite);
     await this.registerBuiltInTool(BashToolkit);
-    await this.registerBuiltInTool(SSHToolkit);
     await this.registerBuiltInTool(FileSystem);
     await this.registerBuiltInTool(AskUserQuestion);
     await this.registerBuiltInTool(Message);
@@ -211,6 +219,7 @@ class ToolsManager extends BaseManager {
     await this.registerBuiltInTool(CronsToolkit);
     await this.registerBuiltInTool(GoalToolkit);
     await this.registerBuiltInTool(CreatePlan);
+    await this.registerBuiltInTool(InteractiveHtml);
 
 
 
@@ -287,6 +296,7 @@ class ToolsManager extends BaseManager {
         command: mcpConfig.command,
         args: mcpConfig.args,
         env: mcpConfig.env,
+        cwd: mcpConfig.cwd,
       } as MastraMCPServerDefinition;
     }
     return servers;
@@ -712,7 +722,11 @@ class ToolsManager extends BaseManager {
   }
 
   @channel(ToolChannel.SaveMCPServer)
-  public async saveMCPServer(id: string | undefined, data: string) {
+  public async saveMCPServer(
+    id: string | undefined,
+    data: string,
+    enabledByDefault = false,
+  ) {
     const config = JSON.parse(data);
     if (!('mcpServers' in config)) {
       throw new Error('Invalid config');
@@ -738,6 +752,10 @@ class ToolsManager extends BaseManager {
     let servers = this.configToMastraMCPServerDefinition(value);
 
     const _id = id || `${ToolType.MCP}:${nanoid()}`;
+    const existingTool = id
+      ? await this.toolsRepository.findOne({ where: { id } })
+      : undefined;
+    const shouldBeActive = enabledByDefault || existingTool?.isActive === true;
     const mcp = new MCPClient({
       id: _id,
       servers: { [key]: servers as MastraMCPServerDefinition },
@@ -750,12 +768,12 @@ class ToolsManager extends BaseManager {
     const mcpClient = {
       id: _id,
       mcp,
-      status: 'stopped' as McpClientStatus,
+      status: (shouldBeActive ? 'starting' : 'stopped') as McpClientStatus,
       error: undefined,
     };
     const mcpStatus = {
       id: _id,
-      status: 'stopped' as McpClientStatus,
+      status: (shouldBeActive ? 'starting' : 'stopped') as McpClientStatus,
       error: undefined,
     };
 
@@ -766,6 +784,7 @@ class ToolsManager extends BaseManager {
       tool.mcpConfig = {
         [key]: value,
       };
+      tool.isActive = shouldBeActive;
       await this.toolsRepository.save(tool);
       await appManager.sendEvent(ToolEvent.ToolListUpdated, {
         id: _id,
@@ -779,7 +798,104 @@ class ToolsManager extends BaseManager {
         mcpStatus.status,
         mcpStatus.error,
       );
+      throw error;
     }
+
+    if (shouldBeActive) {
+      void (async () => {
+        try {
+          mcpClient.mcp.tools = await mcpClient.mcp.listTools();
+          mcpClient.status = 'running';
+          mcpClient.error = undefined;
+        } catch (error: any) {
+          mcpClient.status = 'error';
+          mcpClient.error = error as Error;
+        }
+        await this.sendMcpClientUpdatedEvent(
+          _id,
+          mcpClient.status,
+          mcpClient.error,
+        );
+      })();
+    }
+    return _id;
+  }
+
+  @channel(ToolChannel.PreviewMCPBundle)
+  public async previewMCPBundle(filePath: string): Promise<McpBundlePreview> {
+    const preview = await mcpBundleManager.preview(filePath);
+    const existingTool = await this.toolsRepository.findOne({
+      where: { name: preview.name, type: ToolType.MCP },
+    });
+    if (!existingTool) {
+      return preview;
+    }
+
+    const existingBundle = await mcpBundleManager.findInstalled(preview.name);
+    return {
+      ...preview,
+      installed: {
+        toolId: existingTool.id,
+        version: existingBundle?.version,
+        isBundle: Boolean(existingBundle),
+      },
+    };
+  }
+
+  @channel(ToolChannel.InstallMCPBundle)
+  public async installMCPBundle(
+    input: InstallMcpBundleInput,
+  ): Promise<InstallMcpBundleResult> {
+    const preview = await mcpBundleManager.preview(input.filePath);
+    let replaceTool: Tools | null = null;
+    if (input.replaceToolId) {
+      replaceTool = await this.toolsRepository.findOne({
+        where: { id: input.replaceToolId },
+      });
+      if (
+        !replaceTool ||
+        replaceTool.type !== ToolType.MCP ||
+        replaceTool.name !== preview.name
+      ) {
+        throw new Error('The installed MCP server does not match this bundle.');
+      }
+    }
+
+    const previousBundle = replaceTool
+      ? await mcpBundleManager.findInstalled(preview.name)
+      : undefined;
+    const installed = await mcpBundleManager.install(
+      input.filePath,
+      input.userConfig,
+    );
+    let id: string;
+    try {
+      id = await this.saveMCPServer(
+        replaceTool?.id,
+        JSON.stringify({
+          mcpServers: { [installed.name]: installed.mcpConfig },
+        }),
+        true,
+      );
+    } catch (error) {
+      await mcpBundleManager.rollback(installed.installPath);
+      throw error;
+    }
+
+    if (
+      previousBundle &&
+      previousBundle.installPath !== installed.installPath
+    ) {
+      try {
+        await mcpBundleManager.rollback(previousBundle.installPath);
+      } catch (error) {
+        console.warn(
+          `[MCP Bundle] Failed to remove the previous ${installed.name} installation:`,
+          error,
+        );
+      }
+    }
+    return { id, name: installed.name };
   }
 
   @channel(ToolChannel.GetMcp)
@@ -794,6 +910,13 @@ class ToolsManager extends BaseManager {
 
   @channel(ToolChannel.DeleteTool)
   public async deleteTool(id: string) {
+    return this.deleteToolInternal(id, true);
+  }
+
+  private async deleteToolInternal(
+    id: string,
+    notifyListUpdated: boolean,
+  ) {
     if (id.startsWith(`${ToolType.MCP}:`)) {
       const tool = await this.toolsRepository.findOne({ where: { id } });
       if (!tool) {
@@ -805,6 +928,7 @@ class ToolsManager extends BaseManager {
       }
       this.mcpClients = this.mcpClients.filter((x) => x.id !== id);
       await this.toolsRepository.delete(id);
+      await mcpBundleManager.removeInstalled(tool.name);
     } else if (id.startsWith(`${ToolType.SKILL}:`)) {
       const tool = await this.toolsRepository.findOne({ where: { id } });
       if (!tool) {
@@ -817,10 +941,12 @@ class ToolsManager extends BaseManager {
       }
     }
 
-    await appManager.sendEvent(ToolEvent.ToolListUpdated, {
-      id,
-      status: 'deleted',
-    });
+    if (notifyListUpdated) {
+      await appManager.sendEvent(ToolEvent.ToolListUpdated, {
+        id,
+        status: 'deleted',
+      });
+    }
   }
 
   @api({
@@ -1158,6 +1284,15 @@ class ToolsManager extends BaseManager {
     }
   }
 
+  @api({
+    method: 'post',
+    path: '/api/tools/execute-tool',
+    args: (req: any) => [
+      req.body.id as string,
+      req.body.toolName as string,
+      req.body.input ?? {},
+    ],
+  })
   @channel(ToolChannel.ExecuteTool)
   public async executeTool(id: string, toolName: string, input: any) {
     let toolEntity = await this.toolsRepository.findOne({ where: { id } });
@@ -1284,8 +1419,9 @@ class ToolsManager extends BaseManager {
 
       // Find skills in the cloned repo
       let skillsToScan: string[] = [];
+      const hiddenGitPath = hasHiddenPathSegment(gitPath);
 
-      if (gitPath) {
+      if (gitPath && !hiddenGitPath) {
         // Specific path provided
         const targetPath = path.join(tmpDir, gitPath);
         if (
@@ -1301,9 +1437,13 @@ class ToolsManager extends BaseManager {
         }
       }
       // If no specific path or no skill found at path, scan entire repo
-      if (skillsToScan.length === 0) {
-        skillsToScan = await this.getSkillsInDir(tmpDir, true);
+      if (skillsToScan.length === 0 && !hiddenGitPath) {
+        skillsToScan = await this.getSkillsInDir(tmpDir);
       }
+      skillsToScan = skillsToScan.filter(
+        (skillPath) =>
+          !hasHiddenPathSegment(path.relative(tmpDir, skillPath)),
+      );
 
       // Extract skill info
       const skills = await Promise.all(
@@ -1379,7 +1519,7 @@ class ToolsManager extends BaseManager {
     throw new Error('Invalid GitHub URL format');
   }
 
-  private async getSkillsInDir(dirPath: string, includeDotFiles: boolean = false): Promise<string[]> {
+  private async getSkillsInDir(dirPath: string): Promise<string[]> {
     const skills: string[] = [];
     const currentSkillMPath = path.join(dirPath, 'SKILL.md');
     const currentExists = await fs.promises
@@ -1395,7 +1535,7 @@ class ToolsManager extends BaseManager {
     const entries = await fs.promises.readdir(dirPath, { withFileTypes: true });
     for (const entry of entries) {
       // Skip hidden directories like .git
-      if (entry.name.startsWith('.') && !includeDotFiles) continue;
+      if (entry.name.startsWith('.')) continue;
 
       if (entry.isDirectory()) {
         const skillPath = path.join(dirPath, entry.name);
@@ -1407,7 +1547,7 @@ class ToolsManager extends BaseManager {
         if (exists) {
           skills.push(skillPath);
         } else {
-          const subSkills = await this.getSkillsInDir(skillPath, includeDotFiles);
+          const subSkills = await this.getSkillsInDir(skillPath);
           skills.push(...subSkills);
         }
       }
@@ -1474,6 +1614,8 @@ class ToolsManager extends BaseManager {
         dirs: req.body.dirs as string[],
         path: req.body.path as string,
         selectedSkills: req.body.selectedSkills as string[],
+        installAllSkills: req.body.installAllSkills as boolean,
+        replaceSkillIds: req.body.replaceSkillIds as string[],
         isActive: req.body.isActive as boolean,
         group: req.body.group as string | null | undefined,
       }];
@@ -1487,6 +1629,8 @@ class ToolsManager extends BaseManager {
     sourceSkillIds?: string[];
     path?: string;
     selectedSkills?: string[];
+    installAllSkills?: boolean;
+    replaceSkillIds?: string[];
     isActive?: boolean;
     group?: string | null;
   }) {
@@ -1644,8 +1788,9 @@ class ToolsManager extends BaseManager {
       }
       // Find skills in the cloned repo
       let skillsToScan: string[] = [];
+      const hiddenGitPath = hasHiddenPathSegment(gitPath);
 
-      if (gitPath) {
+      if (gitPath && !hiddenGitPath) {
         // Specific path provided
         const targetPath = path.join(tmpDir, gitPath);
         if (
@@ -1662,9 +1807,13 @@ class ToolsManager extends BaseManager {
       }
 
       // If no specific path or no skill found at path, scan entire repo
-      if (skillsToScan.length === 0) {
-        skillsToScan = await this.getSkillsInDir(tmpDir, true);
+      if (skillsToScan.length === 0 && !hiddenGitPath) {
+        skillsToScan = await this.getSkillsInDir(tmpDir);
       }
+      skillsToScan = skillsToScan.filter(
+        (skillPath) =>
+          !hasHiddenPathSegment(path.relative(tmpDir, skillPath)),
+      );
 
       // Extract skill info
       const skills = await Promise.all(
@@ -1683,15 +1832,50 @@ class ToolsManager extends BaseManager {
           };
         }),
       );
-      let selectedSkills = []
-      if (data?.selectedSkills !== undefined) {
+      let selectedSkills = [];
+      if (data.installAllSkills) {
+        selectedSkills = skills;
+      } else if (data?.selectedSkills !== undefined) {
         selectedSkills = skills.filter((x) =>
           data?.selectedSkills?.includes(x.path),
         );
-      } else if (data.repo_or_url.endsWith('/SKILL.md') && skills.length == 1) {
+      } else if (
+        data.repo_or_url.endsWith('/SKILL.md') &&
+        skills.length === 1
+      ) {
         selectedSkills = [skills[0]];
       }
 
+      const replaceSkillIds = [...new Set(data.replaceSkillIds || [])];
+      const isReplacingSkillGroup = replaceSkillIds.length > 0;
+      if (isReplacingSkillGroup) {
+        if (!data.group || data.path) {
+          await fs.promises.rm(tmpDir, { recursive: true, force: true });
+          return {
+            success: false,
+            error: 'A global skill group is required for replacement',
+          };
+        }
+
+        const existingSkills = await this.toolsRepository.findBy({
+          id: In(replaceSkillIds),
+          type: ToolType.SKILL,
+        });
+        if (
+          existingSkills.length !== replaceSkillIds.length ||
+          existingSkills.some((tool) => tool.value?.repo !== data.group)
+        ) {
+          await fs.promises.rm(tmpDir, { recursive: true, force: true });
+          return {
+            success: false,
+            error: 'Skill group changed before replacement could start',
+          };
+        }
+
+        for (const skillId of replaceSkillIds) {
+          await this.deleteToolInternal(skillId, false);
+        }
+      }
 
       for (const selectedSkill of selectedSkills) {
         await fs.promises.cp(
@@ -1719,10 +1903,12 @@ class ToolsManager extends BaseManager {
             // skill: selectedSkill.path
           };
           await this.toolsRepository.save(tool);
-          await appManager.sendEvent(ToolEvent.ToolListUpdated, {
-            id: `${ToolType.SKILL}:local:${selectedSkill.id}`,
-            status: 'created',
-          });
+          if (!isReplacingSkillGroup) {
+            await appManager.sendEvent(ToolEvent.ToolListUpdated, {
+              id: `${ToolType.SKILL}:local:${selectedSkill.id}`,
+              status: 'created',
+            });
+          }
         } else {
           const skilljson = await fs.promises.readFile(path.join(skillsPath, 'skills.json'), 'utf-8').catch(() => '[]');
           let skilljsonData = JSON.parse(skilljson);
@@ -1739,6 +1925,12 @@ class ToolsManager extends BaseManager {
       }
 
       await fs.promises.rmdir(tmpDir, { recursive: true });
+      if (isReplacingSkillGroup) {
+        await appManager.sendEvent(ToolEvent.ToolListUpdated, {
+          id: data.group,
+          status: 'updated',
+        });
+      }
       await appManager.toast('Skills install successfully', { type: 'success' });
       return {
         success: true,
@@ -1803,8 +1995,12 @@ class ToolsManager extends BaseManager {
     } else if (dirs && dirs.length > 0) {
       for (const dir of dirs) {
         const skillDir = await this.findSkillDirectory(dir);
-        if (skillDir) {
-          const skills = await this.getSkillsInDir(skillDir, true);
+        const hiddenSkillDir =
+          path.basename(path.resolve(dir)).startsWith('.') ||
+          (skillDir &&
+            hasHiddenPathSegment(path.relative(path.resolve(dir), skillDir)));
+        if (skillDir && !hiddenSkillDir) {
+          const skills = await this.getSkillsInDir(skillDir);
           for (const skill of skills) {
             const skillMdPath = path.join(skill, 'SKILL.md');
             const skillMd = await fs.promises.readFile(skillMdPath, 'utf-8').catch(() => '');

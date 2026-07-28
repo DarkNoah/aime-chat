@@ -63,7 +63,7 @@ export const ChatGoalBanner = ({
   return (
     <div
       className={cn(
-        'sticky top-0 z-20 -mx-4 mb-3 bg-background/85 px-4 pb-2 pt-1 backdrop-blur supports-[backdrop-filter]:bg-background/70',
+        'sticky top-0 z-20 -mx-4 mb-3 bg-background/85 pb-2 ml-[100px] backdrop-blur supports-[backdrop-filter]:bg-background/70',
         className,
       )}
       data-testid="chat-goal-banner"

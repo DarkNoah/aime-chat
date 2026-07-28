@@ -115,6 +115,7 @@ import {
   getSkillSearchKeywords,
   SkillIcon,
 } from '@/renderer/components/skills-ui/skill-metadata';
+import SkillGroupDetail from './skill-group-detail';
 
 function Tools() {
   const { setTitle } = useHeader();
@@ -146,7 +147,9 @@ function Tools() {
   }, [setTitle, t]);
 
   useEffect(() => {
-    if (location.pathname.startsWith(`/tools/${ToolType.BUILD_IN}:`)) {
+    if (location.pathname === '/tools/skill-group') {
+      setView(ToolType.SKILL);
+    } else if (location.pathname.startsWith(`/tools/${ToolType.BUILD_IN}:`)) {
       setView(ToolType.BUILD_IN);
     } else if (location.pathname.startsWith(`/tools/${ToolType.MCP}:`)) {
       setView(ToolType.MCP);
@@ -350,12 +353,26 @@ function Tools() {
                 >
                   <SidebarMenuButton
                     asChild
-                    isActive={location?.pathname === `/tools/${tool.id}`}
+                    isActive={
+                      tool.skills?.length
+                        ? location.pathname === '/tools/skill-group' &&
+                          new URLSearchParams(location.search).get('repo') ===
+                            tool.id
+                        : location.pathname === `/tools/${tool.id}`
+                    }
                     className="truncate w-full flex flex-row justify-between h-full"
                   >
                     <Item
                       className=" w-full flex flex-row justify-between flex-nowrap"
-                      onClick={() => navigate(`/tools/${tool.id}`)}
+                      onClick={() =>
+                        navigate(
+                          tool.skills?.length
+                            ? `/tools/skill-group?repo=${encodeURIComponent(
+                                tool.id,
+                              )}`
+                            : `/tools/${tool.id}`,
+                        )
+                      }
                     >
                       {view === ToolType.SKILL && !tool.skills?.length ? (
                         <SkillIcon skill={tool} className="size-6" />
@@ -458,6 +475,7 @@ function Tools() {
       />
       <div className="flex flex-col flex-1 w-full min-w-0">
         <Routes>
+          <Route path="skill-group" element={<SkillGroupDetail />} />
           <Route path=":id" element={<ToolDetail />} />
         </Routes>
       </div>

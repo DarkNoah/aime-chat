@@ -60,6 +60,8 @@ export class AppInfo {
   preventSleepInterval: PreventSleepInterval;
   assistantSoul: AssistantSoulSettings;
   windowMode: WindowModeState;
+  /** 跳过全局 HTTPS 不安全证书校验 */
+  insecureTls: boolean;
 }
 
 

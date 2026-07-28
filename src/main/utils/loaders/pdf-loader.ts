@@ -1,10 +1,11 @@
-import { OcrAccuracy, recognize } from '@napi-rs/system-ocr';
 import { BaseLoader } from './base-loader';
 import { type ParseParameters } from 'pdf-parse';
+import { isSystemOcrSupported, recognizeWithSystemOcr } from '../system-ocr';
 
 export type PDFLoaderOptions = ParseParameters & {
   splitPages?: boolean;
   parsedItemSeparator?: string;
+  useSystemOcrFallback?: boolean;
 };
 export class PDFLoader extends BaseLoader {
   protected options: PDFLoaderOptions;
@@ -39,16 +40,19 @@ export class PDFLoader extends BaseLoader {
     const documents: string[] = [];
     const content = await pdf.getText(this.options || {});
     let text = '';
+    const shouldUseSystemOcr =
+      this.options.useSystemOcrFallback !== false && isSystemOcrSupported();
     if (
-      content.pages.filter((page) => !page.text.trim()).length ==
-      content.pages.length
+      shouldUseSystemOcr &&
+      content.pages.filter((page) => !page.text.trim()).length ===
+        content.pages.length
     ) {
       const images = await pdf.getImage({ imageBuffer: true });
 
       for (const page of images.pages) {
         for (const image of page.images) {
           const imageBuffer = image.data;
-          const result = await recognize(imageBuffer, OcrAccuracy.Accurate);
+          const result = await recognizeWithSystemOcr(imageBuffer);
           text += result.text;
         }
         text += `\n\n-- ${page.pageNumber} of ${images.total} --\n\n`;
