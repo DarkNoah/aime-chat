@@ -181,21 +181,24 @@ export const ToolMessage = React.forwardRef<ToolMessageRef, ToolMessageProps>(
         Object.keys(part?.output).length === 1
       ) {
         const key = Object.keys(part?.output)[0];
-        return (
-          <ChatMessageAttachments className="ml-0">
-            {part?.output[key]?.map((item: any, i: number) => {
-              if (item.type === 'image') {
-                return (
-                  <ChatMessageAttachment
-                    key={`output-image-${i}`}
-                    data={item}
-                  />
-                );
-              }
-              return null;
-            })}
-          </ChatMessageAttachments>
-        );
+        if (isArray(part?.output[key])) {
+          return (
+            <ChatMessageAttachments className="ml-0">
+              {isArray(part?.output[key]) &&
+                part?.output[key]?.map((item: any, i: number) => {
+                  if (item.type === 'image') {
+                    return (
+                      <ChatMessageAttachment
+                        key={`output-image-${i}`}
+                        data={item}
+                      />
+                    );
+                  }
+                  return null;
+                })}
+            </ChatMessageAttachments>
+          );
+        }
       }
       return null;
     };

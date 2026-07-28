@@ -209,6 +209,8 @@ const electronHandler = {
       ipcRenderer.invoke(AppChannel.SetACPPort, port),
     toggleACPEnable: (enabled: boolean) =>
       ipcRenderer.invoke(AppChannel.ToggleACPEnable, enabled),
+    setInsecureTls: (enabled: boolean): Promise<boolean> =>
+      ipcRenderer.invoke(AppChannel.SetInsecureTls, enabled),
     // 更新相关 API
     checkForUpdates: (): Promise<UpdateState> =>
       ipcRenderer.invoke(AppChannel.CheckForUpdates),

@@ -17,10 +17,11 @@ import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import { createOpenAI } from '@ai-sdk/openai';
 import { OpenAIProvider as OpenAIProviderSDK } from '@ai-sdk/openai';
 import { OpenAICompatibleConfig } from '@mastra/core/llm';
-import { createOpenResponses } from '@ai-sdk/open-responses';
 import { isString } from '@/utils/is';
 import { toFile } from "openai";
 import mime from 'mime';
+import { Agent, fetch } from "undici";
+import { getTlsConnectOptions } from '../app/insecure-tls';
 
 export class OpenAIImageModel implements ImageModelV2 {
   specificationVersion: 'v2' = 'v2';
@@ -182,9 +183,17 @@ export class OpenAIProvider extends BaseProvider {
 
   constructor(provider: Providers) {
     super({ provider });
+    const agent = new Agent({
+      connect: getTlsConnectOptions(),
+    });
+
     this.openaiClient = new OpenAI({
       baseURL: this.provider.apiBase || this.defaultApiBase,
       apiKey: this.provider.apiKey,
+      fetch: fetch as any,
+      fetchOptions: {
+        dispatcher: agent,
+      },
       // fetchOptions:{
       //   agent:
       // }

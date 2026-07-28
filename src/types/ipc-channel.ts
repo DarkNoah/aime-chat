@@ -45,6 +45,7 @@ export enum AppChannel {
   ToggleApiServerEnable = 'app:toggleApiServerEnable',
   SetACPPort = 'app:setACPPort',
   ToggleACPEnable = 'app:toggleACPEnable',
+  SetInsecureTls = 'app:setInsecureTls',
   // 更新相关
   CheckForUpdates = 'app:checkForUpdates',
   DownloadUpdate = 'app:downloadUpdate',
