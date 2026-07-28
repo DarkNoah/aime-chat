@@ -21,10 +21,10 @@ const OptionSchema = z
       .describe(
         'Explanation of what this option means or what will happen if chosen. Useful for providing context about trade-offs or implications.',
       ),
-    markdown: z.string()
+    preview: z.string()
       .optional()
       .describe(
-        "Optional preview content shown in a monospace box when this option is focused. Use for ASCII mockups, code snippets, or diagrams that help users visually compare options. Supports multi-line text with newlines."
+        "Optional preview content rendered when this option is focused. Use for mockups, code snippets, or visual comparisons that help users compare options. See the tool description for the expected content format."
       )
   })
   .strict(); // additionalProperties: false

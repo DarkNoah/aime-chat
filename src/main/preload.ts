@@ -90,6 +90,11 @@ import {
   WeixinLoginStatusResult,
 } from '@/types/channel';
 import {
+  InstallMcpBundleInput,
+  InstallMcpBundleResult,
+  McpBundlePreview,
+} from '@/types/mcp';
+import {
   RequestLogItem,
   RequestLogListParams,
   RequestLogListResponse,
@@ -430,6 +435,12 @@ const electronHandler = {
     deleteTool: (id: string) => ipcRenderer.invoke(ToolChannel.DeleteTool, id),
     saveMCPServer: (id: string | undefined, data: string) =>
       ipcRenderer.invoke(ToolChannel.SaveMCPServer, id, data),
+    previewMCPBundle: (filePath: string): Promise<McpBundlePreview> =>
+      ipcRenderer.invoke(ToolChannel.PreviewMCPBundle, filePath),
+    installMCPBundle: (
+      input: InstallMcpBundleInput,
+    ): Promise<InstallMcpBundleResult> =>
+      ipcRenderer.invoke(ToolChannel.InstallMCPBundle, input),
     getMcp: (id: string) => ipcRenderer.invoke(ToolChannel.GetMcp, id),
     getAvailableTools: (
       { filter, isActive }: { filter?: string; isActive?: boolean } = {
@@ -461,6 +472,8 @@ const electronHandler = {
       sourceSkillIds?: string[];
       path?: string;
       selectedSkills?: string[];
+      installAllSkills?: boolean;
+      replaceSkillIds?: string[];
       isActive?: boolean;
       group?: string | null;
     }) => ipcRenderer.invoke(ToolChannel.ImportSkills, data),

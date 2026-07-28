@@ -7,6 +7,7 @@ The request waits for chat() and prints text from its last returned message.
 """
 
 import argparse
+import base64
 import json
 import mimetypes
 import os
@@ -49,10 +50,11 @@ def main() -> int:
         if not image.is_file() or not media_type or not media_type.startswith("image/"):
             print(f"Invalid image file: {value}", file=sys.stderr)
             return 1
+        encoded = base64.b64encode(image.read_bytes()).decode("ascii")
         parts.append(
             {
                 "type": "file",
-                "url": image.as_uri(),
+                "url": f"data:{media_type};base64,{encoded}",
                 "path": str(image),
                 "filename": image.name,
                 "mediaType": media_type,

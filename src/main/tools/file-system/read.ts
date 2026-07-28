@@ -17,7 +17,6 @@ import { filesize } from 'filesize';
 import { PDFLoader } from '@/main/utils/loaders/pdf-loader';
 import { WordLoader } from '@/main/utils/loaders/word-loader';
 import mime from 'mime';
-import { OcrAccuracy, recognize } from '@napi-rs/system-ocr';
 import { PowerPointLoader } from '@/main/utils/loaders/power-point-loader';
 import { ExcelLoader } from '@/main/utils/loaders/excel-loader';
 import { ToolConfig, ToolType } from '@/types/tool';
@@ -32,6 +31,7 @@ import { isArray, isObject, isString } from '@/utils/is';
 import { ProviderType } from '@/types/provider';
 import sharp from 'sharp';
 import { readTextFileRange } from './text-file-reader';
+import { isSystemOcrSupported } from '@/main/utils/system-ocr';
 
 
 const DEFAULT_MAX_LINES_TEXT_FILE = 2000;
@@ -500,9 +500,15 @@ Usage:
     const appInfo = await appManager.getInfo();
     const runtimeInfo = await appManager.getRuntimeInfo();
     let defaultOcr = appInfo?.defaultModel?.ocrModel;
+    const systemOcrModel = `${ProviderType.LOCAL}/system`;
 
-    if (!defaultOcr) {
-      defaultOcr = `${ProviderType.LOCAL}/system`;
+    if (
+      !defaultOcr ||
+      (defaultOcr === systemOcrModel && !isSystemOcrSupported())
+    ) {
+      defaultOcr = isSystemOcrSupported()
+        ? systemOcrModel
+        : `${ProviderType.LOCAL}/rapidocr`;
       if (runtimeInfo?.paddleOcr?.status === 'installed') {
         defaultOcr = `${ProviderType.LOCAL}/rapidocr`;
       }
@@ -530,9 +536,19 @@ Usage:
       } catch (err) {
         console.log(err)
       }
-      const loader = new PDFLoader(file_source);
+      const loader = new PDFLoader(file_source, {
+        useSystemOcrFallback:
+          defaultOcr === systemOcrModel && isSystemOcrSupported(),
+      });
       const content = await loader.load();
       result = content;
+      if (!String(result).trim()) {
+        result = await provider.ocrModel(ocrModel).doOCR({
+          image: file_source,
+          excludeInsideImage: this.excludeInsideImage,
+          abortSignal,
+        });
+      }
     } else if (ext === '.docx' || ext === '.doc') {
       try {
         if (this.forceWordOcr === true) {

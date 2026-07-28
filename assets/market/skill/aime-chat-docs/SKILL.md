@@ -1,6 +1,6 @@
 ---
 name: aime-chat-docs
-description: Aime Chat usage and configuration docs with ready-to-run local API scripts. Use when the user asks how Aime Chat features are configured, especially assistant personalities, SOUL.md files, local voices, available model discovery, available Agent discovery, available tool discovery, skill import/management, PTC (Programmatic Tool Calling) in CodeExecution, or sending text and images to an idle thread and waiting for its final reply. Includes Python scripts under scripts/ for calling the Aime Chat local API (list models, Agents, tools, preview and import skills, create threads, send thread messages, list running threads, list projects).
+description: Aime Chat usage and configuration docs with ready-to-run local API scripts. Use when the user asks how Aime Chat features are configured, especially assistant personalities, SOUL.md files, local voices, available model discovery, available Agent discovery, available tool discovery, skill import/management, PTC (Programmatic Tool Calling) in CodeExecution, sending text and images to an idle thread and waiting for its final reply, or listing/reading/searching chat history threads. Includes Python scripts under scripts/ for calling the Aime Chat local API (list models, Agents, tools, preview and import skills, create threads, send thread messages, list running threads, list projects, list/read/search chat history).
 autoInstall: true
 ---
 
@@ -24,6 +24,7 @@ Use this skill when answering questions about Aime Chat configuration and featur
 - **Send thread message**: Read [references/send-thread-message.md](references/send-thread-message.md) when sending text and/or local images to an existing idle thread and waiting for the final assistant text through the local API server.
 - **Running threads**: Read [references/list-running-threads.md](references/list-running-threads.md) when explaining how to list threads that are currently streaming (running) through the local API server.
 - **Projects**: Read [references/list-projects.md](references/list-projects.md) when explaining how to list projects (with pagination and title filter) through the local API server.
+- **Chat history**: Read [references/chat-history.md](references/chat-history.md) when explaining how to list recent chat threads, read a thread's messages, or keyword-search across chat history through the local API server.
 
 ## API Scripts
 
@@ -41,6 +42,9 @@ The `scripts/` folder contains standalone Python scripts (standard library only,
 - **[scripts/send_thread_message.py](scripts/send_thread_message.py)**: Send text and/or repeatable local `--image` files to an existing idle thread through the existing `chat()` API. Waits for `chat()` to finish, then prints text from the last returned message. Throws an error instead of queueing when the thread is busy.
 - **[scripts/list_running_threads.py](scripts/list_running_threads.py)**: List currently running (streaming) threads. Supports `--json` for raw output.
 - **[scripts/list_projects.py](scripts/list_projects.py)**: List projects. Optional `--filter`, `--page`, `--size`, and `--json` for raw output.
+- **[scripts/chat_history_list.py](scripts/chat_history_list.py)**: List recent chat threads (normal and project threads grouped by project). Optional `--since`, `--until`, `--limit`, and `--include-cron` (cron-created threads are excluded by default).
+- **[scripts/chat_history_read.py](scripts/chat_history_read.py)**: Read messages of a single thread by `--thread-id` (thread meta + plain-text messages). Optional `--limit`, `--since` for delta reads, and `--include-tools` for tool-call summaries.
+- **[scripts/chat_history_search.py](scripts/chat_history_search.py)**: Keyword search across recent chat threads with `--query` (space-separated keywords are fuzzy-matched, all must appear), matching message content, thread titles and project names. Excerpts are grouped per thread with project info (if any), thread id and title. Optional `--since`, `--limit`, and `--thread-limit`.
 
 The skills directory can be located via the `AIME_CHAT_SKILL_PATH` environment variable, so scripts can be run from anywhere as `python "${AIME_CHAT_SKILL_PATH}/aime-chat-docs/scripts/<script>.py"`.
 
@@ -53,4 +57,7 @@ python "${AIME_CHAT_SKILL_PATH}/aime-chat-docs/scripts/create_thread.py" --proje
 python "${AIME_CHAT_SKILL_PATH}/aime-chat-docs/scripts/send_thread_message.py" --thread-id <thread-id> --text "请总结当前进度" --image ./screenshot.png
 python "${AIME_CHAT_SKILL_PATH}/aime-chat-docs/scripts/list_running_threads.py"
 python "${AIME_CHAT_SKILL_PATH}/aime-chat-docs/scripts/list_projects.py" --filter my
+python "${AIME_CHAT_SKILL_PATH}/aime-chat-docs/scripts/chat_history_list.py" --since 2026-07-20
+python "${AIME_CHAT_SKILL_PATH}/aime-chat-docs/scripts/chat_history_read.py" --thread-id <thread-id>
+python "${AIME_CHAT_SKILL_PATH}/aime-chat-docs/scripts/chat_history_search.py" --query "关键词"
 ```

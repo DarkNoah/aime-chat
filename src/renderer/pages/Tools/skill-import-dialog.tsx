@@ -377,7 +377,7 @@ export function SkillImportDialog({
               >
                 <ItemContent className="flex flex-row items-center gap-2">
                   <Checkbox checked={selectedSkills.includes(skill.path)} />
-                  <SkillSummary skill={skill} />
+                  <SkillSummary skill={skill} showPath />
                 </ItemContent>
               </Item>
             ))}

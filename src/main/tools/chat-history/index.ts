@@ -8,6 +8,9 @@ import { projectManager } from '@/main/project';
 
 const truncate = (s: string, n: number) => (s.length > n ? `${s.slice(0, n)}…` : s);
 
+const stripSystemReminders = (s: string): string =>
+  s.replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, '').trim();
+
 type ListedThread = {
   thread: any;
   project?: {
@@ -16,7 +19,7 @@ type ListedThread = {
   };
 };
 
-const toPlainText = (message: any): string => {
+const toPlainText = (message: any, includeTools = true): string => {
   if (!message) return '';
   if (typeof message.content === 'string') return message.content;
   if (Array.isArray(message?.parts)) {
@@ -25,6 +28,7 @@ const toPlainText = (message: any): string => {
         if (p?.type === 'text' && typeof p.text === 'string') return p.text;
         if (p?.type === 'reasoning' && typeof p.text === 'string') return `[reasoning] ${p.text}`;
         if (typeof p?.type === 'string' && p.type.startsWith('tool-')) {
+          if (!includeTools) return '';
           const name = p?.toolName ?? p.type.slice(5);
           const args = p?.input ? JSON.stringify(p.input).slice(0, 200) : '';
           const out = p?.output ? JSON.stringify(p.output).slice(0, 200) : '';
@@ -217,6 +221,7 @@ export class ChatHistoryRead extends BaseTool {
     const sinceMs = since ? Date.parse(since) : undefined;
 
     let messages: any[] = [];
+    let thread: any;
     let threadMeta: any;
     try {
       const res = await mastraManager.getThreadMessages({
@@ -227,8 +232,8 @@ export class ChatHistoryRead extends BaseTool {
       messages = res.messages ?? [];
       // Try to also detect cron threads via thread metadata
       try {
-        const t = await mastraManager.getThread(threadId, true);
-        threadMeta = t?.metadata;
+        thread = await mastraManager.getThread(threadId, true);
+        threadMeta = thread?.metadata;
       } catch {
         // ignore
       }
@@ -244,14 +249,15 @@ export class ChatHistoryRead extends BaseTool {
 
 
     lines.push(`## CHAT THREAD META`);
-    if (threadMeta?.resourceId.startsWith('project:')) {
-      const project = await projectManager.getProject(threadMeta?.resourceId?.split(':')[1]);
+    const resourceId = thread?.resourceId ?? threadMeta?.resourceId;
+    if (typeof resourceId === 'string' && resourceId.startsWith('project:')) {
+      const project = await projectManager.getProject(resourceId.split(':')[1]);
       lines.push(`project: ${project?.title} (${project?.id})`);
     }
-    lines.push(`title: ${threadMeta?.title}`);
+    lines.push(`title: ${thread?.title ?? threadMeta?.title}`);
     lines.push(`threadId: ${threadId}`);
     lines.push(`model: ${threadMeta?.model}`);
-    lines.push(`createdAt: ${threadMeta?.createdAt}`);
+    lines.push(`createdAt: ${thread?.createdAt ?? threadMeta?.createdAt}`);
     // lines.push('\n\n')
 
     lines.push(`## CHAT MESSAGES`);
@@ -262,7 +268,7 @@ export class ChatHistoryRead extends BaseTool {
         const ts = m?.metadata?.createdAt ? new Date(m.metadata.createdAt).getTime() : 0;
         if (ts < sinceMs) continue;
       }
-      const text = toPlainText(m);
+      const text = stripSystemReminders(toPlainText(m, includeTools));
       if (!text.trim()) continue;
       const ts = m?.metadata?.createdAt ? new Date(m.metadata.createdAt).toISOString() : '';
       lines.push(`[${role}]\ncontent: \n${text}`);
@@ -280,10 +286,13 @@ export class ChatHistoryRead extends BaseTool {
 export class ChatHistorySearch extends BaseTool {
   static readonly toolName = 'ChatHistorySearch';
   id: string = 'ChatHistorySearch';
-  description = `Keyword search across recent chat threads. Returns matching message excerpts with their thread id and timestamp. Use this to find prior mentions of a person, project or topic before deciding whether to update an existing wiki page.`;
+  description = `Keyword search across recent chat threads (normal and project threads). Space-separated keywords are fuzzy-matched (all keywords must appear, in any order) against message content, thread titles and project names. Matching excerpts are grouped per thread with its project info (if any), thread id and title. Use this to find prior mentions of a person, project or topic before deciding whether to update an existing wiki page.`;
 
   inputSchema = z.object({
-    query: z.string().min(1).describe('Case-insensitive keyword or phrase'),
+    query: z
+      .string()
+      .min(1)
+      .describe('Case-insensitive keywords; space-separated keywords are fuzzy-matched (all keywords must appear, in any order)'),
     since: z
       .string()
       .optional()
@@ -309,52 +318,130 @@ export class ChatHistorySearch extends BaseTool {
     _ctx: ToolExecutionContext<ZodSchema, any>,
   ) => {
     const { query, since, limit = 20, threadLimit = 50 } = inputData;
-    const needle = query.toLowerCase();
+    const needles = query.toLowerCase().split(/\s+/).filter(Boolean);
+    if (needles.length === 0) return `No matches for "${query}".`;
+    // Fuzzy AND match: all keywords must appear; returns the earliest occurrence for excerpting.
+    const findMatch = (lower: string): { index: number; length: number } | null => {
+      let first: { index: number; length: number } | null = null;
+      for (const n of needles) {
+        const idx = lower.indexOf(n);
+        if (idx < 0) return null;
+        if (!first || idx < first.index) first = { index: idx, length: n.length };
+      }
+      return first;
+    };
     const sinceMs = since ? Date.parse(since) : undefined;
 
-    const res = await mastraManager.getThreads({
+    const shouldIncludeThread = (t: any) => {
+      if (isCronThread(t)) return false;
+      if (!sinceMs) return true;
+      return getThreadUpdatedMs(t) >= sinceMs;
+    };
+
+    const listedThreads: ListedThread[] = [];
+    const normalRes = await mastraManager.getThreads({
       page: 0,
       size: threadLimit,
       resourceId: DEFAULT_RESOURCE_ID,
     });
-    const threads = (res.items ?? []).filter((t: any) => {
-      if (isCronThread(t)) return false;
-      if (!sinceMs) return true;
-      const ts = t?.updatedAt ? new Date(t.updatedAt).getTime() : 0;
-      return ts >= sinceMs;
-    });
+    listedThreads.push(
+      ...(normalRes.items ?? []).filter(shouldIncludeThread).map((thread: any) => ({ thread })),
+    );
 
-    const results: string[] = [];
-    for (const t of threads) {
-      if (results.length >= limit) break;
+    const projectsRes = await projectManager.getList({ page: 0, size: 200, filter: undefined });
+    const projectThreads = await Promise.all(
+      (projectsRes.items ?? []).map(async (project: any): Promise<ListedThread[]> => {
+        if (!project?.id) return [];
+        try {
+          const res = await mastraManager.getThreads({
+            page: 0,
+            size: threadLimit,
+            resourceId: `project:${project.id}`,
+          });
+          return (res.items ?? [])
+            .filter(shouldIncludeThread)
+            .map((thread: any) => ({
+              thread,
+              project: {
+                id: project.id,
+                title: project.title ?? project.id,
+              },
+            }));
+        } catch {
+          return [];
+        }
+      }),
+    );
+    listedThreads.push(...projectThreads.flat());
+
+    const threads = listedThreads
+      .sort((a, b) => getThreadUpdatedMs(b.thread) - getThreadUpdatedMs(a.thread))
+      .slice(0, threadLimit);
+
+    const threadMatches: Array<{ item: ListedThread; excerpts: string[] }> = [];
+    let totalExcerpts = 0;
+    for (const item of threads) {
+      if (totalExcerpts >= limit) break;
+
+      const excerpts: string[] = [];
+      const title = String(item.thread?.title ?? item.thread?.metadata?.title ?? '');
+      if (findMatch(title.toLowerCase())) {
+        excerpts.push('[matched thread title]');
+        totalExcerpts++;
+      }
+      if (item.project && totalExcerpts < limit) {
+        const projectText = `${item.project.id} ${item.project.title}`.toLowerCase();
+        if (findMatch(projectText)) {
+          excerpts.push('[matched project name]');
+          totalExcerpts++;
+        }
+      }
+
       let messages: any[] = [];
       try {
         const r = await mastraManager.getThreadMessages({
-          threadId: t.id,
+          threadId: item.thread.id,
           perPage: 200,
           page: 0,
         });
         messages = r.messages ?? [];
       } catch {
-        continue;
+        messages = [];
       }
       for (const m of messages) {
-        if (results.length >= limit) break;
+        if (totalExcerpts >= limit) break;
         const text = toPlainText(m);
         if (!text) continue;
-        const lower = text.toLowerCase();
-        const idx = lower.indexOf(needle);
-        if (idx < 0) continue;
-        const start = Math.max(0, idx - 60);
-        const end = Math.min(text.length, idx + needle.length + 100);
+        const match = findMatch(text.toLowerCase());
+        if (!match) continue;
+        const start = Math.max(0, match.index - 60);
+        const end = Math.min(text.length, match.index + match.length + 100);
         const excerpt = `${start > 0 ? '…' : ''}${text.slice(start, end)}${end < text.length ? '…' : ''}`;
-        const ts = m?.createdAt ? new Date(m.createdAt).toISOString() : '';
-        results.push(`[${t.id}] ${m?.role ?? '?'}${ts ? ` @ ${ts}` : ''}\n${excerpt}`);
+        const createdAt = m?.createdAt ?? m?.metadata?.createdAt;
+        const ts = createdAt ? new Date(createdAt).toISOString() : '';
+        excerpts.push(`[${m?.role ?? '?'}]${ts ? ` @ ${ts}` : ''} ${excerpt}`);
+        totalExcerpts++;
       }
+      if (excerpts.length > 0) threadMatches.push({ item, excerpts });
     }
 
-    if (results.length === 0) return `No matches for "${query}".`;
-    return results.join('\n\n---\n\n');
+    if (threadMatches.length === 0) return `No matches for "${query}".`;
+
+    const blocks = threadMatches.map(({ item, excerpts }) => {
+      const t = item.thread;
+      const lines: string[] = [];
+      if (item.project) {
+        lines.push(`Project Id: ${item.project.id}`);
+        lines.push(`Project Name: ${item.project.title}`);
+      }
+      lines.push(`Thread Id: ${t.id}`);
+      lines.push(`Thread Title: ${t?.title ?? t?.metadata?.title ?? '(untitled)'}`);
+      lines.push('```');
+      lines.push(excerpts.join('\n\n'));
+      lines.push('```');
+      return lines.join('\n');
+    });
+    return blocks.join('\n\n---\n\n');
   };
 }
 

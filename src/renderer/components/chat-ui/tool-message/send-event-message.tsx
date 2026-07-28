@@ -24,6 +24,7 @@ import { ModelViewer, isSupportedModelFile } from '../../model-viewer';
 import { cn } from '@/renderer/lib/utils';
 import { splitContextAndFiles } from '@/utils/context-utils';
 import { IconWorldWww } from '@tabler/icons-react';
+import { Progress } from '../../ui/progress';
 
 const toFileUrl = (filePath: string) => new URL(filePath, 'file:').href;
 
@@ -32,7 +33,7 @@ type SendEventInput = {
   data?: string;
 };
 
-export interface SendEventMessageRef {}
+export interface SendEventMessageRef { }
 
 export type SendEventMessageProps = ComponentProps<typeof Card> & {
   threadId?: string;
@@ -301,6 +302,14 @@ export const SendEventMessage = React.forwardRef<
             </div>
           )}
         </div>
+      )}
+      {event === 'progress' && data?.message && (
+        <Progress
+          value={Number(data?.percent ?? 0)}
+          className="w-full max-w-sm"
+        >
+          {data?.message ?? 's'}
+        </Progress>
       )}
     </>
   );

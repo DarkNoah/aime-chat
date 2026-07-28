@@ -48,3 +48,5 @@ assets/market/template/
 assets/market/skill/test/
 
 docs/superpowers/
+.superpowers/
+.worktrees/

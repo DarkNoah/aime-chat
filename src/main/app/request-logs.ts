@@ -35,6 +35,48 @@ function truncate(value?: string) {
   } chars]`;
 }
 
+// 超过该长度且符合 base64 字符集的字符串才会被裁剪,避免误伤普通短文本
+const BASE64_MIN_LENGTH = 300;
+const BASE64_KEEP_CHARS = 100;
+const BASE64_PATTERN = /^(?:data:[\w.+-]+\/[\w.+-]+;base64,)?[A-Za-z0-9+/\r\n]+={0,2}$/;
+
+function clipBase64(value: string) {
+  return `${value.slice(0, BASE64_KEEP_CHARS)}...[base64 truncated: ${
+    value.length - BASE64_KEEP_CHARS * 2
+  } chars]...${value.slice(-BASE64_KEEP_CHARS)}`;
+}
+
+function sanitizeValue(value: unknown): unknown {
+  if (typeof value === 'string') {
+    if (value.length > BASE64_MIN_LENGTH && BASE64_PATTERN.test(value)) {
+      return clipBase64(value);
+    }
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return value.map(sanitizeValue);
+  }
+  if (value && typeof value === 'object') {
+    const result: Record<string, unknown> = {};
+    for (const [key, item] of Object.entries(value)) {
+      result[key] = sanitizeValue(item);
+    }
+    return result;
+  }
+  return value;
+}
+
+function sanitizeBase64InJson(value?: string) {
+  if (!value) return value;
+  const trimmed = value.trim();
+  if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) return value;
+  try {
+    return JSON.stringify(sanitizeValue(JSON.parse(trimmed)));
+  } catch {
+    return value;
+  }
+}
+
 class RequestLogManager extends BaseManager {
   private repository: Repository<RequestLog>;
 
@@ -66,10 +108,10 @@ class RequestLogManager extends BaseManager {
           method: input.method,
           url: input.url,
           request_headers: input.requestHeaders,
-          request_body: input.requestBody,
+          request_body: sanitizeBase64InJson(input.requestBody),
           status_code: input.statusCode,
           response_headers: input.responseHeaders,
-          response_body: truncate(input.responseBody),
+          response_body: truncate(sanitizeBase64InJson(input.responseBody)),
           duration_ms: input.durationMs,
           error: truncate(input.error),
           start_time: input.startTime,

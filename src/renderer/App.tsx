@@ -71,6 +71,7 @@ import { initBashSessionIpcListeners } from './store/use-bash-session-store';
 import { initSSHSessionIpcListeners } from './store/use-ssh-session-store';
 import MarketPage from './pages/market';
 import CronsPage from './pages/crons';
+import { GlobalMcpBundleImport } from './components/mcp-bundle-import';
 
 function Hello() {
   const { setTitle } = useHeader();
@@ -236,6 +237,7 @@ function LayoutPage(props: { children: ReactNode }) {
         disableTransitionOnChange
       >
         <I18nProvider>
+          <GlobalMcpBundleImport />
           <SetupRedirect>{children}</SetupRedirect>
         </I18nProvider>
       </ThemeProvider>

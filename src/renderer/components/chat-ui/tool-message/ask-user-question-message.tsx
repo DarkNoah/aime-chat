@@ -93,9 +93,9 @@ export const AskUserQuestionMessage = React.forwardRef<
                                 </small>
                               </Label>
                             </div>
-                            {option?.markdown && (
+                            {option?.preview && (
                               <Streamdown className="text-wrap break-all w-full h-full whitespace-break-spaces border border-muted-foreground/20 rounded-2xl px-2">
-                                {option?.markdown}
+                                {option?.preview}
                               </Streamdown>
                             )}
                           </div>
@@ -170,10 +170,10 @@ export const AskUserQuestionMessage = React.forwardRef<
                               </small>
                             </div>
 
-                            {option?.markdown && (
+                            {option?.preview && (
                               <>
                                 <Streamdown className="text-wrap break-all w-full h-full whitespace-break-spaces border border-muted-foreground/20 rounded-2xl px-2">
-                                  {option?.markdown}
+                                  {option?.preview}
                                 </Streamdown>
                                 <div className=" mb-2"></div>
                               </>

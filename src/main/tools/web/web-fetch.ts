@@ -10,7 +10,6 @@ import { ToolConfig } from '@/types/tool';
 import { providersManager } from '@/main/providers';
 import { ProviderType } from '@/types/provider';
 import { ZhipuAIProvider } from '@/main/providers/zhipuai-provider';
-import { PDFLoader } from '@/main/utils/loaders/pdf-loader';
 import { BrowserContext, chromium } from 'playwright';
 import { appManager } from '@/main/app';
 import { instancesManager } from '@/main/instances';
