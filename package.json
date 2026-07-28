@@ -386,7 +386,8 @@
       "**/@techstark/opencv-js/**/*",
       "**/pdfjs-dist/**",
       "**/node_modules/@vscode/ripgrep/**",
-      "**/node_modules/@img/sharp-*/**/*"
+      "**/node_modules/@img/sharp-*/**/*",
+      "**/node_modules/node-pty/**/*"
     ],
     "files": [
       "dist",
