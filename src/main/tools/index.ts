@@ -658,6 +658,18 @@ class ToolsManager extends BaseManager {
     this.registerBuiltInTools();
   }
 
+  public async disconnectMcpClients(): Promise<void> {
+    const clients = [...(this.mcpClients ?? [])];
+
+    await Promise.allSettled(
+      clients.map(async (client) => {
+        await client.mcp.disconnect();
+        client.status = 'stopped';
+        client.error = undefined;
+      }),
+    );
+  }
+
   @channel(ToolChannel.SaveSkill)
   public async saveSkill(id: string | undefined, data: any) {
     let localSkill: Tools;

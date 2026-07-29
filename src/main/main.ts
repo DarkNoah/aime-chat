@@ -216,6 +216,26 @@ const gotSingleInstanceLock = app.requestSingleInstanceLock();
 if (!gotSingleInstanceLock) {
   app.exit(0);
 } else {
+  let isDisconnectingMcpClients = false;
+  let areMcpClientsDisconnected = false;
+
+  app.on('before-quit', (event) => {
+    if (areMcpClientsDisconnected) {
+      return;
+    }
+
+    event.preventDefault();
+    if (isDisconnectingMcpClients) {
+      return;
+    }
+
+    isDisconnectingMcpClients = true;
+    void toolsManager.disconnectMcpClients().finally(() => {
+      areMcpClientsDisconnected = true;
+      app.quit();
+    });
+  });
+
   app.setAsDefaultProtocolClient('aime-chat');
   app.on('open-url', (event, url) => {
     event.preventDefault();
