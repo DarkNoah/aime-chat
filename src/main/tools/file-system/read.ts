@@ -26,12 +26,12 @@ import { appManager } from '@/main/app';
 import { providersManager } from '@/main/providers';
 import { SpeechToText } from '../audio';
 import { toolsManager } from '..';
-import { LanguageModelV2ToolResultOutput, LanguageModelV2ToolResultPart } from '@ai-sdk/provider';
 import { isArray, isObject, isString } from '@/utils/is';
 import { ProviderType } from '@/types/provider';
 import sharp from 'sharp';
 import { readTextFileRange } from './text-file-reader';
 import { isSystemOcrSupported } from '@/main/utils/system-ocr';
+import { toReadModelOutput } from './read-model-output';
 
 
 const DEFAULT_MAX_LINES_TEXT_FILE = 2000;
@@ -446,6 +446,7 @@ Usage:
     }
   };
 
+  toModelOutput = toReadModelOutput;
 }
 
 export interface ReadBinaryFileParams extends BaseToolParams {

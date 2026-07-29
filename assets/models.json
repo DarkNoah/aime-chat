@@ -166156,6 +166156,39 @@
           "output": 0.3
         }
       },
+      "qwen3.7-flash": {
+        "id": "qwen3.7-flash",
+        "name": "Qwen3.7 Flash",
+        "description": "Multimodal reasoning model for visual analysis, planning, and tool use",
+        "attachment": true,
+        "reasoning": true,
+        "reasoning_options": [],
+        "tool_call": true,
+        "structured_output": false,
+        "temperature": true,
+        "release_date": "2026-07-27",
+        "last_updated": "2026-07-27",
+        "modalities": {
+          "input": [
+            "text",
+            "image"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "limit": {
+          "context": 1000000,
+          "output": 1000000
+        },
+        "cost": {
+          "input": 0.03,
+          "output": 0.13,
+          "cache_read": 0.006,
+          "cache_write": 0.0375
+        }
+      },
       "minimax-m2.7-highspeed": {
         "id": "minimax-m2.7-highspeed",
         "name": "MiniMax-M2.7-highspeed",
@@ -170146,12 +170179,13 @@
         },
         "open_weights": true,
         "limit": {
-          "context": 131072,
+          "context": 262144,
           "output": 8192
         },
         "cost": {
-          "input": 0.3,
-          "output": 1.5
+          "input": 0.2,
+          "output": 0.88,
+          "cache_read": 0.11
         }
       },
       "qwen35-397b-a17b": {
@@ -171881,12 +171915,12 @@
         },
         "open_weights": true,
         "limit": {
-          "context": 131072,
+          "context": 262144,
           "output": 8192
         },
         "cost": {
-          "input": 0.2,
-          "output": 0.7
+          "input": 0.15,
+          "output": 0.6
         }
       },
       "mimo-v2.5-pro": {
@@ -217549,9 +217583,9 @@
           "output": 20480
         },
         "cost": {
-          "input": 0.348,
-          "output": 1.332,
-          "cache_write": 0.174
+          "input": 0.41,
+          "output": 1.52,
+          "cache_write": 0.205
         }
       },
       "glm-5.2": {
@@ -217756,9 +217790,9 @@
           "output": 25600
         },
         "cost": {
-          "input": 0.13,
-          "output": 0.424,
-          "cache_write": 0.065
+          "input": 0.116,
+          "output": 0.408,
+          "cache_write": 0.058
         }
       },
       "llama-3.3-70b-instruct": {
@@ -217869,9 +217903,9 @@
           "output": 13107
         },
         "cost": {
-          "input": 0.176,
-          "output": 0.652,
-          "cache_write": 0.088
+          "input": 0.178,
+          "output": 0.68,
+          "cache_write": 0.089
         }
       },
       "kimi-k2.7-code": {

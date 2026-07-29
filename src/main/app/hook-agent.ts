@@ -2,8 +2,8 @@
 import { Agent, Dispatcher, ProxyAgent } from 'undici';
 import { Readable } from 'stream';
 import { brotliDecompressSync, gunzipSync, inflateSync } from 'zlib';
-import { isArray, isObject, isString } from '@/utils/is';
 import { requestLogManager } from './request-logs';
+import { hookModelRequestBody } from './model-request-content';
 
 const THREAD_ID_HEADER = 'X-AIME-CHAT-THREAD-ID';
 
@@ -38,7 +38,7 @@ function isAsyncIterable(value: unknown): value is AsyncIterable<unknown> {
   return Boolean(
     value &&
     typeof (value as AsyncIterable<unknown>)[Symbol.asyncIterator] ===
-    'function',
+      'function',
   );
 }
 
@@ -282,10 +282,25 @@ export class HookAgent extends Agent {
     const requestBodyCapture = new TextCapture();
 
     if (method !== 'GET' && method !== 'HEAD' && options.body) {
+      const originalBody = options.body;
+      const originalContent =
+        typeof originalBody === 'string' ||
+        Buffer.isBuffer(originalBody) ||
+        originalBody instanceof Uint8Array
+          ? originalBody.toString()
+          : undefined;
       options.body = this.transformBody(
-        options.body,
+        originalBody,
         shouldLog ? requestBodyCapture : undefined,
       );
+      if (
+        isAsyncIterable(originalBody) ||
+        (typeof options.body === 'string' &&
+          originalContent !== undefined &&
+          options.body !== originalContent)
+      ) {
+        options.headers = removeContentLength(options.headers);
+      }
     }
 
     const context = shouldLog
@@ -343,8 +358,7 @@ export class HookAgent extends Agent {
   }
 
   protected modifyContent(content: string): string {
-    // 默认不修改，子类可以覆盖
-    return content;
+    return hookModelRequestBody(content);
   }
 }
 
@@ -425,113 +439,6 @@ export class HookProxyAgent extends ProxyAgent {
   }
 
   protected modifyContent(content: string): string {
-    let jsonObject = null;
-    try {
-      jsonObject = JSON.parse(content);
-      if (jsonObject.messages) {
-        for (let i = 0; i < jsonObject.messages.length; i++) {
-          const message = jsonObject.messages[i];
-          if (
-            message.role == 'tool' &&
-            isString(message.content) &&
-            (message.content.startsWith('{') &&
-              message.content.endsWith('}') || (message.content.startsWith('[') && message.content.endsWith(']')))
-          ) {
-            try {
-              const content = JSON.parse(message.content);
-              if (
-                isArray(content) &&
-                content?.length > 0 &&
-                content?.find(
-                  (x) =>
-                    (x.type == 'image-data' || x.type == 'video-data') &&
-                    x.data
-                )
-              ) {
-                const newContent = [];
-                for (const part of content) {
-                  if (part.type == 'image-data' && part.data) {
-                    newContent.push({
-                      type: 'image_url',
-                      image_url: {
-                        url: part.data.startsWith('data:')
-                          ? part.data
-                          : `data:${part.mediaType || part.mimeType || 'image/jpeg'};base64,${part.data}`,
-                      },
-                    });
-                  } else if (
-                    part.type == 'video-data' &&
-                    part.data
-                  ) {
-                    newContent.push({
-                      type: 'video_url',
-                      video_url: {
-                        url: part.data.startsWith('data:')
-                          ? part.data
-                          : `data:${part.mediaType || part.mimeType};base64,${part.data}`,
-                      },
-                    });
-                  } else {
-                    newContent.push(part);
-                  }
-                }
-                jsonObject.messages[i].content = newContent;
-              } else if (
-                isObject(content) &&
-                'result' in content &&
-                content.result &&
-                isArray(content.result)
-              ) {
-                const newContent = [];
-                for (const part of content.result) {
-                  if (part.type == 'image' && part.data && part.mimeType) {
-                    newContent.push({
-                      type: 'image_url',
-                      image_url: {
-                        url: part.data.startsWith('data:')
-                          ? part.data
-                          : `data:${part.mimeType};base64,${part.data}`,
-                      },
-                    });
-                  } else if (
-                    part.type == 'video' &&
-                    part.data &&
-                    part.mimeType
-                  ) {
-                    newContent.push({
-                      type: 'video_url',
-                      video_url: {
-                        url: part.data.startsWith('data:')
-                          ? part.data
-                          : `data:${part.mimeType};base64,${part.data}`,
-                      },
-                    });
-                  } else if (part.type == 'text' && part.text) {
-                    newContent.push({ type: 'text', text: part.text });
-                  } else {
-                    newContent.push(part);
-                  }
-                }
-                jsonObject.messages[i].content = newContent;
-              } else {
-                continue;
-              }
-            } catch {
-              continue;
-            }
-          }
-        }
-        // console.log(JSON.stringify(jsonObject));
-
-        return JSON.stringify(jsonObject);
-      }
-
-      // if ("input" in jsonObject && Array.isArray(jsonObject.input) && jsonObject.input.length > 0) {
-
-      //   jsonObject.input = jsonObject.input.filter(x=>x.type != 'item_reference' || (x.type == 'item_reference' && !x?.id?.startsWith('rs_')))
-
-      // }
-    } catch { }
-    return content;
+    return hookModelRequestBody(content);
   }
 }
