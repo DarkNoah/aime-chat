@@ -35,6 +35,7 @@ const logos = {
   baidu: baiduIcon,
   zhipuai: zhipuIcon,
   openai: openaiIcon,
+  'openai-responses': openaiIcon,
   groq: groqIcon,
   openrouter: openrouterIcon,
   siliconflow: siliconflowIcon,

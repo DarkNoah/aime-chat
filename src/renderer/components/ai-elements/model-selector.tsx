@@ -161,6 +161,11 @@ export type ModelSelectorLogoProps = Omit<
   | (string & {});
 };
 
+// 自定义 provider 类型在 models.dev 上没有对应 logo,映射到已有 logo
+const providerLogoAliases: Record<string, string> = {
+  'openai-responses': 'openai',
+};
+
 export const ModelSelectorLogo = ({
   provider,
   className,
@@ -182,7 +187,7 @@ export const ModelSelectorLogo = ({
       alt={`${provider} logo`}
       className={cn(`size-3 dark:invert`, className)}
       height={12}
-      src={`https://models.dev/logos/${provider}.svg`}
+      src={`https://models.dev/logos/${providerLogoAliases[provider] ?? provider}.svg`}
       width={12}
       onError={() => setLoadFailed(true)}
     />
