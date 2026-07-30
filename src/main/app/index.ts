@@ -34,7 +34,13 @@ import {
   WindowModeState,
 } from '@/types/app';
 import { app } from 'electron';
-import { getAssetPath, getDbPath, getDefaultModelPath } from '../utils';
+import {
+  getAssetPath,
+  getDbPath,
+  getDefaultModelPath,
+  getRgPath,
+  persistModelPathForUninstaller,
+} from '../utils';
 import { platform } from 'os';
 import { setGlobalDispatcher } from 'undici';
 import { isUrl } from '@/utils/is';
@@ -76,7 +82,6 @@ import {
   SearchInDirectoryResult,
   SearchResult,
 } from '@/types/common';
-import { getRgPath } from '../utils';
 import { execSync, spawn } from 'child_process';
 import os from 'os';
 import readline from 'readline';
@@ -151,9 +156,13 @@ class AppManager extends BaseManager {
       dbManager.dataSource.getRepository(Translations);
     this.settingsRepository = dbManager.dataSource.getRepository(Settings);
     const settings = await this.settingsRepository.find();
-    this.windowModeController.initialize(settings.find(
-      (x) => x.id === 'windowMode',
-    )?.value);
+    persistModelPathForUninstaller(
+      settings.find((x) => x.id === 'modelPath')?.value ??
+        getDefaultModelPath(),
+    );
+    this.windowModeController.initialize(
+      settings.find((x) => x.id === 'windowMode')?.value,
+    );
     nativeTheme.themeSource =
       settings.find((x) => x.id === 'theme')?.value ?? 'system';
     setInsecureTlsEnabled(
@@ -938,6 +947,9 @@ class AppManager extends BaseManager {
     value: any;
   }): Promise<void> {
     await this.settingsRepository.upsert(settings, ['id']);
+    if (settings.id === 'modelPath' && typeof settings.value === 'string') {
+      persistModelPathForUninstaller(settings.value);
+    }
   }
 
   @channel(AppChannel.GetAssistantSoulLibrary)
