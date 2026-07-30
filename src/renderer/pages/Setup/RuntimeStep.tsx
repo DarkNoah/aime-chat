@@ -162,8 +162,7 @@ function RuntimeStep({ onNext, onBack, onSkip }: SetupStepProps) {
         setRuntimeInfo(data);
         setSelected({
           uv:
-            data.uv?.status !== 'installed' &&
-            data.uv?.status !== 'installing',
+            data.uv?.status !== 'installed' && data.uv?.status !== 'installing',
           node:
             data.node?.status !== 'installed' &&
             data.node?.status !== 'installing',
