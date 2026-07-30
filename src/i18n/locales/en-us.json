@@ -470,14 +470,22 @@
     },
     "runtime": {
       "title": "Install Runtime",
-      "description": "Install optional runtimes to enable advanced features like MCP servers and code execution.",
+      "description": "Choose the runtimes you need. Installation starts in the background when you continue.",
       "uv_desc": "Python package manager for running MCP servers and Python tools.",
-      "node_desc": "JavaScript runtime.",
+      "node_desc": "JavaScript runtime for Node.js tools and MCP servers.",
+      "paddle_ocr_desc": "Local OCR engine for extracting text from images and documents. Requires UV.",
       "installed": "Installed",
       "not_installed": "Not Installed",
       "install": "Install",
       "installing": "Installing...",
-      "tip": "UV runtime is recommended for running code. You can skip this step and install later in Settings."
+      "select_runtime": "Select {{name}} for installation",
+      "selection_tip": "{{count}} selected. Installation will continue in the background after you proceed.",
+      "no_selection_tip": "There is nothing to install. You can continue.",
+      "install_and_continue": "Install {{count}} and Continue",
+      "install_progress": "Installing {{name}} in the background ({{current}}/{{total}})",
+      "install_complete": "{{count}} runtimes installed",
+      "install_failed": "Could not install: {{names}}. You can retry later in Settings > Runtime.",
+      "load_error": "Could not load runtime status"
     },
     "complete": {
       "title": "You're All Set!",

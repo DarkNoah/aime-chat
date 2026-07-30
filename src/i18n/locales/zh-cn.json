@@ -518,14 +518,22 @@
     },
     "runtime": {
       "title": "安装运行环境",
-      "description": "安装可选的运行环境以启用高级功能，如 MCP 服务器和代码执行。",
+      "description": "选择需要的运行环境，点击下一步后将在后台自动安装。",
       "uv_desc": "Python 包管理器，用于运行 MCP 服务器和 Python 工具。",
-      "node_desc": "JavaScript 运行时",
+      "node_desc": "JavaScript 运行时，用于 Node.js 工具和 MCP 服务。",
+      "paddle_ocr_desc": "本地 OCR 引擎，用于识别图片和文档中的文字，需要 UV。",
       "installed": "已安装",
       "not_installed": "未安装",
       "install": "安装",
       "installing": "安装中...",
-      "tip": "推荐安装 UV 运行环境以运行代码。您可以跳过此步骤，稍后在设置中安装。"
+      "select_runtime": "选择安装 {{name}}",
+      "selection_tip": "已选择 {{count}} 项。点击下一步后会在后台依次安装，您可以继续完成设置。",
+      "no_selection_tip": "没有需要安装的项目，您可以直接继续。",
+      "install_and_continue": "安装 {{count}} 项并继续",
+      "install_progress": "正在后台安装 {{name}}（{{current}}/{{total}}）",
+      "install_complete": "{{count}} 个运行环境已安装完成",
+      "install_failed": "未能安装：{{names}}。可稍后在“设置 > 运行环境”中重试。",
+      "load_error": "无法读取运行环境状态"
     },
     "complete": {
       "title": "设置完成！",
