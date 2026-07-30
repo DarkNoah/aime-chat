@@ -43,6 +43,9 @@ import { requestLogManager } from './app/request-logs';
 // process.env.DEFAULT_SPEECH_MODEL = undefined;
 // process.env.THINK = undefined;
 
+// 设置为 "true" 时禁用初始化向导（不再跳转到 /setup 页面），其他任何值均不生效
+// process.env.DISABLE_SETUP = "true";
+
 process.env.API_SERVER_ENABLED = 'true'
 
 initCrashReporter();

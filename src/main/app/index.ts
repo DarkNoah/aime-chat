@@ -1157,9 +1157,12 @@ class AppManager extends BaseManager {
     const hasDefaultModel = !!settings.find((x) => x.id === 'defaultModel')
       ?.value?.model;
 
-    const setupCompleted = settings.find(
-      (x) => x.id === 'setupCompleted',
-    )?.value;
+    // 设置 DISABLE_SETUP="true" 时禁用初始化向导（见 main.ts 中的注释）
+    const setupDisabled = process.env.DISABLE_SETUP === 'true';
+
+    const setupCompleted =
+      setupDisabled ||
+      settings.find((x) => x.id === 'setupCompleted')?.value;
     let hasRuntime;
 
     if (!setupCompleted) {

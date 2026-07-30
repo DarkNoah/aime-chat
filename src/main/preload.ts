@@ -77,7 +77,7 @@ import {
 } from 'electron';
 import { KnowledgeBase, KnowledgeBaseItem } from '@/entities/knowledge-base';
 import { InstanceInfo } from '@/types/instance';
-import { MarketChannel } from '@/types/market';
+import { MarketChannel, type MarketDataType } from '@/types/market';
 import {
   ChannelCommandsResult,
   ChannelInfo,
@@ -581,7 +581,7 @@ const electronHandler = {
       ipcRenderer.invoke(InstancesChannel.DetectBrowserProfiles),
   },
   market: {
-    getMarketData: (type: ToolType.SKILL | ToolType.MCP) =>
+    getMarketData: (type: MarketDataType) =>
       ipcRenderer.invoke(MarketChannel.GetMarketData, type),
   },
   secrets: {

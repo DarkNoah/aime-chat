@@ -590,7 +590,9 @@
   "market": {
     "skills": "技能",
     "installed": "已安装",
-    "recommended": "推荐"
+    "recommended": "推荐",
+    "knowledge_base": "知识库",
+    "kb_item_count": "{{count}} 条内容"
   },
   "channels": {
     "saved": "频道已保存",

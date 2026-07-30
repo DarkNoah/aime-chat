@@ -1,9 +1,19 @@
 import fs from 'fs';
 import path from 'path';
-import { MarketChannel } from '@/types/market';
+import {
+  MARKET_KNOWLEDGE_BASE,
+  MarketChannel,
+  type MarketDataType,
+} from '@/types/market';
 import { ToolType } from '@/types/tool';
 import { BaseManager } from '../BaseManager';
 import { channel } from '../ipc/IpcController';
+import { knowledgeBaseManager } from '../knowledge-base';
+import {
+  findBundledKnowledgeBaseSQLiteFiles,
+  readBundledKnowledgeBaseConfig,
+} from '../knowledge-base/bundled-import';
+import { inspectKnowledgeBaseSQLite } from '../knowledge-base/import-sqlite';
 import { toolsManager } from '../tools';
 import { getAssetPath } from '../utils';
 import {
@@ -65,10 +75,68 @@ export class MarketManager extends BaseManager {
         console.error(`Failed to install market skill ${skill.name}:`, error);
       }
     }
+
+    await this.autoInstallKnowledgeBases();
+  }
+
+  private async autoInstallKnowledgeBases() {
+    const marketPath = getAssetPath('market', MARKET_KNOWLEDGE_BASE);
+    const files = findBundledKnowledgeBaseSQLiteFiles(marketPath);
+
+    for (const filePath of files) {
+      if (readBundledKnowledgeBaseConfig(filePath).autoInstall !== true) {
+        continue;
+      }
+
+      try {
+        const info = await knowledgeBaseManager.importSQLite(
+          filePath,
+          'append',
+        );
+        console.log(`Knowledge base ${info.name} installed`);
+      } catch (error) {
+        console.error(
+          `Failed to install market knowledge base: ${filePath}`,
+          error,
+        );
+      }
+    }
+  }
+
+  private async getKnowledgeBaseMarketData() {
+    const marketPath = getAssetPath('market', MARKET_KNOWLEDGE_BASE);
+    const files = findBundledKnowledgeBaseSQLiteFiles(marketPath);
+    const installedKbs = await knowledgeBaseManager.getKnowledgeBaseList();
+    const marketData = [];
+
+    for (const filePath of files) {
+      try {
+        const info = inspectKnowledgeBaseSQLite(filePath);
+        const config = readBundledKnowledgeBaseConfig(filePath);
+        marketData.push({
+          ...info,
+          description: config.description,
+          autoInstall: config.autoInstall === true,
+          isInstalled: installedKbs.some((kb) => kb.id === info.id),
+          path: filePath,
+        });
+      } catch (error) {
+        console.error(
+          `Failed to inspect market knowledge base: ${filePath}`,
+          error,
+        );
+      }
+    }
+
+    return marketData;
   }
 
   @channel(MarketChannel.GetMarketData)
-  public async getMarketData(type: ToolType.SKILL | ToolType.MCP) {
+  public async getMarketData(type: MarketDataType) {
+    if (type === MARKET_KNOWLEDGE_BASE) {
+      return this.getKnowledgeBaseMarketData();
+    }
+
     const marketPath = getAssetPath('market', type);
     const tools = (await toolsManager.getList())[type];
 

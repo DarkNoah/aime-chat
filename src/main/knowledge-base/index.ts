@@ -24,7 +24,7 @@ import fs from 'fs';
 import { taskQueueManager, TaskContext } from '../task-queue';
 import { BackgroundTask } from '@/types/task-queue';
 import { WebFetch } from '../tools/web/web-fetch';
-import { getAssetPath, getDbPath } from '../utils';
+import { getDbPath } from '../utils';
 import { PaginationInfo, PaginationParams } from '@/types/common';
 import path from 'path';
 import { isBinaryFile } from 'isbinaryfile';
@@ -37,7 +37,6 @@ import mime from 'mime';
 import { LocalCLIPModel } from '../local-model/clip';
 import { exportKnowledgeBaseSQLite } from './export-sqlite';
 import { importKnowledgeBaseSQLite, inspectKnowledgeBaseSQLite } from './import-sqlite';
-import { importBundledKnowledgeBases } from './bundled-import';
 import {
   backfillFtsTable,
   buildMatchQuery,
@@ -77,11 +76,6 @@ export class KnowledgeBaseManager extends BaseManager {
         await this.executeImportSource(task, ctx);
       },
     });
-
-    importBundledKnowledgeBases(getAssetPath('market', 'knowledge-base')).catch(
-      (err) =>
-        console.error('[knowledge-base] import bundled knowledge bases failed', err),
-    );
 
     // Try to ensure the global static memory KB exists. Done lazily so we
     // don't block app boot if no embedding provider is configured yet.
