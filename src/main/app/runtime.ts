@@ -578,7 +578,7 @@ export async function installNodeRuntime() {
         ['-ExecutionPolicy', 'ByPass', '-NoProfile', '-Command', psScript],
         {
           usePowerShell: true,
-          timeout: 1000 * 60 * 10,
+          // timeout: 1000 * 60 * 10,
         },
       );
       // 0 = success, 3010 = success but a reboot is required.
@@ -605,7 +605,7 @@ export async function installNodeRuntime() {
         const installResult = await runCommand(
           'curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash',
           {
-            timeout: 1000 * 60 * 5,
+            // timeout: 1000 * 60 * 5,
           },
         );
         if (installResult.code !== 0) {
@@ -616,7 +616,7 @@ export async function installNodeRuntime() {
       const nvmResult = await runCommand(
         `export NVM_DIR="${nvmDir}"; . "$NVM_DIR/nvm.sh"; nvm install ${NODE_RUNTIME_VERSION}; nvm alias default ${NODE_RUNTIME_VERSION}; nvm use ${NODE_RUNTIME_VERSION}; "${nodePath}" --version`,
         {
-          timeout: 1000 * 60 * 10,
+          // timeout: 1000 * 60 * 10,
         },
       );
       success = nvmResult.code === 0 && fs.existsSync(nodePath);
