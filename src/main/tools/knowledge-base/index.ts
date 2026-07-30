@@ -260,7 +260,7 @@ Use skill:local:aime-chat-docs to look up the available embedding models.
     }
     const knowledgeBase = await knowledgeBaseManager.createKnowledgeBase(data);
 
-    return { success: true };
+    return { success: true, knowledgeBaseId: knowledgeBase.id };
   }
 }
 
