@@ -65,6 +65,7 @@ import {
   installPaddleOcrRuntime,
   installQwenAudioRuntime,
   installUVRuntime,
+  scheduleCodeExecutionPackageCacheWarmup,
   uninstallAgentBrowserRuntime,
   uninstallBunRuntime,
   uninstallNodeRuntime,
@@ -184,7 +185,15 @@ class AppManager extends BaseManager {
     this.updateModelsJson().catch((err) =>
       console.error('Failed to update models.json:', err),
     );
-    this.getRuntimeInfo(true);
+    this.getRuntimeInfo(true)
+      .then((runtimeInfo) =>
+        scheduleCodeExecutionPackageCacheWarmup(runtimeInfo.uv),
+      )
+      .catch((err) => {
+        appLog.write('error', '[runtime] initial status refresh failed', {
+          message: err instanceof Error ? err.message : String(err),
+        });
+      });
   }
 
   private async updateModelsJson(): Promise<void> {
@@ -1027,6 +1036,9 @@ class AppManager extends BaseManager {
 
       const runtimeInfo = await this.getRuntimeInfo(true);
       const runtimeResult = runtimeInfo[pkg as keyof RuntimeInfo];
+      if (pkg === 'uv') {
+        scheduleCodeExecutionPackageCacheWarmup(runtimeInfo.uv);
+      }
       const runtimeLogData = {
         pkg,
         ...(runtimeResult ?? {

@@ -11,6 +11,9 @@ import {
   buildQwenAudioPyprojectToml,
   qwenAudioHealthCheckScript,
 } from './qwen-audio-runtime';
+import {
+  scheduleCodeExecutionPackageCacheWarmup as schedulePackageCacheWarmup,
+} from '../tools/code/python-package-cache';
 
 export const uv: RuntimeInfo['uv'] = {
   status: 'not_installed' as 'installed' | 'not_installed' | 'installing',
@@ -85,6 +88,15 @@ const runCommand = async (
   });
   return result;
 };
+
+export function scheduleCodeExecutionPackageCacheWarmup(
+  runtime?: RuntimeInfo['uv'],
+) {
+  schedulePackageCacheWarmup(runtime, {
+    runCommand,
+    log: (level, message, data) => appLog.write(level, message, data),
+  });
+}
 
 function getDefaultNvmDir() {
   return process.env.NVM_DIR || path.join(app.getPath('home'), '.nvm');

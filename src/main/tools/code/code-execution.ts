@@ -17,6 +17,11 @@ import mastraManager from '@/main/mastra';
 import { getRuntimePython } from '@/main/utils/runtimePython';
 import { ProgressEvent, ProgressThreadEndedData } from '@/types/common';
 import { getEnv } from '@/main/utils/getEnv';
+import {
+  CODE_EXECUTION_PACKAGE_INDEX,
+  getCodeExecutionPackageCachePaths,
+  withCodeExecutionPackageCache,
+} from './python-package-cache';
 
 const getSitecustomizePy = async (allRequestContext: Record<string, any> = {}, modelId?: string) => {
   const appInfo = await appManager.getInfo();
@@ -123,11 +128,12 @@ export class CodeExecution extends BaseTool {
   static readonly toolName = 'CodeExecution';
   id: string = 'CodeExecution';
   description = `Execute Python code. using uv runtime.
-The code will be executed with Python 3.10.
+The code will be executed with Python 3.12.
 
 Note:
 - Each run is executed in a new temporary directory, which is automatically deleted after completion.
 - Any required packages must be specified in the packages parameter, as dependencies are not persisted between runs.
+- Downloaded packages are cached on the machine and can be reused when offline.
 - If Python reports a missing module, do not install it using pip via the Bash tool. Instead, add the required dependency to the packages parameter.
 
 `;
@@ -160,11 +166,12 @@ Note:
 
   getDescription = () => {
     const desc = `Execute Python code. using uv runtime.
-The code will be executed with Python 3.10.
+The code will be executed with Python 3.12.
 
 Note:
 - Each run is executed in a new temporary directory, which is automatically deleted after completion.
 - Any required packages must be specified in the packages parameter, as dependencies are not persisted between runs.
+- Downloaded packages are cached on the machine and can be reused when offline.
 - If Python reports a missing module, do not install it using pip via the Bash tool. Instead, add the required dependency to the packages parameter.`;
     if (this.ptcOpen) {
       return (
@@ -307,7 +314,8 @@ asyncio.run(main())
     inputData: z.infer<typeof this.inputSchema>,
     options?: ToolExecutionContext,
   ) => {
-    const { code, packages = [], ptc } = inputData;
+    const { code, ptc } = inputData;
+    const packages = [...(inputData.packages ?? [])];
     const { requestContext, abortSignal } = options;
 
     const temp = getDataPath('temp')
@@ -325,42 +333,111 @@ asyncio.run(main())
     const allRequestContext = requestContext.all
 
     try {
-
-
-
-      let installPackage = ''
       if (ptc && !packages.includes('mcp')) packages.push('mcp');
-      if (packages.length > 0) {
-        installPackage = ` && "${uvPreCommand}" add ${packages.join(' ')}`
+      if (
+        packages.some(
+          (requirement) =>
+            !requirement.trim() ||
+            requirement.includes('\n') ||
+            requirement.includes('\r') ||
+            requirement.trimStart().startsWith('-'),
+        )
+      ) {
+        throw new Error('Invalid Python package requirement');
       }
-      const env = await getRuntimePython();
-      let resultInit = await this.runWithRetry(() => runCommand(
-        `"${uvPreCommand}" init && "${uvPreCommand}" --no-cache  venv --seed --default-index https://mirrors.aliyun.com/pypi/simple/`,
+
+      const env = withCodeExecutionPackageCache(await getRuntimePython());
+      const packageCache = getCodeExecutionPackageCachePaths();
+      const resultInit = await this.runWithRetry(() => runCommand(
+        `"${uvPreCommand}" init`,
         {
           cwd: tempDir,
           env: env,
           abortSignal: abortSignal
         },
       ));
-
       if (resultInit.code !== 0) {
         throw new Error(
           `Failed to initialize UV project: ${resultInit.stderr}`,
         );
       }
+
+      const runtimePython = uvRuntime.pythonRuntime?.pythonPath ?? '3.12';
+      const createVenvCommand = (offline: boolean) =>
+        [
+          `"${uvPreCommand}" venv --clear --python "${runtimePython}"`,
+          `--cache-dir "${packageCache.uvCache}"`,
+          offline
+            ? '--offline'
+            : `--default-index ${CODE_EXECUTION_PACKAGE_INDEX}`,
+        ].join(' ');
+      let resultVenv = await this.runWithRetry(() =>
+        runCommand(createVenvCommand(true), {
+          cwd: tempDir,
+          env: env,
+          abortSignal: abortSignal,
+        }),
+      );
+      if (resultVenv.code !== 0) {
+        resultVenv = await this.runWithRetry(() =>
+          runCommand(createVenvCommand(false), {
+            cwd: tempDir,
+            env: env,
+            abortSignal: abortSignal,
+          }),
+        );
+      }
+      if (resultVenv.code !== 0) {
+        throw new Error(
+          `Failed to create Python environment: ${resultVenv.stderr}`,
+        );
+      }
       await new Promise(resolve => setTimeout(resolve, 1000 * 2));
 
       if (packages.length > 0) {
-        const resultInstall = await this.runWithRetry(() => runCommand(
-          `"${uvPreCommand}" --no-cache pip install ${packages.join(' ')} --default-index https://mirrors.aliyun.com/pypi/simple/`,
-          {
+        const requirementsPath = path.join(tempDir, 'requirements.txt');
+        await fs.promises.writeFile(
+          requirementsPath,
+          `${packages.join('\n')}\n`,
+          'utf8',
+        );
+        const venvDir = path.join(tempDir, '.venv');
+        const pythonPath = isWindows
+          ? path.join(venvDir, 'Scripts', 'python.exe')
+          : path.join(venvDir, 'bin', 'python');
+        const installCommand = (offline: boolean) =>
+          [
+            `"${uvPreCommand}" pip install`,
+            `--requirements "${requirementsPath}"`,
+            `--python "${pythonPath}"`,
+            `--cache-dir "${packageCache.uvCache}"`,
+            offline
+              ? '--offline'
+              : `--default-index ${CODE_EXECUTION_PACKAGE_INDEX}`,
+          ].join(' ');
+
+        // Prefer the local cache. A miss falls through to the configured index,
+        // and a successful online install populates the same persistent cache.
+        let resultInstall = await this.runWithRetry(() =>
+          runCommand(installCommand(true), {
             cwd: tempDir,
             env: env,
-            abortSignal: abortSignal
-          },
-        ));
+            abortSignal: abortSignal,
+          }),
+        );
         if (resultInstall.code !== 0) {
-          throw new Error(`Failed to install packages: ${resultInstall.stderr}`);
+          resultInstall = await this.runWithRetry(() =>
+            runCommand(installCommand(false), {
+              cwd: tempDir,
+              env: env,
+              abortSignal: abortSignal,
+            }),
+          );
+        }
+        if (resultInstall.code !== 0) {
+          throw new Error(
+            `Failed to install packages: ${resultInstall.stderr}`,
+          );
         }
       }
 

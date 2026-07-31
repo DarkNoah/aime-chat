@@ -416,10 +416,13 @@ PTC 使用 [MCP（Model Context Protocol）](https://modelcontextprotocol.io/) �
 
 ### 执行环境
 
-- **Python 版本**：3.10+
+- **Python 版本**：3.12
 - **运行时**：UV（高性能 Python 包管理器）
 - **隔离性**：每次执行在独立的临时目录中
 - **依赖管理**：通过 `packages` 参数安装依赖
+- **离线缓存**：已下载的依赖会保留在本机缓存中，后续可离线安装到新的临时环境；应用启动时会在后台预热常用依赖
+- **缓存目录**：`{Electron userData}/.runtime/code-execution/uv-cache`；预热环境位于同级 `warmup-venv`
+- **预热范围**：Office 文档与表格、PDF、常用数据分析与可视化、HTTP/HTML、模板、文本与中文处理工具；不默认下载 PyTorch、TensorFlow 等大型 AI/GPU 运行库
 
 ```typescript
 interface CodeExecutionInput {
@@ -435,4 +438,3 @@ interface CodeExecutionInput {
 - [Agent 管理文档](./agents.md)
 - [MCP 协议官方文档](https://modelcontextprotocol.io/)
 - [Mastra 框架文档](https://mastra.ai/docs)
-
