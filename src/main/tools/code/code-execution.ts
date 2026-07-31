@@ -409,8 +409,19 @@ asyncio.run(main())
 
       const secretsEnv = await getEnv(requestContext);
       const _env = { ...env, ...secretsEnv };
+
+
+      // const isWindows = process.platform === 'win32';
+      // const uvPreCommand = path.join(uvDir, isWindows ? 'uv.exe' : './uv');
+
+      const venvDir = path.join(tempDir, '.venv');
+      const pythonPath = isWindows
+        ? path.join(venvDir, 'Scripts', 'python.exe')
+        : path.join(venvDir, 'bin', 'python');
+
+
       const result = await runCommand(
-        `"${uvPreCommand}" run --project "${tempDir}" "${tempFile}"`,
+        `"${pythonPath}" "${tempFile}"`,
         {
           cwd: workspace,
           env: _env,
