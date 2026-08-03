@@ -28,7 +28,6 @@ import {
   InputGroup,
   InputGroupAddon,
   InputGroupButton,
-  InputGroupTextarea,
 } from '@/renderer/components/ui/input-group';
 import {
   Select,
@@ -51,17 +50,14 @@ import {
 } from 'lucide-react';
 import { nanoid } from 'nanoid';
 import {
-  type ChangeEvent,
   type ChangeEventHandler,
   Children,
-  type ClipboardEventHandler,
   type ComponentProps,
   createContext,
   type FormEvent,
   type FormEventHandler,
   Fragment,
   type HTMLAttributes,
-  type KeyboardEventHandler,
   type PropsWithChildren,
   type ReactNode,
   type RefObject,
@@ -72,14 +68,16 @@ import {
   useRef,
   useState,
 } from 'react';
+import {
+  LexicalPromptInputTextarea,
+  type LexicalPromptInputTextareaProps,
+} from './prompt-input-lexical';
+
+export type { PromptInputSlashItem } from './prompt-input-slash-items';
+
 // ============================================================================
 // Provider Context & Types
 // ============================================================================
-import { Plate, usePlateEditor, createPlateEditor } from 'platejs/react';
-// import { EditorKit } from '@/renderer/components/editor/editor-kit';
-import { Editor, EditorContainer } from '@/renderer/components/ui/editor';
-import { MentionPlugin, MentionInputPlugin } from '@platejs/mention/react';
-import { FileInfo } from '@/types/common';
 
 export type AttachmentsContext = {
   files: (FileUIPart & { id: string })[];
@@ -96,14 +94,7 @@ export type TextInputContext = {
   value: string;
   setInput: (v: string) => void;
   clear: () => void;
-  /** 光标选区开始位置 */
-  selectionStart: number;
-  /** 光标选区结束位置 */
-  selectionEnd: number;
-  /** 设置光标选区位置（仅更新 state） */
-  setSelection: (start: number, end: number) => void;
-  /** 应用光标位置到 textarea DOM 元素，并可选聚焦 */
-  applyCursorPosition: (start: number, end?: number, focus?: boolean) => void;
+  insertText: (text: string) => void;
 };
 
 export type PromptInputControllerProps = {
@@ -114,8 +105,8 @@ export type PromptInputControllerProps = {
     ref: RefObject<HTMLInputElement | null>,
     open: () => void,
   ) => void;
-  /** INTERNAL: Allows PromptInputTextarea to register its textarea ref */
-  __registerTextarea: (ref: RefObject<HTMLTextAreaElement | null>) => void;
+  /** INTERNAL: Lets the active editor insert text at its current selection. */
+  __registerTextInserter: (insertText: (text: string) => void) => void;
 };
 
 const PromptInputController = createContext<PromptInputControllerProps | null>(
@@ -167,40 +158,17 @@ export function PromptInputProvider({
   // ----- textInput state
   const [textInput, setTextInput] = useState(initialTextInput);
   const clearInput = useCallback(() => setTextInput(''), []);
-
-  // ----- selection state (光标选区位置)
-  const [selectionStart, setSelectionStart] = useState(0);
-  const [selectionEnd, setSelectionEnd] = useState(0);
-  const setSelection = useCallback((start: number, end: number) => {
-    setSelectionStart(start);
-    setSelectionEnd(end);
+  const textInserterRef = useRef<((text: string) => void) | null>(null);
+  const insertText = useCallback((text: string) => {
+    if (textInserterRef.current) {
+      textInserterRef.current(text);
+      return;
+    }
+    setTextInput((current) => current + text);
   }, []);
-
-  // ----- textarea ref (用于设置光标位置)
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-  const __registerTextarea = useCallback(
-    (ref: RefObject<HTMLTextAreaElement | null>) => {
-      textareaRef.current = ref.current;
-    },
-    [],
-  );
-
-  // 应用光标位置到 textarea DOM 元素
-  const applyCursorPosition = useCallback(
-    (start: number, end?: number, focus = true) => {
-      const textarea = textareaRef.current;
-      if (textarea) {
-        const endPos = end ?? start;
-        setSelectionStart(start);
-        setSelectionEnd(endPos);
-        if (focus) {
-          textarea.focus();
-        }
-        // 使用 requestAnimationFrame 确保在 React 更新后设置光标
-        requestAnimationFrame(() => {
-          textarea.setSelectionRange(start, endPos);
-        });
-      }
+  const __registerTextInserter = useCallback(
+    (nextInsertText: (text: string) => void) => {
+      textInserterRef.current = nextInsertText;
     },
     [],
   );
@@ -211,21 +179,6 @@ export function PromptInputProvider({
   >([]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const openRef = useRef<() => void>(() => {});
-
-  // 使用 ref 来保存最新的状态值，避免闭包捕获旧值
-  const textInputRef = useRef(textInput);
-  const selectionStartRef = useRef(selectionStart);
-  const selectionEndRef = useRef(selectionEnd);
-
-  // 同步更新 ref
-  useEffect(() => {
-    textInputRef.current = textInput;
-  }, [textInput]);
-
-  useEffect(() => {
-    selectionStartRef.current = selectionStart;
-    selectionEndRef.current = selectionEnd;
-  }, [selectionStart, selectionEnd]);
 
   const addInline = useCallback(
     async (files: File[] | FileList) => {
@@ -244,32 +197,9 @@ export function PromptInputProvider({
       if (fileInfos.length === 0) return;
 
       const text = fileInfos.map((x) => `'${x.path}'`).join(' ');
-
-      // 从 ref 获取最新值
-      const currentTextInput = textInputRef.current;
-      const currentSelectionStart = selectionStartRef.current;
-      const currentSelectionEnd = selectionEndRef.current;
-
-      console.log(
-        'textInput',
-        currentTextInput,
-        currentSelectionStart,
-        currentSelectionEnd,
-      );
-      const newValue =
-        currentTextInput.slice(0, currentSelectionStart) +
-        text +
-        currentTextInput.slice(currentSelectionEnd);
-
-      setTextInput(newValue);
-      setSelection(currentSelectionStart, currentSelectionStart + text.length);
-      applyCursorPosition(
-        currentSelectionStart,
-        currentSelectionStart + text.length,
-        true,
-      );
+      insertText(text);
     },
-    [setSelection, applyCursorPosition],
+    [insertText],
   );
 
   const add = useCallback((files: File[] | FileList) => {
@@ -377,25 +307,19 @@ export function PromptInputProvider({
         value: textInput,
         setInput: setTextInput,
         clear: clearInput,
-        selectionStart,
-        selectionEnd,
-        setSelection,
-        applyCursorPosition,
+        insertText,
       },
       attachments,
       __registerFileInput,
-      __registerTextarea,
+      __registerTextInserter,
     }),
     [
       textInput,
       clearInput,
-      selectionStart,
-      selectionEnd,
-      setSelection,
-      applyCursorPosition,
+      insertText,
       attachments,
       __registerFileInput,
-      __registerTextarea,
+      __registerTextInserter,
     ],
   );
 
@@ -973,186 +897,20 @@ export const PromptInputBody = ({
   <div className={cn('contents', className)} {...props} />
 );
 
-export type PromptInputTextareaProps = ComponentProps<
-  typeof InputGroupTextarea
+export type PromptInputTextareaProps = Omit<
+  LexicalPromptInputTextareaProps,
+  'insertText' | 'onValueChange' | 'registerTextInserter' | 'value'
 >;
 
-export const PromptInputTextarea = ({
-  onChange,
-  className,
-  placeholder = 'What would you like to know?',
-  ...props
-}: PromptInputTextareaProps) => {
+export const PromptInputTextarea = ({ ...props }: PromptInputTextareaProps) => {
   const controller = useOptionalPromptInputController();
-  const attachments = usePromptInputAttachments();
-  const [isComposing, setIsComposing] = useState(false);
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-
-  // 注册 textareaRef 到 controller，用于支持外部设置光标位置
-  useEffect(() => {
-    controller?.__registerTextarea(textareaRef);
-  }, [controller]);
-
-  const handleKeyDown: KeyboardEventHandler<HTMLTextAreaElement> = (e) => {
-    if (e.key === 'Enter') {
-      if (isComposing || e.nativeEvent.isComposing) {
-        return;
-      }
-      if (e.shiftKey) {
-        return;
-      }
-      e.preventDefault();
-
-      // Check if the submit button is disabled before submitting
-      const { form } = e.currentTarget;
-      const submitButton = form?.querySelector(
-        'button[type="submit"]',
-      ) as HTMLButtonElement | null;
-      if (submitButton?.disabled) {
-        return;
-      }
-
-      form?.requestSubmit();
-    }
-
-    // Remove last attachment when Backspace is pressed and textarea is empty
-    // if (
-    //   e.key === 'Backspace' &&
-    //   e.currentTarget.value === '' &&
-    //   attachments.files.length > 0
-    // ) {
-    //   e.preventDefault();
-    //   const lastAttachment = attachments.files.at(-1);
-    //   if (lastAttachment) {
-    //     attachments.remove(lastAttachment.id);
-    //   }
-    // }
-  };
-
-  const handlePaste: ClipboardEventHandler<HTMLTextAreaElement> = async (
-    event,
-  ) => {
-    const items = event.clipboardData?.items;
-
-    if (!items) {
-      return;
-    }
-
-    const files: FileInfo[] = [];
-    const fileList: File[] = [];
-    for (const item of items) {
-      if (item.kind === 'file') {
-        const file = item.getAsFile();
-        if (file) {
-          fileList.push(file);
-        }
-      }
-    }
-    if (fileList.length === 0) return;
-    for (const f of fileList) {
-      const path = window.electron.app.getPathForFile(f);
-      const info = await window.electron.app.getFileInfo(path);
-      files.push(info);
-    }
-
-    if (files.length > 0) {
-      event.preventDefault();
-      const textarea = textareaRef.current;
-      if (!textarea) return;
-
-      const start = controller.textInput.selectionStart;
-      const end = controller.textInput.selectionEnd;
-      const text = files.map((x) => `'${x.path}'`).join(' ');
-      const newValue =
-        controller.textInput.value.slice(0, start) +
-        text +
-        controller.textInput.value.slice(end);
-
-      controller.textInput.setInput(newValue);
-      controller.textInput.setSelection(start, start + text.length);
-      controller.textInput.applyCursorPosition(
-        start,
-        start + text.length,
-        true,
-      );
-    }
-  };
-
-  // 处理选区变化，更新 selectionStart 和 selectionEnd
-  const handleSelect = useCallback(() => {
-    const textarea = textareaRef.current as HTMLTextAreaElement | null;
-    if (textarea && controller) {
-      controller.textInput.setSelection(
-        textarea.selectionStart,
-        textarea.selectionEnd,
-      );
-    }
-  }, [controller]);
-
-  const controlledProps = controller
-    ? {
-        value: controller.textInput.value,
-        onChange: (e: ChangeEvent<HTMLTextAreaElement>) => {
-          controller.textInput.setInput(e.currentTarget.value);
-          onChange?.(e);
-        },
-      }
-    : {
-        onChange,
-      };
-  // const editor = usePlateEditor({
-  //   // plugins: EditorKit,
-  //   // value: '',
-  // });
-
-  // const editor = createPlateEditor({
-  //   plugins: [
-  //     // ...其他插件
-  //     // MentionPlugin.configure({
-  //     //   options: {
-  //     //     trigger: '@',
-  //     //     triggerPreviousCharPattern: /^$|^[\s"']$/,
-  //     //     insertSpaceAfterMention: false,
-  //     //   },
-  //     // }).withComponent(MentionElement),
-  //     // MentionInputPlugin.withComponent(MentionInputElement),
-  //   ],
-  // });
-  // return (
-  //   <Plate editor={editor}>
-  //     <EditorContainer variant="default" className="px-2">
-  //       <Editor className="px-2 text-sm" />
-  //     </EditorContainer>
-  //   </Plate>
-  // );
-
-  // return (
-  //   <InputGroupTextarea
-  //     className={cn('field-sizing-content max-h-48 min-h-16', className)}
-  //     name="message"
-  //     onCompositionEnd={() => setIsComposing(false)}
-  //     onCompositionStart={() => setIsComposing(true)}
-  //     onKeyDown={handleKeyDown}
-  //     onPaste={handlePaste}
-  //     placeholder={placeholder}
-  //     {...props}
-  //     {...controlledProps}
-  //   />
-  // );
-
   return (
-    <InputGroupTextarea
-      ref={textareaRef}
-      className={cn('field-sizing-content max-h-48 min-h-16', className)}
-      name="message"
-      onCompositionEnd={() => setIsComposing(false)}
-      onCompositionStart={() => setIsComposing(true)}
-      onKeyDown={handleKeyDown}
-      onPaste={handlePaste}
-      onSelect={handleSelect}
-      placeholder={placeholder}
+    <LexicalPromptInputTextarea
       {...props}
-      {...controlledProps}
+      insertText={controller?.textInput.insertText}
+      onValueChange={(value) => controller?.textInput.setInput(value)}
+      registerTextInserter={controller?.__registerTextInserter}
+      value={controller?.textInput.value ?? ''}
     />
   );
 };

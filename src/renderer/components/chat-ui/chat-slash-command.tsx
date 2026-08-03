@@ -24,6 +24,7 @@ export interface SlashCommandDefinition {
   icon?: React.ReactNode;
   visible?: boolean;
   group?: 'commands' | 'skills';
+  instant?: boolean;
 }
 
 export interface ChatSlashCommandProps {
