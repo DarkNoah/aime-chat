@@ -18,8 +18,8 @@ import { getRuntimePython } from '@/main/utils/runtimePython';
 import { ProgressEvent, ProgressThreadEndedData } from '@/types/common';
 import { getEnv } from '@/main/utils/getEnv';
 import {
-  CODE_EXECUTION_PACKAGE_INDEX,
   getCodeExecutionPackageCachePaths,
+  getCodeExecutionPackageIndexOptions,
   withCodeExecutionPackageCache,
 } from './python-package-cache';
 
@@ -47,7 +47,7 @@ import asyncio
 import builtins
 import threading
 from mcp import ClientSession, StdioServerParameters
-from mcp.client.streamable_http import streamablehttp_client
+from mcp.client.streamable_http import streamable_http_client
 from mcp.types import PromptReference, ResourceTemplateReference
 
 
@@ -56,14 +56,14 @@ _META = ${JSON.stringify(meta)}
 
 
 async def _list_tools_async() -> list[str]:
-    async with streamablehttp_client(MCP_SERVER_URL) as (read_stream, write_stream, _):
+    async with streamable_http_client(MCP_SERVER_URL) as (read_stream, write_stream):
         async with ClientSession(read_stream, write_stream) as session:
             await session.initialize()
             result = await session.list_tools()
             return [tool.name for tool in result.tools]
 
 async def _call_tool_async(name: str, **kwargs):
-    async with streamablehttp_client(MCP_SERVER_URL) as (read_stream, write_stream, _):
+    async with streamable_http_client(MCP_SERVER_URL) as (read_stream, write_stream):
         async with ClientSession(read_stream, write_stream) as session:
             await session.initialize()
             result = await session.call_tool(name, kwargs, meta=_META)
@@ -367,12 +367,10 @@ asyncio.run(main())
         [
           `"${uvPreCommand}" venv --clear --python "${runtimePython}"`,
           `--cache-dir "${packageCache.uvCache}"`,
-          offline
-            ? '--offline'
-            : `--default-index ${CODE_EXECUTION_PACKAGE_INDEX}`,
+          getCodeExecutionPackageIndexOptions(offline),
         ].join(' ');
       let resultVenv = await this.runWithRetry(() =>
-        runCommand(createVenvCommand(true), {
+        runCommand(createVenvCommand(false), {
           cwd: tempDir,
           env: env,
           abortSignal: abortSignal,
@@ -380,7 +378,7 @@ asyncio.run(main())
       );
       if (resultVenv.code !== 0) {
         resultVenv = await this.runWithRetry(() =>
-          runCommand(createVenvCommand(false), {
+          runCommand(createVenvCommand(true), {
             cwd: tempDir,
             env: env,
             abortSignal: abortSignal,
@@ -411,15 +409,14 @@ asyncio.run(main())
             `--requirements "${requirementsPath}"`,
             `--python "${pythonPath}"`,
             `--cache-dir "${packageCache.uvCache}"`,
-            offline
-              ? '--offline'
-              : `--default-index ${CODE_EXECUTION_PACKAGE_INDEX}`,
+            getCodeExecutionPackageIndexOptions(offline),
           ].join(' ');
 
-        // Prefer the local cache. A miss falls through to the configured index,
-        // and a successful online install populates the same persistent cache.
+        // Prefer the configured online index so successful installs refresh the
+        // persistent cache. If that fails, retry from the same index's cache
+        // with network access disabled.
         let resultInstall = await this.runWithRetry(() =>
-          runCommand(installCommand(true), {
+          runCommand(installCommand(false), {
             cwd: tempDir,
             env: env,
             abortSignal: abortSignal,
@@ -427,7 +424,7 @@ asyncio.run(main())
         );
         if (resultInstall.code !== 0) {
           resultInstall = await this.runWithRetry(() =>
-            runCommand(installCommand(false), {
+            runCommand(installCommand(true), {
               cwd: tempDir,
               env: env,
               abortSignal: abortSignal,

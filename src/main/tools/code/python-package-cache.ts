@@ -7,6 +7,18 @@ export const CODE_EXECUTION_PACKAGE_INDEX =
   'https://mirrors.aliyun.com/pypi/simple/';
 
 /**
+ * Keep the index URL in offline mode because uv keys cached registry metadata
+ * by index. `--offline` prevents network access; it does not select the index
+ * whose cached metadata should be used.
+ */
+export function getCodeExecutionPackageIndexOptions(offline: boolean) {
+  return [
+    `--default-index ${CODE_EXECUTION_PACKAGE_INDEX}`,
+    ...(offline ? ['--offline'] : []),
+  ].join(' ');
+}
+
+/**
  * Keep the default cache broad enough for everyday office and data work while
  * excluding heavyweight AI/GPU runtimes such as torch and tensorflow.
  */

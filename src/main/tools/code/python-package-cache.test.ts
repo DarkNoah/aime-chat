@@ -1,4 +1,6 @@
 /* eslint-disable import/first */
+import path from 'path';
+
 jest.mock('electron', () => ({
   app: {
     getPath: jest.fn(() => '/Users/test/Library/Application Support/aime-chat'),
@@ -9,9 +11,11 @@ jest.mock('electron', () => ({
 }));
 
 import {
+  CODE_EXECUTION_PACKAGE_INDEX,
   CODE_EXECUTION_PACKAGE_GROUPS,
   COMMON_CODE_EXECUTION_PACKAGES,
   getCodeExecutionPackageCachePaths,
+  getCodeExecutionPackageIndexOptions,
   warmCodeExecutionPackageCache,
   withCodeExecutionPackageCache,
 } from './python-package-cache';
@@ -22,12 +26,26 @@ describe('CodeExecution Python package cache', () => {
     const paths = getCodeExecutionPackageCachePaths();
 
     expect(paths.uvCache).toBe(
-      '/Users/test/Library/Application Support/aime-chat/.runtime/code-execution/uv-cache',
+      path.join(
+        '/Users/test/Library/Application Support/aime-chat',
+        '.runtime',
+        'code-execution',
+        'uv-cache',
+      ),
     );
     expect(withCodeExecutionPackageCache({ CUSTOM_ENV: 'yes' })).toEqual({
       CUSTOM_ENV: 'yes',
       UV_CACHE_DIR: paths.uvCache,
     });
+  });
+
+  it('keeps the configured index when using the cache offline', () => {
+    expect(getCodeExecutionPackageIndexOptions(false)).toBe(
+      `--default-index ${CODE_EXECUTION_PACKAGE_INDEX}`,
+    );
+    expect(getCodeExecutionPackageIndexOptions(true)).toBe(
+      `--default-index ${CODE_EXECUTION_PACKAGE_INDEX} --offline`,
+    );
   });
 
   it('preloads office, data-processing, and productivity packages', () => {

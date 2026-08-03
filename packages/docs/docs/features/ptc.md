@@ -52,7 +52,7 @@ PTC 模式使用 [MCP（Model Context Protocol）](https://modelcontextprotocol.
 
 ```python
 # 工具函数通过 MCP 协议调用
-async with streamablehttp_client(MCP_SERVER_URL) as (read_stream, write_stream, _):
+async with streamable_http_client(MCP_SERVER_URL) as (read_stream, write_stream):
     async with ClientSession(read_stream, write_stream) as session:
         await session.initialize()
         result = await session.call_tool(name, kwargs)
