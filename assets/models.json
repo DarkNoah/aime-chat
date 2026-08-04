@@ -41253,7 +41253,7 @@
       },
       "deepseek-v4-flash": {
         "id": "deepseek-v4-flash",
-        "name": "DeepSeek V4 Flash",
+        "name": "DeepSeek V4 Flash 0423",
         "description": "Fast DeepSeek V4 lane for economical reasoning, coding, and long-context work",
         "family": "deepseek",
         "attachment": false,
@@ -84061,11 +84061,11 @@
         "open_weights": true,
         "limit": {
           "context": 262144,
-          "output": 32768
+          "output": 16384
         },
         "cost": {
-          "input": 0.13,
-          "output": 0.52
+          "input": 0.15,
+          "output": 0.6
         }
       },
       "qwen/qwen3.5-397b-a17b": {
@@ -84600,9 +84600,8 @@
           "output": 128000
         },
         "cost": {
-          "input": 0.8,
-          "output": 1,
-          "cache_read": 0.4
+          "input": 0.25,
+          "output": 0.75
         }
       },
       "inception/mercury-2": {
@@ -155083,8 +155082,8 @@
         },
         "open_weights": false,
         "limit": {
-          "context": 131072,
-          "output": 32768
+          "context": 262144,
+          "output": 16384
         },
         "cost": {
           "input": 0.13,
@@ -155552,13 +155551,12 @@
         },
         "open_weights": false,
         "limit": {
-          "context": 128000,
+          "context": 32000,
           "output": 128000
         },
         "cost": {
-          "input": 0.8,
-          "output": 1,
-          "cache_read": 0.4
+          "input": 0.25,
+          "output": 0.75
         }
       },
       "stealth/claude-sonnet-4.6": {
@@ -214251,6 +214249,49 @@
           "output": 4.504,
           "cache_read": 0.3,
           "cache_write": 1.88
+        }
+      },
+      "qwen/qwen3.8-max": {
+        "id": "qwen/qwen3.8-max",
+        "name": "Qwen3.8 Max",
+        "description": "2.4-trillion-parameter MoE flagship for coding, professional work, multimodal understanding, and long-horizon agentic workflows",
+        "family": "qwen",
+        "attachment": true,
+        "reasoning": true,
+        "reasoning_options": [
+          {
+            "type": "toggle"
+          },
+          {
+            "type": "budget_tokens"
+          }
+        ],
+        "tool_call": true,
+        "temperature": true,
+        "release_date": "2026-08-03",
+        "last_updated": "2026-08-03",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "video",
+            "audio"
+          ],
+          "output": [
+            "text",
+            "audio"
+          ]
+        },
+        "open_weights": false,
+        "limit": {
+          "context": 1000000,
+          "output": 131072
+        },
+        "cost": {
+          "input": 1.88,
+          "output": 5.63,
+          "cache_read": 0.23,
+          "cache_write": 2.35
         }
       },
       "qwen/qwen3.6-flash": {

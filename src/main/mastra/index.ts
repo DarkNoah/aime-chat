@@ -68,7 +68,7 @@ import {
 } from '@/types/chat';
 import { nanoid } from '@/utils/nanoid';
 import { IpcMainEvent } from 'electron';
-import { isObject, isString } from '@/utils/is';
+import { isArray, isObject, isString } from '@/utils/is';
 import { toolsManager } from '../tools';
 import { ToolType } from '@/types/tool';
 import {
@@ -1252,7 +1252,24 @@ class MastraManager extends BaseManager {
 
           if (_inputMessage) input.push(_inputMessage);
 
-          const messages = convertToModelMessages(historyMessagesAISdkV5);
+          let messages = convertToModelMessages(historyMessagesAISdkV5);
+          messages = messages.map(m => {
+            if (m.role == 'tool' && isArray(m.content) && m.content.length > 0) {
+              m.content = m.content.map(c => {
+                if (c.type == 'tool-result' && c.providerOptions?.mastra?.modelOutput) {
+                  delete c.providerOptions?.mastra?.modelOutput
+                }
+                return c;
+              });
+
+
+            }
+            return m;
+          })
+
+
+
+
           const maxContextSize = requestContext.get('maxContextSize');
           const thresholdTokenCount = Math.floor(maxContextSize * 0.7);
           const _tools = await agent.listTools({ requestContext });
