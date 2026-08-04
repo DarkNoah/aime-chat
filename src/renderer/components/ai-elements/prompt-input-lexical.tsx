@@ -30,6 +30,7 @@ import {
   Children,
   type ClipboardEvent,
   type ComponentProps,
+  type DragEvent,
   type ForwardedRef,
   Fragment,
   type KeyboardEvent,
@@ -38,10 +39,18 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
-import { CommandIcon, SparklesIcon } from 'lucide-react';
+import { CommandIcon, FileIcon, FolderIcon, SparklesIcon } from 'lucide-react';
 import { FileInfo } from '@/types/common';
+import {
+  getChatFileReferenceDragData,
+  getFilePathsFromUriList,
+  getFileReferenceName,
+  getPlainTextPathCandidate,
+  type ChatFileReference,
+} from '@/renderer/lib/chat-file-reference';
 import { cn } from '@/renderer/lib/utils';
 import {
   findInstantSlashItem,
@@ -49,20 +58,97 @@ import {
   type PromptInputSlashItem,
 } from './prompt-input-slash-items';
 
-type SlashMentionData = Record<string, BeautifulMentionsItemData> & {
+type ComposerMentionData = Record<string, BeautifulMentionsItemData> & {
   displayLabel: string;
   description: string;
   instant: boolean;
-  mentionKind: 'command' | 'skill';
+  mentionKind: 'command' | 'skill' | 'file' | 'directory';
+  sourcePath: string;
 };
 
-function toSlashMentionData(item: PromptInputSlashItem): SlashMentionData {
+function toSlashMentionData(item: PromptInputSlashItem): ComposerMentionData {
   return {
     displayLabel: item.label,
     description: item.description ?? '',
     instant: item.instant === true,
     mentionKind: item.group === 'skills' ? 'skill' : 'command',
+    sourcePath: '',
   };
+}
+
+function toFileMentionData(reference: ChatFileReference): ComposerMentionData {
+  return {
+    displayLabel: getFileReferenceName(reference.name || reference.sourcePath),
+    description: reference.sourcePath,
+    instant: false,
+    mentionKind: reference.kind,
+    sourcePath: reference.sourcePath,
+  };
+}
+
+function getTransferredFiles(dataTransfer: DataTransfer): File[] {
+  const directFiles = Array.from(dataTransfer.files ?? []);
+  if (directFiles.length > 0) {
+    return directFiles;
+  }
+
+  return Array.from(dataTransfer.items ?? [])
+    .filter((item) => item.kind === 'file')
+    .map((item) => item.getAsFile())
+    .filter((file): file is File => Boolean(file));
+}
+
+async function resolveTransferredFileReferences(
+  files: File[],
+): Promise<ChatFileReference[]> {
+  return Promise.all(
+    files.map(async (file) => {
+      const path = window.electron.app.getPathForFile(file);
+      let info: FileInfo | undefined;
+      try {
+        info = await window.electron.app.getFileInfo(path);
+      } catch {
+        info = undefined;
+      }
+      const sourcePath = info?.path || path;
+      return {
+        serializedPath: `'${sourcePath}'`,
+        sourcePath,
+        name: getFileReferenceName(info?.name || file.name || sourcePath),
+        kind: info?.isFile === false ? 'directory' : 'file',
+      };
+    }),
+  );
+}
+
+async function resolveUriFileReferences(
+  paths: string[],
+): Promise<ChatFileReference[]> {
+  const references = await Promise.all(
+    paths.map(async (path) => {
+      try {
+        const info = await window.electron.app.getFileInfo(path);
+        if (!info.isExist) {
+          return undefined;
+        }
+        const sourcePath = info.path || path;
+        const kind: ChatFileReference['kind'] =
+          info.isFile === false ? 'directory' : 'file';
+        return {
+          serializedPath: `'${sourcePath}'`,
+          sourcePath,
+          name: getFileReferenceName(info.name || sourcePath),
+          kind,
+        };
+      } catch {
+        return undefined;
+      }
+    }),
+  );
+
+  return references.filter((reference): reference is ChatFileReference =>
+    Boolean(reference),
+  );
 }
 
 function appendPlainText(
@@ -108,49 +194,91 @@ function replaceEditorText(
   }
 }
 
-function SlashMentionComponent(
+function ComposerMentionComponent(
   {
     trigger,
     value,
     data,
     className,
     children: _children,
+    description: _description,
+    displayLabel: _displayLabel,
+    instant: _instant,
+    mentionKind: _mentionKind,
+    sourcePath: _sourcePath,
     ...props
-  }: BeautifulMentionComponentProps<SlashMentionData>,
+  }: BeautifulMentionComponentProps<ComposerMentionData>,
   ref: ForwardedRef<HTMLSpanElement>,
 ) {
   const displayLabel = data?.displayLabel || value;
   const isSkill = data?.mentionKind === 'skill';
+  const isDirectory = data?.mentionKind === 'directory';
+  const isFileReference = isDirectory || data?.mentionKind === 'file';
+  const fileReferenceType = isDirectory ? 'Folder' : 'File';
+  let mentionClassName = className;
+  let mentionTitle: string | undefined;
+
+  if (isFileReference) {
+    mentionClassName = cn(
+      'mx-0.5 inline-flex max-w-64 cursor-default items-center gap-1 rounded-md border bg-muted/70 px-1.5 py-0.5 align-baseline font-medium leading-none text-foreground',
+      'selection:bg-accent',
+      className,
+    );
+    mentionTitle = data?.sourcePath || value;
+  } else if (isSkill) {
+    mentionClassName = cn(
+      'mx-0.5 inline-flex max-w-full cursor-default items-center rounded-md border border-primary/25 bg-primary/10 px-1.5 py-0.5 align-baseline font-medium text-primary leading-none',
+      'selection:bg-primary/20',
+      className,
+    );
+    mentionTitle = data?.description || `${trigger}${value}`;
+  }
 
   return (
     <span
       {...props}
       ref={ref}
-      aria-label={`${trigger}${displayLabel}`}
-      className={
-        isSkill
-          ? cn(
-              'mx-0.5 inline-flex max-w-full cursor-default items-center rounded-md border border-primary/25 bg-primary/10 px-1.5 py-0.5 align-baseline font-medium text-primary leading-none',
-              'selection:bg-primary/20',
-              className,
-            )
-          : className
+      aria-label={
+        isFileReference
+          ? `${fileReferenceType} ${displayLabel}`
+          : `${trigger}${displayLabel}`
       }
-      title={isSkill ? data?.description || `${trigger}${value}` : undefined}
+      data-file-reference={isFileReference ? data?.sourcePath : undefined}
+      className={mentionClassName}
+      title={mentionTitle}
     >
-      {trigger}
-      {displayLabel}
+      {isFileReference ? (
+        <>
+          {isDirectory ? (
+            <FolderIcon
+              aria-hidden="true"
+              className="size-3.5 shrink-0 text-amber-500"
+            />
+          ) : (
+            <FileIcon
+              aria-hidden="true"
+              className="size-3.5 shrink-0 text-muted-foreground"
+            />
+          )}
+          <span className="truncate">{displayLabel}</span>
+        </>
+      ) : (
+        <>
+          {trigger}
+          {displayLabel}
+        </>
+      )}
     </span>
   );
 }
 
-const SlashMentionNodeComponent = forwardRef(SlashMentionComponent);
+const ComposerMentionNodeComponent = forwardRef(ComposerMentionComponent);
 const SLASH_MENTION_NODES = createBeautifulMentionNode(
-  SlashMentionNodeComponent,
+  ComposerMentionNodeComponent,
 );
 
 type SlashMentionMenuItemInternalProps = BeautifulMentionsMenuItemProps &
-  Partial<SlashMentionData>;
+  Partial<ComposerMentionData>;
 
 const SLASH_MENTION_GROUPS = [
   { kind: 'command', label: '常用' },
@@ -218,6 +346,7 @@ export const SlashMentionMenuItem = forwardRef<
       description: _description,
       instant: _instant,
       mentionKind: _mentionKind,
+      sourcePath: _sourcePath,
       ...props
     },
     ref,
@@ -263,15 +392,40 @@ export const SlashMentionMenuItem = forwardRef<
 );
 SlashMentionMenuItem.displayName = 'SlashMentionMenuItem';
 
-function RegisterTextInserterPlugin({
+type ComposerInserters = {
+  insertLineBreak: () => void;
+  insertText: (text: string) => void;
+  insertFileReferences: (references: ChatFileReference[]) => void;
+};
+
+function RegisterComposerInsertersPlugin({
   register,
+  registerTextInserter,
+  registerFileReferenceInserter,
 }: {
-  register: (insertText: (text: string) => void) => void;
+  register: (inserters: ComposerInserters | null) => void;
+  registerTextInserter?: (insertText: ((text: string) => void) | null) => void;
+  registerFileReferenceInserter?: (
+    insertFileReferences: ((references: ChatFileReference[]) => void) | null,
+  ) => void;
 }) {
   const [editor] = useLexicalComposerContext();
 
   useEffect(() => {
-    register((text) => {
+    const insertLineBreak = () => {
+      editor.update(() => {
+        let selection = $getSelection();
+        if (!$isRangeSelection(selection)) {
+          $getRoot().selectEnd();
+          selection = $getSelection();
+        }
+        if ($isRangeSelection(selection)) {
+          selection.insertNodes([$createLineBreakNode()]);
+        }
+      });
+      editor.focus();
+    };
+    const insertText = (text: string) => {
       editor.update(() => {
         let selection = $getSelection();
         if (!$isRangeSelection(selection)) {
@@ -283,8 +437,46 @@ function RegisterTextInserterPlugin({
         }
       });
       editor.focus();
-    });
-  }, [editor, register]);
+    };
+    const insertFileReferences = (references: ChatFileReference[]) => {
+      if (references.length === 0) {
+        return;
+      }
+
+      editor.update(() => {
+        let selection = $getSelection();
+        if (!$isRangeSelection(selection)) {
+          $getRoot().selectEnd();
+          selection = $getSelection();
+        }
+        if (!$isRangeSelection(selection)) {
+          return;
+        }
+
+        const nodes = references.flatMap((reference, index) => [
+          ...(index > 0 ? [$createTextNode(' ')] : []),
+          $createBeautifulMentionNode(
+            '',
+            reference.serializedPath,
+            toFileMentionData(reference),
+          ),
+        ]);
+        selection.insertNodes(nodes);
+      });
+      editor.focus();
+    };
+    const inserters = { insertLineBreak, insertText, insertFileReferences };
+
+    register(inserters);
+    registerTextInserter?.(insertText);
+    registerFileReferenceInserter?.(insertFileReferences);
+
+    return () => {
+      register(null);
+      registerTextInserter?.(null);
+      registerFileReferenceInserter?.(null);
+    };
+  }, [editor, register, registerFileReferenceInserter, registerTextInserter]);
 
   return null;
 }
@@ -339,7 +531,10 @@ export type LexicalPromptInputTextareaProps = Omit<
   value: string;
   onValueChange: (value: string) => void;
   insertText?: (text: string) => void;
-  registerTextInserter?: (insertText: (text: string) => void) => void;
+  registerTextInserter?: (insertText: ((text: string) => void) | null) => void;
+  registerFileReferenceInserter?: (
+    insertFileReferences: ((references: ChatFileReference[]) => void) | null,
+  ) => void;
   placeholder?: string;
   slashItems?: PromptInputSlashItem[];
   onSlashMenuOpen?: () => void | Promise<void>;
@@ -351,6 +546,7 @@ export const LexicalPromptInputTextarea = ({
   onValueChange,
   insertText,
   registerTextInserter,
+  registerFileReferenceInserter,
   className,
   placeholder = 'What would you like to know?',
   slashItems = [],
@@ -358,9 +554,36 @@ export const LexicalPromptInputTextarea = ({
   onSlashItemSelect,
   onKeyDown,
   onPaste,
+  onDrop,
   ...props
 }: LexicalPromptInputTextareaProps) => {
   const [slashMenuOpen, setSlashMenuOpen] = useState(false);
+  const composerInsertersRef = useRef<ComposerInserters | null>(null);
+
+  const registerComposerInserters = useCallback(
+    (inserters: ComposerInserters | null) => {
+      composerInsertersRef.current = inserters;
+    },
+    [],
+  );
+
+  const insertPlainText = useCallback(
+    (text: string) => {
+      if (composerInsertersRef.current) {
+        composerInsertersRef.current.insertText(text);
+        return;
+      }
+      insertText?.(text);
+    },
+    [insertText],
+  );
+
+  const insertFileReferences = useCallback(
+    (references: ChatFileReference[]) => {
+      composerInsertersRef.current?.insertFileReferences(references);
+    },
+    [],
+  );
 
   const mentionItems = useMemo<BeautifulMentionsItem[]>(
     () =>
@@ -396,27 +619,99 @@ export const LexicalPromptInputTextarea = ({
 
   const handlePaste = useCallback(
     async (event: ClipboardEvent<HTMLDivElement>) => {
-      const fileList = Array.from(event.clipboardData?.items ?? [])
-        .filter((item) => item.kind === 'file')
-        .map((item) => item.getAsFile())
-        .filter((file): file is File => Boolean(file));
+      onPaste?.(event);
+      if (event.defaultPrevented) {
+        return;
+      }
 
-      if (fileList.length === 0) {
-        onPaste?.(event);
+      const fileList = getTransferredFiles(event.clipboardData);
+
+      if (fileList.length > 0) {
+        event.preventDefault();
+        insertFileReferences(await resolveTransferredFileReferences(fileList));
+        return;
+      }
+
+      const clipboardText = event.clipboardData?.getData('text/plain') || '';
+      const uriPaths = getFilePathsFromUriList(
+        event.clipboardData?.getData('text/uri-list') || '',
+      );
+      if (uriPaths.length > 0) {
+        event.preventDefault();
+        const references = await resolveUriFileReferences(uriPaths);
+        if (references.length > 0) {
+          insertFileReferences(references);
+        } else if (clipboardText) {
+          insertPlainText(clipboardText);
+        }
+        return;
+      }
+
+      const nativeClipboardPaths =
+        window.electron.app.getClipboardFilePaths?.() ?? [];
+      if (nativeClipboardPaths.length > 0) {
+        event.preventDefault();
+        const references = await resolveUriFileReferences(nativeClipboardPaths);
+        if (references.length > 0) {
+          insertFileReferences(references);
+        } else if (clipboardText) {
+          insertPlainText(clipboardText);
+        }
+        return;
+      }
+
+      const pathCandidate = getPlainTextPathCandidate(clipboardText);
+      if (!pathCandidate) {
         return;
       }
 
       event.preventDefault();
-      const files: FileInfo[] = await Promise.all(
-        fileList.map((file) => {
-          const path = window.electron.app.getPathForFile(file);
-          return window.electron.app.getFileInfo(path);
-        }),
-      );
-      const text = files.map((file) => `'${file.path}'`).join(' ');
-      insertText?.(text);
+      try {
+        const info = await window.electron.app.getFileInfo(
+          pathCandidate.sourcePath,
+        );
+        if (!info.isExist) {
+          insertPlainText(clipboardText);
+          return;
+        }
+
+        insertFileReferences([
+          {
+            ...pathCandidate,
+            name: info.name || getFileReferenceName(pathCandidate.sourcePath),
+            kind: info.isFile === false ? 'directory' : 'file',
+          },
+        ]);
+      } catch {
+        insertPlainText(clipboardText);
+      }
     },
-    [insertText, onPaste],
+    [insertFileReferences, insertPlainText, onPaste],
+  );
+
+  const handleDrop = useCallback(
+    async (event: DragEvent<HTMLDivElement>) => {
+      onDrop?.(event);
+      if (event.defaultPrevented) {
+        return;
+      }
+
+      const reference = getChatFileReferenceDragData(event.dataTransfer);
+      const files = getTransferredFiles(event.dataTransfer);
+      if (!reference && files.length === 0) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+      if (reference) {
+        insertFileReferences([reference]);
+        return;
+      }
+
+      insertFileReferences(await resolveTransferredFileReferences(files));
+    },
+    [insertFileReferences, onDrop],
   );
 
   const handleKeyDown = useCallback(
@@ -425,11 +720,21 @@ export const LexicalPromptInputTextarea = ({
       if (event.defaultPrevented || event.key !== 'Enter') {
         return;
       }
-      if (slashMenuOpen || event.shiftKey || event.nativeEvent.isComposing) {
+      if (event.nativeEvent.isComposing) {
+        return;
+      }
+      if (event.shiftKey) {
+        event.preventDefault();
+        event.stopPropagation();
+        composerInsertersRef.current?.insertLineBreak();
+        return;
+      }
+      if (slashMenuOpen) {
         return;
       }
 
       event.preventDefault();
+      event.stopPropagation();
       const form = event.currentTarget.closest('form');
       const submitButton = form?.querySelector(
         'button[type="submit"]',
@@ -489,8 +794,9 @@ export const LexicalPromptInputTextarea = ({
                 'whitespace-pre-wrap break-words focus-visible:ring-0 dark:bg-transparent',
                 className,
               )}
-              onKeyDown={handleKeyDown}
+              onKeyDownCapture={handleKeyDown}
               onPaste={handlePaste}
+              onDrop={handleDrop}
               placeholder={null}
             />
           }
@@ -503,9 +809,11 @@ export const LexicalPromptInputTextarea = ({
         />
         <HistoryPlugin />
         <OnChangePlugin ignoreSelectionChange onChange={handleChange} />
-        {registerTextInserter ? (
-          <RegisterTextInserterPlugin register={registerTextInserter} />
-        ) : null}
+        <RegisterComposerInsertersPlugin
+          register={registerComposerInserters}
+          registerFileReferenceInserter={registerFileReferenceInserter}
+          registerTextInserter={registerTextInserter}
+        />
         <ControlledPromptInputPlugin value={value} slashItems={slashItems} />
         <BeautifulMentionsPlugin
           allowSpaces={false}

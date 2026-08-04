@@ -2450,6 +2450,7 @@ IMPORTANT: Do NOT use any tools. You MUST respond with ONLY the <summary>...</su
         abortSignal: options?.abortSignal,
         providerOptions: {
           openai: {
+            store: false,
             maxTokens: 20000
           },
           anthropic: {

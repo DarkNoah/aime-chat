@@ -21,6 +21,7 @@ import {
 import { DirectoryTreeNode, SearchResult } from '@/types/common';
 import { Button } from '../../ui/button';
 import { cn } from '@/renderer/lib/utils';
+import { setChatFileReferenceDragData } from '@/renderer/lib/chat-file-reference';
 import { ScrollArea } from '../../ui/scroll-area';
 import { Input } from '../../ui/input';
 import {
@@ -236,13 +237,21 @@ const TreeNode: React.FC<TreeNodeProps> = ({
 
   const handleDragStart = (e: React.DragEvent) => {
     let relativePath = node.path;
-    if (rootPath && node.path.replaceAll("\\", "/").startsWith(`${rootPath.replaceAll("\\", "/")}/`)) {
-      relativePath = `"./${node.path.replaceAll("\\", "/").substring(rootPath.replaceAll("\\", "/").length + 1)}"`;
+    const normalizedNodePath = node.path.replaceAll('\\', '/');
+    const normalizedRootPath = rootPath?.replaceAll('\\', '/');
+    if (
+      normalizedRootPath &&
+      normalizedNodePath.startsWith(`${normalizedRootPath}/`)
+    ) {
+      relativePath = `"./${normalizedNodePath.substring(normalizedRootPath.length + 1)}"`;
     }
 
-    e.dataTransfer.setData('text/plain', relativePath);
-    e.dataTransfer.setData('application/x-file-path', relativePath);
-    e.dataTransfer.effectAllowed = 'copy';
+    setChatFileReferenceDragData(e.dataTransfer, {
+      serializedPath: relativePath,
+      sourcePath: node.path,
+      name: node.name,
+      kind: node.isDirectory ? 'directory' : 'file',
+    });
   };
 
   const handleToggle = async (open: boolean) => {
@@ -412,13 +421,21 @@ const SearchResultItem: React.FC<SearchResultItemProps> = ({
   };
 
   const handleDragStart = (e: React.DragEvent) => {
-    let relativePath = result.file;
-    if (workspace && result.file.replaceAll("\\", "/").startsWith(`${workspace.replaceAll("\\", "/")}/`)) {
-      relativePath = `"./${result.file.replaceAll("\\", "/").substring(workspace.replaceAll("\\", "/").length + 1)}"`;
+    let serializedPath = result.file;
+    const normalizedFilePath = result.file.replaceAll('\\', '/');
+    const normalizedWorkspacePath = workspace.replaceAll('\\', '/');
+    if (
+      workspace &&
+      normalizedFilePath.startsWith(`${normalizedWorkspacePath}/`)
+    ) {
+      serializedPath = `"./${normalizedFilePath.substring(normalizedWorkspacePath.length + 1)}"`;
     }
-    e.dataTransfer.setData('text/plain', relativePath);
-    e.dataTransfer.setData('application/x-file-path', relativePath);
-    e.dataTransfer.effectAllowed = 'copy';
+    setChatFileReferenceDragData(e.dataTransfer, {
+      serializedPath,
+      sourcePath: result.file,
+      name: fileName,
+      kind: result.type === 'folder' ? 'directory' : 'file',
+    });
   };
 
   // 根据类型选择图标

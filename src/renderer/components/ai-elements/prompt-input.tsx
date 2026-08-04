@@ -37,6 +37,10 @@ import {
   SelectValue,
 } from '@/renderer/components/ui/select';
 import { cn } from '@/renderer/lib/utils';
+import {
+  getFileReferenceName,
+  type ChatFileReference,
+} from '@/renderer/lib/chat-file-reference';
 import type { ChatStatus, FileUIPart } from 'ai';
 import {
   CornerDownLeftIcon,
@@ -54,6 +58,7 @@ import {
   Children,
   type ComponentProps,
   createContext,
+  type DragEvent as ReactDragEvent,
   type FormEvent,
   type FormEventHandler,
   Fragment,
@@ -95,6 +100,7 @@ export type TextInputContext = {
   setInput: (v: string) => void;
   clear: () => void;
   insertText: (text: string) => void;
+  insertFileReferences: (references: ChatFileReference[]) => void;
 };
 
 export type PromptInputControllerProps = {
@@ -106,7 +112,11 @@ export type PromptInputControllerProps = {
     open: () => void,
   ) => void;
   /** INTERNAL: Lets the active editor insert text at its current selection. */
-  __registerTextInserter: (insertText: (text: string) => void) => void;
+  __registerTextInserter: (insertText: ((text: string) => void) | null) => void;
+  /** INTERNAL: Lets the active editor insert file mentions at its selection. */
+  __registerFileReferenceInserter: (
+    insertFileReferences: ((references: ChatFileReference[]) => void) | null,
+  ) => void;
 };
 
 const PromptInputController = createContext<PromptInputControllerProps | null>(
@@ -159,6 +169,9 @@ export function PromptInputProvider({
   const [textInput, setTextInput] = useState(initialTextInput);
   const clearInput = useCallback(() => setTextInput(''), []);
   const textInserterRef = useRef<((text: string) => void) | null>(null);
+  const fileReferenceInserterRef = useRef<
+    ((references: ChatFileReference[]) => void) | null
+  >(null);
   const insertText = useCallback((text: string) => {
     if (textInserterRef.current) {
       textInserterRef.current(text);
@@ -167,8 +180,31 @@ export function PromptInputProvider({
     setTextInput((current) => current + text);
   }, []);
   const __registerTextInserter = useCallback(
-    (nextInsertText: (text: string) => void) => {
+    (nextInsertText: ((text: string) => void) | null) => {
       textInserterRef.current = nextInsertText;
+    },
+    [],
+  );
+  const insertFileReferences = useCallback(
+    (references: ChatFileReference[]) => {
+      if (fileReferenceInserterRef.current) {
+        fileReferenceInserterRef.current(references);
+        return;
+      }
+      setTextInput(
+        (current) =>
+          current + references.map((item) => item.serializedPath).join(' '),
+      );
+    },
+    [],
+  );
+  const __registerFileReferenceInserter = useCallback(
+    (
+      nextInsertFileReferences:
+        | ((references: ChatFileReference[]) => void)
+        | null,
+    ) => {
+      fileReferenceInserterRef.current = nextInsertFileReferences;
     },
     [],
   );
@@ -187,19 +223,24 @@ export function PromptInputProvider({
         return;
       }
 
-      const fileInfos = [];
+      const references: ChatFileReference[] = [];
 
       for (const file of incoming) {
         const path = window.electron.app.getPathForFile(file);
         const info = await window.electron.app.getFileInfo(path);
-        fileInfos.push(info);
+        const sourcePath = info.path || path;
+        references.push({
+          serializedPath: `'${sourcePath}'`,
+          sourcePath,
+          name: info.name || getFileReferenceName(sourcePath),
+          kind: info.isFile === false ? 'directory' : 'file',
+        });
       }
-      if (fileInfos.length === 0) return;
+      if (references.length === 0) return;
 
-      const text = fileInfos.map((x) => `'${x.path}'`).join(' ');
-      insertText(text);
+      insertFileReferences(references);
     },
-    [insertText],
+    [insertFileReferences],
   );
 
   const add = useCallback((files: File[] | FileList) => {
@@ -308,10 +349,12 @@ export function PromptInputProvider({
         setInput: setTextInput,
         clear: clearInput,
         insertText,
+        insertFileReferences,
       },
       attachments,
       __registerFileInput,
       __registerTextInserter,
+      __registerFileReferenceInserter,
     }),
     [
       textInput,
@@ -320,6 +363,8 @@ export function PromptInputProvider({
       attachments,
       __registerFileInput,
       __registerTextInserter,
+      __registerFileReferenceInserter,
+      insertFileReferences,
     ],
   );
 
@@ -536,6 +581,8 @@ export const PromptInput = ({
   maxFileSize,
   onError,
   onSubmit,
+  onDragOver,
+  onDrop,
   children,
   ...props
 }: PromptInputProps) => {
@@ -545,16 +592,6 @@ export const PromptInput = ({
 
   // Refs
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const anchorRef = useRef<HTMLSpanElement>(null);
-  const formRef = useRef<HTMLFormElement | null>(null);
-
-  // Find nearest form to scope drag & drop
-  useEffect(() => {
-    const root = anchorRef.current?.closest('form');
-    if (root instanceof HTMLFormElement) {
-      formRef.current = root;
-    }
-  }, []);
 
   // ----- Local attachments (only used when no provider)
   const [items, setItems] = useState<(FileUIPart & { id: string })[]>([]);
@@ -681,41 +718,33 @@ export const PromptInput = ({
     }
   }, [files, syncHiddenInput]);
 
-  // Attach drop handlers on nearest form and document (opt-in)
-  useEffect(() => {
-    const form = formRef.current;
-    if (!form) return;
+  const handleFormDragOver = (event: ReactDragEvent<HTMLFormElement>) => {
+    onDragOver?.(event);
+    if (!event.defaultPrevented && event.dataTransfer.types.includes('Files')) {
+      event.preventDefault();
+    }
+  };
 
-    const onDragOver = (e: DragEvent) => {
-      if (e.dataTransfer?.types?.includes('Files')) {
-        e.preventDefault();
-      }
-    };
-    const onDrop = (e: DragEvent) => {
-      if (e.dataTransfer?.types?.includes('Files')) {
-        e.preventDefault();
-      }
-      if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
-        add(e.dataTransfer.files, true);
-      }
-    };
-    form.addEventListener('dragover', onDragOver);
-    form.addEventListener('drop', onDrop);
-    return () => {
-      form.removeEventListener('dragover', onDragOver);
-      form.removeEventListener('drop', onDrop);
-    };
-  }, [add]);
+  const handleFormDrop = (event: ReactDragEvent<HTMLFormElement>) => {
+    onDrop?.(event);
+    if (event.defaultPrevented || event.dataTransfer.files.length === 0) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    add(event.dataTransfer.files, true);
+  };
 
   useEffect(() => {
     if (!globalDrop) return;
 
-    const onDragOver = (e: DragEvent) => {
+    const handleDocumentDragOver = (e: DragEvent) => {
       if (e.dataTransfer?.types?.includes('Files')) {
         e.preventDefault();
       }
     };
-    const onDrop = (e: DragEvent) => {
+    const handleDocumentDrop = (e: DragEvent) => {
       if (e.dataTransfer?.types?.includes('Files')) {
         e.preventDefault();
       }
@@ -723,11 +752,11 @@ export const PromptInput = ({
         add(e.dataTransfer.files, true);
       }
     };
-    document.addEventListener('dragover', onDragOver);
-    document.addEventListener('drop', onDrop);
+    document.addEventListener('dragover', handleDocumentDragOver);
+    document.addEventListener('drop', handleDocumentDrop);
     return () => {
-      document.removeEventListener('dragover', onDragOver);
-      document.removeEventListener('drop', onDrop);
+      document.removeEventListener('dragover', handleDocumentDragOver);
+      document.removeEventListener('drop', handleDocumentDrop);
     };
   }, [add, globalDrop]);
 
@@ -858,7 +887,6 @@ export const PromptInput = ({
   // Render with or without local provider
   const inner = (
     <>
-      <span aria-hidden="true" className="hidden" ref={anchorRef} />
       <input
         accept={accept}
         aria-label="Upload files"
@@ -870,9 +898,11 @@ export const PromptInput = ({
         type="file"
       />
       <form
-        className={cn('w-full', className)}
-        onSubmit={handleSubmit}
         {...props}
+        className={cn('w-full', className)}
+        onDragOver={handleFormDragOver}
+        onDrop={handleFormDrop}
+        onSubmit={handleSubmit}
       >
         <InputGroup>{children}</InputGroup>
       </form>
@@ -899,7 +929,11 @@ export const PromptInputBody = ({
 
 export type PromptInputTextareaProps = Omit<
   LexicalPromptInputTextareaProps,
-  'insertText' | 'onValueChange' | 'registerTextInserter' | 'value'
+  | 'insertText'
+  | 'onValueChange'
+  | 'registerFileReferenceInserter'
+  | 'registerTextInserter'
+  | 'value'
 >;
 
 export const PromptInputTextarea = ({ ...props }: PromptInputTextareaProps) => {
@@ -909,6 +943,9 @@ export const PromptInputTextarea = ({ ...props }: PromptInputTextareaProps) => {
       {...props}
       insertText={controller?.textInput.insertText}
       onValueChange={(value) => controller?.textInput.setInput(value)}
+      registerFileReferenceInserter={
+        controller?.__registerFileReferenceInserter
+      }
       registerTextInserter={controller?.__registerTextInserter}
       value={controller?.textInput.value ?? ''}
     />
