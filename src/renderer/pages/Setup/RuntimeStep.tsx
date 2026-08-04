@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { type ReactNode, useEffect, useState } from 'react';
 import { Button } from '@/renderer/components/ui/button';
 import {
   Card,
@@ -9,15 +9,16 @@ import {
   CardFooter,
 } from '@/renderer/components/ui/card';
 import { Badge } from '@/renderer/components/ui/badge';
+import { Checkbox } from '@/renderer/components/ui/checkbox';
 import { useTranslation } from 'react-i18next';
 import {
   ArrowLeft,
   ArrowRight,
   SkipForward,
   Check,
-  Download,
   Terminal,
   Package,
+  ScanText,
 } from 'lucide-react';
 import { Spinner } from '@/renderer/components/ui/spinner';
 import {
@@ -28,6 +29,8 @@ import {
   ItemDescription,
 } from '@/renderer/components/ui/item';
 import { RuntimeInfo } from '@/types/app';
+import toast from 'react-hot-toast';
+import type { TFunction } from 'i18next';
 
 interface SetupStepProps {
   onNext: () => void;
@@ -35,78 +38,291 @@ interface SetupStepProps {
   onSkip?: () => void;
 }
 
-type RuntimeKey = 'uv' | 'bun' | 'node';
+type RuntimeKey = 'uv' | 'node' | 'paddleOcr';
+
+interface RuntimeDefinition {
+  key: RuntimeKey;
+  label: string;
+  descriptionKey: string;
+  icon: React.ComponentType<{ className?: string }>;
+  iconClassName: string;
+}
+
+const RUNTIME_DEFINITIONS: RuntimeDefinition[] = [
+  {
+    key: 'uv',
+    label: 'UV',
+    descriptionKey: 'setup.runtime.uv_desc',
+    icon: Package,
+    iconClassName: 'bg-purple-500/10 text-purple-500',
+  },
+  {
+    key: 'node',
+    label: 'Node.js',
+    descriptionKey: 'setup.runtime.node_desc',
+    icon: Terminal,
+    iconClassName: 'bg-green-600/10 text-green-600',
+  },
+  {
+    key: 'paddleOcr',
+    label: 'PaddleOCR',
+    descriptionKey: 'setup.runtime.paddle_ocr_desc',
+    icon: ScanText,
+    iconClassName: 'bg-blue-500/10 text-blue-500',
+  },
+];
+
+const INSTALL_ORDER: RuntimeKey[] = ['uv', 'paddleOcr', 'node'];
+const INSTALL_TOAST_ID = 'setup-runtime-install';
+
+let activeRuntimeInstall: Promise<void> | null = null;
+
+async function installSelectedRuntimes(
+  packages: RuntimeKey[],
+  t: TFunction,
+): Promise<void> {
+  const definitions = new Map(
+    RUNTIME_DEFINITIONS.map((definition) => [definition.key, definition]),
+  );
+  const failures: string[] = [];
+
+  for (const [index, pkg] of packages.entries()) {
+    const label = definitions.get(pkg)?.label ?? pkg;
+    toast.loading(
+      t('setup.runtime.install_progress', {
+        name: label,
+        current: index + 1,
+        total: packages.length,
+      }),
+      { id: INSTALL_TOAST_ID },
+    );
+
+    try {
+      // PaddleOCR depends on UV, so this queue must remain sequential.
+      // eslint-disable-next-line no-await-in-loop
+      const result = (await window.electron.app.installRuntime(
+        pkg,
+      )) as RuntimeInfo[RuntimeKey];
+      if (!result?.installed) {
+        failures.push(label);
+      }
+    } catch {
+      failures.push(label);
+    }
+  }
+
+  if (failures.length > 0) {
+    toast.error(
+      t('setup.runtime.install_failed', { names: failures.join(', ') }),
+      {
+        id: INSTALL_TOAST_ID,
+        duration: 6000,
+      },
+    );
+    return;
+  }
+
+  toast.success(
+    t('setup.runtime.install_complete', { count: packages.length }),
+    {
+      id: INSTALL_TOAST_ID,
+    },
+  );
+}
+
+function startRuntimeInstall(packages: RuntimeKey[], t: TFunction) {
+  if (!activeRuntimeInstall) {
+    activeRuntimeInstall = installSelectedRuntimes(packages, t).finally(() => {
+      activeRuntimeInstall = null;
+    });
+  }
+  return activeRuntimeInstall;
+}
 
 function RuntimeStep({ onNext, onBack, onSkip }: SetupStepProps) {
   const { t } = useTranslation();
+  const runtimeLoadErrorText = t('setup.runtime.load_error');
   const [runtimeInfo, setRuntimeInfo] = useState<RuntimeInfo | null>(null);
   const [loading, setLoading] = useState(true);
-  const [installingMap, setInstallingMap] = useState<
-    Record<RuntimeKey, boolean>
-  >({
+  const [selected, setSelected] = useState<Record<RuntimeKey, boolean>>({
     uv: false,
-    bun: false,
     node: false,
+    paddleOcr: false,
   });
 
-  const getRuntimeInfo = async (useLoading = true) => {
-    if (useLoading) {
-      setLoading(true);
-    }
-    try {
-      const data = await window.electron.app.getRuntimeInfo();
-      setRuntimeInfo(data);
-    } finally {
-      if (useLoading) {
-        setLoading(false);
-      }
-    }
-  };
-
   useEffect(() => {
-    getRuntimeInfo();
-  }, []);
+    let active = true;
 
-  // const handleInstallUV = async () => {
-  //   setInstalling(true);
-  //   setRuntimeInfo((prev) => {
-  //     if (!prev) return null;
-  //     return { ...prev, uv: { ...prev.uv, status: 'installing' } as any };
-  //   });
-  //   try {
-  //     await window.electron.app.installRuntime('uv');
-  //     await getRuntimeInfo();
-  //   } finally {
-  //     setInstalling(false);
-  //   }
-  // };
+    const getRuntimeInfo = async () => {
+      setLoading(true);
+      try {
+        const data = await window.electron.app.getRuntimeInfo();
+        if (!active) return;
 
-  // const handleInstallBun = async () => {
-  //   setInstalling(true);
-  //   setRuntimeInfo((prev) => {
-  //     if (!prev) return null;
-  //     return { ...prev, bun: { ...prev.bun, status: 'installing' } as any };
-  //   });
-  //   try {
-  //     await window.electron.app.installRuntime('bun');
-  //     await getRuntimeInfo();
-  //   } finally {
-  //     setInstalling(false);
-  //   }
-  // };
+        setRuntimeInfo(data);
+        setSelected({
+          uv:
+            data.uv?.status !== 'installed' && data.uv?.status !== 'installing',
+          node:
+            data.node?.status !== 'installed' &&
+            data.node?.status !== 'installing',
+          paddleOcr:
+            data.paddleOcr?.status !== 'installed' &&
+            data.paddleOcr?.status !== 'installing',
+        });
+      } catch {
+        if (active) {
+          toast.error(runtimeLoadErrorText);
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    };
 
-  const handleInstallRuntime = async (pkg: RuntimeKey) => {
-    setInstallingMap((prev) => ({ ...prev, [pkg]: true }));
-    try {
-      await window.electron.app.installRuntime(pkg);
-      await getRuntimeInfo(false);
-    } finally {
-      setInstallingMap((prev) => ({ ...prev, [pkg]: false }));
-    }
+    getRuntimeInfo().catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [runtimeLoadErrorText]);
+
+  const isInstalled = (key: RuntimeKey) =>
+    runtimeInfo?.[key]?.status === 'installed';
+
+  const isInstalling = (key: RuntimeKey) =>
+    runtimeInfo?.[key]?.status === 'installing';
+
+  const handleSelectionChange = (key: RuntimeKey, checked: boolean) => {
+    setSelected((previous) => {
+      const next = { ...previous, [key]: checked };
+
+      // PaddleOCR is installed through UV. Keep the dependency selection valid
+      // without making users discover the relationship after a failed install.
+      if (key === 'paddleOcr' && checked && !isInstalled('uv')) {
+        next.uv = true;
+      }
+      if (key === 'uv' && !checked && !isInstalled('uv')) {
+        next.paddleOcr = false;
+      }
+
+      return next;
+    });
   };
 
-  const isUVInstalled = runtimeInfo?.uv?.status === 'installed';
-  const isNodeInstalled = runtimeInfo?.node?.status === 'installed';
+  const selectedPackages = INSTALL_ORDER.filter(
+    (key) => selected[key] && !isInstalled(key) && !isInstalling(key),
+  );
+
+  const handleNext = () => {
+    if (selectedPackages.length > 0) {
+      startRuntimeInstall(selectedPackages, t).catch(() => undefined);
+    }
+    onNext();
+  };
+
+  const renderVersionBadges = (key: RuntimeKey): ReactNode => {
+    const info = runtimeInfo?.[key];
+    if (!info) return null;
+    const pythonVersion =
+      key === 'uv' ? runtimeInfo?.uv?.pythonRuntime?.pythonVersion : undefined;
+
+    return (
+      <>
+        {info.version && <Badge variant="secondary">{info.version}</Badge>}
+        {pythonVersion && (
+          <Badge variant="secondary">Python {pythonVersion}</Badge>
+        )}
+      </>
+    );
+  };
+
+  const renderRuntimeAction = (
+    key: RuntimeKey,
+    label: string,
+    installed: boolean,
+    installing: boolean,
+  ): ReactNode => {
+    if (installed) {
+      return (
+        <Badge className="bg-green-500/10 text-green-600 hover:bg-green-500/20">
+          <Check className="size-3.5" />
+          {t('setup.runtime.installed')}
+        </Badge>
+      );
+    }
+
+    if (installing) {
+      return (
+        <Badge variant="secondary">
+          <Spinner className="size-3.5" />
+          {t('setup.runtime.installing')}
+        </Badge>
+      );
+    }
+
+    return (
+      <Checkbox
+        id={`setup-runtime-${key}`}
+        checked={selected[key]}
+        onCheckedChange={(checked) =>
+          handleSelectionChange(key, checked === true)
+        }
+        aria-label={t('setup.runtime.select_runtime', { name: label })}
+      />
+    );
+  };
+
+  const renderRuntimeItem = (definition: RuntimeDefinition) => {
+    const {
+      key,
+      label,
+      descriptionKey,
+      icon: Icon,
+      iconClassName,
+    } = definition;
+    const installed = isInstalled(key);
+    const installing = isInstalling(key);
+    const selectable = !installed && !installing;
+    const content = (
+      <>
+        <div
+          className={`flex size-10 shrink-0 items-center justify-center rounded-lg ${iconClassName}`}
+        >
+          <Icon className="size-5" />
+        </div>
+        <ItemContent>
+          <ItemTitle className="flex flex-wrap items-center gap-2">
+            {label}
+            {renderVersionBadges(key)}
+          </ItemTitle>
+          <ItemDescription>{t(descriptionKey)}</ItemDescription>
+        </ItemContent>
+        <ItemActions>
+          {renderRuntimeAction(key, label, installed, installing)}
+        </ItemActions>
+      </>
+    );
+
+    if (selectable) {
+      return (
+        <Item
+          key={key}
+          asChild
+          variant="outline"
+          className="cursor-pointer rounded-lg has-[[data-state=checked]]:border-primary/40 has-[[data-state=checked]]:bg-primary/5"
+        >
+          <label htmlFor={`setup-runtime-${key}`}>{content}</label>
+        </Item>
+      );
+    }
+
+    return (
+      <Item key={key} variant="outline" className="rounded-lg">
+        {content}
+      </Item>
+    );
+  };
 
   return (
     <Card className="border-0 shadow-2xl bg-card/80 backdrop-blur-sm">
@@ -126,132 +342,21 @@ function RuntimeStep({ onNext, onBack, onSkip }: SetupStepProps) {
           </div>
         ) : (
           <>
-            {/* UV Runtime */}
-            <Item variant="outline" className="rounded-lg">
-              <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-purple-500/10 text-purple-500 shrink-0">
-                <Package className="w-5 h-5" />
-              </div>
-              <ItemContent>
-                <ItemTitle className="flex items-center gap-2">
-                  UV
-                  {isUVInstalled && runtimeInfo?.uv?.version && (
-                    <Badge variant="secondary">{runtimeInfo.uv.version}</Badge>
-                  )}
-                  {isUVInstalled &&
-                    runtimeInfo?.uv?.pythonRuntime?.pythonVersion && (
-                      <Badge variant="secondary">
-                        Python {runtimeInfo.uv.pythonRuntime.pythonVersion}
-                      </Badge>
-                    )}
-                </ItemTitle>
-                <ItemDescription>{t('setup.runtime.uv_desc')}</ItemDescription>
-              </ItemContent>
-              <ItemActions>
-                {isUVInstalled && (
-                  <Badge className="bg-green-500/10 text-green-500 hover:bg-green-500/20">
-                    <Check className="w-3 h-3 mr-1" />
-                    {t('setup.runtime.installed')}
-                  </Badge>
-                )}
-                {!isUVInstalled && installingMap.uv && (
-                  <Button disabled size="sm">
-                    <Spinner className="w-4 h-4 mr-2" />
-                    {t('setup.runtime.installing')}
-                  </Button>
-                )}
-                {!isUVInstalled && !installingMap.uv && (
-                  <Button size="sm" onClick={() => handleInstallRuntime('uv')}>
-                    <Download className="w-4 h-4 mr-2" />
-                    {t('setup.runtime.install')}
-                  </Button>
-                )}
-              </ItemActions>
-            </Item>
+            <div className="space-y-3">
+              {RUNTIME_DEFINITIONS.map(renderRuntimeItem)}
+            </div>
 
-            {/* Node Runtime */}
-            <Item variant="outline" className="rounded-lg">
-              <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-blue-500/10 text-blue-500 shrink-0">
-                <Terminal className="w-5 h-5" />
-              </div>
-              <ItemContent>
-                <ItemTitle className="flex items-center gap-2">
-                  Node.js
-                  {isNodeInstalled && runtimeInfo?.node?.version && (
-                    <Badge variant="secondary">
-                      {runtimeInfo.node.version}
-                    </Badge>
-                  )}
-                </ItemTitle>
-                <ItemDescription>
-                  {t('setup.runtime.node_desc')}
-                </ItemDescription>
-              </ItemContent>
-              <ItemActions>
-                {isNodeInstalled && (
-                  <Badge className="bg-green-500/10 text-green-500 hover:bg-green-500/20">
-                    <Check className="w-3 h-3 mr-1" />
-                    {t('setup.runtime.installed')}
-                  </Badge>
-                )}
-                {!isNodeInstalled && installingMap.node && (
-                  <Button disabled size="sm">
-                    <Spinner className="w-4 h-4 mr-2" />
-                    {t('setup.runtime.installing')}
-                  </Button>
-                )}
-                {!isNodeInstalled && !installingMap.node && (
-                  <Button
-                    size="sm"
-                    onClick={() => handleInstallRuntime('node')}
-                  >
-                    <Download className="w-4 h-4 mr-2" />
-                    {t('setup.runtime.install')}
-                  </Button>
-                )}
-              </ItemActions>
-            </Item>
-
-            {/* Bun Runtime */}
-            {/* <Item variant="outline" className="rounded-lg">
-              <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-green-500/10 text-green-500 shrink-0">
-                <Terminal className="w-5 h-5" />
-              </div>
-              <ItemContent>
-                <ItemTitle className="flex items-center gap-2">
-                  Bun
-                  {isBunInstalled && runtimeInfo?.bun?.version && (
-                    <Badge variant="secondary">{runtimeInfo.bun.version}</Badge>
-                  )}
-                </ItemTitle>
-                <ItemDescription>
-                  {t('setup.runtime.node_desc')}
-                </ItemDescription>
-              </ItemContent>
-              <ItemActions>
-                {isBunInstalled && (
-                  <Badge className="bg-green-500/10 text-green-500 hover:bg-green-500/20">
-                    <Check className="w-3 h-3 mr-1" />
-                    {t('setup.runtime.installed')}
-                  </Badge>
-                )}
-                {!isBunInstalled && installingMap['bun'] && (
-                  <Button disabled size="sm">
-                    <Spinner className="w-4 h-4 mr-2" />
-                    {t('setup.runtime.installing')}
-                  </Button>
-                )}
-                {!isBunInstalled && !installingMap['bun'] && (
-                  <Button size="sm" onClick={() => handleInstallRuntime('bun')}>
-                    <Download className="w-4 h-4 mr-2" />
-                    {t('setup.runtime.install')}
-                  </Button>
-                )}
-              </ItemActions>
-            </Item> */}
-
-            {/* Info Box */}
-            <div className="p-4 rounded-lg bg-muted/50 text-sm text-muted-foreground">
-              <p>{t('setup.runtime.tip')}</p>
+            <div
+              className="rounded-lg bg-muted/50 p-4 text-sm text-muted-foreground"
+              aria-live="polite"
+            >
+              <p>
+                {selectedPackages.length > 0
+                  ? t('setup.runtime.selection_tip', {
+                      count: selectedPackages.length,
+                    })
+                  : t('setup.runtime.no_selection_tip')}
+              </p>
             </div>
           </>
         )}
@@ -269,11 +374,12 @@ function RuntimeStep({ onNext, onBack, onSkip }: SetupStepProps) {
               <SkipForward className="w-4 h-4 ml-2" />
             </Button>
           )}
-          <Button
-            onClick={onNext}
-            disabled={installingMap.uv || installingMap.node}
-          >
-            {t('common.next')}
+          <Button onClick={handleNext} disabled={loading}>
+            {selectedPackages.length > 0
+              ? t('setup.runtime.install_and_continue', {
+                  count: selectedPackages.length,
+                })
+              : t('common.next')}
             <ArrowRight className="w-4 h-4 ml-2" />
           </Button>
         </div>

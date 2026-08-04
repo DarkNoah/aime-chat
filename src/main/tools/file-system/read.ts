@@ -26,12 +26,12 @@ import { appManager } from '@/main/app';
 import { providersManager } from '@/main/providers';
 import { SpeechToText } from '../audio';
 import { toolsManager } from '..';
-import { LanguageModelV2ToolResultOutput, LanguageModelV2ToolResultPart } from '@ai-sdk/provider';
 import { isArray, isObject, isString } from '@/utils/is';
 import { ProviderType } from '@/types/provider';
 import sharp from 'sharp';
 import { readTextFileRange } from './text-file-reader';
 import { isSystemOcrSupported } from '@/main/utils/system-ocr';
+import { toReadModelOutput } from './read-model-output';
 
 
 const DEFAULT_MAX_LINES_TEXT_FILE = 2000;
@@ -116,7 +116,7 @@ Usage:
 - By default, it reads up to ${DEFAULT_MAX_LINES_TEXT_FILE} lines starting from the beginning of the file
 - You can optionally specify a line offset and limit (especially handy for long files), but it's recommended to read the whole file by not providing these parameters
 - Any lines longer than ${MAX_LINE_LENGTH_TEXT_FILE} characters will be truncated
-- Results are returned using cat -n format, with line numbers starting at 1
+- Text results are returned using cat -n format by default, with line numbers starting at 1. Set showLineNumbers to false to omit them
 - This tool allows to read images (eg PNG, JPG, etc). When reading an image file the contents are presented visually by a multimodal LLM.
 - When reading an image, you can optionally pass the args parameter (a JSON string) with one or more bounding boxes, e.g. args: '{"bbox": [[x1, y1, x2, y2]]}'. Coordinates must be pixel values from the original image, with the origin at the top-left. Each region will be cropped from the image and zoomed in (enlarged) before being analyzed, which is useful for inspecting small details or text.
 - This tool can read PDF files (.pdf). PDFs are processed page by page, extracting both text and visual content for analysis.
@@ -140,6 +140,12 @@ Usage:
         .optional()
         .describe(
           'The number of lines to read. Only provide if the file is too large to read at once.',
+        ),
+      showLineNumbers: z
+        .boolean()
+        .optional()
+        .describe(
+          'Whether to include line numbers in text file results. Defaults to true.',
         ),
       args: z
         .string()
@@ -170,7 +176,14 @@ Usage:
       isError: boolean;
       systemReminder?: string[];
     }> {
-    const { file_path, offset, limit, useVision, args } = inputData;
+    const {
+      file_path,
+      offset,
+      limit,
+      showLineNumbers,
+      useVision,
+      args,
+    } = inputData;
     const appInfo = await appManager.getInfo();
     const currentModel = context?.requestContext?.get('model' as never) as string;
     const visionModelId = appInfo.defaultModel.visionModel || currentModel;
@@ -386,16 +399,20 @@ Usage:
       systemReminder.push(`<system-reminder>File content partially truncated: some lines exceeded maximum length of ${MAX_LINE_LENGTH_TEXT_FILE} characters.</system-reminder>`);
     }
 
-    const formattedLines = formatCodeWithLineNumbers({
-      content: selectedLines.join('\n'),
-      startLine: actualStartLine + 1,
-    });
+    const selectedContent = selectedLines.join('\n');
+    const content =
+      showLineNumbers === false
+        ? selectedContent
+        : formatCodeWithLineNumbers({
+          content: selectedContent,
+          startLine: actualStartLine + 1,
+        });
 
     await updateFileModTime(file_path, context.requestContext);
     return {
       isError: false,
       systemReminder: systemReminder,
-      content: formattedLines,
+      content,
     };
   }
 
@@ -429,6 +446,7 @@ Usage:
     }
   };
 
+  toModelOutput = toReadModelOutput;
 }
 
 export interface ReadBinaryFileParams extends BaseToolParams {

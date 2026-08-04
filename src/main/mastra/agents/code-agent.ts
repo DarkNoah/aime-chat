@@ -39,7 +39,12 @@ import { GenerateImage } from '@/main/tools/image/generate-image';
 import { EditImage } from '@/main/tools/image/edit-image';
 import { MemoryRead, MemorySearch } from '@/main/tools/memory/memory';
 import { CreateGoal } from '@/main/tools/common/goal';
-import { KnowledgeBaseSearch, KnowledgeBaseList, KnowledgeBaseGetItem } from '@/main/tools/knowledge-base';
+import {
+  KnowledgeBaseGetItem,
+  KnowledgeBaseGraphSearch,
+  KnowledgeBaseList,
+  KnowledgeBaseSearch,
+} from '@/main/tools/knowledge-base';
 import { InteractiveHtml } from '@/main/tools/common/interactive-html';
 
 export class CodeAgent extends BaseAgent {
@@ -79,6 +84,7 @@ export class CodeAgent extends BaseAgent {
     // `${ToolType.BUILD_IN}:${LibSQLDatabaseInfo.toolName}`,
     // `${ToolType.BUILD_IN}:${LibSQLRun.toolName}`,
     `${ToolType.BUILD_IN}:${KnowledgeBaseSearch.toolName}`,
+    `${ToolType.BUILD_IN}:${KnowledgeBaseGraphSearch.toolName}`,
     `${ToolType.BUILD_IN}:${KnowledgeBaseList.toolName}`,
 
     `${ToolType.BUILD_IN}:${KnowledgeBaseGetItem.toolName}`,

@@ -31,6 +31,7 @@ import {
   TranscriptionModelV2,
 } from '@ai-sdk/provider';
 import { OpenAIProvider } from './openai-provider';
+import { OpenAIResponsesProvider } from './openai-responses-provider';
 import { DeepSeekProvider } from './deepseek-provider';
 import { ZhipuAIProvider } from './zhipuai-provider';
 import { GoogleProvider } from './google-provider';
@@ -99,6 +100,9 @@ class ProvidersManager extends BaseManager {
           id: m.id,
           name: m.name,
         })), {
+          id: ProviderType.OPENAI_RESPONSES,
+          name: 'OpenAI Responses API',
+        }, {
           id: ProviderType.OLLAMA,
           name: 'Ollama',
         }],
@@ -869,6 +873,8 @@ class ProvidersManager extends BaseManager {
         return new LmstudioProvider(provider);
       case ProviderType.OPENAI:
         return new OpenAIProvider(provider);
+      case ProviderType.OPENAI_RESPONSES:
+        return new OpenAIResponsesProvider(provider);
       case ProviderType.DEEPSEEK:
         return new DeepSeekProvider(provider);
       case ProviderType.ZHIPUAI:

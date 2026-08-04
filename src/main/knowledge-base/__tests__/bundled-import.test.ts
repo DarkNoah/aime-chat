@@ -1,7 +1,10 @@
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { findBundledKnowledgeBaseSQLiteFiles } from '../bundled-import';
+import {
+  findBundledKnowledgeBaseSQLiteFiles,
+  readBundledKnowledgeBaseConfig,
+} from '../bundled-import';
 
 describe('findBundledKnowledgeBaseSQLiteFiles', () => {
   let tempDir: string;
@@ -32,5 +35,44 @@ describe('findBundledKnowledgeBaseSQLiteFiles', () => {
     expect(
       findBundledKnowledgeBaseSQLiteFiles(path.join(tempDir, 'missing')),
     ).toEqual([]);
+  });
+});
+
+describe('readBundledKnowledgeBaseConfig', () => {
+  let tempDir: string;
+
+  beforeEach(() => {
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'aime-kb-config-'));
+  });
+
+  afterEach(() => {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  });
+
+  it('reads the sidecar json config next to the sqlite file', () => {
+    const sqlitePath = path.join(tempDir, 'a.sqlite');
+    fs.writeFileSync(sqlitePath, '');
+    fs.writeFileSync(
+      `${sqlitePath}.json`,
+      JSON.stringify({ autoInstall: true, description: 'demo' }),
+    );
+
+    expect(readBundledKnowledgeBaseConfig(sqlitePath)).toEqual({
+      autoInstall: true,
+      description: 'demo',
+    });
+  });
+
+  it('returns an empty config when the sidecar file is missing', () => {
+    expect(
+      readBundledKnowledgeBaseConfig(path.join(tempDir, 'a.sqlite')),
+    ).toEqual({});
+  });
+
+  it('returns an empty config when the sidecar file is invalid json', () => {
+    const sqlitePath = path.join(tempDir, 'a.sqlite');
+    fs.writeFileSync(`${sqlitePath}.json`, 'not json');
+
+    expect(readBundledKnowledgeBaseConfig(sqlitePath)).toEqual({});
   });
 });

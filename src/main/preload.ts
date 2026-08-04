@@ -67,6 +67,7 @@ import { MastraDBMessage, StorageThreadType } from '@mastra/core/memory';
 import { UIMessage } from 'ai';
 import {
   contextBridge,
+  clipboard,
   ipcRenderer,
   IpcRendererEvent,
   OpenDialogOptions,
@@ -75,9 +76,10 @@ import {
   SaveDialogReturnValue,
   webUtils,
 } from 'electron';
+import { getFilePathsFromClipboardFormats } from '@/utils/clipboard-file-paths';
 import { KnowledgeBase, KnowledgeBaseItem } from '@/entities/knowledge-base';
 import { InstanceInfo } from '@/types/instance';
-import { MarketChannel } from '@/types/market';
+import { MarketChannel, type MarketDataType } from '@/types/market';
 import {
   ChannelCommandsResult,
   ChannelInfo,
@@ -101,6 +103,26 @@ import {
 } from '@/types/request-log';
 
 // export type Channels = 'ipc-example';
+
+const readClipboardFormat = (format: string): string => {
+  try {
+    const value = clipboard.read(format);
+    if (value) {
+      return value;
+    }
+  } catch {
+    // Some native file formats are exposed only as raw buffers.
+  }
+
+  try {
+    const value = clipboard.readBuffer(format);
+    return value.toString(
+      format.toLowerCase() === 'filenamew' ? 'utf16le' : 'utf8',
+    );
+  } catch {
+    return '';
+  }
+};
 
 const electronHandler = {
   platform: process.platform,
@@ -164,6 +186,11 @@ const electronHandler = {
       ipcRenderer.invoke(ChannelChannel.WeixinCancelLogin, id),
   },
   app: {
+    getClipboardFilePaths: (): string[] =>
+      getFilePathsFromClipboardFormats(
+        clipboard.availableFormats(),
+        readClipboardFormat,
+      ),
     getPathForFile: (file: File): string => {
       return webUtils.getPathForFile(file);
     },
@@ -581,7 +608,7 @@ const electronHandler = {
       ipcRenderer.invoke(InstancesChannel.DetectBrowserProfiles),
   },
   market: {
-    getMarketData: (type: ToolType.SKILL | ToolType.MCP) =>
+    getMarketData: (type: MarketDataType) =>
       ipcRenderer.invoke(MarketChannel.GetMarketData, type),
   },
   secrets: {

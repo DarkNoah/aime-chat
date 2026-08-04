@@ -204,6 +204,7 @@ export const ChatSlashCommandConfig = [
     id: 'compact',
     label: 'compact',
     description: 'Compact the current messages',
+    instant: true,
   },
   {
     id: 'goal',

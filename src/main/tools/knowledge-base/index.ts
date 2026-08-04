@@ -5,8 +5,18 @@ import BaseTool, { BaseToolParams } from "../base-tool";
 import BaseToolkit, { BaseToolkitParams } from "../base-toolkit";
 import { ToolExecutionContext } from "@mastra/core/tools";
 import { z, ZodSchema } from "zod";
-import { CreateKnowledgeBase, KnowledgeBaseSourceType, SearchKnowledgeBaseItemResult, VectorStoreType } from "@/types/knowledge-base";
-import { createGraphRAGTool } from '@mastra/rag'
+import {
+  CreateKnowledgeBase,
+  KnowledgeBaseSourceType,
+  SearchKnowledgeBaseItemResult,
+  VectorStoreType,
+} from "@/types/knowledge-base";
+import { createGraphRAGTool } from '@mastra/rag';
+import { providersManager } from "@/main/providers";
+import {
+  createKnowledgeBaseGraphVectorStore,
+  getKnowledgeBaseGraphIndexName,
+} from "./graph-vector-store";
 
 
 export class KnowledgeBaseList extends BaseTool {
@@ -112,6 +122,141 @@ Return json format:
     }
     return results;
   }
+}
+
+export class KnowledgeBaseGraphSearch extends BaseTool {
+  static readonly toolName = 'KnowledgeBaseGraphSearch';
+  id: string = 'KnowledgeBaseGraphSearch';
+  description = `Search one knowledge base with GraphRAG.
+
+Use this tool when an answer depends on relationships between chunks, concepts, or documents. It first finds semantically relevant chunks, builds a graph from their embedding similarity, and traverses that graph to surface connected context.
+
+For direct fact lookup without relationship traversal, use KnowledgeBaseSearch instead.`;
+
+  inputSchema = z.object({
+    query: z
+      .string()
+      .min(1)
+      .describe('The relationship-oriented question to search for.'),
+    kb_source: z.string().min(1).describe('Knowledge base id or name.'),
+    top_k: z
+      .number()
+      .int()
+      .min(1)
+      .max(100)
+      .optional()
+      .default(10)
+      .describe('Maximum number of graph results to return.'),
+    threshold: z
+      .number()
+      .min(0)
+      .max(1)
+      .optional()
+      .default(0.7)
+      .describe(
+        'Embedding similarity threshold for graph edges. Higher values create a sparser graph.',
+      ),
+    random_walk_steps: z
+      .number()
+      .int()
+      .min(1)
+      .max(1000)
+      .optional()
+      .default(100)
+      .describe('Number of graph traversal steps.'),
+    restart_probability: z
+      .number()
+      .gt(0)
+      .lt(1)
+      .optional()
+      .default(0.15)
+      .describe(
+        'Probability that graph traversal restarts from a directly relevant chunk.',
+      ),
+    include_sources: z
+      .boolean()
+      .optional()
+      .default(true)
+      .describe(
+        'Whether to include source metadata with the returned context.',
+      ),
+  });
+
+  constructor(params?: BaseToolParams) {
+    super(params);
+  }
+
+  execute = async (
+    inputData: z.infer<typeof this.inputSchema>,
+    options?: ToolExecutionContext<ZodSchema, any>,
+  ) => {
+    const {
+      query,
+      kb_source,
+      top_k,
+      threshold,
+      random_walk_steps,
+      restart_probability,
+      include_sources,
+    } = inputData;
+    const knowledgeBases = await knowledgeBaseManager.getKnowledgeBaseList();
+    const knowledgeBase = knowledgeBases.find(
+      (item) => item.id === kb_source || item.name === kb_source,
+    );
+    if (!knowledgeBase) {
+      throw new Error(`Knowledge base not found: ${kb_source}`);
+    }
+    if (!knowledgeBase.embedding || !knowledgeBase.vectorLength) {
+      throw new Error(
+        `Knowledge base "${knowledgeBase.name}" does not have embeddings required by GraphRAG`,
+      );
+    }
+
+    const model = await providersManager.getEmbeddingModel(
+      knowledgeBase.embedding,
+    );
+    if (!model) {
+      throw new Error(
+        `Embedding model is unavailable: ${knowledgeBase.embedding}`,
+      );
+    }
+
+    const indexName = getKnowledgeBaseGraphIndexName(
+      knowledgeBase.id,
+      knowledgeBase.vectorLength,
+    );
+    const graphTool = createGraphRAGTool({
+      id: `${KnowledgeBaseGraphSearch.toolName}-${knowledgeBase.id}`,
+      description: this.description,
+      vectorStore: createKnowledgeBaseGraphVectorStore({
+        client: knowledgeBaseManager.libSQLClient,
+        knowledgeBaseId: knowledgeBase.id,
+        vectorLength: knowledgeBase.vectorLength,
+      }),
+      indexName,
+      model,
+      includeSources: include_sources,
+      graphOptions: {
+        dimension: knowledgeBase.vectorLength,
+        threshold,
+        randomWalkSteps: random_walk_steps,
+        restartProb: restart_probability,
+      },
+    });
+    const result = await graphTool.execute(
+      { queryText: query, topK: top_k },
+      (options ?? {}) as any,
+    );
+
+    return {
+      knowledgeBase: {
+        id: knowledgeBase.id,
+        name: knowledgeBase.name,
+      },
+      relevantContext: result?.relevantContext ?? [],
+      sources: result?.sources ?? [],
+    };
+  };
 }
 
 export class KnowledgeBaseGetItem extends BaseTool {
@@ -260,7 +405,7 @@ Use skill:local:aime-chat-docs to look up the available embedding models.
     }
     const knowledgeBase = await knowledgeBaseManager.createKnowledgeBase(data);
 
-    return { success: true };
+    return { success: true, knowledgeBaseId: knowledgeBase.id };
   }
 }
 
@@ -275,8 +420,16 @@ export class KnowledgeBaseToolkit extends BaseToolkit {
     const addConfig = params?.[KnowledgeBaseAdd.toolName];
     const createConfig = params?.[KnowledgeBaseCreate.toolName];
     const getItemConfig = params?.[KnowledgeBaseGetItem.toolName];
+    const graphSearchConfig = params?.[KnowledgeBaseGraphSearch.toolName];
     super(
-      [new KnowledgeBaseSearch(searchConfig), new KnowledgeBaseList(listConfig), new KnowledgeBaseAdd(addConfig), new KnowledgeBaseCreate(createConfig), new KnowledgeBaseGetItem(getItemConfig)],
+      [
+        new KnowledgeBaseSearch(searchConfig),
+        new KnowledgeBaseGraphSearch(graphSearchConfig),
+        new KnowledgeBaseList(listConfig),
+        new KnowledgeBaseAdd(addConfig),
+        new KnowledgeBaseCreate(createConfig),
+        new KnowledgeBaseGetItem(getItemConfig),
+      ],
       params,
     );
   }

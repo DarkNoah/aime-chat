@@ -1,8 +1,35 @@
 import fs from 'fs';
 import path from 'path';
-import { importKnowledgeBaseSQLite } from './import-sqlite';
 
 const SQLITE_EXTENSIONS = new Set(['.sqlite', '.db']);
+
+export type BundledKnowledgeBaseConfig = {
+  autoInstall?: boolean;
+  description?: string;
+};
+
+/**
+ * Reads the optional sidecar config next to a bundled knowledge base file,
+ * e.g. `foo.sqlite.json` for `foo.sqlite`.
+ */
+export const readBundledKnowledgeBaseConfig = (
+  filePath: string,
+): BundledKnowledgeBaseConfig => {
+  const configPath = `${filePath}.json`;
+  if (!fs.existsSync(configPath)) {
+    return {};
+  }
+  try {
+    return JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+  } catch (error) {
+    console.error(
+      '[knowledge-base] read bundled knowledge base config failed',
+      configPath,
+      error,
+    );
+    return {};
+  }
+};
 
 export const findBundledKnowledgeBaseSQLiteFiles = (directory: string) => {
   if (!fs.existsSync(directory)) {
@@ -22,25 +49,4 @@ export const findBundledKnowledgeBaseSQLiteFiles = (directory: string) => {
       return fs.statSync(filePath).isFile();
     })
     .sort();
-};
-
-export const importBundledKnowledgeBases = async (directory: string) => {
-  const { getDbPath } = await import('../utils');
-  const files = findBundledKnowledgeBaseSQLiteFiles(directory);
-  for (const filePath of files) {
-    try {
-      importKnowledgeBaseSQLite({
-        appDbPath: getDbPath(),
-        importDbPath: filePath,
-        mode: 'append',
-      });
-      console.log('[knowledge-base] imported bundled knowledge base', filePath);
-    } catch (error) {
-      console.error(
-        '[knowledge-base] import bundled knowledge base failed',
-        filePath,
-        error,
-      );
-    }
-  }
 };

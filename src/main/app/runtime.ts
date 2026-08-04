@@ -11,6 +11,9 @@ import {
   buildQwenAudioPyprojectToml,
   qwenAudioHealthCheckScript,
 } from './qwen-audio-runtime';
+import {
+  scheduleCodeExecutionPackageCacheWarmup as schedulePackageCacheWarmup,
+} from '../tools/code/python-package-cache';
 
 export const uv: RuntimeInfo['uv'] = {
   status: 'not_installed' as 'installed' | 'not_installed' | 'installing',
@@ -85,6 +88,15 @@ const runCommand = async (
   });
   return result;
 };
+
+export function scheduleCodeExecutionPackageCacheWarmup(
+  runtime?: RuntimeInfo['uv'],
+) {
+  schedulePackageCacheWarmup(runtime, {
+    runCommand,
+    log: (level, message, data) => appLog.write(level, message, data),
+  });
+}
 
 function getDefaultNvmDir() {
   return process.env.NVM_DIR || path.join(app.getPath('home'), '.nvm');
@@ -578,7 +590,7 @@ export async function installNodeRuntime() {
         ['-ExecutionPolicy', 'ByPass', '-NoProfile', '-Command', psScript],
         {
           usePowerShell: true,
-          timeout: 1000 * 60 * 10,
+          // timeout: 1000 * 60 * 10,
         },
       );
       // 0 = success, 3010 = success but a reboot is required.
@@ -605,7 +617,7 @@ export async function installNodeRuntime() {
         const installResult = await runCommand(
           'curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash',
           {
-            timeout: 1000 * 60 * 5,
+            // timeout: 1000 * 60 * 5,
           },
         );
         if (installResult.code !== 0) {
@@ -616,7 +628,7 @@ export async function installNodeRuntime() {
       const nvmResult = await runCommand(
         `export NVM_DIR="${nvmDir}"; . "$NVM_DIR/nvm.sh"; nvm install ${NODE_RUNTIME_VERSION}; nvm alias default ${NODE_RUNTIME_VERSION}; nvm use ${NODE_RUNTIME_VERSION}; "${nodePath}" --version`,
         {
-          timeout: 1000 * 60 * 10,
+          // timeout: 1000 * 60 * 10,
         },
       );
       success = nvmResult.code === 0 && fs.existsSync(nodePath);
@@ -744,13 +756,18 @@ export async function installPaddleOcrRuntime() {
   }
   fs.mkdirSync(paddleOcrDir, { recursive: true });
 
-  const uv_source = `set UV_PYPI_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple`;
+  // const uv_source = `set UV_PYPI_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple`;
 
   let resultInit = await runCommand(
     // `${uv_source} && ${uvPreCommand} init "${paddleOcrDir}" --python=3.10 && ${uvPreCommand} venv "${path.join(paddleOcrDir, '.venv')}" --python=3.10`,
-    `${uv_source} && "${uvPreCommand}" init "${paddleOcrDir}" --python=3.12 && "${uvPreCommand}" venv "${path.join(paddleOcrDir, '.venv')}" --python=3.12 --seed`,
+    isWindows ? `& "${uvPreCommand}" init "${paddleOcrDir}" --python=3.12 ; & "${uvPreCommand}" venv "${path.join(paddleOcrDir, '.venv')}" --python=3.12 --seed` :
+      `"${uvPreCommand}" init "${paddleOcrDir}" --python=3.12 && "${uvPreCommand}" venv "${path.join(paddleOcrDir, '.venv')}" --python=3.12 --seed`,
     {
       cwd: uvRuntime?.dir,
+      env: {
+        UV_PYPI_INDEX_URL: 'https://pypi.tuna.tsinghua.edu.cn/simple',
+      },
+      usePowerShell: isWindows,
     },
   );
   if (
@@ -792,18 +809,18 @@ export async function installPaddleOcrRuntime() {
   fs.writeFileSync(pyprojectPath, updated);
 
   const result_pin = await runCommand(
-    `${uvPreCommand} --project "${paddleOcrDir}" python pin 3.12`,
+    `${isWindows ? "& " : ""}"${uvPreCommand}" --project "${paddleOcrDir}" python pin 3.12`,
     {
       cwd: uvRuntime?.dir,
-      // usePowerShell: isWindows,s
+      usePowerShell: isWindows
     },
   );
 
   const result_install_paddle = await runCommand(
-    `"${uvPreCommand}" --project "${paddleOcrDir}" pip install paddlepaddle${hasGPU ? '-gpu==3.2.1 -i https://www.paddlepaddle.org.cn/packages/stable/cu126/' : '==3.2.2'} --python "${activateSourcePython}"`,
+    `${isWindows ? "& " : ""}"${uvPreCommand}" --project "${paddleOcrDir}" pip install paddlepaddle${hasGPU ? '-gpu==3.2.1 -i https://www.paddlepaddle.org.cn/packages/stable/cu126/' : '==3.2.2'} --python "${activateSourcePython}"`,
     {
       cwd: uvRuntime?.dir,
-      // usePowerShell: isWindows,s
+      usePowerShell: isWindows
     },
   );
 
@@ -819,10 +836,10 @@ export async function installPaddleOcrRuntime() {
   }
 
   const result1 = await runCommand(
-    `"${uvPreCommand}" --project "${paddleOcrDir}" pip install rapidocr onnxruntime "paddleocr[all]" "paddlex[ocr]" ${process.platform === 'darwin' ? 'mlx-vlm' : ''} --python "${activateSourcePython}"`,
+    `${isWindows ? "& " : ""}"${uvPreCommand}" --project "${paddleOcrDir}" pip install rapidocr onnxruntime "paddleocr[all]" "paddlex[ocr]" ${process.platform === 'darwin' ? 'mlx-vlm' : ''} --python "${activateSourcePython}"`,
     {
       cwd: uvRuntime?.dir,
-      // usePowerShell: isWindows,
+      usePowerShell: isWindows,
     },
   );
   // if (result1.code !== 0) {
@@ -839,22 +856,24 @@ export async function installPaddleOcrRuntime() {
       `"${uvPreCommand}" --project "${paddleOcrDir}" --no-cache add mlx-vlm --prerelease=allow `,
       {
         cwd: uvRuntime?.dir,
-        // usePowerShell: isWindows,
+        usePowerShell: isWindows,
       },
     );
     debugger;
   }
   const result2 = await runCommand(
-    `"${uvPreCommand}" run --project "${paddleOcrDir}" paddleocr -v`,
+    `${isWindows ? "& " : ""}"${uvPreCommand}" run --project "${paddleOcrDir}" paddleocr -v`,
     {
       cwd: uvRuntime?.dir,
+      usePowerShell: isWindows,
     },
   );
 
   const result3 = await runCommand(
-    `"${uvPreCommand}" run --project "${paddleOcrDir}" paddleocr pp_structurev3 -i "${getAssetPath('runtime', 'paddleocr-runtime', 'test-image.png')}"`,
+    `${isWindows ? "& " : ""}"${uvPreCommand}" run --project "${paddleOcrDir}" paddleocr pp_structurev3 -i "${getAssetPath('runtime', 'paddleocr-runtime', 'test-image.png')}"`,
     {
       cwd: uvRuntime?.dir,
+      usePowerShell: isWindows,
     },
   );
   if (result2.code === 0) {

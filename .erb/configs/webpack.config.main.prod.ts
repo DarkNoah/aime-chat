@@ -38,7 +38,7 @@ const configuration: webpack.Configuration = {
   optimization: {
     minimizer: [
       new TerserPlugin({
-        parallel: true,
+        parallel: process.env.WEBPACK_PARALLEL !== 'false',
       }),
     ],
   },

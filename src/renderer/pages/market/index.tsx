@@ -11,6 +11,10 @@ import { Skeleton } from '@/renderer/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger } from '@/renderer/components/ui/tabs';
 import { useHeader } from '@/renderer/hooks/use-title';
 import { Tool, ToolType } from '@/types/tool';
+import {
+  MARKET_KNOWLEDGE_BASE,
+  type MarketDataType,
+} from '@/types/market';
 import type { SkillMetadata } from '@/types/skill-metadata';
 import { IconPlus } from '@tabler/icons-react';
 import { useCallback, useEffect, useState } from 'react';
@@ -29,6 +33,7 @@ type MarketItem = SkillMetadata & {
   path?: string;
   file?: string;
   group?: string;
+  itemCount?: number;
 };
 
 function MarketPage() {
@@ -36,9 +41,7 @@ function MarketPage() {
   const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<ToolType.SKILL | ToolType.MCP>(
-    ToolType.SKILL,
-  );
+  const [activeTab, setActiveTab] = useState<MarketDataType>(ToolType.SKILL);
   const [loading, setLoading] = useState(false);
   const [tools, setTools] = useState<MarketItem[]>([]);
 
@@ -46,16 +49,13 @@ function MarketPage() {
     setTitle(t('sidebar.market'));
   }, [setTitle, t]);
 
-  const getData = useCallback(
-    async (_activeTab: ToolType.SKILL | ToolType.MCP) => {
-      setLoading(true);
-      const data = await window.electron.market.getMarketData(_activeTab);
-      console.log(data);
-      setTools(data);
-      setLoading(false);
-    },
-    [],
-  );
+  const getData = useCallback(async (_activeTab: MarketDataType) => {
+    setLoading(true);
+    const data = await window.electron.market.getMarketData(_activeTab);
+    console.log(data);
+    setTools(data);
+    setLoading(false);
+  }, []);
 
   const installMCP = async (id, mcpServers) => {
     try {
@@ -76,24 +76,60 @@ function MarketPage() {
       toast.error(err.message);
     }
   };
+  const installKnowledgeBase = async (sqlitePath: string) => {
+    try {
+      await window.electron.knowledgeBase.importSQLite(sqlitePath, 'append');
+      await getData(activeTab);
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
 
   useEffect(() => {
     getData(activeTab);
   }, [getData, activeTab]);
+
+  const renderItemContent = (tool: MarketItem) =>
+    activeTab === ToolType.SKILL ? (
+      <SkillSummary skill={tool} />
+    ) : (
+      <>
+        <ItemTitle>{tool.name}</ItemTitle>
+        <ItemDescription>
+          {activeTab === MARKET_KNOWLEDGE_BASE
+            ? [
+                tool.description,
+                t('market.kb_item_count', '{{count}} items', {
+                  count: tool.itemCount ?? 0,
+                }),
+              ]
+                .filter(Boolean)
+                .join(' · ')
+            : tool.description}
+        </ItemDescription>
+      </>
+    );
+
+  const getInstalledItemLink = (tool: MarketItem) => {
+    if (activeTab === ToolType.SKILL) return `/tools/${tool.id}`;
+    if (activeTab === MARKET_KNOWLEDGE_BASE) return `/knowledge-base/${tool.id}`;
+    return undefined;
+  };
   return (
     <div className="flex flex-1 flex-col gap-2 overflow-hidden p-6 pt-6 mx-auto w-full max-w-3xl">
       <Tabs
         defaultValue={ToolType.SKILL}
         value={activeTab}
-        onValueChange={(value) =>
-          setActiveTab(value as ToolType.SKILL | ToolType.MCP)
-        }
+        onValueChange={(value) => setActiveTab(value as MarketDataType)}
       >
         <TabsList>
           <TabsTrigger value={ToolType.SKILL}>
             {t('market.skills', 'Skills')}
           </TabsTrigger>
           <TabsTrigger value="mcp">{t('market.mcp', 'MCP')}</TabsTrigger>
+          <TabsTrigger value={MARKET_KNOWLEDGE_BASE}>
+            {t('market.knowledge_base', 'Knowledge Base')}
+          </TabsTrigger>
         </TabsList>
       </Tabs>
       {/* {loading && (
@@ -109,31 +145,19 @@ function MarketPage() {
           <div className="grid flex-1 gap-3 lg:grid-cols-2 content-start mt-3 mb-6">
             {tools
               .filter((tool) => tool.isInstalled)
-              .map((tool) => (
-                <Item
-                  variant="outline"
-                  key={tool.id}
-                  className={
-                    activeTab === ToolType.SKILL ? 'cursor-pointer' : undefined
-                  }
-                  onClick={() =>
-                    activeTab === ToolType.SKILL
-                      ? navigate(`/tools/${tool.id}`)
-                      : undefined
-                  }
-                >
-                  <ItemContent>
-                    {activeTab === ToolType.SKILL ? (
-                      <SkillSummary skill={tool} />
-                    ) : (
-                      <>
-                        <ItemTitle>{tool.name}</ItemTitle>
-                        <ItemDescription>{tool.description}</ItemDescription>
-                      </>
-                    )}
-                  </ItemContent>
-                </Item>
-              ))}
+              .map((tool) => {
+                const link = getInstalledItemLink(tool);
+                return (
+                  <Item
+                    variant="outline"
+                    key={tool.id}
+                    className={link ? 'cursor-pointer' : undefined}
+                    onClick={() => (link ? navigate(link) : undefined)}
+                  >
+                    <ItemContent>{renderItemContent(tool)}</ItemContent>
+                  </Item>
+                );
+              })}
           </div>
           <small>{t('market.recommended', 'Recommended')}</small>
           <div className="grid flex-1 gap-3 lg:grid-cols-2 content-start mt-3 mb-6">
@@ -141,16 +165,7 @@ function MarketPage() {
               .filter((tool) => !tool.isInstalled)
               .map((tool) => (
                 <Item variant="outline" key={tool.name}>
-                  <ItemContent>
-                    {activeTab === ToolType.SKILL ? (
-                      <SkillSummary skill={tool} />
-                    ) : (
-                      <>
-                        <ItemTitle>{tool.name}</ItemTitle>
-                        <ItemDescription>{tool.description}</ItemDescription>
-                      </>
-                    )}
-                  </ItemContent>
+                  <ItemContent>{renderItemContent(tool)}</ItemContent>
                   <ItemActions>
                     <Button
                       variant="outline"
@@ -175,6 +190,10 @@ function MarketPage() {
                               isActive: true,
                               group: tool.group ?? null,
                             });
+                          }
+                        } else if (activeTab === MARKET_KNOWLEDGE_BASE) {
+                          if (tool.path) {
+                            installKnowledgeBase(tool.path);
                           }
                         } else {
                           installMCP(tool.id, tool.mcpServers);

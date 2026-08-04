@@ -34,7 +34,13 @@ import {
   WindowModeState,
 } from '@/types/app';
 import { app } from 'electron';
-import { getAssetPath, getDbPath, getDefaultModelPath } from '../utils';
+import {
+  getAssetPath,
+  getDbPath,
+  getDefaultModelPath,
+  getRgPath,
+  persistModelPathForUninstaller,
+} from '../utils';
 import { platform } from 'os';
 import { setGlobalDispatcher } from 'undici';
 import { isUrl } from '@/utils/is';
@@ -59,6 +65,7 @@ import {
   installPaddleOcrRuntime,
   installQwenAudioRuntime,
   installUVRuntime,
+  scheduleCodeExecutionPackageCacheWarmup,
   uninstallAgentBrowserRuntime,
   uninstallBunRuntime,
   uninstallNodeRuntime,
@@ -76,7 +83,6 @@ import {
   SearchInDirectoryResult,
   SearchResult,
 } from '@/types/common';
-import { getRgPath } from '../utils';
 import { execSync, spawn } from 'child_process';
 import os from 'os';
 import readline from 'readline';
@@ -151,9 +157,13 @@ class AppManager extends BaseManager {
       dbManager.dataSource.getRepository(Translations);
     this.settingsRepository = dbManager.dataSource.getRepository(Settings);
     const settings = await this.settingsRepository.find();
-    this.windowModeController.initialize(settings.find(
-      (x) => x.id === 'windowMode',
-    )?.value);
+    persistModelPathForUninstaller(
+      settings.find((x) => x.id === 'modelPath')?.value ??
+        getDefaultModelPath(),
+    );
+    this.windowModeController.initialize(
+      settings.find((x) => x.id === 'windowMode')?.value,
+    );
     nativeTheme.themeSource =
       settings.find((x) => x.id === 'theme')?.value ?? 'system';
     setInsecureTlsEnabled(
@@ -175,7 +185,15 @@ class AppManager extends BaseManager {
     this.updateModelsJson().catch((err) =>
       console.error('Failed to update models.json:', err),
     );
-    this.getRuntimeInfo(true);
+    this.getRuntimeInfo(true)
+      .then((runtimeInfo) =>
+        scheduleCodeExecutionPackageCacheWarmup(runtimeInfo.uv),
+      )
+      .catch((err) => {
+        appLog.write('error', '[runtime] initial status refresh failed', {
+          message: err instanceof Error ? err.message : String(err),
+        });
+      });
   }
 
   private async updateModelsJson(): Promise<void> {
@@ -938,6 +956,9 @@ class AppManager extends BaseManager {
     value: any;
   }): Promise<void> {
     await this.settingsRepository.upsert(settings, ['id']);
+    if (settings.id === 'modelPath' && typeof settings.value === 'string') {
+      persistModelPathForUninstaller(settings.value);
+    }
   }
 
   @channel(AppChannel.GetAssistantSoulLibrary)
@@ -1015,6 +1036,9 @@ class AppManager extends BaseManager {
 
       const runtimeInfo = await this.getRuntimeInfo(true);
       const runtimeResult = runtimeInfo[pkg as keyof RuntimeInfo];
+      if (pkg === 'uv') {
+        scheduleCodeExecutionPackageCacheWarmup(runtimeInfo.uv);
+      }
       const runtimeLogData = {
         pkg,
         ...(runtimeResult ?? {
@@ -1157,9 +1181,12 @@ class AppManager extends BaseManager {
     const hasDefaultModel = !!settings.find((x) => x.id === 'defaultModel')
       ?.value?.model;
 
-    const setupCompleted = settings.find(
-      (x) => x.id === 'setupCompleted',
-    )?.value;
+    // 设置 DISABLE_SETUP="true" 时禁用初始化向导（见 main.ts 中的注释）
+    const setupDisabled = process.env.DISABLE_SETUP === 'true';
+
+    const setupCompleted =
+      setupDisabled ||
+      settings.find((x) => x.id === 'setupCompleted')?.value;
     let hasRuntime;
 
     if (!setupCompleted) {

@@ -150,5 +150,7 @@ asyncio.run(main())
 ## 注意
 
 - 第三方依赖（例如示例里的 `openpyxl`）需要通过 `CodeExecution` 的 `packages` 参数声明，运行之间不会保留。
+- 已下载的依赖包会缓存在本机；命中缓存后，即使离线也能安装到新的临时环境中。应用启动时还会在后台预下载一组常用依赖。
+- 长期缓存位于 `{Electron userData}/.runtime/code-execution/uv-cache`，每次运行创建的临时 `.venv` 仍会在结束后删除。
 - 如果 Python 报缺少模块，不要用 Bash 里的 pip 安装，而是把依赖加到 `packages` 参数。
 - 每次运行都在新的临时目录里执行，结束后自动删除。

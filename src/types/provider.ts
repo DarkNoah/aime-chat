@@ -48,6 +48,7 @@ export type UpdateProvider = Omit<CreateProvider, 'type'>;
 export enum ProviderType {
   OLLAMA = 'ollama',
   OPENAI = 'openai',
+  OPENAI_RESPONSES = 'openai-responses',
   TONGYI = 'tongyi',
   // ZHIPU = 'zhipu',
   GROQ = 'groq',

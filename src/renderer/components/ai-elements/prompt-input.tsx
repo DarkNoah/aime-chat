@@ -28,7 +28,6 @@ import {
   InputGroup,
   InputGroupAddon,
   InputGroupButton,
-  InputGroupTextarea,
 } from '@/renderer/components/ui/input-group';
 import {
   Select,
@@ -38,6 +37,10 @@ import {
   SelectValue,
 } from '@/renderer/components/ui/select';
 import { cn } from '@/renderer/lib/utils';
+import {
+  getFileReferenceName,
+  type ChatFileReference,
+} from '@/renderer/lib/chat-file-reference';
 import type { ChatStatus, FileUIPart } from 'ai';
 import {
   CornerDownLeftIcon,
@@ -51,17 +54,15 @@ import {
 } from 'lucide-react';
 import { nanoid } from 'nanoid';
 import {
-  type ChangeEvent,
   type ChangeEventHandler,
   Children,
-  type ClipboardEventHandler,
   type ComponentProps,
   createContext,
+  type DragEvent as ReactDragEvent,
   type FormEvent,
   type FormEventHandler,
   Fragment,
   type HTMLAttributes,
-  type KeyboardEventHandler,
   type PropsWithChildren,
   type ReactNode,
   type RefObject,
@@ -72,14 +73,16 @@ import {
   useRef,
   useState,
 } from 'react';
+import {
+  LexicalPromptInputTextarea,
+  type LexicalPromptInputTextareaProps,
+} from './prompt-input-lexical';
+
+export type { PromptInputSlashItem } from './prompt-input-slash-items';
+
 // ============================================================================
 // Provider Context & Types
 // ============================================================================
-import { Plate, usePlateEditor, createPlateEditor } from 'platejs/react';
-// import { EditorKit } from '@/renderer/components/editor/editor-kit';
-import { Editor, EditorContainer } from '@/renderer/components/ui/editor';
-import { MentionPlugin, MentionInputPlugin } from '@platejs/mention/react';
-import { FileInfo } from '@/types/common';
 
 export type AttachmentsContext = {
   files: (FileUIPart & { id: string })[];
@@ -96,14 +99,8 @@ export type TextInputContext = {
   value: string;
   setInput: (v: string) => void;
   clear: () => void;
-  /** 光标选区开始位置 */
-  selectionStart: number;
-  /** 光标选区结束位置 */
-  selectionEnd: number;
-  /** 设置光标选区位置（仅更新 state） */
-  setSelection: (start: number, end: number) => void;
-  /** 应用光标位置到 textarea DOM 元素，并可选聚焦 */
-  applyCursorPosition: (start: number, end?: number, focus?: boolean) => void;
+  insertText: (text: string) => void;
+  insertFileReferences: (references: ChatFileReference[]) => void;
 };
 
 export type PromptInputControllerProps = {
@@ -114,8 +111,12 @@ export type PromptInputControllerProps = {
     ref: RefObject<HTMLInputElement | null>,
     open: () => void,
   ) => void;
-  /** INTERNAL: Allows PromptInputTextarea to register its textarea ref */
-  __registerTextarea: (ref: RefObject<HTMLTextAreaElement | null>) => void;
+  /** INTERNAL: Lets the active editor insert text at its current selection. */
+  __registerTextInserter: (insertText: ((text: string) => void) | null) => void;
+  /** INTERNAL: Lets the active editor insert file mentions at its selection. */
+  __registerFileReferenceInserter: (
+    insertFileReferences: ((references: ChatFileReference[]) => void) | null,
+  ) => void;
 };
 
 const PromptInputController = createContext<PromptInputControllerProps | null>(
@@ -167,40 +168,43 @@ export function PromptInputProvider({
   // ----- textInput state
   const [textInput, setTextInput] = useState(initialTextInput);
   const clearInput = useCallback(() => setTextInput(''), []);
-
-  // ----- selection state (光标选区位置)
-  const [selectionStart, setSelectionStart] = useState(0);
-  const [selectionEnd, setSelectionEnd] = useState(0);
-  const setSelection = useCallback((start: number, end: number) => {
-    setSelectionStart(start);
-    setSelectionEnd(end);
+  const textInserterRef = useRef<((text: string) => void) | null>(null);
+  const fileReferenceInserterRef = useRef<
+    ((references: ChatFileReference[]) => void) | null
+  >(null);
+  const insertText = useCallback((text: string) => {
+    if (textInserterRef.current) {
+      textInserterRef.current(text);
+      return;
+    }
+    setTextInput((current) => current + text);
   }, []);
-
-  // ----- textarea ref (用于设置光标位置)
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-  const __registerTextarea = useCallback(
-    (ref: RefObject<HTMLTextAreaElement | null>) => {
-      textareaRef.current = ref.current;
+  const __registerTextInserter = useCallback(
+    (nextInsertText: ((text: string) => void) | null) => {
+      textInserterRef.current = nextInsertText;
     },
     [],
   );
-
-  // 应用光标位置到 textarea DOM 元素
-  const applyCursorPosition = useCallback(
-    (start: number, end?: number, focus = true) => {
-      const textarea = textareaRef.current;
-      if (textarea) {
-        const endPos = end ?? start;
-        setSelectionStart(start);
-        setSelectionEnd(endPos);
-        if (focus) {
-          textarea.focus();
-        }
-        // 使用 requestAnimationFrame 确保在 React 更新后设置光标
-        requestAnimationFrame(() => {
-          textarea.setSelectionRange(start, endPos);
-        });
+  const insertFileReferences = useCallback(
+    (references: ChatFileReference[]) => {
+      if (fileReferenceInserterRef.current) {
+        fileReferenceInserterRef.current(references);
+        return;
       }
+      setTextInput(
+        (current) =>
+          current + references.map((item) => item.serializedPath).join(' '),
+      );
+    },
+    [],
+  );
+  const __registerFileReferenceInserter = useCallback(
+    (
+      nextInsertFileReferences:
+        | ((references: ChatFileReference[]) => void)
+        | null,
+    ) => {
+      fileReferenceInserterRef.current = nextInsertFileReferences;
     },
     [],
   );
@@ -212,21 +216,6 @@ export function PromptInputProvider({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const openRef = useRef<() => void>(() => {});
 
-  // 使用 ref 来保存最新的状态值，避免闭包捕获旧值
-  const textInputRef = useRef(textInput);
-  const selectionStartRef = useRef(selectionStart);
-  const selectionEndRef = useRef(selectionEnd);
-
-  // 同步更新 ref
-  useEffect(() => {
-    textInputRef.current = textInput;
-  }, [textInput]);
-
-  useEffect(() => {
-    selectionStartRef.current = selectionStart;
-    selectionEndRef.current = selectionEnd;
-  }, [selectionStart, selectionEnd]);
-
   const addInline = useCallback(
     async (files: File[] | FileList) => {
       const incoming = Array.from(files);
@@ -234,42 +223,24 @@ export function PromptInputProvider({
         return;
       }
 
-      const fileInfos = [];
+      const references: ChatFileReference[] = [];
 
       for (const file of incoming) {
         const path = window.electron.app.getPathForFile(file);
         const info = await window.electron.app.getFileInfo(path);
-        fileInfos.push(info);
+        const sourcePath = info.path || path;
+        references.push({
+          serializedPath: `'${sourcePath}'`,
+          sourcePath,
+          name: info.name || getFileReferenceName(sourcePath),
+          kind: info.isFile === false ? 'directory' : 'file',
+        });
       }
-      if (fileInfos.length === 0) return;
+      if (references.length === 0) return;
 
-      const text = fileInfos.map((x) => `'${x.path}'`).join(' ');
-
-      // 从 ref 获取最新值
-      const currentTextInput = textInputRef.current;
-      const currentSelectionStart = selectionStartRef.current;
-      const currentSelectionEnd = selectionEndRef.current;
-
-      console.log(
-        'textInput',
-        currentTextInput,
-        currentSelectionStart,
-        currentSelectionEnd,
-      );
-      const newValue =
-        currentTextInput.slice(0, currentSelectionStart) +
-        text +
-        currentTextInput.slice(currentSelectionEnd);
-
-      setTextInput(newValue);
-      setSelection(currentSelectionStart, currentSelectionStart + text.length);
-      applyCursorPosition(
-        currentSelectionStart,
-        currentSelectionStart + text.length,
-        true,
-      );
+      insertFileReferences(references);
     },
-    [setSelection, applyCursorPosition],
+    [insertFileReferences],
   );
 
   const add = useCallback((files: File[] | FileList) => {
@@ -377,25 +348,23 @@ export function PromptInputProvider({
         value: textInput,
         setInput: setTextInput,
         clear: clearInput,
-        selectionStart,
-        selectionEnd,
-        setSelection,
-        applyCursorPosition,
+        insertText,
+        insertFileReferences,
       },
       attachments,
       __registerFileInput,
-      __registerTextarea,
+      __registerTextInserter,
+      __registerFileReferenceInserter,
     }),
     [
       textInput,
       clearInput,
-      selectionStart,
-      selectionEnd,
-      setSelection,
-      applyCursorPosition,
+      insertText,
       attachments,
       __registerFileInput,
-      __registerTextarea,
+      __registerTextInserter,
+      __registerFileReferenceInserter,
+      insertFileReferences,
     ],
   );
 
@@ -612,6 +581,8 @@ export const PromptInput = ({
   maxFileSize,
   onError,
   onSubmit,
+  onDragOver,
+  onDrop,
   children,
   ...props
 }: PromptInputProps) => {
@@ -621,16 +592,6 @@ export const PromptInput = ({
 
   // Refs
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const anchorRef = useRef<HTMLSpanElement>(null);
-  const formRef = useRef<HTMLFormElement | null>(null);
-
-  // Find nearest form to scope drag & drop
-  useEffect(() => {
-    const root = anchorRef.current?.closest('form');
-    if (root instanceof HTMLFormElement) {
-      formRef.current = root;
-    }
-  }, []);
 
   // ----- Local attachments (only used when no provider)
   const [items, setItems] = useState<(FileUIPart & { id: string })[]>([]);
@@ -757,41 +718,33 @@ export const PromptInput = ({
     }
   }, [files, syncHiddenInput]);
 
-  // Attach drop handlers on nearest form and document (opt-in)
-  useEffect(() => {
-    const form = formRef.current;
-    if (!form) return;
+  const handleFormDragOver = (event: ReactDragEvent<HTMLFormElement>) => {
+    onDragOver?.(event);
+    if (!event.defaultPrevented && event.dataTransfer.types.includes('Files')) {
+      event.preventDefault();
+    }
+  };
 
-    const onDragOver = (e: DragEvent) => {
-      if (e.dataTransfer?.types?.includes('Files')) {
-        e.preventDefault();
-      }
-    };
-    const onDrop = (e: DragEvent) => {
-      if (e.dataTransfer?.types?.includes('Files')) {
-        e.preventDefault();
-      }
-      if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
-        add(e.dataTransfer.files, true);
-      }
-    };
-    form.addEventListener('dragover', onDragOver);
-    form.addEventListener('drop', onDrop);
-    return () => {
-      form.removeEventListener('dragover', onDragOver);
-      form.removeEventListener('drop', onDrop);
-    };
-  }, [add]);
+  const handleFormDrop = (event: ReactDragEvent<HTMLFormElement>) => {
+    onDrop?.(event);
+    if (event.defaultPrevented || event.dataTransfer.files.length === 0) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    add(event.dataTransfer.files, true);
+  };
 
   useEffect(() => {
     if (!globalDrop) return;
 
-    const onDragOver = (e: DragEvent) => {
+    const handleDocumentDragOver = (e: DragEvent) => {
       if (e.dataTransfer?.types?.includes('Files')) {
         e.preventDefault();
       }
     };
-    const onDrop = (e: DragEvent) => {
+    const handleDocumentDrop = (e: DragEvent) => {
       if (e.dataTransfer?.types?.includes('Files')) {
         e.preventDefault();
       }
@@ -799,11 +752,11 @@ export const PromptInput = ({
         add(e.dataTransfer.files, true);
       }
     };
-    document.addEventListener('dragover', onDragOver);
-    document.addEventListener('drop', onDrop);
+    document.addEventListener('dragover', handleDocumentDragOver);
+    document.addEventListener('drop', handleDocumentDrop);
     return () => {
-      document.removeEventListener('dragover', onDragOver);
-      document.removeEventListener('drop', onDrop);
+      document.removeEventListener('dragover', handleDocumentDragOver);
+      document.removeEventListener('drop', handleDocumentDrop);
     };
   }, [add, globalDrop]);
 
@@ -934,7 +887,6 @@ export const PromptInput = ({
   // Render with or without local provider
   const inner = (
     <>
-      <span aria-hidden="true" className="hidden" ref={anchorRef} />
       <input
         accept={accept}
         aria-label="Upload files"
@@ -946,9 +898,11 @@ export const PromptInput = ({
         type="file"
       />
       <form
-        className={cn('w-full', className)}
-        onSubmit={handleSubmit}
         {...props}
+        className={cn('w-full', className)}
+        onDragOver={handleFormDragOver}
+        onDrop={handleFormDrop}
+        onSubmit={handleSubmit}
       >
         <InputGroup>{children}</InputGroup>
       </form>
@@ -973,186 +927,27 @@ export const PromptInputBody = ({
   <div className={cn('contents', className)} {...props} />
 );
 
-export type PromptInputTextareaProps = ComponentProps<
-  typeof InputGroupTextarea
+export type PromptInputTextareaProps = Omit<
+  LexicalPromptInputTextareaProps,
+  | 'insertText'
+  | 'onValueChange'
+  | 'registerFileReferenceInserter'
+  | 'registerTextInserter'
+  | 'value'
 >;
 
-export const PromptInputTextarea = ({
-  onChange,
-  className,
-  placeholder = 'What would you like to know?',
-  ...props
-}: PromptInputTextareaProps) => {
+export const PromptInputTextarea = ({ ...props }: PromptInputTextareaProps) => {
   const controller = useOptionalPromptInputController();
-  const attachments = usePromptInputAttachments();
-  const [isComposing, setIsComposing] = useState(false);
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-
-  // 注册 textareaRef 到 controller，用于支持外部设置光标位置
-  useEffect(() => {
-    controller?.__registerTextarea(textareaRef);
-  }, [controller]);
-
-  const handleKeyDown: KeyboardEventHandler<HTMLTextAreaElement> = (e) => {
-    if (e.key === 'Enter') {
-      if (isComposing || e.nativeEvent.isComposing) {
-        return;
-      }
-      if (e.shiftKey) {
-        return;
-      }
-      e.preventDefault();
-
-      // Check if the submit button is disabled before submitting
-      const { form } = e.currentTarget;
-      const submitButton = form?.querySelector(
-        'button[type="submit"]',
-      ) as HTMLButtonElement | null;
-      if (submitButton?.disabled) {
-        return;
-      }
-
-      form?.requestSubmit();
-    }
-
-    // Remove last attachment when Backspace is pressed and textarea is empty
-    // if (
-    //   e.key === 'Backspace' &&
-    //   e.currentTarget.value === '' &&
-    //   attachments.files.length > 0
-    // ) {
-    //   e.preventDefault();
-    //   const lastAttachment = attachments.files.at(-1);
-    //   if (lastAttachment) {
-    //     attachments.remove(lastAttachment.id);
-    //   }
-    // }
-  };
-
-  const handlePaste: ClipboardEventHandler<HTMLTextAreaElement> = async (
-    event,
-  ) => {
-    const items = event.clipboardData?.items;
-
-    if (!items) {
-      return;
-    }
-
-    const files: FileInfo[] = [];
-    const fileList: File[] = [];
-    for (const item of items) {
-      if (item.kind === 'file') {
-        const file = item.getAsFile();
-        if (file) {
-          fileList.push(file);
-        }
-      }
-    }
-    if (fileList.length === 0) return;
-    for (const f of fileList) {
-      const path = window.electron.app.getPathForFile(f);
-      const info = await window.electron.app.getFileInfo(path);
-      files.push(info);
-    }
-
-    if (files.length > 0) {
-      event.preventDefault();
-      const textarea = textareaRef.current;
-      if (!textarea) return;
-
-      const start = controller.textInput.selectionStart;
-      const end = controller.textInput.selectionEnd;
-      const text = files.map((x) => `'${x.path}'`).join(' ');
-      const newValue =
-        controller.textInput.value.slice(0, start) +
-        text +
-        controller.textInput.value.slice(end);
-
-      controller.textInput.setInput(newValue);
-      controller.textInput.setSelection(start, start + text.length);
-      controller.textInput.applyCursorPosition(
-        start,
-        start + text.length,
-        true,
-      );
-    }
-  };
-
-  // 处理选区变化，更新 selectionStart 和 selectionEnd
-  const handleSelect = useCallback(() => {
-    const textarea = textareaRef.current as HTMLTextAreaElement | null;
-    if (textarea && controller) {
-      controller.textInput.setSelection(
-        textarea.selectionStart,
-        textarea.selectionEnd,
-      );
-    }
-  }, [controller]);
-
-  const controlledProps = controller
-    ? {
-        value: controller.textInput.value,
-        onChange: (e: ChangeEvent<HTMLTextAreaElement>) => {
-          controller.textInput.setInput(e.currentTarget.value);
-          onChange?.(e);
-        },
-      }
-    : {
-        onChange,
-      };
-  // const editor = usePlateEditor({
-  //   // plugins: EditorKit,
-  //   // value: '',
-  // });
-
-  // const editor = createPlateEditor({
-  //   plugins: [
-  //     // ...其他插件
-  //     // MentionPlugin.configure({
-  //     //   options: {
-  //     //     trigger: '@',
-  //     //     triggerPreviousCharPattern: /^$|^[\s"']$/,
-  //     //     insertSpaceAfterMention: false,
-  //     //   },
-  //     // }).withComponent(MentionElement),
-  //     // MentionInputPlugin.withComponent(MentionInputElement),
-  //   ],
-  // });
-  // return (
-  //   <Plate editor={editor}>
-  //     <EditorContainer variant="default" className="px-2">
-  //       <Editor className="px-2 text-sm" />
-  //     </EditorContainer>
-  //   </Plate>
-  // );
-
-  // return (
-  //   <InputGroupTextarea
-  //     className={cn('field-sizing-content max-h-48 min-h-16', className)}
-  //     name="message"
-  //     onCompositionEnd={() => setIsComposing(false)}
-  //     onCompositionStart={() => setIsComposing(true)}
-  //     onKeyDown={handleKeyDown}
-  //     onPaste={handlePaste}
-  //     placeholder={placeholder}
-  //     {...props}
-  //     {...controlledProps}
-  //   />
-  // );
-
   return (
-    <InputGroupTextarea
-      ref={textareaRef}
-      className={cn('field-sizing-content max-h-48 min-h-16', className)}
-      name="message"
-      onCompositionEnd={() => setIsComposing(false)}
-      onCompositionStart={() => setIsComposing(true)}
-      onKeyDown={handleKeyDown}
-      onPaste={handlePaste}
-      onSelect={handleSelect}
-      placeholder={placeholder}
+    <LexicalPromptInputTextarea
       {...props}
-      {...controlledProps}
+      insertText={controller?.textInput.insertText}
+      onValueChange={(value) => controller?.textInput.setInput(value)}
+      registerFileReferenceInserter={
+        controller?.__registerFileReferenceInserter
+      }
+      registerTextInserter={controller?.__registerTextInserter}
+      value={controller?.textInput.value ?? ''}
     />
   );
 };
