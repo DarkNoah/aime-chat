@@ -4,6 +4,7 @@ import { LanguageModelV2 } from '@ai-sdk/provider';
 import { createOpenAI } from '@ai-sdk/openai';
 import { OpenAICompatibleConfig } from '@mastra/core/llm';
 import { OpenAIProvider } from './openai-provider';
+import { OpenAIRerankModel, RerankModel } from './base-provider';
 
 /**
  * OpenAI 兼容供应商(Responses API)。
@@ -29,4 +30,9 @@ export class OpenAIResponsesProvider extends OpenAIProvider {
       apiKey: this.provider.apiKey,
     }).responses(modelId);
   }
+
+  rerankModel(modelId: string): RerankModel {
+    return new OpenAIRerankModel(this.name, { modelId, provider: this.provider });
+  }
+
 }

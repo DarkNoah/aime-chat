@@ -78,6 +78,21 @@
       ]
     },
     {
+      "id": "bge-reranker-v2-m3",
+      "library": "transformers",
+      "repo": "onnx-community/bge-reranker-v2-m3-ONNX",
+      "download": [
+        {
+          "source": "modelscope",
+          "url": "https://www.modelscope.cn/models/onnx-community/bge-reranker-v2-m3-ONNX"
+        },
+        {
+          "source": "huggingface",
+          "url": "https://huggingface.co/onnx-community/bge-reranker-v2-m3-ONNX"
+        }
+      ]
+    },
+    {
       "id": "jina-reranker-v2-base-multilingual",
       "library": "transformers",
       "repo": "jinaai/jina-reranker-v2-base-multilingual",

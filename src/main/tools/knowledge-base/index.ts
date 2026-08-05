@@ -13,6 +13,7 @@ import {
 } from "@/types/knowledge-base";
 import { createGraphRAGTool } from '@mastra/rag';
 import { providersManager } from "@/main/providers";
+import { appManager } from "@/main/app";
 import {
   createKnowledgeBaseGraphVectorStore,
   getKnowledgeBaseGraphIndexName,
@@ -376,13 +377,17 @@ export class KnowledgeBaseCreate extends BaseTool {
   static readonly toolName = 'KnowledgeBaseCreate';
   id: string = 'KnowledgeBaseCreate';
   description = `Create a knowledge base.
-Use skill:local:aime-chat-docs to look up the available embedding models.
+When embeddingModel is omitted, the globally configured default embedding model is used.
+Use skill:local:aime-chat-docs to look up the available embedding models when needed.
 `;
 
   inputSchema = z.object({
     name: z.string().describe('Knowledge base name'),
     description: z.string().optional(),
-    embeddingModel: z.string().describe('Embedding model'),
+    embeddingModel: z
+      .string()
+      .optional()
+      .describe('Optional embedding model. Uses the global default when omitted.'),
 
     extendColumns: z.array(z.object({ columnType: z.enum(['text', 'blob', 'number', 'boolean']), name: z.string() })).optional(),
   });
@@ -393,12 +398,20 @@ Use skill:local:aime-chat-docs to look up the available embedding models.
 
   execute = async (inputData: z.infer<typeof this.inputSchema>, options?: ToolExecutionContext<ZodSchema, any>) => {
     const { name, description, embeddingModel, extendColumns = [] } = inputData;
-    const { writer } = options;
+    const appInfo = await appManager.getInfo();
+    const embedding =
+      embeddingModel?.trim() ||
+      appInfo.defaultModel.embeddingModel?.trim() ||
+      undefined;
+    const reranker =
+      appInfo.defaultModel.rerankerModel?.trim() ||
+      undefined;
     const data: CreateKnowledgeBase = {
       name,
       description,
-      embedding: embeddingModel,
+      embedding,
       vectorStoreType: VectorStoreType.LibSQL,
+      reranker,
       vectorStoreConfig: {
         extendColumns: extendColumns.map(x => ({ columnType: x.columnType, name: x.name }))
       }

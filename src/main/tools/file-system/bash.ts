@@ -723,8 +723,51 @@ export interface BashSession {
   timedOut?: boolean;
 }
 
+export type BashSessionCompletion = {
+  threadId?: string;
+  resourceId?: string;
+  bashId: string;
+  command: string;
+  description?: string;
+  directory?: string;
+  errorMessage?: string;
+  exitCode?: number | null;
+  processSignal?: BashSession['processSignal'] | null;
+  timedOut: boolean;
+  pid?: number;
+  startTime: string;
+  finishedAt: string;
+};
+
+export type BashSessionCompletedListener = (
+  completion: BashSessionCompletion,
+) => void | Promise<void>;
+
 export class BashManager {
   private bashMap: Map<string, BashSession> = new Map();
+
+  private sessionCompletedListeners = new Set<BashSessionCompletedListener>();
+
+  onSessionCompleted(listener: BashSessionCompletedListener) {
+    this.sessionCompletedListeners.add(listener);
+    return () => {
+      this.sessionCompletedListeners.delete(listener);
+    };
+  }
+
+  private notifySessionCompleted(completion: BashSessionCompletion) {
+    for (const listener of this.sessionCompletedListeners) {
+      try {
+        Promise.resolve(listener(completion)).catch((err) => {
+          // eslint-disable-next-line no-console
+          console.error('background bash completion listener failed', err);
+        });
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error('background bash completion listener failed', err);
+      }
+    }
+  }
 
   async runInBackground(
     input: {
@@ -738,7 +781,7 @@ export class BashManager {
     abortSignal?: AbortSignal,
     threadId?: string,
     resourceId?: string,
-    usePowerShell?: boolean = false
+    usePowerShell: boolean = false,
   ) {
     const managedAbort = createManagedAbortController(timeout, abortSignal);
     const { abortController } = managedAbort;
@@ -884,22 +927,62 @@ export class BashManager {
 
     let code: number | null = null;
     let processSignal: NodeJS.Signals | null = null;
-    const exitHandler = (
+    let terminalResolved: (() => void) | undefined;
+    const terminalPromise = new Promise<void>((resolve) => {
+      terminalResolved = resolve;
+    });
+    let finalized = false;
+    let finalizeFallback: ReturnType<typeof setTimeout> | undefined;
+    const finalizeSession = (
       _code: number | null,
       _signal: NodeJS.Signals | null,
     ) => {
+      if (finalized) return;
+      finalized = true;
+      if (finalizeFallback) {
+        clearTimeout(finalizeFallback);
+        finalizeFallback = undefined;
+      }
       exited = true;
       code = _code;
       processSignal = _signal;
-      bashSession.exitCode = _code;
+      bashSession.exitCode = _code ?? undefined;
       bashSession.isExited = true;
-      bashSession.processSignal = _signal;
+      bashSession.processSignal = _signal ?? undefined;
       bashSession.timedOut = managedAbort.didTimeout();
       flushOutput();
       emitSessionUpdate('exited');
+      const finishedAt = new Date().toISOString();
+      this.notifySessionCompleted({
+        threadId: bashSession.threadId,
+        resourceId: bashSession.resourceId,
+        bashId: bashSession.bashId,
+        command: bashSession.command,
+        description: bashSession.description,
+        directory: bashSession.directory,
+        errorMessage: bashSession.errorMessage,
+        exitCode: _code,
+        processSignal: _signal,
+        timedOut: bashSession.timedOut,
+        pid: bashSession.pid,
+        startTime: bashSession.startTime.toISOString(),
+        finishedAt,
+      });
       console.log('exit', `${bashSession.bashId}`);
+      terminalResolved?.();
     };
-    shell.on('exit', exitHandler);
+    shell.once('exit', (_code, _signal) => {
+      code = _code;
+      processSignal = _signal;
+      // `close` follows once stdio has drained. Keep an exit fallback for
+      // non-standard child-process implementations that never emit it.
+      finalizeFallback = setTimeout(() => {
+        finalizeSession(code, processSignal);
+      }, 0);
+    });
+    shell.once('close', (_code, _signal) => {
+      finalizeSession(_code ?? code, _signal ?? processSignal);
+    });
     const removeAbortHandler = attachAbortHandler(
       shell,
       managedAbort.abortSignal,
@@ -907,7 +990,7 @@ export class BashManager {
     );
 
     try {
-      await new Promise((resolve) => shell.on('exit', resolve));
+      await terminalPromise;
     } finally {
       flushOutput();
       removeAbortHandler();

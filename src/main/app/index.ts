@@ -124,6 +124,7 @@ import {
 import { api } from '../api/ApiController';
 import { getCrashDumpDirectory } from './crash-reporter';
 import { WindowModeController } from './window-mode';
+import { writeWorkspaceTextFile } from '../utils/workspace-file';
 
 class AppManager extends BaseManager {
   repository: Repository<Providers>;
@@ -266,14 +267,20 @@ class AppManager extends BaseManager {
     const apiServer = settings.find((x) => x.id === 'apiServer')?.value;
     const appName = settings.find((x) => x.id === 'appName')?.value || process.env.APP_NAME;
     const acp = await acpManager.getInfo();
-    const defaultModel = settings.find((x) => x.id === 'defaultModel')?.value ?? {
+    const savedDefaultModel = settings.find(
+      (x) => x.id === 'defaultModel',
+    )?.value;
+    const defaultModel = {
       model: process.env.DEFAULT_MODEL,
       fastModel: process.env.DEFAULT_FAST_MODEL,
       visionModel: process.env.DEFAULT_VISION_MODEL,
+      embeddingModel: process.env.DEFAULT_EMBEDDING_MODEL,
+      rerankerModel: process.env.DEFAULT_RERANKER_MODEL,
       ocrModel: process.env.DEFAULT_OCR_MODEL,
       transcriptionModel: process.env.DEFAULT_TRANSCRIPTION_MODEL,
       speechModel: process.env.DEFAULT_SPEECH_MODEL,
       generateImageModel: process.env.DEFAULT_GENERATE_IMAGE_MODEL,
+      ...(savedDefaultModel ?? {}),
     };
     const defaultAgent = settings.find((x) => x.id === 'defaultAgent')?.value || process.env.DEFAULT_AGENT || CodeAgent.agentName;
     const defaultThink = settings.find((x) => x.id === 'defaultThink')?.value || process.env.THINK || 'medium';
@@ -467,7 +474,13 @@ class AppManager extends BaseManager {
   public async readFileContent(
     filePath: string,
     options?: { limit?: number },
-  ): Promise<{ content: string; truncated: boolean; size: number, mimeType: string, isBinary: boolean }> {
+  ): Promise<{
+    content?: string;
+    truncated: boolean;
+    size: number;
+    mimeType: string | false;
+    isBinary: boolean;
+  }> {
     const limit = options?.limit || 100000; // 默认限制 100KB
 
     if (!fs.existsSync(filePath)) {
@@ -510,6 +523,15 @@ class AppManager extends BaseManager {
       mimeType,
       isBinary: false,
     };
+  }
+
+  @channel(AppChannel.WriteFileContent)
+  public async writeFileContent(
+    filePath: string,
+    content: string,
+    workspace: string,
+  ): Promise<{ size: number; modifiedAt: number }> {
+    return writeWorkspaceTextFile(workspace, filePath, content);
   }
 
   @channel(AppChannel.GetDirectoryTree)

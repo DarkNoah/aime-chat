@@ -47017,9 +47017,9 @@
           "output": 65535
         },
         "cost": {
-          "input": 0.66,
-          "output": 3.5,
-          "cache_read": 0.06599999999999999
+          "input": 0.58,
+          "output": 3.4,
+          "cache_read": 0.05799999999999998
         }
       },
       "moonshotai/Kimi-K3-TEE": {
@@ -64119,6 +64119,44 @@
         "cost": {
           "input": 0,
           "output": 0
+        }
+      },
+      "longcat-2.0-free": {
+        "id": "longcat-2.0-free",
+        "name": "LongCat-2.0 Free",
+        "description": "Meituan LongCat-2.0, a reasoning model with tool calling and a 1M-token context window",
+        "family": "longcat",
+        "attachment": false,
+        "reasoning": true,
+        "reasoning_options": [
+          {
+            "type": "toggle"
+          }
+        ],
+        "tool_call": true,
+        "interleaved": {
+          "field": "reasoning_content"
+        },
+        "temperature": true,
+        "release_date": "2026-06-30",
+        "last_updated": "2026-06-30",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "limit": {
+          "context": 1000000,
+          "output": 131072
+        },
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cache_read": 0
         }
       },
       "qwen3.6-plus-free": {
@@ -155248,8 +155286,9 @@
           {
             "type": "effort",
             "values": [
-              "none",
-              "high"
+              "low",
+              "medium",
+              "xhigh"
             ]
           }
         ],
@@ -181497,8 +181536,8 @@
           "output": 32768
         },
         "cost": {
-          "input": 0.21,
-          "output": 0.455,
+          "input": 0.165,
+          "output": 0.3575,
           "cache_read": 0.06
         }
       },
@@ -182104,13 +182143,13 @@
         },
         "open_weights": false,
         "limit": {
-          "context": 262144,
-          "output": 52429
+          "context": 1048576,
+          "output": 384000
         },
         "cost": {
-          "input": 0.112,
-          "output": 0.224,
-          "cache_read": 0.028
+          "input": 0.084,
+          "output": 0.168,
+          "cache_read": 0.0168
         }
       },
       "openai-gpt-5.4": {
@@ -182291,9 +182330,9 @@
           "output": 52429
         },
         "cost": {
-          "input": 1.392,
-          "output": 2.784,
-          "cache_read": 0.348
+          "input": 0.87,
+          "output": 1.74,
+          "cache_read": 0.174
         }
       },
       "anthropic-claude-sonnet-4": {
@@ -183371,7 +183410,7 @@
           "output": 52429
         },
         "cost": {
-          "input": 0.6,
+          "input": 0.8,
           "output": 3,
           "cache_read": 0.16
         }
@@ -183415,8 +183454,8 @@
           "output": 26214
         },
         "cost": {
-          "input": 0.385,
-          "output": 2.45,
+          "input": 0.3025,
+          "output": 1.925,
           "cache_read": 0.111
         }
       },
@@ -183881,8 +183920,8 @@
           "output": 4096
         },
         "cost": {
-          "input": 0.07,
-          "output": 0.49,
+          "input": 0.055,
+          "output": 0.385,
           "cache_read": 0.02
         }
       },
@@ -184169,9 +184208,9 @@
           "output": 32768
         },
         "cost": {
-          "input": 0.425,
-          "output": 1.36,
-          "cache_read": 0.15
+          "input": 0.25,
+          "output": 0.8,
+          "cache_read": 0.075
         }
       },
       "bge-m3": {
@@ -214973,6 +215012,7 @@
           }
         ],
         "tool_call": true,
+        "structured_output": true,
         "temperature": true,
         "release_date": "2026-08-03",
         "last_updated": "2026-08-03",
@@ -214980,12 +215020,10 @@
           "input": [
             "text",
             "image",
-            "video",
-            "audio"
+            "video"
           ],
           "output": [
-            "text",
-            "audio"
+            "text"
           ]
         },
         "open_weights": false,
@@ -219394,8 +219432,7 @@
             "values": [
               "low",
               "medium",
-              "high",
-              "xhigh"
+              "high"
             ]
           }
         ],

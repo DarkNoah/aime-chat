@@ -66,6 +66,7 @@ export enum AppChannel {
   GetDirectoryChildren = 'app:getDirectoryChildren',
   SearchInDirectory = 'app:searchInDirectory',
   ReadFileContent = 'app:readFileContent',
+  WriteFileContent = 'app:writeFileContent',
   RefreshPreventSleep = 'app:refreshPreventSleep',
   // 屏幕截图
   ScreenCapture = 'app:screenCapture',

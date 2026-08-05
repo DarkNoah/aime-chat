@@ -188,3 +188,58 @@ export abstract class BaseProvider implements ProviderV2 {
 
   abstract getCredits(): Promise<ProviderCredits | undefined>;
 }
+
+
+export class OpenAIRerankModel implements RerankModel {
+  modelId: string;
+  providerEntity: Providers;
+  readonly provider: string;
+
+  constructor(name: string, { modelId, provider }: { modelId: string; provider: Providers }) {
+    this.provider = name;
+    this.providerEntity = provider;
+    this.modelId = modelId;
+  }
+
+  async doRerank({
+    query,
+    documents,
+    options,
+  }: {
+    query: string;
+    documents: string[];
+    options?: {
+      top_k?: number;
+      return_documents?: boolean;
+    };
+  }): Promise<{ index: number; score: number; document: string }[]> {
+    const headers = { 'Content-Type': 'application/json' };
+    if (this.providerEntity.apiKey) {
+      headers['Authorization'] = `Bearer ${this.providerEntity.apiKey}`;
+    }
+    const res = await fetch(`${this.providerEntity.apiBase}/rerank`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        model: this.modelId,
+        query,
+        top_n: options?.top_k || 10,
+        documents,
+        return_documents: options?.return_documents || false,
+      }),
+    });
+    if (!res.ok) {
+      throw new Error(await res.text());
+    }
+    const data: any = await res.json();
+
+    return data.results
+      .map((res, i) => ({
+        index: res.index,
+        score: res.relevance_score,
+        document: options?.return_documents ? documents[res.index] : undefined,
+      }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, options?.top_k || 10);
+  }
+}

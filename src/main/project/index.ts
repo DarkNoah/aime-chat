@@ -20,6 +20,8 @@ import { runCommand } from '../utils/shell';
 import { DEFAULT_TITLE } from '@/types/chat';
 import { app } from 'electron';
 import { getDataPath } from '../utils';
+import { cloneGitHubRepository } from './git-clone';
+
 class ProjectManager extends BaseManager {
   projectsRepository: Repository<Projects>;
 
@@ -97,12 +99,16 @@ class ProjectManager extends BaseManager {
   }
 
   @channel(ProjectChannel.SaveProject)
-  async saveProject(project: Projects) {
-    let isNew = !project.id;
-    if (!project.id) {
-      project.id = nanoid();
+  async saveProject(project: Projects & { githubUrl?: string }) {
+    const { githubUrl, ...projectData } = project;
+    const isNew = !projectData.id;
+    if (!projectData.id) {
+      projectData.id = nanoid();
     }
-    const result = await this.projectsRepository.upsert(project, ['id']);
+    if (isNew && githubUrl?.trim()) {
+      await cloneGitHubRepository(githubUrl, projectData.path);
+    }
+    const result = await this.projectsRepository.upsert(projectData, ['id']);
     const resultId = result.identifiers[0].id;
     const resultProject = await this.projectsRepository.findOne({
       where: { id: resultId },

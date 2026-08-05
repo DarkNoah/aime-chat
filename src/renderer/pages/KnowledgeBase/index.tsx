@@ -84,9 +84,11 @@ import {
 } from '@/renderer/components/ui/empty';
 import { Switch } from '@/renderer/components/ui/switch';
 import toast from 'react-hot-toast';
+import { useGlobal } from '@/renderer/hooks/use-global';
 
 function KnowledgeBasePage() {
   const { setTitle } = useHeader();
+  const { appInfo } = useGlobal();
   const [open, setOpen] = useState(false);
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -107,7 +109,8 @@ function KnowledgeBasePage() {
       name: '',
       description: '',
       vectorStoreType: VectorStoreType.LibSQL,
-      embedding: '',
+      embedding: appInfo?.defaultModel?.embeddingModel ?? '',
+      reranker: appInfo?.defaultModel?.rerankerModel ?? '',
       forceReturnFullContent: false,
       extendColumns: [],
     },
@@ -195,7 +198,15 @@ function KnowledgeBasePage() {
   const openDialog = (data?: any) => {
     setCurrentKb(data);
     setOpen(true);
-    form.reset();
+    form.reset({
+      name: '',
+      description: '',
+      vectorStoreType: VectorStoreType.LibSQL,
+      embedding: appInfo?.defaultModel?.embeddingModel ?? '',
+      reranker: appInfo?.defaultModel?.rerankerModel ?? '',
+      forceReturnFullContent: false,
+      extendColumns: [],
+    });
 
     if (data) {
       form.setValue('name', data.name);

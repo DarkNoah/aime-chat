@@ -1,10 +1,16 @@
 import { knowledgeBaseManager } from '@/main/knowledge-base';
+import { appManager } from '@/main/app';
 import { providersManager } from '@/main/providers';
 import { createGraphRAGTool } from '@mastra/rag';
-import { KnowledgeBaseGraphSearch, KnowledgeBaseToolkit } from './index';
+import {
+  KnowledgeBaseCreate,
+  KnowledgeBaseGraphSearch,
+  KnowledgeBaseToolkit,
+} from './index';
 
 jest.mock('@/main/knowledge-base', () => {
   const manager = {
+    createKnowledgeBase: jest.fn(),
     getKnowledgeBaseList: jest.fn(),
     libSQLClient: { execute: jest.fn() },
   };
@@ -19,9 +25,62 @@ jest.mock('@/main/providers', () => ({
     getEmbeddingModel: jest.fn(),
   },
 }));
+jest.mock('@/main/app', () => ({
+  appManager: {
+    getInfo: jest.fn(),
+  },
+}));
 jest.mock('@mastra/rag', () => ({
   createGraphRAGTool: jest.fn(),
 }));
+
+describe('KnowledgeBaseCreate', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.mocked(appManager.getInfo).mockResolvedValue({
+      defaultModel: {
+        embeddingModel: 'provider/default-embedding',
+        rerankerModel: 'provider/default-reranker',
+      },
+    } as any);
+    jest.mocked(knowledgeBaseManager.createKnowledgeBase).mockResolvedValue({
+      id: 'kb-created',
+    } as any);
+  });
+
+  it('allows embeddingModel to be omitted and uses the global default', async () => {
+    const tool = new KnowledgeBaseCreate();
+
+    expect(tool.inputSchema.safeParse({ name: 'Default model KB' }).success).toBe(
+      true,
+    );
+
+    await tool.execute({ name: 'Default model KB' });
+
+    expect(knowledgeBaseManager.createKnowledgeBase).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'Default model KB',
+        embedding: 'provider/default-embedding',
+        reranker: 'provider/default-reranker',
+      }),
+    );
+  });
+
+  it('prefers an explicitly provided embedding model', async () => {
+    await new KnowledgeBaseCreate().execute({
+      name: 'Explicit model KB',
+      embeddingModel: 'provider/explicit-embedding',
+    });
+
+    expect(appManager.getInfo).toHaveBeenCalledTimes(1);
+    expect(knowledgeBaseManager.createKnowledgeBase).toHaveBeenCalledWith(
+      expect.objectContaining({
+        embedding: 'provider/explicit-embedding',
+        reranker: 'provider/default-reranker',
+      }),
+    );
+  });
+});
 
 describe('KnowledgeBaseGraphSearch', () => {
   beforeEach(() => {

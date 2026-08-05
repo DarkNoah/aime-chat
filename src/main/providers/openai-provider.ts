@@ -1,5 +1,5 @@
 import { Providers } from '@/entities/providers';
-import { BaseImageModelV2CallOptions, BaseProvider } from './base-provider';
+import { BaseImageModelV2CallOptions, BaseProvider, OpenAIRerankModel, RerankModel } from './base-provider';
 import fs from 'fs';
 import path from 'path';
 import OpenAI from 'openai';
@@ -18,7 +18,6 @@ import { createOpenAI } from '@ai-sdk/openai';
 import { OpenAIProvider as OpenAIProviderSDK } from '@ai-sdk/openai';
 import { OpenAICompatibleConfig } from '@mastra/core/llm';
 import { isString } from '@/utils/is';
-import { toFile } from "openai";
 import mime from 'mime';
 import { Agent, fetch } from "undici";
 import { getTlsConnectOptions } from '../app/insecure-tls';
@@ -168,7 +167,6 @@ export class OpenAIImageModel implements ImageModelV2 {
 }
 
 
-
 export class OpenAIProvider extends BaseProvider {
   name: string = 'openai';
   type: ProviderType = ProviderType.OPENAI;
@@ -250,7 +248,15 @@ export class OpenAIProvider extends BaseProvider {
   }
 
   async getRerankModelList(): Promise<{ name: string; id: string }[]> {
-    return [];
+    const list = await this.openaiClient.models.list({
+      timeout: 2000,
+    });
+    return list.data
+      // .filter((x) => x.id.startsWith('text-'))
+      .map((x) => {
+        return { id: x.id, name: x.id };
+      })
+      .sort((a, b) => a.id.localeCompare(b.id));
   }
 
   async getImageGenerationList(): Promise<{ name: string; id: string }[]> {
@@ -304,5 +310,8 @@ export class OpenAIProvider extends BaseProvider {
       baseURL: this.provider.apiBase || this.defaultApiBase,
       apiKey: this.provider.apiKey,
     }).speechModel(modelId);
+  }
+  rerankModel(modelId: string): RerankModel {
+    return new OpenAIRerankModel(this.name, { modelId, provider: this.provider });
   }
 }

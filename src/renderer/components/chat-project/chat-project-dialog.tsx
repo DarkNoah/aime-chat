@@ -31,7 +31,9 @@ import {
   CodeIcon,
   Folder,
   FolderCode,
+  Github,
   Lightbulb,
+  LoaderCircle,
 } from 'lucide-react';
 import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group';
 import toast from 'react-hot-toast';
@@ -45,6 +47,7 @@ const chatProjectSchema = z.object({
   title: z.string(),
   path: z.string(),
   tag: z.string().optional(),
+  githubUrl: z.string().trim().optional(),
 });
 
 type ChatProjectFormData = z.infer<typeof chatProjectSchema>;
@@ -69,10 +72,15 @@ export function ChatProjectDialog(props: ChatProjectDialogProps) {
       title: value?.title,
       path: value?.path,
       tag: value?.tag,
+      githubUrl: '',
     },
     reValidateMode: 'onSubmit',
   });
   const formValues = form.watch();
+  let submitLabel = value ? t('common.save') : t('project.new_project');
+  if (form.formState.isSubmitting && !value) {
+    submitLabel = t('project.creating_project');
+  }
 
   const handleSubmit = async (data: ChatProjectFormData) => {
     try {
@@ -93,6 +101,7 @@ export function ChatProjectDialog(props: ChatProjectDialogProps) {
       form.setValue('title', value?.title);
       form.setValue('path', value?.path);
       form.setValue('tag', value?.tag);
+      form.setValue('githubUrl', '');
     }
   }, [open, form, value, appInfo.defaultModel?.model]);
   return (
@@ -164,6 +173,33 @@ export function ChatProjectDialog(props: ChatProjectDialogProps) {
                   </Field>
                 )}
               />
+              {!value && (
+                <FormField
+                  control={form.control}
+                  name="githubUrl"
+                  render={({ field }) => (
+                    <Field>
+                      <FieldLabel>{t('project.github_url')}</FieldLabel>
+                      <FieldContent>
+                        <div className="relative">
+                          <Github className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                          <Input
+                            {...field}
+                            className="pl-9"
+                            placeholder="https://github.com/owner/repository.git"
+                            autoCapitalize="none"
+                            autoCorrect="off"
+                            spellCheck={false}
+                          />
+                        </div>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {t('project.github_url_description')}
+                        </p>
+                      </FieldContent>
+                    </Field>
+                  )}
+                />
+              )}
               <FormField
                 control={form.control}
                 name="tag"
@@ -202,9 +238,16 @@ export function ChatProjectDialog(props: ChatProjectDialogProps) {
               </DialogClose>
               <Button
                 type="submit"
-                disabled={!formValues.title || !formValues.path}
+                disabled={
+                  form.formState.isSubmitting ||
+                  !formValues.title ||
+                  !formValues.path
+                }
               >
-                {value ? t('common.save') : t('project.new_project')}
+                {form.formState.isSubmitting && (
+                  <LoaderCircle className="animate-spin" />
+                )}
+                {submitLabel}
               </Button>
             </DialogFooter>
           </form>

@@ -20,8 +20,10 @@ import {
 import {
   AudioLines,
   Brain,
+  Database,
   Eye,
   ImagePlus,
+  ListOrdered,
   ScanText,
   Speech,
   Zap,
@@ -118,6 +120,46 @@ export default function DefaultModel() {
             value={appInfo?.defaultModel?.visionModel}
             onChange={(model) => {
               onChangeDefaultModel(model, 'visionModel');
+            }}
+          />
+        </ItemActions>
+      </Item>
+      <Item variant="outline">
+        <ItemContent>
+          <ItemTitle>
+            <Database className="w-5 h-5" />
+            {t('settings.default_embedding')}
+          </ItemTitle>
+          <ItemDescription></ItemDescription>
+        </ItemContent>
+        <ItemActions>
+          <ChatModelSelect
+            clearable
+            type={ModelType.EMBEDDING}
+            className="w-[200px] border"
+            value={appInfo?.defaultModel?.embeddingModel}
+            onChange={(model) => {
+              onChangeDefaultModel(model, 'embeddingModel');
+            }}
+          />
+        </ItemActions>
+      </Item>
+      <Item variant="outline">
+        <ItemContent>
+          <ItemTitle>
+            <ListOrdered className="w-5 h-5" />
+            {t('settings.default_reranker')}
+          </ItemTitle>
+          <ItemDescription></ItemDescription>
+        </ItemContent>
+        <ItemActions>
+          <ChatModelSelect
+            clearable
+            type={ModelType.RERANKER}
+            className="w-[200px] border"
+            value={appInfo?.defaultModel?.rerankerModel}
+            onChange={(model) => {
+              onChangeDefaultModel(model, 'rerankerModel');
             }}
           />
         </ItemActions>

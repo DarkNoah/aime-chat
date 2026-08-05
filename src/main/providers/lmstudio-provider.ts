@@ -14,6 +14,7 @@ import {
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 
 export class LmstudioProvider extends BaseProvider {
+
   name: string = 'lmstudio';
   type: ProviderType = ProviderType.LMSTUDIO;
   description: string;
@@ -50,6 +51,9 @@ export class LmstudioProvider extends BaseProvider {
       .sort((a, b) => a.id.localeCompare(b.id));
   }
 
+  getRerankModelList(): Promise<{ name: string; id: string; }[]> {
+    return [];
+  }
   getCredits(): Promise<ProviderCredits | undefined> {
     return undefined;
   }
