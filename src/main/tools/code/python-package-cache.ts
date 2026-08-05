@@ -23,7 +23,7 @@ export function getCodeExecutionPackageIndexOptions(offline: boolean) {
  * excluding heavyweight AI/GPU runtimes such as torch and tensorflow.
  */
 export const CODE_EXECUTION_PACKAGE_GROUPS = {
-  runtime: ['mcp'],
+  runtime: ['pip', 'setuptools', 'wheel', 'mcp'],
   office: [
     'openpyxl',
     'xlsxwriter',
@@ -140,23 +140,19 @@ export async function warmCodeExecutionPackageCache(
   if (!runtime.installed || !runtime.path) {
     return false;
   }
-  if (!net.isOnline()) {
-    return false;
-  }
 
   const paths = getCodeExecutionPackageCachePaths();
   await fs.promises.mkdir(paths.root, { recursive: true });
   await fs.promises.mkdir(paths.uvCache, { recursive: true });
 
-  const python =
-    runtime.pythonRuntime?.pythonPath ??
-    runtime.pythonRuntime?.pythonVersion ??
-    '3.12';
+  const runtimePython = runtime.pythonRuntime?.pythonPath;
+  const python = runtimePython ?? runtime.pythonRuntime?.pythonVersion ?? '3.12';
   const commonPackages = COMMON_CODE_EXECUTION_PACKAGES.join(' ');
   const commandEnv = withCodeExecutionPackageCache();
+  const isOnline = net.isOnline();
 
-  if (!fs.existsSync(paths.warmupPython)) {
-    const createResult = await dependencies.runCommand(
+  if (!runtimePython && !fs.existsSync(paths.warmupPython)) {
+    const createCommand = (offline: boolean) =>
       [
         quoteCommandArgument(runtime.path),
         'venv',
@@ -167,12 +163,18 @@ export async function warmCodeExecutionPackageCache(
         quoteCommandArgument(paths.uvCache),
         '--default-index',
         CODE_EXECUTION_PACKAGE_INDEX,
-      ].join(' '),
-      {
+        ...(offline ? ['--offline'] : []),
+      ].join(' ');
+    let createResult = await dependencies.runCommand(createCommand(true), {
+      env: commandEnv,
+      timeout: CACHE_WARMUP_TIMEOUT_MS,
+    });
+    if (createResult.code !== 0 && isOnline) {
+      createResult = await dependencies.runCommand(createCommand(false), {
         env: commandEnv,
         timeout: CACHE_WARMUP_TIMEOUT_MS,
-      },
-    );
+      });
+    }
     if (createResult.code !== 0) {
       dependencies.log('error', '[code-execution] package cache setup failed', {
         stage: 'venv',
@@ -184,23 +186,29 @@ export async function warmCodeExecutionPackageCache(
     }
   }
 
-  const installResult = await dependencies.runCommand(
+  const installCommand = (offline: boolean) =>
     [
       quoteCommandArgument(runtime.path),
       'pip install',
       commonPackages,
       '--python',
-      quoteCommandArgument(paths.warmupPython),
+      quoteCommandArgument(runtimePython ?? paths.warmupPython),
       '--cache-dir',
       quoteCommandArgument(paths.uvCache),
       '--default-index',
       CODE_EXECUTION_PACKAGE_INDEX,
-    ].join(' '),
-    {
+      ...(offline ? ['--offline'] : []),
+    ].join(' ');
+  let installResult = await dependencies.runCommand(installCommand(true), {
+    env: commandEnv,
+    timeout: CACHE_WARMUP_TIMEOUT_MS,
+  });
+  if (installResult.code !== 0 && isOnline) {
+    installResult = await dependencies.runCommand(installCommand(false), {
       env: commandEnv,
       timeout: CACHE_WARMUP_TIMEOUT_MS,
-    },
-  );
+    });
+  }
 
   if (installResult.code !== 0) {
     dependencies.log('error', '[code-execution] package cache warmup failed', {
@@ -268,9 +276,9 @@ function queueWarmup(delay: number) {
 }
 
 /**
- * Warm in the background so application startup is never blocked. If the
- * machine is offline, retry periodically and fill the cache when connectivity
- * returns.
+ * Warm in the background so application startup is never blocked. Reuse the
+ * persistent cache first even while offline, then retry periodically so a
+ * later network connection can fill anything that is missing.
  */
 export function scheduleCodeExecutionPackageCacheWarmup(
   runtime: UVRuntime | undefined,

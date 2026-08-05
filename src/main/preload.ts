@@ -278,12 +278,23 @@ const electronHandler = {
       filePath: string,
       options?: { limit?: number },
     ): Promise<{
-      content: string;
+      content?: string;
       truncated: boolean;
       size: number;
-      mimeType: string;
+      mimeType: string | false;
       isBinary: boolean;
     }> => ipcRenderer.invoke(AppChannel.ReadFileContent, filePath, options),
+    writeFileContent: (
+      filePath: string,
+      content: string,
+      workspace: string,
+    ): Promise<{ size: number; modifiedAt: number }> =>
+      ipcRenderer.invoke(
+        AppChannel.WriteFileContent,
+        filePath,
+        content,
+        workspace,
+      ),
     refreshPreventSleep: (): Promise<void> =>
       ipcRenderer.invoke(AppChannel.RefreshPreventSleep),
     screenCapture: (

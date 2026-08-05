@@ -32,6 +32,51 @@ type CachedModel = {
   releaseTimer?: ReturnType<typeof setTimeout>;
 };
 
+/** 递归检查目录中是否存在下载未完成标记文件（如 HuggingFace 的 *.incomplete） */
+function hasIncompleteDownloadFiles(dirPath: string): boolean {
+  if (!fs.existsSync(dirPath)) return false;
+
+  const walk = (dir: string): boolean => {
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return false;
+    }
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        if (walk(fullPath)) return true;
+      } else if (
+        entry.name.endsWith('.incomplete') ||
+        entry.name.endsWith('.tmp')
+      ) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  return walk(dirPath);
+}
+
+/** 判断模型是否已完整下载（目录存在、非空、且无 incomplete/tmp 残留） */
+function isModelFullyDownloaded(modelPath: string): boolean {
+  if (!fs.existsSync(modelPath)) return false;
+
+  let entries: string[];
+  try {
+    entries = fs.readdirSync(modelPath);
+  } catch {
+    return false;
+  }
+  if (entries.length === 0) return false;
+
+  if (hasIncompleteDownloadFiles(modelPath)) return false;
+
+  return true;
+}
+
 class LocalModelManager extends BaseManager {
   models: Record<string, CachedModel> = {};
   modelLoadPromises: Record<string, Promise<CachedModel>> = {};
@@ -56,7 +101,7 @@ class LocalModelManager extends BaseManager {
       for (const model of modelList) {
         const modelName = model.id.split('/').pop();
         const modelPath = path.join(appInfo.modelPath, _type, modelName);
-        model.isDownloaded = fs.existsSync(modelPath);
+        model.isDownloaded = isModelFullyDownloaded(modelPath);
       }
       output[_type] = modelList;
     }
@@ -91,6 +136,9 @@ class LocalModelManager extends BaseManager {
         {
           cwd: uv.dir,
           usePowerShell: isWindows,
+          env: {
+            UV_DEFAULT_INDEX: `https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple`
+          }
         },
       );
       if (res.code !== 0) {
@@ -103,6 +151,9 @@ class LocalModelManager extends BaseManager {
         {
           cwd: uv.dir,
           usePowerShell: isWindows,
+          env: {
+            UV_DEFAULT_INDEX: `https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple`
+          }
         },
       );
       if (res.code !== 0) {

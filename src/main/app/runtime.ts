@@ -12,7 +12,10 @@ import {
   qwenAudioHealthCheckScript,
 } from './qwen-audio-runtime';
 import {
+  CODE_EXECUTION_PACKAGE_INDEX,
+  getCodeExecutionPackageCachePaths,
   scheduleCodeExecutionPackageCacheWarmup as schedulePackageCacheWarmup,
+  withCodeExecutionPackageCache,
 } from '../tools/code/python-package-cache';
 
 export const uv: RuntimeInfo['uv'] = {
@@ -291,7 +294,7 @@ async function getUVPythonRuntimeInfo() {
   return info;
 }
 
-async function ensurePythonRuntimeEnvironment(uvDir: string) {
+export async function ensurePythonRuntimeEnvironment(uvDir: string) {
   const isWindows = process.platform === 'win32';
   const uvPreCommand = path.join(uvDir, isWindows ? 'uv.exe' : './uv');
   const pythonRuntimeDir = path.join(
@@ -316,23 +319,28 @@ async function ensurePythonRuntimeEnvironment(uvDir: string) {
     await fs.promises.rm(venvDir, { recursive: true, force: true });
   }
 
-  let result = await runCommand(
-    `"${uvPreCommand}" venv "${venvDir}" --seed --clear`,
-    {
-      cwd: uvDir,
-      timeout: 1000 * 60,
-    },
-  );
-  await new Promise(resolve => setTimeout(resolve, 1000 * 2));
+  const packageCache = getCodeExecutionPackageCachePaths();
+  await fs.promises.mkdir(packageCache.uvCache, { recursive: true });
+  const commandEnv = withCodeExecutionPackageCache();
+  const createCommand = (offline: boolean) =>
+    [
+      `"${uvPreCommand}" venv "${venvDir}" --seed --clear`,
+      `--cache-dir "${packageCache.uvCache}"`,
+      `--default-index ${CODE_EXECUTION_PACKAGE_INDEX}`,
+      ...(offline ? ['--offline'] : []),
+    ].join(' ');
+
+  let result = await runCommand(createCommand(true), {
+    cwd: uvDir,
+    env: commandEnv,
+    timeout: 1000 * 60,
+  });
   if (result.code !== 0) {
-    result = await runCommand(
-      `"${uvPreCommand}" venv "${venvDir}" --seed --clear --default-index https://mirrors.aliyun.com/pypi/simple`,
-      {
-        cwd: uvDir,
-        timeout: 1000 * 60,
-      },
-    );
-    await new Promise(resolve => setTimeout(resolve, 1000 * 2));
+    result = await runCommand(createCommand(false), {
+      cwd: uvDir,
+      env: commandEnv,
+      timeout: 1000 * 60,
+    });
   }
   if (
     result.code !== 0 ||

@@ -9,7 +9,6 @@ import {
   decodeBuffer,
   runCommand,
 } from '@/main/utils/shell';
-import { getBunRuntime, getUVRuntime } from '@/main/app/runtime';
 import { secretsManager } from '@/main/app/secrets';
 import { app } from 'electron';
 import fs from 'fs';
@@ -36,6 +35,17 @@ type BashSessionScope =
     threadIds?: string[];
     resourceId?: string;
   };
+
+export function activateBashPythonRuntime(
+  command: string,
+  env: Record<string, string>,
+  platform: string = process.platform,
+) {
+  if (platform === 'win32' || !env.VIRTUAL_ENV) {
+    return command;
+  }
+  return `export PATH="$VIRTUAL_ENV/bin:$PATH"; ${command}`;
+}
 // const PATH_DELIMITER = process.platform === 'win32' ? ';' : ':';
 
 // function prependPath(env: Record<string, string>, dir?: string) {
@@ -88,7 +98,7 @@ export class Bash extends BaseTool<BashToolParams> {
   id: string = 'Bash';
   description: string = `Executes a given bash command and returns its output.
 
-The working directory persists between commands, but shell state does not. The shell environment is initialized from the user's profile (bash or zsh).
+The working directory persists between commands, but shell state does not. System Python mode initializes the user's shell profile; independent Python mode preserves the app-managed virtual environment.
 
 IMPORTANT: Avoid using this tool to run \`find\`, \`grep\`, \`cat\`, \`head\`, \`tail\`, \`sed\`, \`awk\`, or \`echo\` commands, unless explicitly instructed or after you have verified that a dedicated tool cannot accomplish your task. Instead, use the appropriate dedicated tool as this will provide a much better experience for the user:
  - If you need set environment variables using the env argument (NOT \`export MY_CUSTOM_VAR=xxx\` in the command argument)
@@ -247,7 +257,7 @@ Output: Creates directory 'foo'`),
   constructor(config?: BashToolParams) {
     super(config);
     this.env = config?.env;
-    this.description = this.getDescription(config);
+    this.description = this.getDescription(config ?? {});
   }
 
 
@@ -314,7 +324,7 @@ The working directory persists between commands, but Command Prompt session stat
 
     return `Executes a given bash command and returns its output.
 
-The working directory persists between commands, but shell state does not. The shell environment is initialized from the user's profile (bash or zsh).
+The working directory persists between commands, but shell state does not. System Python mode initializes the user's shell profile; independent Python mode preserves the app-managed virtual environment.
 
 IMPORTANT: Avoid using this tool to run \`find\`, \`grep\`, \`cat\`, \`head\`, \`tail\`, \`sed\`, \`awk\`, or \`echo\` commands, unless explicitly instructed or after you have verified that a dedicated tool cannot accomplish your task. Instead, use the appropriate dedicated tool as this will provide a much better experience for the user:
  - If you need set environment variables using the env argument (NOT \`export MY_CUSTOM_VAR=xxx\` in the command argument)
@@ -382,7 +392,7 @@ While the Bash tool can do similar things, it’s better to use the built-in too
     if (cwd && fs.existsSync(cwd) && !fs.statSync(cwd).isDirectory()) {
       throw new Error(`Directory ${cwd} is not a directory`);
     }
-    let _env = {};
+    let _env: Record<string, string> = {};
     _env['PATH'] = '';
     if (this.env) {
       this.env.split('\n').map(x => x.trim()).filter(x => x).forEach(x => {
@@ -407,13 +417,6 @@ While the Bash tool can do similar things, it’s better to use the built-in too
     // if (!hasSystemPython && runtimePythonBinDir) {
     //   prependPath(_env, runtimePythonBinDir);
     // }
-    try {
-      _env = await getRuntimePython(_env);
-    } catch {
-
-    }
-
-
     const secretsEnv = await getEnv();
     _env = { ..._env, ...secretsEnv };
 
@@ -424,11 +427,24 @@ While the Bash tool can do similar things, it’s better to use the built-in too
       };
     }
 
+    _env = await getRuntimePython(
+      _env,
+      this.config?.pythonRuntime ?? 'independent',
+    );
+    const executionCommand = activateBashPythonRuntime(
+      inputData.command,
+      _env,
+    );
+
     if (run_in_background) {
       const shell_id = nanoid(8);
       const resourceId = requestContext.get('resourceId' as never) as string;
       bashManager.runInBackground(
-        { command: inputData.command, description: inputData.description },
+        {
+          command: executionCommand,
+          displayCommand: inputData.command,
+          description: inputData.description,
+        },
         shell_id,
         cwd,
         _env,
@@ -458,7 +474,7 @@ While the Bash tool can do similar things, it’s better to use the built-in too
       timedOut,
       tempFilePath,
       pid,
-    } = await runCommand(inputData.command, {
+    } = await runCommand(executionCommand, {
       cwd,
       timeout,
       abortSignal,
@@ -674,6 +690,7 @@ IsRunning: ${x.isExited ? 'No' : 'Yes'}`,
 export interface BashToolParams extends BaseToolParams, BaseToolkitParams {
   env?: string;
   shell?: 'powershell' | 'cmd' | 'bash' | string;
+  pythonRuntime?: 'independent' | 'system';
   // Bash?: BashToolParams;
 }
 
@@ -723,12 +740,56 @@ export interface BashSession {
   timedOut?: boolean;
 }
 
+export type BashSessionCompletion = {
+  threadId?: string;
+  resourceId?: string;
+  bashId: string;
+  command: string;
+  description?: string;
+  directory?: string;
+  errorMessage?: string;
+  exitCode?: number | null;
+  processSignal?: BashSession['processSignal'] | null;
+  timedOut: boolean;
+  pid?: number;
+  startTime: string;
+  finishedAt: string;
+};
+
+export type BashSessionCompletedListener = (
+  completion: BashSessionCompletion,
+) => void | Promise<void>;
+
 export class BashManager {
   private bashMap: Map<string, BashSession> = new Map();
+
+  private sessionCompletedListeners = new Set<BashSessionCompletedListener>();
+
+  onSessionCompleted(listener: BashSessionCompletedListener) {
+    this.sessionCompletedListeners.add(listener);
+    return () => {
+      this.sessionCompletedListeners.delete(listener);
+    };
+  }
+
+  private notifySessionCompleted(completion: BashSessionCompletion) {
+    for (const listener of this.sessionCompletedListeners) {
+      try {
+        Promise.resolve(listener(completion)).catch((err) => {
+          // eslint-disable-next-line no-console
+          console.error('background bash completion listener failed', err);
+        });
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error('background bash completion listener failed', err);
+      }
+    }
+  }
 
   async runInBackground(
     input: {
       command: string;
+      displayCommand?: string;
       description?: string;
     },
     bashId?: string,
@@ -738,7 +799,7 @@ export class BashManager {
     abortSignal?: AbortSignal,
     threadId?: string,
     resourceId?: string,
-    usePowerShell?: boolean = false
+    usePowerShell: boolean = false,
   ) {
     const managedAbort = createManagedAbortController(timeout, abortSignal);
     const { abortController } = managedAbort;
@@ -755,7 +816,7 @@ export class BashManager {
     const bashSession: BashSession = {
       shell,
       bashId,
-      command: input.command,
+      command: input.displayCommand ?? input.command,
       directory: cwd,
       stdout: [],
       stderr: [],
@@ -884,22 +945,62 @@ export class BashManager {
 
     let code: number | null = null;
     let processSignal: NodeJS.Signals | null = null;
-    const exitHandler = (
+    let terminalResolved: (() => void) | undefined;
+    const terminalPromise = new Promise<void>((resolve) => {
+      terminalResolved = resolve;
+    });
+    let finalized = false;
+    let finalizeFallback: ReturnType<typeof setTimeout> | undefined;
+    const finalizeSession = (
       _code: number | null,
       _signal: NodeJS.Signals | null,
     ) => {
+      if (finalized) return;
+      finalized = true;
+      if (finalizeFallback) {
+        clearTimeout(finalizeFallback);
+        finalizeFallback = undefined;
+      }
       exited = true;
       code = _code;
       processSignal = _signal;
-      bashSession.exitCode = _code;
+      bashSession.exitCode = _code ?? undefined;
       bashSession.isExited = true;
-      bashSession.processSignal = _signal;
+      bashSession.processSignal = _signal ?? undefined;
       bashSession.timedOut = managedAbort.didTimeout();
       flushOutput();
       emitSessionUpdate('exited');
+      const finishedAt = new Date().toISOString();
+      this.notifySessionCompleted({
+        threadId: bashSession.threadId,
+        resourceId: bashSession.resourceId,
+        bashId: bashSession.bashId,
+        command: bashSession.command,
+        description: bashSession.description,
+        directory: bashSession.directory,
+        errorMessage: bashSession.errorMessage,
+        exitCode: _code,
+        processSignal: _signal,
+        timedOut: bashSession.timedOut,
+        pid: bashSession.pid,
+        startTime: bashSession.startTime.toISOString(),
+        finishedAt,
+      });
       console.log('exit', `${bashSession.bashId}`);
+      terminalResolved?.();
     };
-    shell.on('exit', exitHandler);
+    shell.once('exit', (_code, _signal) => {
+      code = _code;
+      processSignal = _signal;
+      // `close` follows once stdio has drained. Keep an exit fallback for
+      // non-standard child-process implementations that never emit it.
+      finalizeFallback = setTimeout(() => {
+        finalizeSession(code, processSignal);
+      }, 0);
+    });
+    shell.once('close', (_code, _signal) => {
+      finalizeSession(_code ?? code, _signal ?? processSignal);
+    });
     const removeAbortHandler = attachAbortHandler(
       shell,
       managedAbort.abortSignal,
@@ -907,7 +1008,7 @@ export class BashManager {
     );
 
     try {
-      await new Promise((resolve) => shell.on('exit', resolve));
+      await terminalPromise;
     } finally {
       flushOutput();
       removeAbortHandler();

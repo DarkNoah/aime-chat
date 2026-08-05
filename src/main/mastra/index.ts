@@ -68,7 +68,7 @@ import {
 } from '@/types/chat';
 import { nanoid } from '@/utils/nanoid';
 import { IpcMainEvent } from 'electron';
-import { isObject, isString } from '@/utils/is';
+import { isArray, isObject, isString } from '@/utils/is';
 import { toolsManager } from '../tools';
 import { ToolType } from '@/types/tool';
 import {
@@ -100,9 +100,10 @@ import {
 import { MastraThreadsUsage } from '@/entities/mastra-threads-usage';
 import { Repository } from 'typeorm';
 import { dbManager } from '../db';
-const modelsData = require('../../../assets/models.json');
 import { getTokenCosts } from 'tokenlens';
-import bashManager from '../tools/file-system/bash';
+import bashManager, {
+  type BashSessionCompletion,
+} from '../tools/file-system/bash';
 import { DefaultAgent } from './agents/default-agent';
 import { Agents } from '@/entities/agents';
 import { Project } from '@/types/project';
@@ -129,8 +130,38 @@ import {
   countCompactHistoryMessages,
   MIN_COMPACT_HISTORY_MESSAGES,
 } from './compact';
+import {
+  BackgroundBashCompletionCoordinator,
+  formatBashCompletionMessage,
+} from './background-bash-completion';
 
+const modelsData = require('../../../assets/models.json');
+
+const BACKGROUND_BASH_COMPLETION_TRIGGER = 'background-bash-completed';
 const CHAT_RETRY_DELAYS = [2000, 4000, 8000] as const;
+
+type ChatResult = {
+  success: boolean;
+  aborted?: boolean;
+  status?: WorkflowRunStatus;
+  error?: string;
+  runId?: string;
+  messages?: MastraDBMessage[];
+};
+
+function createBashCompletionUiMessage(
+  completions: BashSessionCompletion[],
+): UIMessage {
+  return {
+    id: nanoid(),
+    role: 'user',
+    parts: [{ type: 'text', text: formatBashCompletionMessage(completions) }],
+    metadata: {
+      backgroundBashCompletion: true,
+      bashIds: completions.map((completion) => completion.bashId),
+    },
+  } as UIMessage;
+}
 
 const waitForChatRetry = (delay: number, signal: AbortSignal) =>
   new Promise<void>((resolve) => {
@@ -201,6 +232,8 @@ class MastraManager extends BaseManager {
   threadChats: (ChatThread & { controller: AbortController })[] = [];
   pendingChatMessages: Map<string, PendingChatMessageInput[]> = new Map();
 
+  private bashCompletionCoordinator = new BackgroundBashCompletionCoordinator();
+
   statefulTransport?: StreamableHTTPServerTransport;
   constructor() {
     super();
@@ -243,6 +276,10 @@ class MastraManager extends BaseManager {
       //   port: 8080,
       //   host: '0.0.0.0',
       // },
+    });
+
+    bashManager.onSessionCompleted((completion) => {
+      this.enqueueBashCompletion(completion);
     });
   }
 
@@ -628,6 +665,7 @@ class MastraManager extends BaseManager {
 
   @channel(MastraChannel.DeleteThread)
   public async deleteThread(id: string): Promise<void> {
+    this.bashCompletionCoordinator.clear(id);
     const storage = this.mastra.getStorage();
     const memoryStore = await storage.getStore('memory');
     const thread = await memoryStore.getThreadById({ threadId: id });
@@ -650,6 +688,7 @@ class MastraManager extends BaseManager {
 
   @channel(MastraChannel.ClearMessages)
   public async clearMessages(id: string): Promise<void> {
+    this.bashCompletionCoordinator.clear(id);
     const storage = this.mastra.getStorage();
     const memoryStore = await storage.getStore('memory');
     const messages = await memoryStore.listMessages({ threadId: id });
@@ -729,20 +768,80 @@ class MastraManager extends BaseManager {
     return pending;
   }
 
+  private enqueueBashCompletion(completion: BashSessionCompletion) {
+    const chatId = completion.threadId;
+    if (!chatId) return;
+
+    if (!this.bashCompletionCoordinator.enqueue(completion)) return;
+    this.startBashContinuationIfIdle(chatId);
+  }
+
+  private consumeBashCompletions(chatId: string) {
+    return this.bashCompletionCoordinator.consume(chatId);
+  }
+
+  private startBashContinuationIfIdle(chatId: string) {
+    const running = this.threadChats.some((chat) => chat.id === chatId);
+    if (!this.bashCompletionCoordinator.canStart(chatId, running)) {
+      return;
+    }
+
+    const completions = this.consumeBashCompletions(chatId);
+    if (completions.length === 0) return;
+
+    const message = createBashCompletionUiMessage(completions);
+    this.chat(undefined, {
+      chatId,
+      messages: [message],
+      trigger: BACKGROUND_BASH_COMPLETION_TRIGGER,
+      requireToolApproval: false,
+    }).catch((err) => {
+      // eslint-disable-next-line no-console
+      console.error(
+        `Failed to resume thread ${chatId} after background Bash completion`,
+        err,
+      );
+    });
+  }
+
   @api({
     method: 'post',
     path: '/api/threads/chat',
     args: (req: Request) => [undefined, req.body],
   })
   @channel(MastraChannel.Chat, { mode: 'on' })
-  public async chat(event: IpcMainEvent, data: ChatInput, callback?: ChatCallbackEvent): Promise<{
-    success: boolean;
-    aborted?: boolean;
-    status?: WorkflowRunStatus;
-    error?: string | undefined;
-    runId?: string;
-    messages?: MastraDBMessage[];
-  }> {
+  public async chat(
+    event: IpcMainEvent,
+    data: ChatInput,
+    callback?: ChatCallbackEvent,
+  ): Promise<ChatResult> {
+    const { chatId } = data;
+    if (this.threadChats.some((chat) => chat.id === chatId)) {
+      throw new Error(`Thread ${chatId} is not idle`);
+    }
+
+    const controller = new AbortController();
+    this.threadChats.push({
+      id: chatId,
+      title: 'string',
+      status: 'streaming',
+      controller,
+    });
+
+    try {
+      return await this.runChat(event, data, controller, callback);
+    } finally {
+      this.threadChats = this.threadChats.filter((chat) => chat.id !== chatId);
+      this.startBashContinuationIfIdle(chatId);
+    }
+  }
+
+  private async runChat(
+    event: IpcMainEvent,
+    data: ChatInput,
+    controller: AbortController,
+    callback?: ChatCallbackEvent,
+  ): Promise<ChatResult> {
     let {
       agentId,
       messageId,
@@ -763,9 +862,6 @@ class MastraManager extends BaseManager {
       goal,
     } = data;
     let { model } = data;
-    if (this.threadChats.some((chat) => chat.id === chatId)) {
-      throw new Error(`Thread ${chatId} is not idle`);
-    }
     console.log('Chat Input', data);
     const storage = this.mastra.getStorage();
 
@@ -785,6 +881,19 @@ class MastraManager extends BaseManager {
     }
     const appInfo = await appManager.getInfo();
     const threadMetadata = currentThread.metadata ?? {};
+
+    if (
+      trigger === BACKGROUND_BASH_COMPLETION_TRIGGER &&
+      typeof threadMetadata.think === 'boolean'
+    ) {
+      think = threadMetadata.think;
+    }
+    if (
+      trigger === BACKGROUND_BASH_COMPLETION_TRIGGER &&
+      typeof threadMetadata.requireToolApproval === 'boolean'
+    ) {
+      requireToolApproval = threadMetadata.requireToolApproval;
+    }
 
     let agent: Agent;
     if (!agentId) {
@@ -843,7 +952,7 @@ class MastraManager extends BaseManager {
 
     let requestContext;
     const retryState: { attempt: number; streamError?: Error } = { attempt: 0 };
-    let skipTitleGeneration = false;
+    let skipTitleGeneration = trigger === BACKGROUND_BASH_COMPLETION_TRIGGER;
     try {
       // const info = modelsData[provider.type]?.models[_modeId] || {};
       const workspace =
@@ -934,7 +1043,6 @@ class MastraManager extends BaseManager {
 
       // const messages = convertToModelMessages(uiMessages);
       // const recentMessage = agent.getMostRecentUserMessage(uiMessages);
-      const controller = new AbortController();
       const signal = controller.signal;
 
 
@@ -1170,12 +1278,6 @@ class MastraManager extends BaseManager {
       appManager.sendEvent(ChatEvent.ChatChanged, {
         data: { type: ChatChangedType.Start, chatId, resourceId },
       });
-      this.threadChats.push({
-        id: chatId,
-        title: 'string',
-        status: 'streaming',
-        controller,
-      });
       let _inputMessage: UIMessage | undefined = inputMessage as UIMessage;
       let resume = toolCallId
         ? {
@@ -1252,7 +1354,24 @@ class MastraManager extends BaseManager {
 
           if (_inputMessage) input.push(_inputMessage);
 
-          const messages = convertToModelMessages(historyMessagesAISdkV5);
+          let messages = convertToModelMessages(historyMessagesAISdkV5);
+          messages = messages.map(m => {
+            if (m.role == 'tool' && isArray(m.content) && m.content.length > 0) {
+              m.content = m.content.map(c => {
+                if (c.type == 'tool-result' && c.providerOptions?.mastra?.modelOutput) {
+                  delete c.providerOptions?.mastra?.modelOutput
+                }
+                return c;
+              });
+
+
+            }
+            return m;
+          })
+
+
+
+
           const maxContextSize = requestContext.get('maxContextSize');
           const thresholdTokenCount = Math.floor(maxContextSize * 0.7);
           const _tools = await agent.listTools({ requestContext });
@@ -1533,8 +1652,14 @@ class MastraManager extends BaseManager {
             );
             const lastMessage = core[core.length - 1];
             const immediatePending = this.consumePendingChatMessage(chatId, true);
+            const bashCompletions = immediatePending
+              ? []
+              : this.consumeBashCompletions(chatId);
             if (immediatePending) {
               await applyPendingChatMessage(immediatePending, true);
+            } else if (bashCompletions.length > 0) {
+              _inputMessage = createBashCompletionUiMessage(bashCompletions);
+              resume = undefined;
             } else if (lastMessage.role == 'tool') {
             } else if (lastMessage.role == 'assistant') {
               // 目标
@@ -1765,7 +1890,11 @@ Do not call update_goal unless the goal is complete or the strict blocked audit 
       appManager.sendEvent(ChatEvent.ChatChanged, {
         data: { type: ChatChangedType.Finish, chatId, resourceId },
       });
-      this.threadChats = this.threadChats.filter((chat) => chat.id !== chatId);
+      if (stream?.status === 'suspended') {
+        this.bashCompletionCoordinator.setSuspended(chatId, true);
+      } else if (stream) {
+        this.bashCompletionCoordinator.setSuspended(chatId, false);
+      }
 
       currentThread = await memoryStore.getThreadById({ threadId: chatId });
       if (!skipTitleGeneration && currentThread.title == DEFAULT_TITLE) {

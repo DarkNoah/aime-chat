@@ -7,6 +7,7 @@ import {
 import knowledgeBaseManager from './index';
 import { dbManager } from '../db';
 import { providersManager } from '../providers';
+import { Settings } from '@/entities/settings';
 
 export const STATIC_MEMORY_KB_ID = 'static_memory';
 export const STATIC_MEMORY_KB_NAME = 'Memory';
@@ -20,8 +21,33 @@ const formatTimestamp = (d: Date) => {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 
-async function pickDefaultEmbedding(): Promise<string | undefined> {
+async function getDefaultKnowledgeBaseModels(): Promise<{
+  embedding?: string;
+  reranker?: string;
+}> {
+  const settings = await dbManager.dataSource
+    .getRepository(Settings)
+    .findOne({ where: { id: 'defaultModel' } });
+  const defaultModel = {
+    embeddingModel: process.env.DEFAULT_EMBEDDING_MODEL,
+    rerankerModel: process.env.DEFAULT_RERANKER_MODEL,
+    ...(settings?.value ?? {}),
+  };
+
+  return {
+    embedding: defaultModel.embeddingModel?.trim() || undefined,
+    reranker: defaultModel.rerankerModel?.trim() || undefined,
+  };
+}
+
+async function pickDefaultEmbedding(
+  configuredModel?: string,
+): Promise<string | undefined> {
   try {
+    if (configuredModel) {
+      return configuredModel;
+    }
+
     const providers = await providersManager.getAvailableEmbeddingModels();
     for (const p of providers) {
       if (p.models && p.models.length > 0) {
@@ -43,7 +69,8 @@ export async function getOrCreateMemoryKB(): Promise<KnowledgeBase | undefined> 
   let kb = await getMemoryKB();
   if (kb) return kb;
 
-  const embedding = await pickDefaultEmbedding();
+  const defaultModels = await getDefaultKnowledgeBaseModels();
+  const embedding = await pickDefaultEmbedding(defaultModels.embedding);
   if (!embedding) {
     console.log(
       '[static-memory] No default embedding model configured; skip creating static memory KB.',
@@ -58,6 +85,7 @@ export async function getOrCreateMemoryKB(): Promise<KnowledgeBase | undefined> 
       description: 'Global memory wiki maintained by the Cultivation agent.',
       vectorStoreType: VectorStoreType.LibSQL,
       embedding,
+      reranker: defaultModels.reranker,
       static: true,
     } as any);
   } catch (err) {

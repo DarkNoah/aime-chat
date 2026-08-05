@@ -180,24 +180,24 @@ export class KnowledgeBaseManager extends BaseManager {
       const extendPlaceholders = extendColumns.map(() => '?').join(', ');
       const vectorStatement = kb.embedding
         ? {
-            sql: `INSERT INTO [${vectorTable}] (id, item_id, chunk, is_enable, type, embedding, metadata${extendColumnNames ? `, ${extendColumnNames}` : ''})
+          sql: `INSERT INTO [${vectorTable}] (id, item_id, chunk, is_enable, type, embedding, metadata${extendColumnNames ? `, ${extendColumnNames}` : ''})
               VALUES (?, ?, ?, ?, ?, vector32(?), ?${extendPlaceholders ? `, ${extendPlaceholders}` : ''})`,
-            args: [
-              ...commonArgs,
-              JSON.stringify(embeddings[index]),
-              metadata,
-              ...extendColumns.map((column) => column.value),
-            ],
-          }
+          args: [
+            ...commonArgs,
+            JSON.stringify(embeddings[index]),
+            metadata,
+            ...extendColumns.map((column) => column.value),
+          ],
+        }
         : {
-            sql: `INSERT INTO [${vectorTable}] (id, item_id, chunk, is_enable, type, metadata${extendColumnNames ? `, ${extendColumnNames}` : ''})
+          sql: `INSERT INTO [${vectorTable}] (id, item_id, chunk, is_enable, type, metadata${extendColumnNames ? `, ${extendColumnNames}` : ''})
               VALUES (?, ?, ?, ?, ?, ?${extendPlaceholders ? `, ${extendPlaceholders}` : ''})`,
-            args: [
-              ...commonArgs,
-              metadata,
-              ...extendColumns.map((column) => column.value),
-            ],
-          };
+          args: [
+            ...commonArgs,
+            metadata,
+            ...extendColumns.map((column) => column.value),
+          ],
+        };
 
       return [
         vectorStatement,
@@ -248,7 +248,7 @@ export class KnowledgeBaseManager extends BaseManager {
       embedding_length =
         embeddings?.length === 1 ? embeddings[0].length : 0;
       if (embedding_length === 0) {
-        throw new Error('Embedding length is 0');
+        throw new Error('Error: Embedding length is 0');
       }
     }
     let extendColumns = [];
@@ -780,11 +780,11 @@ export class KnowledgeBaseManager extends BaseManager {
           if (chunks.length > 0) {
             const embeddings = kb.embedding
               ? (
-                  await this.calcEmbeddings(
-                    kb.embedding,
-                    chunks.map((chunk) => chunk.text),
-                  )
-                )?.text_embeddings
+                await this.calcEmbeddings(
+                  kb.embedding,
+                  chunks.map((chunk) => chunk.text),
+                )
+              )?.text_embeddings
               : undefined;
             await this.insertChunkRows(kb, item.id, chunks, embeddings);
             chunkCount = chunks.length;
@@ -937,11 +937,11 @@ export class KnowledgeBaseManager extends BaseManager {
         console.log(source);
         const embeddings = kb.embedding
           ? (
-              await this.calcEmbeddings(
-                kb.embedding,
-                chunks.map((chunk) => chunk.text),
-              )
-            )?.text_embeddings
+            await this.calcEmbeddings(
+              kb.embedding,
+              chunks.map((chunk) => chunk.text),
+            )
+          )?.text_embeddings
           : undefined;
         await this.insertChunkRows(
           kb,
@@ -1009,11 +1009,11 @@ export class KnowledgeBaseManager extends BaseManager {
 
         const embeddings = kb.embedding
           ? (
-              await this.calcEmbeddings(
-                kb.embedding,
-                chunks.map((chunk) => chunk.text),
-              )
-            )?.text_embeddings
+            await this.calcEmbeddings(
+              kb.embedding,
+              chunks.map((chunk) => chunk.text),
+            )
+          )?.text_embeddings
           : undefined;
         await this.insertChunkRows(
           kb,

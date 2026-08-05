@@ -222,8 +222,10 @@ export const ChatPreview = React.forwardRef<ChatPreviewRef, ChatPreviewProps>(
             className={`h-full ${previewData.previewPanel === ChatPreviewType.FILE_SYSTEM ? '' : 'hidden'}`}
           >
             <ChatFilesystem
-              projectId={project?.id}
               workspace={workspace}
+              active={
+                previewData.previewPanel === ChatPreviewType.FILE_SYSTEM
+              }
               className="rounded-xl border"
             />
           </div>

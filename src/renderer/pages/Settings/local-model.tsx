@@ -4,21 +4,12 @@ import {
   FieldGroup,
   FieldLabel,
 } from '@/renderer/components/ui/field';
-import { Separator } from '@/renderer/components/ui/separator';
 import { useGlobal } from '@/renderer/hooks/use-global';
 import { useHeader } from '@/renderer/hooks/use-title';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useState } from 'react';
 import { Button } from '@/renderer/components/ui/button';
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-  InputGroupButton,
-} from '@/renderer/components/ui/input-group';
-import { ArrowUpIcon } from 'lucide-react';
-import { Input } from '@/renderer/components/ui/input';
-import { IconFolder } from '@tabler/icons-react';
+import { IconLoader2 } from '@tabler/icons-react';
 import {
   LocalModelItem,
   LocalModelType,
@@ -37,12 +28,11 @@ import {
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSubContent,
   DropdownMenuTrigger,
 } from '@/renderer/components/ui/dropdown-menu';
 import { isArray } from '@/utils/is';
 import toast from 'react-hot-toast';
+import { useLocalModelStore } from '@/renderer/store/use-local-model-store';
 
 export default function LocalModel() {
   const { t } = useTranslation();
@@ -53,7 +43,10 @@ export default function LocalModel() {
   }, [setTitle, t]);
   const [localModelList, setLocalModelList] = useState<
     Record<LocalModelType, LocalModelItem[]>
-  >([]);
+  >({} as Record<LocalModelType, LocalModelItem[]>);
+  const downloadingIds = useLocalModelStore((state) => state.downloadingIds);
+  const startDownload = useLocalModelStore((state) => state.startDownload);
+  const finishDownload = useLocalModelStore((state) => state.finishDownload);
 
   const onSelectPath = async () => {
     const res = await window.electron.app.showOpenDialog({
@@ -73,7 +66,6 @@ export default function LocalModel() {
   const getData = async () => {
     const res = await window.electron.localModel.getList();
     setLocalModelList(res);
-    console.log(res);
   };
 
   useEffect(() => {
@@ -85,28 +77,31 @@ export default function LocalModel() {
     type: LocalModelType,
     source: string,
   ) => {
-    // const toast = getToast();
+    if (!startDownload(model.id)) return;
+
     toast.promise(
-      new Promise((resolve, reject) => {
-        window.electron.localModel
-          .downloadModel({
-            modelId: model.id,
-            type,
-            source,
-          })
-          .then(resolve)
-          .catch(reject);
-      }),
+      window.electron.localModel
+        .downloadModel({
+          modelId: model.id,
+          type,
+          source,
+        })
+        .then(() => {
+          return getData();
+        })
+        .finally(() => {
+          finishDownload(model.id);
+        }),
       {
-        loading: `Downloading ${model.id}...`,
-        success: <b>Download success!</b>,
-        error: <b>Download failed.</b>,
+        loading: t('common.downloading_model', { id: model.id }),
+        success: <b>{t('common.download_success')}</b>,
+        error: <b>{t('common.download_failed')}</b>,
       },
     );
   };
   const handleDelete = async (model: LocalModelItem, type: LocalModelType) => {
     try {
-      const res = await window.electron.localModel.deleteModel(model.id, type);
+      await window.electron.localModel.deleteModel(model.id, type);
       await getData();
       toast.success(t('common.delete_success'));
     } catch (err) {
@@ -134,75 +129,76 @@ export default function LocalModel() {
         </Field>
       </FieldGroup>
       {LocalModelTypes.map((type) => (
-        <FieldGroup className="p-4">
+        <FieldGroup className="p-4" key={type}>
           <Field>
             <FieldLabel className="uppercase">
               {t(`local-model.${type}`)}
             </FieldLabel>
             <FieldContent className="flex flex-col gap-2">
-              {localModelList[type]?.map((model) => (
-                <Item key={model.id} variant="outline">
-                  <ItemContent>
-                    <ItemTitle className="flex-col items-start gap-0.5">
-                      {model.id}{' '}
-                      <small className="text-muted-foreground text-xs">
-                        {model.repo}
-                      </small>
-                    </ItemTitle>
-                    <ItemDescription>
-                      {model.library && (
-                        <Badge variant="outline">{model.library}</Badge>
+              {localModelList[type]?.map((model) => {
+                const isDownloading = downloadingIds.has(model.id);
+                return (
+                  <Item key={model.id} variant="outline">
+                    <ItemContent>
+                      <ItemTitle className="flex-col items-start gap-0.5">
+                        {model.id}{' '}
+                        <small className="text-muted-foreground text-xs">
+                          {model.repo}
+                        </small>
+                      </ItemTitle>
+                      <ItemDescription>
+                        {model.library && (
+                          <Badge variant="outline">{model.library}</Badge>
+                        )}
+
+                        {model.description}
+                      </ItemDescription>
+                    </ItemContent>
+                    <ItemActions>
+                      {model.isDownloaded && !isDownloading && (
+                        <Button
+                          variant="destructive"
+                          onClick={() => handleDelete(model, type)}
+                        >
+                          {t('common.delete')}
+                        </Button>
                       )}
-
-                      {model.description}
-                    </ItemDescription>
-                  </ItemContent>
-                  <ItemActions>
-                    {model.isDownloaded && (
-                      <Button
-                        variant="destructive"
-                        onClick={() => handleDelete(model, type)}
-                      >
-                        {t('common.delete')}
-                      </Button>
-                    )}
-                    {!model.isDownloaded && (
-                      <DropdownMenu modal={false}>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="outline">
-                            {t('common.download')}
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuGroup>
-                            {isArray(model?.download) &&
-                              model?.download?.map((d) => {
-                                return (
-                                  <DropdownMenuItem
-                                    key={d.url}
-                                    onClick={() =>
-                                      handleDownload(model, type, d.source)
-                                    }
-                                  >
-                                    {d.source}
-                                  </DropdownMenuItem>
-                                );
-                              })}
-                          </DropdownMenuGroup>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-
-                      // <Button
-                      //   variant="outline"
-                      //   size="sm"
-                      //   onClick={() => handleDownload(model)}
-                      // >
-                      //   {t('common.download')}
-                      // </Button>
-                    )}
-                  </ItemActions>
-                </Item>
-              ))}
+                      {isDownloading && (
+                        <Button variant="outline" disabled>
+                          <IconLoader2 className="animate-spin" />
+                          {t('common.downloading')}
+                        </Button>
+                      )}
+                      {!model.isDownloaded && !isDownloading && (
+                        <DropdownMenu modal={false}>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="outline">
+                              {t('common.download')}
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuGroup>
+                              {isArray(model?.download) &&
+                                model?.download?.map((d) => {
+                                  return (
+                                    <DropdownMenuItem
+                                      key={d.url}
+                                      onClick={() =>
+                                        handleDownload(model, type, d.source)
+                                      }
+                                    >
+                                      {d.source}
+                                    </DropdownMenuItem>
+                                  );
+                                })}
+                            </DropdownMenuGroup>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
+                    </ItemActions>
+                  </Item>
+                );
+              })}
             </FieldContent>
           </Field>
         </FieldGroup>

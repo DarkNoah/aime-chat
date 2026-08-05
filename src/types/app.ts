@@ -43,6 +43,8 @@ export class AppInfo {
     model: string;
     fastModel: string;
     visionModel: string;
+    embeddingModel: string;
+    rerankerModel: string;
     ocrModel: string;
     transcriptionModel: string;
     speechModel: string;
