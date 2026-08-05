@@ -45,7 +45,14 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           USE_SYSTEM_FPM: 'true'
         run: |
-          pnpm exec electron-builder -- --publish always --linux --arm64
+          pnpm exec electron-builder --publish always --linux --arm64
+
+      - name: Verify Linux arm64 release asset
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          test "$(gh release view "v${VERSION}" --json assets --jq 'any(.assets[]; .name == "aime-chat-arm64-linux.deb")')" = 'true'
 
   publish-linux-x64:
     name: Publish Linux x64
@@ -78,4 +85,11 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          pnpm exec electron-builder -- --publish always --linux --x64
+          pnpm exec electron-builder --publish always --linux --x64
+
+      - name: Verify Linux x64 release asset
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          test "$(gh release view "v${VERSION}" --json assets --jq 'any(.assets[]; .name == "aime-chat-amd64-linux.deb")')" = 'true'

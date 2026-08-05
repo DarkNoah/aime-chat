@@ -1,7 +1,7 @@
 {
   "name": "aime-chat",
   "description": "A foundation for scalable desktop apps",
-  "version": "0.3.44",
+  "version": "0.3.45",
   "keywords": [
     "electron",
     "boilerplate",
@@ -137,6 +137,8 @@
     "@hookform/resolvers": "^5.2.2",
     "@huggingface/transformers": "^3.8.1",
     "@iarna/toml": "^2.2.5",
+    "@lexical/react": "^0.49.0",
+    "@lexical/utils": "^0.49.0",
     "@libsql/client": "^0.15.15",
     "@mastra/ai-sdk": "1.7.0",
     "@mastra/client-js": "1.35.0",
@@ -280,6 +282,8 @@
     "js-tiktoken": "^1.0.21",
     "json-schema-to-zod": "^2.7.0",
     "katex": "^0.16.22",
+    "lexical": "^0.49.0",
+    "lexical-beautiful-mentions": "^0.1.48",
     "linkedom": "^0.18.12",
     "lucide-react": "^0.552.0",
     "mammoth": "^1.11.0",

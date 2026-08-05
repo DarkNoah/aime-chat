@@ -91,6 +91,9 @@ class LocalModelManager extends BaseManager {
         {
           cwd: uv.dir,
           usePowerShell: isWindows,
+          env: {
+            UV_DEFAULT_INDEX: `https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple`
+          }
         },
       );
       if (res.code !== 0) {
@@ -103,6 +106,9 @@ class LocalModelManager extends BaseManager {
         {
           cwd: uv.dir,
           usePowerShell: isWindows,
+          env: {
+            UV_DEFAULT_INDEX: `https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple`
+          }
         },
       );
       if (res.code !== 0) {

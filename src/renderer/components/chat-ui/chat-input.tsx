@@ -13,7 +13,7 @@ import {
   ShieldUserIcon,
   ShieldCheck,
 } from 'lucide-react';
-import { ChatSlashCommand, SlashCommandDefinition } from './chat-slash-command';
+import type { SlashCommandDefinition } from './chat-slash-command';
 import {
   PromptInput,
   PromptInputActionAddAttachments,
@@ -38,6 +38,7 @@ import {
 } from '../ai-elements/prompt-input';
 import React, {
   ForwardedRef,
+  useCallback,
   useEffect,
   useImperativeHandle,
   useMemo,
@@ -281,30 +282,48 @@ function ChatInputInner(props: ChatInputInnerProps) {
     }
   };
 
-  const getSlashCommands = async () => {
+  const getSlashCommands = useCallback(async () => {
     const commands: SlashCommandDefinition[] = [...ChatSlashCommandConfig];
     const availableTools = await window.electron.tools.getAvailableTools();
 
-    const skills: SlashCommandDefinition[] = availableTools[ToolType.SKILL].map(
-      (x) => ({
-        id: x.id,
-        label: x.displayName || x.name || x.id,
-        description: x.description,
-        group: 'skills',
-      }),
-    );
+    const skills: SlashCommandDefinition[] = (
+      availableTools[ToolType.SKILL] ?? []
+    ).map((x) => ({
+      id: x.id,
+      label: x.displayName || x.name || x.id,
+      description: x.description,
+      group: 'skills',
+    }));
     commands.push(...skills);
     setSlashCommands(commands);
-  };
+  }, []);
+
+  useEffect(() => {
+    getSlashCommands().catch(() => undefined);
+  }, [getSlashCommands]);
+
+  const handleInstantSlashItem = useCallback(
+    (item: SlashCommandDefinition) => {
+      if (item.id === 'compact') {
+        onSubmit?.(
+          { text: '/compact', files: [] },
+          {
+            model,
+            webSearch,
+            think,
+            tools,
+            subAgents,
+            requireToolApproval,
+          },
+        );
+      }
+    },
+    [model, onSubmit, requireToolApproval, subAgents, think, tools, webSearch],
+  );
 
   return (
     <>
-      <ChatSlashCommand
-        input=""
-        onComplete={() => { }}
-        onOpen={getSlashCommands}
-        commands={slashCommands}
-      >
+      <div>
         <PromptInput
           onSubmit={(e) => {
             if (status === 'streaming' && !hasPendingInput) {
@@ -340,7 +359,11 @@ function ChatInputInner(props: ChatInputInnerProps) {
         >
           <ChatInputAttachment ref={attachmentRef} />
           <PromptInputBody className="flex-1 h-full">
-            <PromptInputTextarea rows={4} />
+            <PromptInputTextarea
+              onSlashMenuOpen={getSlashCommands}
+              onSlashItemSelect={handleInstantSlashItem}
+              slashItems={slashCommands}
+            />
           </PromptInputBody>
           <PromptInputFooter>
             <PromptInputTools>
@@ -514,7 +537,7 @@ function ChatInputInner(props: ChatInputInnerProps) {
             />
           </PromptInputFooter>
         </PromptInput>
-      </ChatSlashCommand>
+      </div>
       {prompts && prompts.filter((x) => x).length > 0 && (
         <div className="flex flex-wrap gap-2 w-full ">
           <Suggestions>

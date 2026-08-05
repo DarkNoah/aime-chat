@@ -68,7 +68,7 @@ import {
 } from '@/types/chat';
 import { nanoid } from '@/utils/nanoid';
 import { IpcMainEvent } from 'electron';
-import { isObject, isString } from '@/utils/is';
+import { isArray, isObject, isString } from '@/utils/is';
 import { toolsManager } from '../tools';
 import { ToolType } from '@/types/tool';
 import {
@@ -124,6 +124,11 @@ import {
 } from './usage';
 import { filesize } from 'filesize';
 import mime from 'mime';
+import {
+  CompactHistoryTooShortError,
+  countCompactHistoryMessages,
+  MIN_COMPACT_HISTORY_MESSAGES,
+} from './compact';
 
 const CHAT_RETRY_DELAYS = [2000, 4000, 8000] as const;
 
@@ -838,6 +843,7 @@ class MastraManager extends BaseManager {
 
     let requestContext;
     const retryState: { attempt: number; streamError?: Error } = { attempt: 0 };
+    let skipTitleGeneration = false;
     try {
       // const info = modelsData[provider.type]?.models[_modeId] || {};
       const workspace =
@@ -1246,7 +1252,24 @@ class MastraManager extends BaseManager {
 
           if (_inputMessage) input.push(_inputMessage);
 
-          const messages = convertToModelMessages(historyMessagesAISdkV5);
+          let messages = convertToModelMessages(historyMessagesAISdkV5);
+          messages = messages.map(m => {
+            if (m.role == 'tool' && isArray(m.content) && m.content.length > 0) {
+              m.content = m.content.map(c => {
+                if (c.type == 'tool-result' && c.providerOptions?.mastra?.modelOutput) {
+                  delete c.providerOptions?.mastra?.modelOutput
+                }
+                return c;
+              });
+
+
+            }
+            return m;
+          })
+
+
+
+
           const maxContextSize = requestContext.get('maxContextSize');
           const thresholdTokenCount = Math.floor(maxContextSize * 0.7);
           const _tools = await agent.listTools({ requestContext });
@@ -1286,6 +1309,20 @@ class MastraManager extends BaseManager {
                   }
                 }
               }
+            }
+          }
+
+          if (slashCommand === 'compact') {
+            skipTitleGeneration = true;
+            const compactHistoryMessageCount = countCompactHistoryMessages(
+              historyMessagesAISdkV5,
+            );
+            if (
+              compactHistoryMessageCount < MIN_COMPACT_HISTORY_MESSAGES
+            ) {
+              throw new CompactHistoryTooShortError(
+                compactHistoryMessageCount,
+              );
             }
           }
 
@@ -1636,6 +1673,9 @@ Do not call update_goal unless the goal is complete or the strict blocked audit 
           if (streamOptions.abortSignal.aborted) {
             break;
           }
+          if (err instanceof CompactHistoryTooShortError) {
+            throw err;
+          }
           if (retryState.attempt >= CHAT_RETRY_DELAYS.length) {
             throw err;
           }
@@ -1745,7 +1785,7 @@ Do not call update_goal unless the goal is complete or the strict blocked audit 
       this.threadChats = this.threadChats.filter((chat) => chat.id !== chatId);
 
       currentThread = await memoryStore.getThreadById({ threadId: chatId });
-      if (currentThread.title == DEFAULT_TITLE) {
+      if (!skipTitleGeneration && currentThread.title == DEFAULT_TITLE) {
         try {
           this.generateTitle({ modelId: model, userMessage: inputMessage?.parts[0]?.text, chatId, callback });
         } catch (err) {
@@ -2427,6 +2467,7 @@ IMPORTANT: Do NOT use any tools. You MUST respond with ONLY the <summary>...</su
         abortSignal: options?.abortSignal,
         providerOptions: {
           openai: {
+            store: false,
             maxTokens: 20000
           },
           anthropic: {
