@@ -242,7 +242,7 @@ export class OpenAIProvider extends BaseProvider {
       timeout: 2000,
     });
     return list.data
-      .filter((x) => x.id.startsWith('text-'))
+      // .filter((x) => x.id.startsWith('text-'))
       .map((x) => {
         return { id: x.id, name: x.id };
       })

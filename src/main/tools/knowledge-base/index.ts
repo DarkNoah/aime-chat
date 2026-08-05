@@ -403,9 +403,13 @@ Use skill:local:aime-chat-docs to look up the available embedding models.
         extendColumns: extendColumns.map(x => ({ columnType: x.columnType, name: x.name }))
       }
     }
-    const knowledgeBase = await knowledgeBaseManager.createKnowledgeBase(data);
+    try {
+      const knowledgeBase = await knowledgeBaseManager.createKnowledgeBase(data);
+      return { success: true, knowledgeBaseId: knowledgeBase.id };
+    } catch (err) {
+      return { success: false, error: (err as Error).message, tips: `You need to read skill:local:aime-chat-docs to get the available embedding models` };
+    }
 
-    return { success: true, knowledgeBaseId: knowledgeBase.id };
   }
 }
 
