@@ -1,4 +1,13 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
+import { css } from '@codemirror/lang-css';
+import { html } from '@codemirror/lang-html';
+import { javascript } from '@codemirror/lang-javascript';
+import { json } from '@codemirror/lang-json';
+import { markdown } from '@codemirror/lang-markdown';
+import { python } from '@codemirror/lang-python';
+import { sql } from '@codemirror/lang-sql';
+import { xml } from '@codemirror/lang-xml';
+import { yaml } from '@codemirror/lang-yaml';
 import CodeMirror, { EditorView, type Extension } from '@uiw/react-codemirror';
 import { useTheme } from 'next-themes';
 
@@ -9,6 +18,52 @@ type CodeTextEditorProps = {
   onChange: (value: string) => void;
 };
 
+export function getLanguageExtension(fileName: string): Extension | null {
+  const extension = fileName.split('.').pop()?.toLowerCase();
+
+  switch (extension) {
+    case 'js':
+    case 'cjs':
+    case 'mjs':
+      return javascript();
+    case 'jsx':
+      return javascript({ jsx: true });
+    case 'ts':
+    case 'cts':
+    case 'mts':
+      return javascript({ typescript: true });
+    case 'tsx':
+      return javascript({ jsx: true, typescript: true });
+    case 'json':
+    case 'jsonc':
+      return json();
+    case 'html':
+    case 'htm':
+      return html();
+    case 'css':
+    case 'less':
+    case 'scss':
+    case 'sass':
+      return css();
+    case 'md':
+    case 'markdown':
+      return markdown();
+    case 'py':
+    case 'pyw':
+      return python();
+    case 'sql':
+      return sql();
+    case 'yaml':
+    case 'yml':
+      return yaml();
+    case 'svg':
+    case 'xml':
+      return xml();
+    default:
+      return null;
+  }
+}
+
 export const CodeTextEditor: React.FC<CodeTextEditorProps> = ({
   fileName,
   value,
@@ -16,39 +71,14 @@ export const CodeTextEditor: React.FC<CodeTextEditorProps> = ({
   onChange,
 }) => {
   const { resolvedTheme } = useTheme();
-  const [languageExtension, setLanguageExtension] = useState<Extension | null>(
-    null,
+  const languageExtension = useMemo(
+    () => getLanguageExtension(fileName),
+    [fileName],
   );
   const accessibilityExtension = useMemo(
     () => EditorView.contentAttributes.of({ 'aria-label': ariaLabel }),
     [ariaLabel],
   );
-
-  useEffect(() => {
-    let active = true;
-    setLanguageExtension(null);
-
-    import('@codemirror/language-data')
-      .then(async ({ languages }) => {
-        const language = languages.find((candidate) => {
-          if (candidate.filename?.test(fileName)) return true;
-          const extension = fileName.split('.').pop()?.toLowerCase();
-          return extension ? candidate.extensions.includes(extension) : false;
-        });
-
-        if (!language) return null;
-        return language.load();
-      })
-      .then((extension) => {
-        if (active && extension) setLanguageExtension(extension);
-        return undefined;
-      })
-      .catch(() => undefined);
-
-    return () => {
-      active = false;
-    };
-  }, [fileName]);
 
   return (
     <CodeMirror
