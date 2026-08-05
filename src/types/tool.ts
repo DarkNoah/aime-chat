@@ -61,11 +61,22 @@ export const ToolConfig = {
   Bash: {
     configSchema: z.strictObject({
       shell: bashShellSchema,
+      pythonRuntime: z
+        .enum(['independent', 'system'])
+        .optional()
+        .default('independent'),
       env: z.string().optional(),
     }),
     uiSchema: {
       shell: {
         'ui:title': t('common.shell', 'Shell'),
+      },
+      pythonRuntime: {
+        'ui:title': t('common.python_runtime', 'Python Runtime'),
+        'ui:enumNames': [
+          t('common.python_runtime_independent', 'Independent (recommended)'),
+          t('common.python_runtime_system', 'System'),
+        ],
       },
       env: {
         'ui:widget': 'textarea',

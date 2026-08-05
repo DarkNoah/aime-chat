@@ -9,6 +9,24 @@ jest.mock('react-i18next', () => ({
   }),
 }));
 
+jest.mock('./code-text-editor', () => ({
+  CodeTextEditor: ({
+    value,
+    ariaLabel,
+    onChange,
+  }: {
+    value: string;
+    ariaLabel: string;
+    onChange: (value: string) => void;
+  }) => (
+    <textarea
+      aria-label={ariaLabel}
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+    />
+  ),
+}));
+
 const readFileContent = jest.fn();
 const writeFileContent = jest.fn();
 const toast = jest.fn();

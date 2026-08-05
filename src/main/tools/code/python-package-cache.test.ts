@@ -1,4 +1,5 @@
 /* eslint-disable import/first */
+import fs from 'fs';
 import path from 'path';
 
 jest.mock('electron', () => ({
@@ -49,6 +50,9 @@ describe('CodeExecution Python package cache', () => {
   });
 
   it('preloads office, data-processing, and productivity packages', () => {
+    expect(CODE_EXECUTION_PACKAGE_GROUPS.runtime).toEqual(
+      expect.arrayContaining(['pip', 'setuptools', 'wheel', 'mcp']),
+    );
     expect(CODE_EXECUTION_PACKAGE_GROUPS.office).toEqual(
       expect.arrayContaining([
         'openpyxl',
@@ -89,9 +93,12 @@ describe('CodeExecution Python package cache', () => {
     );
   });
 
-  it('waits for connectivity before starting a background download', async () => {
+  it('installs cached packages into the application runtime while offline', async () => {
+    const mkdirSpy = jest
+      .spyOn(fs.promises, 'mkdir')
+      .mockResolvedValue(undefined);
     (net.isOnline as jest.Mock).mockReturnValueOnce(false);
-    const runCommand = jest.fn();
+    const runCommand = jest.fn().mockResolvedValue({ code: 0 });
 
     await expect(
       warmCodeExecutionPackageCache(
@@ -99,13 +106,83 @@ describe('CodeExecution Python package cache', () => {
           status: 'installed',
           installed: true,
           path: '/runtime/uv',
+          pythonRuntime: {
+            installed: true,
+            pythonPath: '/runtime/python-runtime/.venv/bin/python',
+          },
         },
         {
           runCommand,
           log: jest.fn(),
         },
       ),
-    ).resolves.toBe(false);
-    expect(runCommand).not.toHaveBeenCalled();
+    ).resolves.toBe(true);
+    expect(runCommand).toHaveBeenCalledTimes(1);
+    expect(runCommand.mock.calls[0][0]).toContain('--offline');
+    mkdirSpy.mockRestore();
+  });
+
+  it('warms the persistent application Python environment when available', async () => {
+    const mkdirSpy = jest
+      .spyOn(fs.promises, 'mkdir')
+      .mockResolvedValue(undefined);
+    const runCommand = jest.fn().mockResolvedValue({ code: 0 });
+    const pythonPath = '/runtime/python-runtime/.venv/bin/python';
+
+    await expect(
+      warmCodeExecutionPackageCache(
+        {
+          status: 'installed',
+          installed: true,
+          path: '/runtime/uv',
+          pythonRuntime: {
+            installed: true,
+            pythonPath,
+          },
+        },
+        {
+          runCommand,
+          log: jest.fn(),
+        },
+      ),
+    ).resolves.toBe(true);
+
+    expect(runCommand).toHaveBeenCalledTimes(1);
+    expect(runCommand.mock.calls[0][0]).toContain(`--python "${pythonPath}"`);
+    expect(runCommand.mock.calls[0][0]).toContain('--offline');
+    mkdirSpy.mockRestore();
+  });
+
+  it('downloads missing packages only after the offline cache misses', async () => {
+    const mkdirSpy = jest
+      .spyOn(fs.promises, 'mkdir')
+      .mockResolvedValue(undefined);
+    const runCommand = jest
+      .fn()
+      .mockResolvedValueOnce({ code: 1, stderr: 'not cached' })
+      .mockResolvedValueOnce({ code: 0 });
+
+    await expect(
+      warmCodeExecutionPackageCache(
+        {
+          status: 'installed',
+          installed: true,
+          path: '/runtime/uv',
+          pythonRuntime: {
+            installed: true,
+            pythonPath: '/runtime/python-runtime/.venv/bin/python',
+          },
+        },
+        {
+          runCommand,
+          log: jest.fn(),
+        },
+      ),
+    ).resolves.toBe(true);
+
+    expect(runCommand).toHaveBeenCalledTimes(2);
+    expect(runCommand.mock.calls[0][0]).toContain('--offline');
+    expect(runCommand.mock.calls[1][0]).not.toContain('--offline');
+    mkdirSpy.mockRestore();
   });
 });

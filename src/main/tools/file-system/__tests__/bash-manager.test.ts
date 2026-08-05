@@ -1,6 +1,6 @@
 import { EventEmitter } from 'events';
 import { PassThrough } from 'stream';
-import { BashManager } from '../bash';
+import { activateBashPythonRuntime, BashManager } from '../bash';
 
 jest.mock('electron', () => ({
   app: {
@@ -160,7 +160,11 @@ describe('BashManager', () => {
     manager.onSessionCompleted(listener);
 
     const run = manager.runInBackground(
-      { command: 'test command', description: 'test description' },
+      {
+        command: 'wrapped test command',
+        displayCommand: 'test command',
+        description: 'test description',
+      },
       'bash-1',
       '/tmp/workspace',
       {},
@@ -259,5 +263,30 @@ describe('BashManager', () => {
     await run;
 
     expect(listener).not.toHaveBeenCalled();
+  });
+});
+
+describe('activateBashPythonRuntime', () => {
+  it('reactivates the virtual environment after a POSIX login shell loads', () => {
+    expect(
+      activateBashPythonRuntime(
+        'python script.py',
+        { VIRTUAL_ENV: '/runtime/python/.venv' },
+        'darwin',
+      ),
+    ).toBe('export PATH="$VIRTUAL_ENV/bin:$PATH"; python script.py');
+  });
+
+  it('leaves system and Windows commands unchanged', () => {
+    expect(activateBashPythonRuntime('python script.py', {}, 'linux')).toBe(
+      'python script.py',
+    );
+    expect(
+      activateBashPythonRuntime(
+        'python script.py',
+        { VIRTUAL_ENV: 'C:\\runtime\\python\\.venv' },
+        'win32',
+      ),
+    ).toBe('python script.py');
   });
 });

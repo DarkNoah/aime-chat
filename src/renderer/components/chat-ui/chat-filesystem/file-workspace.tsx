@@ -1,5 +1,7 @@
 import React, {
   CSSProperties,
+  lazy,
+  Suspense,
   useCallback,
   useEffect,
   useMemo,
@@ -28,6 +30,12 @@ import {
 } from './file-workspace-utils';
 
 const EDITABLE_FILE_LIMIT = 2 * 1024 * 1024;
+
+const CodeTextEditor = lazy(() =>
+  import('./code-text-editor').then((module) => ({
+    default: module.CodeTextEditor,
+  })),
+);
 
 type EditorMode = 'milkdown' | 'source';
 
@@ -136,7 +144,8 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     <div
       ref={rootRef}
       style={milkdownTheme}
-      className="h-full overflow-y-auto bg-background [&_.milkdown]:min-h-full [&_.ProseMirror]:min-h-full [&_.ProseMirror]:py-4!"
+      className="h-full overflow-y-auto bg-background [&_.milkdown]:min-h-full [&_.ProseMirror]:min-h-full [&_.ProseMirror]:py-4!
+       [&_.ProseMirror]:text-sm! [&_.ProseMirror_h1]:mt-0! [&_.ProseMirror_h2]:mt-0! [&_.ProseMirror_h3]:mt-0! [&_.ProseMirror_h4]:mt-0! [&_.ProseMirror_h5]:mt-0! [&_.ProseMirror_h6]:mt-0!"
     />
   );
 };
@@ -374,13 +383,24 @@ export const FileWorkspace: React.FC<FileWorkspaceProps> = ({
       }
 
       return (
-        <Textarea
-          aria-label={t('chat.file_source_editor')}
-          value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          spellCheck={false}
-          className="h-full min-h-0 resize-none rounded-none border-0 px-4 py-3 font-mono text-xs shadow-none focus-visible:border-0 focus-visible:ring-0 field-sizing-fixed"
-        />
+        <Suspense
+          fallback={
+            <Textarea
+              aria-label={t('chat.file_source_editor')}
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              spellCheck={false}
+              className="h-full min-h-0 resize-none rounded-none border-0 px-4 py-3 font-mono text-xs shadow-none focus-visible:border-0 focus-visible:ring-0 field-sizing-fixed"
+            />
+          }
+        >
+          <CodeTextEditor
+            fileName={fileName}
+            value={draft}
+            ariaLabel={t('chat.file_source_editor')}
+            onChange={setDraft}
+          />
+        </Suspense>
       );
     }
 
@@ -429,7 +449,7 @@ export const FileWorkspace: React.FC<FileWorkspaceProps> = ({
               className="h-6 px-2 text-xs shadow-none"
               onClick={() => setEditorMode('milkdown')}
             >
-              {t('chat.file_milkdown_editor')}
+              {t('chat.file_markdown_editor')}
             </Button>
             <Button
               variant={editorMode === 'source' ? 'secondary' : 'ghost'}

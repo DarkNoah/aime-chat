@@ -25877,13 +25877,13 @@
         },
         "open_weights": true,
         "limit": {
-          "context": 1000000,
-          "output": 384000
+          "context": 1048600,
+          "output": 1048600
         },
         "cost": {
-          "input": 0.435,
-          "output": 0.87,
-          "cache_read": 0.0036
+          "input": 1.74,
+          "output": 3.48,
+          "cache_read": 0.14
         }
       },
       "deepseek/deepseek-v4-flash-0731": {
@@ -173580,9 +173580,9 @@
           "output": 384000
         },
         "cost": {
-          "input": 0.076,
-          "output": 0.153,
-          "cache_read": 0.014
+          "input": 0.14,
+          "output": 0.28,
+          "cache_read": 0.0028
         }
       },
       "kimi-k2.5": {
