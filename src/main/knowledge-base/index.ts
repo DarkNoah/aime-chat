@@ -477,37 +477,47 @@ export class KnowledgeBaseManager extends BaseManager {
         : '';
     let vectorStr: number[] | undefined;
     if (kb.embedding) {
-      let embeddingQuery = originalQuery;
-      if (
-        fileTpye === 'text' &&
-        kb.embedding.split('/').at(-1) === 'jina-clip-v2'
-      ) {
-        embeddingQuery =
-          'Represent the query for retrieving evidence documents: ' +
-          originalQuery;
+      try {
+        let embeddingQuery = originalQuery;
+        if (
+          fileTpye === 'text' &&
+          kb.embedding.split('/').at(-1) === 'jina-clip-v2'
+        ) {
+          embeddingQuery =
+            'Represent the query for retrieving evidence documents: ' +
+            originalQuery;
+        }
+        const embeddings =
+          fileTpye === 'text'
+            ? await this.calcEmbeddings(kb.embedding, [embeddingQuery])
+            : await this.calcEmbeddings(kb.embedding, [], [originalQuery]);
+        const candidateVector =
+          embeddings?.text_embeddings?.[0] ??
+          embeddings?.image_embeddings?.[0];
+        if (
+          candidateVector?.length &&
+          candidateVector.every(Number.isFinite) &&
+          (!kb.vectorLength || candidateVector.length === kb.vectorLength)
+        ) {
+          vectorStr = candidateVector;
+        } else {
+          console.warn(
+            `[knowledge-base] embedding model ${kb.embedding} is unavailable, falling back to BM25`,
+          );
+        }
+      } catch (error) {
+        console.error(
+          `[knowledge-base] embedding model ${kb.embedding} failed, falling back to BM25`,
+          error,
+        );
       }
-      const embeddings =
-        fileTpye === 'text'
-          ? await this.calcEmbeddings(kb.embedding, [embeddingQuery])
-          : await this.calcEmbeddings(kb.embedding, [], [originalQuery]);
-      vectorStr =
-        embeddings?.text_embeddings?.[0] ??
-        embeddings?.image_embeddings?.[0];
-    }
-
-    if (fileTpye === 'image' && !vectorStr) {
-      return {
-        query: originalQuery,
-        embedding: kb.embedding ?? '',
-        searchType: 'bm25',
-        results: [],
-      };
     }
 
     const vectorRows: any[] = [];
     if (vectorStr) {
-      const vectorResults = await this.libSQLClient.execute({
-        sql: `
+      try {
+        const vectorResults = await this.libSQLClient.execute({
+          sql: `
         WITH vector_scores AS (
           SELECT
             id,
@@ -525,20 +535,19 @@ export class KnowledgeBaseManager extends BaseManager {
         WHERE score > ? AND type = 'text'
         ORDER BY score DESC
         LIMIT ?`,
-        args: [JSON.stringify(vectorStr), 0.5, candidateLimit],
-      });
-      vectorRows.push(
-        ...vectorResults.rows.map((row) => ({
-          ...row,
-          id: String(row.id),
-          score: Number(row.score),
-        })),
-      );
-    }
+          args: [JSON.stringify(vectorStr), 0.5, candidateLimit],
+        });
+        vectorRows.push(
+          ...vectorResults.rows.map((row) => ({
+            ...row,
+            id: String(row.id),
+            score: Number(row.score),
+          })),
+        );
 
-    if (vectorStr && kb.embedding && this.isLocalClipModel(kb.embedding)) {
-      const image_results = await this.libSQLClient.execute({
-        sql: `
+        if (kb.embedding && this.isLocalClipModel(kb.embedding)) {
+          const image_results = await this.libSQLClient.execute({
+            sql: `
         WITH vector_scores AS (
           SELECT
             id,
@@ -557,31 +566,41 @@ export class KnowledgeBaseManager extends BaseManager {
         WHERE type = 'image'
         ORDER BY score DESC
         LIMIT ?`,
-        args: [JSON.stringify(vectorStr), candidateLimit],
-      });
-      for (const row of image_results.rows) {
-        const score = await this.calcClipCosineSimilarity(
-          kb.embedding,
-          vectorStr,
-          JSON.parse(row.embedding as string),
-        );
-        if (fileTpye === 'text' || score > 0.7) {
-          vectorRows.push({
-            ...row,
-            id: String(row.id),
-            score,
+            args: [JSON.stringify(vectorStr), candidateLimit],
           });
+          for (const row of image_results.rows) {
+            const score = await this.calcClipCosineSimilarity(
+              kb.embedding,
+              vectorStr,
+              JSON.parse(row.embedding as string),
+            );
+            if (fileTpye === 'text' || score > 0.7) {
+              vectorRows.push({
+                ...row,
+                id: String(row.id),
+                score,
+              });
+            }
+          }
         }
+      } catch (error) {
+        console.error(
+          '[knowledge-base] vector search failed, falling back to BM25',
+          error,
+        );
+        vectorStr = undefined;
+        vectorRows.length = 0;
       }
     }
 
-
-
-
-
-
-
-
+    if (fileTpye === 'image' && !vectorStr) {
+      return {
+        query: originalQuery,
+        embedding: kb.embedding ?? '',
+        searchType: 'bm25',
+        results: [],
+      };
+    }
     const bm25Rows: any[] = [];
     if (fileTpye === 'text') {
       const matchQuery = buildMatchQuery(originalQuery);
@@ -616,6 +635,15 @@ export class KnowledgeBaseManager extends BaseManager {
       }
     }
 
+    const getBm25ResultRows = () =>
+      rrfFuse([bm25Rows])
+        .map((row) => ({
+          ...row,
+          score: row.rrfScore,
+          hybridScore: row.rrfScore,
+        }))
+        .slice(0, top_k);
+
     let searchType: SearchKnowledgeBaseResult['searchType'];
     let resultRows: any[];
     if (vectorStr && fileTpye === 'text') {
@@ -630,71 +658,77 @@ export class KnowledgeBaseManager extends BaseManager {
         .slice(0, top_k);
     } else {
       searchType = 'bm25';
-      resultRows = rrfFuse([bm25Rows])
-        .map((row) => ({
-          ...row,
-          score: row.rrfScore,
-          hybridScore: row.rrfScore,
-        }))
-        .slice(0, top_k);
+      resultRows = getBm25ResultRows();
     }
 
-    const itemIds = [...new Set(resultRows.map((row) => String(row.item_id)))];
-    const items = await this.knowledgeBaseItemRepository.find({
-      where: {
-        id: In(itemIds),
-      },
-    });
-    if (items.length == 0) {
-      return {
-        query: originalQuery,
-        embedding: kb.embedding ?? '',
-        searchType,
-        results: [],
-      }
-    }
-
-    let _results: SearchKnowledgeBaseItemResult[] = resultRows.map(item => {
-      const kbitem = items.find(x => x.id === item.item_id)
-      const extendValues = {};
-      if (vectorStoreConfig?.extendColumns?.length > 0) {
-        for (const x of vectorStoreConfig?.extendColumns ?? []) {
-          extendValues[x.name] = item[x.name];
-        }
-      }
-      return {
-        id: item.id as string,
-        itemId: item.item_id as string,
-        score: Number(item.score ?? item.bm25Score ?? 0),
-        bm25Score: item.bm25Score as number | undefined,
-        hybridScore: Number(item.hybridScore ?? item.score ?? item.bm25Score ?? 0),
-        metadata: { ...(JSON.parse(item?.metadata as string ?? '{}')), ...(kbitem?.metadata ?? {}) },
-        chunk: item.chunk as string,
-        type: item.type as 'text' | 'image',
-        name: kbitem.name,
-        source: kbitem.source,
-        sourceType: kbitem.sourceType as KnowledgeBaseSourceType,
-        content: kbitem.content,
-        extendValues: extendValues
-      }
-    });
-
-    if (kb.reranker && originalQuery && _results.length > 0) {
-      const model = await providersManager.getRerankModel(kb.reranker);
-      const rereankResults = await model.doRerank({
-        query: originalQuery,
-        documents: _results.map(x => x.chunk ?? ''),
-        options: {
-          top_k: top_k,
+    const hydrateResults = async (
+      rows: any[],
+    ): Promise<SearchKnowledgeBaseItemResult[]> => {
+      const itemIds = [...new Set(rows.map((row) => String(row.item_id)))];
+      if (itemIds.length === 0) return [];
+      const items = await this.knowledgeBaseItemRepository.find({
+        where: {
+          id: In(itemIds),
         },
       });
-      rereankResults.forEach(result => {
-        const item = _results[result.index];
-        if (item) {
-          item.rerankScore = result.score;
-          item.hybridScore = ((item.hybridScore ?? item.score) + result.score) / 2;
+
+      return rows.flatMap((item) => {
+        const kbitem = items.find((x) => x.id === item.item_id);
+        if (!kbitem) return [];
+        const extendValues = {};
+        if (vectorStoreConfig?.extendColumns?.length > 0) {
+          for (const x of vectorStoreConfig.extendColumns) {
+            extendValues[x.name] = item[x.name];
+          }
         }
+        return [{
+          id: item.id as string,
+          itemId: item.item_id as string,
+          score: Number(item.score ?? item.bm25Score ?? 0),
+          bm25Score: item.bm25Score as number | undefined,
+          hybridScore: Number(item.hybridScore ?? item.score ?? item.bm25Score ?? 0),
+          metadata: { ...(JSON.parse(item?.metadata as string ?? '{}')), ...(kbitem.metadata ?? {}) },
+          chunk: item.chunk as string,
+          type: item.type as 'text' | 'image',
+          name: kbitem.name,
+          source: kbitem.source,
+          sourceType: kbitem.sourceType as KnowledgeBaseSourceType,
+          content: kbitem.content,
+          extendValues,
+        }];
       });
+    };
+
+    let _results = await hydrateResults(resultRows);
+
+    if (kb.reranker && originalQuery && _results.length > 0) {
+      try {
+        const model = await providersManager.getRerankModel(kb.reranker);
+        const rereankResults = await model.doRerank({
+          query: originalQuery,
+          documents: _results.map(x => x.chunk ?? ''),
+          options: {
+            top_k: top_k,
+          },
+        });
+        rereankResults.forEach(result => {
+          const item = _results[result.index];
+          if (item) {
+            item.rerankScore = result.score;
+            item.hybridScore = ((item.hybridScore ?? item.score) + result.score) / 2;
+          }
+        });
+      } catch (error) {
+        console.error(
+          `[knowledge-base] reranker model ${kb.reranker} failed, falling back to BM25`,
+          error,
+        );
+        if (fileTpye === 'text') {
+          searchType = 'bm25';
+          resultRows = getBm25ResultRows();
+          _results = await hydrateResults(resultRows);
+        }
+      }
     }
 
     _results = _results
