@@ -47,7 +47,7 @@ import { requestLogManager } from './app/request-logs';
 // process.env.DISABLE_SETUP = "true";
 
 process.env.API_SERVER_ENABLED = 'true'
-
+process.env.TLS_REJECT_UNAUTHORIZED = 'false'
 initCrashReporter();
 
 // process.env.DEFAULT_PROVIDER_ID = "openai"

@@ -263,6 +263,7 @@ const electronHandler = {
       hasProvider: boolean;
       hasDefaultModel: boolean;
       hasRuntime: boolean;
+      personalityDisabled: boolean;
     }> => ipcRenderer.invoke(AppChannel.GetSetupStatus),
     completeSetup: (): Promise<void> =>
       ipcRenderer.invoke(AppChannel.CompleteSetup),

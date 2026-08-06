@@ -17,6 +17,7 @@ export type SetupStatus = {
   hasProvider: boolean;
   hasDefaultModel: boolean;
   hasRuntime: boolean;
+  personalityDisabled: boolean;
 };
 
 type GlobalState = {

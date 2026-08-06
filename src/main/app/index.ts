@@ -125,6 +125,7 @@ import { api } from '../api/ApiController';
 import { getCrashDumpDirectory } from './crash-reporter';
 import { WindowModeController } from './window-mode';
 import { writeWorkspaceTextFile } from '../utils/workspace-file';
+import { isPersonalityDisabled } from './feature-flags';
 
 class AppManager extends BaseManager {
   repository: Repository<Providers>;
@@ -160,7 +161,7 @@ class AppManager extends BaseManager {
     const settings = await this.settingsRepository.find();
     persistModelPathForUninstaller(
       settings.find((x) => x.id === 'modelPath')?.value ??
-        getDefaultModelPath(),
+      getDefaultModelPath(),
     );
     this.windowModeController.initialize(
       settings.find((x) => x.id === 'windowMode')?.value,
@@ -284,9 +285,11 @@ class AppManager extends BaseManager {
     };
     const defaultAgent = settings.find((x) => x.id === 'defaultAgent')?.value || process.env.DEFAULT_AGENT || CodeAgent.agentName;
     const defaultThink = settings.find((x) => x.id === 'defaultThink')?.value || process.env.THINK || 'medium';
-    const assistantSoul = await getActiveAssistantSoul(
-      settings.find((x) => x.id === 'assistantSoul')?.value,
-    );
+    const assistantSoul = isPersonalityDisabled()
+      ? normalizeAssistantSoul()
+      : await getActiveAssistantSoul(
+          settings.find((x) => x.id === 'assistantSoul')?.value,
+        );
     const preventSleepInterval = this.getPreventSleepInterval(
       settings.find((x) => x.id === 'preventSleepInterval')?.value,
     );
@@ -1195,6 +1198,7 @@ class AppManager extends BaseManager {
     hasProvider: boolean;
     hasDefaultModel: boolean;
     hasRuntime: boolean;
+    personalityDisabled: boolean;
   }> {
     const providers = await providersManager.getList();
     const hasProvider =
@@ -1205,6 +1209,7 @@ class AppManager extends BaseManager {
 
     // 设置 DISABLE_SETUP="true" 时禁用初始化向导（见 main.ts 中的注释）
     const setupDisabled = process.env.DISABLE_SETUP === 'true';
+    const personalityDisabled = isPersonalityDisabled();
 
     const setupCompleted =
       setupDisabled ||
@@ -1221,6 +1226,7 @@ class AppManager extends BaseManager {
       hasProvider,
       hasDefaultModel,
       hasRuntime,
+      personalityDisabled,
     };
   }
 

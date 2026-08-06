@@ -15,6 +15,7 @@ import { ScrollArea } from '../../components/ui/scroll-area';
 import { Separator } from '../../components/ui/separator';
 import {
   Link,
+  Navigate,
   Route,
   Routes,
   useLocation,
@@ -33,6 +34,7 @@ import RequestLogs from './request-logs';
 import Channels from './channels';
 import Secrets from './secrets';
 import Personality from './personality';
+import { useGlobal } from '../../hooks/use-global';
 import {
   IconAdjustments,
   IconChartBar,
@@ -54,6 +56,8 @@ function Settings() {
   const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
+  const { setupStatus } = useGlobal();
+  const personalityDisabled = setupStatus?.personalityDisabled ?? false;
   useEffect(() => {
     setTitle(t('settings.settings'));
   }, [setTitle]);
@@ -84,11 +88,15 @@ function Settings() {
       label: t('settings.default_model'),
       icon: IconSparkles,
     },
-    {
-      key: 'personality',
-      label: t('settings.personality'),
-      icon: IconMoodSmile,
-    },
+    ...(personalityDisabled
+      ? []
+      : [
+          {
+            key: 'personality',
+            label: t('settings.personality'),
+            icon: IconMoodSmile,
+          },
+        ]),
     {
       key: 'instances',
       label: t('settings.instances'),
@@ -172,7 +180,14 @@ function Settings() {
           <Route path="runtime" element={<Runtime />} />
           <Route path="local-model" element={<LocalModel />} />
           <Route path="default-model" element={<DefaultModel />} />
-          <Route path="personality" element={<Personality />} />
+          {personalityDisabled ? (
+            <Route
+              path="personality"
+              element={<Navigate to="/settings/general" replace />}
+            />
+          ) : (
+            <Route path="personality" element={<Personality />} />
+          )}
           <Route path="instances" element={<Instances />} />
           <Route path="channels" element={<Channels />} />
           <Route path="secrets" element={<Secrets />} />

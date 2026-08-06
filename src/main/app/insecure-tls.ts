@@ -1,6 +1,6 @@
 import { session } from 'electron';
 
-let insecureTlsEnabled = false;
+let insecureTlsEnabled = process.env.TLS_REJECT_UNAUTHORIZED === 'true' ? true : false;
 
 export function isInsecureTlsEnabled(): boolean {
   return insecureTlsEnabled;
