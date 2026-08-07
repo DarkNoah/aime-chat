@@ -50,6 +50,8 @@ export type UpdateKnowledgeBase = {
   name: string;
   description?: string;
   tags?: string[];
+  embedding?: string;
+  reembed?: boolean;
   reranker?: string;
   returnChunkCount?: number;
   forceReturnFullContent?: boolean;
@@ -81,7 +83,16 @@ export type SearchKnowledgeBaseItemResult = {
 
 export enum KnowledgeBaseEvent {
   KnowledgeBaseItemsUpdated = 'knowledge-base:knowledge-base-items-updated',
+  ReembeddingProgress = 'knowledge-base:reembedding-progress',
 }
+
+export type KnowledgeBaseReembeddingProgress = {
+  kbId: string;
+  completed: number;
+  total: number;
+  progress: number;
+  stage: 'preparing' | 'embedding' | 'committing' | 'completed';
+};
 
 export type KnowledgeBaseSQLiteImportMode = 'overwrite' | 'append';
 

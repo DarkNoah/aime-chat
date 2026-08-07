@@ -399,7 +399,7 @@ const electronHandler = {
   knowledgeBase: {
     create: (data: CreateKnowledgeBase): Promise<KnowledgeBase> =>
       ipcRenderer.invoke(KnowledgeBaseChannel.Create, data),
-    update: (id: string, data: UpdateKnowledgeBase) =>
+    update: (id: string, data: UpdateKnowledgeBase): Promise<KnowledgeBase> =>
       ipcRenderer.invoke(KnowledgeBaseChannel.Update, id, data),
     delete: (id: string) => ipcRenderer.invoke(KnowledgeBaseChannel.Delete, id),
     get: (id: string) => ipcRenderer.invoke(KnowledgeBaseChannel.Get, id),

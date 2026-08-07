@@ -7,6 +7,7 @@ import {
   CreateKnowledgeBase,
   KnowledgeBaseEvent,
   KnowledgeBaseItemState,
+  KnowledgeBaseReembeddingProgress,
   KnowledgeBaseSQLiteImportMode,
   KnowledgeBaseSQLiteInfo,
   KnowledgeBaseSourceType,
@@ -15,7 +16,7 @@ import {
   UpdateKnowledgeBase,
 } from '@/types/knowledge-base';
 import { In, Repository } from 'typeorm';
-import { Client as LibSQLClient } from '@libsql/client';
+import { Client as LibSQLClient, Value } from '@libsql/client';
 import { MDocument } from "@mastra/rag";
 import { nanoid } from '@/utils/nanoid';
 import { providersManager } from '../providers';
@@ -58,10 +59,57 @@ type ExtendColumnValue = {
   value: any;
 };
 
+type VectorTableColumn = {
+  name: string;
+  type: string;
+  notNull: boolean;
+  defaultValue: Value;
+  primaryKey: boolean;
+};
+
+type ReembeddingRow = {
+  values: Record<string, Value>;
+  embedding?: number[];
+};
+
+const REEMBEDDING_BATCH_SIZE = 32;
+
+const quoteIdentifier = (identifier: string): string =>
+  `"${identifier.replace(/"/g, '""')}"`;
+
+const vectorTableName = (kbId: string, vectorLength: number): string =>
+  `kb_${kbId}_${vectorLength}`;
+
+const valuesEqual = (left: Value, right: Value): boolean => {
+  if (left instanceof ArrayBuffer && right instanceof ArrayBuffer) {
+    const leftBytes = new Uint8Array(left);
+    const rightBytes = new Uint8Array(right);
+    return (
+      leftBytes.length === rightBytes.length &&
+      leftBytes.every((value, index) => value === rightBytes[index])
+    );
+  }
+  return left === right;
+};
+
+const rowsEqual = (
+  left: Record<string, Value>[],
+  right: Record<string, Value>[],
+  columns: string[],
+): boolean =>
+  left.length === right.length &&
+  left.every((row, rowIndex) =>
+    columns.every((column) =>
+      valuesEqual(row[column], right[rowIndex][column]),
+    ),
+  );
+
 export class KnowledgeBaseManager extends BaseManager {
   knowledgeBaseRepository: Repository<KnowledgeBase>;
   knowledgeBaseItemRepository: Repository<KnowledgeBaseItem>;
   libSQLClient: LibSQLClient;
+  private activeReembeddings = new Set<string>();
+  private windowWasClosable: boolean | undefined;
   public async init() {
     this.knowledgeBaseRepository =
       dbManager.dataSource.getRepository(KnowledgeBase);
@@ -132,6 +180,393 @@ export class KnowledgeBaseManager extends BaseManager {
     const modelPath = path.join(appInfo.modelPath, 'clip', modeId);
     const model = new LocalCLIPModel(modeId, modelPath);
     return model.cosineSimilarity(new Float32Array(embedding1), new Float32Array(embedding2));
+  }
+
+  private assertKnowledgeBaseNotReembedding(kbId: string): void {
+    if (this.activeReembeddings.has(kbId)) {
+      throw new Error('Knowledge base is being re-embedded');
+    }
+  }
+
+  private setWindowLockedForReembedding(locked: boolean): void {
+    try {
+      const mainWindow = appManager.getMainWindow?.();
+      if (!mainWindow || mainWindow.isDestroyed()) return;
+      if (locked && this.activeReembeddings.size === 1) {
+        this.windowWasClosable = mainWindow.isClosable();
+        mainWindow.setClosable(false);
+      } else if (!locked && this.activeReembeddings.size === 0) {
+        mainWindow.setClosable(this.windowWasClosable ?? true);
+        this.windowWasClosable = undefined;
+      }
+    } catch (error) {
+      console.error('[knowledge-base] failed to update window close state', error);
+    }
+  }
+
+  private async sendReembeddingProgress(
+    progress: KnowledgeBaseReembeddingProgress,
+  ): Promise<void> {
+    try {
+      await appManager.sendEvent(
+        KnowledgeBaseEvent.ReembeddingProgress,
+        progress,
+      );
+    } catch (error) {
+      console.error(
+        '[knowledge-base] failed to send re-embedding progress',
+        error,
+      );
+    }
+  }
+
+  private validateEmbeddingBatch(
+    embeddings: number[][] | undefined,
+    expectedCount: number,
+    currentDimension: number,
+  ): number {
+    if (!embeddings || embeddings.length !== expectedCount) {
+      throw new Error(
+        'Embedding generation returned an unexpected result count',
+      );
+    }
+
+    let dimension = currentDimension;
+    for (const embedding of embeddings) {
+      if (
+        embedding.length === 0 ||
+        embedding.some((value) => !Number.isFinite(value))
+      ) {
+        throw new Error('Embedding generation returned an invalid vector');
+      }
+      if (dimension === 0) {
+        dimension = embedding.length;
+      } else if (embedding.length !== dimension) {
+        throw new Error(
+          'Embedding generation returned inconsistent vector dimensions',
+        );
+      }
+    }
+    return dimension;
+  }
+
+  private async reembedKnowledgeBase(
+    kb: KnowledgeBase,
+    data: UpdateKnowledgeBase,
+    embedding: string | undefined,
+  ): Promise<KnowledgeBase> {
+    this.assertKnowledgeBaseNotReembedding(kb.id);
+    this.activeReembeddings.add(kb.id);
+    this.setWindowLockedForReembedding(true);
+
+    try {
+      const activeImports = (
+        await taskQueueManager.getTasksByGroup(`kb-import-${kb.id}`)
+      ).filter((task) =>
+        ['pending', 'running', 'paused'].includes(task.status),
+      );
+      if (activeImports.length > 0) {
+        throw new Error(
+          'Wait for all knowledge base imports to finish before changing the embedding model',
+        );
+      }
+
+      await this.sendReembeddingProgress({
+        kbId: kb.id,
+        completed: 0,
+        total: 0,
+        progress: 0,
+        stage: 'preparing',
+      });
+
+      const oldTable = vectorTableName(kb.id, kb.vectorLength ?? 0);
+      const schemaResult = await this.libSQLClient.execute(
+        `PRAGMA table_info(${quoteIdentifier(oldTable)})`,
+      );
+      const schema: VectorTableColumn[] = schemaResult.rows.map((row) => ({
+        name: String(row.name),
+        type: String(row.type ?? ''),
+        notNull: Number(row.notnull) === 1,
+        defaultValue: row.dflt_value as Value,
+        primaryKey: Number(row.pk) > 0,
+      }));
+      if (schema.length === 0) {
+        throw new Error('Knowledge base vector table not found');
+      }
+
+      const sourceColumns = schema
+        .map((column) => column.name)
+        .filter((name) => name !== 'embedding');
+      const sourceSelect = sourceColumns.map(quoteIdentifier).join(', ');
+      const sourceResult = await this.libSQLClient.execute(
+        `SELECT ${sourceSelect} FROM ${quoteIdentifier(oldTable)} ORDER BY ${quoteIdentifier('id')}`,
+      );
+      const sourceRows = sourceResult.rows.map((row) =>
+        Object.fromEntries(
+          sourceColumns.map((column) => [column, row[column] as Value]),
+        ),
+      );
+      const cachedRows: ReembeddingRow[] = sourceRows.map((values) => ({
+        values,
+      }));
+
+      let completed = 0;
+      let vectorLength = 0;
+      const reportEmbeddingProgress = async () => {
+        await this.sendReembeddingProgress({
+          kbId: kb.id,
+          completed,
+          total: cachedRows.length,
+          progress:
+            cachedRows.length === 0
+              ? 85
+              : Math.round(5 + (completed / cachedRows.length) * 80),
+          stage: 'embedding',
+        });
+      };
+
+      if (embedding) {
+        const textRows = cachedRows.filter(
+          (row) => String(row.values.type ?? 'text') !== 'image',
+        );
+        for (
+          let offset = 0;
+          offset < textRows.length;
+          offset += REEMBEDDING_BATCH_SIZE
+        ) {
+          const batch = textRows.slice(offset, offset + REEMBEDDING_BATCH_SIZE);
+          const texts = batch.map((row) => {
+            if (typeof row.values.chunk !== 'string') {
+              throw new Error('A text chunk has no content to embed');
+            }
+            return row.values.chunk;
+          });
+          const result = await this.calcEmbeddings(embedding, texts);
+          vectorLength = this.validateEmbeddingBatch(
+            result?.text_embeddings,
+            batch.length,
+            vectorLength,
+          );
+          batch.forEach((row, index) => {
+            row.embedding = result!.text_embeddings[index];
+          });
+          completed += batch.length;
+          await reportEmbeddingProgress();
+        }
+
+        const imageRows = cachedRows.filter(
+          (row) => String(row.values.type ?? '') === 'image',
+        );
+        if (imageRows.length > 0) {
+          const items = await this.knowledgeBaseItemRepository.find({
+            where: { knowledgeBaseId: kb.id },
+          });
+          const imageSources = new Map(
+            items.map((item) => [item.id, item.source]),
+          );
+
+          for (
+            let offset = 0;
+            offset < imageRows.length;
+            offset += REEMBEDDING_BATCH_SIZE
+          ) {
+            const batch = imageRows.slice(
+              offset,
+              offset + REEMBEDDING_BATCH_SIZE,
+            );
+            const paths = batch.map((row) => {
+              const itemId = String(row.values.item_id ?? '');
+              const source = imageSources.get(itemId);
+              if (typeof source !== 'string' || source.length === 0) {
+                throw new Error(
+                  `Image source is unavailable for item ${itemId}`,
+                );
+              }
+              return source;
+            });
+            const result = await this.calcEmbeddings(embedding, [], paths);
+            vectorLength = this.validateEmbeddingBatch(
+              result?.image_embeddings,
+              batch.length,
+              vectorLength,
+            );
+            batch.forEach((row, index) => {
+              row.embedding = result!.image_embeddings![index];
+            });
+            completed += batch.length;
+            await reportEmbeddingProgress();
+          }
+        }
+
+        if (cachedRows.length === 0) {
+          const result = await this.calcEmbeddings(embedding, ['Hello']);
+          vectorLength = this.validateEmbeddingBatch(
+            result?.text_embeddings,
+            1,
+            vectorLength,
+          );
+          await reportEmbeddingProgress();
+        }
+      } else {
+        completed = cachedRows.length;
+        await reportEmbeddingProgress();
+      }
+
+      await this.sendReembeddingProgress({
+        kbId: kb.id,
+        completed,
+        total: cachedRows.length,
+        progress: 90,
+        stage: 'committing',
+      });
+
+      const targetSchema = schema.filter(
+        (column) => column.name !== 'embedding',
+      );
+      if (embedding) {
+        const metadataIndex = targetSchema.findIndex(
+          (column) => column.name === 'metadata',
+        );
+        targetSchema.splice(
+          metadataIndex < 0 ? targetSchema.length : metadataIndex,
+          0,
+          {
+            name: 'embedding',
+            type: `F32_BLOB(${vectorLength})`,
+            notNull: false,
+            defaultValue: null,
+            primaryKey: false,
+          },
+        );
+      }
+
+      const createColumns = targetSchema.map((column) => {
+        if (!/^[A-Za-z0-9_(), ]*$/.test(column.type)) {
+          throw new Error(
+            `Unsupported vector table column type: ${column.type}`,
+          );
+        }
+        const defaultSql =
+          column.defaultValue === null ||
+          typeof column.defaultValue === 'undefined'
+            ? ''
+            : ` DEFAULT ${String(column.defaultValue)}`;
+        return `${quoteIdentifier(column.name)} ${column.type}${
+          column.notNull ? ' NOT NULL' : ''
+        }${defaultSql}${column.primaryKey ? ' PRIMARY KEY' : ''}`;
+      });
+      const targetTable = vectorTableName(kb.id, vectorLength);
+      const temporaryTable = `kb_reembed_${kb.id}_${nanoid()}`;
+      const transaction = await this.libSQLClient.transaction('write');
+
+      try {
+        const currentResult = await transaction.execute(
+          `SELECT ${sourceSelect} FROM ${quoteIdentifier(oldTable)} ORDER BY ${quoteIdentifier('id')}`,
+        );
+        const currentRows = currentResult.rows.map((row) =>
+          Object.fromEntries(
+            sourceColumns.map((column) => [column, row[column] as Value]),
+          ),
+        );
+        if (!rowsEqual(sourceRows, currentRows, sourceColumns)) {
+          throw new Error(
+            'Knowledge base content changed while embeddings were being generated',
+          );
+        }
+
+        await transaction.execute(
+          `CREATE TABLE ${quoteIdentifier(temporaryTable)} (${createColumns.join(', ')})`,
+        );
+
+        const targetColumns = targetSchema.map((column) => column.name);
+        const insertSql = `INSERT INTO ${quoteIdentifier(temporaryTable)} (${targetColumns
+          .map(quoteIdentifier)
+          .join(', ')}) VALUES (${targetColumns
+          .map((column) => (column === 'embedding' ? 'vector32(?)' : '?'))
+          .join(', ')})`;
+        for (
+          let offset = 0;
+          offset < cachedRows.length;
+          offset += REEMBEDDING_BATCH_SIZE
+        ) {
+          const batch = cachedRows.slice(
+            offset,
+            offset + REEMBEDDING_BATCH_SIZE,
+          );
+          await transaction.batch(
+            batch.map((row) => ({
+              sql: insertSql,
+              args: targetColumns.map((column) =>
+                column === 'embedding'
+                  ? JSON.stringify(row.embedding)
+                  : row.values[column],
+              ),
+            })),
+          );
+        }
+
+        const updateClauses = [
+          'name = ?',
+          'description = ?',
+          'embedding = ?',
+          'vectorLength = ?',
+          'updatedAt = CURRENT_TIMESTAMP',
+        ];
+        const updateArgs: any[] = [
+          data.name,
+          data.description ?? kb.description ?? '',
+          embedding ?? null,
+          vectorLength,
+        ];
+        if (typeof data.reranker !== 'undefined') {
+          updateClauses.push('reranker = ?');
+          updateArgs.push(data.reranker);
+        }
+        if (typeof data.forceReturnFullContent !== 'undefined') {
+          updateClauses.push('forceReturnFullContent = ?');
+          updateArgs.push(data.forceReturnFullContent);
+        }
+        if (typeof data.tags !== 'undefined') {
+          updateClauses.push('tags = ?');
+          updateArgs.push(JSON.stringify(data.tags));
+        }
+        updateArgs.push(kb.id);
+
+        if (targetTable !== oldTable) {
+          await transaction.execute(
+            `DROP TABLE IF EXISTS ${quoteIdentifier(targetTable)}`,
+          );
+        }
+        await transaction.execute(`DROP TABLE ${quoteIdentifier(oldTable)}`);
+        await transaction.execute(
+          `ALTER TABLE ${quoteIdentifier(temporaryTable)} RENAME TO ${quoteIdentifier(targetTable)}`,
+        );
+        await transaction.execute({
+          sql: `UPDATE knowledgebase SET ${updateClauses.join(', ')} WHERE id = ?`,
+          args: updateArgs,
+        });
+        await transaction.commit();
+      } catch (error) {
+        if (!transaction.closed) {
+          await transaction.rollback();
+        }
+        throw error;
+      } finally {
+        transaction.close();
+      }
+
+      await this.sendReembeddingProgress({
+        kbId: kb.id,
+        completed: cachedRows.length,
+        total: cachedRows.length,
+        progress: 100,
+        stage: 'completed',
+      });
+      return await this.getKnowledgeBase(kb.id);
+    } finally {
+      this.activeReembeddings.delete(kb.id);
+      this.setWindowLockedForReembedding(false);
+    }
   }
 
   private async ensureFtsIndexes(): Promise<void> {
@@ -299,16 +734,37 @@ export class KnowledgeBaseManager extends BaseManager {
   }
 
   @channel(KnowledgeBaseChannel.Update)
-  public async updateKnowledgeBase(id: string, data: UpdateKnowledgeBase) {
+  public async updateKnowledgeBase(
+    id: string,
+    data: UpdateKnowledgeBase,
+  ): Promise<KnowledgeBase> {
+    this.assertKnowledgeBaseNotReembedding(id);
     const kb = await this.knowledgeBaseRepository.findOneBy({ id });
     if (!kb) {
       throw new Error('Knowledge base not found');
     }
-    await this.knowledgeBaseRepository.update(id, data);
+    const embeddingWasProvided = Object.prototype.hasOwnProperty.call(
+      data,
+      'embedding',
+    );
+    const nextEmbedding = embeddingWasProvided
+      ? data.embedding?.trim() || undefined
+      : kb.embedding;
+    if (nextEmbedding !== kb.embedding) {
+      if (!data.reembed) {
+        throw new Error('Changing the embedding model requires re-embedding');
+      }
+      return await this.reembedKnowledgeBase(kb, data, nextEmbedding);
+    }
+
+    const { embedding: _embedding, reembed: _reembed, ...updates } = data;
+    await this.knowledgeBaseRepository.update(id, updates);
+    return await this.getKnowledgeBase(id);
   }
 
   @channel(KnowledgeBaseChannel.Delete)
   public async deleteKnowledgeBase(id: string) {
+    this.assertKnowledgeBaseNotReembedding(id);
     const kb = await this.knowledgeBaseRepository.findOneBy({ id });
     if (!kb) {
       throw new Error('Knowledge base not found');
@@ -765,6 +1221,7 @@ export class KnowledgeBaseManager extends BaseManager {
     if (!kb) {
       throw new Error('Knowledge base not found');
     }
+    this.assertKnowledgeBaseNotReembedding(kb.id);
 
     const nextName =
       typeof data.name === 'string' && data.name.trim().length > 0
@@ -861,6 +1318,7 @@ export class KnowledgeBaseManager extends BaseManager {
     if (!item) {
       throw new Error('Knowledge base item not found');
     }
+    this.assertKnowledgeBaseNotReembedding(item.knowledgeBaseId);
     await this.deleteChunkRows(item.knowledgeBase, item.id);
     await this.knowledgeBaseItemRepository.delete(id);
   }
@@ -880,6 +1338,8 @@ export class KnowledgeBaseManager extends BaseManager {
 
 
     // 输入校验
+    this.assertKnowledgeBaseNotReembedding(kbId);
+
     let taskName = '';
     if (type == KnowledgeBaseSourceType.Web && isUrl(source.url)) {
       taskName = `导入网页: ${source.url}`;
@@ -1038,7 +1498,7 @@ export class KnowledgeBaseManager extends BaseManager {
           separators: ["\n"],
           extract: {
             metadata: true,
-          },
+          } as any,
         });
 
         const embeddings = kb.embedding
@@ -1131,7 +1591,7 @@ export class KnowledgeBaseManager extends BaseManager {
               }).execute({
                 file_source: file,
                 args: {}
-              }, {});
+              }, {} as any);
             }
             catch (err) {
               console.error(err);
