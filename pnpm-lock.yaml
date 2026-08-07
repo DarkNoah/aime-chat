@@ -117,9 +117,6 @@ importers:
       '@excalidraw/excalidraw':
         specifier: ^0.18.0-a18b139
         version: 0.18.0(@types/react-dom@19.2.3(@types/react@19.2.7))(@types/react@19.2.7)(immer@10.2.0)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-      '@firecrawl/anydoc':
-        specifier: ^0.1.6
-        version: 0.1.6
       '@google/genai':
         specifier: ^1.29.0
         version: 1.30.0(@modelcontextprotocol/sdk@1.23.0(@cfworker/json-schema@4.1.1)(zod@3.25.76))(bufferutil@4.1.0)
@@ -2389,57 +2386,6 @@ packages:
 
   '@fast-csv/parse@4.3.6':
     resolution: {integrity: sha512-uRsLYksqpbDmWaSmzvJcuApSEe38+6NQZBUsuAyMZKqHxH0g1wcJgsKUvN3WC8tewaqFjBMMGrkHmC+T7k8LvA==}
-
-  '@firecrawl/anydoc-darwin-arm64@0.1.6':
-    resolution: {integrity: sha512-2745ZMZ6mPv2ak9j/sz6DDj4+hC9Eg1Lsipya9bHJMm8/WIOtgBF1XW04qKdFEWJQB5VdQ0o1J1tHaEyoUcIpQ==}
-    engines: {node: '>= 20'}
-    cpu: [arm64]
-    os: [darwin]
-
-  '@firecrawl/anydoc-darwin-x64@0.1.6':
-    resolution: {integrity: sha512-kGM0V5mcv/Ut2kVvtWUjH/iPXHdMwUbn4Kyh85lCm6FCgeieD+GYXVREdI3nPUEGMZGdX5i3uEh5sPyIYqGNYA==}
-    engines: {node: '>= 20'}
-    cpu: [x64]
-    os: [darwin]
-
-  '@firecrawl/anydoc-linux-arm64-gnu@0.1.6':
-    resolution: {integrity: sha512-ZHA7gNIltemhC6dEMnT2fc49Lo9ucpw6WsxtHBfXgKAZ9beZ5lDMzhZgaFpKSlv+vcnK7cFlOIg5RtRSuZjMlQ==}
-    engines: {node: '>= 20'}
-    cpu: [arm64]
-    os: [linux]
-    libc: [glibc]
-
-  '@firecrawl/anydoc-linux-arm64-musl@0.1.6':
-    resolution: {integrity: sha512-mnfxDROQ4JWViWOh/58CK+RZBKoUwA4+e02ctUaPqMiBB4tXuxb5s8b5zr3J6ySgvoqe8qJ9UaTcOru1kY0sKg==}
-    engines: {node: '>= 20'}
-    cpu: [arm64]
-    os: [linux]
-    libc: [musl]
-
-  '@firecrawl/anydoc-linux-x64-gnu@0.1.6':
-    resolution: {integrity: sha512-bQLhBBeBuNQeRDORwkhUSYjt0+oPYtBt5eLZ5wLf8xFLJmor6e1/yx8CiJBqD93bYbpfqh0r8v6sb+pVsVCgCw==}
-    engines: {node: '>= 20'}
-    cpu: [x64]
-    os: [linux]
-    libc: [glibc]
-
-  '@firecrawl/anydoc-linux-x64-musl@0.1.6':
-    resolution: {integrity: sha512-W/kV3UBBJQ0vPH7ph2UX0XBJq5Qv0L33aZnYw1yFJ5RSSd/PGxSO6xEsyXsOib4SQ7APUq3fp6P5Drj5elfG1Q==}
-    engines: {node: '>= 20'}
-    cpu: [x64]
-    os: [linux]
-    libc: [musl]
-
-  '@firecrawl/anydoc-win32-x64-msvc@0.1.6':
-    resolution: {integrity: sha512-HKcG9YUSb7m9QfwXRaYpgGMkkkByM2dY/KGqFwQJRLtSoMGnQ9pYZSeqRVXsfG+5YXixVTfO4l4Zph54G2RQmg==}
-    engines: {node: '>= 20'}
-    cpu: [x64]
-    os: [win32]
-
-  '@firecrawl/anydoc@0.1.6':
-    resolution: {integrity: sha512-zA7xwFn7MHvdb6FOPoRJu3oG0A6sP7zyFIKvp7sGptKfTyU1oqP0yNiAT9oOrRYBvS0gAUHkrfOClplGZXLM7g==}
-    engines: {node: '>= 20'}
-    hasBin: true
 
   '@floating-ui/core@1.7.3':
     resolution: {integrity: sha512-sGnvb5dmrJaKEZ+LDIpguvdX3bDlEllmv4/ClQ9awcmCZrlx5jQyyMWFM5kBI+EyNOCDDiKk8il0zeuX3Zlg/w==}
@@ -17504,37 +17450,6 @@ snapshots:
       lodash.isnil: 4.0.0
       lodash.isundefined: 3.0.1
       lodash.uniq: 4.5.0
-
-  '@firecrawl/anydoc-darwin-arm64@0.1.6':
-    optional: true
-
-  '@firecrawl/anydoc-darwin-x64@0.1.6':
-    optional: true
-
-  '@firecrawl/anydoc-linux-arm64-gnu@0.1.6':
-    optional: true
-
-  '@firecrawl/anydoc-linux-arm64-musl@0.1.6':
-    optional: true
-
-  '@firecrawl/anydoc-linux-x64-gnu@0.1.6':
-    optional: true
-
-  '@firecrawl/anydoc-linux-x64-musl@0.1.6':
-    optional: true
-
-  '@firecrawl/anydoc-win32-x64-msvc@0.1.6':
-    optional: true
-
-  '@firecrawl/anydoc@0.1.6':
-    optionalDependencies:
-      '@firecrawl/anydoc-darwin-arm64': 0.1.6
-      '@firecrawl/anydoc-darwin-x64': 0.1.6
-      '@firecrawl/anydoc-linux-arm64-gnu': 0.1.6
-      '@firecrawl/anydoc-linux-arm64-musl': 0.1.6
-      '@firecrawl/anydoc-linux-x64-gnu': 0.1.6
-      '@firecrawl/anydoc-linux-x64-musl': 0.1.6
-      '@firecrawl/anydoc-win32-x64-msvc': 0.1.6
 
   '@floating-ui/core@1.7.3':
     dependencies:
