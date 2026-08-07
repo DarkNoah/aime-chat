@@ -71,11 +71,11 @@ class ProvidersManager extends BaseManager {
         } else {
           provider = new Providers();
           provider.id = key;
+          provider.apiKey = value.apiKey;
         }
         provider.name = value.name;
         provider.type = value.type;
         provider.isActive = value.isActive;
-        provider.apiKey = value.apiKey;
         provider.apiBase = value.apiBase;
         provider.models = value.models;
         provider.isStatic = value?.isStatic !== undefined ? value.isStatic : true;
