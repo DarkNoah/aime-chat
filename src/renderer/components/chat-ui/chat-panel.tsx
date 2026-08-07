@@ -1026,6 +1026,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
           );
         };
         getThread();
+        setFetching(false);
         eventBus.on(`chat:onData:${threadId}`, (event: any) => {
           if (event.type === 'data-compress-start') {
             setCompressing(true);
@@ -1072,6 +1073,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
           ChatEvent.ChatPendingMessageConsumed,
           handlePendingConsumed,
         );
+
 
         return () => {
           unregisterThread(threadId, true);
@@ -1289,17 +1291,17 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
               threadState?.messages,
               threadState?.status,
             ) && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="w-fit"
-                onClick={handleRetry}
-              >
-                <RefreshCwIcon className="size-3.5" />
-                {t('common.retry')}
-              </Button>
-            )}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-fit"
+                  onClick={handleRetry}
+                >
+                  <RefreshCwIcon className="size-3.5" />
+                  {t('common.retry')}
+                </Button>
+              )}
             {threadState?.messages.length > 0 && <div className="pb-20"></div>}
           </ConversationContent>
           <ConversationScrollButton className="z-10 backdrop-blur" />
