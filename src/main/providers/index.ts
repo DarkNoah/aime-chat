@@ -72,13 +72,13 @@ class ProvidersManager extends BaseManager {
           provider = new Providers();
           provider.id = key;
           provider.apiKey = value.apiKey;
+          provider.name = value.name;
+          provider.type = value.type;
+          provider.isActive = value.isActive;
+          provider.apiBase = value.apiBase;
+          provider.models = value.models;
+          provider.isStatic = value?.isStatic !== undefined ? value.isStatic : true;
         }
-        provider.name = value.name;
-        provider.type = value.type;
-        provider.isActive = value.isActive;
-        provider.apiBase = value.apiBase;
-        provider.models = value.models;
-        provider.isStatic = value?.isStatic !== undefined ? value.isStatic : true;
         await this.repository.save(provider);
       }
     }
