@@ -581,8 +581,12 @@ class ToolsManager extends BaseManager {
             name: 'Agent',
             instructions: instructions ?? `You are a helpful assistant.`,
             model,
+            maxRetries: 3,
           });
-          const response = await agent.generate(normalizedMessages);
+
+          const response = await agent.generate(normalizedMessages, {
+            abortSignal: v.signal,
+          });
 
           if (response.error) {
             throw new Error(response.error);
