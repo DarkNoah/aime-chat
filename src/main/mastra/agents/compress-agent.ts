@@ -6,5 +6,6 @@ const compressAgent = new Agent({
   instructions:
     'You are a helpful AI assistant tasked with summarizing conversations.',
   model: 'openai/gpt-5-mini',
+  maxRetries: 3,
 });
 export default compressAgent;

@@ -2591,7 +2591,7 @@ IMPORTANT: Do NOT use any tools. You MUST respond with ONLY the <summary>...</su
           azure: {
             maxTokens: 20000
           },
-        }
+        },
       });
 
       function getTagContent(text, tag) {
@@ -2642,7 +2642,7 @@ IMPORTANT: Do NOT use any tools. You MUST respond with ONLY the <summary>...</su
       return {
         compressedMessage: undefined,
         keepMessages: messages.slice(lastAssistantIndex),
-        hasCompressed: false,
+        hasCompressed: true,
         error: true,
         errorMessage: err?.message || 'Unknown error',
       };
