@@ -91957,9 +91957,9 @@
           "output": 131072
         },
         "cost": {
-          "input": 0.952,
-          "output": 2.992,
-          "cache_read": 0.1768
+          "input": 1.4,
+          "output": 4.4,
+          "cache_read": 0.26
         }
       },
       "z-ai/glm-4.7-flash": {
@@ -92033,12 +92033,12 @@
         "open_weights": true,
         "limit": {
           "context": 1048576,
-          "output": 131072
+          "output": 262144
         },
         "cost": {
-          "input": 0.0812,
-          "output": 0.2552,
-          "cache_read": 0.01508
+          "input": 0.76,
+          "output": 2.42,
+          "cache_read": 0.14
         }
       },
       "z-ai/glm-4.6": {
@@ -92481,9 +92481,9 @@
           "output": 262144
         },
         "cost": {
-          "input": 0.5795,
-          "output": 2.44,
-          "cache_read": 0.0976
+          "input": 0.95,
+          "output": 4,
+          "cache_read": 0.16
         }
       },
       "moonshotai/kimi-k2.7-code": {
@@ -164345,8 +164345,8 @@
         },
         "open_weights": true,
         "limit": {
-          "context": 1048576,
-          "output": 131072
+          "context": 262144,
+          "output": 262144
         },
         "cost": {
           "input": 1.4,

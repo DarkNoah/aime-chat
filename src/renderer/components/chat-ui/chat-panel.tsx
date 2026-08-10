@@ -1025,8 +1025,10 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
             },
           );
         };
-        getThread();
-        setFetching(false);
+        getThread().finally(() => {
+          setFetching(false);
+        })
+
         eventBus.on(`chat:onData:${threadId}`, (event: any) => {
           if (event.type === 'data-compress-start') {
             setCompressing(true);
@@ -1074,7 +1076,6 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
           ChatEvent.ChatPendingMessageConsumed,
           handlePendingConsumed,
         );
-
 
         return () => {
           unregisterThread(threadId, true);
@@ -1267,7 +1268,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
               <Alert className="w-fit bg-muted">
                 <Loader className="size-4 animate-spin" />
                 <AlertTitle className="text-xs">
-                  {t('common.chat_retrying', {
+                  {t('chat.chat_retrying', {
                     attempt: retrying.attempt,
                     max: retrying.maxRetries,
                     delay: Math.ceil(retrying.delay / 1000),
