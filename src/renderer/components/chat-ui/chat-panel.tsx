@@ -1032,6 +1032,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
             setCompressing(true);
           } else if (event.type === 'data-compress-end') {
             setCompressing(false);
+            getThread();
           } else if (event.type === 'data-chat-retry') {
             setRetrying(event.data as ChatRetryState);
           } else if (event.type === 'data-chat-retry-end') {
