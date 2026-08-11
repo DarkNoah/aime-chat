@@ -877,14 +877,15 @@ export async function installPaddleOcrRuntime() {
     },
   );
 
-  const result3 = await runCommand(
-    `${isWindows ? "& " : ""}"${uvPreCommand}" run --project "${paddleOcrDir}" paddleocr pp_structurev3 -i "${getAssetPath('runtime', 'paddleocr-runtime', 'test-image.png')}"`,
+  // Prewarm RapidOCR so its ONNX models are ready before the first OCR request.
+  const rapidOcrTestResult = await runCommand(
+    `${isWindows ? "& " : ""}"${uvPreCommand}" run --project "${paddleOcrDir}" rapidocr -img "${getAssetPath('runtime', 'paddleocr-runtime', 'test-image.png')}"`,
     {
       cwd: uvRuntime?.dir,
       usePowerShell: isWindows,
     },
   );
-  if (result2.code === 0) {
+  if (result2.code === 0 && rapidOcrTestResult.code === 0) {
     paddleOcr.status = 'installed';
     paddleOcr.installed = true;
     paddleOcr.path = paddleOcrDir;

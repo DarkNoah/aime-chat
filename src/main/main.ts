@@ -45,9 +45,9 @@ import { requestLogManager } from './app/request-logs';
 
 // 设置为 "true" 时禁用初始化向导（不再跳转到 /setup 页面），其他任何值均不生效
 // process.env.DISABLE_SETUP = "true";
-
+process.env.DEFAULT_OCR_MODEL = 'rapidocr'
 process.env.API_SERVER_ENABLED = 'true'
-
+process.env.TLS_REJECT_UNAUTHORIZED = 'false'
 initCrashReporter();
 
 // process.env.DEFAULT_PROVIDER_ID = "openai"

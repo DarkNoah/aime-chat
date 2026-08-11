@@ -157,6 +157,7 @@ export enum ProjectChannel {
   CreateThread = 'project:createThread',
   DeleteSkill = 'project:deleteSkill',
   OpenWith = 'project:openWith',
+  ExportMessages = 'project:exportMessages',
 }
 
 export enum TaskQueueChannel {

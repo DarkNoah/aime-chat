@@ -17,13 +17,14 @@ export type SetupStatus = {
   hasProvider: boolean;
   hasDefaultModel: boolean;
   hasRuntime: boolean;
+  personalityDisabled: boolean;
 };
 
 type GlobalState = {
   appInfo?: AppInfo;
   user?: string;
   setUser: (user?: string) => void;
-  getAppInfo: () => Promise<void>;
+  getAppInfo: () => Promise<AppInfo>;
   setWindowMode: (
     mode: WindowMode,
     persist: boolean,
@@ -43,6 +44,7 @@ export function GlobalProvider({ children }: { children: ReactNode }) {
     const data = await window.electron.app.getInfo();
     console.log('appInfo', data);
     setAppInfo(data);
+    return data;
   }, []);
 
   const getSetupStatus = useCallback(async (): Promise<SetupStatus> => {

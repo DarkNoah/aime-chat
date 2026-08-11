@@ -17,6 +17,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -32,12 +33,12 @@ import {
   SelectValue,
 } from '@/renderer/components/ui/select';
 import {
-  CreateKnowledgeBase,
   KnowledgeBase,
+  KnowledgeBaseEvent,
+  KnowledgeBaseReembeddingProgress,
   KnowledgeBaseSQLiteImportMode,
   KnowledgeBaseSQLiteInfo,
   KnowledgeBaseVectorStoreConfig,
-  UpdateKnowledgeBase,
   VectorStoreType,
 } from '@/types/knowledge-base';
 import { FieldGroup } from '@/renderer/components/ui/field';
@@ -85,6 +86,17 @@ import {
 import { Switch } from '@/renderer/components/ui/switch';
 import toast from 'react-hot-toast';
 import { useGlobal } from '@/renderer/hooks/use-global';
+import { Progress } from '@/renderer/components/ui/progress';
+
+type KnowledgeBaseFormValues = {
+  name: string;
+  description?: string;
+  vectorStoreType: VectorStoreType | string;
+  embedding?: string;
+  reranker?: string;
+  forceReturnFullContent?: boolean;
+  extendColumns?: { name: string; columnType: string }[];
+};
 
 function KnowledgeBasePage() {
   const { setTitle } = useHeader();
@@ -102,8 +114,14 @@ function KnowledgeBasePage() {
     filePath: string;
     info: KnowledgeBaseSQLiteInfo;
   } | null>(null);
+  const [pendingEmbeddingChange, setPendingEmbeddingChange] = useState<{
+    values: KnowledgeBaseFormValues;
+    previousEmbedding?: string;
+  } | null>(null);
+  const [reembeddingProgress, setReembeddingProgress] =
+    useState<KnowledgeBaseReembeddingProgress | null>(null);
 
-  const form = useForm<CreateKnowledgeBase & { extendColumns?: { name: string; columnType: string }[] } | UpdateKnowledgeBase>({
+  const form = useForm<KnowledgeBaseFormValues>({
     mode: 'onChange',
     defaultValues: {
       name: '',
@@ -133,54 +151,97 @@ function KnowledgeBasePage() {
     getData();
   }, [setTitle, t]);
 
-  const handleSubmit = async (values: {
-    name: string;
-    description?: string;
-    vectorStoreType: VectorStoreType | string;
-    embedding?: string;
-    reranker?: string;
-    forceReturnFullContent?: boolean;
-    extendColumns?: { name: string; columnType: string }[];
-  }) => {
+  useEffect(() => {
+    return window.electron.ipcRenderer.on(
+      KnowledgeBaseEvent.ReembeddingProgress,
+      (value: unknown) => {
+        const progress = value as KnowledgeBaseReembeddingProgress;
+        setReembeddingProgress((current) =>
+          current && current.kbId === progress.kbId ? progress : current,
+        );
+      },
+    );
+  }, []);
+
+  const saveKnowledgeBase = async (
+    values: KnowledgeBaseFormValues,
+    reembed = false,
+  ) => {
     if (submitting) return;
+    const knowledgeBaseToUpdate = currentKb;
     try {
       setSubmitting(true);
-      try {
-        if (currentKb) {
-          await window.electron.knowledgeBase.update(currentKb.id, {
-            name: values.name.trim(),
-            description: values.description?.trim() || '',
-            reranker: values.reranker?.trim() || '',
-            forceReturnFullContent: values.forceReturnFullContent || false,
+      if (knowledgeBaseToUpdate) {
+        if (reembed) {
+          setOpen(false);
+          setReembeddingProgress({
+            kbId: knowledgeBaseToUpdate.id,
+            completed: 0,
+            total: 0,
+            progress: 0,
+            stage: 'preparing',
           });
-        } else {
-          const extendColumns = values.extendColumns?.filter(col => col.name?.trim());
-          const vectorStoreConfig: KnowledgeBaseVectorStoreConfig | undefined =
-            extendColumns && extendColumns.length > 0
-              ? { extendColumns: extendColumns.map(col => ({ name: col.name.trim(), columnType: col.columnType as 'text' | 'blob' | 'number' | 'boolean' })) }
-              : undefined;
-          const kb = await window.electron.knowledgeBase.create({
-            name: values.name.trim(),
-            description: values.description?.trim() || '',
-            vectorStoreType: values.vectorStoreType as VectorStoreType,
-            embedding: values.embedding?.trim() || undefined,
-            reranker: values.reranker?.trim() || '',
-            forceReturnFullContent: values.forceReturnFullContent || false,
-            ...(vectorStoreConfig ? { vectorStoreConfig } : {}),
-          });
-          console.log(kb);
-          navigate(`/knowledge-base/${kb.id}`);
         }
-        getData();
-
-        setOpen(false);
-        form.reset();
-      } catch (err) {
-        toast.error(err.message);
+        await window.electron.knowledgeBase.update(knowledgeBaseToUpdate.id, {
+          name: values.name.trim(),
+          description: values.description?.trim() || '',
+          embedding: values.embedding?.trim() || '',
+          reembed,
+          reranker: values.reranker?.trim() || '',
+          forceReturnFullContent: values.forceReturnFullContent || false,
+        });
+      } else {
+        const extendColumns = values.extendColumns?.filter((col) =>
+          col.name?.trim(),
+        );
+        const vectorStoreConfig: KnowledgeBaseVectorStoreConfig | undefined =
+          extendColumns && extendColumns.length > 0
+            ? {
+                extendColumns: extendColumns.map((col) => ({
+                  name: col.name.trim(),
+                  columnType: col.columnType as
+                    | 'text'
+                    | 'blob'
+                    | 'number'
+                    | 'boolean',
+                })),
+              }
+            : undefined;
+        const kb = await window.electron.knowledgeBase.create({
+          name: values.name.trim(),
+          description: values.description?.trim() || '',
+          vectorStoreType: values.vectorStoreType as VectorStoreType,
+          embedding: values.embedding?.trim() || undefined,
+          reranker: values.reranker?.trim() || '',
+          forceReturnFullContent: values.forceReturnFullContent || false,
+          ...(vectorStoreConfig ? { vectorStoreConfig } : {}),
+        });
+        navigate(`/knowledge-base/${kb.id}`);
       }
+      await getData();
+      setOpen(false);
+      form.reset();
+      toast.success(t('common.save_success', '保存成功'));
+    } catch (error) {
+      if (reembed) {
+        setOpen(true);
+      }
+      toast.error(error instanceof Error ? error.message : t('common.error'));
     } finally {
+      setPendingEmbeddingChange(null);
+      setReembeddingProgress(null);
       setSubmitting(false);
     }
+  };
+
+  const handleSubmit = async (values: KnowledgeBaseFormValues) => {
+    const nextEmbedding = values.embedding?.trim() || undefined;
+    const previousEmbedding = currentKb?.embedding?.trim() || undefined;
+    if (currentKb && nextEmbedding !== previousEmbedding) {
+      setPendingEmbeddingChange({ values, previousEmbedding });
+      return;
+    }
+    await saveKnowledgeBase(values);
   };
 
   const handleDelete = async (id: string) => {
@@ -211,6 +272,7 @@ function KnowledgeBasePage() {
     if (data) {
       form.setValue('name', data.name);
       form.setValue('description', data.description);
+      form.setValue('embedding', data.embedding ?? '');
       form.setValue('reranker', data.reranker);
       form.setValue(
         'forceReturnFullContent',
@@ -272,6 +334,24 @@ function KnowledgeBasePage() {
     if (isEditingKnowledgeBase) return t('common.save');
     return t('knowledge-base.new_knowledge-base');
   })();
+  const reembeddingProgressText = (() => {
+    switch (reembeddingProgress?.stage) {
+      case 'embedding':
+        return t(
+          'knowledge-base.reembedding_embedding',
+          '正在使用新模型计算向量…',
+        );
+      case 'committing':
+        return t(
+          'knowledge-base.reembedding_committing',
+          '正在原子更新知识库…',
+        );
+      case 'completed':
+        return t('knowledge-base.reembedding_completed', '重算完成');
+      default:
+        return t('knowledge-base.reembedding_preparing', '正在准备知识库数据…');
+    }
+  })();
 
   return (
     <div className="h-full w-full flex flex-row justify-between">
@@ -287,7 +367,12 @@ function KnowledgeBasePage() {
           >
             <IconUpload></IconUpload>
           </Button>
-          <Dialog open={open} onOpenChange={setOpen}>
+          <Dialog
+            open={open}
+            onOpenChange={(nextOpen) => {
+              if (!submitting) setOpen(nextOpen);
+            }}
+          >
             <DialogTrigger asChild>
               <Button
                 variant="outline"
@@ -375,33 +460,6 @@ function KnowledgeBasePage() {
                             </FormItem>
                           )}
                         />
-                        <FormField
-                          name="embedding"
-                          control={form.control}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel htmlFor="kb-embedding">
-                                {t('knowledge-base.embedding')}
-                              </FormLabel>
-                              <FormControl>
-                                <ChatModelSelect
-                                  type={ModelType.EMBEDDING}
-                                  clearable
-                                  {...field}
-                                  className="border w-full"
-                                ></ChatModelSelect>
-                              </FormControl>
-                              <FormDescription>
-                                {t(
-                                  'knowledge-base.embedding_optional_hint',
-                                  '不选择模型时，将仅使用 BM25 全文检索。',
-                                )}
-                              </FormDescription>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
                         <div className="space-y-2">
                           <div className="flex items-center justify-between">
                             <Label className="text-sm font-medium">
@@ -466,6 +524,32 @@ function KnowledgeBasePage() {
                       </>
                     )}
                     <FormField
+                      name="embedding"
+                      control={form.control}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel htmlFor="kb-embedding">
+                            {t('knowledge-base.embedding')}
+                          </FormLabel>
+                          <FormControl>
+                            <ChatModelSelect
+                              type={ModelType.EMBEDDING}
+                              clearable
+                              {...field}
+                              className="border w-full"
+                            ></ChatModelSelect>
+                          </FormControl>
+                          <FormDescription>
+                            {t(
+                              'knowledge-base.embedding_optional_hint',
+                              '不选择模型时，将仅使用 BM25 全文检索。',
+                            )}
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
                       name="reranker"
                       control={form.control}
                       render={({ field }) => (
@@ -518,6 +602,100 @@ function KnowledgeBasePage() {
                   </DialogFooter>
                 </form>
               </Form>
+            </DialogContent>
+          </Dialog>
+          <Dialog
+            open={Boolean(pendingEmbeddingChange)}
+            onOpenChange={(nextOpen) => {
+              if (!nextOpen && !submitting) {
+                setPendingEmbeddingChange(null);
+              }
+            }}
+          >
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>
+                  {t(
+                    'knowledge-base.reembedding_confirm_title',
+                    '重新计算全部向量？',
+                  )}
+                </DialogTitle>
+                <DialogDescription>
+                  {t(
+                    'knowledge-base.reembedding_confirm_description',
+                    '向量模型已发生变化。使用新模型重新计算全部内容后，才会更新知识库；任一计算失败都会保留原模型和原数据。',
+                  )}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="rounded-md border bg-muted/40 p-3 text-sm space-y-1">
+                <div className="break-all">
+                  {t('knowledge-base.reembedding_old_model', '原模型')}:{' '}
+                  {pendingEmbeddingChange?.previousEmbedding || 'BM25'}
+                </div>
+                <div className="break-all">
+                  {t('knowledge-base.reembedding_new_model', '新模型')}:{' '}
+                  {pendingEmbeddingChange?.values.embedding?.trim() || 'BM25'}
+                </div>
+              </div>
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  disabled={submitting}
+                  onClick={() => setPendingEmbeddingChange(null)}
+                >
+                  {t('common.cancel')}
+                </Button>
+                <Button
+                  type="button"
+                  disabled={submitting}
+                  onClick={() => {
+                    if (!pendingEmbeddingChange) return;
+                    const { values } = pendingEmbeddingChange;
+                    setPendingEmbeddingChange(null);
+                    saveKnowledgeBase(values, true);
+                  }}
+                >
+                  {t(
+                    'knowledge-base.reembedding_confirm_action',
+                    '重新计算并保存',
+                  )}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+          <Dialog open={Boolean(reembeddingProgress)} onOpenChange={() => {}}>
+            <DialogContent
+              showCloseButton={false}
+              onEscapeKeyDown={(event) => event.preventDefault()}
+              onPointerDownOutside={(event) => event.preventDefault()}
+              onInteractOutside={(event) => event.preventDefault()}
+            >
+              <DialogHeader>
+                <DialogTitle>
+                  {t(
+                    'knowledge-base.reembedding_progress_title',
+                    '正在重建知识库向量',
+                  )}
+                </DialogTitle>
+                <DialogDescription>
+                  {t(
+                    'knowledge-base.reembedding_progress_description',
+                    '请等待全部计算完成。此窗口在处理期间不能关闭。',
+                  )}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-3">
+                <Progress value={reembeddingProgress?.progress ?? 0} />
+                <div className="flex items-center justify-between gap-4 text-sm text-muted-foreground">
+                  <span>{reembeddingProgressText}</span>
+                  <span className="shrink-0 tabular-nums">
+                    {reembeddingProgress?.total
+                      ? `${reembeddingProgress.completed}/${reembeddingProgress.total}`
+                      : `${reembeddingProgress?.progress ?? 0}%`}
+                  </span>
+                </div>
+              </div>
             </DialogContent>
           </Dialog>
           <Dialog

@@ -19,6 +19,31 @@ export type PreventSleepInterval =
   | '1h'
   | 'never';
 
+export type ThemeBackgroundTarget = 'sidebar' | 'chat';
+
+export type ThemeBackgroundConfig = {
+  url?: string;
+  opacity: number;
+  blur: number;
+};
+
+export type ThemeConfig = {
+  primaryColor?: string;
+  sidebarBackground: ThemeBackgroundConfig;
+  chatBackground: ThemeBackgroundConfig;
+};
+
+export type ThemeBackgroundSourcePaths = Partial<
+  Record<ThemeBackgroundTarget, string>
+>;
+
+export type SaveSettingsInput = {
+  id: string;
+  value: any;
+  /** Transient source paths. The main process stores managed URLs instead. */
+  themeBackgroundSourcePaths?: ThemeBackgroundSourcePaths;
+};
+
 export class AppInfo {
   name: string;
   appPath: string;
@@ -37,6 +62,7 @@ export class AppInfo {
   systemVersion: string;
   isPackaged: boolean;
   theme: string;
+  themeConfig: ThemeConfig;
   shouldUseDarkColors: boolean;
   language: string;
   defaultModel: {

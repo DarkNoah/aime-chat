@@ -99,6 +99,8 @@ Returns:
       forcePDFOcr: true,
       forceWordOcr: true,
       disableVision: false,
+      maxExcelSheets: 64,
+      maxExcelOutputLength: 200_000,
     });
 
     console.log('准备OCR文件:', source);

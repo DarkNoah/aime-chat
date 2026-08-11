@@ -21,7 +21,7 @@ export interface SetupStepProps {
   onSkip?: () => void;
 }
 
-const steps = [
+const setupSteps = [
   { id: 'welcome', component: WelcomeStep },
   { id: 'provider', component: ProviderStep },
   { id: 'model', component: ModelStep },
@@ -33,11 +33,15 @@ const steps = [
 function SetupPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { getSetupStatus } = useGlobal();
+  const { getSetupStatus, setupStatus } = useGlobal();
   const [currentStep, setCurrentStep] = useState(0);
+  const steps = setupStatus?.personalityDisabled
+    ? setupSteps.filter((step) => step.id !== 'personality')
+    : setupSteps;
+  const stepCount = steps.length;
 
   const handleNext = useCallback(() => {
-    if (currentStep < steps.length - 1) {
+    if (currentStep < stepCount - 1) {
       setCurrentStep((prev) => prev + 1);
     } else {
       // Complete setup and navigate to main app
@@ -47,7 +51,7 @@ function SetupPage() {
         });
       });
     }
-  }, [currentStep, getSetupStatus, navigate]);
+  }, [currentStep, getSetupStatus, navigate, stepCount]);
 
   const handleBack = useCallback(() => {
     if (currentStep > 0) {

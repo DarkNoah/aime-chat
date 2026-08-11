@@ -1,6 +1,6 @@
 {
   "name": "aime-chat",
-  "version": "0.3.46",
+  "version": "0.3.47",
   "description": "A foundation for scalable desktop apps",
   "license": "MIT",
   "author": {
@@ -15,6 +15,7 @@
     "link-modules": "node -r ts-node/register ../../.erb/scripts/link-modules.ts"
   },
   "dependencies": {
+    "@firecrawl/anydoc": "^0.1.6",
     "@huggingface/transformers": "^3.8.1",
     "@libsql/client": "^0.15.15",
     "@napi-rs/system-ocr": "^1.0.2",

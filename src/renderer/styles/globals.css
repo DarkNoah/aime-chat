@@ -135,3 +135,57 @@
   display: block !important;
   min-width: 100% !important;
 }
+
+:root[data-theme-sidebar-background] [data-theme-background='sidebar'],
+:root[data-theme-chat-background] [data-theme-background='chat'] {
+  position: relative;
+  isolation: isolate;
+}
+
+:root[data-theme-sidebar-background] [data-theme-background='sidebar']::before,
+:root[data-theme-sidebar-background] [data-theme-background='sidebar']::after,
+:root[data-theme-chat-background] [data-theme-background='chat']::before,
+:root[data-theme-chat-background] [data-theme-background='chat']::after {
+  position: absolute;
+  inset: 0;
+  content: '';
+  pointer-events: none;
+}
+
+:root[data-theme-sidebar-background] [data-theme-background='sidebar']::before,
+:root[data-theme-chat-background] [data-theme-background='chat']::before {
+  z-index: -2;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
+}
+
+:root[data-theme-sidebar-background] [data-theme-background='sidebar']::before {
+  inset: calc(-1 * var(--theme-sidebar-background-blur, 0px));
+  background-image: var(--theme-sidebar-background-image);
+  opacity: var(--theme-sidebar-background-opacity, 0.2);
+  filter: blur(var(--theme-sidebar-background-blur, 0));
+  clip-path: inset(var(--theme-sidebar-background-blur, 0px));
+}
+
+:root[data-theme-chat-background] [data-theme-background='chat']::before {
+  inset: calc(-1 * var(--theme-chat-background-blur, 0px));
+  background-image: var(--theme-chat-background-image);
+  opacity: var(--theme-chat-background-opacity, 0.2);
+  filter: blur(var(--theme-chat-background-blur, 0));
+  clip-path: inset(var(--theme-chat-background-blur, 0px));
+}
+
+:root[data-theme-sidebar-background] [data-theme-background='sidebar']::after,
+:root[data-theme-chat-background] [data-theme-background='chat']::after {
+  z-index: -1;
+  opacity: 0.32;
+}
+
+:root[data-theme-sidebar-background] [data-theme-background='sidebar']::after {
+  background: var(--sidebar);
+}
+
+:root[data-theme-chat-background] [data-theme-background='chat']::after {
+  background: var(--background);
+}

@@ -18,7 +18,10 @@ import { PDFLoader } from '@/main/utils/loaders/pdf-loader';
 import { WordLoader } from '@/main/utils/loaders/word-loader';
 import mime from 'mime';
 import { PowerPointLoader } from '@/main/utils/loaders/power-point-loader';
-import { ExcelLoader } from '@/main/utils/loaders/excel-loader';
+import {
+  ExcelLoader,
+  formatExcelWorkbookPreview,
+} from '@/main/utils/loaders/excel-loader';
 import { ToolConfig, ToolType } from '@/types/tool';
 import { AudioLoader } from '@/main/utils/loaders/audio-loader';
 import { Vision } from '../vision/vision';
@@ -36,6 +39,48 @@ import { toReadModelOutput } from './read-model-output';
 
 const DEFAULT_MAX_LINES_TEXT_FILE = 2000;
 const MAX_LINE_LENGTH_TEXT_FILE = 2000;
+const DEFAULT_MAX_EXCEL_SHEETS = 8;
+const DEFAULT_MAX_EXCEL_OUTPUT_LENGTH = 20_000;
+
+const excelArgsSchema = z
+  .object({
+    sheet: z
+      .string()
+      .min(1)
+      .optional()
+      .describe('The exact worksheet name to read.'),
+    sheetIndex: z
+      .number()
+      .int()
+      .min(1)
+      .optional()
+      .describe('The 1-based worksheet index to read.'),
+    range: z
+      .string()
+      .min(1)
+      .optional()
+      .describe(
+        'An A1-style cell range to read, for example A1:H50. Requires sheet or sheetIndex.',
+      ),
+  })
+  .strict()
+  .refine(
+    (selection) => !(selection.sheet && selection.sheetIndex !== undefined),
+    {
+      message: 'Provide either sheet or sheetIndex, not both.',
+      path: ['sheetIndex'],
+    },
+  )
+  .refine(
+    (selection) =>
+      !selection.range ||
+      Boolean(selection.sheet) ||
+      selection.sheetIndex !== undefined,
+    {
+      message: 'sheet or sheetIndex is required when range is provided.',
+      path: ['sheet'],
+    },
+  );
 
 // When zooming into a bbox region, upscale the crop so its short side reaches
 // this size (capped by BBOX_MAX_ZOOM_SCALE) to help the vision/OCR model see details.
@@ -103,6 +148,8 @@ export interface ReadParams extends BaseToolParams {
   forcePDFOcr?: boolean;
   forceWordOcr?: boolean;
   disableVision?: boolean;
+  maxExcelSheets?: number;
+  maxExcelOutputLength?: number;
 }
 export class Read extends BaseTool {
   static readonly toolName = 'Read';
@@ -120,6 +167,7 @@ Usage:
 - This tool allows to read images (eg PNG, JPG, etc). When reading an image file the contents are presented visually by a multimodal LLM.
 - When reading an image, you can optionally pass the args parameter (a JSON string) with one or more bounding boxes, e.g. args: '{"bbox": [[x1, y1, x2, y2]]}'. Coordinates must be pixel values from the original image, with the origin at the top-left. Each region will be cropped from the image and zoomed in (enlarged) before being analyzed, which is useful for inspecting small details or text.
 - This tool can read PDF files (.pdf). PDFs are processed page by page, extracting both text and visual content for analysis.
+- This tool can read Excel files (.xls, .xlsx). Excel results are returned as a bounded preview of non-empty cells, with original row and column coordinates. To inspect a smaller area, pass args as a JSON string such as '{"sheet":"Orders","range":"A1:H50"}' or '{"sheetIndex":9,"range":"A1:H50"}'.
 - This tool can read audio files (.wav, .mp3 etc), and returns the audio transcription content (.srt format).
 - This tool can read video files (.mp4, .mov, .webm), and returns the video transcription content (.srt format).
 - This tool can read Jupyter notebooks (.ipynb files) and returns all cells with their outputs, combining code, text, and visualizations.
@@ -151,7 +199,7 @@ Usage:
         .string()
         .optional()
         .describe(
-          'Optional extra arguments as a JSON string. Only for image files: pass bounding boxes to zoom into specific regions, e.g. \'{"bbox": [[x1, y1, x2, y2], ...]}\'. Coordinates must be pixel values from the original image, with the origin at the top-left. Each region will be cropped and zoomed in before being analyzed.',
+          'Optional extra arguments as a JSON string. For images, pass bounding boxes such as \'{"bbox": [[x1, y1, x2, y2], ...]}\'. For Excel, pass a worksheet name or 1-based index and optional A1 range, such as \'{"sheet":"Orders","range":"A1:H50"}\' or \'{"sheetIndex":9}\'.',
         ),
       useVision: z.boolean().optional().default(false).describe('Optional: only use this when the file is an image. If set to true, it will be presented visually by a multimodal LLM, default is false.'),
     });
@@ -160,6 +208,8 @@ Usage:
   forcePDFOcr?: ReadParams['forcePDFOcr'];
   forceWordOcr?: ReadParams['forceWordOcr'];
   disableVision?: ReadParams['disableVision'];
+  maxExcelSheets?: ReadParams['maxExcelSheets'];
+  maxExcelOutputLength?: ReadParams['maxExcelOutputLength'];
   // outputSchema = z.string();
 
 
@@ -168,6 +218,9 @@ Usage:
     this.forcePDFOcr = config?.forcePDFOcr ?? true;
     this.forceWordOcr = config?.forceWordOcr ?? false;
     this.disableVision = config?.disableVision ?? false;
+    this.maxExcelSheets = config?.maxExcelSheets ?? DEFAULT_MAX_EXCEL_SHEETS;
+    this.maxExcelOutputLength =
+      config?.maxExcelOutputLength ?? DEFAULT_MAX_EXCEL_OUTPUT_LENGTH;
   }
 
   public async doRead(inputData: z.infer<typeof this.inputSchema>,
@@ -227,7 +280,21 @@ Usage:
     const ext = path.extname(file_path).toLowerCase();
 
     if (await isBinaryFile(file_path) && ext != '.ts') {
-      // bbox only applies to image files; args is ignored for other file types
+      let excelArgs: z.infer<typeof excelArgsSchema> | undefined;
+      if (args && (ext === '.xls' || ext === '.xlsx')) {
+        try {
+          excelArgs = excelArgsSchema.parse(JSON.parse(args));
+        } catch (err) {
+          return {
+            isError: true,
+            systemReminder: [
+              `<system-reminder>Error: Failed to parse Excel args: ${err instanceof Error ? err.message : String(err)}. Expected a JSON string such as '{"sheet":"Orders","range":"A1:H50"}' or '{"sheetIndex":9}'.</system-reminder>`,
+            ],
+          };
+        }
+      }
+
+      // bbox only applies to image files; other file types ignore image args
       let bboxes: number[][] | undefined;
       if (args && mime.lookup(file_path).startsWith('image/')) {
         try {
@@ -351,8 +418,11 @@ Usage:
       const content = await new ReadBinaryFile({
         forcePDFOcr: this.forcePDFOcr,
         forceWordOcr: this.forceWordOcr,
+        maxExcelSheets: this.maxExcelSheets,
+        maxExcelOutputLength: this.maxExcelOutputLength,
       }).execute({
         file_source: file_path,
+        args: ext === '.xls' || ext === '.xlsx' ? excelArgs : undefined,
       }, context);
       return {
         isError: false,
@@ -454,6 +524,8 @@ export interface ReadBinaryFileParams extends BaseToolParams {
   forceWordOcr?: boolean;
   reminder?: boolean;
   excludeInsideImage?: boolean;
+  maxExcelSheets?: number;
+  maxExcelOutputLength?: number;
 }
 
 
@@ -478,7 +550,11 @@ Usage:
   inputSchema = z
     .object({
       file_source: z.string().describe('The absolute path to the file to read'),
-      args: z.object({}).optional().describe(``),
+      args: excelArgsSchema
+        .optional()
+        .describe(
+          'Optional Excel worksheet name or index and A1-style range selection.',
+        ),
     })
     .strict();
   outputSchema = z.string();
@@ -489,6 +565,8 @@ Usage:
   forceWordOcr?: ReadBinaryFileParams['forceWordOcr'];
   reminder?: ReadBinaryFileParams['reminder'];
   excludeInsideImage?: ReadBinaryFileParams['excludeInsideImage'];
+  maxExcelSheets?: ReadBinaryFileParams['maxExcelSheets'];
+  maxExcelOutputLength?: ReadBinaryFileParams['maxExcelOutputLength'];
 
   constructor(config?: ReadBinaryFileParams) {
     super(config);
@@ -497,13 +575,15 @@ Usage:
     this.forceWordOcr = config?.forceWordOcr ?? true;
     this.reminder = config?.reminder ?? true;
     this.excludeInsideImage = config?.excludeInsideImage ?? false;
+    this.maxExcelSheets = config?.maxExcelSheets ?? 64;
+    this.maxExcelOutputLength = config?.maxExcelOutputLength ?? 200_000;
   }
 
   execute = async (
     inputData: z.infer<typeof this.inputSchema>,
     context: ToolExecutionContext<z.ZodSchema, any>,
   ) => {
-    const { file_source } = inputData;
+    const { file_source, args } = inputData;
     const { abortSignal } = context
     if (!fs.existsSync(file_source))
       throw new Error(`File '${file_source}' does not exist.`);
@@ -584,18 +664,17 @@ Usage:
       result = content;
     } else if (ext === '.xls' || ext === '.xlsx') {
       const loader = new ExcelLoader(file_source, {
-        mode: "markdown",
+        mode: 'markdown',
         maxRow: 15,
+        maxColumn: 30,
+        maxCellLength: 500,
+        maxSheet: this.maxExcelSheets,
+        sheet: args?.sheet,
+        sheetIndex: args?.sheetIndex,
+        range: args?.range,
       });
       const content = await loader.load();
-
-      for (const sheet of content) {
-        result += `Sheet: ${sheet.id}\n\n`;
-        result += `Range: ${sheet.metadata.range}\n\n`;
-        result += `Sample Data: `;
-        result += sheet.pageContent ? `\n\`\`\`markdown\n${sheet.pageContent}\n\`\`\`\n` : 'No data';
-      }
-
+      result = formatExcelWorkbookPreview(content, this.maxExcelOutputLength);
 
     } else if (ext === '.ppt' || ext === '.pptx') {
       const loader = new PowerPointLoader(file_source);

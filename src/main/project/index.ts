@@ -9,7 +9,12 @@ import { dbManager } from '@/main/db';
 import { Projects } from '@/entities/projects';
 import { nanoid } from '@/utils/nanoid';
 import { appManager } from '../app';
-import { Project, ProjectEvent } from '@/types/project';
+import {
+  Project,
+  ProjectChatExportInput,
+  ProjectChatExportResult,
+  ProjectEvent,
+} from '@/types/project';
 import { StorageThreadType } from '@mastra/core/memory';
 import mastraManager from '../mastra';
 import fs from 'fs';
@@ -21,6 +26,7 @@ import { DEFAULT_TITLE } from '@/types/chat';
 import { app } from 'electron';
 import { getDataPath } from '../utils';
 import { cloneGitHubRepository } from './git-clone';
+import { createProjectChatExport } from './chat-export';
 
 class ProjectManager extends BaseManager {
   projectsRepository: Repository<Projects>;
@@ -196,6 +202,68 @@ class ProjectManager extends BaseManager {
         cwd: cwd,
       });
     }
+  }
+
+  @channel(ProjectChannel.ExportMessages)
+  async exportMessages(
+    input: ProjectChatExportInput,
+  ): Promise<ProjectChatExportResult> {
+    const project = await this.getProject(input?.projectId);
+    if (!project) throw new Error('Project not found');
+    if (!input?.targetPath || !path.isAbsolute(input.targetPath)) {
+      throw new Error('A valid export path is required');
+    }
+    const allowedFormats = new Set(['markdown', 'json', 'xlsx', 'unsloth']);
+    if (!allowedFormats.has(input.format)) {
+      throw new Error('Unsupported export format');
+    }
+
+    const threadIds = Array.from(
+      new Set((input.threadIds || []).filter((threadId) => threadId?.trim())),
+    );
+    if (threadIds.length === 0) {
+      throw new Error('Select at least one chat thread');
+    }
+
+    const resourceId = `project:${project.id}`;
+    const storage = mastraManager.mastra.getStorage();
+    const memoryStore = await storage.getStore('memory');
+    const exportThreads = await Promise.all(
+      threadIds.map(async (threadId) => {
+        const thread = await memoryStore.getThreadById({ threadId });
+        if (!thread || thread.resourceId !== resourceId) {
+          throw new Error(`Thread ${threadId} does not belong to this project`);
+        }
+        const result = await mastraManager.getThreadMessages({
+          threadId,
+          resourceId,
+          perPage: false,
+          page: 0,
+        });
+        return {
+          thread,
+          messages: result.messages,
+          rawMessages: result.mastraDBMessages,
+        };
+      }),
+    );
+
+    const artifact = createProjectChatExport(
+      input.format,
+      project,
+      exportThreads,
+    );
+    if (input.format === 'unsloth' && artifact.messageCount === 0) {
+      throw new Error(
+        'The selected threads do not contain complete user/assistant training pairs',
+      );
+    }
+    await fs.promises.writeFile(input.targetPath, artifact.content);
+    return {
+      filePath: input.targetPath,
+      threadCount: exportThreads.length,
+      messageCount: artifact.messageCount,
+    };
   }
 }
 export const projectManager = new ProjectManager();

@@ -1025,12 +1025,16 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
             },
           );
         };
-        getThread();
+        getThread().finally(() => {
+          setFetching(false);
+        })
+
         eventBus.on(`chat:onData:${threadId}`, (event: any) => {
           if (event.type === 'data-compress-start') {
             setCompressing(true);
           } else if (event.type === 'data-compress-end') {
             setCompressing(false);
+            getThread();
           } else if (event.type === 'data-chat-retry') {
             setRetrying(event.data as ChatRetryState);
           } else if (event.type === 'data-chat-retry-end') {
@@ -1177,7 +1181,10 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
     };
 
     return (
-      <div className={cn('flex flex-col h-full', className)}>
+      <div
+        data-theme-background="chat"
+        className={cn('flex flex-col h-full', className)}
+      >
         <Conversation className="h-full w-full flex-1 flex items-center justify-center overflow-y-hidden">
           <ConversationContent className="h-full" id="chat-conversation">
             <ChatGoalBanner
@@ -1264,7 +1271,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
               <Alert className="w-fit bg-muted">
                 <Loader className="size-4 animate-spin" />
                 <AlertTitle className="text-xs">
-                  {t('common.chat_retrying', {
+                  {t('chat.chat_retrying', {
                     attempt: retrying.attempt,
                     max: retrying.maxRetries,
                     delay: Math.ceil(retrying.delay / 1000),
@@ -1289,17 +1296,17 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
               threadState?.messages,
               threadState?.status,
             ) && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="w-fit"
-                onClick={handleRetry}
-              >
-                <RefreshCwIcon className="size-3.5" />
-                {t('common.retry')}
-              </Button>
-            )}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-fit"
+                  onClick={handleRetry}
+                >
+                  <RefreshCwIcon className="size-3.5" />
+                  {t('common.retry')}
+                </Button>
+              )}
             {threadState?.messages.length > 0 && <div className="pb-20"></div>}
           </ConversationContent>
           <ConversationScrollButton className="z-10 backdrop-blur" />

@@ -1,4 +1,5 @@
 import { BaseLoader } from './base-loader';
+import { toDocument, toMarkdown, toMarkdownBytes } from '@firecrawl/anydoc';
 
 export type DocxLoaderOptions = {
   type: 'docx' | 'doc';
@@ -14,6 +15,7 @@ export class WordLoader extends BaseLoader {
   }
 
   async parse(raw: Buffer, metadata: Record<string, any>): Promise<string> {
+    return toMarkdownBytes(raw);
     if (this.options.type === 'doc') {
       return this.parseDoc(raw, metadata);
     }

@@ -1018,7 +1018,7 @@ class MastraManager extends BaseManager {
       requestContext.set('todos', todos);
       requestContext.set('tasks', tasks);
       requestContext.set('fileLastReadTime', fileLastReadTime);
-      requestContext.set('compressedMessage', undefined);
+      requestContext.set('compressedMessage', currentThread.metadata?.compressedMessage);
       requestContext.set(
         'maxContextSize',
         modelInfo?.limit?.context ?? 64 * 1000,
@@ -1480,6 +1480,14 @@ class MastraManager extends BaseManager {
             const compressedMessageText = compressedMessage.content?.find(x => x.type == 'text')?.text;
             if (compressedMessageText) {
               requestContext.set('compressedMessage', compressedMessageText);
+              currentThread = await memoryStore.updateThread({
+                id: chatId,
+                title: currentThread.title,
+                metadata: {
+                  ...(currentThread.metadata || {}),
+                  compressedMessage: compressedMessageText,
+                },
+              });
             }
 
           }
@@ -2296,7 +2304,7 @@ This session is being continued from a previous conversation that ran out of con
 ${compressedMessage}
 </system-reminder>`,
       });
-      requestContext.set('compressedMessage', undefined);
+      // requestContext.set('compressedMessage', undefined);
     }
 
     // 注入全局记忆 wiki 摘要 (index.md + log.md tail)
@@ -2591,7 +2599,7 @@ IMPORTANT: Do NOT use any tools. You MUST respond with ONLY the <summary>...</su
           azure: {
             maxTokens: 20000
           },
-        }
+        },
       });
 
       function getTagContent(text, tag) {
@@ -2642,7 +2650,7 @@ IMPORTANT: Do NOT use any tools. You MUST respond with ONLY the <summary>...</su
       return {
         compressedMessage: undefined,
         keepMessages: messages.slice(lastAssistantIndex),
-        hasCompressed: false,
+        hasCompressed: true,
         error: true,
         errorMessage: err?.message || 'Unknown error',
       };

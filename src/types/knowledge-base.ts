@@ -37,6 +37,7 @@ export type KnowledgeBase = {
   reranker?: string;
   rerankerModel?: string;
   returnChunkCount?: number;
+  forceReturnFullContent?: boolean;
   static?: boolean;
 };
 
@@ -50,6 +51,8 @@ export type UpdateKnowledgeBase = {
   name: string;
   description?: string;
   tags?: string[];
+  embedding?: string;
+  reembed?: boolean;
   reranker?: string;
   returnChunkCount?: number;
   forceReturnFullContent?: boolean;
@@ -59,6 +62,8 @@ export type SearchKnowledgeBaseResult = {
   query: string;
   embedding: string;
   searchType: 'hybrid' | 'bm25' | 'vector';
+  knowledgeBaseId?: string;
+  forceReturnFullContent?: boolean;
   results: SearchKnowledgeBaseItemResult[];
 };
 
@@ -67,6 +72,7 @@ export type SearchKnowledgeBaseItemResult = {
   itemId: string;
   score: number;
   bm25Score?: number;
+  graphScore?: number;
   rerankScore?: number;
   hybridScore?: number;
   metadata: any;
@@ -81,7 +87,16 @@ export type SearchKnowledgeBaseItemResult = {
 
 export enum KnowledgeBaseEvent {
   KnowledgeBaseItemsUpdated = 'knowledge-base:knowledge-base-items-updated',
+  ReembeddingProgress = 'knowledge-base:reembedding-progress',
 }
+
+export type KnowledgeBaseReembeddingProgress = {
+  kbId: string;
+  completed: number;
+  total: number;
+  progress: number;
+  stage: 'preparing' | 'embedding' | 'committing' | 'completed';
+};
 
 export type KnowledgeBaseSQLiteImportMode = 'overwrite' | 'append';
 

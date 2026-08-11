@@ -9,6 +9,10 @@ export type KnowledgeBaseGraphVectorStoreOptions = {
   client: Pick<LibSQLClient, 'execute'>;
   knowledgeBaseId: string;
   vectorLength: number;
+  extendColumns?: string[];
+  filter?: string;
+  minimumScore?: number;
+  includeInternalMetadata?: boolean;
 };
 
 type QueryOnlyVectorStore = Pick<MastraVector, 'id' | 'query'>;
@@ -37,8 +41,20 @@ export const createKnowledgeBaseGraphVectorStore = ({
   client,
   knowledgeBaseId,
   vectorLength,
+  extendColumns = [],
+  filter,
+  minimumScore,
+  includeInternalMetadata = false,
 }: KnowledgeBaseGraphVectorStoreOptions): MastraVector => {
   const expectedIndexName = getIndexName(knowledgeBaseId, vectorLength);
+  const extendSelect =
+    extendColumns.length > 0
+      ? `, ${extendColumns
+          .map((column) => `chunks.${quoteIdentifier(column)}`)
+          .join(', ')}`
+      : '';
+  const filterCondition =
+    extendColumns.length > 0 && filter ? ` AND (${filter})` : '';
 
   const vectorStore: QueryOnlyVectorStore = {
     id: `knowledge-base-graph-${knowledgeBaseId}`,
@@ -66,26 +82,40 @@ export const createKnowledgeBaseGraphVectorStore = ({
       const vectorSelect = includeVector
         ? ', vector_extract(chunks.embedding) AS embedding'
         : '';
+      const scoreCondition =
+        minimumScore === undefined ? '' : 'WHERE score > ?';
       const result = await client.execute({
-        sql: `
+        sql: `WITH vector_scores AS (
           SELECT
             chunks.id,
             chunks.item_id,
             chunks.chunk,
             chunks.metadata,
-            items.name AS item_name,
-            items.source,
-            items.sourceType AS source_type,
+            chunks."type" AS chunk_type,
             (1 - vector_distance_cos(chunks.embedding, vector32(?))) AS score
             ${vectorSelect}
+            ${extendSelect}
           FROM ${quoteIdentifier(expectedIndexName)} AS chunks
-          LEFT JOIN knowledgebase_item AS items ON items.id = chunks.item_id
           WHERE chunks.is_enable = 1
             AND chunks.embedding IS NOT NULL
             AND (chunks."type" IS NULL OR chunks."type" = 'text')
+            ${filterCondition}
+        )
+          SELECT
+            vector_scores.*,
+            items.name AS item_name,
+            items.source,
+            items.sourceType AS source_type
+          FROM vector_scores
+          LEFT JOIN knowledgebase_item AS items
+            ON items.id = vector_scores.item_id
+          ${scoreCondition}
           ORDER BY score DESC
           LIMIT ?`,
-        args: [JSON.stringify(queryVector), topK],
+        args:
+          minimumScore === undefined
+            ? [JSON.stringify(queryVector), topK]
+            : [JSON.stringify(queryVector), minimumScore, topK],
       });
 
       return result.rows.map((row) => {
@@ -98,6 +128,9 @@ export const createKnowledgeBaseGraphVectorStore = ({
             ? storedMetadata
             : {};
         const embedding = includeVector ? parseJson(row.embedding) : undefined;
+        const extendValues = Object.fromEntries(
+          extendColumns.map((column) => [column, row[column]]),
+        );
 
         return {
           id: String(row.id),
@@ -111,6 +144,16 @@ export const createKnowledgeBaseGraphVectorStore = ({
             knowledgeBaseId,
             source: parseJson(row.source),
             sourceType: row.source_type ? String(row.source_type) : undefined,
+            ...(includeInternalMetadata
+              ? {
+                  __knowledgeBase: {
+                    metadata,
+                    type: row.chunk_type ? String(row.chunk_type) : 'text',
+                    extendValues,
+                    vectorScore: Number(row.score),
+                  },
+                }
+              : {}),
           },
           document: chunk,
           ...(Array.isArray(embedding)

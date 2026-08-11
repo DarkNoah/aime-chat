@@ -14,6 +14,21 @@ export type Project = {
   defaultSubAgents?: string[];
 };
 
+export type ProjectChatExportFormat = 'markdown' | 'json' | 'xlsx' | 'unsloth';
+
+export type ProjectChatExportInput = {
+  projectId: string;
+  threadIds: string[];
+  format: ProjectChatExportFormat;
+  targetPath: string;
+};
+
+export type ProjectChatExportResult = {
+  filePath: string;
+  threadCount: number;
+  messageCount: number;
+};
+
 export enum ProjectEvent {
   ProjectCreated = 'project:project-created',
   ProjectUpdated = 'project:project-updated',

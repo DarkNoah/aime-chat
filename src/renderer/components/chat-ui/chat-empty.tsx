@@ -74,58 +74,53 @@ export const ChatEmpty = ({ children, ...props }: ChatEmptyProps) => {
         {(templates ?? []).map((template) => (
           <motion.div
             key={template.title}
-            className=" max-w-[400px] w-[400px]"
+            className="w-full px-6"
             variants={groupVariants}
           >
             <span className="font-thin text-foreground">{template.title}</span>
             <small className="text-muted-foreground text-xs font-thin ml-2">
               {template.description}
             </small>
-            <ScrollArea className="whitespace-nowrap">
-              <div className="h-2"></div>
-              <div className="flex flex-row gap-4 mb-1">
-                {template.items.map((item) => (
-                  <motion.div
-                    key={item.title}
-                    variants={cardVariants}
-                    whileHover={{ y: -4 }}
-                    whileTap={{ y: 0 }}
-                    transition={{
-                      type: 'spring',
-                      stiffness: 400,
-                      damping: 25,
+            <div className="flex flex-row flex-wrap gap-4 mb-1">
+              {template.items.map((item) => (
+                <motion.div
+                  key={item.title}
+                  variants={cardVariants}
+                  whileHover={{ y: -4 }}
+                  whileTap={{ y: 0 }}
+                  transition={{
+                    type: 'spring',
+                    stiffness: 400,
+                    damping: 25,
+                  }}
+                >
+                  <Card
+                    className={cn(
+                      'p-2 shrink-0 h-[100px] w-[150px] max-w-[150px] cursor-pointer hover:bg-accent/80 transition-colors duration-100',
+                    )}
+                    onClick={() => onClick?.(item)}
+                    style={{
+                      backgroundColor: item.backgroundColor,
+                      color: item.color ?? '',
                     }}
                   >
-                    <Card
-                      className={cn(
-                        'p-2 shrink-0 h-[100px] w-[150px] max-w-[150px] cursor-pointer hover:bg-accent/80 transition-colors duration-100',
-                      )}
-                      onClick={() => onClick?.(item)}
-                      style={{
-                        backgroundColor: item.backgroundColor,
-                        color: item.color ?? '',
-                      }}
-                    >
-                      <CardHeader className="py-1 px-1">
-                        <CardTitle
-                          className="line-clamp-1 text-sm text-accent-foreground"
-                          style={{
-                            color: item.color ?? '',
-                          }}
-                        >
-                          {item.title}
-                        </CardTitle>
-                        <CardDescription className="wrap-break-word whitespace-normal text-wrap line-clamp-3 text-xs font-thin">
-                          {item.description}
-                        </CardDescription>
-                      </CardHeader>
-                    </Card>
-                  </motion.div>
-                ))}
-              </div>
-
-              <ScrollBar orientation="horizontal" />
-            </ScrollArea>
+                    <CardHeader className="py-1 px-1">
+                      <CardTitle
+                        className="line-clamp-1 text-sm text-accent-foreground"
+                        style={{
+                          color: item.color ?? '',
+                        }}
+                      >
+                        {item.title}
+                      </CardTitle>
+                      <CardDescription className="wrap-break-word whitespace-normal text-wrap line-clamp-3 text-xs font-thin">
+                        {item.description}
+                      </CardDescription>
+                    </CardHeader>
+                  </Card>
+                </motion.div>
+              ))}
+            </div>
           </motion.div>
         ))}
       </motion.div>
