@@ -1181,7 +1181,10 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
     };
 
     return (
-      <div className={cn('flex flex-col h-full', className)}>
+      <div
+        data-theme-background="chat"
+        className={cn('flex flex-col h-full', className)}
+      >
         <Conversation className="h-full w-full flex-1 flex items-center justify-center overflow-y-hidden">
           <ConversationContent className="h-full" id="chat-conversation">
             <ChatGoalBanner

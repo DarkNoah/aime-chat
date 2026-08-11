@@ -27,24 +27,12 @@ import {
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
-import { InstanceInfo } from '@/types/instance';
+import type {
+  BrowserProfile,
+  BrowserType,
+  InstanceInfo,
+} from '@/types/instance';
 import { Switch } from '@/renderer/components/ui/switch';
-
-interface BrowserProfile {
-  name: string;
-  userDataPath: string;
-  browser: 'chrome' | 'edge';
-  executablePath?: string;
-  isBuiltIn?: boolean;
-  availableBrowsers?: BrowserExecutableOption[];
-}
-
-interface BrowserExecutableOption {
-  browser: 'chrome' | 'edge';
-  label: string;
-  executablePath?: string;
-  installed: boolean;
-}
 
 interface InstanceConfig {
   executablePath?: string;
@@ -168,7 +156,7 @@ function Instances() {
 
   const handleSelectExecutable = async (
     instanceId: string,
-    browserType: 'chrome' | 'edge',
+    browserType: BrowserType,
   ) => {
     const builtInProfile = getBuiltInProfile();
     const browser = builtInProfile?.availableBrowsers?.find(
@@ -337,7 +325,7 @@ function Instances() {
                     </span>
                     <Select
                       value={getSelectedExecutableBrowser(instance)}
-                      onValueChange={(value: 'chrome' | 'edge') =>
+                      onValueChange={(value: BrowserType) =>
                         handleSelectExecutable(instance.id, value)
                       }
                       disabled={getAvailableBrowsers(instance).every(

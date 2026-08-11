@@ -27,6 +27,7 @@ import {
   AppProxy,
   PreventSleepInterval,
   RuntimeInfo,
+  SaveSettingsInput,
   ScreenCaptureOptions,
   ScreenCaptureResult,
   ScreenSource,
@@ -126,6 +127,7 @@ import { getCrashDumpDirectory } from './crash-reporter';
 import { WindowModeController } from './window-mode';
 import { writeWorkspaceTextFile } from '../utils/workspace-file';
 import { isPersonalityDisabled } from './feature-flags';
+import { normalizeThemeConfig, saveThemeConfig } from './theme-background';
 
 class AppManager extends BaseManager {
   repository: Repository<Providers>;
@@ -137,6 +139,7 @@ class AppManager extends BaseManager {
   readonly defaultPreventSleepInterval: PreventSleepInterval = '5m';
   defaultApiServerPort = 41100;
   defaultACPPort = 41101;
+  private themeConfigSaveQueue: Promise<void> = Promise.resolve();
   private readonly windowModeController = new WindowModeController({
     getWindow: () => getMainWindow(),
     getWorkArea: (bounds) => screen.getDisplayMatching(bounds).workArea,
@@ -296,6 +299,10 @@ class AppManager extends BaseManager {
     const appLocale = app.getSystemLocale().toLowerCase();
     const language = settings.find((x) => x.id === 'language')?.value || appLocale || 'en-us';
     const theme = process.env.THEME || nativeTheme.themeSource;
+    const themeConfig = normalizeThemeConfig(
+      settings.find((x) => x.id === 'themeConfig')?.value,
+      app.getPath('userData'),
+    );
 
     return {
       name: appName ?? app.getName(),
@@ -315,6 +322,7 @@ class AppManager extends BaseManager {
       systemVersion: process.getSystemVersion(),
       isPackaged: app.isPackaged,
       theme,
+      themeConfig,
       language,
       shouldUseDarkColors: nativeTheme.shouldUseDarkColors,
       defaultModel: defaultModel,
@@ -975,12 +983,54 @@ class AppManager extends BaseManager {
     return await dialog.showSaveDialog(this.getMainWindow(), options);
   }
 
+  private async saveThemeConfigSetting(
+    settings: SaveSettingsInput,
+  ): Promise<void> {
+    const userDataPath = app.getPath('userData');
+    const previousSetting = await this.settingsRepository.findOne({
+      where: { id: 'themeConfig' },
+    });
+    const previousThemeConfig = normalizeThemeConfig(
+      previousSetting?.value,
+      userDataPath,
+    );
+    await saveThemeConfig({
+      value: settings.value,
+      sourcePaths: settings.themeBackgroundSourcePaths,
+      previousConfig: previousThemeConfig,
+      userDataPath,
+      persist: async (themeConfig) => {
+        await this.settingsRepository.upsert(
+          new Settings('themeConfig', themeConfig),
+          ['id'],
+        );
+      },
+      onCleanupError: (error) => {
+        console.warn('Failed to clean unused theme backgrounds', error);
+      },
+    });
+  }
+
   @channel(AppChannel.SaveSettings)
-  public async saveSettings(settings: {
-    id: string;
-    value: any;
-  }): Promise<void> {
-    await this.settingsRepository.upsert(settings, ['id']);
+  public async saveSettings(settings: SaveSettingsInput): Promise<void> {
+    if (settings.id === 'themeConfig') {
+      const save = this.themeConfigSaveQueue.then(() =>
+        this.saveThemeConfigSetting(settings),
+      );
+      this.themeConfigSaveQueue = save.catch(() => undefined);
+      await save;
+      return;
+    }
+
+    if (settings.themeBackgroundSourcePaths !== undefined) {
+      throw new Error(
+        'Theme background source paths require the themeConfig setting.',
+      );
+    }
+    await this.settingsRepository.upsert(
+      new Settings(settings.id, settings.value),
+      ['id'],
+    );
     if (settings.id === 'modelPath' && typeof settings.value === 'string') {
       persistModelPathForUninstaller(settings.value);
     }
