@@ -84,7 +84,7 @@ export class CodeAgent extends BaseAgent {
     // `${ToolType.BUILD_IN}:${LibSQLDatabaseInfo.toolName}`,
     // `${ToolType.BUILD_IN}:${LibSQLRun.toolName}`,
     `${ToolType.BUILD_IN}:${KnowledgeBaseSearch.toolName}`,
-    `${ToolType.BUILD_IN}:${KnowledgeBaseGraphSearch.toolName}`,
+    // `${ToolType.BUILD_IN}:${KnowledgeBaseGraphSearch.toolName}`,
     `${ToolType.BUILD_IN}:${KnowledgeBaseList.toolName}`,
 
     `${ToolType.BUILD_IN}:${KnowledgeBaseGetItem.toolName}`,

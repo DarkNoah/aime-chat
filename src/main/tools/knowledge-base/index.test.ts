@@ -209,7 +209,7 @@ describe('KnowledgeBaseGetItem', () => {
     const result = await new KnowledgeBaseGetItem().execute({
       item_id: 'item-1',
       format: 'json',
-      grep: 'does-not-match',
+      pattern: 'does-not-match',
       offset: 2,
       limit: 1,
     });
@@ -239,7 +239,7 @@ describe('KnowledgeBaseSearch', () => {
       'call KnowledgeBaseGetItem with the returned item id',
     );
     expect(description).toContain(
-      'use grep to locate relevant passages and offset/limit',
+      'use its pattern parameter to locate relevant passages and offset/limit',
     );
   });
 

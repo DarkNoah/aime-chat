@@ -53,7 +53,7 @@ export class KnowledgeBaseSearch extends BaseTool {
 
 The query can be text or a local image file path (.png/.jpg/.jpeg/.webp/.gif/.bmp).
 When query is an existing image file path, the search is performed by image similarity (requires the knowledge base to use a CLIP-like multimodal embedding model).
-Search results normally contain matched chunks. To inspect the original source text, call KnowledgeBaseGetItem with the returned item id. For long sources, use grep to locate relevant passages and offset/limit to read additional sections.
+Search results normally contain matched chunks. To inspect the original source text, call KnowledgeBaseGetItem with the returned item id. For long sources, use its pattern parameter to locate relevant passages and offset/limit to read additional sections.
 
 Filter:
 
@@ -286,9 +286,9 @@ export class KnowledgeBaseGetItem extends BaseTool {
   id: string = 'KnowledgeBaseGetItem';
   description = `Get the Item of a knowledge base.
 
-By default, content is returned with 1-based line numbers, up to ${DEFAULT_MAX_KNOWLEDGE_BASE_LINES} lines, and lines longer than ${MAX_KNOWLEDGE_BASE_LINE_LENGTH} characters are truncated. Use offset and limit to continue reading and grep to search the complete source text before pagination. grep accepts a ripgrep-compatible pattern or a safe grep/rg command such as grep -in "keyword".
+By default, content is returned with 1-based line numbers, up to ${DEFAULT_MAX_KNOWLEDGE_BASE_LINES} lines, and lines longer than ${MAX_KNOWLEDGE_BASE_LINE_LENGTH} characters are truncated. Use offset and limit to continue reading, or pattern to search the complete source text before pagination. pattern accepts a ripgrep-compatible regular expression or a safe grep/rg command such as grep -in "keyword".
 
-When the parent knowledge base is configured to force full-content output, grep, offset, limit, line numbering, and truncation are ignored and the complete original content is returned.
+When the parent knowledge base is configured to force full-content output, pattern, offset, limit, line numbering, and truncation are ignored and the complete original content is returned.
 
 Return json format:
 {
@@ -309,12 +309,12 @@ Return json format:
       .describe('The format of the knowledge base item.')
       .optional()
       .default('text'),
-    grep: z
+    pattern: z
       .string()
       .min(1)
       .optional()
       .describe(
-        'Optional full-text search over the complete item content before pagination. Accepts a ripgrep-compatible regular expression or a safe grep/rg command without file paths, pipes, or redirects, for example grep -in "keyword".',
+        'Optional search pattern applied to the complete item content before pagination. Accepts a ripgrep-compatible regular expression or a safe grep/rg command without file paths, pipes, or redirects, for example grep -in "keyword".',
       ),
     offset: z
       .number()
@@ -322,7 +322,7 @@ Return json format:
       .min(0)
       .optional()
       .describe(
-        'Zero-based line or grep-result offset. Use with limit to continue after a truncation reminder.',
+        'Zero-based line or pattern-result offset. Use with limit to continue after a truncation reminder.',
       ),
     limit: z
       .number()
@@ -330,7 +330,7 @@ Return json format:
       .positive()
       .optional()
       .describe(
-        `Maximum number of lines or grep results to return. Defaults to and is capped at ${DEFAULT_MAX_KNOWLEDGE_BASE_LINES} per call.`,
+        `Maximum number of lines or pattern results to return. Defaults to and is capped at ${DEFAULT_MAX_KNOWLEDGE_BASE_LINES} per call.`,
       ),
   });
 
@@ -342,7 +342,7 @@ Return json format:
     inputData: z.infer<typeof this.inputSchema>,
     options?: ToolExecutionContext<ZodSchema, any>,
   ) => {
-    const { item_id, format = 'text', grep, offset, limit } = inputData;
+    const { item_id, format = 'text', pattern, offset, limit } = inputData;
     // const { writer } = options;
     const knowledgeBaseItem = await knowledgeBaseManager.getKnowledgeBaseItem(item_id);
     if (!knowledgeBaseItem) {
@@ -360,11 +360,11 @@ Return json format:
     const content = knowledgeBase.forceReturnFullContent
       ? originalContent
       : await readKnowledgeBaseContent(originalContent, {
-          grep,
-          offset,
-          limit,
-          abortSignal: options?.abortSignal,
-        });
+        pattern,
+        offset,
+        limit,
+        abortSignal: options?.abortSignal,
+      });
 
     if (format === 'json') {
       return {
@@ -511,11 +511,11 @@ export class KnowledgeBaseToolkit extends BaseToolkit {
     const addConfig = params?.[KnowledgeBaseAdd.toolName];
     const createConfig = params?.[KnowledgeBaseCreate.toolName];
     const getItemConfig = params?.[KnowledgeBaseGetItem.toolName];
-    const graphSearchConfig = params?.[KnowledgeBaseGraphSearch.toolName];
+    // const graphSearchConfig = params?.[KnowledgeBaseGraphSearch.toolName];
     super(
       [
         new KnowledgeBaseSearch(searchConfig),
-        new KnowledgeBaseGraphSearch(graphSearchConfig),
+        // new KnowledgeBaseGraphSearch(graphSearchConfig),
         new KnowledgeBaseList(listConfig),
         new KnowledgeBaseAdd(addConfig),
         new KnowledgeBaseCreate(createConfig),

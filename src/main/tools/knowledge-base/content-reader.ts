@@ -17,7 +17,7 @@ type GrepRequest = {
 };
 
 export type ReadKnowledgeBaseContentOptions = {
-  grep?: string;
+  pattern?: string;
   offset?: number;
   limit?: number;
   abortSignal?: AbortSignal;
@@ -290,24 +290,24 @@ export const readKnowledgeBaseContent = async (
     DEFAULT_MAX_KNOWLEDGE_BASE_LINES,
   );
 
-  if (options.grep) {
+  if (options.pattern) {
     const result = await grepContent(
       content,
-      parseGrepRequest(options.grep),
+      parseGrepRequest(options.pattern),
       offset,
       limit,
       options.abortSignal,
     );
     if (result.total === 0) return 'No matches found';
     if (offset >= result.total) {
-      return `<system-reminder>Error: offset is out of range, offset: ${offset}, grepResultCount: ${result.total}.</system-reminder>`;
+      return `<system-reminder>Error: offset is out of range, offset: ${offset}, patternResultCount: ${result.total}.</system-reminder>`;
     }
 
     const reminders: string[] = [];
     const end = Math.min(offset + limit, result.total);
     if (offset > 0 || end < result.total) {
       reminders.push(
-        `<system-reminder>Knowledge base grep results truncated: showing results ${offset + 1}-${end} of ${result.total}. Use offset/limit parameters to view more.</system-reminder>`,
+        `<system-reminder>Knowledge base pattern results truncated: showing results ${offset + 1}-${end} of ${result.total}. Use offset/limit parameters to view more.</system-reminder>`,
       );
     }
     if (result.linesWereTruncatedInLength) {

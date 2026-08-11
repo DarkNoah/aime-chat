@@ -18,7 +18,7 @@ describe('knowledge base content reader', () => {
   it('searches the complete content with a safe grep command', async () => {
     const result = await readKnowledgeBaseContent(
       ['Alpha', 'beta one', 'Gamma', 'BETA two'].join('\n'),
-      { grep: 'grep -in "beta"', limit: 1 },
+      { pattern: 'grep -in "beta"', limit: 1 },
     );
 
     expect(result).toContain('showing results 1-1 of 2');
@@ -29,7 +29,7 @@ describe('knowledge base content reader', () => {
   it('rejects shell operators in grep commands', async () => {
     await expect(
       readKnowledgeBaseContent('alpha\nbeta', {
-        grep: 'grep beta | head -1',
+        pattern: 'grep beta | head -1',
       }),
     ).rejects.toThrow('do not support pipes');
   });
