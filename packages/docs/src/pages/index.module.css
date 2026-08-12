@@ -7,6 +7,9 @@
   --home-border: #dce3de;
   --home-surface: #ffffff;
   --home-surface-muted: #f4f7f5;
+  --home-download-surface: oklch(97% 0.018 151);
+  --home-download-card: #ffffff;
+  --home-download-border: oklch(88% 0.026 151);
   overflow: hidden;
   background: var(--ifm-background-color);
   color: var(--home-ink);
@@ -30,6 +33,9 @@
   --home-border: #2a332d;
   --home-surface: #101512;
   --home-surface-muted: #0b0f0d;
+  --home-download-surface: oklch(20% 0.025 151);
+  --home-download-card: oklch(24% 0.02 151);
+  --home-download-border: oklch(32% 0.03 151);
 }
 
 .hero {
@@ -703,7 +709,8 @@
 }
 
 .downloadSection {
-  background: var(--home-surface);
+  background: var(--home-download-surface);
+  border-bottom: 1px solid var(--home-download-border);
 }
 
 .platformGrid {
@@ -718,8 +725,8 @@
   padding: 1.5rem;
   flex-direction: column;
   justify-content: space-between;
-  background: var(--home-surface-muted);
-  border: 1px solid var(--home-border);
+  background: var(--home-download-card);
+  border: 1px solid var(--home-download-border);
   border-radius: 12px;
 }
 
