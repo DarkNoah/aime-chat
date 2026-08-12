@@ -2,245 +2,116 @@
 sidebar_position: 5
 ---
 
-# MCP 协议
+# MCP 服务器
 
-AIME Chat 完全支持 **Model Context Protocol (MCP)**，这是一个开放协议，允许 AI 应用连接各种数据源和工具。
+AIME Chat 可以作为 MCP 客户端连接本地或远程服务器，并把服务器暴露的工具交给 Agent 使用。当前支持手动填写、导入 JSON，以及安装 `.mcpb`（MCP Bundle）三种方式。
 
-## 什么是 MCP？
+:::warning 运行边界
+MCP 服务器和 MCP Bundle 可能在当前用户权限下执行本地程序、访问文件或调用网络服务。只添加可信来源，并在启用工具前核对命令、地址、权限和所需密钥。
+:::
 
-MCP (Model Context Protocol) 是一个开放的标准协议，用于连接 AI 应用与外部数据源和工具。它提供了一种标准化的方式，让 AI Agent 能够：
+## 添加服务器
 
-- 访问外部数据源
-- 调用第三方服务
-- 扩展功能能力
-- 保持接口一致性
+进入 **工具 → 添加 MCP**，然后选择一种配置方式。
 
-### MCP 的优势
+### 手动配置
 
-| 优势 | 说明 |
-|------|------|
-| **标准化** | 统一的接口规范，易于集成 |
-| **可扩展** | 支持自定义工具和数据源 |
-| **安全性** | 内置权限控制和验证机制 |
-| **社区支持** | 丰富的社区工具和服务器 |
-| **跨平台** | 支持多种编程语言和平台 |
+本地进程使用 **Stdio**：
 
-## MCP 架构
+| 字段 | 说明 |
+| --- | --- |
+| 名称 | 在 AIME Chat 中显示的服务器名称 |
+| 命令 | 启动服务器的可执行文件，例如 `npx`、`uvx` 或绝对路径 |
+| 参数 | 每行一个命令行参数 |
+| 环境变量 | 每行一个 `KEY=VALUE` |
 
-```
-┌──────────────────────────────────────┐
-│         AIME Chat                   │
-├──────────────────────────────────────┤
-│         MCP Client                  │
-│  ┌────────────────────────────────┐ │
-│  │  Tool Discovery & Management  │ │
-│  └────────────────────────────────┘ │
-├──────────────────────────────────────┤
-│         MCP Protocol                │
-│  ┌────────────────────────────────┐ │
-│  │  Standard Communication Layer  │ │
-│  └────────────────────────────────┘ │
-├──────────────────────────────────────┤
-│         MCP Servers                 │
-│  ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐ │
-│  │File │ │Git  │ │DB   │ │Custom│ │
-│  └─────┘ └─────┘ └─────┘ └─────┘ │
-└──────────────────────────────────────┘
-```
+远程服务器使用 **Streamable HTTP / SSE**：
 
-## MCP 核心概念
+| 字段 | 说明 |
+| --- | --- |
+| 名称 | 在 AIME Chat 中显示的服务器名称 |
+| URL | MCP 服务地址 |
+| Headers | JSON 对象；不需要请求头时填写 `{}` |
 
-### MCP Client
+### 导入 JSON
 
-MCP 客户端负责：
-- 发现和管理 MCP 服务器
-- 与服务器通信
-- 暴露工具给 Agent
-- 处理工具调用
-
-### MCP Server
-
-MCP 服务器提供：
-- 工具定义和描述
-- 工具执行逻辑
-- 资源访问
-- 事件通知
-
-### Tools
-
-MCP 工具是可被 Agent 调用的功能单元：
-- 输入参数定义
-- 输出格式规范
-- 执行逻辑
-- 错误处理
-
-### Resources
-
-MCP 资源是可被访问的数据：
-- 文件
-- 数据库记录
-- API 响应
-- 其他数据源
-
-## 配置 MCP 服务器
-
-### 基本配置
-
-1. 进入 **工具** → **添加MCP服务器**
-2. 填写服务器配置：
-
-### Stdio模式导入
+Stdio 示例：
 
 ```json
 {
   "mcpServers": {
-    "autoglm-mcp": {
+    "example-local": {
       "command": "npx",
-      "args": [
-        "-y",
-        "autoglm-mcp-server"
-      ],
+      "args": ["-y", "example-mcp-server"],
       "env": {
-        "AUTOGLM_API_KEY": "<your_api_key>"
+        "EXAMPLE_API_KEY": "<your-api-key>"
       }
     }
   }
 }
 ```
 
-### Stdio 配置参数说明
-
-| 参数 | 说明 | 必需 |
-|------|------|------|
-| `command` | 启动命令 | ✅ |
-| `args` | 命令参数 | ✅ |
-| `env` | 环境变量 | ❌ |
-
-
-### StreamableHttp / SSE 模式导入
+Streamable HTTP / SSE 示例：
 
 ```json
 {
   "mcpServers": {
-    "web-reader": {
-      "url": "https://open.bigmodel.cn/api/mcp/web_reader/mcp",
+    "example-remote": {
+      "url": "https://example.com/mcp",
       "headers": {
-        "Authorization": "<your_api_key>"
+        "Authorization": "Bearer <your-token>"
       }
     }
   }
 }
 ```
 
-### StreamableHttp / SSE 配置参数说明
+不要把真实密钥提交到仓库、截图或公开日志中。若服务器由第三方提供，请以其文档给出的命令、参数和认证方式为准。
 
-| 参数 | 说明 | 必需 |
-|------|------|------|
-| `url` | 启动命令 | ✅ |
-| `headers` | 命令参数 | ❌ |
+## 导入 MCP Bundle
 
+`.mcpb` 会把服务器清单、运行文件和用户配置打包在一起。你可以：
 
+- 在 **工具 → 添加 MCP → MCP Bundle** 中选择文件；
+- 或把 `.mcpb` 文件直接拖入 AIME Chat 窗口。
 
-### 配置示例
+安装前，AIME Chat 会显示名称、版本、作者、服务器类型、工具列表和支持的平台。按清单填写必需配置后才能安装；与当前系统不兼容的包会被阻止。
 
-#### chrome_devtools
+若同名 Bundle 已安装，界面会提示重装或升级。新版本会先在临时目录完成解包和配置校验，成功后再替换工具配置；配置生成失败时会清理本次安装文件。即便如此，Bundle 中的程序仍属于第三方代码，安装前应自行确认来源。
 
-```json
-{
-  "mcpServers": {
-    "chrome_devtools": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "chrome-devtools-mcp@latest"
-      ],
-    }
-  }
-}
-```
+## 让 Agent 使用 MCP 工具
 
-## 常用 MCP 集合平台
+服务器保存成功后：
 
-- [https://playbooks.com/mcp](https://playbooks.com/mcp)
-- [https://mcp.so/](https://mcp.so/)
+1. 回到 **工具** 页面，确认服务器及所需工具已启用。
+2. 在 Agent 配置中选择相应 MCP 工具。
+3. 发起新对话，并在工具调用前检查参数和目标。
 
-
-### 社区服务器
-
-更多社区开发的 MCP 服务器可以在 [MCP Registry](https://modelcontextprotocol.io/servers) 找到。
-
-## 使用 MCP 工具
-
-### 自动发现
-
-配置 MCP 服务器后，工具会自动出现在工具列表中：
-
-1. 进入 **工具** → **MCP**
-2. 启用需要的工具
+工具是否可用还取决于服务器能否启动、网络是否可达、认证是否有效，以及当前 Agent 的工具选择。
 
 ## 故障排除
 
-### 服务器无法启动
+### 本地服务器无法启动
 
-**检查清单**：
-- [ ] 命令路径正确
-- [ ] 依赖已安装
-- [ ] 环境变量配置正确
-- [ ] 端口未被占用
+- 在终端确认 `command` 可执行，并检查其是否位于应用可见的 `PATH` 中。
+- 核对参数是否逐行填写，环境变量是否使用 `KEY=VALUE`。
+- 使用相对路径时，确认服务器对工作目录没有额外假设；必要时改用绝对路径。
+- 查看工具页显示的错误信息和服务器日志。
 
-### 工具调用失败
+### 远程服务器连接失败
 
-**常见原因**：
-1. 参数格式错误
-2. 权限不足
-3. 服务器未响应
-4. 网络问题
+- 确认 URL、网络和代理设置。
+- 确认 Headers 是合法 JSON，认证值没有过期。
+- 核对服务端支持的传输方式是 Streamable HTTP 还是 SSE。
 
-**调试步骤**：
-1. 查看服务器日志
-2. 验证参数格式
-3. 检查权限设置
-4. 测试网络连接
+### Bundle 无法安装
 
-### 性能问题
+- 确认扩展名为 `.mcpb`，文件没有损坏。
+- 检查预览中的平台兼容性和所有必填配置。
+- 同名版本异常时，重新选择 Bundle 并执行重装；旧工具配置只有在新安装成功后才会被替换。
 
-**优化建议**：
-1. 减少数据传输量
-2. 使用缓存机制
-3. 优化查询性能
-4. 考虑使用连接池
-
-## 资源链接
+## 进一步阅读
 
 - [MCP 官方文档](https://modelcontextprotocol.io/)
-- [MCP SDK](https://github.com/modelcontextprotocol/typescript-sdk)
-- [MCP 服务器列表](https://modelcontextprotocol.io/servers)
-- [MCP 示例](https://github.com/modelcontextprotocol/servers)
-
-## 技术细节
-
-### MCP 协议消息格式
-
-```json
-{
-  "jsonrpc": "2.0",
-  "id": 1,
-  "method": "tools/call",
-  "params": {
-    "name": "my_tool",
-    "arguments": {
-      "param1": "value1"
-    }
-  }
-}
-```
-
-### 与 Mastra 框架集成
-
-AIME Chat 的 MCP 支持完全基于 Mastra 框架：
-
-- Mastra MCP Client
-- Mastra Tool Registry
-- Mastra Server Management
-
-详细技术文档请参考 [Mastra 官方文档](https://mastra.ai/docs)。
+- [MCP Registry](https://modelcontextprotocol.io/registry/about)
+- [MCP 示例](https://modelcontextprotocol.io/examples)
