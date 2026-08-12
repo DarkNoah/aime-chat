@@ -4,16 +4,6 @@ sidebar_position: 4
 
 # Tools 工具
 
-## 图像处理工具
+工具总览已合并到 [工具系统](../tools)，其中包含当前内置 Toolkit、文件与 Excel 读取、Bash/Python 运行器、后台会话、MCP、Skill 和真实安全边界。
 
-### [RemoveBackground - 背景移除工具](./rmbg.md)
-
-自动移除图片背景,生成透明背景的 PNG 图像。
-
-**功能特点**:
-- 智能识别图像主体和背景
-- 支持本地文件和网络 URL
-- 高精度 AI 模型处理
-- 批量处理支持
-
-**前置要求**: 需要在 **设置** → **本地模型** 中下载 rmbg-1.4 或 rmbg-2.0 模型
+图像背景移除的模型与参数说明见 [RemoveBackground](./rmbg)。

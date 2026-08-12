@@ -31,11 +31,13 @@ const sidebars: SidebarsConfig = {
       label: '功能特性',
       items: [
         'features/harness-engineering',
+        'features/project-workspace',
+        'features/browser-instances',
         'features/knowledge-base',
         {
           type: 'category',
           label: 'Tools 工具',
-          items: ['features/tools/overview', 'features/tools/rmbg'],
+          items: ['features/tools', 'features/tools/rmbg'],
         },
         {
           type: 'category',
@@ -67,6 +69,11 @@ const sidebars: SidebarsConfig = {
         'cases/overview',
         'cases/extract-sn-number'
       ],
+    },
+    {
+      type: 'category',
+      label: '开发',
+      items: ['development/architecture', 'development/custom-tools'],
     },
   ],
 

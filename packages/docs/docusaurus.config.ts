@@ -17,7 +17,7 @@ const config: Config = {
   },
 
   // Set the production url of your site here
-  url: 'https://aime-chat.github.io',
+  url: 'https://darknoah.github.io',
   // Set the /<baseUrl>/ pathname under which your site is served
   // For GitHub pages deployment, it is often '/<projectName>/'
   baseUrl: '/aime-chat/',
@@ -34,7 +34,7 @@ const config: Config = {
   // may want to replace "en" with "zh-Hans".
   i18n: {
     defaultLocale: 'zh-Hans',
-    locales: ['zh-Hans', 'en'],
+    locales: ['zh-Hans'],
   },
 
   presets: [
@@ -72,7 +72,7 @@ const config: Config = {
       title: 'AIME Chat',
       logo: {
         alt: 'AIME Chat Logo',
-        src: 'img/icon.png',
+        src: 'img/home-icon.png',
       },
       items: [
         {

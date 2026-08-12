@@ -1,159 +1,104 @@
 ---
-sidebar_position: 1
+sidebar_position: 3
 ---
 
 # AI 服务商配置
 
-AIME Chat 支持多种 AI 服务商，您可以根据需求配置和使用不同的模型。
+AIME Chat 通过 Provider 连接聊天、Embedding、重排、搜索、OCR、语音和图像等模型服务。内置 Provider 与模型目录会随版本更新，因此本页不维护容易过期的固定模型清单；以应用中的 **设置 → AI 服务商** 和模型选择器为准。
 
-## 支持的服务商
+## 添加 Provider
 
-### 云端服务商
+首次设置或后续配置的基本流程相同：
 
-| 服务商 | 模型系列 | 特点 |
-|--------|----------|------|
-| **OpenAI** | GPT-4、GPT-4o、GPT-3.5 | 功能全面，支持多模态 |
-| **DeepSeek** | DeepSeek-V3、DeepSeek-Coder | 性价比高，代码能力强 |
-| **Google** | Gemini Pro、Gemini Ultra | 多模态能力出色 |
-| **智谱 AI** | GLM-4、GLM-3 | 国产优选，中文优化 |
-| **ModelScope** | 多种开源模型 | 魔搭社区模型 |
-| **OpenRouter** | 多种模型聚合 | 一个 Key 访问多个模型 |
-| **SiliconFlow** | 多种模型 | 国内访问友好 |
+1. 打开 **设置 → AI 服务商**，点击添加。
+2. 选择 Provider 类型并填写自定义名称。
+3. 填写 API Key；需要代理、兼容网关或私有部署时填写 API Base。
+4. 保存后读取模型列表。
+5. 只启用实际需要的模型，并保存模型配置。
+6. 回到聊天或 Agent 详情页选择模型。
 
-### 本地服务商
+应用会从内置动态目录生成聊天 Provider 列表，并额外提供 OpenAI Responses API、Ollama，以及 Brave Search、SerpAPI、Tavily、Jina.ai、MinerU、ElevenLabs、PaddleOCR API 等专项 Provider。不同类型需要的字段和模型能力不同。
 
-| 服务商 | 描述 |
-|--------|------|
-| **Ollama** | 本地运行开源模型，隐私安全 |
-| **LMStudio** | 图形化本地模型管理工具 |
+## 管理模型
 
-## 配置步骤
+Provider 保存后，可以在模型列表中：
 
-### 1. 进入设置页面
+- 启用或停用模型；
+- 搜索模型 ID 或名称；
+- 手动添加目录中没有的模型；
+- 编辑模型 ID、名称、输入模态、上下文长度和工具调用支持。
 
-点击应用右上角的设置图标，或使用快捷键 `Ctrl/Cmd + ,`。
+手动填写的能力声明必须与服务端真实能力一致。例如，把不支持图片或工具调用的模型标记为支持，并不会让服务端获得该能力，反而可能导致请求失败。
 
-### 2. 选择服务商
+:::tip 控制模型数量
+只启用常用模型可以让聊天和 Agent 的模型选择器更清晰。模型目录更新频繁，不建议把某个型号长期写死在 Agent Instructions 中。
+:::
 
-在 **AI 服务商** 选项卡中，找到您想配置的服务商。
+## API Base 与兼容接口
 
-### 3. 填写配置信息
+API Base 适用于官方地址以外的兼容端点、企业网关或本地代理。配置时注意：
 
-对于云端服务商，您需要填写：
+- 按 Provider 文档确认地址是否需要包含 `/v1` 等路径；
+- 不要把聊天接口、Responses 接口和 OpenAI-compatible 接口混为一谈；
+- 网关使用自签名证书、代理或额外 Headers 时，先在同一台机器上验证连通性；
+- 模型 ID 必须使用目标服务真实接受的值。
 
-- **API Key** - 从服务商获取的密钥
-- **API Endpoint**（可选）- 自定义 API 端点
-
-对于本地服务商，您需要确保：
-
-- Ollama 或 LMStudio 已在本地运行
-- 正确配置了端口（默认 Ollama: 11434, LMStudio: 1234）
-
-### 4. 启用服务商
-
-配置完成后，打开启用开关，服务商的模型就可以在模型选择器中使用了。
-
-## 获取 API Key
-
-### OpenAI
-
-1. 访问 [OpenAI Platform](https://platform.openai.com/)
-2. 登录后进入 API Keys 页面
-3. 点击 "Create new secret key"
-
-### DeepSeek
-
-1. 访问 [DeepSeek 开放平台](https://platform.deepseek.com/)
-2. 注册并登录
-3. 在 API Keys 页面创建密钥
-
-### Google (Gemini)
-
-1. 访问 [Google AI Studio](https://aistudio.google.com/)
-2. 登录 Google 账号
-3. 创建 API Key
-
-### 智谱 AI
-
-1. 访问 [智谱 AI 开放平台](https://open.bigmodel.cn/)
-2. 注册并完成认证
-3. 在控制台创建 API Key
-
-## 本地模型配置
+## 本地模型
 
 ### Ollama
 
-1. 安装 Ollama：
-```bash
-# macOS
-brew install ollama
+1. 安装并启动 Ollama。
+2. 在终端确认 `ollama list` 能看到已下载模型。
+3. 在 AIME Chat 添加 Ollama Provider；远程运行时填写相应 API Base。
+4. 获取模型列表，启用需要的模型。
 
-# Linux
-curl -fsSL https://ollama.com/install.sh | sh
-```
+默认本地地址通常是 `http://127.0.0.1:11434`，但应以你的 Ollama 配置为准。
 
-2. 启动 Ollama 服务：
-```bash
-ollama serve
-```
+### LM Studio 与其他兼容服务
 
-3. 下载模型：
-```bash
-ollama pull llama3.3
-ollama pull qwen2.5:14b
-```
+先在服务端启用本地 API，再使用相应 Provider 类型或兼容端点配置 API Base。应用与模型服务运行在不同机器、容器或虚拟机时，`127.0.0.1` 指向各自环境，需改成客户端可访问的地址。
 
-4. 在 AIME Chat 中启用 Ollama 服务商
+## 为不同能力选择 Provider
 
-### LMStudio
+模型名称不能替代能力验证。配置前先确认目标用途：
 
-1. 从 [LMStudio 官网](https://lmstudio.ai/) 下载安装
-2. 在 LMStudio 中下载模型
-3. 启动本地服务器（Local Server）
-4. 在 AIME Chat 中配置 LMStudio 端点
+| 用途 | 需要确认的能力 |
+| --- | --- |
+| 普通聊天 | 文本输入输出、上下文长度 |
+| Agent 工具 | 模型和 Provider 都支持 tool calling |
+| 图片理解 | 输入模态包含图片，并使用兼容消息格式 |
+| 知识库向量 | Embedding 模型与稳定的向量维度 |
+| 知识库重排 | Reranker 接口与模型类型 |
+| 图像、语音、OCR | 对应专项 Provider 与运行库已配置 |
+| Web Search | 搜索 Provider 的 Key、区域和配额可用 |
 
-## 模型选择建议
+更换知识库 Embedding 模型会触发全量向量重算；详见 [知识库管理](../features/knowledge-base#更换向量模型)。
 
-| 场景 | 推荐模型 |
-|------|----------|
-| 日常对话 | GPT-4o-mini、GLM-4-Flash |
-| 复杂推理 | GPT-4o、DeepSeek-V3、Claude-3.5 |
-| 代码开发 | DeepSeek-Coder、GPT-4o |
-| 中文写作 | GLM-4、Qwen-2.5 |
-| 隐私优先 | Ollama + 本地模型 |
+## 密钥与本地数据
+
+Provider 配置保存在本地应用数据库中，供主进程发起请求时使用。当前文档不把这种存储描述为静态加密保险箱，因此仍应：
+
+- 保护操作系统账户、应用数据目录和备份；
+- 使用权限最小、可轮换的 API Key；
+- 不在截图、聊天、日志、仓库或 Agent 导出配置中粘贴真实密钥；
+- 停用或删除不再使用的 Provider，并在服务商控制台撤销旧密钥。
 
 ## 常见问题
 
-### API 调用失败
+### 无法获取模型列表
 
-1. 检查 API Key 是否正确
-2. 确认账户余额是否充足
-3. 检查网络连接（国内可能需要代理）
+1. 检查 API Key、API Base、网络和代理。
+2. 确认账户权限、余额或配额。
+3. 某些兼容服务不提供模型列表接口，可手动添加服务端支持的模型 ID。
 
-### 本地模型无法连接
+### 模型在聊天中不可见
 
-1. 确认 Ollama/LMStudio 服务正在运行
-2. 检查端口配置是否正确
-3. 确认防火墙设置
+确认 Provider 和模型都已启用，并检查当前入口是否只筛选聊天模型。Embedding、重排、搜索或 OCR Provider 不一定会出现在普通聊天模型选择器中。
 
-### 模型响应慢
+### 工具调用或多模态请求失败
 
-1. 尝试切换到更快的模型
-2. 检查网络延迟
-3. 本地模型可能受硬件限制
+核对模型编辑器中的工具调用与输入模态声明，并以服务商当前文档为准。模型 ID 相似并不表示不同端点具有相同能力。
 
+### 本地服务连接失败
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+确认服务进程正在监听、端口没有被防火墙阻断，并从运行 AIME Chat 的系统测试 API Base。容器或远程主机上的 `localhost` 通常不是桌面应用所在机器。

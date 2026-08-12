@@ -761,12 +761,12 @@ input[type='search']::-webkit-search-cancel-button {
   visibility: hidden;
 }
 
-/* 列表样式 */
-ul {
+/* 文档正文列表样式 */
+.theme-doc-markdown ul {
   list-style: disc;
 }
 
-ol {
+.theme-doc-markdown ol {
   list-style: decimal;
 }
 

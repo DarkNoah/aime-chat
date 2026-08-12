@@ -1,703 +1,495 @@
 import clsx from 'clsx';
 import Link from '@docusaurus/Link';
 import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
+import useBaseUrl from '@docusaurus/useBaseUrl';
 import Layout from '@theme/Layout';
 import Heading from '@theme/Heading';
-import useBaseUrl from '@docusaurus/useBaseUrl';
-import type { CSSProperties, ReactElement, ReactNode } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 import {
   IconArrowRight,
   IconBolt,
   IconBook,
   IconBrandApple,
   IconBrandDebian,
-  IconClock,
   IconBrandGithub,
   IconBrandWindows,
+  IconBrowser,
   IconCode,
   IconDatabase,
+  IconDownload,
   IconFolder,
-  IconPhoto,
+  IconInfoCircle,
   IconPlug,
   IconRobot,
-  IconRocket,
+  IconRoute,
   IconShieldLock,
   IconSparkles,
   IconTool,
-  IconWorld,
 } from '@tabler/icons-react';
 
-import HomepageFeatures from '@site/src/components/HomepageFeatures';
 import styles from './index.module.css';
 
-type Provider = {
-  name: string;
+type DocumentRoute = {
+  step: string;
+  title: string;
+  description: string;
+  to: string;
   icon: ReactElement;
-  color: string;
 };
 
-type ToolItem = {
-  name: string;
+type Capability = {
+  title: string;
+  description: string;
+  to: string;
+  meta: string;
   icon: ReactElement;
-  desc: string;
 };
 
-type WorkflowStep = {
-  title: string;
-  description: string;
-};
-
-type ChannelItem = {
-  name: string;
-  description: string;
-  features: string[];
-  link: string;
-};
-
-type AutomationItem = {
-  title: string;
-  description: string;
-  details: string[];
-};
-
-type HarnessLayer = {
-  title: string;
-  description: string;
-  details: string[];
-};
-
-const providers: Provider[] = [
-  { name: 'OpenAI', icon: <IconRobot size={24} />, color: '#10a37f' },
-  { name: 'DeepSeek', icon: <IconSparkles size={24} />, color: '#6366f1' },
-  { name: 'Google', icon: <IconWorld size={24} />, color: '#4285f4' },
-  { name: '智谱 AI', icon: <IconRobot size={24} />, color: '#ff6b35' },
-  { name: 'Ollama', icon: <IconSparkles size={24} />, color: '#1d1d1f' },
-  { name: 'LM Studio', icon: <IconCode size={24} />, color: '#8b5cf6' },
-  { name: 'ModelScope', icon: <IconSparkles size={24} />, color: '#ff4d4f' },
-  { name: 'SiliconFlow', icon: <IconBolt size={24} />, color: '#00d4aa' },
-];
-
-const tools: ToolItem[] = [
+const documentRoutes: DocumentRoute[] = [
   {
-    name: '代码执行',
-    icon: <IconCode size={22} />,
-    desc: 'Python / Node.js 任务执行',
+    step: '01',
+    title: '安装 AIME Chat',
+    description: '选择适合你的桌面安装包，或从源码启动开发环境。',
+    to: '/docs/getting-started/installation',
+    icon: <IconDownload size={21} aria-hidden="true" />,
   },
   {
-    name: '文件操作',
-    icon: <IconFolder size={22} />,
-    desc: '搜索、编辑、读写项目文件',
+    step: '02',
+    title: '连接模型服务',
+    description: '配置云端或本地 Provider，并选择对话与工具模型。',
+    to: '/docs/getting-started/ai-providers',
+    icon: <IconSparkles size={21} aria-hidden="true" />,
   },
   {
-    name: '网络请求',
-    icon: <IconWorld size={22} />,
-    desc: '网页抓取与在线搜索',
+    step: '03',
+    title: '建立项目工作区',
+    description: '把文件、聊天线程和导出结果集中在同一个项目中。',
+    to: '/docs/features/project-workspace',
+    icon: <IconFolder size={21} aria-hidden="true" />,
   },
   {
-    name: '图像处理',
-    icon: <IconPhoto size={22} />,
-    desc: '识别、编辑、去背景',
-  },
-  {
-    name: '数据库',
-    icon: <IconDatabase size={22} />,
-    desc: 'LibSQL / SQLite 数据处理',
-  },
-  { name: 'MCP 扩展', icon: <IconPlug size={22} />, desc: '接入更多外部能力' },
-];
-
-const workflowSteps: WorkflowStep[] = [
-  {
-    title: '连接模型',
-    description:
-      '配置 OpenAI、DeepSeek、Google、Ollama 等模型服务，统一在一个桌面应用中使用。',
-  },
-  {
-    title: '选择能力',
-    description:
-      '从对话、知识库、工具调用到 Agent 模式，按任务切换最合适的工作方式。',
-  },
-  {
-    title: '立即执行',
-    description:
-      '让 AI 直接处理文档、代码、网页、图片和本地数据，而不只是生成一段文本。',
+    step: '04',
+    title: '配置 Agent 与工具',
+    description: '按任务组合指令、内置工具、Skill 与 MCP 扩展。',
+    to: '/docs/features/agents',
+    icon: <IconRobot size={21} aria-hidden="true" />,
   },
 ];
 
-const trustItems = ['开源免费', '本地优先', '隐私安全', '跨平台桌面应用'];
-
-const channels: ChannelItem[] = [
+const capabilities: Capability[] = [
   {
-    name: 'Telegram',
+    title: '项目与文件工作区',
     description:
-      '将 AIME Chat 接入 Telegram，把 AI 能力延伸到移动端和远程消息场景。',
-    features: ['远程对话', '多端触达', '消息驱动工作流'],
-    link: '/docs/features/channels/telegram',
+      '浏览、搜索和编辑项目文件，并将项目聊天导出为 Markdown、JSON、XLSX 或训练数据。',
+    to: '/docs/features/project-workspace',
+    meta: '文件 · 线程 · 导出',
+    icon: <IconFolder size={22} aria-hidden="true" />,
   },
   {
-    name: '微信',
+    title: '知识库与混合检索',
+    description: '组合向量与 BM25 检索，支持可选重排、图像内容与分段全文读取。',
+    to: '/docs/features/knowledge-base',
+    meta: 'Vector · BM25 · Rerank',
+    icon: <IconDatabase size={22} aria-hidden="true" />,
+  },
+  {
+    title: 'Agent 与工具系统',
     description:
-      '连接微信频道后，可以在更贴近日常沟通的场景中使用 AI 助手与自动化能力。',
-    features: ['国内常用场景', '便捷接入', '持续在线交互'],
-    link: '/docs/features/channels/wechat',
+      '让 Agent 在明确的指令和工具范围内读取文件、执行代码、搜索网页并推进任务。',
+    to: '/docs/features/tools',
+    meta: 'Agent · Tool · Skill',
+    icon: <IconTool size={22} aria-hidden="true" />,
+  },
+  {
+    title: '浏览器实例与 MCP',
+    description:
+      '选择 Chrome、Edge 或 Chromium 实例，并通过 MCP 连接更多本地与远程服务。',
+    to: '/docs/features/browser-instances',
+    meta: 'Browser · MCP',
+    icon: <IconBrowser size={22} aria-hidden="true" />,
+  },
+  {
+    title: '自动化与长期记忆',
+    description:
+      '用 Cron 绑定项目、模型和 Agent，让日常任务与聊天记忆按计划持续整理。',
+    to: '/docs/features/crons',
+    meta: 'Cron · Goal · Memory',
+    icon: <IconBolt size={22} aria-hidden="true" />,
   },
 ];
 
-const automationItems: AutomationItem[] = [
-  {
-    title: '定时触发 AI 任务',
-    description: '基于 cron 表达式按分钟、小时、每天或每周自动执行提示词任务。',
-    details: ['Cron Builder', '自定义表达式', '启用/停用切换'],
-  },
-  {
-    title: '绑定项目与执行上下文',
-    description: '自动化任务可以关联项目，并指定模型、Agent、工具和子 Agent。',
-    details: ['项目上下文', '指定 Agent', '工具与子 Agent'],
-  },
-  {
-    title: '沉淀长期养成记忆',
-    description:
-      '内置 Cultivation Daily 任务可定期读取新增聊天记录，将偏好、习惯和项目上下文整理进全局记忆 Wiki。',
-    details: ['Cultivation Agent', '全局记忆', '增量整理'],
-  },
+const providers = [
+  'OpenAI',
+  'DeepSeek',
+  'Google',
+  '智谱 AI',
+  'Ollama',
+  'LM Studio',
+  'ModelScope',
+  'SiliconFlow',
 ];
 
-const harnessLayers: HarnessLayer[] = [
-  {
-    title: '编排循环',
-    description:
-      '驱动「提示 → 响应 → 工具调用 → 观察 → 下一步」的循环，直至任务完成。',
-    details: ['Mastra 运行时', '流式响应', '多步工具调用'],
-  },
-  {
-    title: '指引与工具',
-    description:
-      'Agent 指令、助手人格与 Skill 提供前置约束，工具接口以清晰 Schema 暴露能力。',
-    details: ['Agent 指令', 'Skill 技能', 'MCP 工具'],
-  },
-  {
-    title: '上下文与记忆',
-    description:
-      '在多轮与跨会话之间组装并沉淀正确信息，对抗上下文腐烂。',
-    details: ['知识库', '养成记忆', '会话/工作记忆'],
-  },
-  {
-    title: '状态与护栏',
-    description:
-      '后台会话、Goal 与 Crons 持久化状态，工具权限与审批约束操作范围。',
-    details: ['后台 Bash', 'Goal / Crons', '权限与审批'],
-  },
-];
-
-function SectionIntro({
-  eyebrow,
-  title,
-  description,
+function PrimaryLink({
+  to,
+  children,
+  className,
 }: {
-  eyebrow: string;
-  title: string;
-  description: string;
+  to: string;
+  children: ReactNode;
+  className?: string;
 }) {
   return (
-    <div className={styles.sectionIntro}>
-      <span className={styles.sectionEyebrow}>{eyebrow}</span>
-      <Heading as="h2" className={styles.sectionTitle}>
-        {title}
-      </Heading>
-      <p className={styles.sectionDescription}>{description}</p>
-    </div>
+    <Link className={clsx(styles.primaryLink, className)} to={to}>
+      {children}
+      <IconArrowRight size={18} aria-hidden="true" />
+    </Link>
   );
 }
 
-function HomepageHeader() {
+function Hero() {
   const screenshotUrl = useBaseUrl('img/ScreenShot_2026-01-24_171537_284.png');
+  const iconUrl = useBaseUrl('img/home-icon.png');
 
   return (
-    <header className={styles.heroBanner}>
-      <div className={styles.heroBackground}>
-        <div className={clsx(styles.heroOrb, styles.heroOrb1)} />
-        <div className={clsx(styles.heroOrb, styles.heroOrb2)} />
-        <div className={clsx(styles.heroOrb, styles.heroOrb3)} />
-        <div className={styles.gridPattern} />
-      </div>
-
-      <div className={clsx('container', styles.heroContainer)}>
-        <div className={styles.heroContent}>
-          <div className={styles.heroBadge}>
-            <IconSparkles size={16} />
-            <span>Open CoWork · AI 桌面助手</span>
+    <header className={styles.hero}>
+      <div className={clsx('container', styles.heroLayout)}>
+        <div className={styles.heroCopy}>
+          <div className={styles.brandLine}>
+            <img src={iconUrl} alt="" width="36" height="36" />
+            <span>AIME Chat 文档</span>
           </div>
 
           <Heading as="h1" className={styles.heroTitle}>
-            一个真正能干活的
-            <span className={styles.titleGradient}> AI 桌面助手</span>
+            <span className={styles.heroTitleLine}>把模型、工具</span>
+            <span className={styles.heroTitleLine}>和本地项目，</span>
+            <span className={styles.heroTitleLine}>放进同一个</span>
+            <span className={styles.heroTitleLine}>桌面工作台。</span>
           </Heading>
 
           <p className={styles.heroDescription}>
-            AIME Chat 将多模型对话、知识库、工具调用与 Agent
-            能力整合到一个跨平台桌面应用中， 让 AI
-            既能聊天，也能直接完成实际任务。
+            AIME Chat 是一个开源 AI 桌面应用。连接你选择的模型，让 Agent
+            在项目上下文中读取文件、检索知识、调用工具，并把结果留在自己的工作区。
           </p>
 
           <div className={styles.heroActions}>
-            <Link
-              className={clsx(styles.heroButton, styles.heroButtonPrimary)}
-              to="/docs/intro"
-            >
-              <IconRocket size={18} /> 快速开始
-            </Link>
-            <Link
-              className={clsx(styles.heroButton, styles.heroButtonSecondary)}
-              href="https://github.com/DarkNoah/aime-chat"
-            >
-              <IconBrandGithub size={18} /> GitHub
+            <PrimaryLink to="/docs/getting-started/installation">
+              安装并开始
+            </PrimaryLink>
+            <Link className={styles.secondaryLink} to="/docs/intro">
+              <IconBook size={18} aria-hidden="true" />
+              浏览文档
             </Link>
           </div>
 
-          <div className={styles.trustRow}>
-            {trustItems.map((item) => (
-              <span key={item} className={styles.trustPill}>
-                <IconShieldLock size={14} /> {item}
-              </span>
-            ))}
-          </div>
-
-          <div className={styles.statsGrid}>
-            <div className={styles.statCard}>
-              <strong>10+</strong>
-              <span>AI 服务商</span>
-            </div>
-            <div className={styles.statCard}>
-              <strong>20+</strong>
-              <span>内置工具</span>
-            </div>
-            <div className={styles.statCard}>
-              <strong>3</strong>
-              <span>桌面平台支持</span>
-            </div>
-          </div>
-
-          <div className={styles.downloadCard}>
-            <div>
-              <p className={styles.downloadLabel}>立即下载</p>
-              <p className={styles.downloadText}>
-                选择你的平台，几分钟内开始使用。
-              </p>
-            </div>
-            <div className={styles.downloadLinks}>
-              <Link
-                className={styles.platformLink}
-                href="https://github.com/DarkNoah/aime-chat/releases/latest/download/aime-chat-arm64-mac.dmg"
-                title="macOS (Apple Silicon)"
-              >
-                <IconBrandApple size={20} />
-                <span>macOS</span>
-              </Link>
-              <Link
-                className={styles.platformLink}
-                href="https://github.com/DarkNoah/aime-chat/releases/latest/download/aime-chat-setup-win.exe"
-                title="Windows"
-              >
-                <IconBrandWindows size={20} />
-                <span>Windows</span>
-              </Link>
-              <Link
-                className={styles.platformLink}
-                href="https://github.com/DarkNoah/aime-chat/releases/latest/download/aime-chat-arm64-linux.deb"
-                title="Linux arm64 (.deb)"
-              >
-                <IconBrandDebian size={20} />
-                <span>Linux arm64</span>
-              </Link>
-              <Link
-                className={styles.platformLink}
-                href="https://github.com/DarkNoah/aime-chat/releases/latest/download/aime-chat-x64-linux.deb"
-                title="Linux amd64 (.deb)"
-              >
-                <IconBrandDebian size={20} />
-                <span>Linux amd64</span>
-              </Link>
-            </div>
-          </div>
-
-          <p className={styles.downloadWarning}>
-            macOS 版本暂不支持自动更新。
-            <br />
-            首次安装如提示文件损坏，请在终端执行{' '}
-            <code>xattr -cr /Applications/aime-chat.app</code> 后再打开。
-          </p>
+          <ul className={styles.heroFacts} aria-label="项目特点">
+            <li>
+              <IconBrandGithub size={17} aria-hidden="true" /> MIT 开源
+            </li>
+            <li>
+              <IconShieldLock size={17} aria-hidden="true" /> 本地优先
+            </li>
+            <li>macOS · Windows · Linux</li>
+          </ul>
         </div>
 
-        <div className={styles.heroVisual}>
-          <div className={styles.heroPreviewCard}>
-            <div className={styles.previewTopbar}>
-              <span />
-              <span />
-              <span />
-            </div>
+        <figure className={styles.productFrame}>
+          <div className={styles.screenshotShell}>
             <img
-              className={styles.heroScreenshotImage}
+              className={styles.heroScreenshot}
               src={screenshotUrl}
-              alt="AIME Chat 应用截图"
+              alt="AIME Chat 项目工作区：左侧管理项目文件，中间与 Agent 对话，右侧查看任务用量"
+              width="1307"
+              height="877"
               loading="eager"
+              decoding="async"
+              fetchPriority="high"
             />
           </div>
-
-          <div className={styles.heroInfoGrid}>
-            <div className={styles.heroInfoCard}>
-              <div className={styles.heroInfoIcon}>
-                <IconTool size={18} />
-              </div>
-              <div>
-                <strong>工具系统</strong>
-                <span>文件、代码、网页、图片、数据库</span>
-              </div>
-            </div>
-
-            <div className={styles.heroInfoCard}>
-              <div className={styles.heroInfoIcon}>
-                <IconRobot size={18} />
-              </div>
-              <div>
-                <strong>多模型统一接入</strong>
-                <span>一个界面管理常见 AI 服务商</span>
-              </div>
-            </div>
-          </div>
-        </div>
+          <figcaption>
+            <span>真实应用界面</span>
+            <span>项目、聊天和执行结果保持在同一上下文</span>
+          </figcaption>
+        </figure>
       </div>
     </header>
   );
 }
 
-function HarnessSection() {
+function DocumentRoutes() {
   return (
-    <section className={styles.automationSection}>
-      <div className="container">
-        <SectionIntro
-          eyebrow="Harness Engineering"
-          title="Agent = Model + Harness"
-          description="裸的大语言模型只是一个无状态的函数。AIME Chat 遵循业界于 2026 年确立的外壳工程范式，围绕模型构建编排循环、工具、记忆、状态与护栏，把任意模型（云端或本地）打造成可靠、目标驱动的智能体。"
-        />
+    <section className={styles.routesSection} aria-labelledby="routes-title">
+      <div className={clsx('container', styles.routesLayout)}>
+        <div className={styles.sectionCopy}>
+          <p className={styles.sectionLabel}>从这里开始</p>
+          <Heading as="h2" id="routes-title" className={styles.sectionTitle}>
+            按任务找到下一步，少走弯路。
+          </Heading>
+          <p className={styles.sectionDescription}>
+            第一次使用可以按顺序完成四步；已有环境时，直接进入你需要的部分。
+          </p>
+          <Link className={styles.textLink} to="/docs/intro">
+            查看文档总览 <IconArrowRight size={16} aria-hidden="true" />
+          </Link>
+        </div>
 
-        <div className={styles.automationLayout}>
-          <div className={styles.automationLeadCard}>
-            <div className={styles.automationLeadIcon}>
-              <IconRobot size={28} />
-            </div>
-            <Heading as="h3" className={styles.automationLeadTitle}>
-              不是模型前的聊天框，而是模型外的完整外壳
+        <nav className={styles.routeList} aria-label="快速开始文档">
+          {documentRoutes.map((route) => (
+            <Link key={route.step} className={styles.routeItem} to={route.to}>
+              <span className={styles.routeStep}>{route.step}</span>
+              <span className={styles.routeIcon}>{route.icon}</span>
+              <span className={styles.routeContent}>
+                <strong>{route.title}</strong>
+                <span>{route.description}</span>
+              </span>
+              <IconArrowRight
+                className={styles.routeArrow}
+                size={19}
+                aria-hidden="true"
+              />
+            </Link>
+          ))}
+        </nav>
+      </div>
+    </section>
+  );
+}
+
+function WorkspaceLoop() {
+  return (
+    <section className={styles.workspaceSection} aria-labelledby="loop-title">
+      <div className="container">
+        <div className={styles.workspaceHeader}>
+          <div>
+            <p className={styles.sectionLabel}>一个连续工作流</p>
+            <Heading as="h2" id="loop-title" className={styles.sectionTitle}>
+              上下文不散落，任务才真正闭环。
             </Heading>
-            <p className={styles.automationLeadDescription}>
-              外壳工程在更高的抽象层上设计模型周围的整个运行环境——编排、工具、记忆、状态、护栏与可观测性。它包含并超越了提示词工程与上下文工程，是让自主智能体持续、可靠、安全运行的关键。
-            </p>
+          </div>
+          <p className={styles.sectionDescription}>
+            从准备项目资料到 Agent 执行、验证与导出，AIME Chat
+            把每一步放在同一个桌面工作区里。
+          </p>
+        </div>
+
+        <div className={styles.workspaceLayout}>
+          <div className={styles.loopPanel} aria-label="AIME Chat 任务流程">
+            <div className={styles.loopHeading}>
+              <IconRoute size={23} aria-hidden="true" />
+              <span>项目任务 / 执行路径</span>
+            </div>
+            <ol className={styles.loopList}>
+              <li>
+                <span>1</span>
+                <div>
+                  <strong>准备上下文</strong>
+                  <small>文件 · 知识库 · 网页</small>
+                </div>
+              </li>
+              <li>
+                <span>2</span>
+                <div>
+                  <strong>Agent 规划</strong>
+                  <small>指令 · 模型 · 目标</small>
+                </div>
+              </li>
+              <li>
+                <span>3</span>
+                <div>
+                  <strong>工具执行</strong>
+                  <small>代码 · 搜索 · MCP</small>
+                </div>
+              </li>
+              <li>
+                <span>4</span>
+                <div>
+                  <strong>验证并沉淀</strong>
+                  <small>结果 · 导出 · 记忆</small>
+                </div>
+              </li>
+            </ol>
             <Link
-              className={styles.inlineLink}
+              className={styles.loopLink}
               to="/docs/features/harness-engineering"
             >
-              了解 Harness Engineering <IconArrowRight size={16} />
+              了解 Agent 的运行外壳
+              <IconArrowRight size={17} aria-hidden="true" />
             </Link>
           </div>
 
-          <div className={styles.automationGrid}>
-            {harnessLayers.map((layer) => (
-              <div key={layer.title} className={styles.automationCard}>
-                <Heading as="h3" className={styles.automationTitle}>
-                  {layer.title}
-                </Heading>
-                <p className={styles.automationDescription}>
-                  {layer.description}
-                </p>
-                <div className={styles.automationTags}>
-                  {layer.details.map((detail) => (
-                    <span key={detail} className={styles.automationTag}>
-                      {detail}
-                    </span>
-                  ))}
-                </div>
-              </div>
+          <nav className={styles.capabilityList} aria-label="能力文档">
+            {capabilities.map((capability) => (
+              <Link
+                key={capability.title}
+                className={styles.capabilityItem}
+                to={capability.to}
+              >
+                <span className={styles.capabilityIcon}>{capability.icon}</span>
+                <span className={styles.capabilityContent}>
+                  <span className={styles.capabilityHeading}>
+                    <strong>{capability.title}</strong>
+                    <small>{capability.meta}</small>
+                  </span>
+                  <span>{capability.description}</span>
+                </span>
+                <IconArrowRight
+                  className={styles.capabilityArrow}
+                  size={18}
+                  aria-hidden="true"
+                />
+              </Link>
             ))}
+          </nav>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Ecosystem() {
+  return (
+    <section
+      className={styles.ecosystemSection}
+      aria-labelledby="ecosystem-title"
+    >
+      <div className={clsx('container', styles.ecosystemLayout)}>
+        <div className={styles.ecosystemCopy}>
+          <div className={styles.ecosystemIcon}>
+            <IconPlug size={22} aria-hidden="true" />
+          </div>
+          <div>
+            <Heading as="h2" id="ecosystem-title">
+              连接你已经在用的模型与工具
+            </Heading>
+            <p>
+              内置 Provider 目录会持续更新，也可以配置兼容端点、本地模型和 MCP
+              服务。
+            </p>
           </div>
         </div>
-      </div>
-    </section>
-  );
-}
-
-function WorkflowSection() {
-  return (
-    <section className={styles.workflowSection}>
-      <div className="container">
-        <SectionIntro
-          eyebrow="工作流"
-          title="从对话到执行，形成完整闭环"
-          description="不仅能问答，还能把模型能力和本地工作环境连接起来，让 AI 真正参与到你的日常工作。"
-        />
-
-        <div className={styles.workflowGrid}>
-          {workflowSteps.map((step, index) => (
-            <div key={step.title} className={styles.workflowCard}>
-              <div className={styles.workflowIndex}>0{index + 1}</div>
-              <Heading as="h3" className={styles.workflowTitle}>
-                {step.title}
-              </Heading>
-              <p className={styles.workflowDescription}>{step.description}</p>
-            </div>
+        <ul className={styles.providerList} aria-label="支持的模型服务示例">
+          {providers.map((provider) => (
+            <li key={provider}>{provider}</li>
           ))}
+        </ul>
+        <p className={styles.ecosystemNote}>
+          应用状态与聊天默认保存在本机；使用云端 Provider
+          时，请求仍会按对应服务商策略发送。
+        </p>
+        <div className={styles.ecosystemLinks}>
+          <Link to="/docs/getting-started/ai-providers">
+            配置模型服务 <IconArrowRight size={16} aria-hidden="true" />
+          </Link>
+          <Link to="/docs/features/mcp">
+            连接 MCP <IconArrowRight size={16} aria-hidden="true" />
+          </Link>
         </div>
       </div>
     </section>
   );
 }
 
-function ChannelsSection() {
+function Downloads() {
   return (
-    <section className={styles.channelsSection}>
+    <section
+      className={styles.downloadSection}
+      aria-labelledby="download-title"
+    >
       <div className="container">
-        <SectionIntro
-          eyebrow="频道接入"
-          title="把 AI 助手带到你常用的消息渠道"
-          description="除了桌面端使用方式，AIME Chat 还支持将能力扩展到外部频道，让对话、通知和任务触发更加自然。"
-        />
+        <div className={styles.downloadHeader}>
+          <div>
+            <p className={styles.sectionLabel}>桌面安装包</p>
+            <Heading
+              as="h2"
+              id="download-title"
+              className={styles.sectionTitle}
+            >
+              选择你的平台，开始工作。
+            </Heading>
+          </div>
+          <p className={styles.sectionDescription}>
+            macOS 提供 Apple Silicon 与 Intel 版本；Windows 与 Linux
+            提供对应桌面安装包。
+          </p>
+        </div>
 
-        <div className={styles.channelGrid}>
-          {channels.map((channel) => (
-            <div key={channel.name} className={styles.channelCard}>
-              <div className={styles.channelHeader}>
-                <Heading as="h3" className={styles.channelTitle}>
-                  {channel.name}
-                </Heading>
-                <span className={styles.channelBadge}>已支持</span>
+        <div className={styles.platformGrid}>
+          <article className={styles.platformItem}>
+            <div className={styles.platformHeading}>
+              <IconBrandApple size={27} aria-hidden="true" />
+              <div>
+                <Heading as="h3">macOS</Heading>
+                <p>macOS 11 或更高版本</p>
               </div>
-
-              <p className={styles.channelDescription}>{channel.description}</p>
-
-              <div className={styles.channelFeatures}>
-                {channel.features.map((feature) => (
-                  <span key={feature} className={styles.channelFeatureTag}>
-                    {feature}
-                  </span>
-                ))}
-              </div>
-
-              <Link className={styles.inlineLink} to={channel.link}>
-                查看接入说明 <IconArrowRight size={16} />
+            </div>
+            <div className={styles.platformActions}>
+              <Link href="https://github.com/DarkNoah/aime-chat/releases/latest/download/aime-chat-arm64-mac.dmg">
+                Apple Silicon <IconDownload size={16} aria-hidden="true" />
+              </Link>
+              <Link href="https://github.com/DarkNoah/aime-chat/releases/latest/download/aime-chat-x64-mac.dmg">
+                Intel <IconDownload size={16} aria-hidden="true" />
               </Link>
             </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
+          </article>
 
-function AutomationSection() {
-  return (
-    <section className={styles.automationSection}>
-      <div className="container">
-        <SectionIntro
-          eyebrow="自动化"
-          title="让 AI 按计划自动工作"
-          description="源项目内置了自动化 Crons 页面，可以创建定时任务，绑定项目上下文，并指定执行所用的 Agent、模型、工具与子 Agent，包括用于长期记忆沉淀的 Cultivation Daily。"
-        />
-
-        <div className={styles.automationLayout}>
-          <div className={styles.automationLeadCard}>
-            <div className={styles.automationLeadIcon}>
-              <IconClock size={28} />
-            </div>
-            <Heading as="h3" className={styles.automationLeadTitle}>
-              内置 Cron Builder 与任务管理界面
-            </Heading>
-            <p className={styles.automationLeadDescription}>
-              自动化页面支持按每隔分钟、每小时、每天、每周或自定义 cron
-              表达式来配置任务，还可以随时启用、停用、编辑和删除。
-            </p>
-            <Link className={styles.inlineLink} to="/docs/features/crons">
-              查看自动化文档 <IconArrowRight size={16} />
-            </Link>
-            <Link
-              className={styles.inlineLink}
-              to="/docs/features/cultivation-memory"
-            >
-              了解养成记忆 <IconArrowRight size={16} />
-            </Link>
-          </div>
-
-          <div className={styles.automationGrid}>
-            {automationItems.map((item) => (
-              <div key={item.title} className={styles.automationCard}>
-                <Heading as="h3" className={styles.automationTitle}>
-                  {item.title}
-                </Heading>
-                <p className={styles.automationDescription}>
-                  {item.description}
-                </p>
-                <div className={styles.automationTags}>
-                  {item.details.map((detail) => (
-                    <span key={detail} className={styles.automationTag}>
-                      {detail}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function ProvidersSection() {
-  return (
-    <section className={styles.providersSection}>
-      <div className="container">
-        <SectionIntro
-          eyebrow="模型生态"
-          title="统一连接主流 AI 模型"
-          description="无论你在使用云端模型还是本地模型，都可以在同一个桌面工作台里统一管理与调用。"
-        />
-
-        <div className={styles.providerGrid}>
-          {providers.map((provider) => (
-            <div
-              key={provider.name}
-              className={styles.providerItem}
-              style={{ '--provider-color': provider.color } as CSSProperties}
-            >
-              <span className={styles.providerIcon}>{provider.icon}</span>
-              <span className={styles.providerName}>{provider.name}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function ToolsSection() {
-  return (
-    <section className={styles.toolsSection}>
-      <div className="container">
-        <SectionIntro
-          eyebrow="工具能力"
-          title="让 AI 不止回答问题"
-          description="内置常用工程能力，并支持通过 MCP 扩展到更多业务场景，覆盖开发、文档、数据和多媒体任务。"
-        />
-
-        <div className={styles.toolGrid}>
-          {tools.map((tool) => (
-            <div key={tool.name} className={styles.toolItem}>
-              <div className={styles.toolIcon}>{tool.icon}</div>
+          <article className={styles.platformItem}>
+            <div className={styles.platformHeading}>
+              <IconBrandWindows size={27} aria-hidden="true" />
               <div>
-                <Heading as="h3" className={styles.toolName}>
-                  {tool.name}
-                </Heading>
-                <p className={styles.toolDesc}>{tool.desc}</p>
+                <Heading as="h3">Windows</Heading>
+                <p>Windows 10 或更高版本</p>
               </div>
             </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
+            <div className={styles.platformActions}>
+              <Link href="https://github.com/DarkNoah/aime-chat/releases/latest/download/aime-chat-setup-win.exe">
+                下载安装程序 <IconDownload size={16} aria-hidden="true" />
+              </Link>
+            </div>
+          </article>
 
-function QuickStartSection() {
-  return (
-    <section className={styles.quickStartSection}>
-      <div className="container">
-        <div className={styles.quickStartShell}>
-          <div className={styles.quickStartCopy}>
-            <span className={styles.sectionEyebrow}>快速开始</span>
-            <Heading as="h2" className={styles.sectionTitle}>
-              几条命令，即可开始体验
-            </Heading>
-            <p className={styles.sectionDescription}>
-              克隆仓库、安装依赖、启动应用。想继续深入，可以直接查看完整文档和功能说明。
-            </p>
-            <Link
-              className={styles.inlineLink}
-              to="/docs/getting-started/installation"
-            >
-              查看安装说明 <IconArrowRight size={16} />
+          <article className={styles.platformItem}>
+            <div className={styles.platformHeading}>
+              <IconBrandDebian size={27} aria-hidden="true" />
+              <div>
+                <Heading as="h3">Linux</Heading>
+                <p>Debian / Ubuntu（.deb）</p>
+              </div>
+            </div>
+            <div className={styles.platformActions}>
+              <Link href="https://github.com/DarkNoah/aime-chat/releases/latest/download/aime-chat-amd64-linux.deb">
+                amd64 <IconDownload size={16} aria-hidden="true" />
+              </Link>
+              <Link href="https://github.com/DarkNoah/aime-chat/releases/latest/download/aime-chat-arm64-linux.deb">
+                arm64 <IconDownload size={16} aria-hidden="true" />
+              </Link>
+            </div>
+          </article>
+        </div>
+
+        <div className={styles.installNote}>
+          <IconInfoCircle size={19} aria-hidden="true" />
+          <p>
+            macOS 版本暂不支持自动更新。首次打开遇到系统拦截时，请按
+            <Link to="/docs/getting-started/installation"> 安装指南 </Link>
+            处理；也可以前往
+            <Link href="https://github.com/DarkNoah/aime-chat/releases">
+              {' '}
+              GitHub Releases{' '}
             </Link>
-          </div>
-
-          <div className={styles.codeWrapper}>
-            <div className={styles.codeHeader}>
-              <div className={styles.codeDots}>
-                <span className={styles.codeDotRed} />
-                <span className={styles.codeDotYellow} />
-                <span className={styles.codeDotGreen} />
-              </div>
-              <span className={styles.codeTitle}>Terminal</span>
-            </div>
-            <div className={styles.codeBlock}>
-              <code>
-                <span className={styles.codeComment}># 克隆项目</span>
-                <br />
-                <span className={styles.codePrompt}>$</span>{' '}
-                <span className={styles.codeCommand}>git clone</span>{' '}
-                <span className={styles.codeUrl}>
-                  https://github.com/DarkNoah/aime-chat.git
-                </span>
-                <br />
-                <br />
-                <span className={styles.codeComment}># 安装依赖</span>
-                <br />
-                <span className={styles.codePrompt}>$</span>{' '}
-                <span className={styles.codeCommand}>cd</span> aime-chat{' '}
-                <span className={styles.codeOperator}>&&</span>{' '}
-                <span className={styles.codeCommand}>pnpm install</span>
-                <br />
-                <br />
-                <span className={styles.codeComment}># 启动应用</span>
-                <br />
-                <span className={styles.codePrompt}>$</span>{' '}
-                <span className={styles.codeCommand}>pnpm start</span>
-                <br />
-                <span className={styles.codeSuccess}>✨ 应用已启动</span>
-              </code>
-            </div>
-          </div>
+            查看所有版本。
+          </p>
         </div>
-      </div>
-    </section>
-  );
-}
 
-function CTASection() {
-  return (
-    <section className={styles.ctaSection}>
-      <div className="container">
-        <div className={styles.ctaCard}>
+        <div className={styles.closingRow}>
           <div>
-            <span className={styles.sectionEyebrow}>开始使用</span>
-            <Heading as="h2" className={styles.ctaTitle}>
-              现在就把 AI 带进你的桌面工作流
-            </Heading>
-            <p className={styles.ctaDescription}>
-              使用统一的聊天界面连接模型、知识库、工具和 Agent，构建更顺手的 AI
-              工作方式。
-            </p>
+            <IconCode size={21} aria-hidden="true" />
+            <span>准备从源码运行？文档包含 pnpm 开发流程与平台依赖。</span>
           </div>
-
-          <div className={styles.ctaButtons}>
-            <Link
-              className={clsx(styles.heroButton, styles.heroButtonPrimary)}
-              to="/docs/intro"
-            >
-              <IconBook size={18} /> 阅读文档
-            </Link>
-            <Link
-              className={clsx(styles.heroButton, styles.heroButtonSecondary)}
-              href="https://github.com/DarkNoah/aime-chat/releases"
-            >
-              <IconBolt size={18} /> 下载应用
-            </Link>
-          </div>
+          <PrimaryLink
+            className={styles.closingLink}
+            to="/docs/getting-started/installation#开发者安装"
+          >
+            查看源码安装
+          </PrimaryLink>
         </div>
       </div>
     </section>
@@ -709,20 +501,15 @@ export default function Home(): ReactNode {
 
   return (
     <Layout
-      title={`${siteConfig.title} - AI 桌面助手文档`}
-      description="AIME Chat 是一款支持多模型、知识库、工具调用与 Agent 的 AI 桌面应用。"
+      title={`${siteConfig.title} 文档 | AI 桌面工作台`}
+      description="AIME Chat 是一个开源 AI 桌面工作台，连接模型、Agent、知识库与工具，在本地项目上下文中完成真实任务。"
     >
-      <HomepageHeader />
-      <main>
-        <HomepageFeatures />
-        <HarnessSection />
-        <WorkflowSection />
-        <ChannelsSection />
-        <AutomationSection />
-        <ProvidersSection />
-        <ToolsSection />
-        <QuickStartSection />
-        <CTASection />
+      <main className={styles.homePage}>
+        <Hero />
+        <Downloads />
+        <DocumentRoutes />
+        <WorkspaceLoop />
+        <Ecosystem />
       </main>
     </Layout>
   );

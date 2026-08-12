@@ -38,16 +38,6 @@ npm run typecheck
 
 ## Deployment
 
-Using SSH:
+The documentation site is deployed by `.github/workflows/deploy-docs.yml` through GitHub Pages. A push to `main` that changes `packages/docs/**` triggers the workflow; it can also be started manually from GitHub Actions.
 
-```bash
-USE_SSH=true npm run deploy
-```
-
-Not using SSH:
-
-```bash
-GIT_USER=<Your GitHub username> npm run deploy
-```
-
-If you are using GitHub pages for hosting, this command is a convenient way to build the website and push to the `gh-pages` branch.
+Before opening a documentation PR, run `npm run build` locally. The deployment workflow installs dependencies, builds the site, and publishes the generated `packages/docs/build` directory with GitHub Pages Actions; it does not push a `gh-pages` branch.
