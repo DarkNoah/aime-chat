@@ -32,6 +32,11 @@ export function getFilePreviewKind(
 
 export function toFileUrl(filePath: string): string {
   const normalizedPath = filePath.replaceAll('\\', '/');
+  if (normalizedPath.startsWith('//')) {
+    return `file:${encodeURI(normalizedPath)}`
+      .replaceAll('#', '%23')
+      .replaceAll('?', '%3F');
+  }
   const absolutePath = normalizedPath.startsWith('/')
     ? normalizedPath
     : `/${normalizedPath}`;

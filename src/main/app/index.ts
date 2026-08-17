@@ -60,6 +60,7 @@ import {
   getPaddleOcrRuntime,
   getQwenAudioRuntime,
   getUVRuntime,
+  ensurePythonRuntimeEnvironment,
   installAgentBrowserRuntime,
   installBunRuntime,
   installNodeRuntime,
@@ -191,9 +192,13 @@ class AppManager extends BaseManager {
       console.error('Failed to update models.json:', err),
     );
     this.getRuntimeInfo(true)
-      .then((runtimeInfo) =>
-        scheduleCodeExecutionPackageCacheWarmup(runtimeInfo.uv),
-      )
+      .then(async (runtimeInfo) => {
+        if (runtimeInfo.uv?.installed && runtimeInfo.uv.dir) {
+          await ensurePythonRuntimeEnvironment(runtimeInfo.uv.dir);
+          runtimeInfo.uv = await getUVRuntime(true);
+        }
+        scheduleCodeExecutionPackageCacheWarmup(runtimeInfo.uv);
+      })
       .catch((err) => {
         appLog.write('error', '[runtime] initial status refresh failed', {
           message: err instanceof Error ? err.message : String(err),

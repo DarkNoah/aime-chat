@@ -19,6 +19,10 @@ import {
 } from '@tabler/icons-react';
 import { PhotoProvider, PhotoView } from 'react-photo-view';
 import { useTranslation } from 'react-i18next';
+import {
+  createChatFileSelectionReference,
+  type ChatFileSelectionReference,
+} from '@/renderer/lib/chat-file-selection';
 import { Button } from '../../ui/button';
 import { Badge } from '../../ui/badge';
 import { Textarea } from '../../ui/textarea';
@@ -28,6 +32,17 @@ import {
   isMarkdownFile,
   toFileUrl,
 } from './file-workspace-utils';
+import {
+  createLocalImageUrl,
+  renderRawHtmlImages,
+  resolveMarkdownImageUrl,
+} from './milkdown-image-support';
+import {
+  FileSelectionContextMenu,
+  getDomEditorSelection,
+  getPlainTextEditorSelection,
+  type FileEditorSelection,
+} from './file-selection-context-menu';
 
 const EDITABLE_FILE_LIMIT = 2 * 1024 * 1024;
 
@@ -48,26 +63,15 @@ type FileContent = {
 };
 
 type MarkdownEditorProps = {
+  ariaLabel: string;
+  filePath: string;
   initialValue: string;
   onChange: (markdown: string) => void;
   onError: (error: Error) => void;
+  onSelectionChange: (selection: FileEditorSelection | null) => void;
 };
 
-type CrepeListener = {
-  markdownUpdated: (
-    listener: (ctx: unknown, markdown: string, previous: string) => void,
-  ) => void;
-};
-
-type CrepeInstance = {
-  on: (configure: (listener: CrepeListener) => void) => CrepeInstance;
-  create: () => Promise<unknown>;
-  destroy: () => Promise<unknown>;
-};
-
-type CrepeModule = {
-  Crepe: new (options: { root: Node; defaultValue: string }) => CrepeInstance;
-};
+type CrepeInstance = import('@milkdown/crepe').Crepe;
 
 const milkdownTheme = {
   '--crepe-color-background': 'var(--background)',
@@ -90,19 +94,36 @@ const milkdownTheme = {
 } as CSSProperties;
 
 const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
+  ariaLabel,
+  filePath,
   initialValue,
   onChange,
   onError,
+  onSelectionChange,
 }) => {
   const rootRef = useRef<HTMLDivElement>(null);
+  const filePathRef = useRef(filePath);
   const initialValueRef = useRef(initialValue);
   const onChangeRef = useRef(onChange);
   const onErrorRef = useRef(onError);
+  const onSelectionChangeRef = useRef(onSelectionChange);
 
   useEffect(() => {
     onChangeRef.current = onChange;
     onErrorRef.current = onError;
-  }, [onChange, onError]);
+    onSelectionChangeRef.current = onSelectionChange;
+  }, [onChange, onError, onSelectionChange]);
+
+  useEffect(() => {
+    const syncSelection = () => {
+      onSelectionChangeRef.current(getDomEditorSelection(rootRef.current));
+    };
+    document.addEventListener('selectionchange', syncSelection);
+    return () => {
+      document.removeEventListener('selectionchange', syncSelection);
+      onSelectionChangeRef.current(null);
+    };
+  }, []);
 
   useEffect(() => {
     if (!rootRef.current) return undefined;
@@ -111,14 +132,47 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     let crepe: CrepeInstance | null = null;
     const root = rootRef.current;
 
-    import('@milkdown/crepe')
-      .then((module) => {
+    Promise.all([
+      import('@milkdown/crepe'),
+      import('@milkdown/kit/preset/commonmark'),
+      import('@milkdown/kit/utils'),
+    ])
+      .then(([crepeModule, commonmarkModule, utilsModule]) => {
         if (disposed) return undefined;
-        const { Crepe } = module as unknown as CrepeModule;
+        const { Crepe, CrepeFeature } = crepeModule;
+        const { htmlSchema } = commonmarkModule;
+        const { $view } = utilsModule;
+        const resolveImageUrl = (source: string) =>
+          resolveMarkdownImageUrl(source, filePathRef.current);
+
         crepe = new Crepe({
           root,
           defaultValue: initialValueRef.current,
+          featureConfigs: {
+            [CrepeFeature.ImageBlock]: {
+              proxyDomURL: resolveImageUrl,
+              onUpload: (file) =>
+                createLocalImageUrl(file, window.electron.app.getPathForFile),
+            },
+          },
         });
+        const htmlImageView = $view(htmlSchema.node, () => (initialNode) => {
+          const dom = document.createElement('span');
+          const render = (value: unknown) =>
+            renderRawHtmlImages(dom, value, resolveImageUrl);
+          render(initialNode.attrs.value);
+
+          return {
+            dom,
+            update: (updatedNode) => {
+              if (updatedNode.type !== initialNode.type) return false;
+              render(updatedNode.attrs.value);
+              return true;
+            },
+            ignoreMutation: () => true,
+          };
+        });
+        crepe.editor.use(htmlImageView);
         crepe.on((listener) => {
           listener.markdownUpdated((_ctx, markdown) => {
             onChangeRef.current(markdown);
@@ -143,6 +197,8 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   return (
     <div
       ref={rootRef}
+      aria-label={ariaLabel}
+      role="group"
       style={milkdownTheme}
       className="h-full overflow-y-auto bg-background [&_.milkdown]:min-h-full [&_.ProseMirror]:min-h-full [&_.ProseMirror]:py-4!
        [&_.ProseMirror]:text-sm! [&_.ProseMirror_h1]:mt-0! [&_.ProseMirror_h2]:mt-0! [&_.ProseMirror_h3]:mt-0! [&_.ProseMirror_h4]:mt-0! [&_.ProseMirror_h5]:mt-0! [&_.ProseMirror_h6]:mt-0!"
@@ -156,6 +212,7 @@ export type FileWorkspaceProps = {
   active?: boolean;
   onClose: () => void;
   onDirtyChange: (dirty: boolean) => void;
+  onAddToChat?: (reference: ChatFileSelectionReference) => void;
 };
 
 export const FileWorkspace: React.FC<FileWorkspaceProps> = ({
@@ -164,6 +221,7 @@ export const FileWorkspace: React.FC<FileWorkspaceProps> = ({
   active = true,
   onClose,
   onDirtyChange,
+  onAddToChat,
 }) => {
   const { t } = useTranslation();
   const [file, setFile] = useState<FileContent | null>(null);
@@ -173,6 +231,8 @@ export const FileWorkspace: React.FC<FileWorkspaceProps> = ({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editorMode, setEditorMode] = useState<EditorMode>('milkdown');
+  const [editorSelection, setEditorSelection] =
+    useState<FileEditorSelection | null>(null);
   const tRef = useRef(t);
 
   useEffect(() => {
@@ -234,6 +294,41 @@ export const FileWorkspace: React.FC<FileWorkspaceProps> = ({
     onDirtyChange(dirty);
     return () => onDirtyChange(false);
   }, [dirty, onDirtyChange]);
+
+  useEffect(() => {
+    setEditorSelection(null);
+  }, [editorMode, filePath]);
+
+  const handleEditorModeChange = useCallback((mode: EditorMode) => {
+    setEditorSelection(null);
+    setEditorMode(mode);
+  }, []);
+
+  const handleAddSelectionToChat = useCallback(
+    (selection: FileEditorSelection) => {
+      if (!onAddToChat) return;
+
+      try {
+        onAddToChat(
+          createChatFileSelectionReference({
+            selectedText: selection.text,
+            sourcePath: filePath,
+            startLine: selection.startLine,
+            endLine: selection.endLine,
+          }),
+        );
+      } catch (selectionError) {
+        const message =
+          selectionError instanceof RangeError
+            ? t('chat.file_selection_too_large')
+            : t('chat.file_selection_invalid');
+        window.electron.app
+          .toast(message, { type: 'error' })
+          .catch(() => undefined);
+      }
+    },
+    [filePath, onAddToChat, t],
+  );
 
   const handleSave = useCallback(async () => {
     if (!editable || !dirty || saving) return;
@@ -369,38 +464,70 @@ export const FileWorkspace: React.FC<FileWorkspaceProps> = ({
 
       if (markdown && editorMode === 'milkdown') {
         return (
-          <MarkdownEditor
-            initialValue={draft}
-            onChange={setDraft}
-            onError={(milkdownError) => {
-              window.electron.app
-                .toast(milkdownError.message, { type: 'error' })
-                .catch(() => undefined);
-              setEditorMode('source');
-            }}
-          />
+          <FileSelectionContextMenu
+            selection={editorSelection}
+            onAddToChat={handleAddSelectionToChat}
+          >
+            <div className="h-full min-h-0">
+              <MarkdownEditor
+                ariaLabel={t('chat.file_markdown_editor')}
+                filePath={filePath}
+                initialValue={draft}
+                onChange={setDraft}
+                onSelectionChange={setEditorSelection}
+                onError={(milkdownError) => {
+                  window.electron.app
+                    .toast(milkdownError.message, { type: 'error' })
+                    .catch(() => undefined);
+                  handleEditorModeChange('source');
+                }}
+              />
+            </div>
+          </FileSelectionContextMenu>
         );
       }
 
       return (
-        <Suspense
-          fallback={
-            <Textarea
-              aria-label={t('chat.file_source_editor')}
-              value={draft}
-              onChange={(event) => setDraft(event.target.value)}
-              spellCheck={false}
-              className="h-full min-h-0 resize-none rounded-none border-0 px-4 py-3 font-mono text-xs shadow-none focus-visible:border-0 focus-visible:ring-0 field-sizing-fixed"
-            />
-          }
+        <FileSelectionContextMenu
+          selection={editorSelection}
+          onAddToChat={handleAddSelectionToChat}
         >
-          <CodeTextEditor
-            fileName={fileName}
-            value={draft}
-            ariaLabel={t('chat.file_source_editor')}
-            onChange={setDraft}
-          />
-        </Suspense>
+          <div className="h-full min-h-0">
+            <Suspense
+              fallback={
+                <Textarea
+                  aria-label={t('chat.file_source_editor')}
+                  value={draft}
+                  onChange={(event) => {
+                    setDraft(event.target.value);
+                    setEditorSelection(null);
+                  }}
+                  onSelect={(event) => {
+                    const { selectionStart, selectionEnd, value } =
+                      event.currentTarget;
+                    setEditorSelection(
+                      getPlainTextEditorSelection(
+                        value,
+                        selectionStart,
+                        selectionEnd,
+                      ),
+                    );
+                  }}
+                  spellCheck={false}
+                  className="h-full min-h-0 resize-none rounded-none border-0 px-4 py-3 font-mono text-xs shadow-none focus-visible:border-0 focus-visible:ring-0 field-sizing-fixed"
+                />
+              }
+            >
+              <CodeTextEditor
+                fileName={fileName}
+                value={draft}
+                ariaLabel={t('chat.file_source_editor')}
+                onChange={setDraft}
+                onSelectionChange={setEditorSelection}
+              />
+            </Suspense>
+          </div>
+        </FileSelectionContextMenu>
       );
     }
 
@@ -447,7 +574,7 @@ export const FileWorkspace: React.FC<FileWorkspaceProps> = ({
               variant={editorMode === 'milkdown' ? 'secondary' : 'ghost'}
               size="sm"
               className="h-6 px-2 text-xs shadow-none"
-              onClick={() => setEditorMode('milkdown')}
+              onClick={() => handleEditorModeChange('milkdown')}
             >
               {t('chat.file_markdown_editor')}
             </Button>
@@ -455,7 +582,7 @@ export const FileWorkspace: React.FC<FileWorkspaceProps> = ({
               variant={editorMode === 'source' ? 'secondary' : 'ghost'}
               size="sm"
               className="h-6 px-2 text-xs shadow-none"
-              onClick={() => setEditorMode('source')}
+              onClick={() => handleEditorModeChange('source')}
             >
               {t('chat.file_source_editor')}
             </Button>

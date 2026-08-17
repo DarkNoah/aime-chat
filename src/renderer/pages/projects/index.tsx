@@ -66,6 +66,7 @@ import domtoimage from 'dom-to-image';
 import toast from 'react-hot-toast';
 import { MoreHorizontalIcon } from 'lucide-react';
 import { ProjectChatExportDialog } from '@/renderer/components/chat-project/chat-export-dialog';
+import type { ChatFileSelectionReference } from '@/renderer/lib/chat-file-selection';
 
 function ProjectsPage() {
   const { id } = useParams();
@@ -75,6 +76,12 @@ function ProjectsPage() {
   const [threadId, setThreadId] = useState<any | undefined>();
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const chatPanelRef = useRef<ChatPanelRef>(null);
+  const handleAddSelectionToChat = useCallback(
+    (reference: ChatFileSelectionReference) => {
+      chatPanelRef.current?.insertFileSelections([reference]);
+    },
+    [],
+  );
   const { ensureThread } = useChat();
   const getProject = useCallback(async () => {
     const data = await window.electron.projects.getProject(id);
@@ -503,6 +510,7 @@ function ProjectsPage() {
                 resourceId={projectResourceId}
                 workspace={project?.path}
                 part={previewToolPart}
+                onAddToChat={handleAddSelectionToChat}
                 previewData={previewData}
                 project={project}
                 onProjectChanged={() => {

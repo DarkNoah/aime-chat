@@ -3,7 +3,10 @@ import { generateText } from 'ai';
 import z from 'zod';
 import BaseTool, { BaseToolParams } from '../base-tool';
 import { runCommand } from '@/main/utils/shell';
-import { getUVRuntime } from '@/main/app/runtime';
+import {
+  ensurePythonRuntimeEnvironment,
+  getUVRuntime,
+} from '@/main/app/runtime';
 import { app } from 'electron';
 import fs from 'fs';
 import path from 'path';
@@ -22,6 +25,10 @@ import {
   getCodeExecutionPackageIndexOptions,
   withCodeExecutionPackageCache,
 } from './python-package-cache';
+import {
+  isPythonRuntimeVersionCompatible,
+  PYTHON_RUNTIME_VERSION,
+} from '@/main/utils/pythonRuntimeVersion';
 
 const getSitecustomizePy = async (allRequestContext: Record<string, any> = {}, modelId?: string) => {
   const appInfo = await appManager.getInfo();
@@ -128,7 +135,7 @@ export class CodeExecution extends BaseTool {
   static readonly toolName = 'CodeExecution';
   id: string = 'CodeExecution';
   description = `Execute Python code. using uv runtime.
-The code will be executed with Python 3.12.
+The code will be executed with Python ${PYTHON_RUNTIME_VERSION}.
 
 Note:
 - Each run is executed in a new temporary directory, which is automatically deleted after completion.
@@ -166,7 +173,7 @@ Note:
 
   getDescription = () => {
     const desc = `Execute Python code. using uv runtime.
-The code will be executed with Python 3.12.
+The code will be executed with Python ${PYTHON_RUNTIME_VERSION}.
 
 Note:
 - Each run is executed in a new temporary directory, which is automatically deleted after completion.
@@ -322,17 +329,42 @@ asyncio.run(main())
     const tempDir = path.join(temp, nanoid());
     await fs.promises.mkdir(tempDir, { recursive: true });
     const isWindows = process.platform === 'win32';
-    const uvRuntime = await getUVRuntime();
-    if (uvRuntime.status !== 'installed') {
-      throw new Error('UV runtime is not installed');
-    }
-
-    const uvPreCommand = path.join(uvRuntime.dir, isWindows ? 'uv.exe' : 'uv');
 
     const workspace = (requestContext.get('workspace' as never) as string) || tempDir;
     const allRequestContext = requestContext.all
 
     try {
+      let uvRuntime = await getUVRuntime(true);
+      if (uvRuntime?.status !== 'installed' || !uvRuntime.dir) {
+        throw new Error('UV runtime is not installed');
+      }
+
+      const pythonRuntimeReady = await ensurePythonRuntimeEnvironment(
+        uvRuntime.dir,
+      );
+      if (!pythonRuntimeReady) {
+        throw new Error(
+          `Python ${PYTHON_RUNTIME_VERSION} runtime is not available`,
+        );
+      }
+      uvRuntime = await getUVRuntime(true);
+      if (
+        !uvRuntime?.dir ||
+        !uvRuntime?.pythonRuntime?.installed ||
+        !uvRuntime.pythonRuntime.pythonPath ||
+        !isPythonRuntimeVersionCompatible(uvRuntime.pythonRuntime.pythonVersion)
+      ) {
+        throw new Error(
+          `Python ${PYTHON_RUNTIME_VERSION} runtime validation failed`,
+        );
+      }
+
+      const uvPreCommand = path.join(
+        uvRuntime.dir,
+        isWindows ? 'uv.exe' : 'uv',
+      );
+      const runtimePython = uvRuntime.pythonRuntime.pythonPath;
+
       if (ptc && !packages.includes('mcp')) packages.push('mcp');
       if (
         packages.some(
@@ -362,7 +394,6 @@ asyncio.run(main())
         );
       }
 
-      const runtimePython = uvRuntime.pythonRuntime?.pythonPath ?? '3.12';
       const createVenvCommand = (offline: boolean) =>
         [
           `"${uvPreCommand}" venv --clear --python "${runtimePython}"`,

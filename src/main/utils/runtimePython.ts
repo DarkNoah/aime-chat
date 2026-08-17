@@ -125,11 +125,15 @@ export const getRuntimePython = async (
     return useSystemPython(runtimeEnv);
   }
 
-  const _hasSystemPython = hasSystemPython !== undefined ? hasSystemPython : await hasUsableSystemPython();
+  const _hasSystemPython =
+    hasSystemPython !== undefined
+      ? hasSystemPython
+      : await hasUsableSystemPython();
   hasSystemPython = _hasSystemPython;
-  const runtimePythonBinDir = uv?.pythonRuntime?.pythonPath
-    ? path.dirname(uv.pythonRuntime.pythonPath)
-    : undefined;
+  const runtimePythonBinDir =
+    uv?.pythonRuntime?.installed && uv.pythonRuntime.pythonPath
+      ? path.dirname(uv.pythonRuntime.pythonPath)
+      : undefined;
 
   if (!hasSystemPython && runtimePythonBinDir) {
     prependPath(runtimeEnv, runtimePythonBinDir);
