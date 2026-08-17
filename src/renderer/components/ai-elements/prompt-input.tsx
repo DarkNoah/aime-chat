@@ -41,6 +41,7 @@ import {
   getFileReferenceName,
   type ChatFileReference,
 } from '@/renderer/lib/chat-file-reference';
+import type { ChatFileSelectionReference } from '@/renderer/lib/chat-file-selection';
 import type { ChatStatus, FileUIPart } from 'ai';
 import {
   CornerDownLeftIcon,
@@ -101,6 +102,7 @@ export type TextInputContext = {
   clear: () => void;
   insertText: (text: string) => void;
   insertFileReferences: (references: ChatFileReference[]) => void;
+  insertFileSelections: (references: ChatFileSelectionReference[]) => void;
 };
 
 export type PromptInputControllerProps = {
@@ -116,6 +118,12 @@ export type PromptInputControllerProps = {
   /** INTERNAL: Lets the active editor insert file mentions at its selection. */
   __registerFileReferenceInserter: (
     insertFileReferences: ((references: ChatFileReference[]) => void) | null,
+  ) => void;
+  /** INTERNAL: Lets the active editor insert file-selection mentions. */
+  __registerFileSelectionInserter: (
+    insertFileSelections:
+      | ((references: ChatFileSelectionReference[]) => void)
+      | null,
   ) => void;
 };
 
@@ -172,6 +180,9 @@ export function PromptInputProvider({
   const fileReferenceInserterRef = useRef<
     ((references: ChatFileReference[]) => void) | null
   >(null);
+  const fileSelectionInserterRef = useRef<
+    ((references: ChatFileSelectionReference[]) => void) | null
+  >(null);
   const insertText = useCallback((text: string) => {
     if (textInserterRef.current) {
       textInserterRef.current(text);
@@ -205,6 +216,32 @@ export function PromptInputProvider({
         | null,
     ) => {
       fileReferenceInserterRef.current = nextInsertFileReferences;
+    },
+    [],
+  );
+  const insertFileSelections = useCallback(
+    (references: ChatFileSelectionReference[]) => {
+      if (references.length === 0) {
+        return;
+      }
+      if (fileSelectionInserterRef.current) {
+        fileSelectionInserterRef.current(references);
+        return;
+      }
+      setTextInput(
+        (current) =>
+          current + references.map((item) => item.serializedText).join(' '),
+      );
+    },
+    [],
+  );
+  const __registerFileSelectionInserter = useCallback(
+    (
+      nextInsertFileSelections:
+        | ((references: ChatFileSelectionReference[]) => void)
+        | null,
+    ) => {
+      fileSelectionInserterRef.current = nextInsertFileSelections;
     },
     [],
   );
@@ -350,11 +387,13 @@ export function PromptInputProvider({
         clear: clearInput,
         insertText,
         insertFileReferences,
+        insertFileSelections,
       },
       attachments,
       __registerFileInput,
       __registerTextInserter,
       __registerFileReferenceInserter,
+      __registerFileSelectionInserter,
     }),
     [
       textInput,
@@ -364,7 +403,9 @@ export function PromptInputProvider({
       __registerFileInput,
       __registerTextInserter,
       __registerFileReferenceInserter,
+      __registerFileSelectionInserter,
       insertFileReferences,
+      insertFileSelections,
     ],
   );
 
@@ -932,6 +973,7 @@ export type PromptInputTextareaProps = Omit<
   | 'insertText'
   | 'onValueChange'
   | 'registerFileReferenceInserter'
+  | 'registerFileSelectionInserter'
   | 'registerTextInserter'
   | 'value'
 >;
@@ -945,6 +987,9 @@ export const PromptInputTextarea = ({ ...props }: PromptInputTextareaProps) => {
       onValueChange={(value) => controller?.textInput.setInput(value)}
       registerFileReferenceInserter={
         controller?.__registerFileReferenceInserter
+      }
+      registerFileSelectionInserter={
+        controller?.__registerFileSelectionInserter
       }
       registerTextInserter={controller?.__registerTextInserter}
       value={controller?.textInput.value ?? ''}

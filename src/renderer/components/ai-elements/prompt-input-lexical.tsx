@@ -11,6 +11,7 @@ import {
   $createTextNode,
   $getRoot,
   $getSelection,
+  $isElementNode,
   $isRangeSelection,
   type EditorState,
   type LexicalEditor,
@@ -43,6 +44,7 @@ import {
   useState,
 } from 'react';
 import { CommandIcon, FileIcon, FolderIcon, SparklesIcon } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { FileInfo } from '@/types/common';
 import {
   getChatFileReferenceDragData,
@@ -51,6 +53,10 @@ import {
   getPlainTextPathCandidate,
   type ChatFileReference,
 } from '@/renderer/lib/chat-file-reference';
+import {
+  type ChatFileSelectionReference,
+  parseChatFileSelectionSegments,
+} from '@/renderer/lib/chat-file-selection';
 import { cn } from '@/renderer/lib/utils';
 import {
   findInstantSlashItem,
@@ -62,8 +68,10 @@ type ComposerMentionData = Record<string, BeautifulMentionsItemData> & {
   displayLabel: string;
   description: string;
   instant: boolean;
-  mentionKind: 'command' | 'skill' | 'file' | 'directory';
+  mentionKind: 'command' | 'skill' | 'file' | 'directory' | 'file-selection';
   sourcePath: string;
+  startLine: number | null;
+  endLine: number | null;
 };
 
 function toSlashMentionData(item: PromptInputSlashItem): ComposerMentionData {
@@ -73,6 +81,8 @@ function toSlashMentionData(item: PromptInputSlashItem): ComposerMentionData {
     instant: item.instant === true,
     mentionKind: item.group === 'skills' ? 'skill' : 'command',
     sourcePath: '',
+    startLine: null,
+    endLine: null,
   };
 }
 
@@ -83,6 +93,22 @@ function toFileMentionData(reference: ChatFileReference): ComposerMentionData {
     instant: false,
     mentionKind: reference.kind,
     sourcePath: reference.sourcePath,
+    startLine: null,
+    endLine: null,
+  };
+}
+
+function toFileSelectionMentionData(
+  reference: ChatFileSelectionReference,
+): ComposerMentionData {
+  return {
+    displayLabel: getFileReferenceName(reference.sourcePath),
+    description: reference.sourcePath,
+    instant: false,
+    mentionKind: 'file-selection',
+    sourcePath: reference.sourcePath,
+    startLine: reference.startLine ?? null,
+    endLine: reference.endLine ?? null,
   };
 }
 
@@ -166,6 +192,27 @@ function appendPlainText(
   });
 }
 
+function appendPromptInputSegments(
+  value: string,
+  paragraph: ReturnType<typeof $createParagraphNode>,
+) {
+  const segments = parseChatFileSelectionSegments(value);
+  segments.forEach((segment) => {
+    if (segment.type === 'text') {
+      appendPlainText(segment.text, paragraph);
+      return;
+    }
+
+    paragraph.append(
+      $createBeautifulMentionNode(
+        '',
+        segment.reference.serializedText,
+        toFileSelectionMentionData(segment.reference),
+      ),
+    );
+  });
+}
+
 function replaceEditorText(
   value: string,
   slashItems: PromptInputSlashItem[],
@@ -183,9 +230,12 @@ function replaceEditorText(
         toSlashMentionData(matchedSkill),
       ),
     );
-    appendPlainText(value.slice(matchedSkill.id.length + 1), paragraph);
+    appendPromptInputSegments(
+      value.slice(matchedSkill.id.length + 1),
+      paragraph,
+    );
   } else {
-    appendPlainText(value, paragraph);
+    appendPromptInputSegments(value, paragraph);
   }
 
   root.clear().append(paragraph);
@@ -206,25 +256,47 @@ function ComposerMentionComponent(
     instant: _instant,
     mentionKind: _mentionKind,
     sourcePath: _sourcePath,
+    startLine: _startLine,
+    endLine: _endLine,
+    'data-beautiful-mention': serializedMention,
     ...props
   }: BeautifulMentionComponentProps<ComposerMentionData>,
   ref: ForwardedRef<HTMLSpanElement>,
 ) {
+  const { t } = useTranslation();
   const displayLabel = data?.displayLabel || value;
   const isSkill = data?.mentionKind === 'skill';
   const isDirectory = data?.mentionKind === 'directory';
   const isFileReference = isDirectory || data?.mentionKind === 'file';
+  const isFileSelection = data?.mentionKind === 'file-selection';
+  const isFileChip = isFileReference || isFileSelection;
   const fileReferenceType = isDirectory ? 'Folder' : 'File';
+  const fileSelectionLineLabel =
+    data?.startLine == null || data?.endLine == null
+      ? t('chat.file_selection_label')
+      : t('chat.file_selection_lines', {
+          start: data.startLine,
+          end: data.endLine,
+        });
   let mentionClassName = className;
+  let mentionAriaLabel = `${trigger}${displayLabel}`;
   let mentionTitle: string | undefined;
 
-  if (isFileReference) {
+  if (isFileChip) {
     mentionClassName = cn(
       'mx-0.5 inline-flex max-w-64 cursor-default items-center gap-1 rounded-md border bg-muted/70 px-1.5 py-0.5 align-baseline font-medium leading-none text-foreground',
       'selection:bg-accent',
       className,
     );
-    mentionTitle = data?.sourcePath || value;
+    mentionTitle = isFileSelection
+      ? `${data?.sourcePath || displayLabel} · ${fileSelectionLineLabel}`
+      : data?.sourcePath || value;
+    mentionAriaLabel = isFileSelection
+      ? t('chat.file_selection_chip_aria', {
+          fileName: displayLabel,
+          range: fileSelectionLineLabel,
+        })
+      : `${fileReferenceType} ${displayLabel}`;
   } else if (isSkill) {
     mentionClassName = cn(
       'mx-0.5 inline-flex max-w-full cursor-default items-center rounded-md border border-primary/25 bg-primary/10 px-1.5 py-0.5 align-baseline font-medium text-primary leading-none',
@@ -238,16 +310,14 @@ function ComposerMentionComponent(
     <span
       {...props}
       ref={ref}
-      aria-label={
-        isFileReference
-          ? `${fileReferenceType} ${displayLabel}`
-          : `${trigger}${displayLabel}`
-      }
+      aria-label={mentionAriaLabel}
       data-file-reference={isFileReference ? data?.sourcePath : undefined}
+      data-file-selection={isFileSelection ? 'true' : undefined}
+      data-beautiful-mention={isFileSelection ? undefined : serializedMention}
       className={mentionClassName}
       title={mentionTitle}
     >
-      {isFileReference ? (
+      {isFileChip ? (
         <>
           {isDirectory ? (
             <FolderIcon
@@ -260,7 +330,15 @@ function ComposerMentionComponent(
               className="size-3.5 shrink-0 text-muted-foreground"
             />
           )}
-          <span className="truncate">{displayLabel}</span>
+          <span className="min-w-0 truncate">{displayLabel}</span>
+          {isFileSelection ? (
+            <span
+              aria-hidden="true"
+              className="shrink-0 text-[11px] font-normal text-muted-foreground"
+            >
+              {fileSelectionLineLabel}
+            </span>
+          ) : null}
         </>
       ) : (
         <>
@@ -347,6 +425,8 @@ export const SlashMentionMenuItem = forwardRef<
       instant: _instant,
       mentionKind: _mentionKind,
       sourcePath: _sourcePath,
+      startLine: _startLine,
+      endLine: _endLine,
       ...props
     },
     ref,
@@ -396,17 +476,24 @@ type ComposerInserters = {
   insertLineBreak: () => void;
   insertText: (text: string) => void;
   insertFileReferences: (references: ChatFileReference[]) => void;
+  insertFileSelections: (references: ChatFileSelectionReference[]) => void;
 };
 
 function RegisterComposerInsertersPlugin({
   register,
   registerTextInserter,
   registerFileReferenceInserter,
+  registerFileSelectionInserter,
 }: {
   register: (inserters: ComposerInserters | null) => void;
   registerTextInserter?: (insertText: ((text: string) => void) | null) => void;
   registerFileReferenceInserter?: (
     insertFileReferences: ((references: ChatFileReference[]) => void) | null,
+  ) => void;
+  registerFileSelectionInserter?: (
+    insertFileSelections:
+      | ((references: ChatFileSelectionReference[]) => void)
+      | null,
   ) => void;
 }) {
   const [editor] = useLexicalComposerContext();
@@ -465,18 +552,58 @@ function RegisterComposerInsertersPlugin({
       });
       editor.focus();
     };
-    const inserters = { insertLineBreak, insertText, insertFileReferences };
+    const insertFileSelections = (references: ChatFileSelectionReference[]) => {
+      if (references.length === 0) {
+        return;
+      }
+
+      editor.update(() => {
+        let selection = $getSelection();
+        if (!$isRangeSelection(selection)) {
+          $getRoot().selectEnd();
+          selection = $getSelection();
+        }
+        if (!$isRangeSelection(selection)) {
+          return;
+        }
+
+        const nodes = references.flatMap((reference, index) => [
+          ...(index > 0 ? [$createTextNode(' ')] : []),
+          $createBeautifulMentionNode(
+            '',
+            reference.serializedText,
+            toFileSelectionMentionData(reference),
+          ),
+        ]);
+        selection.insertNodes(nodes);
+      });
+      editor.focus();
+    };
+    const inserters = {
+      insertLineBreak,
+      insertText,
+      insertFileReferences,
+      insertFileSelections,
+    };
 
     register(inserters);
     registerTextInserter?.(insertText);
     registerFileReferenceInserter?.(insertFileReferences);
+    registerFileSelectionInserter?.(insertFileSelections);
 
     return () => {
       register(null);
       registerTextInserter?.(null);
       registerFileReferenceInserter?.(null);
+      registerFileSelectionInserter?.(null);
     };
-  }, [editor, register, registerFileReferenceInserter, registerTextInserter]);
+  }, [
+    editor,
+    register,
+    registerFileReferenceInserter,
+    registerFileSelectionInserter,
+    registerTextInserter,
+  ]);
 
   return null;
 }
@@ -506,11 +633,37 @@ function ControlledPromptInputPlugin({
           $isBeautifulMentionNode(firstNode) &&
           firstNode.getData()?.mentionKind === 'skill' &&
           !matchedSkill;
+        const expectedFileSelectionValues = parseChatFileSelectionSegments(
+          value,
+        ).flatMap((segment) =>
+          segment.type === 'file-selection'
+            ? [segment.reference.serializedText]
+            : [],
+        );
+        const firstRootChild = root.getFirstChild();
+        const currentFileSelectionValues = $isElementNode(firstRootChild)
+          ? firstRootChild
+              .getChildren()
+              .flatMap((node) =>
+                $isBeautifulMentionNode(node) &&
+                node.getData()?.mentionKind === 'file-selection'
+                  ? [node.getValue()]
+                  : [],
+              )
+          : [];
+        const hasMatchingFileSelections =
+          expectedFileSelectionValues.length ===
+            currentFileSelectionValues.length &&
+          expectedFileSelectionValues.every(
+            (selectionValue, index) =>
+              selectionValue === currentFileSelectionValues[index],
+          );
 
         if (
           currentValue === value &&
           (!matchedSkill || hasMatchingMention) &&
-          !hasStaleSkillMention
+          !hasStaleSkillMention &&
+          hasMatchingFileSelections
         ) {
           return;
         }
@@ -535,6 +688,11 @@ export type LexicalPromptInputTextareaProps = Omit<
   registerFileReferenceInserter?: (
     insertFileReferences: ((references: ChatFileReference[]) => void) | null,
   ) => void;
+  registerFileSelectionInserter?: (
+    insertFileSelections:
+      | ((references: ChatFileSelectionReference[]) => void)
+      | null,
+  ) => void;
   placeholder?: string;
   slashItems?: PromptInputSlashItem[];
   onSlashMenuOpen?: () => void | Promise<void>;
@@ -547,6 +705,7 @@ export const LexicalPromptInputTextarea = ({
   insertText,
   registerTextInserter,
   registerFileReferenceInserter,
+  registerFileSelectionInserter,
   className,
   placeholder = 'What would you like to know?',
   slashItems = [],
@@ -812,6 +971,7 @@ export const LexicalPromptInputTextarea = ({
         <RegisterComposerInsertersPlugin
           register={registerComposerInserters}
           registerFileReferenceInserter={registerFileReferenceInserter}
+          registerFileSelectionInserter={registerFileSelectionInserter}
           registerTextInserter={registerTextInserter}
         />
         <ControlledPromptInputPlugin value={value} slashItems={slashItems} />

@@ -148,6 +148,7 @@ import {
   ChatPreviewVisibility,
   useIsCompactWindow,
 } from '../components/chat-ui/chat-preview-visibility';
+import type { ChatFileSelectionReference } from '@/renderer/lib/chat-file-selection';
 
 function ChatPage() {
   const { appInfo } = useGlobal();
@@ -156,6 +157,12 @@ function ChatPage() {
   const isCompactWindow = useIsCompactWindow();
   const isCompactWindowRef = useRef(isCompactWindow);
   const chatPanelRef = useRef<ChatPanelRef>(null);
+  const handleAddSelectionToChat = useCallback(
+    (reference: ChatFileSelectionReference) => {
+      chatPanelRef.current?.insertFileSelections([reference]);
+    },
+    [],
+  );
   const [showPreview, setShowPreview] = useState(false);
   const [previewToolPart, setPreviewToolPart] = useState<
     ToolUIPart | undefined
@@ -434,6 +441,7 @@ function ChatPage() {
                 threadId={threadId}
                 workspace={threadState?.metadata?.workspace as string}
                 part={previewToolPart}
+                onAddToChat={handleAddSelectionToChat}
                 previewData={previewData}
                 onPreviewDataChange={(value) => {
                   setPreviewData(value);

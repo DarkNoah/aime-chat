@@ -32,6 +32,7 @@ import { useGlobal } from '@/renderer/hooks/use-global';
 import { useTranslation } from 'react-i18next';
 import { Project } from '@/types/project';
 import { ProjectView } from '../../project-ui/project-view';
+import type { ChatFileSelectionReference } from '@/renderer/lib/chat-file-selection';
 
 export type ChatPreviewProps = {
   threadId?: string;
@@ -42,6 +43,7 @@ export type ChatPreviewProps = {
   project?: Project;
   onPreviewDataChange?: (previewData: ChatPreviewData) => void;
   onProjectChanged?: () => void;
+  onAddToChat?: (reference: ChatFileSelectionReference) => void;
 };
 
 export interface ChatPreviewRef {}
@@ -59,6 +61,7 @@ export const ChatPreview = React.forwardRef<ChatPreviewRef, ChatPreviewProps>(
       workspace,
       project,
       onProjectChanged,
+      onAddToChat,
     } = props;
     const [isGenerating, setIsGenerating] = useState(false);
     const [messages, setMessages] = useState<UIMessage[]>([]);
@@ -223,6 +226,7 @@ export const ChatPreview = React.forwardRef<ChatPreviewRef, ChatPreviewProps>(
           >
             <ChatFilesystem
               workspace={workspace}
+              onAddToChat={onAddToChat}
               active={
                 previewData.previewPanel === ChatPreviewType.FILE_SYSTEM
               }

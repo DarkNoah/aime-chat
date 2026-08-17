@@ -91,6 +91,7 @@ import { ChatSlashCommandConfig, GoalConfig } from '@/types/chat';
 import { ChatGoal } from './chat-goal';
 import { getChatInputSubmitState } from './chat-input-submit-state';
 import { ToolType } from '@/types/tool';
+import type { ChatFileSelectionReference } from '@/renderer/lib/chat-file-selection';
 
 const DRAFT_STORAGE_KEY = 'chat-input-drafts';
 
@@ -161,6 +162,7 @@ export interface ChatInputRef {
   setSubAgents: (subAgentIds: string[]) => void;
   setThink: (think: boolean) => void;
   setGoal: (goal: GoalConfig) => void;
+  insertFileSelections: (references: ChatFileSelectionReference[]) => void;
   getTools: () => string[];
 }
 
@@ -254,6 +256,9 @@ function ChatInputInner(props: ChatInputInnerProps) {
     },
     setInput: (input: string) => {
       controller.textInput.setInput(input);
+    },
+    insertFileSelections: (references: ChatFileSelectionReference[]) => {
+      controller.textInput.insertFileSelections(references);
     },
     setModel: (_model: string) => {
       onModelChange?.(_model);

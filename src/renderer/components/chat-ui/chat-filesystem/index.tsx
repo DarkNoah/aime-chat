@@ -17,6 +17,7 @@ import { useTranslation } from 'react-i18next';
 import { DirectoryTreeNode, SearchResult } from '@/types/common';
 import { cn } from '@/renderer/lib/utils';
 import { setChatFileReferenceDragData } from '@/renderer/lib/chat-file-reference';
+import type { ChatFileSelectionReference } from '@/renderer/lib/chat-file-selection';
 import {
   Collapsible,
   CollapsibleContent,
@@ -50,6 +51,7 @@ export type ChatFilesystemProps = {
   workspace?: string;
   active?: boolean;
   className?: string;
+  onAddToChat?: (reference: ChatFileSelectionReference) => void;
 };
 
 export interface ChatFilesystemRef {}
@@ -358,7 +360,7 @@ export const ChatFilesystem = React.forwardRef<
   ChatFilesystemProps
 >((props: ChatFilesystemProps, _ref: ForwardedRef<ChatFilesystemRef>) => {
   const { t } = useTranslation();
-  const { workspace, className, active = true } = props;
+  const { workspace, className, active = true, onAddToChat } = props;
   const [tree, setTree] = useState<DirectoryTreeNode | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -670,6 +672,7 @@ export const ChatFilesystem = React.forwardRef<
                 filePath={selectedFilePath}
                 workspace={workspace}
                 active={active}
+                onAddToChat={onAddToChat}
                 onDirtyChange={setEditorDirty}
                 onClose={() => {
                   setSelectedFilePath(null);

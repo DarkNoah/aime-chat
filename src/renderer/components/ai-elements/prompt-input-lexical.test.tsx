@@ -9,6 +9,10 @@ import {
 } from './prompt-input';
 import { SlashMentionMenu, SlashMentionMenuItem } from './prompt-input-lexical';
 import { CHAT_FILE_REFERENCE_MIME_TYPE } from '@/renderer/lib/chat-file-reference';
+import {
+  createChatFileSelectionReference,
+  type ChatFileSelectionReference,
+} from '@/renderer/lib/chat-file-selection';
 
 const getFileInfo = jest.fn();
 const getPathForFile = jest.fn();
@@ -16,6 +20,20 @@ const getClipboardFilePaths = jest.fn();
 
 jest.mock('nanoid', () => ({
   nanoid: () => 'test-id',
+}));
+
+jest.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string, options?: Record<string, unknown>) => {
+      if (key === 'chat.file_selection_lines') {
+        return `${options?.start}–${options?.end} 行`;
+      }
+      if (key === 'chat.file_selection_chip_aria') {
+        return `File selection ${options?.fileName}, ${options?.range}`;
+      }
+      return key === 'chat.file_selection_label' ? '选区' : key;
+    },
+  }),
 }));
 
 jest.mock('lexical-beautiful-mentions', () => {
@@ -83,6 +101,22 @@ function PromptInputValue() {
     <output data-testid="prompt-input-value">
       {controller.textInput.value}
     </output>
+  );
+}
+
+function InsertFileSelectionsButton({
+  references,
+}: {
+  references: ChatFileSelectionReference[];
+}) {
+  const controller = usePromptInputController();
+  return (
+    <button
+      type="button"
+      onClick={() => controller.textInput.insertFileSelections(references)}
+    >
+      Insert file selections
+    </button>
   );
 }
 
@@ -319,6 +353,123 @@ describe('PromptInputTextarea mentions', () => {
       reference.sourcePath,
     );
     expect(mention.querySelector('svg')).toBeTruthy();
+  });
+
+  it('inserts a file-selection chip and submits its canonical XML', async () => {
+    const handleSubmit = jest.fn();
+    const reference = createChatFileSelectionReference({
+      selectedText: 'const token = "<&private>";',
+      sourcePath: '/Volumes/Data/workspace/project/src/auth.ts',
+      startLine: 8,
+      endLine: 10,
+    });
+    const { container } = render(
+      <PromptInputProvider initialInput="Review ">
+        <PromptInput onSubmit={handleSubmit}>
+          <PromptInputTextarea />
+          <button type="submit">Send selection</button>
+        </PromptInput>
+        <InsertFileSelectionsButton references={[reference]} />
+        <PromptInputValue />
+      </PromptInputProvider>,
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Insert file selections' }),
+    );
+
+    const mention = await screen.findByLabelText(
+      'File selection auth.ts, 8–10 行',
+    );
+    expect(mention.textContent).toBe('auth.ts8–10 行');
+    expect(mention.getAttribute('data-file-selection')).toBe('true');
+    expect(mention.getAttribute('data-beautiful-mention')).toBeNull();
+    expect(mention.outerHTML).not.toContain(reference.selectedText);
+    expect(
+      container.querySelectorAll('[data-file-selection="true"]'),
+    ).toHaveLength(1);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('prompt-input-value').textContent).toBe(
+        `Review ${reference.serializedText}`,
+      );
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Send selection' }));
+    await waitFor(() => {
+      expect(handleSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          text: `Review ${reference.serializedText}`,
+        }),
+        expect.anything(),
+      );
+    });
+  });
+
+  it('restores multiple file-selection mentions inside mixed draft text', async () => {
+    const firstReference = createChatFileSelectionReference({
+      selectedText: 'first selected block',
+      sourcePath: '/workspace/docs/guide.md',
+      startLine: 21,
+      endLine: 24,
+    });
+    const secondReference = createChatFileSelectionReference({
+      selectedText: 'second selected block',
+      sourcePath: 'C:\\workspace\\src\\api.ts',
+    });
+    const draft = `Compare ${firstReference.serializedText} with ${secondReference.serializedText} before replying.`;
+    const { container } = render(
+      <PromptInputProvider initialInput={draft}>
+        <PromptInputTextarea />
+        <PromptInputValue />
+      </PromptInputProvider>,
+    );
+
+    expect(
+      await screen.findByLabelText('File selection guide.md, 21–24 行'),
+    ).toBeTruthy();
+    expect(
+      await screen.findByLabelText('File selection api.ts, 选区'),
+    ).toBeTruthy();
+    expect(
+      container.querySelectorAll('[data-file-selection="true"]'),
+    ).toHaveLength(2);
+    expect(screen.getByRole('textbox').textContent).toContain('Compare ');
+    expect(screen.getByRole('textbox').textContent).toContain(' with ');
+    expect(screen.getByRole('textbox').textContent).toContain(
+      ' before replying.',
+    );
+    expect(screen.getByTestId('prompt-input-value').textContent).toBe(draft);
+    const mentions = Array.from(
+      container.querySelectorAll('[data-file-selection="true"]'),
+    );
+    expect(mentions[0].outerHTML).not.toContain(firstReference.selectedText);
+    expect(mentions[1].outerHTML).not.toContain(secondReference.selectedText);
+  });
+
+  it('falls back to appending canonical XML before the editor registers', async () => {
+    const reference = createChatFileSelectionReference({
+      selectedText: 'fallback selection',
+      sourcePath: '/workspace/notes/fallback.md',
+      startLine: 3,
+      endLine: 3,
+    });
+    render(
+      <PromptInputProvider initialInput="Context: ">
+        <InsertFileSelectionsButton references={[reference]} />
+        <PromptInputValue />
+      </PromptInputProvider>,
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Insert file selections' }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('prompt-input-value').textContent).toBe(
+        `Context: ${reference.serializedText}`,
+      );
+    });
   });
 
   it('reads copied OS files from clipboardData.files', async () => {
