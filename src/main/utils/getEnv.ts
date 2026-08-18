@@ -15,6 +15,19 @@ export const getEnv = async (requestContext?: RequestContext<Record<string, any>
   }
   env['AIME_CHAT_SKILL_PATH'] = path.join(app.getPath('userData'), 'skills');
   let modelId = requestContext?.get('model' as never) as string || appInfo.defaultModel.model;
+
+  const visionModel = appInfo?.defaultModel?.visionModel || modelId;
+  if (visionModel) {
+    const modelInfo = await providersManager.getModelInfo(visionModel);
+    const provider = await providersManager.getProvider(visionModel);
+    if (provider &&
+      provider.provider?.isActive && modelInfo?.modelInfo?.modalities?.input?.includes('image')) {
+      env['VISION_MODEL'] = visionModel;
+    }
+  }
+
+
+
   if (modelId) {
     const provider = await providersManager.getProvider(modelId);
     if (provider &&

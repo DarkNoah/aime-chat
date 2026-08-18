@@ -66,6 +66,8 @@ export const CODE_EXECUTION_PACKAGE_GROUPS = {
     'xmltodict',
     'python-dateutil',
     'icalendar',
+    'langchain_openai',
+    'dotenv'
   ],
 } as const;
 

@@ -2468,19 +2468,25 @@ ${memoryDigest}
       keepMessages = [];
     }
 
-    let inputMessages = summaryMessages.filter((x) => x.role !== 'system');
-    compressAgent.model = options.model;
+    const originalInputMessages = summaryMessages.filter((x) => x.role !== 'system');
 
-    try {
+    const runCompression = async (
+      model: LanguageModelV2,
+      modelId: string,
+    ) => {
+      compressAgent.model = model;
       const compressionModelInfo = await providersManager.getModelInfo(
-        options.modelId,
+        modelId,
       );
       const supportsVision =
         compressionModelInfo?.modelInfo?.modalities?.input?.includes('image') ??
         false;
-      inputMessages = filterFilePartsForModel(inputMessages, supportsVision);
+      const inputMessages = filterFilePartsForModel(
+        originalInputMessages,
+        supportsVision,
+      );
 
-      const response = await compressAgent.generate([
+      return compressAgent.generate([
         ...inputMessages,
         {
           role: 'user',
@@ -2601,6 +2607,36 @@ IMPORTANT: Do NOT use any tools. You MUST respond with ONLY the <summary>...</su
           },
         },
       });
+    };
+
+    try {
+      let response;
+      try {
+        response = await runCompression(options.model, options.modelId);
+      } catch (fastModelError) {
+        if (options?.abortSignal?.aborted === true) {
+          throw fastModelError;
+        }
+        const fallbackModelId = options.requestContext?.get('model');
+        if (!fallbackModelId || fallbackModelId === options.modelId) {
+          throw fastModelError;
+        }
+        console.warn(
+          'Compress with fastModel failed, retrying with chat model:',
+          fallbackModelId,
+          fastModelError,
+        );
+        const fallbackLanguageModel = (await providersManager.getLanguageModel(
+          fallbackModelId,
+        )) as LanguageModelV2;
+        if (!fallbackLanguageModel) {
+          throw fastModelError;
+        }
+        response = await runCompression(
+          fallbackLanguageModel,
+          fallbackModelId,
+        );
+      }
 
       function getTagContent(text, tag) {
         const regex = new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`, 'i');
