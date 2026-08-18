@@ -22,7 +22,16 @@ export const getEnv = async (requestContext?: RequestContext<Record<string, any>
     const provider = await providersManager.getProvider(visionModel);
     if (provider &&
       provider.provider?.isActive && modelInfo?.modelInfo?.modalities?.input?.includes('image')) {
-      env['VISION_MODEL'] = visionModel;
+      env['VISION_MODEL'] = modelInfo.modelId;
+    }
+  }
+
+  const defaultModel = appInfo?.defaultModel?.model || modelId;
+  if (defaultModel) {
+    const modelInfo = await providersManager.getModelInfo(defaultModel);
+    const provider = await providersManager.getProvider(defaultModel);
+    if (provider && provider.provider?.isActive) {
+      env['DEFAULT_MODEL'] = modelInfo.modelId;
     }
   }
 
