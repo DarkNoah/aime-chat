@@ -49866,9 +49866,9 @@
           "output": 65536
         },
         "cost": {
-          "input": 0.45,
-          "output": 3.2,
-          "cache_read": 0.04499999999999999
+          "input": 0.4,
+          "output": 3,
+          "cache_read": 0.039999999999999994
         }
       },
       "zai-org/GLM-5.2-TEE": {
@@ -87676,12 +87676,12 @@
         "open_weights": true,
         "limit": {
           "context": 1048576,
-          "output": 384000
+          "output": 393216
         },
         "cost": {
-          "input": 1.32,
-          "output": 3.96,
-          "cache_read": 0.044
+          "input": 1.44,
+          "output": 2.88,
+          "cache_read": 0.1215
         }
       },
       "deepseek/deepseek-v3.2": {
@@ -129633,49 +129633,6 @@
           "cache_read": 0.3
         }
       },
-      "TEE/deepseek-v4-pro-0813": {
-        "id": "TEE/deepseek-v4-pro-0813",
-        "name": "DeepSeek V4 Pro 0813 TEE",
-        "description": "DeepSeek V4 Pro snapshot with million-token context and support for thinking and non-thinking modes",
-        "family": "deepseek-thinking",
-        "attachment": false,
-        "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "none",
-              "low",
-              "medium",
-              "high"
-            ]
-          }
-        ],
-        "tool_call": true,
-        "structured_output": true,
-        "temperature": true,
-        "release_date": "2026-08-12",
-        "last_updated": "2026-08-12",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": false,
-        "limit": {
-          "context": 1048576,
-          "input": 1048576,
-          "output": 1048576
-        },
-        "cost": {
-          "input": 1.32,
-          "output": 3.96,
-          "cache_read": 0.132
-        }
-      },
       "TEE/deepseek-v3.2": {
         "id": "TEE/deepseek-v3.2",
         "name": "DeepSeek V3.2 TEE",
@@ -130281,49 +130238,6 @@
           "input": 1.5,
           "output": 5.25,
           "cache_read": 0.375
-        }
-      },
-      "TEE/deepseek-v4-pro-0813:thinking": {
-        "id": "TEE/deepseek-v4-pro-0813:thinking",
-        "name": "DeepSeek V4 Pro 0813 Thinking TEE",
-        "description": "DeepSeek V4 Pro snapshot with million-token context and support for thinking and non-thinking modes",
-        "family": "deepseek-thinking",
-        "attachment": false,
-        "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "none",
-              "low",
-              "medium",
-              "high"
-            ]
-          }
-        ],
-        "tool_call": true,
-        "structured_output": true,
-        "temperature": true,
-        "release_date": "2026-08-12",
-        "last_updated": "2026-08-12",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": false,
-        "limit": {
-          "context": 1048576,
-          "input": 1048576,
-          "output": 1048576
-        },
-        "cost": {
-          "input": 1.32,
-          "output": 3.96,
-          "cache_read": 0.132
         }
       },
       "dots-studio/dots-3-note-preview": {
@@ -165499,7 +165413,7 @@
         "open_weights": true,
         "limit": {
           "context": 1048576,
-          "output": 384000
+          "output": 393216
         },
         "cost": {
           "input": 1.6,
@@ -180856,56 +180770,6 @@
           }
         }
       },
-      "muse-spark-1.2": {
-        "id": "muse-spark-1.2",
-        "name": "Muse Spark 1.2",
-        "description": "Muse Spark 1.2 is a coding-focused update to Muse Spark 1.1 with improvements in code generation, complex debugging, codebase understanding, and end-to-end developer workflows.",
-        "family": "muse",
-        "attachment": true,
-        "reasoning": true,
-        "reasoning_options": [
-          {
-            "type": "effort",
-            "values": [
-              "minimal",
-              "low",
-              "medium",
-              "high",
-              "xhigh"
-            ]
-          }
-        ],
-        "tool_call": true,
-        "structured_output": true,
-        "temperature": true,
-        "release_date": "2026-08-05",
-        "last_updated": "2026-08-05",
-        "modalities": {
-          "input": [
-            "text",
-            "image",
-            "video",
-            "pdf",
-            "audio"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": false,
-        "limit": {
-          "context": 1048576,
-          "output": 131072
-        },
-        "provider": {
-          "npm": "@ai-sdk/openai"
-        },
-        "cost": {
-          "input": 0.1,
-          "output": 0.2,
-          "cache_read": 0.002
-        }
-      },
       "glm-5.3": {
         "id": "glm-5.3",
         "name": "GLM-5.3",
@@ -181275,6 +181139,56 @@
           "input": 0.14,
           "output": 0.58,
           "cache_read": 0.035
+        }
+      },
+      "muse-spark-1.2-contributor": {
+        "id": "muse-spark-1.2-contributor",
+        "name": "Muse Spark 1.2 Contributor",
+        "description": "Muse Spark 1.2 is a coding-focused update to Muse Spark 1.1 with improvements in code generation, complex debugging, codebase understanding, and end-to-end developer workflows.",
+        "family": "muse",
+        "attachment": true,
+        "reasoning": true,
+        "reasoning_options": [
+          {
+            "type": "effort",
+            "values": [
+              "minimal",
+              "low",
+              "medium",
+              "high",
+              "xhigh"
+            ]
+          }
+        ],
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": true,
+        "release_date": "2026-08-05",
+        "last_updated": "2026-08-05",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "video",
+            "pdf",
+            "audio"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "limit": {
+          "context": 1048576,
+          "output": 131072
+        },
+        "provider": {
+          "npm": "@ai-sdk/openai"
+        },
+        "cost": {
+          "input": 0.1,
+          "output": 0.2,
+          "cache_read": 0.002
         }
       },
       "kimi-k2.6": {

@@ -76,6 +76,10 @@ import { CreatePlan } from './common/create-plan';
 import { readSkillPackageMetadata } from '../utils/skill-metadata';
 import { InteractiveHtml } from './common/interactive-html';
 import { hasHiddenPathSegment } from './skill-path';
+import {
+  combineAbortSignals,
+  getPtcExecutionAbortSignal,
+} from './code/ptc-execution-abort';
 interface BuiltInToolContext {
   tool: BaseTool;
   abortController: AbortController;
@@ -326,7 +330,15 @@ class ToolsManager extends BaseManager {
               // outputSchema: zodToJsonSchema(builtInTool.outputSchema),
             },
             async (args, v): Promise<CallToolResult> => {
+              const { _meta } = v
+              const abortSignal = combineAbortSignals(
+                v.signal,
+                getPtcExecutionAbortSignal(
+                  _meta?.['ptcExecutionId'] as string | undefined,
+                ),
+              );
               try {
+                abortSignal?.throwIfAborted();
                 const toolEntity = await this.toolsRepository.findOne({
                   where: { id: builtInTool.id },
                 });
@@ -334,13 +346,14 @@ class ToolsManager extends BaseManager {
                 const buildedTool = (await this.buildTool(
                   `${ToolType.BUILD_IN}:${_tool.id}`,
                 )) as BaseTool;
-                const { _meta } = v
                 const requestContext = new RequestContext<ChatRequestContext>();
                 requestContext.set('workspace', _meta?.['workspace'] as string);
                 requestContext.set('model', _meta?.['model'] as string);
                 requestContext.set('threadId', _meta?.['threadId'] as string);
+                abortSignal?.throwIfAborted();
                 const result = await buildedTool.execute?.(args, {
                   requestContext,
+                  abortSignal,
                 });
                 const text = isObject(result) || isArray(result) ? JSON.stringify(result) : result
                 return {
@@ -380,7 +393,15 @@ class ToolsManager extends BaseManager {
             // outputSchema: zodToJsonSchema(builtInTool.outputSchema),
           },
           async (args, v): Promise<CallToolResult> => {
+            const { _meta } = v
+            const abortSignal = combineAbortSignals(
+              v.signal,
+              getPtcExecutionAbortSignal(
+                _meta?.['ptcExecutionId'] as string | undefined,
+              ),
+            );
             try {
+              abortSignal?.throwIfAborted();
               const toolEntity = await this.toolsRepository.findOne({
                 where: { id: builtInTool.id },
               });
@@ -389,14 +410,15 @@ class ToolsManager extends BaseManager {
               const buildedTool = (await this.buildTool(
                 builtInTool.id,
               )) as BaseTool;
-              const { _meta } = v
               const requestContext = new RequestContext<ChatRequestContext>();
               requestContext.set('workspace', _meta?.['workspace'] as string);
               requestContext.set('model', _meta?.['model'] as string);
               requestContext.set('threadId', _meta?.['threadId'] as string);
 
+              abortSignal?.throwIfAborted();
               const result = await buildedTool.execute?.(args, {
                 requestContext,
+                abortSignal,
               });
               return {
                 content: [
@@ -467,8 +489,15 @@ class ToolsManager extends BaseManager {
         inputSchema: chatCompletionInputSchema,
       },
       async (args, v): Promise<CallToolResult> => {
+        const { _meta } = v
+        const abortSignal = combineAbortSignals(
+          v.signal,
+          getPtcExecutionAbortSignal(
+            _meta?.['ptcExecutionId'] as string | undefined,
+          ),
+        );
         try {
-          const { _meta } = v
+          abortSignal?.throwIfAborted();
           const requestContext = new RequestContext<ChatRequestContext>();
           requestContext.set('workspace', _meta?.['workspace'] as string);
           const appInfo = await appManager.getInfo();
@@ -585,7 +614,7 @@ class ToolsManager extends BaseManager {
           });
 
           const response = await agent.generate(normalizedMessages, {
-            abortSignal: v.signal,
+            abortSignal,
           });
 
           if (response.error) {
