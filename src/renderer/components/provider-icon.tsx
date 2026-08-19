@@ -23,6 +23,31 @@ import bigmodelIcon from '@/../assets/model-logos/bigmodel.png';
 import modelscopeIcon from '@/../assets/model-logos/modelscope.png';
 import { cn } from '@/renderer/lib/utils';
 
+// 通过 require.context 加载 assets/model-logos 下所有本地 svg 图标
+// (经 @svgr/webpack + file-loader 处理后，模块的 default 导出为文件 URL)
+interface SvgModule {
+  default: string;
+}
+
+const svgLogoContext = (
+  require as unknown as {
+    context: (
+      directory: string,
+      useSubdirectories?: boolean,
+      regExp?: RegExp,
+    ) => {
+      keys(): string[];
+      (id: string): SvgModule;
+    };
+  }
+).context('../../../assets/model-logos', false, /\.svg$/);
+
+const localSvgLogos: Record<string, string> = {};
+svgLogoContext.keys().forEach((key) => {
+  const name = key.replace(/^\.\//, '').replace(/\.svg$/, '');
+  localSvgLogos[name] = svgLogoContext(key).default;
+});
+
 interface ProviderIconProps extends ComponentProps<'div'> {
   provider: string;
   size?: number | string | null;
@@ -77,10 +102,19 @@ const ProviderIcon: React.FC<ProviderIconProps> = (
   //   logos[key] = tongyiIcon;
   // });
 
+  // 本地 svg 文件均为连字符命名，兼容下划线形式的 provider id（如 azure_openai）
+  const localSvgLogo =
+    localSvgLogos[provider] ?? localSvgLogos[provider.replace(/_/g, '-')];
+
+  const logoSrc =
+    logos[provider] ??
+    localSvgLogo ??
+    `https://models.dev/logos/${provider}.svg`;
+
   return (
     <div>
       <img
-        src={logos[provider] ?? `https://models.dev/logos/${provider}.svg`}
+        src={logoSrc}
         alt={`${provider} logo`}
         className={cn(
           className,
