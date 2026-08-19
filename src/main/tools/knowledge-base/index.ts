@@ -55,8 +55,8 @@ The query can be text or a local image file path (.png/.jpg/.jpeg/.webp/.gif/.bm
 When query is an existing image file path, the search is performed by image similarity (requires the knowledge base to use a CLIP-like multimodal embedding model).
 Search results normally contain matched chunks. To inspect the original source text, call KnowledgeBaseGetItem with the returned item id. For long sources, use its pattern parameter to locate relevant passages and offset/limit to read additional sections.
 
-Filter:
-
+The optional where parameter filters chunks by configured extended columns before ranking. Call KnowledgeBaseList first to discover the columns shared by the selected knowledge bases. It supports AND, OR, parentheses, =, !=, <>, <, <=, >, >=, IN, NOT IN, LIKE, NOT LIKE, IS NULL, and IS NOT NULL. Quote text values with single quotes and wrap column names containing spaces in brackets.
+Example: category = 'docs' AND (year >= 2024 OR featured = TRUE)
 
 Return json format:
 {
@@ -83,7 +83,22 @@ Return json format:
     query: z.string().describe('The query to search for. Can be plain text, or a local image file path to search by image.'),
     query_type: z.enum(['text', 'image']).describe("Type of the query. Use 'text' for plain text search (default), or 'image' when query is a local image file path.").default('text'),
     kb_source: z.array(z.string()).describe('knowledge base id or name.'),
-    filter: z.string().describe('Optional, The filter of the knowledge base item.').optional().nullable(),
+    where: z
+      .string()
+      .max(2000)
+      .describe(
+        "Optional SQL-like condition over configured extended columns, applied before ranking. Example: category = 'docs' AND year >= 2024. Use KnowledgeBaseList to discover valid columns.",
+      )
+      .optional()
+      .nullable(),
+    filter: z
+      .string()
+      .max(2000)
+      .describe(
+        'Legacy alias for where. Prefer where and do not set both parameters.',
+      )
+      .optional()
+      .nullable(),
     top_k: z
       .number()
       .int()
@@ -120,11 +135,29 @@ Return json format:
   }
 
   execute = async (inputData: z.infer<typeof this.inputSchema>, options?: ToolExecutionContext<ZodSchema, any>) => {
-    const { query, query_type, kb_source, top_k, return_full_content = false, filter } = inputData;
+    const {
+      query,
+      query_type,
+      kb_source,
+      top_k,
+      return_full_content = false,
+      where,
+      filter,
+    } = inputData;
+    if (where?.trim() && filter?.trim()) {
+      throw new Error('Use either where or filter, not both');
+    }
+    const searchFilter = where?.trim() || filter?.trim() || undefined;
     const fileType = this.resolveQueryType(query, query_type);
     const results: Record<string, { id: string, name: string, score: number, content?: string }[]> = {};
     for (const source of kb_source) {
-      const knowledgeBase = await knowledgeBaseManager.searchKnowledgeBase(source, query, fileType, filter, top_k);
+      const knowledgeBase = await knowledgeBaseManager.searchKnowledgeBase(
+        source,
+        query,
+        fileType,
+        searchFilter,
+        top_k,
+      );
       results[source] = knowledgeBase.results.map((x) => {
         let content = x.chunk;
         if (

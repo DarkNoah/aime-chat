@@ -202,6 +202,14 @@ describe('KnowledgeBaseManager GraphRAG hybrid search', () => {
         }),
       ]),
     );
+    const bm25Call = jest
+      .mocked(manager.libSQLClient.execute)
+      .mock.calls.find(([statement]) =>
+        String((statement as any).sql ?? statement).includes(' MATCH ?'),
+      )?.[0] as any;
+    expect(bm25Call.sql).toContain('AND ("category" = ?)');
+    expect(bm25Call.sql).not.toContain('category = "docs"');
+    expect(bm25Call.args).toEqual(expect.arrayContaining(['docs', 6]));
   });
 
   it('falls back to BM25 when GraphRAG produces no usable sources', async () => {
@@ -235,5 +243,21 @@ describe('KnowledgeBaseManager GraphRAG hybrid search', () => {
       manager.searchKnowledgeBase('kb-1', 'question', 'text', undefined, 101),
     ).rejects.toThrow('top_k must be an integer between 1 and 100');
     expect(manager.knowledgeBaseRepository.findOne).not.toHaveBeenCalled();
+  });
+
+  it('rejects filters outside configured extended columns before searching', async () => {
+    const manager = setupManager();
+
+    await expect(
+      manager.searchKnowledgeBase(
+        'kb-1',
+        'question',
+        'text',
+        "metadata = 'secret' OR category = 'docs'",
+        10,
+      ),
+    ).rejects.toThrow('Unknown column "metadata"');
+    expect(createGraphRAGTool).not.toHaveBeenCalled();
+    expect(manager.libSQLClient.execute).not.toHaveBeenCalled();
   });
 });
