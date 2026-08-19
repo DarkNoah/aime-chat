@@ -173,6 +173,7 @@ ${additionalPrompt ? `Additional prompt: \n${additionalPrompt}` : ''}`,
 
     }
 
+
     const response = await extractAgent.generate(
       [
         ...inputs,
@@ -186,9 +187,15 @@ ${additionalPrompt ? `Additional prompt: \n${additionalPrompt}` : ''}`,
       },
     );
 
+
     if (options?.abortSignal?.aborted) {
       throw new Error('Task was aborted by the user.');
     }
+
+    // for await (const chunk of response.fullStream) {
+
+    //   console.log(chunk);
+    // }
 
     if (response.error) {
       throw new Error(response.error.message);
@@ -213,8 +220,7 @@ ${additionalPrompt ? `Additional prompt: \n${additionalPrompt}` : ''}`,
     const extractAgent = new Agent({
       id: 'extract-agent',
       name: 'ExtractAgent',
-      instructions: `You are an information extraction expert. Fill missing values with null.
-${additionalPrompt ? `Additional prompt: \n${additionalPrompt}` : ''}`,
+      instructions: `You are an information extraction expert. Fill missing values with null.`,
       model,
     });
 
@@ -275,7 +281,7 @@ ${additionalPrompt ? `Additional prompt: \n${additionalPrompt}` : ''}`,
     let modeId = options.requestContext.get('model' as never) as string;
     const { fields, source, additionalPrompt } = inputData;
     const appInfo = await appManager.getInfo();
-    const mode = this.config?.mode || 'accurate';
+    let mode = this.config?.mode || 'accurate';
     modeId = this.config?.modelId || modeId || appInfo.defaultModel.model;
     if (!modeId) {
       throw new Error('Model is not set');
@@ -299,6 +305,9 @@ ${additionalPrompt ? `Additional prompt: \n${additionalPrompt}` : ''}`,
     const content = await this.readSourceContent(source, options, modeId);
 
     console.log('准备提取内容...');
+    if (additionalPrompt) {
+      mode = 'accurate'
+    }
 
     const extractionInput =
       mode === 'accurate'
