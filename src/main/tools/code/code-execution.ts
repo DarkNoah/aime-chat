@@ -122,7 +122,7 @@ async def _list_tools_async() -> list[str]:
             result = await session.list_tools()
             return [tool.name for tool in result.tools]
 
-async def _call_tool_async(name: str, **kwargs):
+async def _call_tool_async(_tool_name: str, **kwargs):
     async with _open_mcp_transport() as (read_stream, write_stream):
         async with ClientSession(
             read_stream,
@@ -131,7 +131,7 @@ async def _call_tool_async(name: str, **kwargs):
         ) as session:
             await session.initialize()
             result = await session.call_tool(
-                name,
+                _tool_name,
                 kwargs,
                 read_timeout_seconds=None,
                 meta=_META,
@@ -173,9 +173,9 @@ class _AwaitableStr(str):
         yield  # pragma: no cover - turns this into a generator
 
 
-def _make_tool_func(name: str):
+def _make_tool_func(_tool_name: str):
     def _wrapper(**kwargs):
-        return _AwaitableStr(_run_sync(_call_tool_async(name, **kwargs)))
+        return _AwaitableStr(_run_sync(_call_tool_async(_tool_name, **kwargs)))
     return _wrapper
 
 

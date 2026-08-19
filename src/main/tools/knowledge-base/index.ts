@@ -91,14 +91,6 @@ Return json format:
       )
       .optional()
       .nullable(),
-    filter: z
-      .string()
-      .max(2000)
-      .describe(
-        'Legacy alias for where. Prefer where and do not set both parameters.',
-      )
-      .optional()
-      .nullable(),
     top_k: z
       .number()
       .int()
@@ -142,12 +134,8 @@ Return json format:
       top_k,
       return_full_content = false,
       where,
-      filter,
     } = inputData;
-    if (where?.trim() && filter?.trim()) {
-      throw new Error('Use either where or filter, not both');
-    }
-    const searchFilter = where?.trim() || filter?.trim() || undefined;
+    const searchFilter = where?.trim() || undefined;
     const fileType = this.resolveQueryType(query, query_type);
     const results: Record<string, { id: string, name: string, score: number, content?: string }[]> = {};
     for (const source of kb_source) {

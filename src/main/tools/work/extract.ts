@@ -220,7 +220,8 @@ ${additionalPrompt ? `Additional prompt: \n${additionalPrompt}` : ''}`,
     const extractAgent = new Agent({
       id: 'extract-agent',
       name: 'ExtractAgent',
-      instructions: `You are an information extraction expert. Fill missing values with null.`,
+      instructions: `You are an information extraction expert. Fill missing values with null.
+${additionalPrompt ? `Additional prompt: \n${additionalPrompt}` : ''}`,
       model,
     });
 
@@ -304,7 +305,7 @@ ${additionalPrompt ? `Additional prompt: \n${additionalPrompt}` : ''}`,
     );
     const content = await this.readSourceContent(source, options, modeId);
 
-    console.log('准备提取内容...');
+    console.log('准备提取内容... ' + source);
     if (additionalPrompt) {
       mode = 'accurate'
     }

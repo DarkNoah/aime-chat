@@ -279,7 +279,6 @@ describe('KnowledgeBaseSearch', () => {
         kb_source: ['kb-1'],
         top_k: 10,
         return_full_content: false,
-        filter: null,
       },
       {} as any,
     );
@@ -313,20 +312,6 @@ describe('KnowledgeBaseSearch', () => {
       "category = 'docs' AND year >= 2024",
       7,
     );
-  });
-
-  it('rejects ambiguous use of where and its legacy filter alias', async () => {
-    await expect(
-      new KnowledgeBaseSearch().execute({
-        query: 'question',
-        query_type: 'text',
-        kb_source: ['Docs'],
-        where: "category = 'docs'",
-        filter: "category = 'api'",
-        top_k: 10,
-      }),
-    ).rejects.toThrow('Use either where or filter, not both');
-    expect(knowledgeBaseManager.searchKnowledgeBase).not.toHaveBeenCalled();
   });
 
   it('limits top_k to a safe GraphRAG range', () => {
