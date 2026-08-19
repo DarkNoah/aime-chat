@@ -4,14 +4,13 @@ import type {
   QueryResult,
   QueryVectorParams,
 } from '@mastra/core/vector';
-import type { CompiledKnowledgeBaseFilter } from '@/main/knowledge-base/search-filter';
 
 export type KnowledgeBaseGraphVectorStoreOptions = {
   client: Pick<LibSQLClient, 'execute'>;
   knowledgeBaseId: string;
   vectorLength: number;
   extendColumns?: string[];
-  filter?: CompiledKnowledgeBaseFilter;
+  filter?: string;
   minimumScore?: number;
   includeInternalMetadata?: boolean;
 };
@@ -54,7 +53,8 @@ export const createKnowledgeBaseGraphVectorStore = ({
           .map((column) => `chunks.${quoteIdentifier(column)}`)
           .join(', ')}`
       : '';
-  const filterCondition = filter?.sql ? ` AND (${filter.sql})` : '';
+  const filterCondition =
+    extendColumns.length > 0 && filter ? ` AND (${filter})` : '';
 
   const vectorStore: QueryOnlyVectorStore = {
     id: `knowledge-base-graph-${knowledgeBaseId}`,
@@ -114,13 +114,8 @@ export const createKnowledgeBaseGraphVectorStore = ({
           LIMIT ?`,
         args:
           minimumScore === undefined
-            ? [JSON.stringify(queryVector), ...(filter?.args ?? []), topK]
-            : [
-                JSON.stringify(queryVector),
-                ...(filter?.args ?? []),
-                minimumScore,
-                topK,
-              ],
+            ? [JSON.stringify(queryVector), topK]
+            : [JSON.stringify(queryVector), minimumScore, topK],
       });
 
       return result.rows.map((row) => {

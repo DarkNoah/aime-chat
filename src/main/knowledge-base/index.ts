@@ -53,7 +53,6 @@ import {
   createKnowledgeBaseGraphVectorStore,
   getKnowledgeBaseGraphIndexName,
 } from '../tools/knowledge-base/graph-vector-store';
-import { compileKnowledgeBaseFilter } from './search-filter';
 
 type KnowledgeBaseChunk = {
   text: string;
@@ -972,14 +971,12 @@ export class KnowledgeBaseManager extends BaseManager {
     const extendSelect = vectorStoreConfig?.extendColumns?.length > 0
       ? `, ${vectorStoreConfig.extendColumns.map((column) => `"${column.name}"`).join(', ')}`
       : '';
-    const compiledFilter = compileKnowledgeBaseFilter(
-      filter,
-      vectorStoreConfig?.extendColumns ?? [],
-    );
-    const filterCondition = compiledFilter
-      ? ` AND (${compiledFilter.sql})`
-      : '';
-    const filterArgs = compiledFilter?.args ?? [];
+    if (filter && !vectorStoreConfig?.extendColumns?.length) {
+      throw new Error(
+        'Knowledge base where requires at least one configured extended column',
+      );
+    }
+    const filterCondition = filter ? ` AND (${filter})` : '';
     let vectorStr: number[] | undefined;
     let semanticSearchAvailable = false;
     const vectorRows: any[] = [];
@@ -1009,7 +1006,7 @@ export class KnowledgeBaseManager extends BaseManager {
             knowledgeBaseId: kb.id,
             vectorLength: kb.vectorLength,
             extendColumns,
-            filter: compiledFilter,
+            filter,
             minimumScore: 0.5,
             includeInternalMetadata: true,
           }),
@@ -1108,12 +1105,7 @@ export class KnowledgeBaseManager extends BaseManager {
           WHERE score > ? AND type = 'text'
           ORDER BY score DESC
           LIMIT ?`,
-            args: [
-              JSON.stringify(vectorStr),
-              ...filterArgs,
-              0.5,
-              candidateLimit,
-            ],
+            args: [JSON.stringify(vectorStr), 0.5, candidateLimit],
           });
           vectorRows.push(
             ...vectorResults.rows.map((row) => ({
@@ -1156,7 +1148,7 @@ export class KnowledgeBaseManager extends BaseManager {
         WHERE type = 'image'
         ORDER BY score DESC
         LIMIT ?`,
-          args: [JSON.stringify(vectorStr), ...filterArgs, candidateLimit],
+          args: [JSON.stringify(vectorStr), candidateLimit],
         });
         for (const row of imageResults.rows) {
           const score = await this.calcClipCosineSimilarity(
@@ -1216,7 +1208,7 @@ export class KnowledgeBaseManager extends BaseManager {
               AND chunks."type" = 'text'${filterCondition}
             ORDER BY bm25_rank ASC
             LIMIT ?`,
-          args: [matchQuery, ...filterArgs, candidateLimit],
+          args: [matchQuery, candidateLimit],
         });
         bm25Rows.push(
           ...bm25Results.rows.map((row, index) => ({

@@ -108,7 +108,7 @@ describe('knowledge base GraphRAG vector store adapter', () => {
       knowledgeBaseId: 'kb-2',
       vectorLength: 3,
       extendColumns: ['category', 'name'],
-      filter: { sql: '"name" = ?', args: ['docs'] },
+      filter: 'name = "docs"',
       minimumScore: 0.5,
       includeInternalMetadata: true,
     });
@@ -122,14 +122,14 @@ describe('knowledge base GraphRAG vector store adapter', () => {
 
     expect(execute).toHaveBeenCalledWith(
       expect.objectContaining({
-        args: ['[0.2,0.3,0.4]', 'docs', 0.5, 6],
+        args: ['[0.2,0.3,0.4]', 0.5, 6],
       }),
     );
     const sql = execute.mock.calls[0][0].sql as string;
     expect(sql).toContain('chunks."category"');
     expect(sql).toContain('chunks."name"');
-    expect(sql).toContain('AND ("name" = ?)');
-    expect(sql.indexOf('AND ("name" = ?)')).toBeLessThan(
+    expect(sql).toContain('AND (name = "docs")');
+    expect(sql.indexOf('AND (name = "docs")')).toBeLessThan(
       sql.indexOf('LEFT JOIN knowledgebase_item'),
     );
     expect(sql).toContain('WHERE score > ?');
