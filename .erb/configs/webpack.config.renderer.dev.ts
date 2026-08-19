@@ -122,20 +122,31 @@ const configuration: webpack.Configuration = {
       // SVG
       {
         test: /\.svg$/,
-        use: [
+        oneOf: [
           {
-            loader: '@svgr/webpack',
-            options: {
-              prettier: false,
-              svgo: false,
-              svgoConfig: {
-                plugins: [{ removeViewBox: false }],
-              },
-              titleProp: true,
-              ref: true,
-            },
+            // model-logos 下的 svg 仅作为图片 URL 使用（provider-icon.tsx 的
+            // require.context），跳过 @svgr 组件转换 —— 部分 Inkscape 生成的
+            // svg 含命名空间标签（如 sodipodi:），会导致 @svgr 报错
+            include: /assets[\\/]model-logos/,
+            type: 'asset/resource',
           },
-          'file-loader',
+          {
+            use: [
+              {
+                loader: '@svgr/webpack',
+                options: {
+                  prettier: false,
+                  svgo: false,
+                  svgoConfig: {
+                    plugins: [{ removeViewBox: false }],
+                  },
+                  titleProp: true,
+                  ref: true,
+                },
+              },
+              'file-loader',
+            ],
+          },
         ],
       },
       // ESM 导入

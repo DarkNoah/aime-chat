@@ -202,6 +202,12 @@ describe('KnowledgeBaseManager GraphRAG hybrid search', () => {
         }),
       ]),
     );
+    const bm25Call = jest
+      .mocked(manager.libSQLClient.execute)
+      .mock.calls.find(([statement]) =>
+        String((statement as any).sql ?? statement).includes(' MATCH ?'),
+      )?.[0] as any;
+    expect(bm25Call.sql).toContain('AND (category = "docs")');
   });
 
   it('falls back to BM25 when GraphRAG produces no usable sources', async () => {

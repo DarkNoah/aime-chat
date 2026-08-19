@@ -23,6 +23,7 @@ export enum ProviderChannel {
 
 export enum AppChannel {
   GetFileInfo = 'app:GetFileInfo',
+  GetProviderLogo = 'app:getProviderLogo',
   GetInfo = 'app:getInfo',
   Toast = 'app:toast',
   SetTheme = 'app:setTheme',

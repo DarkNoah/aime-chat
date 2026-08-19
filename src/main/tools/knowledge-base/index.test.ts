@@ -232,6 +232,10 @@ describe('KnowledgeBaseGetItem', () => {
 });
 
 describe('KnowledgeBaseSearch', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
   it('points callers to KnowledgeBaseGetItem for source text', () => {
     const description = new KnowledgeBaseSearch().description;
 
@@ -240,6 +244,9 @@ describe('KnowledgeBaseSearch', () => {
     );
     expect(description).toContain(
       'use its pattern parameter to locate relevant passages and offset/limit',
+    );
+    expect(description).toContain(
+      "Example: category = 'docs' AND (year >= 2024 OR featured = TRUE)",
     );
   });
 
@@ -272,12 +279,39 @@ describe('KnowledgeBaseSearch', () => {
         kb_source: ['kb-1'],
         top_k: 10,
         return_full_content: false,
-        filter: null,
       },
       {} as any,
     );
 
     expect(result['kb-1'][0].content).toBe('complete source text');
+  });
+
+  it('forwards the SQL-like where parameter to every knowledge base search', async () => {
+    jest.mocked(knowledgeBaseManager.searchKnowledgeBase).mockResolvedValue({
+      query: 'question',
+      embedding: '',
+      searchType: 'bm25',
+      results: [],
+    });
+
+    await new KnowledgeBaseSearch().execute(
+      {
+        query: 'question',
+        query_type: 'text',
+        kb_source: ['Docs'],
+        where: "category = 'docs' AND year >= 2024",
+        top_k: 7,
+      },
+      {} as any,
+    );
+
+    expect(knowledgeBaseManager.searchKnowledgeBase).toHaveBeenCalledWith(
+      'Docs',
+      'question',
+      'text',
+      "category = 'docs' AND year >= 2024",
+      7,
+    );
   });
 
   it('limits top_k to a safe GraphRAG range', () => {

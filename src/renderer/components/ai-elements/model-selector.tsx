@@ -15,6 +15,7 @@ import {
   DialogTrigger,
 } from '@/renderer/components/ui/dialog';
 import { cn } from '@/renderer/lib/utils';
+import { getProviderLogoDataUri } from '@/renderer/components/provider-icon';
 import type { ComponentProps } from 'react';
 import React from 'react';
 
@@ -172,10 +173,27 @@ export const ModelSelectorLogo = ({
   ...props
 }: ModelSelectorLogoProps) => {
   const [loadFailed, setLoadFailed] = React.useState(false);
+  const [localLogo, setLocalLogo] = React.useState<string | null>(null);
+
+  const resolvedProvider = providerLogoAliases[provider] ?? provider;
 
   React.useEffect(() => {
     setLoadFailed(false);
   }, [provider]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    setLocalLogo(null);
+    // 优先使用本地 assets/model-logos/<provider>.svg（IPC 读取 + 前端缓存）
+    getProviderLogoDataUri(resolvedProvider).then((logo) => {
+      if (!cancelled) {
+        setLocalLogo(logo);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [resolvedProvider]);
 
   if (loadFailed) {
     return null;
@@ -187,7 +205,7 @@ export const ModelSelectorLogo = ({
       alt={`${provider} logo`}
       className={cn(`size-3 dark:invert`, className)}
       height={12}
-      src={`https://models.dev/logos/${providerLogoAliases[provider] ?? provider}.svg`}
+      src={localLogo ?? `https://models.dev/logos/${resolvedProvider}.svg`}
       width={12}
       onError={() => setLoadFailed(true)}
     />

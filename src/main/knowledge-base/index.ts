@@ -172,8 +172,13 @@ export class KnowledgeBaseManager extends BaseManager {
       }
 
       const embeddingModel = await providersManager.getEmbeddingModel(modeId);
-      const res2 = await embeddingModel.doEmbed({ values: texts });
-      return { text_embeddings: res2.embeddings, image_embeddings: undefined };
+
+      let text_embeddings: number[][] = [];
+      for (const text of texts) {
+        const res = await embeddingModel.doEmbed({ values: [text] });
+        text_embeddings.push(res.embeddings[0]);
+      }
+      return { text_embeddings: text_embeddings, image_embeddings: undefined };
     } catch (err) {
       console.error(err);
     }
@@ -486,12 +491,11 @@ export class KnowledgeBaseManager extends BaseManager {
         }
         const defaultSql =
           column.defaultValue === null ||
-          typeof column.defaultValue === 'undefined'
+            typeof column.defaultValue === 'undefined'
             ? ''
             : ` DEFAULT ${String(column.defaultValue)}`;
-        return `${quoteIdentifier(column.name)} ${column.type}${
-          column.notNull ? ' NOT NULL' : ''
-        }${defaultSql}${column.primaryKey ? ' PRIMARY KEY' : ''}`;
+        return `${quoteIdentifier(column.name)} ${column.type}${column.notNull ? ' NOT NULL' : ''
+          }${defaultSql}${column.primaryKey ? ' PRIMARY KEY' : ''}`;
       });
       const targetTable = vectorTableName(kb.id, vectorLength);
       const temporaryTable = `kb_reembed_${kb.id}_${nanoid()}`;
@@ -520,8 +524,8 @@ export class KnowledgeBaseManager extends BaseManager {
         const insertSql = `INSERT INTO ${quoteIdentifier(temporaryTable)} (${targetColumns
           .map(quoteIdentifier)
           .join(', ')}) VALUES (${targetColumns
-          .map((column) => (column === 'embedding' ? 'vector32(?)' : '?'))
-          .join(', ')})`;
+            .map((column) => (column === 'embedding' ? 'vector32(?)' : '?'))
+            .join(', ')})`;
         for (
           let offset = 0;
           offset < cachedRows.length;
@@ -971,10 +975,12 @@ export class KnowledgeBaseManager extends BaseManager {
     const extendSelect = vectorStoreConfig?.extendColumns?.length > 0
       ? `, ${vectorStoreConfig.extendColumns.map((column) => `"${column.name}"`).join(', ')}`
       : '';
-    const filterCondition =
-      vectorStoreConfig?.extendColumns?.length > 0 && filter
-        ? ` AND (${filter})`
-        : '';
+    if (filter && !vectorStoreConfig?.extendColumns?.length) {
+      throw new Error(
+        'Knowledge base where requires at least one configured extended column',
+      );
+    }
+    const filterCondition = filter ? ` AND (${filter})` : '';
     let vectorStr: number[] | undefined;
     let semanticSearchAvailable = false;
     const vectorRows: any[] = [];
@@ -1034,11 +1040,11 @@ export class KnowledgeBaseManager extends BaseManager {
           const metadata = source?.metadata as Record<string, any> | undefined;
           const internal = metadata?.['__knowledgeBase'] as
             | {
-                metadata?: Record<string, unknown>;
-                type?: string;
-                extendValues?: Record<string, unknown>;
-                vectorScore?: number;
-              }
+              metadata?: Record<string, unknown>;
+              type?: string;
+              extendValues?: Record<string, unknown>;
+              vectorScore?: number;
+            }
             | undefined;
           const chunkId = metadata?.chunkId;
           const itemId = metadata?.itemId;
@@ -1407,7 +1413,18 @@ export class KnowledgeBaseManager extends BaseManager {
                 )
               )?.text_embeddings
               : undefined;
-            await this.insertChunkRows(kb, item.id, chunks, embeddings);
+            const extendColumns = (kb.vectorStoreConfig?.extendColumns ?? [])
+              .map((column) => ({
+                column: column.name,
+                value: (item.extendData ?? {})[column.name] ?? null,
+              }));
+            await this.insertChunkRows(
+              kb,
+              item.id,
+              chunks,
+              embeddings,
+              extendColumns,
+            );
             chunkCount = chunks.length;
           }
         }

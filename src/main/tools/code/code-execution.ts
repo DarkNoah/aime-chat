@@ -29,8 +29,13 @@ import {
   isPythonRuntimeVersionCompatible,
   PYTHON_RUNTIME_VERSION,
 } from '@/main/utils/pythonRuntimeVersion';
+import { createPtcExecutionAbortScope } from './ptc-execution-abort';
 
-const getSitecustomizePy = async (allRequestContext: Record<string, any> = {}, modelId?: string) => {
+const getSitecustomizePy = async (
+  allRequestContext: Record<string, any> = {},
+  modelId?: string,
+  ptcExecutionId?: string,
+) => {
   const appInfo = await appManager.getInfo();
   const mcpServerUrl = `http://localhost:${appInfo.apiServer.port}/mcp`;
   const workspace = allRequestContext['workspace'] as string;
@@ -46,34 +51,91 @@ const getSitecustomizePy = async (allRequestContext: Record<string, any> = {}, m
   if (threadId) {
     meta['threadId'] = threadId
   }
+  if (ptcExecutionId) {
+    meta['ptcExecutionId'] = ptcExecutionId
+  }
 
 
 
   return `
 import asyncio
 import builtins
+import inspect
 import threading
-from mcp import ClientSession, StdioServerParameters
+from contextlib import asynccontextmanager
+from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
-from mcp.types import PromptReference, ResourceTemplateReference
+
+try:
+    import httpx2 as _httpx
+except ImportError:
+    import httpx as _httpx
 
 
 MCP_SERVER_URL = "${mcpServerUrl}"
 _META = ${JSON.stringify(meta)}
 
 
+def _no_timeout_http_client_factory(headers=None, timeout=None, auth=None):
+    return _httpx.AsyncClient(
+        headers=headers,
+        auth=auth,
+        timeout=None,
+        follow_redirects=True,
+    )
+
+
+@asynccontextmanager
+async def _open_mcp_transport():
+    """Open Streamable HTTP without the SDK's implicit HTTP read timeout."""
+    parameters = inspect.signature(streamable_http_client).parameters
+    if "http_client" in parameters:
+        async with _no_timeout_http_client_factory() as http_client:
+            async with streamable_http_client(
+                MCP_SERVER_URL,
+                http_client=http_client,
+            ) as streams:
+                yield streams
+        return
+
+    # Compatibility with MCP Python SDK 1.x, which accepts a client factory
+    # instead of a pre-created HTTP client.
+    if "httpx_client_factory" in parameters:
+        async with streamable_http_client(
+            MCP_SERVER_URL,
+            httpx_client_factory=_no_timeout_http_client_factory,
+        ) as streams:
+            yield streams
+        return
+
+    raise RuntimeError("Unsupported MCP Python SDK: cannot disable HTTP timeout")
+
+
 async def _list_tools_async() -> list[str]:
-    async with streamable_http_client(MCP_SERVER_URL) as (read_stream, write_stream):
-        async with ClientSession(read_stream, write_stream) as session:
+    async with _open_mcp_transport() as (read_stream, write_stream):
+        async with ClientSession(
+            read_stream,
+            write_stream,
+            read_timeout_seconds=None,
+        ) as session:
             await session.initialize()
             result = await session.list_tools()
             return [tool.name for tool in result.tools]
 
-async def _call_tool_async(name: str, **kwargs):
-    async with streamable_http_client(MCP_SERVER_URL) as (read_stream, write_stream):
-        async with ClientSession(read_stream, write_stream) as session:
+async def _call_tool_async(_tool_name: str, **kwargs):
+    async with _open_mcp_transport() as (read_stream, write_stream):
+        async with ClientSession(
+            read_stream,
+            write_stream,
+            read_timeout_seconds=None,
+        ) as session:
             await session.initialize()
-            result = await session.call_tool(name, kwargs, meta=_META)
+            result = await session.call_tool(
+                _tool_name,
+                kwargs,
+                read_timeout_seconds=None,
+                meta=_META,
+            )
             texts = [c.text for c in result.content if c.type == 'text']
             return '\\n'.join(texts)
 
@@ -111,9 +173,9 @@ class _AwaitableStr(str):
         yield  # pragma: no cover - turns this into a generator
 
 
-def _make_tool_func(name: str):
+def _make_tool_func(_tool_name: str):
     def _wrapper(**kwargs):
-        return _AwaitableStr(_run_sync(_call_tool_async(name, **kwargs)))
+        return _AwaitableStr(_run_sync(_call_tool_async(_tool_name, **kwargs)))
     return _wrapper
 
 
@@ -326,9 +388,13 @@ asyncio.run(main())
     const { requestContext, abortSignal } = options;
 
     const temp = getDataPath('temp')
-    const tempDir = path.join(temp, nanoid());
+    const executionId = nanoid();
+    const tempDir = path.join(temp, executionId);
     await fs.promises.mkdir(tempDir, { recursive: true });
     const isWindows = process.platform === 'win32';
+    const ptcAbortScope = ptc
+      ? createPtcExecutionAbortScope(executionId, abortSignal)
+      : undefined;
 
     const workspace = (requestContext.get('workspace' as never) as string) || tempDir;
     const allRequestContext = requestContext.all
@@ -502,7 +568,11 @@ asyncio.run(main())
         }
         site_packages_path = sitePackages[0];
 
-        const sitecustomize_py = await getSitecustomizePy(allRequestContext, this.modelId);
+        const sitecustomize_py = await getSitecustomizePy(
+          allRequestContext,
+          this.modelId,
+          executionId,
+        );
         await fs.promises.writeFile(
           path.join(site_packages_path, 'sitecustomize.py'),
           sitecustomize_py,
@@ -562,6 +632,9 @@ asyncio.run(main())
     } catch (error) {
       throw error;
     } finally {
+      // Abort MCP tool handlers before removing the temporary Python runtime.
+      // This also covers failures where the Python process exits unexpectedly.
+      ptcAbortScope?.close();
       // 执行结束（包括正常结束、中断或失败）时，结束该线程下仍在进行中的进度 UI。
       const threadId = requestContext.get('threadId' as never) as
         | string

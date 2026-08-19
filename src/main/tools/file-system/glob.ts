@@ -40,7 +40,8 @@ export class Glob extends BaseTool {
     inputData: z.infer<typeof this.inputSchema>,
     context: ToolExecutionContext<z.ZodSchema, any>,
   ) => {
-    const { pattern, path } = inputData;
+    let { pattern, path } = inputData;
+    pattern = pattern.replace(/\\/g, '/');
     const { requestContext } = context;
     const abortSignal = context?.abortSignal;
     const isWindows = os.platform() === 'win32';
