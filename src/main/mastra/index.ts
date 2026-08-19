@@ -927,10 +927,8 @@ class MastraManager extends BaseManager {
     // for (const uiMessage of uiMessages) {
     //   delete uiMessage.id;
     // }
-    const fastModel = appInfo?.defaultModel?.fastModel ?? model;
-    const fastLanguageModel = (await providersManager.getLanguageModel(
-      fastModel,
-    )) as LanguageModelV2;
+    const fastModel = appInfo?.defaultModel?.fastModel || model;
+
 
     let inputMessage = uiMessages[uiMessages.length - 1];
 
@@ -939,6 +937,10 @@ class MastraManager extends BaseManager {
         agentEntity?.defaultModelId ||
         (await appManager.getInfo())?.defaultModel?.model;
     }
+
+    // const fastLanguageModel = (await providersManager.getLanguageModel(
+    //   fastModel || model,
+    // )) as LanguageModelV2;
 
     const provider = await providersManager.get(model.split('/')[0]);
     if (!provider) {
@@ -1449,8 +1451,8 @@ class MastraManager extends BaseManager {
                 requestContext,
                 force: slashCommand == 'compact',
                 disableKeepMessage: true,
-                model: fastLanguageModel,
                 modelId: fastModel,
+                // modelId: fastModel,
               },
             );
 
@@ -2415,8 +2417,8 @@ ${memoryDigest}
       thresholdTokenCount?: number;
       force?: boolean;
       disableKeepMessage?: boolean;
-      model: LanguageModelV2;
       modelId: string;
+      // modelId: string;
     },
   ): Promise<{
     compressedMessage?: ModelMessage;
@@ -2471,13 +2473,14 @@ ${memoryDigest}
     const originalInputMessages = summaryMessages.filter((x) => x.role !== 'system');
 
     const runCompression = async (
-      model: LanguageModelV2,
       modelId: string,
+      // modelId: string,
     ) => {
+
+      const model = await providersManager.getLanguageModel(modelId) as LanguageModelV2;
+
       compressAgent.model = model;
-      const compressionModelInfo = await providersManager.getModelInfo(
-        modelId,
-      );
+      const compressionModelInfo = await providersManager.getModelInfo(modelId);
       const supportsVision =
         compressionModelInfo?.modelInfo?.modalities?.input?.includes('image') ??
         false;
@@ -2606,13 +2609,14 @@ IMPORTANT: Do NOT use any tools. You MUST respond with ONLY the <summary>...</su
             maxTokens: 20000
           },
         },
+
       });
     };
 
     try {
       let response;
       try {
-        response = await runCompression(options.model, options.modelId);
+        response = await runCompression(options.modelId);
       } catch (fastModelError) {
         if (options?.abortSignal?.aborted === true) {
           throw fastModelError;
@@ -2633,8 +2637,7 @@ IMPORTANT: Do NOT use any tools. You MUST respond with ONLY the <summary>...</su
           throw fastModelError;
         }
         response = await runCompression(
-          fallbackLanguageModel,
-          fallbackModelId,
+          fallbackModelId
         );
       }
 
