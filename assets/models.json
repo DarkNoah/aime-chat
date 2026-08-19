@@ -87632,9 +87632,9 @@
           "output": 384000
         },
         "cost": {
-          "input": 0.66,
-          "output": 1.98,
-          "cache_read": 0.022
+          "input": 1.32,
+          "output": 3.96,
+          "cache_read": 0.044
         }
       },
       "deepseek/deepseek-v4-pro": {
@@ -87679,9 +87679,9 @@
           "output": 384000
         },
         "cost": {
-          "input": 0.66,
-          "output": 1.98,
-          "cache_read": 0.022
+          "input": 1.32,
+          "output": 3.96,
+          "cache_read": 0.044
         }
       },
       "deepseek/deepseek-v3.2": {
@@ -180505,7 +180505,7 @@
       },
       "gpt-5.6-luna": {
         "id": "gpt-5.6-luna",
-        "name": "GPT-5.6 Luna (2x usage)",
+        "name": "GPT-5.6 Luna",
         "description": "Cost-efficient GPT-5.6 model for fast, high-volume workloads",
         "family": "gpt-luna",
         "attachment": true,
@@ -180549,16 +180549,16 @@
           "npm": "@ai-sdk/openai"
         },
         "cost": {
-          "input": 0.1,
-          "output": 0.6,
-          "cache_read": 0.01,
-          "cache_write": 0.125,
+          "input": 0.2,
+          "output": 1.2,
+          "cache_read": 0.02,
+          "cache_write": 0.25,
           "tiers": [
             {
-              "input": 0.2,
-              "output": 0.9,
-              "cache_read": 0.02,
-              "cache_write": 0.25,
+              "input": 0.4,
+              "output": 1.8,
+              "cache_read": 0.04,
+              "cache_write": 0.5,
               "tier": {
                 "type": "context",
                 "size": 272000
@@ -180566,10 +180566,10 @@
             }
           ],
           "context_over_200k": {
-            "input": 0.2,
-            "output": 0.9,
-            "cache_read": 0.02,
-            "cache_write": 0.25
+            "input": 0.4,
+            "output": 1.8,
+            "cache_read": 0.04,
+            "cache_write": 0.5
           }
         }
       },

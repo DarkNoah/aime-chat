@@ -201,6 +201,8 @@ const electronHandler = {
     },
     getFileInfo: (path: string): Promise<FileInfo> =>
       ipcRenderer.invoke(AppChannel.GetFileInfo, path),
+    getProviderLogo: (provider: string): Promise<string | null> =>
+      ipcRenderer.invoke(AppChannel.GetProviderLogo, provider),
     getInfo: () => ipcRenderer.invoke(AppChannel.GetInfo),
     toast: (
       title: string,

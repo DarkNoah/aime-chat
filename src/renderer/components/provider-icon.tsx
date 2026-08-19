@@ -23,31 +23,6 @@ import bigmodelIcon from '@/../assets/model-logos/bigmodel.png';
 import modelscopeIcon from '@/../assets/model-logos/modelscope.png';
 import { cn } from '@/renderer/lib/utils';
 
-// 通过 require.context 加载 assets/model-logos 下所有本地 svg 图标
-// (经 @svgr/webpack + file-loader 处理后，模块的 default 导出为文件 URL)
-interface SvgModule {
-  default: string;
-}
-
-const svgLogoContext = (
-  require as unknown as {
-    context: (
-      directory: string,
-      useSubdirectories?: boolean,
-      regExp?: RegExp,
-    ) => {
-      keys(): string[];
-      (id: string): SvgModule;
-    };
-  }
-).context('../../../assets/model-logos', false, /\.svg$/);
-
-const localSvgLogos: Record<string, string> = {};
-svgLogoContext.keys().forEach((key) => {
-  const name = key.replace(/^\.\//, '').replace(/\.svg$/, '');
-  localSvgLogos[name] = svgLogoContext(key).default;
-});
-
 interface ProviderIconProps extends ComponentProps<'div'> {
   provider: string;
   size?: number | string | null;
@@ -78,37 +53,82 @@ const logos = {
   modelscope: modelscopeIcon,
 };
 
+// ---- 本地 svg logo：通过 IPC 从主进程读取 assets/model-logos/<provider>.svg ----
+// 前端模块级缓存（provider -> data URI，null 表示无本地文件），并合并并发请求
+// （同时供 model-selector.tsx 的 ModelSelectorLogo 复用）
+const localLogoCache = new Map<string, string | null>();
+const localLogoPending = new Map<string, Promise<string | null>>();
+
+export function getProviderLogoDataUri(
+  provider: string,
+): Promise<string | null> {
+  if (localLogoCache.has(provider)) {
+    return Promise.resolve(localLogoCache.get(provider)!);
+  }
+  let task = localLogoPending.get(provider);
+  if (!task) {
+    task = window.electron.app
+      .getProviderLogo(provider)
+      .then((svg: string | null) => {
+        const dataUri = svg
+          ? `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`
+          : null;
+        localLogoCache.set(provider, dataUri);
+        return dataUri;
+      })
+      .catch(() => {
+        localLogoCache.set(provider, null);
+        return null;
+      })
+      .finally(() => {
+        localLogoPending.delete(provider);
+      });
+    localLogoPending.set(provider, task);
+  }
+  return task;
+}
+
 // eslint-disable-next-line react/function-component-definition
 const ProviderIcon: React.FC<ProviderIconProps> = (
   props: ProviderIconProps,
 ) => {
   const { provider, size = 24, className } = props;
   const [loadFailed, setLoadFailed] = React.useState(false);
+  const [localLogo, setLocalLogo] = React.useState<string | null>(() =>
+    logos[provider] ? null : (localLogoCache.get(provider) ?? null),
+  );
+
+  const hasStaticLogo = Boolean(logos[provider]);
 
   React.useEffect(() => {
     setLoadFailed(false);
   }, [provider]);
 
+  React.useEffect(() => {
+    if (hasStaticLogo) {
+      setLocalLogo(null);
+      return undefined;
+    }
+    let cancelled = false;
+    // 先同步回填缓存（provider 切换时避免残留上一个 logo）
+    setLocalLogo(localLogoCache.get(provider) ?? null);
+    getProviderLogoDataUri(provider).then((logo) => {
+      if (!cancelled) {
+        setLocalLogo(logo);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [provider, hasStaticLogo]);
+
   if (loadFailed) {
     return null;
   }
-  // const iconProps = {
-  //   size,
-  //   className,
-  // };
-
-  // const logos = {};
-  // Object.keys(logos).forEach((key) => {
-  //   logos[key] = tongyiIcon;
-  // });
-
-  // 本地 svg 文件均为连字符命名，兼容下划线形式的 provider id（如 azure_openai）
-  const localSvgLogo =
-    localSvgLogos[provider] ?? localSvgLogos[provider.replace(/_/g, '-')];
 
   const logoSrc =
     logos[provider] ??
-    localSvgLogo ??
+    localLogo ??
     `https://models.dev/logos/${provider}.svg`;
 
   return (
@@ -120,18 +140,11 @@ const ProviderIcon: React.FC<ProviderIconProps> = (
           className,
           `h-full ${logos[provider] ? '' : 'dark:invert'}`,
         )}
-        style={{ width: size, height: size, objectFit: 'contain' }}
+        style={{ width: size, minWidth: size, height: size, objectFit: 'contain' }}
         onError={() => setLoadFailed(true)}
       />
     </div>
   );
-  // switch (provider) {
-  //   case ProviderType.GOOGLE:
-  //     return <img src={tongyiIcon} alt={''} className="h-full" />;
-
-  //   default:
-  //     return null;
-  // }
 };
 
 export default ProviderIcon;

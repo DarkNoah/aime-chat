@@ -130,6 +130,9 @@ import { writeWorkspaceTextFile } from '../utils/workspace-file';
 import { isPersonalityDisabled } from './feature-flags';
 import { normalizeThemeConfig, saveThemeConfig } from './theme-background';
 
+// provider logo svg 内容缓存（getProviderLogo 用，避免重复读磁盘）
+const providerLogoCache = new Map<string, string | null>();
+
 class AppManager extends BaseManager {
   repository: Repository<Providers>;
   settingsRepository: Repository<Settings>;
@@ -296,8 +299,8 @@ class AppManager extends BaseManager {
     const assistantSoul = isPersonalityDisabled()
       ? normalizeAssistantSoul()
       : await getActiveAssistantSoul(
-          settings.find((x) => x.id === 'assistantSoul')?.value,
-        );
+        settings.find((x) => x.id === 'assistantSoul')?.value,
+      );
     const preventSleepInterval = this.getPreventSleepInterval(
       settings.find((x) => x.id === 'preventSleepInterval')?.value,
     );
@@ -454,6 +457,29 @@ class AppManager extends BaseManager {
     const logDirectory = path.dirname(logFilePath);
     fs.mkdirSync(logDirectory, { recursive: true });
     await shell.openPath(logDirectory);
+  }
+
+  @channel(AppChannel.GetProviderLogo)
+  public async getProviderLogo(provider: string): Promise<string | null> {
+    // provider id 仅允许安全字符，防止路径穿越
+    if (!provider || !/^[a-zA-Z0-9._-]+$/.test(provider)) {
+      return null;
+    }
+    if (providerLogoCache.has(provider)) {
+      return providerLogoCache.get(provider)!;
+    }
+    const readSvg = (name: string): string | null => {
+      const filePath = getAssetPath('model-logos', `${name}.svg`);
+      if (fs.existsSync(filePath)) {
+        return fs.readFileSync(filePath, 'utf-8');
+      }
+      return fs.readFileSync(getAssetPath('model-logos', `logo.svg`), 'utf-8');
+    };
+    // 本地 svg 文件为连字符命名，兼容下划线形式的 provider id（如 azure_openai）
+    const svg =
+      readSvg(provider) ?? readSvg(provider.replace(/_/g, '-')) ?? null;
+    providerLogoCache.set(provider, svg);
+    return svg;
   }
 
   @channel(AppChannel.GetFileInfo)
