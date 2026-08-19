@@ -55,6 +55,7 @@ Returns:
 `;
   inputSchema = z.strictObject({
     fields: z.string().describe('Extract JsonSchema'),
+    additionalPrompt: z.string().optional(),
     source: z
       .string()
       .describe('The absolute path to the file to extract or the url'),
@@ -127,6 +128,7 @@ Returns:
     model: Awaited<ReturnType<typeof providersManager.getLanguageModel>>,
     content: string | { content: any[] },
     fieldsSchema: Record<string, unknown>,
+    additionalPrompt?: string,
     options?: ToolExecutionContext,
   ) {
     const extractAgent = new Agent({
@@ -136,7 +138,8 @@ Returns:
 
 - The output language should match the user’s input language.
 - Do not make up answers arbitrarily.
-- You may include your own analysis in plain text.`,
+- You may include your own analysis in plain text.
+${additionalPrompt ? `Additional prompt: \n${additionalPrompt}` : ''}`,
       model,
     });
 
@@ -204,12 +207,14 @@ Returns:
     model: Awaited<ReturnType<typeof providersManager.getLanguageModel>>,
     content: string | { content: any[] },
     fieldsSchema: Record<string, unknown>,
+    additionalPrompt?: string,
     options?: ToolExecutionContext,
   ) {
     const extractAgent = new Agent({
       id: 'extract-agent',
       name: 'ExtractAgent',
-      instructions: `You are an information extraction expert. Fill missing values with null.`,
+      instructions: `You are an information extraction expert. Fill missing values with null.
+${additionalPrompt ? `Additional prompt: \n${additionalPrompt}` : ''}`,
       model,
     });
 
@@ -268,7 +273,7 @@ Returns:
     options?: ToolExecutionContext,
   ) => {
     let modeId = options.requestContext.get('model' as never) as string;
-    const { fields, source } = inputData;
+    const { fields, source, additionalPrompt } = inputData;
     const appInfo = await appManager.getInfo();
     const mode = this.config?.mode || 'accurate';
     modeId = this.config?.modelId || modeId || appInfo.defaultModel.model;
@@ -297,13 +302,14 @@ Returns:
 
     const extractionInput =
       mode === 'accurate'
-        ? await this.generateTextExtraction(model, content, fieldsSchema, options)
+        ? await this.generateTextExtraction(model, content, fieldsSchema, additionalPrompt, options)
         : content;
 
     const o = await this.generateStructuredExtraction(
       model,
       extractionInput,
       fieldsSchema,
+      additionalPrompt,
       options,
     );
     console.log('提取结果:', o);
