@@ -12,11 +12,11 @@ sidebar_position: 1
 
 ### 下载安装包
 
-请访问 [文档主页](/)，根据您的操作系统下载对应的安装包：
+请访问 [GitHub Releases](https://github.com/DarkNoah/aime-chat/releases/latest)，根据您的操作系统和 CPU 架构下载对应的安装包：
 
-- **macOS**: 下载 `.dmg` 安装包。macOS 版本暂不支持自动更新；首次安装如提示文件损坏，请在终端执行 `xattr -cr /Applications/aime-chat.app` 后再打开。
+- **macOS**: Apple Silicon（M 系列）选择 `arm64`，Intel Mac 选择 `x64` 的 `.dmg`。macOS 版本暂不支持自动更新。
 - **Windows**: 下载 `.exe` 安装程序
-- **Linux**: 下载 `.AppImage` 或 `.deb` 安装包
+- **Linux**: 根据机器架构下载 `amd64` 或 `arm64` 的 `.deb` 安装包
 
 ### 安装步骤
 
@@ -47,25 +47,18 @@ xattr -cr /Applications/aime-chat.app
 
 #### Linux
 
-**AppImage 版本**（推荐）：
-
 ```bash
-# 添加执行权限
-chmod +x aime-chat-x.x.x-linux.AppImage
+# x64 / amd64 示例
+sudo dpkg -i aime-chat-amd64-linux.deb
 
-# 运行应用
-./aime-chat-x.x.x-linux.AppImage
-```
-
-**Deb 包版本**：
-
-```bash
-# 安装 deb 包
-sudo dpkg -i aime-chat-x.x.x-linux.deb
+# ARM64 示例
+sudo dpkg -i aime-chat-arm64-linux.deb
 
 # 如果遇到依赖问题，运行
 sudo apt-get install -f
 ```
+
+当前源码中的 Linux 打包配置只生成 Debian 安装包，不生成 AppImage。其他 Linux 发行版需要自行处理 `.deb` 兼容性或从源码构建。
 
 ### 操作系统支持
 
@@ -73,7 +66,7 @@ sudo apt-get install -f
 |----------|----------|
 | macOS | 10.15+ (Catalina 及以上) |
 | Windows | Windows 10/11 |
-| Linux | Ubuntu 20.04+, Fedora 34+ 等 |
+| Linux | Debian/Ubuntu 系，x64 或 ARM64 |
 
 ## 开发者安装
 
@@ -112,7 +105,7 @@ pnpm install
 当前仓库的开发调试入口以 VSCode 配置为主：
 
 - 安装依赖后打开 VSCode 调试面板
-- 选择 **Electron Main**
+- 选择 **Electron: Main**（需要同时附加主进程与渲染进程时选择 **Electron: All**）
 - 启动调试任务
 
 也可以使用仓库脚本启动开发环境：
@@ -123,11 +116,36 @@ pnpm start
 
 ## 构建生产版本
 
+在当前平台构建安装包：
+
 ```bash
 pnpm package
 ```
 
 打包完成后，安装包会生成在 `release/build` 目录下。
+
+### 构建兼容 GLIBC 2.28 的 Linux ARM64 包
+
+仓库提供了基于 Docker Buildx 的 ARM64 Debian 打包流程，适合在 Apple Silicon Mac 或其他支持 `linux/arm64` 构建的平台上使用。
+
+前置条件：
+
+- Docker Desktop/Engine 已启动
+- Docker Buildx 可用
+- 能够访问构建所需的容器镜像与依赖源
+
+```bash
+pnpm package:linux-arm64
+
+# 需要完全跳过 Docker 构建缓存时
+pnpm package:linux-arm64 -- --no-cache
+```
+
+脚本默认检查产物所需的 GLIBC 不高于 `2.28`、GLIBCXX 不高于 `3.4.25`，并把 `.deb`、SHA-256、包信息和 ELF 兼容性报告写入 `release/build`。
+
+:::note 验证边界
+兼容性报告用于约束构建产物引用的符号版本，但不能替代在目标 Linux 发行版上的实际安装与启动测试。
+:::
 
 ## 数据存储位置
 
@@ -146,9 +164,6 @@ pnpm package
 - 查看 [AI 服务商配置](./ai-providers) 来配置您的 AI 服务
 - 了解 [基本使用](./basic-usage) 开始您的第一次对话
 - 遇到问题时参考 [常见问题](./faq)
-
-
-
 
 
 

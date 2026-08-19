@@ -4,6 +4,7 @@ import { Agent } from '@/types/agent';
 import {
   AppProxy,
   RuntimeInfo,
+  SaveSettingsInput,
   ScreenCaptureOptions,
   ScreenCaptureResult,
   ScreenSource,
@@ -101,6 +102,10 @@ import {
   RequestLogListParams,
   RequestLogListResponse,
 } from '@/types/request-log';
+import {
+  ProjectChatExportInput,
+  ProjectChatExportResult,
+} from '@/types/project';
 
 // export type Channels = 'ipc-example';
 
@@ -215,7 +220,7 @@ const electronHandler = {
       options: SaveDialogOptions,
     ): Promise<SaveDialogReturnValue> =>
       ipcRenderer.invoke(AppChannel.ShowSaveDialog, options),
-    saveSettings: (settings: { id: string; value: any }) =>
+    saveSettings: (settings: SaveSettingsInput) =>
       ipcRenderer.invoke(AppChannel.SaveSettings, settings),
     setWindowMode: (input: SetWindowModeInput): Promise<WindowModeState> =>
       ipcRenderer.invoke(AppChannel.SetWindowMode, input),
@@ -571,6 +576,10 @@ const electronHandler = {
       ipcRenderer.invoke(ProjectChannel.DeleteSkill, projectId, skillId),
     openWith: (cwd: string, action: string) =>
       ipcRenderer.invoke(ProjectChannel.OpenWith, cwd, action),
+    exportMessages: (
+      input: ProjectChatExportInput,
+    ): Promise<ProjectChatExportResult> =>
+      ipcRenderer.invoke(ProjectChannel.ExportMessages, input),
   },
   taskQueue: {
     add: (options: AddTaskOptions): Promise<string> =>

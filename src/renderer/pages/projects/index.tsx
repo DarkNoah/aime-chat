@@ -29,6 +29,7 @@ import {
   IconArrowBarLeft,
   IconArrowBarRight,
   IconClockHour3,
+  IconDownload,
   IconFolder,
   IconFolderOpen,
   IconImageInPicture,
@@ -64,6 +65,8 @@ import {
 import domtoimage from 'dom-to-image';
 import toast from 'react-hot-toast';
 import { MoreHorizontalIcon } from 'lucide-react';
+import { ProjectChatExportDialog } from '@/renderer/components/chat-project/chat-export-dialog';
+import type { ChatFileSelectionReference } from '@/renderer/lib/chat-file-selection';
 
 function ProjectsPage() {
   const { id } = useParams();
@@ -71,7 +74,14 @@ function ProjectsPage() {
   const { t } = useTranslation();
   const [project, setProject] = useState<Project | undefined>();
   const [threadId, setThreadId] = useState<any | undefined>();
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const chatPanelRef = useRef<ChatPanelRef>(null);
+  const handleAddSelectionToChat = useCallback(
+    (reference: ChatFileSelectionReference) => {
+      chatPanelRef.current?.insertFileSelections([reference]);
+    },
+    [],
+  );
   const { ensureThread } = useChat();
   const getProject = useCallback(async () => {
     const data = await window.electron.projects.getProject(id);
@@ -311,6 +321,12 @@ function ProjectsPage() {
               <DropdownMenuSeparator></DropdownMenuSeparator>
               <DropdownMenuGroup>
                 <DropdownMenuItem
+                  onSelect={() => setExportDialogOpen(true)}
+                >
+                  <IconDownload />
+                  {t('project.export_messages')}
+                </DropdownMenuItem>
+                <DropdownMenuItem
                   onClick={() => handleExportConversation('jpg')}
                 >
                   <IconImageInPicture />
@@ -346,6 +362,15 @@ function ProjectsPage() {
         order={1}
         className="h-full  w-full justify-between min-w-[450px]"
       >
+        {id && (
+          <ProjectChatExportDialog
+            projectId={id}
+            projectTitle={project?.title}
+            currentThreadId={threadId}
+            open={exportDialogOpen}
+            onOpenChange={setExportDialogOpen}
+          />
+        )}
         <div className="absolute top-12 left-0 p-2 z-10 flex flex-row gap-1 ">
           <Button
             variant="ghost"
@@ -485,6 +510,7 @@ function ProjectsPage() {
                 resourceId={projectResourceId}
                 workspace={project?.path}
                 part={previewToolPart}
+                onAddToChat={handleAddSelectionToChat}
                 previewData={previewData}
                 project={project}
                 onProjectChanged={() => {

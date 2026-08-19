@@ -2,656 +2,112 @@
 sidebar_position: 2
 ---
 
-# 开发自定义工具
+# 扩展工具
 
-AIME Chat 支持开发自定义工具，扩展 Agent 的能力。
+AIME Chat 的工具来源是内置工具、MCP 和 Skill。当前没有可在 Renderer 中动态注册任意 JavaScript `Tool` 对象的公开插件 API；旧文档中的 `@/services/tool-registry` 并不存在。
 
-## 工具开发基础
+## 选择扩展方式
 
-### 工具接口
+| 目标 | 推荐方式 |
+| --- | --- |
+| 不修改 AIME Chat 源码，接入已有本地/远程服务 | [MCP 服务器](../features/mcp) |
+| 提供提示、脚本和领域工作流 | Skill |
+| 与主进程、数据库或应用运行时深度集成 | 修改源码，新增内置 Tool 或 Toolkit |
 
-自定义工具需要实现以下接口：
+MCP 与 Skill 更适合独立分发。只有确实需要应用内部 API、统一配置界面或随安装包发布时，才应新增内置工具。
 
-```typescript
-interface Tool {
-  name: string;              // 工具名称
-  description: string;      // 工具描述
-  parameters: ToolParameter[]; // 参数定义
-  execute: (params: any) => Promise<ToolResult>; // 执行函数
-}
+## 内置 Tool 的真实接口
 
-interface ToolParameter {
-  name: string;
-  type: 'string' | 'number' | 'boolean' | 'object' | 'array';
-  description: string;
-  required: boolean;
-  default?: any;
-}
-
-interface ToolResult {
-  success: boolean;
-  data?: any;
-  error?: string;
-}
-```
-
-### 简单工具示例
-
-创建一个简单的计算工具：
+单个工具继承 `src/main/tools/base-tool.ts` 中的 `BaseTool`。最小实现需要 `id`、`description`、`inputSchema` 和 `execute`：
 
 ```typescript
-const calculateTool: Tool = {
-  name: 'calculate',
-  description: '执行数学计算',
-  parameters: [
-    {
-      name: 'expression',
-      type: 'string',
-      description: '数学表达式，如 "1 + 2 * 3"',
-      required: true
-    }
-  ],
-  execute: async (params) => {
-    try {
-      const result = eval(params.expression);
-      return {
-        success: true,
-        data: { result }
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error.message
-      };
-    }
-  }
-};
-```
+import z from 'zod';
+import BaseTool from '../base-tool';
 
-## 工具类型
+export class Echo extends BaseTool {
+  static readonly toolName = 'Echo';
+  id = 'Echo';
+  description = 'Return the provided text.';
 
-### 内置工具
+  inputSchema = z.strictObject({
+    text: z.string().describe('Text to return'),
+  });
 
-内置工具是应用自带的工具，直接在代码中实现：
-
-```typescript
-// src/tools/builtin/my-tool.ts
-export const myBuiltinTool: Tool = {
-  name: 'my-builtin-tool',
-  description: '我的内置工具',
-  parameters: [],
-  execute: async (params) => {
-    // 工具逻辑
-    return { success: true, data: {} };
-  }
-};
-```
-
-### MCP 工具
-
-MCP 工具通过 MCP 协议提供：
-
-```typescript
-// MCP 工具自动发现和注册
-// 配置 MCP 服务器后自动可用
-```
-
-### 自定义工具
-
-自定义工具可以动态注册：
-
-```typescript
-// 注册自定义工具
-import { registerTool } from '@/services/tool-registry';
-
-registerTool({
-  name: 'my-custom-tool',
-  description: '我的自定义工具',
-  parameters: [],
-  execute: async (params) => {
-    // 工具逻辑
-    return { success: true, data: {} };
-  }
-});
-```
-
-## 工具开发最佳实践
-
-### 参数验证
-
-始终验证输入参数：
-
-```typescript
-const validateTool: Tool = {
-  name: 'validate',
-  description: '参数验证示例',
-  parameters: [
-    {
-      name: 'email',
-      type: 'string',
-      description: '邮箱地址',
-      required: true
-    }
-  ],
-  execute: async (params) => {
-    // 验证参数
-    if (!params.email) {
-      return {
-        success: false,
-        error: '邮箱地址不能为空'
-      };
-    }
-
-    // 验证格式
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(params.email)) {
-      return {
-        success: false,
-        error: '邮箱格式不正确'
-      };
-    }
-
-    // 执行逻辑
-    return {
-      success: true,
-      data: { valid: true }
-    };
-  }
-};
-```
-
-### 错误处理
-
-完善的错误处理：
-
-```typescript
-const robustTool: Tool = {
-  name: 'robust',
-  description: '错误处理示例',
-  parameters: [],
-  execute: async (params) => {
-    try {
-      // 尝试执行
-      const result = await riskyOperation();
-
-      return {
-        success: true,
-        data: result
-      };
-    } catch (error) {
-      // 记录错误
-      console.error('Tool execution failed:', error);
-
-      // 返回错误信息
-      return {
-        success: false,
-        error: error.message || '未知错误'
-      };
-    }
-  }
-};
-```
-
-### 异步操作
-
-支持异步操作：
-
-```typescript
-const asyncTool: Tool = {
-  name: 'async',
-  description: '异步操作示例',
-  parameters: [
-    {
-      name: 'url',
-      type: 'string',
-      description: '请求的 URL',
-      required: true
-    }
-  ],
-  execute: async (params) => {
-    try {
-      // 异步请求
-      const response = await fetch(params.url);
-      const data = await response.json();
-
-      return {
-        success: true,
-        data
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error.message
-      };
-    }
-  }
-};
-```
-
-### 进度反馈
-
-长时间操作提供进度反馈：
-
-```typescript
-const progressTool: Tool = {
-  name: 'progress',
-  description: '进度反馈示例',
-  parameters: [],
-  execute: async (params, onProgress) => {
-    const total = 100;
-
-    for (let i = 0; i < total; i++) {
-      // 执行操作
-      await processItem(i);
-
-      // 报告进度
-      onProgress({
-        current: i + 1,
-        total,
-        percentage: ((i + 1) / total) * 100
-      });
-    }
-
-    return {
-      success: true,
-      data: { completed: total }
-    };
-  }
-};
-```
-
-## 工具注册
-
-### 注册内置工具
-
-在应用启动时注册：
-
-```typescript
-// src/main/tools/index.ts
-import { registerTool } from '@/services/tool-registry';
-import { myBuiltinTool } from './my-tool';
-
-// 注册工具
-registerTool(myBuiltinTool);
-```
-
-### 动态注册
-
-运行时动态注册工具：
-
-```typescript
-// 动态注册工具
-import { registerTool } from '@/services/tool-registry';
-
-const customTool = {
-  name: 'dynamic-tool',
-  description: '动态注册的工具',
-  parameters: [],
-  execute: async (params) => {
-    return { success: true, data: {} };
-  }
-};
-
-registerTool(customTool);
-```
-
-### 工具配置
-
-工具可以包含配置：
-
-```typescript
-interface ToolConfig {
-  name: string;
-  description: string;
-  parameters: ToolParameter[];
-  execute: (params: any) => Promise<ToolResult>;
-  config?: {
-    timeout?: number;      // 超时时间
-    retry?: number;         // 重试次数
-    cache?: boolean;        // 是否缓存
-    permissions?: string[];  // 所需权限
+  execute = async (input: z.infer<typeof this.inputSchema>) => {
+    return { text: input.text };
   };
 }
+```
 
-const configuredTool: ToolConfig = {
-  name: 'configured',
-  description: '带配置的工具',
-  parameters: [],
-  execute: async (params) => {
-    return { success: true, data: {} };
-  },
-  config: {
-    timeout: 5000,
-    retry: 3,
-    cache: true,
-    permissions: ['network']
+`inputSchema` 是模型可见参数和运行时验证的共同来源。应使用严格、可描述的 Zod schema，不要在 `execute` 中依赖模型生成的未验证对象。
+
+根据需要，Tool 还可以提供：
+
+- `outputSchema` 或 `toModelOutput`：约束结果或转换模型看到的内容；
+- `configSchema` 与 `config`：声明工具级配置；
+- `suspendSchema` / `resumeSchema`：暂停执行并等待交互数据；
+- `requireApproval`：声明审批意图；最终是否等待审批还取决于调用路径；
+- `tags`、`doc`、示例和隐藏状态等元数据；
+- `ToolExecutionContext`：读取请求上下文、取消信号或 Agent 暂停/恢复数据。
+
+需要上下文时可在 `execute` 的第二个参数接收 `ToolExecutionContext`。访问可选字段前应检查其是否存在，并沿调用链保留 `abortSignal`。
+
+## 注册内置 Tool
+
+在 `src/main/tools/index.ts` 中导入类，并在 `registerBuiltInTools()` 中注册：
+
+```typescript
+import { Echo } from './common/echo';
+
+// registerBuiltInTools()
+await this.registerBuiltInTool(Echo);
+```
+
+注册器会把 `BaseTool` 转换为 Mastra Tool，并用 `build-in:<id>` 保存启用状态。只创建文件而不注册，工具不会出现在工具页或 Agent 选择器中。
+
+内置类型只有 `build-in`、`mcp` 和 `skill`；不存在旧文档所写的 `CUSTOM` ToolType。对无需随应用编译的扩展，请使用 MCP 或 Skill。
+
+## 创建 Toolkit
+
+一组相关工具可以继承 `BaseToolkit`：
+
+```typescript
+import BaseToolkit from '../base-toolkit';
+import { Echo } from './echo';
+import { ReverseText } from './reverse-text';
+
+export class TextToolkit extends BaseToolkit {
+  static readonly toolName = 'TextToolkit';
+  id = 'TextToolkit';
+  description = 'Text transformation tools.';
+
+  constructor() {
+    super([new Echo(), new ReverseText()]);
   }
-};
+}
 ```
 
-## 工具测试
+Toolkit 自身和子工具都会进入工具数据库。子工具 ID 必须稳定且彼此唯一，否则已有 Agent 配置和启用状态可能失效。
 
-### 单元测试
+## 配置与模型依赖
 
-使用 Jest 进行单元测试：
+需要 Provider、运行库或环境变量的工具，应复用现有 Manager 和配置 schema：
 
-```typescript
-// __tests__/tools/my-tool.test.ts
-import { myTool } from '@/tools/my-tool';
+- Provider/模型通过 `providersManager` 获取，不要在工具中硬编码 API Key；
+- Secret 只在执行需要时注入，禁止写入返回值和日志；
+- 文件或进程操作放在主进程，Renderer 只通过已有的 preload/IPC 边界调用；
+- 可选运行库必须在未安装、安装失败和取消时返回可理解错误；
+- 执行结果面向模型时保持有界，超长内容使用分页、保存文件或摘要。
 
-describe('myTool', () => {
-  it('should execute successfully', async () => {
-    const result = await myTool.execute({ param: 'value' });
+## 验证清单
 
-    expect(result.success).toBe(true);
-    expect(result.data).toBeDefined();
-  });
+新增工具至少应验证：
 
-  it('should handle errors', async () => {
-    const result = await myTool.execute({ invalid: 'param' });
+1. 输入 schema 接受有效数据并拒绝无效数据。
+2. 成功、业务失败、异常和取消路径都有确定结果。
+3. 工具注册后能在 **工具** 页面显示，并可加入 Agent。
+4. 不会在日志或模型输出中泄露 Secret。
+5. 文件、命令、网络和数据库副作用有清晰说明与范围限制。
+6. 运行目标 Jest 测试、TypeScript/ESLint 检查和生产构建。
 
-    expect(result.success).toBe(false);
-    expect(result.error).toBeDefined();
-  });
-});
-```
-
-### 集成测试
-
-测试工具与 Agent 的集成：
-
-```typescript
-describe('Tool Integration', () => {
-  it('should work with Agent', async () => {
-    const agent = new Agent({
-      name: 'test-agent',
-      tools: [myTool]
-    });
-
-    const response = await agent.execute('使用 myTool');
-
-    expect(response).toContain('tool result');
-  });
-});
-```
-
-## 工具示例
-
-### 文件操作工具
-
-```typescript
-const fileTool: Tool = {
-  name: 'read-file',
-  description: '读取文件内容',
-  parameters: [
-    {
-      name: 'path',
-      type: 'string',
-      description: '文件路径',
-      required: true
-    }
-  ],
-  execute: async (params) => {
-    try {
-      const content = await fs.readFile(params.path, 'utf-8');
-      return {
-        success: true,
-        data: { content }
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error.message
-      };
-    }
-  }
-};
-```
-
-### API 调用工具
-
-```typescript
-const apiTool: Tool = {
-  name: 'call-api',
-  description: '调用 REST API',
-  parameters: [
-    {
-      name: 'url',
-      type: 'string',
-      description: 'API URL',
-      required: true
-    },
-    {
-      name: 'method',
-      type: 'string',
-      description: 'HTTP 方法',
-      default: 'GET'
-    },
-    {
-      name: 'body',
-      type: 'object',
-      description: '请求体',
-      required: false
-    }
-  ],
-  execute: async (params) => {
-    try {
-      const response = await fetch(params.url, {
-        method: params.method,
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: params.body ? JSON.stringify(params.body) : undefined
-      });
-
-      const data = await response.json();
-
-      return {
-        success: true,
-        data
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error.message
-      };
-    }
-  }
-};
-```
-
-### 数据处理工具
-
-```typescript
-const dataTool: Tool = {
-  name: 'process-data',
-  description: '处理数据',
-  parameters: [
-    {
-      name: 'data',
-      type: 'array',
-      description: '要处理的数据数组',
-      required: true
-    },
-    {
-      name: 'operation',
-      type: 'string',
-      description: '操作类型：sum, avg, max, min',
-      required: true
-    }
-  ],
-  execute: async (params) => {
-    try {
-      const { data, operation } = params;
-
-      let result;
-      switch (operation) {
-        case 'sum':
-          result = data.reduce((a, b) => a + b, 0);
-          break;
-        case 'avg':
-          result = data.reduce((a, b) => a + b, 0) / data.length;
-          break;
-        case 'max':
-          result = Math.max(...data);
-          break;
-        case 'min':
-          result = Math.min(...data);
-          break;
-        default:
-          throw new Error(`Unknown operation: ${operation}`);
-      }
-
-      return {
-        success: true,
-        data: { result }
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error.message
-      };
-    }
-  }
-};
-```
-
-## 工具发布
-
-### 打包工具
-
-将工具打包为 npm 包：
-
-```bash
-# 1. 初始化项目
-npm init -y
-
-# 2. 安装依赖
-npm install @mastra/core
-
-# 3. 编写工具代码
-# (参考上面的示例)
-
-# 4. 导出工具
-export { myTool } from './my-tool';
-
-# 5. 发布到 npm
-npm publish
-```
-
-### 使用外部工具
-
-在 AIME Chat 中使用外部工具：
-
-```typescript
-// 安装工具包
-npm install my-custom-tools
-
-// 导入并注册
-import { myTool } from 'my-custom-tools';
-import { registerTool } from '@/services/tool-registry';
-
-registerTool(myTool);
-```
-
-## 调试工具
-
-### 日志记录
-
-添加详细的日志：
-
-```typescript
-const debugTool: Tool = {
-  name: 'debug',
-  description: '调试工具',
-  parameters: [],
-  execute: async (params) => {
-    console.log('[Tool] Starting execution');
-    console.log('[Tool] Parameters:', params);
-
-    try {
-      const result = await doSomething();
-
-      console.log('[Tool] Execution successful');
-      console.log('[Tool] Result:', result);
-
-      return {
-        success: true,
-        data: result
-      };
-    } catch (error) {
-      console.error('[Tool] Execution failed:', error);
-
-      return {
-        success: false,
-        error: error.message
-      };
-    }
-  }
-};
-```
-
-### 性能监控
-
-监控工具性能：
-
-```typescript
-const monitoredTool: Tool = {
-  name: 'monitored',
-  description: '性能监控工具',
-  parameters: [],
-  execute: async (params) => {
-    const startTime = Date.now();
-
-    try {
-      const result = await doSomething();
-
-      const duration = Date.now() - startTime;
-      console.log(`[Tool] Execution time: ${duration}ms`);
-
-      return {
-        success: true,
-        data: result,
-        metadata: { duration }
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error.message
-      };
-    }
-  }
-};
-```
-
-## 常见问题
-
-### 工具无法注册
-
-**检查清单**：
-- [ ] 工具接口实现正确
-- [ ] 工具名称唯一
-- [ ] 参数定义完整
-- [ ] 执行函数返回正确格式
-
-### 工具执行失败
-
-**调试步骤**：
-1. 检查参数是否正确
-2. 查看错误日志
-3. 验证工具逻辑
-4. 测试工具独立运行
-
-### 性能问题
-
-**优化建议**：
-1. 减少不必要的计算
-2. 使用缓存机制
-3. 优化异步操作
-4. 考虑使用 Worker
-
-## 相关资源
-
-- [Mastra 工具文档](https://mastra.ai/docs/tools)
-- [MCP 协议文档](https://modelcontextprotocol.io/)
-- [Electron IPC 文档](https://www.electronjs.org/docs/latest/tutorial/ipc)
+对文件删除、Shell、数据库写入或远程发布等高风险能力，不要把聊天审批开关当作唯一安全边界；工具本身仍需校验目标、路径、参数和调用上下文。

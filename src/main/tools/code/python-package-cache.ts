@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { app, net } from 'electron';
 import { RuntimeInfo } from '@/types/app';
+import { PYTHON_RUNTIME_VERSION } from '@/main/utils/pythonRuntimeVersion';
 
 export const CODE_EXECUTION_PACKAGE_INDEX =
   'https://mirrors.aliyun.com/pypi/simple/';
@@ -65,6 +66,8 @@ export const CODE_EXECUTION_PACKAGE_GROUPS = {
     'xmltodict',
     'python-dateutil',
     'icalendar',
+    'langchain_openai',
+    'dotenv'
   ],
 } as const;
 
@@ -145,18 +148,21 @@ export async function warmCodeExecutionPackageCache(
   await fs.promises.mkdir(paths.root, { recursive: true });
   await fs.promises.mkdir(paths.uvCache, { recursive: true });
 
-  const runtimePython = runtime.pythonRuntime?.pythonPath;
-  const python = runtimePython ?? runtime.pythonRuntime?.pythonVersion ?? '3.12';
+  const runtimePython = runtime.pythonRuntime?.installed
+    ? runtime.pythonRuntime.pythonPath
+    : undefined;
+  const python = runtimePython ?? PYTHON_RUNTIME_VERSION;
   const commonPackages = COMMON_CODE_EXECUTION_PACKAGES.join(' ');
   const commandEnv = withCodeExecutionPackageCache();
   const isOnline = net.isOnline();
 
-  if (!runtimePython && !fs.existsSync(paths.warmupPython)) {
+  if (!runtimePython) {
     const createCommand = (offline: boolean) =>
       [
         quoteCommandArgument(runtime.path),
         'venv',
         quoteCommandArgument(paths.warmupVenv),
+        '--clear',
         '--python',
         quoteCommandArgument(python),
         '--cache-dir',

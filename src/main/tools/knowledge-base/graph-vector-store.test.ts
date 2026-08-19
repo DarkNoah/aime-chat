@@ -83,4 +83,68 @@ describe('knowledge base GraphRAG vector store adapter', () => {
     ).rejects.toThrow('does not match knowledge base dimension 3');
     expect(execute).not.toHaveBeenCalled();
   });
+
+  it('preserves SQL filters, extended values, and row metadata for hybrid search', async () => {
+    const execute = jest.fn().mockResolvedValue({
+      rows: [
+        {
+          id: 'chunk-2',
+          item_id: 'item-2',
+          chunk: 'Filtered knowledge',
+          metadata: '{"section":"details"}',
+          chunk_type: 'text',
+          item_name: 'Filtered guide',
+          source: null,
+          source_type: 'file',
+          category: 'docs',
+          name: 'docs',
+          score: 0.88,
+          embedding: '[0.2,0.3,0.4]',
+        },
+      ],
+    });
+    const store = createKnowledgeBaseGraphVectorStore({
+      client: { execute } as any,
+      knowledgeBaseId: 'kb-2',
+      vectorLength: 3,
+      extendColumns: ['category', 'name'],
+      filter: 'name = "docs"',
+      minimumScore: 0.5,
+      includeInternalMetadata: true,
+    });
+
+    const results = await store.query({
+      indexName: getKnowledgeBaseGraphIndexName('kb-2', 3),
+      queryVector: [0.2, 0.3, 0.4],
+      topK: 6,
+      includeVector: true,
+    });
+
+    expect(execute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        args: ['[0.2,0.3,0.4]', 0.5, 6],
+      }),
+    );
+    const sql = execute.mock.calls[0][0].sql as string;
+    expect(sql).toContain('chunks."category"');
+    expect(sql).toContain('chunks."name"');
+    expect(sql).toContain('AND (name = "docs")');
+    expect(sql.indexOf('AND (name = "docs")')).toBeLessThan(
+      sql.indexOf('LEFT JOIN knowledgebase_item'),
+    );
+    expect(sql).toContain('WHERE score > ?');
+    expect(results[0]).toMatchObject({
+      id: 'chunk-2',
+      metadata: {
+        chunkId: 'chunk-2',
+        itemId: 'item-2',
+        __knowledgeBase: {
+          metadata: { section: 'details' },
+          type: 'text',
+          extendValues: { category: 'docs', name: 'docs' },
+          vectorScore: 0.88,
+        },
+      },
+    });
+  });
 });

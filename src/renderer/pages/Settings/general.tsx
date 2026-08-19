@@ -24,7 +24,6 @@ import { useHeader } from '@/renderer/hooks/use-title';
 import { AppProxy, PreventSleepInterval } from '@/types/app';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useState } from 'react';
-import { useTheme } from 'next-themes';
 import { Switch } from '@/renderer/components/ui/switch';
 import { IconPlayerPlay, IconPlayerStop } from '@tabler/icons-react';
 import { Button } from '@/renderer/components/ui/button';
@@ -39,7 +38,6 @@ import { WindowModeSetting } from './window-mode-setting';
 
 export default function General() {
   const { t } = useTranslation();
-  const { theme, setTheme } = useTheme();
   const { appInfo, getAppInfo } = useGlobal();
   const { setTitle } = useHeader();
   setTitle(t('settings.general'));
@@ -59,12 +57,6 @@ export default function General() {
       .then(setRequestLogEnabled)
       .catch(() => { });
   }, []);
-
-  const onChangeTheme = async (value: string) => {
-    setTheme(value);
-    await window.electron.app.setTheme(value);
-    await getAppInfo();
-  };
 
   const onChangeProxy = async (data: AppProxy) => {
     setProxy(data);
@@ -133,23 +125,6 @@ export default function General() {
 
   return (
     <FieldGroup className="p-4 overflow-y-auto">
-      <Field className="max-w-[200px]">
-        <FieldLabel>{t('settings.theme')}</FieldLabel>
-        <Select value={appInfo?.theme} onValueChange={onChangeTheme}>
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              <SelectItem value="system">
-                {t('settings.theme_system')}
-              </SelectItem>
-              <SelectItem value="light">{t('settings.theme_light')}</SelectItem>
-              <SelectItem value="dark">{t('settings.theme_dark')}</SelectItem>
-            </SelectGroup>
-          </SelectContent>
-        </Select>
-      </Field>
       <Field>
         <FieldLabel>{t('settings.language')}</FieldLabel>
         <div className="w-full">

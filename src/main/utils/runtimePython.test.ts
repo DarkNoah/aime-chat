@@ -26,6 +26,7 @@ import {
   getBunRuntime,
   getUVRuntime,
 } from '../app/runtime';
+import { runCommand } from '@/main/utils/shell';
 import { getCodeExecutionPackageCachePaths } from '@/main/tools/code/python-package-cache';
 import { getRuntimePython } from './runtimePython';
 
@@ -33,6 +34,7 @@ const mockedGetUVRuntime = getUVRuntime as jest.Mock;
 const mockedGetBunRuntime = getBunRuntime as jest.Mock;
 const mockedEnsurePythonRuntimeEnvironment =
   ensurePythonRuntimeEnvironment as jest.Mock;
+const mockedRunCommand = runCommand as jest.Mock;
 
 describe('getRuntimePython', () => {
   beforeEach(() => {
@@ -60,9 +62,7 @@ describe('getRuntimePython', () => {
     );
     expect(env.VIRTUAL_ENV).toBe(venvDir);
     expect(env.UV_PROJECT_ENVIRONMENT).toBe(venvDir);
-    expect(env.UV_CACHE_DIR).toBe(
-      getCodeExecutionPackageCachePaths().uvCache,
-    );
+    expect(env.UV_CACHE_DIR).toBe(getCodeExecutionPackageCachePaths().uvCache);
     expect(mockedEnsurePythonRuntimeEnvironment).not.toHaveBeenCalled();
   });
 
@@ -141,5 +141,22 @@ describe('getRuntimePython', () => {
     const env = await getRuntimePython({ PATH: '' }, 'independent');
 
     expect(env.UV_OFFLINE).toBe('1');
+  });
+
+  it('does not expose an incompatible managed runtime in auto mode', async () => {
+    mockedRunCommand.mockResolvedValue({ code: 1, stdout: '', stderr: '' });
+    mockedGetUVRuntime.mockResolvedValue({
+      installed: true,
+      dir: '/runtime/bin',
+      pythonRuntime: {
+        installed: false,
+        pythonPath: '/runtime/python-3.10/.venv/bin/python',
+        pythonVersion: '3.10.18',
+      },
+    });
+
+    const env = await getRuntimePython({ PATH: '/system/bin' }, 'auto');
+
+    expect(env.PATH).not.toContain('/runtime/python-3.10/.venv/bin');
   });
 });

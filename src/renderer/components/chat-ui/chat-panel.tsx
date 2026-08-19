@@ -105,6 +105,12 @@ import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { ChatEmpty, TemplateItem } from './chat-empty';
 import { WindowModeToggle } from './window-mode-toggle';
+import {
+  escapeChatFileSelectionMarkup,
+  parseChatFileSelectionSegments,
+  type ChatFileSelectionReference,
+} from '@/renderer/lib/chat-file-selection';
+import { ChatFileSelectionCard } from './chat-file-selection-card';
 
 type ChatMessageItemProps = {
   message: UIMessage;
@@ -141,6 +147,38 @@ type ChatRetryState = {
 
 const isRenderableMessagePart = (part: any) =>
   part.type === 'text' || part.type.startsWith('tool-');
+
+const getSelectionFileName = (path: string) =>
+  path
+    .replace(/[\\/]+$/, '')
+    .split(/[\\/]/)
+    .pop() || path;
+
+const getPendingMessageSummary = (text?: string) => {
+  if (!text) return 'Sent with attachments';
+
+  const segments = parseChatFileSelectionSegments(text);
+  if (!segments.some((segment) => segment.type === 'file-selection')) {
+    return text;
+  }
+
+  const plainText = segments
+    .filter((segment) => segment.type === 'text')
+    .map((segment) => segment.text)
+    .join(' ')
+    .trim();
+  if (plainText) return plainText;
+
+  return segments
+    .filter((segment) => segment.type === 'file-selection')
+    .map(({ reference }) => {
+      const name = getSelectionFileName(reference.sourcePath);
+      return reference.startLine === undefined
+        ? name
+        : `${name} ${reference.startLine}\u2013${reference.endLine}`;
+    })
+    .join(', ');
+};
 
 const getLastResponsePart = (message: UIMessage) => {
   for (let index = message.parts.length - 1; index >= 0; index -= 1) {
@@ -305,20 +343,47 @@ const ChatMessageItem = React.memo(
           return null;
         }
 
+        const textSegments =
+          message.role === 'user'
+            ? parseChatFileSelectionSegments(part.text)
+            : [{ type: 'text' as const, text: part.text }];
+
         return (
           <Fragment key={`${message.id}-${i}`}>
-            <Message from={message.role}>
-              <MessageContent>
-                <MessageResponse
-                  className={`text-xs wrap-break-word ${message.role === 'user' ? 'whitespace-break-spaces' : ''}`}
-                  mermaidConfig={{
-                    theme: theme === 'dark' ? 'dark' : 'forest',
-                  }}
+            {textSegments.map((segment, segmentIndex) => {
+              if (segment.type === 'file-selection') {
+                return (
+                  <Message
+                    from={message.role}
+                    key={`${message.id}-${i}-selection-${segmentIndex}`}
+                  >
+                    <ChatFileSelectionCard
+                      className="max-w-full"
+                      reference={segment.reference}
+                    />
+                  </Message>
+                );
+              }
+
+              if (!segment.text.trim()) return null;
+              return (
+                <Message
+                  from={message.role}
+                  key={`${message.id}-${i}-text-${segmentIndex}`}
                 >
-                  {part.text}
-                </MessageResponse>
-              </MessageContent>
-            </Message>
+                  <MessageContent>
+                    <MessageResponse
+                      className={`text-xs wrap-break-word ${message.role === 'user' ? 'whitespace-break-spaces' : ''}`}
+                      mermaidConfig={{
+                        theme: theme === 'dark' ? 'dark' : 'forest',
+                      }}
+                    >
+                      {escapeChatFileSelectionMarkup(segment.text)}
+                    </MessageResponse>
+                  </MessageContent>
+                </Message>
+              );
+            })}
 
             <MessageActions
               className={
@@ -525,6 +590,7 @@ export interface ChatPanelRef {
     message: PromptInputMessage,
     options?: ChatSubmitOptions,
   ) => void;
+  insertFileSelections: (references: ChatFileSelectionReference[]) => void;
   setAgentId: (agentId: string) => void;
 }
 
@@ -607,6 +673,9 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
         };
         sendMessage(threadId, inputMessage, body);
         chatInputRef.current?.attachmentsClear();
+      },
+      insertFileSelections: (references: ChatFileSelectionReference[]) => {
+        chatInputRef.current?.insertFileSelections(references);
       },
       setAgentId: (_agentId: string) => {
         setAgentId((prev) => {
@@ -1181,7 +1250,10 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
     };
 
     return (
-      <div className={cn('flex flex-col h-full', className)}>
+      <div
+        data-theme-background="chat"
+        className={cn('flex flex-col h-full', className)}
+      >
         <Conversation className="h-full w-full flex-1 flex items-center justify-center overflow-y-hidden">
           <ConversationContent className="h-full" id="chat-conversation">
             <ChatGoalBanner
@@ -1361,7 +1433,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
                       #{index + 1}
                     </Badge>
                     <span className="min-w-0 flex-1 truncate text-muted-foreground">
-                      {item.message.text || 'Sent with attachments'}
+                      {getPendingMessageSummary(item.message.text)}
                     </span>
                     {(item.message.files?.length ?? 0) > 0 && (
                       <span className="shrink-0 text-[11px] text-muted-foreground">

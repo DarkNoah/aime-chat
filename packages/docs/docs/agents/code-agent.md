@@ -4,490 +4,85 @@ sidebar_position: 2
 
 # Code Agent
 
-Code Agent 是 AIME Chat 中最强大的智能编程助手，专门设计用于帮助开发者完成各种软件工程任务。它复现了 Claude Code 的核心功能，能够理解代码、编写代码、调试程序，并与您的开发环境深度集成。
+Code Agent 是 AIME Chat 内置的软件工程 Agent，适合读取代码库、修改文件、运行命令、检索资料和验证结果。它会根据任务、模型能力和当前工具状态选择执行方式。
 
-## 概述
+## 当前内置能力
 
-Code Agent 是一个全能型的编程助手，具备以下核心能力：
+| 类别 | 主要工具 | 用途 |
+| --- | --- | --- |
+| 文件与搜索 | Read、Write、Edit、Glob、Grep | 浏览、创建和精确修改文件，搜索路径与内容 |
+| 命令与执行 | Bash、BashOutput、KillBash、CodeExecution | 运行前台或后台命令，获取输出，执行 Python 代码 |
+| 网络 | WebFetch、WebSearch | 获取网页和搜索公开信息 |
+| 任务 | TaskCreate、TaskGet、TaskList、TaskUpdate、CreateGoal | 拆分与跟踪长任务 |
+| 上下文 | MemorySearch、MemoryRead、KnowledgeBaseSearch、KnowledgeBaseList、KnowledgeBaseGetItem | 使用本地记忆和知识库 |
+| 扩展 | Skill、Agent、AgentBrowser、GenerateImage、EditImage | 调用 Skill、子 Agent、浏览器和图像能力 |
 
-- 📝 **代码编写与修改** - 创建新文件、编辑现有代码、重构代码结构
-- 🔍 **代码分析与理解** - 阅读代码库、解释代码逻辑、分析代码结构
-- 🐛 **调试与修复** - 定位 bug、修复错误、运行测试
-- 🏗️ **项目构建** - 执行构建命令、管理依赖、配置项目
-- 📚 **文档生成** - 编写代码文档、生成 API 文档、创建 README
-- 🔧 **工具调用** - 执行 shell 命令、运行脚本、管理 Git 仓库
+Code Agent 还预配置了 Explore 与 Plan 子 Agent，用于代码库探索和计划制定。实际可用项以 Agent 详情页显示为准；某些工具还需要模型、运行环境、网络或第三方服务。
 
-## 架构设计
+:::info 关于旧工具名称
+当前任务管理使用 TaskCreate、TaskGet、TaskList 和 TaskUpdate；`TodoWrite` 与独立的 Node.js Execute 不在 Code Agent 的当前注册表中。
+:::
 
-Code Agent 采用分层架构设计，通过丰富的工具集和子代理协作完成复杂任务：
+## 开始使用
 
-![Code Agent 架构图](./images/code-agent-architecture.png)
+1. 在 **Agent** 页面启用 **Code Agent**。
+2. 打开 Agent 详情，确认默认模型、工具和子 Agent。
+3. 选择本地项目或项目工作区，并描述目标、约束和验收方式。
+4. 检查 Agent 的中间进度、工具参数和最终验证结果。
 
-## 核心特性
+一个更容易执行的请求示例：
 
-### 1. 智能任务管理
-
-Code Agent 内置强大的任务管理系统，能够：
-
-- **任务规划** - 将复杂任务分解为可执行的步骤
-- **进度跟踪** - 实时显示任务完成状态
-- **并行执行** - 同时执行多个独立任务
-- **状态管理** - 维护任务状态（pending/in_progress/completed）
-
-**示例**：
-
-```
-用户：帮我重构这个项目的代码结构
-
-Agent：
-1. [TodoWrite] 创建任务列表
-   - 分析当前项目结构
-   - 设计新的目录结构
-   - 重构代码文件
-   - 更新导入路径
-   - 运行测试验证
-
-2. [Explore] 探索代码库结构
-
-3. [Plan] 制定重构计划
-
-4. 逐步执行重构任务
+```text
+请定位登录接口偶发 500 的原因。先只读检查日志和相关源码，
+给出根因证据；得到确认后再修改，并运行对应测试。
 ```
 
-### 2. 代码探索能力
+## 常见工作流
 
-通过 Explore 子代理，Code Agent 能够：
+### 阅读与定位
 
-- 快速理解代码库结构
-- 查找特定功能实现
-- 分析代码依赖关系
-- 识别代码模式
+Code Agent 可以先用 Glob/Grep 定位文件，再用 Read 获取必要片段；范围较大时，可委派 Explore 子 Agent。明确模块、错误文本或入口文件通常能减少无关扫描。
 
-### 3. 任务规划能力
+### 修改与验证
 
-通过 Plan 子代理，Code Agent 能够：
+写文件前应先读取当前内容并保留已有改动。修改后可使用 Bash 运行目标测试、类型检查或构建；“命令成功”只证明该命令覆盖的范围，不等于真实登录、外部 Provider 或生产环境已经验证。
 
-- 制定详细的执行计划
-- 评估任务复杂度
-- 识别潜在风险
-- 优化执行顺序
+### 后台任务
 
-### 4. 丰富的工具集
+长时间命令可由 Bash 放到后台，再使用 BashOutput 获取新增输出，或用 KillBash 终止。关闭聊天窗口并不应被当作后台进程已经安全停止的证明。
 
-Code Agent 配备了 15+ 个专业工具：
+### 任务跟踪
 
-![Code Agent 工具系统](./images/code-agent-tools.png)
+复杂任务可通过 TaskCreate/TaskUpdate 维护状态，或通过 CreateGoal 记录长期目标。任务列表是协作状态，不会自动替代测试和验收。
 
-| 工具类别 | 工具 | 功能 |
-|---------|------|------|
-| **文件系统** | Read | 读取文件内容 |
-| | Write | 写入文件内容 |
-| | Edit | 精确编辑文件 |
-| | Glob | 查找文件 |
-| | Grep | 搜索代码 |
-| | Bash | 执行命令 |
-| **代码执行** | CodeExecution | 执行 Python/Node.js 代码 |
-| **网络工具** | WebFetch | 获取网页内容 |
-| | WebSearch | 搜索互联网 |
-| **任务管理** | TodoWrite | 管理任务列表 |
-| | AskUserQuestion | 询问用户 |
-| | Task | 启动子代理 |
-| | Skill | 调用技能 |
+## Python 与项目环境
 
-## 工作流程
+Bash 可选择独立 Python 环境或系统 Python。默认独立环境适合减少对系统环境的影响；依赖项目现有虚拟环境、系统命令或登录 Shell 初始化时，可以切换系统模式。详见 [工具系统](../features/tools#bash-与后台会话)。
 
-Code Agent 的工作流程遵循以下步骤：
+CodeExecution 在独立进程中运行代码，但这不等同于完整的操作系统沙箱。Read、Write、Edit 和 Bash 仍可能访问当前用户有权限的路径。
 
-![Code Agent 工作流程](./images/code-agent-workflow.png)
+## 工具审批与安全边界
 
-## 使用场景
+聊天输入区可以开启 **Require tool approval**，让工具调用等待确认。该开关不是所有入口的全局强制策略；定时任务、频道或其他执行路径可能使用不同配置。
 
-### 场景 1：新功能开发
+使用 Code Agent 时建议：
 
-```
-用户：帮我添加一个用户注册功能
-
-Agent：
-1. [TodoWrite] 创建任务列表
-   - 分析现有认证系统
-   - 设计注册 API
-   - 实现注册逻辑
-   - 添加输入验证
-   - 编写单元测试
-
-2. [Explore] 探索现有认证代码
-
-3. [Read] 读取相关文件
-
-4. [Write] 创建注册 API
-
-5. [Edit] 更新路由配置
-
-6. [Bash] 运行测试
-
-7. 完成！注册功能已实现在 src/api/auth/register.ts:45
-```
-
-### 场景 2：Bug 修复
-
-```
-用户：修复登录功能的 bug
-
-Agent：
-1. [TodoWrite] 创建任务列表
-   - 定位问题代码
-   - 分析错误原因
-   - 修复 bug
-   - 验证修复
-
-2. [Grep] 搜索登录相关代码
-
-3. [Read] 读取登录逻辑
-
-4. [Edit] 修复错误代码
-
-5. [Bash] 运行测试验证
-
-6. 完成！Bug 已修复在 src/api/auth/login.ts:78
-```
-
-### 场景 3：代码重构
-
-```
-用户：重构这个模块，提高代码可读性
-
-Agent：
-1. [TodoWrite] 创建任务列表
-   - 分析当前代码结构
-   - 识别重构点
-   - 提取公共逻辑
-   - 优化命名
-   - 更新文档
-
-2. [Explore] 探索模块结构
-
-3. [Read] 读取所有相关文件
-
-4. [Edit] 重构代码
-
-5. [Write] 更新文档
-
-6. [Bash] 运行测试
-
-7. 完成！重构完成，代码可读性提升
-```
-
-### 场景 4：项目构建
-
-```
-用户：帮我构建这个项目
-
-Agent：
-1. [TodoWrite] 创建任务列表
-   - 检查依赖
-   - 安装缺失的包
-   - 运行构建命令
-   - 修复构建错误
-
-2. [Bash] 检查 package.json
-
-3. [Bash] 安装依赖
-
-4. [Bash] 运行构建
-
-5. [Edit] 修复构建错误
-
-6. 完成！项目构建成功
-```
-
-## 系统提示设计
-
-Code Agent 的系统提示包含以下关键部分：
-
-### 1. 角色定义
-
-```
-You are a code agent that helps users with software engineering tasks.
-Use the instructions below and the tools available to you to assist the user.
-```
-
-### 2. 语气与风格
-
-- **简洁明了** - 响应简短，适合命令行界面
-- **专业客观** - 优先考虑技术准确性
-- **避免过度赞美** - 不使用不必要的赞美词汇
-- **Markdown 格式** - 使用 GitHub 风格的 Markdown
-
-### 3. 任务管理策略
-
-- **频繁使用 TodoWrite** - 确保任务跟踪
-- **及时更新状态** - 完成任务立即标记
-- **避免批量完成** - 逐个标记任务完成
-
-### 4. 工具使用规范
-
-- **优先使用专用工具** - 文件操作使用 Read/Write/Edit
-- **并行执行** - 独立任务并行处理
-- **使用 Explore Agent** - 代码探索使用专用代理
-- **安全第一** - 避免引入安全漏洞
-
-### 5. 代码引用格式
-
-```
-When referencing specific functions or pieces of code include the pattern
-`file_path:line_number` to allow the user to easily navigate to the source code location.
-
-示例：
-Clients are marked as failed in the `connectToServer` function in src/services/process.ts:712.
-```
-
-## 最佳实践
-
-### 1. 明确任务描述
-
-提供清晰、具体的任务描述：
-
-```
-✅ 好的描述：
-"帮我实现一个用户注册功能，包括邮箱验证、密码加密和数据库存储"
-
-❌ 不好的描述：
-"帮我写个注册功能"
-```
-
-### 2. 提供上下文信息
-
-提供相关的上下文信息：
-
-```
-✅ 好的上下文：
-"项目使用 Express + TypeScript，数据库是 PostgreSQL，
-现有认证系统在 src/auth/ 目录下"
-
-❌ 缺少上下文：
-"帮我实现注册功能"
-```
-
-### 3. 分阶段执行
-
-对于复杂任务，分阶段执行：
-
-```
-阶段 1：分析现有代码
-阶段 2：设计实现方案
-阶段 3：编写代码
-阶段 4：测试验证
-```
-
-### 4. 及时反馈
-
-在执行过程中及时反馈进度：
-
-```
-"正在分析代码库..."
-"已找到 3 个相关文件..."
-"正在编写代码..."
-"测试通过！"
-```
-
-## 安全机制
-
-Code Agent 实现了多层安全保护：
-
-### 1. 用户确认
-
-危险操作需要用户确认：
-- 文件删除
-- 系统命令执行
-- 网络请求
-
-### 2. 权限控制
-
-- 文件操作限制在指定目录
-- 命令执行需要用户授权
-- 网络请求有白名单机制
-
-### 3. 沙箱隔离
-
-代码执行在隔离环境中：
-- Python 代码在独立进程运行
-- Node.js 代码在沙箱中执行
-- 资源使用受限
-
-### 4. 审计日志
-
-所有操作都有日志记录：
-- 工具调用记录
-- 文件操作记录
-- 命令执行记录
-
-## 性能优化
-
-### 1. 并行执行
-
-Code Agent 能够并行执行独立任务：
-
-```
-并行读取多个文件：
-[Read] file1.ts
-[Read] file2.ts
-[Read] file3.ts
-```
-
-### 2. 缓存机制
-
-- 文件内容缓存
-- 搜索结果缓存
-- 代码分析缓存
-
-### 3. 智能工具选择
-
-根据任务类型自动选择最佳工具：
-- 文件搜索 → Glob/Grep
-- 代码分析 → Explore Agent
-- 任务规划 → Plan Agent
-
-## 与其他 Agent 的区别
-
-![Code Agent 对比图](./images/code-agent-comparison.png)
-
-| 特性 | Code Agent | Explore Agent | Plan Agent |
-|------|-----------|---------------|------------|
-| **主要用途** | 代码编写与修改 | 代码探索与分析 | 任务规划 |
-| **工具数量** | 15+ | 5-8 | 3-5 |
-| **子代理** | Explore, Plan | 无 | 无 |
-| **适用场景** | 开发、调试、重构 | 理解代码库 | 复杂任务规划 |
-| **任务管理** | 强 | 弱 | 中 |
-
-## 技术实现
-
-### 代码结构
-
-```typescript
-export class CodeAgent extends BaseAgent {
-  id: string = 'CodeAgent';
-  name: string = 'Code Agent';
-  description: string = 'A code agent that can help with code related tasks.';
-  instructions: DynamicAgentInstructions = codeAgentInstructions;
-
-  tools: string[] = [
-    // 任务管理工具
-    `${ToolType.BUILD_IN}:${TodoWrite.toolName}`,
-    `${ToolType.BUILD_IN}:${AskUserQuestion.toolName}`,
-    `${ToolType.BUILD_IN}:${Task.toolName}`,
-
-    // 文件系统工具
-    `${ToolType.BUILD_IN}:${Bash.toolName}`,
-    `${ToolType.BUILD_IN}:${Read.toolName}`,
-    `${ToolType.BUILD_IN}:${Write.toolName}`,
-    `${ToolType.BUILD_IN}:${Edit.toolName}`,
-    `${ToolType.BUILD_IN}:${Glob.toolName}`,
-    `${ToolType.BUILD_IN}:${Grep.toolName}`,
-
-    // 网络工具
-    `${ToolType.BUILD_IN}:${WebFetch.toolName}`,
-    `${ToolType.BUILD_IN}:${WebSearch.toolName}`,
-
-    // 代码执行工具
-    `${ToolType.BUILD_IN}:${CodeExecution.toolName}`,
-
-    // 技能工具
-    `${ToolType.BUILD_IN}:${Skill.toolName}`,
-  ];
-
-  subAgents: string[] = [
-    `${Explore.agentName}`,
-    `${Plan.agentName}`
-  ];
-}
-```
-
-### 动态指令
-
-Code Agent 的指令是动态生成的，根据当前环境调整：
-
-```typescript
-export const codeAgentInstructions: DynamicAgentInstructions = ({
-  requestContext,
-  mastra,
-}: {
-  requestContext: RequestContext<ChatRequestContext>;
-  mastra: Mastra;
-}) => {
-  // 获取工作目录信息
-  const workspace = requestContext.get('workspace');
-  const isGitRepo = fs.existsSync(path.join(workspace, '.git'));
-
-  // 获取可用工具
-  const tools = requestContext.get('tools') ?? [];
-  const hasTaskTool = tools.includes(`${ToolType.BUILD_IN}:${Task.toolName}`);
-
-  // 生成动态指令
-  return {
-    role: 'system',
-    content: `...包含环境信息和工具配置的指令...`,
-  };
-};
-```
+- 把工作目录、允许修改的范围和禁止操作写进请求；
+- 执行安装、删除、发布、推送或访问生产数据前检查命令；
+- 不在提示词、终端输出和 Agent 导出配置中暴露密钥；
+- 对外部网页、Skill 与 MCP 返回的指令保持审慎；
+- 对高风险结果保留 Git diff、测试日志或其他可复核证据。
 
 ## 常见问题
 
-### Q1: Code Agent 能处理多大的代码库？
+### 为什么 Agent 没有调用某个工具？
 
-A: Code Agent 可以处理大型代码库，但建议：
-- 对于超大型项目，先使用 Explore Agent 探索
-- 分模块处理，避免一次性加载过多文件
-- 使用 Glob/Grep 精确定位相关代码
+确认该工具已启用并出现在 Code Agent 详情页；然后检查模型是否支持工具调用、依赖是否安装，以及 Instructions 是否限制了使用方式。
 
-### Q2: Code Agent 会修改我的代码吗？
+### 为什么命令能运行但应用仍不可用？
 
-A: Code Agent 只会在以下情况下修改代码：
-- 您明确要求修改
-- 修复 bug 时
-- 重构代码时
+构建和静态检查不能覆盖登录态、真实 Provider、浏览器、容器或生产部署。请按目标环境补充相应的运行验证。
 
-所有修改都会提供代码引用，方便您审查。
+### 如何调整默认能力？
 
-### Q3: 如何确保 Code Agent 的代码质量？
-
-A: Code Agent 遵循以下原则：
-- 遵循项目现有代码风格
-- 添加必要的注释
-- 运行测试验证
-- 避免引入安全漏洞
-
-### Q4: Code Agent 支持哪些编程语言？
-
-A: Code Agent 支持所有主流编程语言：
-- JavaScript/TypeScript
-- Python
-- Java
-- Go
-- Rust
-- C/C++
-- 等等
-
-### Q5: Code Agent 能处理 Git 操作吗？
-
-A: 是的，Code Agent 可以：
-- 执行 Git 命令
-- 创建提交
-- 管理分支
-- 处理合并冲突
-
-## 总结
-
-Code Agent 是 AIME Chat 中最强大的编程助手，它：
-
-✅ **功能全面** - 涵盖代码编写的各个方面
-✅ **智能高效** - 自动规划任务，优化执行流程
-✅ **安全可靠** - 多层安全保护，确保代码安全
-✅ **易于使用** - 自然语言交互，无需学习复杂命令
-✅ **持续进化** - 基于最新的 AI 技术，不断改进
-
-无论您是初学者还是经验丰富的开发者，Code Agent 都能成为您的得力助手，让编程变得更加高效和愉快！
-
-## 相关文档
-
-- [Agent 概览](./overview.md)
-- [工具系统](../features/tools.md)
+在 Code Agent 详情页修改默认模型、额外工具、建议问题或子 Agent。内置 Agent 的核心名称和 Instructions 由应用维护；如需完全自定义行为，请创建自定义 Agent。

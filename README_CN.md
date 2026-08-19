@@ -2,7 +2,7 @@
   <img src="assets/banner.png" alt="AIME Chat" width="100%" />
 
   <p>
-    <img src="https://img.shields.io/badge/version-0.3.37-blue.svg" alt="Version">
+    <img src="https://img.shields.io/badge/source-0.3.47-blue.svg" alt="源码版本 0.3.47">
     <img src="https://img.shields.io/badge/platform-macOS%20|%20Windows%20|%20Linux-lightgrey.svg" alt="Platform">
     <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License">
   </p>
@@ -23,8 +23,9 @@
 - 🦾 **Harness Engineering（智能体外壳工程）** - 围绕模型构建完整的 Agent 外壳（Agent = Model + Harness）：编排循环、工具、上下文与记忆、子 Agent、权限护栏和可观测性，将无状态模型变为可靠、可长时间运行的智能体
 - 🤖 **多 AI 提供商支持** - 集成 OpenAI、DeepSeek、Google、智谱 AI、Ollama、LMStudio、ModelScope、MiniMax 等多个主流 AI 提供商
 - 💬 **智能对话** - 基于 Mastra 框架的强大 AI Agent 系统，支持流式响应和工具调用
-- 🤝 **Open CoWork 能力** - AI 不只是聊天，还能执行实际操作，如文件编辑、代码执行、网络搜索等
-- 📚 **知识库管理** - 内置向量数据库，支持文档检索、知识问答和长期养成记忆
+- 🤝 **Open CoWork 能力** - AI 不只是聊天，还能在集成式项目工作区中编辑文件、执行代码、搜索网络等
+- 📚 **知识库管理** - 本地知识库支持语义向量与 BM25 混合检索、可选重排、原文读取、文档/Excel 解析和长期养成记忆
+- 📤 **项目聊天导出** - 可选择项目聊天线程，并将完整历史导出为 Markdown、原始 JSON、Excel 或 Unsloth JSONL
 - 🧠 **养成记忆** - 由定时运行的 Cultivation Agent 从聊天记录中提取偏好、习惯、项目上下文和重要事实，沉淀为结构化记忆 Wiki
 - ⏰ **自动化任务** - 支持按计划执行 AI 任务，可绑定项目上下文、指定 Agent/工具，并选择复用同一聊天线程或每次创建新线程
 - 🛠️ **工具集成** - 支持 MCP（Model Context Protocol）客户端，可扩展各类工具能力
@@ -32,11 +33,12 @@
 - 🔍 **Skill 技能系统** - 支持从 Git 仓库或在线技能市场搜索、导入和管理 AI 技能
 - 🧑‍💻 **助手人格** - 内置助手人格可直接选择使用，并支持通过当前人格格式进行定制
 - 🖥️ **后台 Bash 会话** - 支持在当前会话或项目级范围查看长时间运行的 Bash 进程，并可在界面中直接停止
+- 🌐 **浏览器实例** - 自动检测 Chrome、Edge 和 Chromium，并可为自动化实例选择浏览器可执行文件与用户配置目录
 - 📡 **频道接入** - 将 AI 能力接入微信、Telegram 等即时通讯平台
-- 🔐 **Secrets 管理** - 集中管理工具和服务所需的密钥，安全存储在本地
-- 🎨 **现代化 UI** - 使用 shadcn/ui 组件库，支持亮色/暗色主题切换
+- 🔐 **Secrets 管理** - 集中管理工具和服务所需的凭据，并注入已配置的本地工作流
+- 🎨 **可定制 UI** - 支持浅色、深色或跟随系统主题，可设置主题色及独立的侧边栏/聊天背景
 - 🌍 **国际化支持** - 内置中文和英文界面
-- 🔒 **本地优先** - 数据存储在本地，保护隐私安全
+- 🔒 **本地优先** - 应用状态与聊天数据默认保存在本机；使用云端服务时，请求仍会发送给对应服务商
 - ⚡ **高性能** - 基于 Electron 构建，跨平台原生体验
 
 ## 🚀 快速开始
@@ -57,7 +59,7 @@ pnpm install
 
 启动开发服务器：
 
-- 点击VSCode中调试界面的Electron Main开始运行调试
+- 在 VSCode 调试面板中选择 **Electron: Main**（需要同时附加主进程与渲染进程时选择 **Electron: All**）
 
 应用将在开发模式下启动，支持热重载。
 
@@ -154,8 +156,10 @@ AIME Chat 提供的外壳分层：
 
 ### 知识库功能
 
-- 📄 文档上传和解析
-- 🔍 向量化存储和检索
+- 📄 支持导入文本、Markdown、PDF、Word、Excel、PowerPoint 和可 OCR 识别的图片
+- 🔍 支持语义向量与 BM25 全文混合检索；未配置向量模型时可仅使用 BM25
+- 🎯 支持可选重排模型，并在切换向量模型时安全重建全部索引
+- 📖 检索后可继续读取原始内容，长文支持模式搜索和分页读取
 - 💡 基于知识库的智能问答
 - 🧠 基于聊天记录自动维护全局记忆 Wiki 的养成记忆
 - 📊 知识库管理界面
@@ -173,7 +177,7 @@ AIME Chat 内置由 `Cultivation` Agent 维护的全局记忆知识库。启用 
 | 类别 | 工具 | 说明 |
 |------|------|------|
 | 文件系统 | Bash, Read, Write, Edit, Grep, Glob | 文件读写、搜索、编辑等操作 |
-| 代码执行 | CodeExecution | 执行 Python 和 Node.js 代码 |
+| 代码执行 | CodeExecution | 执行 Python 代码，并可选启用程序化工具调用 |
 | 网络工具 | Web Fetch, Web Search | 网页抓取和网络搜索（支持 AI 内容摘要） |
 | 图像处理 | GenerateImage, EditImage, RMBG | 图像生成、编辑和背景移除 |
 | 视觉分析 | Vision | LLM 驱动的图像识别和分析（集成 OCR） |
@@ -204,7 +208,7 @@ AIME Chat 内置由 `Cultivation` Agent 维护的全局记忆知识库。启用 
 集中管理工具和服务所需的密钥和凭证：
 
 - 🔑 统一的 API 密钥和令牌管理界面
-- 🔒 本地加密安全存储
+- 💾 数据保存在本地应用数据库中；请保护系统账户、数据库文件和备份
 - 🔗 自动注入到需要认证的工具中
 
 ## 🛠️ 技术栈
@@ -223,7 +227,8 @@ AIME Chat 内置由 `Cultivation` Agent 维护的全局记忆知识库。启用 
 - **运行时**: Electron
 - **AI 框架**: Mastra
 - **数据库**: TypeORM + better-sqlite3
-- **向量存储**: @mastra/fastembed
+- **向量与全文索引**: LibSQL
+- **Embedding**: 可配置本地或服务商提供的向量模型
 - **AI SDK**: Vercel AI SDK
 
 ### 构建工具
@@ -251,11 +256,18 @@ AIME Chat 支持可选的运行库，可以在设置页面中安装：
 | 运行库 | 说明 |
 |--------|------|
 | UV / Python | 为代码执行、OCR 和其他本地处理工具提供 Python 运行环境 |
-| Node.js / Bun | 为 Node.js 代码执行和 MCP 相关工作流提供 JavaScript 运行环境 |
+| Node.js / Bun | 为 MCP Server 及其他调用 JavaScript 运行时的工作流提供环境 |
 | PaddleOCR | 基于 PaddlePaddle 的 OCR 识别引擎，支持文档结构分析和从 PDF/图片中提取文字 |
 | Qwen Audio | 基于 Qwen3-TTS 的语音处理引擎，支持语音识别（ASR）和语音合成（TTS） |
 
 这些运行库会安装在应用数据目录中。运行库安装过程会把成功、失败和命令输出等诊断信息写入应用日志，关于页面提供了直接打开日志文件的入口。
+
+Bash 工具可选择使用 AIME Chat 的独立 Python 运行器（推荐）或系统 Python。需要指定 Python 安装中的包或环境行为时，可在对应 Agent 的工具配置中调整。
+
+### 外观与浏览器实例
+
+- 在 **设置 → 外观** 中选择主题模式和主题色，或分别为侧边栏与聊天区域添加 JPG/PNG/WebP 背景，并独立调整透明度和模糊度。
+- 在 **设置 → 实例管理** 中选择已安装的 Google Chrome、Microsoft Edge 或 Chromium 可执行文件，使用检测到的或自定义的用户数据目录，并配置调试端口或无头模式。
 
 ### 数据存储
 
@@ -301,8 +313,8 @@ AIME Chat 支持可选的运行库，可以在设置页面中安装：
 ## 🔗 相关链接
 
 - [官方网站](https://darknoah.github.io/aime-chat/)
-- [问题反馈](https://github.com/aime/aime-chat/issues)
-- [更新日志](CHANGELOG.md)
+- [问题反馈](https://github.com/DarkNoah/aime-chat/issues)
+- [版本与更新日志](https://github.com/DarkNoah/aime-chat/releases)
 
 ---
 

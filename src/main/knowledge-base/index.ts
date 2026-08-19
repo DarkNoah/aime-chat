@@ -17,7 +17,8 @@ import {
 } from '@/types/knowledge-base';
 import { In, Repository } from 'typeorm';
 import { Client as LibSQLClient, Value } from '@libsql/client';
-import { MDocument } from "@mastra/rag";
+import { createGraphRAGTool, MDocument } from '@mastra/rag';
+import type { EmbeddingModelV2 } from '@ai-sdk/provider';
 import { nanoid } from '@/utils/nanoid';
 import { providersManager } from '../providers';
 import { isUrl } from '@/utils/is';
@@ -48,6 +49,10 @@ import {
   rrfFuse,
   segmentText,
 } from './fts';
+import {
+  createKnowledgeBaseGraphVectorStore,
+  getKnowledgeBaseGraphIndexName,
+} from '../tools/knowledge-base/graph-vector-store';
 
 type KnowledgeBaseChunk = {
   text: string;
@@ -173,6 +178,39 @@ export class KnowledgeBaseManager extends BaseManager {
       console.error(err);
     }
     return undefined
+  }
+
+  private async getGraphEmbeddingModel(
+    modelId: string,
+    onEmbedding?: (embedding: number[]) => void,
+  ): Promise<EmbeddingModelV2<string> | undefined> {
+    if (!this.isLocalClipModel(modelId)) {
+      return providersManager.getEmbeddingModel(modelId);
+    }
+
+    return {
+      specificationVersion: 'v2',
+      provider: 'local',
+      modelId,
+      maxEmbeddingsPerCall: 2048,
+      supportsParallelCalls: true,
+      doEmbed: async ({ values }) => {
+        const result = await this.calcEmbeddings(modelId, values);
+        const embeddings = result?.text_embeddings;
+        if (!embeddings || embeddings.length !== values.length) {
+          throw new Error(
+            `Embedding model ${modelId} returned an unexpected result count`,
+          );
+        }
+        if (embeddings[0]) {
+          onEmbedding?.(embeddings[0]);
+        }
+        return {
+          embeddings,
+          usage: { tokens: 0 },
+        };
+      },
+    };
   }
 
   async calcClipCosineSimilarity(modeId: string, embedding1: number[], embedding2: number[]): Promise<number> {
@@ -780,6 +818,9 @@ export class KnowledgeBaseManager extends BaseManager {
   @channel(KnowledgeBaseChannel.Get)
   public async getKnowledgeBase(id: string): Promise<KnowledgeBase> {
     const kb = await this.knowledgeBaseRepository.findOneBy({ id });
+    if (!kb) {
+      throw new Error('Knowledge base not found');
+    }
 
     let _kb: any = { ...kb }
     if (kb.embedding) {
@@ -916,6 +957,9 @@ export class KnowledgeBaseManager extends BaseManager {
   }
   @channel(KnowledgeBaseChannel.SearchKnowledgeBase)
   public async searchKnowledgeBase(kb_id_or_name: string, query: string, fileTpye: 'text' | 'image' = 'text', filter?: string, top_k: number = 10): Promise<SearchKnowledgeBaseResult> {
+    if (!Number.isInteger(top_k) || top_k < 1 || top_k > 100) {
+      throw new Error('top_k must be an integer between 1 and 100');
+    }
     const kb = await this.knowledgeBaseRepository.findOne({ where: [{ id: kb_id_or_name }, { name: kb_id_or_name }] });
     if (!kb) {
       throw new Error('Knowledge base not found');
@@ -932,24 +976,101 @@ export class KnowledgeBaseManager extends BaseManager {
         ? ` AND (${filter})`
         : '';
     let vectorStr: number[] | undefined;
-    if (kb.embedding) {
+    let semanticSearchAvailable = false;
+    const vectorRows: any[] = [];
+    if (kb.embedding && fileTpye === 'text' && kb.vectorLength) {
       try {
         let embeddingQuery = originalQuery;
-        if (
-          fileTpye === 'text' &&
-          kb.embedding.split('/').at(-1) === 'jina-clip-v2'
-        ) {
-          embeddingQuery =
-            'Represent the query for retrieving evidence documents: ' +
-            originalQuery;
+        if (kb.embedding.split('/').at(-1) === 'jina-clip-v2') {
+          embeddingQuery = `Represent the query for retrieving evidence documents: ${originalQuery}`;
         }
-        const embeddings =
-          fileTpye === 'text'
-            ? await this.calcEmbeddings(kb.embedding, [embeddingQuery])
-            : await this.calcEmbeddings(kb.embedding, [], [originalQuery]);
-        const candidateVector =
-          embeddings?.text_embeddings?.[0] ??
-          embeddings?.image_embeddings?.[0];
+        const model = await this.getGraphEmbeddingModel(
+          kb.embedding,
+          (embedding) => {
+            vectorStr = embedding;
+          },
+        );
+        if (!model) {
+          throw new Error(`Embedding model is unavailable: ${kb.embedding}`);
+        }
+        const extendColumns =
+          vectorStoreConfig?.extendColumns?.map((column) => column.name) ?? [];
+        const graphTool = createGraphRAGTool({
+          id: `KnowledgeBaseSearch-${kb.id}`,
+          description:
+            'Graph-based semantic retrieval for knowledge base search.',
+          vectorStore: createKnowledgeBaseGraphVectorStore({
+            client: this.libSQLClient,
+            knowledgeBaseId: kb.id,
+            vectorLength: kb.vectorLength,
+            extendColumns,
+            filter,
+            minimumScore: 0.5,
+            includeInternalMetadata: true,
+          }),
+          indexName: getKnowledgeBaseGraphIndexName(kb.id, kb.vectorLength),
+          model,
+          includeSources: true,
+          graphOptions: {
+            dimension: kb.vectorLength,
+          },
+        });
+        const graphResult = await graphTool.execute(
+          { queryText: embeddingQuery, topK: candidateLimit },
+          {
+            mastra: {
+              getLogger: () => ({
+                debug: () => undefined,
+                error: (message: string, details?: Record<string, unknown>) =>
+                  console.error(
+                    `[knowledge-base] ${message}`,
+                    details?.error ?? details,
+                  ),
+              }),
+            },
+          } as any,
+        );
+        for (const source of graphResult?.sources ?? []) {
+          const metadata = source?.metadata as Record<string, any> | undefined;
+          const internal = metadata?.['__knowledgeBase'] as
+            | {
+                metadata?: Record<string, unknown>;
+                type?: string;
+                extendValues?: Record<string, unknown>;
+                vectorScore?: number;
+              }
+            | undefined;
+          const chunkId = metadata?.chunkId;
+          const itemId = metadata?.itemId;
+          if (chunkId && itemId && internal) {
+            vectorRows.push({
+              id: String(chunkId),
+              item_id: String(itemId),
+              chunk: source.document ?? metadata?.text ?? '',
+              score: Number(internal.vectorScore ?? source.score ?? 0),
+              graphScore: Number(source.score ?? 0),
+              metadata: JSON.stringify(internal.metadata ?? {}),
+              type: internal.type ?? 'text',
+              ...(internal.extendValues ?? {}),
+            });
+          }
+        }
+        semanticSearchAvailable = vectorRows.length > 0;
+      } catch (error) {
+        console.error(
+          `[knowledge-base] GraphRAG search with ${kb.embedding} failed, falling back to BM25`,
+          error,
+        );
+        vectorRows.length = 0;
+      }
+    } else if (kb.embedding && fileTpye === 'image') {
+      try {
+        const embeddings = await this.calcEmbeddings(
+          kb.embedding,
+          [],
+          [originalQuery],
+        );
+        const candidateVector = embeddings?.image_embeddings?.[0];
         if (
           candidateVector?.length &&
           candidateVector.every(Number.isFinite) &&
@@ -961,49 +1082,52 @@ export class KnowledgeBaseManager extends BaseManager {
             `[knowledge-base] embedding model ${kb.embedding} is unavailable, falling back to BM25`,
           );
         }
+
+        if (vectorStr) {
+          const vectorResults = await this.libSQLClient.execute({
+            sql: `
+          WITH vector_scores AS (
+            SELECT
+              id,
+              item_id,
+              chunk,
+              (1-vector_distance_cos(embedding, vector32(?))) as score,
+              metadata,
+              "type"
+              ${extendSelect}
+            FROM [kb_${kb.id}_${kb.vectorLength ?? 0}]
+            WHERE is_enable = 1${filterCondition}
+          )
+          SELECT *
+          FROM vector_scores
+          WHERE score > ? AND type = 'text'
+          ORDER BY score DESC
+          LIMIT ?`,
+            args: [JSON.stringify(vectorStr), 0.5, candidateLimit],
+          });
+          vectorRows.push(
+            ...vectorResults.rows.map((row) => ({
+              ...row,
+              id: String(row.id),
+              score: Number(row.score),
+            })),
+          );
+          semanticSearchAvailable = true;
+        }
       } catch (error) {
         console.error(
-          `[knowledge-base] embedding model ${kb.embedding} failed, falling back to BM25`,
+          `[knowledge-base] vector search with ${kb.embedding} failed, falling back to BM25`,
           error,
         );
+        vectorStr = undefined;
+        vectorRows.length = 0;
       }
     }
 
-    const vectorRows: any[] = [];
-    if (vectorStr) {
+    if (vectorStr && kb.embedding && this.isLocalClipModel(kb.embedding)) {
       try {
-        const vectorResults = await this.libSQLClient.execute({
+        const imageResults = await this.libSQLClient.execute({
           sql: `
-        WITH vector_scores AS (
-          SELECT
-            id,
-            item_id,
-            chunk,
-            (1-vector_distance_cos(embedding, vector32(?))) as score,
-            metadata,
-            "type"
-            ${extendSelect}
-          FROM [kb_${kb.id}_${kb.vectorLength ?? 0}]
-          WHERE is_enable = 1${filterCondition}
-        )
-        SELECT *
-        FROM vector_scores
-        WHERE score > ? AND type = 'text'
-        ORDER BY score DESC
-        LIMIT ?`,
-          args: [JSON.stringify(vectorStr), 0.5, candidateLimit],
-        });
-        vectorRows.push(
-          ...vectorResults.rows.map((row) => ({
-            ...row,
-            id: String(row.id),
-            score: Number(row.score),
-          })),
-        );
-
-        if (kb.embedding && this.isLocalClipModel(kb.embedding)) {
-          const image_results = await this.libSQLClient.execute({
-            sql: `
         WITH vector_scores AS (
           SELECT
             id,
@@ -1022,38 +1146,41 @@ export class KnowledgeBaseManager extends BaseManager {
         WHERE type = 'image'
         ORDER BY score DESC
         LIMIT ?`,
-            args: [JSON.stringify(vectorStr), candidateLimit],
-          });
-          for (const row of image_results.rows) {
-            const score = await this.calcClipCosineSimilarity(
-              kb.embedding,
-              vectorStr,
-              JSON.parse(row.embedding as string),
-            );
-            if (fileTpye === 'text' || score > 0.7) {
-              vectorRows.push({
-                ...row,
-                id: String(row.id),
-                score,
-              });
-            }
+          args: [JSON.stringify(vectorStr), candidateLimit],
+        });
+        for (const row of imageResults.rows) {
+          const score = await this.calcClipCosineSimilarity(
+            kb.embedding,
+            vectorStr,
+            JSON.parse(row.embedding as string),
+          );
+          if (fileTpye === 'text' || score > 0.7) {
+            vectorRows.push({
+              ...row,
+              id: String(row.id),
+              score,
+            });
           }
         }
       } catch (error) {
-        console.error(
-          '[knowledge-base] vector search failed, falling back to BM25',
-          error,
-        );
-        vectorStr = undefined;
-        vectorRows.length = 0;
+        console.error('[knowledge-base] image vector search failed', error);
+        if (fileTpye === 'image') {
+          vectorStr = undefined;
+          vectorRows.length = 0;
+          semanticSearchAvailable = false;
+        }
       }
+      semanticSearchAvailable =
+        semanticSearchAvailable || vectorRows.length > 0;
     }
 
-    if (fileTpye === 'image' && !vectorStr) {
+    if (fileTpye === 'image' && !semanticSearchAvailable) {
       return {
         query: originalQuery,
         embedding: kb.embedding ?? '',
         searchType: 'bm25',
+        knowledgeBaseId: kb.id,
+        forceReturnFullContent: kb.forceReturnFullContent,
         results: [],
       };
     }
@@ -1102,12 +1229,12 @@ export class KnowledgeBaseManager extends BaseManager {
 
     let searchType: SearchKnowledgeBaseResult['searchType'];
     let resultRows: any[];
-    if (vectorStr && fileTpye === 'text') {
+    if (semanticSearchAvailable && fileTpye === 'text') {
       searchType = 'hybrid';
       resultRows = rrfFuse([vectorRows, bm25Rows])
         .map((row) => ({ ...row, hybridScore: row.rrfScore }))
         .slice(0, top_k);
-    } else if (vectorStr) {
+    } else if (semanticSearchAvailable) {
       searchType = 'vector';
       resultRows = vectorRows
         .map((row) => ({ ...row, hybridScore: row.score }))
@@ -1142,6 +1269,7 @@ export class KnowledgeBaseManager extends BaseManager {
           itemId: item.item_id as string,
           score: Number(item.score ?? item.bm25Score ?? 0),
           bm25Score: item.bm25Score as number | undefined,
+          graphScore: item.graphScore as number | undefined,
           hybridScore: Number(item.hybridScore ?? item.score ?? item.bm25Score ?? 0),
           metadata: { ...(JSON.parse(item?.metadata as string ?? '{}')), ...(kbitem.metadata ?? {}) },
           chunk: item.chunk as string,
@@ -1197,6 +1325,8 @@ export class KnowledgeBaseManager extends BaseManager {
       query: originalQuery,
       embedding: kb.embedding ?? '',
       searchType,
+      knowledgeBaseId: kb.id,
+      forceReturnFullContent: kb.forceReturnFullContent,
       results: _results,
     }
   }

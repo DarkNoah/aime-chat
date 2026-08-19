@@ -185,4 +185,40 @@ describe('CodeExecution Python package cache', () => {
     expect(runCommand.mock.calls[1][0]).not.toContain('--offline');
     mkdirSpy.mockRestore();
   });
+
+  it('does not reuse an incompatible application runtime for warmup', async () => {
+    const mkdirSpy = jest
+      .spyOn(fs.promises, 'mkdir')
+      .mockResolvedValue(undefined);
+    const runCommand = jest.fn().mockResolvedValue({ code: 0 });
+    const stalePythonPath = '/runtime/python-3.10/.venv/bin/python';
+
+    await expect(
+      warmCodeExecutionPackageCache(
+        {
+          status: 'installed',
+          installed: true,
+          path: '/runtime/uv',
+          pythonRuntime: {
+            installed: false,
+            pythonPath: stalePythonPath,
+            pythonVersion: '3.10.18',
+          },
+        },
+        {
+          runCommand,
+          log: jest.fn(),
+        },
+      ),
+    ).resolves.toBe(true);
+
+    expect(runCommand).toHaveBeenCalledTimes(2);
+    expect(runCommand.mock.calls[0][0]).toContain('--clear --python "3.12"');
+    expect(runCommand.mock.calls[0][0]).toContain('--offline');
+    expect(runCommand.mock.calls[1][0]).not.toContain(stalePythonPath);
+    expect(runCommand.mock.calls[1][0]).toContain(
+      `--python "${getCodeExecutionPackageCachePaths().warmupPython}"`,
+    );
+    mkdirSpy.mockRestore();
+  });
 });

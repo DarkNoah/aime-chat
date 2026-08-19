@@ -70,6 +70,7 @@ import { initBashSessionIpcListeners } from './store/use-bash-session-store';
 import MarketPage from './pages/market';
 import CronsPage from './pages/crons';
 import { GlobalMcpBundleImport } from './components/mcp-bundle-import';
+import { ThemeConfigApplier } from './components/theme-config-applier';
 
 function Hello() {
   const { setTitle } = useHeader();
@@ -231,6 +232,7 @@ function LayoutPage(props: { children: ReactNode }) {
         enableSystem
         disableTransitionOnChange
       >
+        <ThemeConfigApplier />
         <I18nProvider>
           <GlobalMcpBundleImport />
           <SetupRedirect>{children}</SetupRedirect>

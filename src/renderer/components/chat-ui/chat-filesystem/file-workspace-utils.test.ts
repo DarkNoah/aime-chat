@@ -32,6 +32,9 @@ describe('file workspace utilities', () => {
     expect(toFileUrl('/tmp/hello world.md')).toBe(
       'file:///tmp/hello%20world.md',
     );
+    expect(toFileUrl('\\\\server\\share\\hello world.png')).toBe(
+      'file://server/share/hello%20world.png',
+    );
   });
 
   it('formats file sizes', () => {

@@ -2,7 +2,7 @@
   <img src="assets/banner.png" alt="AIME Chat" width="100%" />
 
   <p>
-    <img src="https://img.shields.io/badge/version-0.3.37-blue.svg" alt="Version">
+    <img src="https://img.shields.io/badge/source-0.3.47-blue.svg" alt="Source version 0.3.47">
     <img src="https://img.shields.io/badge/platform-macOS%20|%20Windows%20|%20Linux-lightgrey.svg" alt="Platform">
     <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License">
   </p>
@@ -23,8 +23,9 @@
 - 🦾 **Harness Engineering** - A complete agent harness around the model (Agent = Model + Harness): orchestration loop, tools, context & memory, sub-agents, guardrails, and observability turn a stateless model into a reliable, long-running agent
 - 🤖 **Multiple AI Provider Support** - Integrated with mainstream AI providers including OpenAI, DeepSeek, Google, Zhipu AI, MiniMax, Ollama, LMStudio, ModelScope, and more
 - 💬 **Intelligent Conversations** - Powerful AI Agent system based on Mastra framework, supporting streaming responses and tool calling
-- 🤝 **Open CoWork Capability** - AI is not just for chatting, it can perform actual operations like file editing, code execution, web searching, and more
-- 📚 **Knowledge Base Management** - Built-in vector database with support for document retrieval, knowledge Q&A, and long-term cultivation memory
+- 🤝 **Open CoWork Capability** - AI is not just for chatting: it can edit project files in an integrated workspace, execute code, search the web, and more
+- 📚 **Knowledge Base Management** - Local knowledge bases with hybrid semantic/BM25 retrieval, optional reranking, source-text inspection, document/Excel parsing, and long-term cultivation memory
+- 📤 **Project Chat Export** - Select project threads and export complete histories as Markdown, raw JSON, Excel, or Unsloth JSONL
 - 🧠 **Cultivation Memory** - A scheduled Cultivation Agent extracts preferences, habits, project context, and important facts from chat history into a structured memory wiki
 - ⏰ **Cron Automation** - Run scheduled AI tasks with project context, selectable agents/tools, and either reusable or per-run chat threads
 - 🛠️ **Tool Integration** - Support for MCP (Model Context Protocol) client with extensible tool capabilities
@@ -32,11 +33,12 @@
 - 🔍 **Skill System** - Search, import, and manage AI skills from Git repositories or the online skill marketplace
 - 🧑‍💻 **Assistant Personalities** - Built-in assistant personalities can be selected instantly and customized through the current personality format
 - 🖥️ **Background Bash Sessions** - Track long-running shell processes from the current chat or the whole project, with direct stop controls in the UI
+- 🌐 **Browser Instances** - Detect Chrome, Edge, and Chromium; select the executable and browser profile used by an automation instance
 - 📡 **Channel Integration** - Connect AI capabilities to messaging platforms like WeChat and Telegram
-- 🔐 **Secrets Management** - Centralized secret key management for tools and services, securely stored locally
-- 🎨 **Modern UI** - Built with shadcn/ui component library, supports light/dark theme switching
+- 🔐 **Secrets Management** - Centrally manage credentials for tools and services and inject them into configured local workflows
+- 🎨 **Customizable UI** - Choose light, dark, or system mode, set an accent color, and configure independent sidebar/chat backgrounds
 - 🌍 **Internationalization** - Built-in Chinese and English interfaces
-- 🔒 **Local First** - Data stored locally for privacy protection
+- 🔒 **Local First** - App state and chat data are stored locally by default; cloud providers still receive the requests you send to them
 - ⚡ **High Performance** - Built on Electron for cross-platform native experience
 
 ## 🚀 Quick Start
@@ -57,7 +59,7 @@ pnpm install
 
 Start the development server:
 
-- Click on "Electron Main" in VSCode's debug panel to start debugging
+- Click **Electron: Main** in VSCode's debug panel (or **Electron: All** to attach both processes)
 
 The application will start in development mode with hot reload support.
 
@@ -154,8 +156,10 @@ Supported providers include:
 
 ### Knowledge Base Features
 
-- 📄 Document upload and parsing
-- 🔍 Vector storage and retrieval
+- 📄 Import text, Markdown, PDF, Word, Excel, PowerPoint, and OCR-readable images
+- 🔍 Hybrid semantic and BM25 full-text retrieval, with BM25-only operation when no embedding model is configured
+- 🎯 Optional reranking and safe full-index rebuilding when changing the embedding model
+- 📖 Inspect the original source after retrieval; long sources support pattern search and paginated reading
 - 💡 Intelligent Q&A based on knowledge base
 - 🧠 Cultivation memory that maintains a global memory wiki from chat history
 - 📊 Knowledge base management interface
@@ -173,7 +177,7 @@ Rich built-in tools that AI Agents can call autonomously:
 | Category | Tools | Description |
 |----------|-------|-------------|
 | File System | Bash, Read, Write, Edit, Grep, Glob | File read/write, search, edit operations |
-| Code Execution | CodeExecution | Execute Python and Node.js code |
+| Code Execution | CodeExecution | Execute Python code with optional programmatic tool calling |
 | Web Tools | Web Fetch, Web Search | Web scraping and search (with AI content summarization) |
 | Image Processing | GenerateImage, EditImage, RMBG | Image generation, editing, and background removal |
 | Vision Analysis | Vision | LLM-powered image recognition and analysis (with OCR integration) |
@@ -204,7 +208,7 @@ Connect AI capabilities to external messaging platforms:
 Centralized management of secret keys and credentials used by tools and services:
 
 - 🔑 Unified interface for managing API keys and tokens
-- 🔒 Secure local storage with encryption
+- 💾 Values are stored in the local application database; protect your OS account, database, and backups
 - 🔗 Automatic injection into tools that require authentication
 
 ## 🛠️ Tech Stack
@@ -223,7 +227,8 @@ Centralized management of secret keys and credentials used by tools and services
 - **Runtime**: Electron
 - **AI Framework**: Mastra
 - **Database**: TypeORM + better-sqlite3
-- **Vector Storage**: @mastra/fastembed
+- **Vector & Full-text Storage**: LibSQL
+- **Embeddings**: Configurable local or provider-backed embedding models
 - **AI SDK**: Vercel AI SDK
 
 ### Build Tools
@@ -252,11 +257,18 @@ AIME Chat supports optional runtime libraries that can be installed from the Set
 | Runtime | Description |
 |---------|-------------|
 | UV / Python | Python runtime used by code execution, OCR, and other local processing tools |
-| Node.js / Bun | JavaScript runtimes used by Node.js code execution and MCP-related workflows |
+| Node.js / Bun | JavaScript runtimes used by MCP servers and other workflows that invoke them |
 | PaddleOCR | OCR recognition engine based on PaddlePaddle, supports document structure analysis and text extraction from PDF/images |
 | Qwen Audio | Audio processing engine based on Qwen3-TTS, supports speech recognition (ASR) and text-to-speech (TTS) |
 
 These runtimes are installed under the application data directory. Runtime install attempts write detailed success and failure information to the application log, and the About page provides a direct entry for opening the log file.
+
+The Bash tool can use either AIME Chat's independent Python runtime (recommended) or the system Python runtime. Configure this per tool when an Agent needs packages or environment behavior from a specific Python installation.
+
+### Appearance and Browser Instances
+
+- Open **Settings → Appearance** to choose the theme mode and accent color, or add separate JPG/PNG/WebP backgrounds for the sidebar and chat area. Background opacity and blur can be adjusted independently.
+- Open **Settings → Instances** to select an installed Google Chrome, Microsoft Edge, or Chromium executable, choose a detected or custom user-data directory, and configure the debug port or headless mode.
 
 ### Data Storage
 
@@ -303,7 +315,7 @@ This project is licensed under the [MIT](LICENSE) License.
 
 - [Official Website](https://darknoah.github.io/aime-chat/)
 - [Issue Tracker](https://github.com/DarkNoah/aime-chat/issues)
-- [Changelog](CHANGELOG.md)
+- [Releases and Changelog](https://github.com/DarkNoah/aime-chat/releases)
 
 ---
 

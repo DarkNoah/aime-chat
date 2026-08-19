@@ -37,6 +37,7 @@ export type KnowledgeBase = {
   reranker?: string;
   rerankerModel?: string;
   returnChunkCount?: number;
+  forceReturnFullContent?: boolean;
   static?: boolean;
 };
 
@@ -61,6 +62,8 @@ export type SearchKnowledgeBaseResult = {
   query: string;
   embedding: string;
   searchType: 'hybrid' | 'bm25' | 'vector';
+  knowledgeBaseId?: string;
+  forceReturnFullContent?: boolean;
   results: SearchKnowledgeBaseItemResult[];
 };
 
@@ -69,6 +72,7 @@ export type SearchKnowledgeBaseItemResult = {
   itemId: string;
   score: number;
   bm25Score?: number;
+  graphScore?: number;
   rerankScore?: number;
   hybridScore?: number;
   metadata: any;

@@ -1,31 +1,16 @@
-import { AppSidebar } from '../../components/app-sidebar';
-import { Button } from '../../components/ui/button';
 import {
-  SidebarInset,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarProvider,
 } from '../../components/ui/sidebar';
 import { useHeader } from '../../hooks/use-title';
 import { useTranslation } from 'react-i18next';
-import React, { useEffect, useState } from 'react';
-import { ScrollArea } from '../../components/ui/scroll-area';
-
-import { Separator } from '../../components/ui/separator';
-import {
-  Link,
-  Navigate,
-  Route,
-  Routes,
-  useLocation,
-  useNavigate,
-} from 'react-router-dom';
+import { useEffect } from 'react';
+import { Link, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import About from './about';
 import General from './general';
 import Providers from './providers';
 import Runtime from './runtime';
-import { Item } from '../../components/ui/item';
 import LocalModel from './local-model';
 import DefaultModel from './default-model';
 import Instances from './instances';
@@ -34,6 +19,7 @@ import RequestLogs from './request-logs';
 import Channels from './channels';
 import Secrets from './secrets';
 import Personality from './personality';
+import Appearance from './appearance';
 import { useGlobal } from '../../hooks/use-global';
 import {
   IconAdjustments,
@@ -48,6 +34,7 @@ import {
   IconServer,
   IconSparkles,
   IconMoodSmile,
+  IconPalette,
   IconWand,
 } from '@tabler/icons-react';
 
@@ -55,18 +42,22 @@ function Settings() {
   const { setTitle } = useHeader();
   const { t } = useTranslation();
   const location = useLocation();
-  const navigate = useNavigate();
   const { setupStatus } = useGlobal();
   const personalityDisabled = setupStatus?.personalityDisabled ?? false;
   useEffect(() => {
     setTitle(t('settings.settings'));
-  }, [setTitle]);
+  }, [setTitle, t]);
 
   const navItems = [
     {
       key: 'general',
       label: t('settings.general'),
       icon: IconAdjustments,
+    },
+    {
+      key: 'appearance',
+      label: t('settings.appearance'),
+      icon: IconPalette,
     },
     {
       key: 'providers',
@@ -130,16 +121,10 @@ function Settings() {
   ];
   return (
     <div className="flex flex-row h-full">
-      <div className="p-4 border-r h-full w-48">
+      <div className="p-4 border-r h-full w-48 shrink-0 overflow-y-auto">
         <SidebarMenu>
           {navItems.map((item) => (
-            <SidebarMenuItem
-              key={item.key}
-              className="group/item mb-1 cursor-pointer"
-              onClick={() => {
-                navigate(`/settings/${item.key}`);
-              }}
-            >
+            <SidebarMenuItem key={item.key} className="group/item mb-1">
               <SidebarMenuButton
                 asChild
                 isActive={location?.pathname?.startsWith(
@@ -147,27 +132,33 @@ function Settings() {
                 )}
                 className="truncate w-full flex flex-row justify-between h-full"
               >
-                <div className="text-sm flex items-center justify-start gap-2">
+                <Link
+                  to={`/settings/${item.key}`}
+                  aria-current={
+                    location?.pathname?.startsWith(`/settings/${item.key}`)
+                      ? 'page'
+                      : undefined
+                  }
+                  className="text-sm flex items-center justify-start gap-2"
+                >
                   <item.icon size={16} />
                   {item.label}
-                </div>
+                </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
           ))}
-          <SidebarMenuItem
-            className="group/item mb-1 cursor-pointer"
-            onClick={() => {
-              navigate('/setup');
-            }}
-          >
+          <SidebarMenuItem className="group/item mb-1">
             <SidebarMenuButton
               asChild
               className="truncate w-full flex flex-row justify-between h-full"
             >
-              <div className="text-sm flex items-center justify-start gap-2">
+              <Link
+                to="/setup"
+                className="text-sm flex items-center justify-start gap-2"
+              >
                 <IconWand size={16} />
                 {t('settings.setup', 'Setup')}
-              </div>
+              </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
@@ -175,6 +166,7 @@ function Settings() {
       <div className="flex flex-col flex-1 w-full min-w-0">
         <Routes>
           <Route path="general" element={<General />} />
+          <Route path="appearance" element={<Appearance />} />
           <Route path="about" element={<About />} />
           <Route path="providers" element={<Providers />} />
           <Route path="runtime" element={<Runtime />} />
