@@ -2182,8 +2182,11 @@ class ToolsManager extends BaseManager {
         } else {
           const subToolConfig = config?.[toolName] ?? {}
           const toolEntity = toolEntities.find((x) => x.id === toolName);
+          const toolKitEntity = await this.toolsRepository.findOne({
+            where: { type: ToolType.BUILD_IN, id: tool.id },
+          });
           const newToolkit = new tool.classType({
-            [toolEntity.name]: { ...(toolEntity.value ?? {}), ...subToolConfig },
+            [toolEntity.name]: { ...((toolEntity.value ?? toolKitEntity.value) ?? {}), ...subToolConfig },
           }) as BaseToolkit;
           for (const _tool of newToolkit.tools) {
             if (_tool.id == toolName.substring(ToolType.BUILD_IN.length + 1)) {
