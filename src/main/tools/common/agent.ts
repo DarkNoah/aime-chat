@@ -206,8 +206,10 @@ assistant: "I'm going to use the Task tool to launch the greeting-responder agen
     }
     const agent = await agentManager.buildAgent(subagent_type, {
       modelId: rootAgentModel,
-      tools: rootAgentTools
+      tools: rootAgentTools,
+      disableSubAgent: true
     });
+    // agent.tools
 
     const threadId = getSubAgentThreadId(toolCallId);
     const resourceId = `${rootResourceId}:${toolCallId}`;

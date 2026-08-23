@@ -140,7 +140,7 @@ class AgentManager extends BaseManager {
     if (!agentEntity) {
       throw new Error('Agent not found');
     }
-    let { tools = [], subAgents = [], instructions } = params || {};
+    let { tools = [], subAgents = [], instructions, disableSubAgent = false } = params || {};
 
     let _skills = []; //await skillManager.getClaudeSkills();
 
@@ -185,7 +185,7 @@ class AgentManager extends BaseManager {
     ];
     if (
       subAgentsInfo.length > 0 &&
-      !toolIds.includes(`${ToolType.BUILD_IN}:${AgentTool.toolName}`)
+      !toolIds.includes(`${ToolType.BUILD_IN}:${AgentTool.toolName}`) && !disableSubAgent
     ) {
       toolIds.push(`${ToolType.BUILD_IN}:${AgentTool.toolName}`);
     }
