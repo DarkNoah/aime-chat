@@ -243,6 +243,7 @@ assistant: "I'm going to use the Task tool to launch the greeting-responder agen
         options: {
           readOnly: false,
           lastMessages: false,
+          observationalMemory: true,
         },
       },
       abortSignal: abortSignal,
