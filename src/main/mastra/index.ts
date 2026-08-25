@@ -1037,7 +1037,7 @@ class MastraManager extends BaseManager {
       requestContext.set('compressedMessage', currentThread.metadata?.compressedMessage);
       requestContext.set(
         'maxContextSize',
-        modelInfo?.limit?.context ?? 64 * 1000,
+        modelInfo?.limit?.context ?? 256 * 1000,
       );
       requestContext.set('goal', goal);
       requestContext.set('usage', usage);

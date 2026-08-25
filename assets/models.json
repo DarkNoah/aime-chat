@@ -97007,7 +97007,8 @@
         },
         "cost": {
           "input": 0.1,
-          "output": 0.1
+          "output": 0.1,
+          "cache_read": 0.1
         }
       },
       "rekaai/reka-flash-3": {
@@ -97039,7 +97040,8 @@
         },
         "cost": {
           "input": 0.1,
-          "output": 0.2
+          "output": 0.2,
+          "cache_read": 0.1
         }
       },
       "stealth/ox-alpha": {
@@ -175348,7 +175350,8 @@
         },
         "cost": {
           "input": 0.1,
-          "output": 0.1
+          "output": 0.1,
+          "cache_read": 0.1
         }
       },
       "rekaai/reka-flash-3": {
@@ -175386,7 +175389,8 @@
         },
         "cost": {
           "input": 0.1,
-          "output": 0.2
+          "output": 0.2,
+          "cache_read": 0.1
         }
       },
       "stealth/claude-opus-4.8": {
