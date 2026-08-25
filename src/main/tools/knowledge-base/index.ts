@@ -407,21 +407,30 @@ ${content}
   };
 }
 
-export class KnowledgeBaseAdd extends BaseTool {
-  static readonly toolName = 'KnowledgeBaseAdd';
-  id: string = 'KnowledgeBaseAdd';
-  description = `Import a knowledge base source.
-Make sure the extended columns exist in the knowledge base in use. Use KnowledgeBaseList to retrieve the available extended columns.- if type is Text, source should be a string.
+export class KnowledgeBaseSaveItem extends BaseTool {
+  static readonly toolName = 'KnowledgeBaseSaveItem';
+  id: string = 'KnowledgeBaseSaveItem';
+  description = `Create or update a knowledge base item.
+Make sure the extended columns exist in the knowledge base in use. Use KnowledgeBaseList to retrieve the available extended columns.
 
+Create mode (item_id omitted): kb_source and type are required, and a new item is imported.
+- if type is Text, source should be a string.
 - if type is File, source should be a file full path.
 - if type is Folder, source should be a folder full path.
 - if type is Web, source should be a web url.
+- name is optional and sets the item title. Without it, the title falls back to the file name or a content preview. It is ignored for Folder, which creates one item per file.
+
+Update mode (item_id provided): the item is looked up by id and kb_source/type are ignored. Provide at least one of source, name, or extendColumns.
+- source replaces the item text content and re-chunks it, so pass the complete new content instead of a fragment. Use KnowledgeBaseGetItem first to read the current content.
+- extendColumns only updates the listed columns and keeps the rest untouched.
 `;
 
   inputSchema = z.object({
-    kb_source: z.string().describe('Knowledge Base id or name to add.'),
-    type: z.enum([KnowledgeBaseSourceType.Text, KnowledgeBaseSourceType.File, KnowledgeBaseSourceType.Folder, KnowledgeBaseSourceType.Web]).describe('The type of the knowledge base.'),
-    source: z.string().describe('The source of the knowledge base item.'),
+    item_id: z.string().optional().nullable().describe('Existing item id to update. Omit to create a new item.'),
+    kb_source: z.string().optional().nullable().describe('Knowledge Base id or name. Required when creating a new item.'),
+    type: z.enum([KnowledgeBaseSourceType.Text, KnowledgeBaseSourceType.File, KnowledgeBaseSourceType.Folder, KnowledgeBaseSourceType.Web]).optional().nullable().describe('The type of the source. Required when creating a new item.'),
+    source: z.string().optional().nullable().describe('The source of the knowledge base item. Required when creating a new item. When updating, it is the full new text content.'),
+    name: z.string().optional().nullable().describe('The item title. Optional when creating, and used to rename when updating.'),
     extendColumns: z.array(z.object({ column: z.string(), value: z.any() })).optional().nullable().describe('The extend columns of the knowledge base item.'),
   });
 
@@ -429,42 +438,88 @@ Make sure the extended columns exist in the knowledge base in use. Use Knowledge
     super(params);
   }
 
+  private assertExtendColumns(
+    kb: Awaited<ReturnType<typeof knowledgeBaseManager.getKnowledgeBase>>,
+    extendColumns: { column: string; value: any }[],
+  ) {
+    const kbExtendColumns = kb.vectorStoreConfig?.extendColumns ?? [];
+    for (const column of extendColumns) {
+      if (!kbExtendColumns.find(x => x.name === column.column)) {
+        throw new Error(`Extend column ${column.column} not found in knowledge base.
+Full extend columns:
+${JSON.stringify(kbExtendColumns, null, 2)}`);
+      }
+    }
+  }
+
   execute = async (inputData: z.infer<typeof this.inputSchema>, options?: ToolExecutionContext<ZodSchema, any>) => {
-    const { kb_source, type, source, extendColumns = [] } = inputData;
-    const { writer } = options;
+    const { item_id, kb_source, type, source, name, extendColumns } = inputData;
+    const columns = (extendColumns ?? []).map(x => ({ column: x.column, value: x.value }));
+
+    if (item_id) {
+      const item = await knowledgeBaseManager.getKnowledgeBaseItem(item_id);
+      if (!item) {
+        throw new Error(`Knowledge base item not found: ${item_id}`);
+      }
+      if (
+        typeof source !== 'string' &&
+        typeof name !== 'string' &&
+        columns.length === 0
+      ) {
+        throw new Error(
+          'Nothing to update. Provide at least one of source, name, or extendColumns.',
+        );
+      }
+      const kb = await knowledgeBaseManager.getKnowledgeBase(
+        item.knowledgeBaseId,
+      );
+      this.assertExtendColumns(kb, columns);
+      const updated = await knowledgeBaseManager.updateKnowledgeBaseItem(
+        item_id,
+        {
+          name: typeof name === 'string' ? name : undefined,
+          content: typeof source === 'string' ? source : undefined,
+          extendData:
+            columns.length > 0
+              ? Object.fromEntries(columns.map(x => [x.column, x.value]))
+              : undefined,
+        },
+      );
+      return {
+        success: true,
+        itemId: updated.id,
+        knowledgeBaseId: kb.id,
+      };
+    }
+
+    if (!kb_source || !type || typeof source !== 'string') {
+      throw new Error(
+        'kb_source, type and source are required when creating a new item.',
+      );
+    }
+
     const knowledgeBases = await knowledgeBaseManager.getKnowledgeBaseList();
     const kbId = knowledgeBases.find(x => x.name === kb_source || x.id === kb_source)?.id;
     if (!kbId) {
       throw new Error('Knowledge base not found');
     }
     const kb = await knowledgeBaseManager.getKnowledgeBase(kbId);
-    const kbExtendColumns = kb.vectorStoreConfig?.extendColumns ?? [];
-    if (extendColumns?.length > 0) {
-      for (const column of extendColumns) {
-        if (kbExtendColumns.find(x => x.name === column.column)) {
-          continue;
-        }
-        else {
-          throw new Error(`Extend column ${column.column} not found in knowledge base.
-Full extend columns:
-${JSON.stringify(kbExtendColumns, null, 2)}`);
-        }
-      }
-    }
+    this.assertExtendColumns(kb, columns);
 
+    const itemName = typeof name === 'string' && name.trim() ? name.trim() : undefined;
     let data;
     if (type == KnowledgeBaseSourceType.Text) {
-      data = { content: source };
+      data = { content: source, name: itemName };
     } else if (type == KnowledgeBaseSourceType.File) {
-      data = { files: [source] };
+      data = { files: [source], name: itemName };
     } else if (type == KnowledgeBaseSourceType.Folder) {
       data = source;
     } else if (type == KnowledgeBaseSourceType.Web) {
-      data = { url: source };
+      data = { url: source, name: itemName };
     }
 
-    const knowledgeBase = await knowledgeBaseManager.importSource({ kbId: kb.id, source: data, type, extendColumns: (extendColumns ?? []).map(x => ({ column: x.column, value: x.value })) });
-    return { success: true };
+    await knowledgeBaseManager.importSource({ kbId: kb.id, source: data, type, extendColumns: columns });
+    return { success: true, knowledgeBaseId: kb.id };
   }
 }
 
@@ -529,7 +584,7 @@ export class KnowledgeBaseToolkit extends BaseToolkit {
   constructor(params?: BaseToolkitParams) {
     const searchConfig = params?.[KnowledgeBaseSearch.toolName];
     const listConfig = params?.[KnowledgeBaseList.toolName];
-    const addConfig = params?.[KnowledgeBaseAdd.toolName];
+    const saveItemConfig = params?.[KnowledgeBaseSaveItem.toolName];
     const createConfig = params?.[KnowledgeBaseCreate.toolName];
     const getItemConfig = params?.[KnowledgeBaseGetItem.toolName];
     // const graphSearchConfig = params?.[KnowledgeBaseGraphSearch.toolName];
@@ -538,7 +593,7 @@ export class KnowledgeBaseToolkit extends BaseToolkit {
         new KnowledgeBaseSearch(searchConfig),
         // new KnowledgeBaseGraphSearch(graphSearchConfig),
         new KnowledgeBaseList(listConfig),
-        new KnowledgeBaseAdd(addConfig),
+        new KnowledgeBaseSaveItem(saveItemConfig),
         new KnowledgeBaseCreate(createConfig),
         new KnowledgeBaseGetItem(getItemConfig),
       ],

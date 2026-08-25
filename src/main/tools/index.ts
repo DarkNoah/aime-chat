@@ -1075,6 +1075,7 @@ class ToolsManager extends BaseManager {
             name: skill?.name || tool.name,
             description: skill?.description || tool.description,
             isActive: true,
+            autoLoad: tool.autoLoad ?? false,
             isToolkit: false,
             type: ToolType.SKILL,
           };
@@ -1242,6 +1243,9 @@ class ToolsManager extends BaseManager {
         tool.isActive = true;
       } else {
         tool.isActive = !tool.isActive;
+        if (!tool.isActive) {
+          tool.autoLoad = false;
+        }
       }
       // tool.name = skillInfo.name;
       await this.toolsRepository.save(tool);
@@ -1290,6 +1294,44 @@ class ToolsManager extends BaseManager {
 
       return tool;
     }
+  }
+
+  @channel(ToolChannel.SetSkillAutoLoad)
+  public async setSkillAutoLoad(data: { ids: string[]; autoLoad: boolean }) {
+    const ids = [...new Set(data.ids)].filter((id) =>
+      id.startsWith(`${ToolType.SKILL}:`),
+    );
+    if (ids.length === 0) {
+      return { updated: 0 };
+    }
+
+    const skills = await this.toolsRepository.findBy({
+      id: In(ids),
+      type: ToolType.SKILL,
+    });
+    for (const skill of skills) {
+      skill.autoLoad = data.autoLoad;
+      if (data.autoLoad) {
+        skill.isActive = true;
+      }
+    }
+    await this.toolsRepository.save(skills);
+    await appManager.sendEvent(ToolEvent.ToolListUpdated, {
+      ids: skills.map((skill) => skill.id),
+      status: 'updated',
+    });
+    return { updated: skills.length };
+  }
+
+  public async getAutoLoadSkillIds(): Promise<string[]> {
+    const skills = await this.toolsRepository.find({
+      where: {
+        type: ToolType.SKILL,
+        isActive: true,
+        autoLoad: true,
+      },
+    });
+    return skills.map((skill) => skill.id);
   }
 
   @channel(ToolChannel.ReconnectMCP)
@@ -1662,6 +1704,7 @@ class ToolsManager extends BaseManager {
         installAllSkills: req.body.installAllSkills as boolean,
         replaceSkillIds: req.body.replaceSkillIds as string[],
         isActive: req.body.isActive as boolean,
+        autoLoad: req.body.autoLoad as boolean,
         group: req.body.group as string | null | undefined,
       }];
     },
@@ -1677,6 +1720,7 @@ class ToolsManager extends BaseManager {
     installAllSkills?: boolean;
     replaceSkillIds?: string[];
     isActive?: boolean;
+    autoLoad?: boolean;
     group?: string | null;
   }) {
     let skillsPath;
@@ -1692,6 +1736,19 @@ class ToolsManager extends BaseManager {
     let repoUrl: string;
     let gitPath: string = '';
     const { repo_or_url, files, dirs, sourceSkillIds } = data;
+    const replacedSkillAutoLoadById = new Map<string, boolean>();
+    const resolveAutoLoad = async (toolId: string) => {
+      if (data.autoLoad !== undefined) {
+        return data.autoLoad;
+      }
+      if (replacedSkillAutoLoadById.has(toolId)) {
+        return replacedSkillAutoLoadById.get(toolId) ?? false;
+      }
+      const existingTool = await this.toolsRepository.findOne({
+        where: { id: toolId, type: ToolType.SKILL },
+      });
+      return existingTool?.autoLoad ?? true;
+    };
     if (sourceSkillIds && sourceSkillIds.length > 0) {
       const skilljson = await fs.promises
         .readFile(path.join(skillsPath, 'skills.json'), 'utf-8')
@@ -1767,6 +1824,7 @@ class ToolsManager extends BaseManager {
           const toolId = `${ToolType.SKILL}:local:${skillName}`;
           const tool = new Tools(toolId, skillName, ToolType.SKILL);
           tool.isActive = true;
+          tool.autoLoad = await resolveAutoLoad(toolId);
           tool.value = {
             path: skillDir,
             source: repo_or_url,
@@ -1917,6 +1975,12 @@ class ToolsManager extends BaseManager {
           };
         }
 
+        for (const existingSkill of existingSkills) {
+          replacedSkillAutoLoadById.set(
+            existingSkill.id,
+            existingSkill.autoLoad ?? false,
+          );
+        }
         for (const skillId of replaceSkillIds) {
           await this.deleteToolInternal(skillId, false);
         }
@@ -1932,12 +1996,14 @@ class ToolsManager extends BaseManager {
         );
         const source = [repoUrl.replace(/\/+$/, ""), "tree/main", selectedSkill.path.replaceAll("\\", "/"), "SKILL.md"].join("/");
         if (!data.path) {
+          const toolId = `${ToolType.SKILL}:local:${selectedSkill.id}`;
           const tool = new Tools(
-            `${ToolType.SKILL}:local:${selectedSkill.id}`,
+            toolId,
             selectedSkill.id,
             ToolType.SKILL,
           );
           tool.isActive = true;
+          tool.autoLoad = await resolveAutoLoad(toolId);
           tool.value = {
             path: path.join(skillsPath, selectedSkill.id),
             source: source,
@@ -2007,6 +2073,7 @@ class ToolsManager extends BaseManager {
             repo: data.group || undefined,
           };
           tool.isActive = true;
+          tool.autoLoad = await resolveAutoLoad(tool.id);
           // await this.toolsRepository.save(localSkill);
           skills.push({ tool, importPath: file, savePath });
           const skill = await skillManager.parseSkill(file, savePath);
@@ -2068,6 +2135,7 @@ class ToolsManager extends BaseManager {
             };
             tool.description = skillMdData.data.description;
             tool.isActive = true;
+            tool.autoLoad = await resolveAutoLoad(tool.id);
             await this.toolsRepository.save(tool);
             await appManager.sendEvent(ToolEvent.ToolListUpdated, {
               id: tool.id,
@@ -2182,8 +2250,11 @@ class ToolsManager extends BaseManager {
         } else {
           const subToolConfig = config?.[toolName] ?? {}
           const toolEntity = toolEntities.find((x) => x.id === toolName);
+          const toolKitEntity = await this.toolsRepository.findOne({
+            where: { type: ToolType.BUILD_IN, id: tool.id },
+          });
           const newToolkit = new tool.classType({
-            [toolEntity.name]: { ...(toolEntity.value ?? {}), ...subToolConfig },
+            [toolEntity.name]: { ...((toolEntity.value ?? toolKitEntity.value) ?? {}), ...subToolConfig },
           }) as BaseToolkit;
           for (const _tool of newToolkit.tools) {
             if (_tool.id == toolName.substring(ToolType.BUILD_IN.length + 1)) {

@@ -29,6 +29,7 @@ import {
   getSkillSearchKeywords,
   SkillSummary,
 } from '../skills-ui/skill-metadata';
+import { Badge } from '../ui/badge';
 
 export type SkillToolGroup = {
   id: string;
@@ -94,6 +95,30 @@ export const toggleSkillGroupSelection = (
   }
 
   return nextSelectedToolIds.concat(skillIds);
+};
+
+export const getEffectiveTools = (
+  tools: string[],
+  autoLoadSkillIds: string[],
+  disabledAutoSkills: string[],
+): string[] => [
+    ...new Set([
+      ...tools,
+      ...autoLoadSkillIds.filter((id) => !disabledAutoSkills.includes(id)),
+    ]),
+  ];
+
+export const splitToolSelection = (
+  selectedTools: string[],
+  autoLoadSkillIds: string[],
+) => {
+  const autoLoadIds = new Set(autoLoadSkillIds);
+  return {
+    tools: selectedTools.filter((id) => !autoLoadIds.has(id)),
+    disabledAutoSkills: autoLoadSkillIds.filter(
+      (id) => !selectedTools.includes(id),
+    ),
+  };
 };
 
 export type ChatToolSelectorProps = ComponentProps<typeof Dialog> & {
@@ -201,6 +226,24 @@ export const ChatToolSelector = ({
     }
 
     return <IconSquare className="ml-auto size-4" />;
+  };
+
+  const renderAutoLoadBadge = (tool: SkillToolGroup) => {
+    const autoLoadCount = tool.skills.filter((skill) => skill.autoLoad).length;
+    if (autoLoadCount === 0) {
+      return null;
+    }
+
+    return (
+      <Badge variant="secondary" className="ml-2">
+        {autoLoadCount === tool.skills.length
+          ? t('tools.auto_load_all')
+          : t('tools.auto_load_partial', {
+            count: autoLoadCount,
+            total: tool.skills.length,
+          })}
+      </Badge>
+    );
   };
 
   const groupedSkills = useMemo(
@@ -373,7 +416,9 @@ export const ChatToolSelector = ({
                           onChange?.(toggleSkillGroupSelection(value, tool))
                         }
                       >
-                        {tool.name} {renderSkillGroupCheckIcon(tool)}
+                        {tool.name}
+                        {renderAutoLoadBadge(tool)}
+                        {renderSkillGroupCheckIcon(tool)}
                       </CommandItem>
                       <div className="my-2">
                         <ToggleGroup
@@ -426,6 +471,11 @@ export const ChatToolSelector = ({
                         compact
                         showDescription={false}
                       />
+                      {tool.autoLoad ? (
+                        <Badge variant="secondary" className="ml-2">
+                          {t('tools.auto_badge')}
+                        </Badge>
+                      ) : null}
                       {value?.includes(tool.id) ? (
                         <CheckIcon className="ml-auto size-4" />
                       ) : (

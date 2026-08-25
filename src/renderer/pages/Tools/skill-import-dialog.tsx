@@ -82,6 +82,7 @@ export function SkillImportDialog({
   const [skills, setSkills] = useState<SkillInfo[]>([]);
   const [selectedGitUrl, setSelectedGitUrl] = useState<string>('');
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
+  const [autoLoad, setAutoLoad] = useState(true);
   const [loading, setLoading] = useState(false);
   const [importing, setImporting] = useState(false);
   const [searchHistory, setSearchHistory] =
@@ -133,6 +134,7 @@ export function SkillImportDialog({
     setSelectedSkills([]);
     setGitUrl('');
     setDroppedFiles([]);
+    setAutoLoad(true);
   };
   const handleDragOver = useCallback((e: DragEvent) => {
     e.preventDefault();
@@ -180,12 +182,14 @@ export function SkillImportDialog({
         const result = await window.electron.tools.importSkills({
           files: droppedFiles.map((x) => x.path),
           path: importPath,
+          autoLoad,
         });
       } else if (isDirectSkillUrl(gitUrl)) {
         const result = await window.electron.tools.importSkills({
           repo_or_url: gitUrl,
           selectedSkills: [],
           path: importPath,
+          autoLoad,
         });
         if (result && !result.success) {
           throw new Error(result.error);
@@ -195,6 +199,7 @@ export function SkillImportDialog({
           repo_or_url: gitUrl,
           selectedSkills,
           path: importPath,
+          autoLoad,
         });
       }
 
@@ -278,6 +283,23 @@ export function SkillImportDialog({
         <small className="text-muted-foreground text-sm">
           {t('tools.import_skill_tips')}
         </small>
+        {!importPath && (
+          <div className="flex items-start gap-3 rounded-md border p-3">
+            <Checkbox
+              aria-label={t('tools.import_skill_auto_load')}
+              checked={autoLoad}
+              onCheckedChange={(checked) => setAutoLoad(checked === true)}
+            />
+            <span className="flex flex-col gap-1">
+              <span className="text-sm font-medium">
+                {t('tools.import_skill_auto_load')}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                {t('tools.auto_load_hint')}
+              </span>
+            </span>
+          </div>
+        )}
         <div className="relative" ref={historyRef}>
           <InputGroup>
             <InputGroupInput

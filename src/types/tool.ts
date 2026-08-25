@@ -14,6 +14,7 @@ export type Tool = SkillMetadata & {
   name: string;
   description: string;
   isActive: boolean;
+  autoLoad?: boolean;
   isToolkit: boolean;
   type: ToolType;
   version?: string;

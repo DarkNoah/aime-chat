@@ -20,6 +20,7 @@ dependencies = [
     "voxcpm",
     "torch==${QWEN_AUDIO_TORCH_VERSION}",
     "torchaudio==${QWEN_AUDIO_TORCH_VERSION}",
+    "modelscope",
 ]
 
 [tool.uv]
@@ -53,6 +54,7 @@ dependencies = [
     "voxcpm",
     "qwen-asr",
     "qwen-tts>=0.1.1",
+    "modelscope"
 ]
 
 [tool.uv]
@@ -65,7 +67,7 @@ export function qwenAudioHealthCheckScript(isWindows: boolean) {
     return [
       'from importlib import metadata',
       'import torch, torchaudio',
-      'import qwen_tts, voxcpm',
+      'import qwen_tts, voxcpm, modelscope',
       "print(metadata.version('qwen-asr'))",
     ].join('; ');
   }

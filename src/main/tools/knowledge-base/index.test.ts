@@ -6,6 +6,7 @@ import {
   KnowledgeBaseCreate,
   KnowledgeBaseGetItem,
   KnowledgeBaseGraphSearch,
+  KnowledgeBaseSaveItem,
   KnowledgeBaseSearch,
   KnowledgeBaseToolkit,
 } from './index';
@@ -17,6 +18,8 @@ jest.mock('@/main/knowledge-base', () => {
     getKnowledgeBaseItem: jest.fn(),
     getKnowledgeBaseList: jest.fn(),
     searchKnowledgeBase: jest.fn(),
+    importSource: jest.fn(),
+    updateKnowledgeBaseItem: jest.fn(),
     libSQLClient: { execute: jest.fn() },
   };
   return {
@@ -228,6 +231,120 @@ describe('KnowledgeBaseGetItem', () => {
         format: 'json',
       }),
     ).rejects.toThrow('Knowledge base not found: kb-1');
+  });
+});
+
+describe('KnowledgeBaseSaveItem', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.mocked(knowledgeBaseManager.getKnowledgeBaseList).mockResolvedValue([
+      { id: 'kb-1', name: 'Docs' } as any,
+    ]);
+    jest.mocked(knowledgeBaseManager.getKnowledgeBase).mockResolvedValue({
+      id: 'kb-1',
+      name: 'Docs',
+      vectorStoreConfig: {
+        extendColumns: [{ columnType: 'text', name: 'category' }],
+      },
+    } as any);
+    jest.mocked(knowledgeBaseManager.getKnowledgeBaseItem).mockResolvedValue({
+      id: 'item-1',
+      knowledgeBaseId: 'kb-1',
+      name: 'Guide',
+      content: 'old content',
+    } as any);
+    jest
+      .mocked(knowledgeBaseManager.updateKnowledgeBaseItem)
+      .mockResolvedValue({ id: 'item-1' } as any);
+  });
+
+  it('replaces KnowledgeBaseAdd in the knowledge base toolkit', () => {
+    const toolIds = new KnowledgeBaseToolkit().getTools().map((tool) => tool.id);
+
+    expect(toolIds).toContain(KnowledgeBaseSaveItem.toolName);
+    expect(toolIds).not.toContain('KnowledgeBaseAdd');
+  });
+
+  it('imports a new source when item_id is omitted', async () => {
+    const result = await new KnowledgeBaseSaveItem().execute({
+      kb_source: 'Docs',
+      type: 'text' as any,
+      source: 'hello',
+      extendColumns: [{ column: 'category', value: 'docs' }],
+    });
+
+    expect(knowledgeBaseManager.importSource).toHaveBeenCalledWith({
+      kbId: 'kb-1',
+      source: { content: 'hello', name: undefined },
+      type: 'text',
+      extendColumns: [{ column: 'category', value: 'docs' }],
+    });
+    expect(result).toEqual({ success: true, knowledgeBaseId: 'kb-1' });
+  });
+
+  it.each([
+    ['text' as const, 'hello', { content: 'hello', name: 'Release notes' }],
+    ['file' as const, '/docs/a.md', { files: ['/docs/a.md'], name: 'Release notes' }],
+    ['web' as const, 'https://example.com', { url: 'https://example.com', name: 'Release notes' }],
+  ])('titles a new %s item with the name parameter', async (type, source, expected) => {
+    await new KnowledgeBaseSaveItem().execute({
+      kb_source: 'Docs',
+      type: type as any,
+      source,
+      name: '  Release notes  ',
+    });
+
+    expect(knowledgeBaseManager.importSource).toHaveBeenCalledWith(
+      expect.objectContaining({ source: expected, type }),
+    );
+  });
+
+  it('updates an existing item by item_id', async () => {
+    const result = await new KnowledgeBaseSaveItem().execute({
+      item_id: 'item-1',
+      source: 'new content',
+      name: 'New guide',
+      extendColumns: [{ column: 'category', value: 'guides' }],
+    });
+
+    expect(knowledgeBaseManager.importSource).not.toHaveBeenCalled();
+    expect(knowledgeBaseManager.updateKnowledgeBaseItem).toHaveBeenCalledWith(
+      'item-1',
+      {
+        name: 'New guide',
+        content: 'new content',
+        extendData: { category: 'guides' },
+      },
+    );
+    expect(result).toEqual({
+      success: true,
+      itemId: 'item-1',
+      knowledgeBaseId: 'kb-1',
+    });
+  });
+
+  it('rejects extend columns that the knowledge base does not define', async () => {
+    await expect(
+      new KnowledgeBaseSaveItem().execute({
+        item_id: 'item-1',
+        extendColumns: [{ column: 'unknown', value: 1 }],
+      }),
+    ).rejects.toThrow('Extend column unknown not found in knowledge base.');
+    expect(knowledgeBaseManager.updateKnowledgeBaseItem).not.toHaveBeenCalled();
+  });
+
+  it('requires at least one updatable field in update mode', async () => {
+    await expect(
+      new KnowledgeBaseSaveItem().execute({ item_id: 'item-1' }),
+    ).rejects.toThrow('Nothing to update.');
+  });
+
+  it('requires kb_source, type and source in create mode', async () => {
+    await expect(
+      new KnowledgeBaseSaveItem().execute({ source: 'hello' }),
+    ).rejects.toThrow(
+      'kb_source, type and source are required when creating a new item.',
+    );
   });
 });
 

@@ -26,6 +26,7 @@ Options:
     --file PATH        Packaged skill file, .skill or .zip (repeatable)
     --path DIR         Project working directory for a project-scoped install;
                        omit for a global install
+    --no-auto-load     Do not auto-load a global skill in every chat
 """
 
 import argparse
@@ -44,6 +45,9 @@ def main() -> int:
     parser.add_argument("--file", action="append", default=[], metavar="PATH",
                         help="packaged skill file, .skill or .zip (repeatable)")
     parser.add_argument("--path", help="project working directory; omit for a global install")
+    parser.add_argument("--no-auto-load", action="store_false", dest="auto_load",
+                        help="do not auto-load a global skill in every chat")
+    parser.set_defaults(auto_load=True)
     args = parser.parse_args()
 
     if not args.repo_or_url and not args.file:
@@ -63,6 +67,8 @@ def main() -> int:
         payload["files"] = args.file
     if args.path:
         payload["path"] = args.path
+    if not args.path:
+        payload["autoLoad"] = args.auto_load
 
     url = base.rstrip("/") + "/api/tools/import-skills"
     body = json.dumps(payload).encode("utf-8")

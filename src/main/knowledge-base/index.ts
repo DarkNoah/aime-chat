@@ -688,6 +688,28 @@ export class KnowledgeBaseManager extends BaseManager {
     await this.libSQLClient.batch(statements);
   }
 
+  private async updateChunkExtendColumns(
+    kb: KnowledgeBase,
+    itemId: string,
+    extendData: Record<string, any>,
+  ): Promise<void> {
+    const columns = (kb.vectorStoreConfig?.extendColumns ?? []).filter(
+      (column) =>
+        Object.prototype.hasOwnProperty.call(extendData ?? {}, column.name),
+    );
+    if (columns.length === 0) return;
+    const vectorTable = `kb_${kb.id}_${kb.vectorLength ?? 0}`;
+    await this.libSQLClient.execute({
+      sql: `UPDATE [${vectorTable}] SET ${columns
+        .map((column) => `${quoteIdentifier(column.name)} = ?`)
+        .join(', ')} WHERE item_id = ?`,
+      args: [
+        ...columns.map((column) => extendData[column.name] ?? null),
+        itemId,
+      ],
+    });
+  }
+
   private async deleteChunkRows(
     kb: KnowledgeBase,
     itemId: string,
@@ -1344,6 +1366,7 @@ export class KnowledgeBaseManager extends BaseManager {
       content?: string;
       source?: any;
       metadata?: any;
+      extendData?: Record<string, any>;
     },
   ): Promise<KnowledgeBaseItem> {
     let item = await this.knowledgeBaseItemRepository.findOne({
@@ -1370,6 +1393,14 @@ export class KnowledgeBaseManager extends BaseManager {
     item.name = nextName;
     if (typeof data.metadata !== 'undefined') {
       item.metadata = { ...(item.metadata ?? {}), ...(data.metadata ?? {}) };
+    }
+    let extendDataChanged = false;
+    if (data.extendData) {
+      const currentExtendData = item.extendData ?? {};
+      const nextExtendData = { ...currentExtendData, ...data.extendData };
+      extendDataChanged =
+        JSON.stringify(nextExtendData) !== JSON.stringify(currentExtendData);
+      item.extendData = nextExtendData;
     }
     if (typeof data.source !== 'undefined') {
       item.source = data.source;
@@ -1448,6 +1479,9 @@ export class KnowledgeBaseManager extends BaseManager {
         throw error;
       }
     } else {
+      if (extendDataChanged) {
+        await this.updateChunkExtendColumns(kb, item.id, item.extendData ?? {});
+      }
       item.updatedAt = new Date();
       item = await this.knowledgeBaseItemRepository.save(item);
     }
@@ -1552,7 +1586,7 @@ export class KnowledgeBaseManager extends BaseManager {
       item.state = KnowledgeBaseItemState.Pending;
 
       const content = source.content.trim();
-      item.name = source.name ?? content.substring(0, 10);
+      item.name = source.name?.trim() || content.substring(0, 10);
       item.content = content;
       if (source.role) {
         item.metadata = { ...(item.metadata ?? {}), role: source.role };
@@ -1625,7 +1659,7 @@ export class KnowledgeBaseManager extends BaseManager {
         url: source.url,
         // prompt: '请将网页内容转换为markdown格式'
       });
-      item.name = content.substring(0, 10);
+      item.name = source.name?.trim() || content.substring(0, 10);
       item.content = content;
       if (extendColumns && extendColumns.length > 0) {
         item.extendData = Object.fromEntries(extendColumns.map(x => [x.column, x.value]));
@@ -1693,9 +1727,12 @@ export class KnowledgeBaseManager extends BaseManager {
 
 
       const items: KnowledgeBaseItem[] = [];
+      // A caller-provided name can only identify a single item.
+      const customName =
+        source.files.length === 1 ? source.name?.trim() : undefined;
       for (const file of source.files) {
         const item = new KnowledgeBaseItem(nanoid(), kbId, undefined, type);
-        item.name = path.basename(file);
+        item.name = customName || path.basename(file);
         item.source = file;
         item.isEnable = false;
         item.state = KnowledgeBaseItemState.Pending;

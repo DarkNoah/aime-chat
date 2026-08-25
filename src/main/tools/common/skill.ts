@@ -205,6 +205,7 @@ export class SkillManager {
           ),
         source: tool.value?.source,
         repo: tool.value?.repo,
+        autoLoad: tool.autoLoad ?? false,
       };
     });
   }
@@ -382,6 +383,7 @@ export class SkillManager {
           repo,
           type: ToolType.SKILL,
           isActive: localSkill.isActive,
+          autoLoad: localSkill.autoLoad ?? false,
         };
       } catch (err) {
         console.error(`Error reading skill file: ${err}`);
@@ -395,6 +397,7 @@ export class SkillManager {
           repo,
           type: ToolType.SKILL,
           isActive: localSkill.isActive,
+          autoLoad: localSkill.autoLoad ?? false,
         };
       }
     }

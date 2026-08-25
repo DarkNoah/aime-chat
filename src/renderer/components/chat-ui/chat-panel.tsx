@@ -663,6 +663,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
           model: options?.model,
           webSearch: options?.webSearch,
           tools: options?.tools,
+          disabledAutoSkills: options?.disabledAutoSkills,
           subAgents: options?.subAgents,
           think: options?.think,
           requireToolApproval: options?.requireToolApproval,
@@ -700,6 +701,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
           approved,
           resumeData,
           tools: chatInputRef.current?.getTools(),
+          disabledAutoSkills: chatInputRef.current?.getDisabledAutoSkills(),
           toolCallId,
           requireToolApproval,
         };
@@ -718,6 +720,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
         projectId,
         threadId,
         tools: chatInputRef.current?.getTools(),
+        disabledAutoSkills: chatInputRef.current?.getDisabledAutoSkills(),
         requireToolApproval,
       });
     }, [
@@ -925,6 +928,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
         think?: boolean;
         goal?: GoalConfig;
         tools?: string[];
+        disabledAutoSkills?: string[];
         subAgents?: string[];
         requireToolApproval?: boolean;
       },
@@ -959,6 +963,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
         model: options?.model,
         webSearch: options?.webSearch,
         tools: options?.tools,
+        disabledAutoSkills: options?.disabledAutoSkills,
         subAgents: options?.subAgents,
         think: options?.think,
         goal: options?.goal,
@@ -1074,6 +1079,9 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
           if (!_thread?.metadata?.tools) {
             chatInputRef.current?.setTools((_agent?.tools as string[]) ?? []);
           }
+          chatInputRef.current?.setDisabledAutoSkills(
+            (_thread?.metadata?.disabledAutoSkills as string[]) ?? [],
+          );
           if (!_thread?.metadata?.subAgents) {
             chatInputRef.current?.setSubAgents(
               (_agent?.subAgents as string[]) ?? [],
@@ -1162,6 +1170,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
           .getAgent(appInfo?.defaultAgent)
           .then((_agent) => {
             chatInputRef.current?.setTools(_agent?.tools ?? []);
+            chatInputRef.current?.setDisabledAutoSkills([]);
             chatInputRef.current?.setSubAgents(_agent?.subAgents ?? []);
             return null;
           })
@@ -1173,14 +1182,14 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
     }, [threadId]);
 
     useEffect(() => {
-      if (
-        threadState?.metadata?.tools &&
-        threadState?.metadata?.tools.length > 0
-      ) {
+      if (threadState?.metadata?.tools) {
         chatInputRef.current?.setTools(
           threadState?.metadata?.tools as string[],
         );
       }
+      chatInputRef.current?.setDisabledAutoSkills(
+        (threadState?.metadata?.disabledAutoSkills as string[]) ?? [],
+      );
     }, [threadState]);
 
     const handleShowHistory = async () => {

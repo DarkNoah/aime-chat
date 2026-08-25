@@ -1,6 +1,8 @@
 import { Tool, ToolType } from '@/types/tool';
 import {
+  getEffectiveTools,
   groupSkillsByRepo,
+  splitToolSelection,
   toggleSkillGroupSelection,
 } from './chat-tool-selector';
 
@@ -89,5 +91,29 @@ describe('toggleSkillGroupSelection', () => {
         group,
       ),
     ).toEqual(['build-in:Read']);
+  });
+});
+
+describe('auto-loaded skill selection', () => {
+  it('merges auto-loaded skills while respecting session exclusions', () => {
+    expect(
+      getEffectiveTools(
+        ['build-in:Read', 'skill:auto-one'],
+        ['skill:auto-one', 'skill:auto-two'],
+        ['skill:auto-two'],
+      ),
+    ).toEqual(['build-in:Read', 'skill:auto-one']);
+  });
+
+  it('stores auto-loaded deselections separately from manual tools', () => {
+    expect(
+      splitToolSelection(
+        ['build-in:Read', 'skill:auto-one'],
+        ['skill:auto-one', 'skill:auto-two'],
+      ),
+    ).toEqual({
+      tools: ['build-in:Read'],
+      disabledAutoSkills: ['skill:auto-two'],
+    });
   });
 });

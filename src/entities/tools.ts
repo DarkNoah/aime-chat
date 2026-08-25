@@ -1,5 +1,6 @@
 import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
 import { ToolType } from '@/types/tool';
+
 @Entity('tools')
 export class Tools {
   constructor(id: string, name: string, type: ToolType) {
@@ -26,6 +27,9 @@ export class Tools {
 
   @Column({ default: false })
   isActive?: boolean;
+
+  @Column({ default: false, nullable: true })
+  autoLoad?: boolean;
 
   @Column('json', { nullable: true })
   value?: any;

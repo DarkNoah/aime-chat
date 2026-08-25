@@ -126,6 +126,7 @@ export enum ToolChannel {
   GetList = 'tool:getList',
   GetTool = 'tool:getTool',
   ToggleToolActive = 'tool:toggleToolActive',
+  SetSkillAutoLoad = 'tool:setSkillAutoLoad',
   ExecuteTool = 'tool:executeTool',
   AbortTool = 'tool:abortTool',
   UpdateToolConfig = 'tool:updateToolConfig',
