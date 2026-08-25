@@ -108,6 +108,18 @@ function ToolDetail() {
     }
   };
 
+  const handleSkillAutoLoadChange = async (autoLoad: boolean) => {
+    try {
+      await window.electron.tools.setSkillAutoLoad({
+        ids: [id],
+        autoLoad,
+      });
+      await getTool();
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+
   const handleSubmit = async (toolName: string, data: any) => {
     setToolExecuting((prve) => ({
       ...prve,
@@ -148,7 +160,7 @@ function ToolDetail() {
     if (!toolExecuting[toolName]) return;
     try {
       await window.electron.tools.abortTool(tool.id, toolName);
-    } catch (err) {}
+    } catch (err) { }
   };
 
   const handleDelete = async (toolId: string) => {
@@ -242,7 +254,7 @@ function ToolDetail() {
                 ) : null}
 
                 {tool?.type === ToolType.SKILL &&
-                getSkillDisplayName(tool) !== tool.name ? (
+                  getSkillDisplayName(tool) !== tool.name ? (
                   <code className="text-xs text-muted-foreground">
                     {tool.name}
                   </code>
@@ -267,10 +279,28 @@ function ToolDetail() {
                   uiSchema={ToolConfig[tool?.name].uiSchema}
                 />
               )}
-              <Switch
-                checked={tool?.isActive}
-                onCheckedChange={handleToggleToolActive}
-              ></Switch>
+              <div className="flex items-center gap-2 text-sm">
+                <Switch
+                  checked={tool?.isActive}
+                  onCheckedChange={handleToggleToolActive}
+                ></Switch>
+                <span>
+                  {tool?.isActive
+                    ? t('tools.tool_active', 'Activated')
+                    : t('tools.tool_inactive', 'Deactivated')}
+                </span>
+              </div>
+
+              {tool?.type === ToolType.SKILL && (
+                <div className="flex items-center gap-2 text-sm">
+                  <Switch
+                    aria-label={t('tools.auto_load')}
+                    checked={tool.autoLoad ?? false}
+                    onCheckedChange={handleSkillAutoLoadChange}
+                  />
+                  <span>{t('tools.auto_load')}</span>
+                </div>
+              )}
               {tool?.type === ToolType.MCP && (
                 <>
                   <ToolEditDialog

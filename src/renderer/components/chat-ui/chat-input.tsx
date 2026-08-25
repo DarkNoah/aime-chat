@@ -66,7 +66,11 @@ import {
   ContextTrigger,
 } from '../ai-elements/context';
 import { Suggestion, Suggestions } from '../ai-elements/suggestion';
-import { ChatToolSelector } from './chat-tool-selector';
+import {
+  ChatToolSelector,
+  getEffectiveTools,
+  splitToolSelection,
+} from './chat-tool-selector';
 import { IconAlertCircle, IconTrash } from '@tabler/icons-react';
 import { Separator } from '../ui/separator';
 import {
@@ -90,7 +94,7 @@ import {
 import { ChatSlashCommandConfig, GoalConfig } from '@/types/chat';
 import { ChatGoal } from './chat-goal';
 import { getChatInputSubmitState } from './chat-input-submit-state';
-import { ToolType } from '@/types/tool';
+import { ToolEvent, ToolType } from '@/types/tool';
 import type { ChatFileSelectionReference } from '@/renderer/lib/chat-file-selection';
 
 const DRAFT_STORAGE_KEY = 'chat-input-drafts';
@@ -128,6 +132,7 @@ export type ChatInputProps = Omit<PromptInputProps, 'onSubmit'> & {
       webSearch?: boolean;
       think?: boolean;
       tools?: string[];
+      disabledAutoSkills?: string[];
       subAgents?: string[];
       requireToolApproval?: boolean;
       agentId?: string;
@@ -159,11 +164,13 @@ export interface ChatInputRef {
   setInput: (input: string) => void;
   setModel: (model: string) => void;
   setTools: (toolNames: string[]) => void;
+  setDisabledAutoSkills: (skillIds: string[]) => void;
   setSubAgents: (subAgentIds: string[]) => void;
   setThink: (think: boolean) => void;
   setGoal: (goal: GoalConfig) => void;
   insertFileSelections: (references: ChatFileSelectionReference[]) => void;
   getTools: () => string[];
+  getDisabledAutoSkills: () => string[];
 }
 
 type ChatInputInnerProps = ChatInputProps & {
@@ -221,6 +228,8 @@ function ChatInputInner(props: ChatInputInnerProps) {
   const [useMicrophone, setUseMicrophone] = useState<boolean>(false);
   const [think, setThink] = useState(false);
   const [tools, setTools] = useState<string[]>([]);
+  const [autoLoadSkillIds, setAutoLoadSkillIds] = useState<string[]>([]);
+  const [disabledAutoSkills, setDisabledAutoSkills] = useState<string[]>([]);
   const [subAgents, setSubAgents] = useState<string[]>([]);
   const [slashCommands, setSlashCommands] = useState<SlashCommandDefinition[]>(
     ChatSlashCommandConfig,
@@ -264,13 +273,21 @@ function ChatInputInner(props: ChatInputInnerProps) {
       onModelChange?.(_model);
     },
     setTools: (toolNames: string[]) => {
-      setTools(toolNames ?? []);
+      setTools(
+        (toolNames ?? []).filter((id) => !autoLoadSkillIds.includes(id)),
+      );
+    },
+    setDisabledAutoSkills: (skillIds: string[]) => {
+      setDisabledAutoSkills(skillIds ?? []);
     },
     setGoal: (_goal: GoalConfig) => {
       setGoal(_goal ?? { enable: false, objective: '', status: null });
     },
     getTools: () => {
       return tools;
+    },
+    getDisabledAutoSkills: () => {
+      return disabledAutoSkills;
     },
     setSubAgents: (subAgentIds: string[]) => {
       setSubAgents(subAgentIds ?? []);
@@ -290,6 +307,11 @@ function ChatInputInner(props: ChatInputInnerProps) {
   const getSlashCommands = useCallback(async () => {
     const commands: SlashCommandDefinition[] = [...ChatSlashCommandConfig];
     const availableTools = await window.electron.tools.getAvailableTools();
+    setAutoLoadSkillIds(
+      (availableTools[ToolType.SKILL] ?? [])
+        .filter((skill) => skill.autoLoad)
+        .map((skill) => skill.id),
+    );
 
     const skills: SlashCommandDefinition[] = (
       availableTools[ToolType.SKILL] ?? []
@@ -305,7 +327,40 @@ function ChatInputInner(props: ChatInputInnerProps) {
 
   useEffect(() => {
     getSlashCommands().catch(() => undefined);
+    const handleToolListUpdated = () => {
+      getSlashCommands().catch(() => undefined);
+    };
+    window.electron.ipcRenderer.on(
+      ToolEvent.ToolListUpdated,
+      handleToolListUpdated,
+    );
+    return () => {
+      window.electron.ipcRenderer.removeListener(
+        ToolEvent.ToolListUpdated,
+        handleToolListUpdated,
+      );
+    };
   }, [getSlashCommands]);
+
+  useEffect(() => {
+    const autoLoadIds = new Set(autoLoadSkillIds);
+    setTools((current) => current.filter((id) => !autoLoadIds.has(id)));
+    setDisabledAutoSkills((current) =>
+      current.filter((id) => autoLoadIds.has(id)),
+    );
+  }, [autoLoadSkillIds]);
+
+  const effectiveTools = getEffectiveTools(
+    tools,
+    autoLoadSkillIds,
+    disabledAutoSkills,
+  );
+
+  const handleToolsChange = (nextTools: string[]) => {
+    const nextSelection = splitToolSelection(nextTools, autoLoadSkillIds);
+    setTools(nextSelection.tools);
+    setDisabledAutoSkills(nextSelection.disabledAutoSkills);
+  };
 
   const handleInstantSlashItem = useCallback(
     (item: SlashCommandDefinition) => {
@@ -317,13 +372,23 @@ function ChatInputInner(props: ChatInputInnerProps) {
             webSearch,
             think,
             tools,
+            disabledAutoSkills,
             subAgents,
             requireToolApproval,
           },
         );
       }
     },
-    [model, onSubmit, requireToolApproval, subAgents, think, tools, webSearch],
+    [
+      disabledAutoSkills,
+      model,
+      onSubmit,
+      requireToolApproval,
+      subAgents,
+      think,
+      tools,
+      webSearch,
+    ],
   );
 
   return (
@@ -352,6 +417,7 @@ function ChatInputInner(props: ChatInputInnerProps) {
                 webSearch,
                 think,
                 tools,
+                disabledAutoSkills,
                 subAgents,
                 requireToolApproval,
               });
@@ -420,16 +486,19 @@ function ChatInputInner(props: ChatInputInnerProps) {
                 </PromptInputButton>
               )}
               {showToolSelector && (
-                <ChatToolSelector value={tools} onChange={setTools}>
+                <ChatToolSelector
+                  value={effectiveTools}
+                  onChange={handleToolsChange}
+                >
                   <div className="relative">
                     <PromptInputButton
                       size="icon-xs"
-                      variant={tools.length > 0 ? 'default' : 'ghost'}
+                      variant={effectiveTools.length > 0 ? 'default' : 'ghost'}
                     >
                       <WrenchIcon size={16} />
                     </PromptInputButton>
                     <div className="absolute top-3 right-0.5 text-[9px] ">
-                      {tools.length}
+                      {effectiveTools.length}
                     </div>
                   </div>
                 </ChatToolSelector>

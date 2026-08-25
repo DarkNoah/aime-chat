@@ -9,4 +9,5 @@ export interface SkillInfo extends SkillMetadata {
   skillmd?: string;
   source?: string;
   repo?: string;
+  autoLoad?: boolean;
 }

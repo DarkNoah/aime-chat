@@ -9,6 +9,7 @@ export type BuildAgentParams = {
   requestContext?: RequestContext<ChatRequestContext>;
   instructions?: string;
   disableSubAgent?: boolean;
+  maxRetries?: number;
 };
 
 export type Agent = {

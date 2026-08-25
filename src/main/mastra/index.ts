@@ -851,6 +851,7 @@ class MastraManager extends BaseManager {
       webSearch,
       think = true,
       tools = [],
+      disabledAutoSkills: inputDisabledAutoSkills,
       subAgents = [],
       runId,
       chatId,
@@ -911,6 +912,18 @@ class MastraManager extends BaseManager {
     if (tools.length === 0) {
       tools = agentEntity.tools as string[];
     }
+    let selectedTools = [...tools];
+    let disabledAutoSkills =
+      inputDisabledAutoSkills ??
+      ((threadMetadata.disabledAutoSkills as string[] | undefined) ??
+        []);
+    const autoLoadSkillIds = await toolsManager.getAutoLoadSkillIds();
+    tools = [
+      ...new Set([
+        ...tools.filter((id) => !disabledAutoSkills.includes(id)),
+        ...autoLoadSkillIds.filter((id) => !disabledAutoSkills.includes(id)),
+      ]),
+    ];
     if (
       data.subAgents === undefined &&
       Array.isArray(threadMetadata.subAgents)
@@ -975,7 +988,8 @@ class MastraManager extends BaseManager {
         title: currentThread.title,
         metadata: {
           ...(currentThread.metadata || {}),
-          tools: tools,
+          tools: selectedTools,
+          disabledAutoSkills,
           subAgents,
           agentId: agentId,
           model: model,
@@ -1302,8 +1316,21 @@ class MastraManager extends BaseManager {
         pending: PendingChatMessageInput,
         systemReminder = false,
       ) => {
+        if (pending.options?.disabledAutoSkills !== undefined) {
+          disabledAutoSkills = pending.options.disabledAutoSkills;
+        }
         if (pending.options?.tools) {
-          tools = pending.options.tools;
+          selectedTools = pending.options.tools;
+          tools = [
+            ...new Set([
+              ...pending.options.tools.filter(
+                (id) => !disabledAutoSkills.includes(id),
+              ),
+              ...autoLoadSkillIds.filter(
+                (id) => !disabledAutoSkills.includes(id),
+              ),
+            ]),
+          ];
           requestContext.set('tools', tools);
         }
         if (pending.options?.subAgents) {
@@ -1396,12 +1423,15 @@ class MastraManager extends BaseManager {
                   if (skill) {
                     if (!tools.includes(skill.id)) {
                       tools.push(skill.id);
+                      selectedTools = [
+                        ...new Set([...selectedTools, skill.id]),
+                      ];
                       currentThread = await memoryStore.updateThread({
                         id: chatId,
                         title: currentThread.title,
                         metadata: {
                           ...(currentThread.metadata || {}),
-                          tools: tools,
+                          tools: selectedTools,
                         },
                       });
                       appManager.sendEvent(`chat:event:${chatId}`, {
@@ -1625,7 +1655,8 @@ class MastraManager extends BaseManager {
             metadata: {
               ...(currentThread.metadata || {}),
               tasks,
-              tools: tools,
+              tools: selectedTools,
+              disabledAutoSkills,
               skillsLoaded: skillsLoaded,
               fileLastReadTime: fileLastReadTime,
             },

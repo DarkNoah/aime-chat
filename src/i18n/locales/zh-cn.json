@@ -417,6 +417,13 @@
     "create_skill": "创建技能",
     "import_skill": "导入技能",
     "import_skill_tips": "只能导入打包后的skill包如 *.skill",
+    "import_skill_auto_load": "全局默认载入",
+    "auto_load": "自动载入",
+    "auto_load_hint": "开启后无需在聊天输入框下方手动选择，模型会按需调用该技能。",
+    "auto_load_all": "全部自动载入",
+    "auto_load_partial": "部分自动载入（{{count}}/{{total}}）",
+    "auto_load_off": "未自动载入",
+    "auto_badge": "自动",
     "search_skills": "搜索技能",
     "skill_entrypoints": "可用命令",
     "update_skill_group": "更新整组",
@@ -432,7 +439,9 @@
     "interactive_html_tips": "提示",
     "interactive_html_submitted": "交互结果已提交",
     "interactive_html_error": "交互组件错误：{{error}}",
-    "interactive_html_invalid_resume_data": "resumeData 必须是可 JSON 序列化的对象"
+    "interactive_html_invalid_resume_data": "resumeData 必须是可 JSON 序列化的对象",
+    "tool_inactive": "已禁用",
+    "tool_active": "已启用"
   },
   "tool_name": {
     "codeexecution": "代码执行",
@@ -831,5 +840,10 @@
     "waiting_output": "等待输出...",
     "home_directory": "~",
     "empty": "暂无后台 Bash 会话"
+  },
+  "translation": {
+    "tools": {
+      "tool_active": ""
+    }
   }
 }

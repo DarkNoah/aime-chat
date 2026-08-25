@@ -13,6 +13,7 @@ import { Tool, ToolEvent, ToolType } from '@/types/tool';
 import { useHeader } from '@/renderer/hooks/use-title';
 import { Button } from '@/renderer/components/ui/button';
 import { Badge } from '@/renderer/components/ui/badge';
+import { Switch } from '@/renderer/components/ui/switch';
 import {
   Item,
   ItemActions,
@@ -54,8 +55,23 @@ export default function SkillGroupDetail() {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [autoLoadUpdating, setAutoLoadUpdating] = useState(false);
 
   const groupName = useMemo(() => getRepoDisplayName(repo), [repo]);
+  const autoLoadCount = useMemo(
+    () => skills.filter((skill) => skill.autoLoad).length,
+    [skills],
+  );
+  const allAutoLoad = skills.length > 0 && autoLoadCount === skills.length;
+  let autoLoadStatus = t('tools.auto_load_off');
+  if (allAutoLoad) {
+    autoLoadStatus = t('tools.auto_load_all');
+  } else if (autoLoadCount > 0) {
+    autoLoadStatus = t('tools.auto_load_partial', {
+      count: autoLoadCount,
+      total: skills.length,
+    });
+  }
 
   const loadSkills = useCallback(
     async (showLoading = true) => {
@@ -148,6 +164,19 @@ export default function SkillGroupDetail() {
     }
   };
 
+  const handleSetAutoLoad = async (ids: string[], autoLoad: boolean) => {
+    if (ids.length === 0 || autoLoadUpdating) return;
+    setAutoLoadUpdating(true);
+    try {
+      await window.electron.tools.setSkillAutoLoad({ ids, autoLoad });
+      await loadSkills(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : String(error));
+    } finally {
+      setAutoLoadUpdating(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -189,6 +218,20 @@ export default function SkillGroupDetail() {
           </ItemDescription>
         </ItemContent>
         <ItemActions className="gap-2">
+          <div className="flex items-center gap-2 text-sm">
+            <Switch
+              aria-label={t('tools.auto_load')}
+              checked={allAutoLoad}
+              disabled={autoLoadUpdating || updating || deleting}
+              onCheckedChange={() =>
+                handleSetAutoLoad(
+                  skills.map((skill) => skill.id),
+                  !allAutoLoad,
+                )
+              }
+            />
+            <span>{autoLoadStatus}</span>
+          </div>
           <Button
             variant="outline"
             size="sm"
@@ -264,6 +307,23 @@ export default function SkillGroupDetail() {
               <ItemTitle>{getSkillDisplayName(skill)}</ItemTitle>
               <ItemDescription>{skill.description}</ItemDescription>
             </ItemContent>
+            <ItemActions
+              onClick={(event) => {
+                event.stopPropagation();
+              }}
+            >
+              <div className="flex items-center gap-2 text-sm">
+                <span>{t('tools.auto_load')}</span>
+                <Switch
+                  aria-label={t('tools.auto_load')}
+                  checked={skill.autoLoad ?? false}
+                  disabled={autoLoadUpdating}
+                  onCheckedChange={(autoLoad) =>
+                    handleSetAutoLoad([skill.id], autoLoad)
+                  }
+                />
+              </div>
+            </ItemActions>
           </Item>
         ))}
       </section>

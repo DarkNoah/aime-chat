@@ -8,6 +8,7 @@ import { appManager } from "@/main/app";
 import { AgentExecutionOptions } from "@mastra/core/agent";
 import mastraManager from "@/main/mastra";
 import { getSubAgentThreadId } from "@/utils/subagent-thread";
+import { OpenAIChatLanguageModelOptions } from "@ai-sdk/openai";
 
 export interface AgentToolParams extends BaseToolParams {
   subAgents: SubAgentInfo[] | string[];
@@ -207,7 +208,8 @@ assistant: "I'm going to use the Task tool to launch the greeting-responder agen
     const agent = await agentManager.buildAgent(subagent_type, {
       modelId: rootAgentModel,
       tools: rootAgentTools,
-      disableSubAgent: true
+      disableSubAgent: true,
+      maxRetries: 3,
     });
     // agent.tools
 
@@ -235,6 +237,13 @@ assistant: "I'm going to use the Task tool to launch the greeting-responder agen
           'X-AIME-CHAT-THREAD-ID': rootThreadId,
         }
       },
+      providerOptions: {
+        openai: {
+          store: false,
+          reasoningEffort: appInfo.defaultThink ?? undefined,
+          reasoningSummary: "auto",
+        } as OpenAIChatLanguageModelOptions,
+      },
       requestContext: requestContext,
       maxSteps: 100,
       memory: {
@@ -249,7 +258,7 @@ assistant: "I'm going to use the Task tool to launch the greeting-responder agen
         },
       },
       abortSignal: abortSignal,
-      savePerStep: true
+      savePerStep: true,
     };
     // const model = await providersManager.getLanguageModel(model);
     const stream = await agent.stream(prompt, streamOptions);
@@ -279,7 +288,7 @@ assistant: "I'm going to use the Task tool to launch the greeting-responder agen
       }
 
       // await writer.write(chunk);
-      console.log(chunk.type);
+      // console.log(chunk.type);
     }
 
     if (abortSignal?.aborted) {
@@ -289,14 +298,14 @@ assistant: "I'm going to use the Task tool to launch the greeting-responder agen
     // await stream.textStream.pipeTo(writer);
     // await stream.fullStream.pipeTo(writer);
 
-    if (stream.status === 'success') {
+    if (stream.status === 'success' && !stream.error?.message) {
 
       return stream.text || (await stream.content)
         .filter((x) => x.type === 'text')
         .map((x) => x.text)
         .join('\n');
     } else {
-      return stream.error;
+      return stream.error?.message;
     }
   };
 }

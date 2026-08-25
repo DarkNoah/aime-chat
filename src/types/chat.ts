@@ -26,6 +26,7 @@ export type ChatInput = {
   think?: boolean;
   runId?: string;
   tools?: string[];
+  disabledAutoSkills?: string[];
   subAgents?: string[];
   requireToolApproval: boolean;
   options?: {
@@ -179,6 +180,7 @@ export type ChatSubmitOptions = {
   webSearch?: boolean;
   think?: boolean;
   tools?: string[];
+  disabledAutoSkills?: string[];
   goal?: GoalConfig;
   subAgents?: string[];
   approved?: boolean;

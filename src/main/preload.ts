@@ -467,6 +467,7 @@ const electronHandler = {
         content?: string;
         source?: any;
         metadata?: any;
+        extendData?: Record<string, any>;
       },
     ): Promise<KnowledgeBaseItem> =>
       ipcRenderer.invoke(
@@ -501,6 +502,8 @@ const electronHandler = {
       ipcRenderer.invoke(ToolChannel.AbortTool, id, toolName),
     toggleToolActive: (id: string) =>
       ipcRenderer.invoke(ToolChannel.ToggleToolActive, id),
+    setSkillAutoLoad: (data: { ids: string[]; autoLoad: boolean }) =>
+      ipcRenderer.invoke(ToolChannel.SetSkillAutoLoad, data),
     updateToolConfig: (id: string, value: any) =>
       ipcRenderer.invoke(ToolChannel.UpdateToolConfig, id, value),
     reconnectMCP: (id: string) =>
@@ -519,6 +522,7 @@ const electronHandler = {
       installAllSkills?: boolean;
       replaceSkillIds?: string[];
       isActive?: boolean;
+      autoLoad?: boolean;
       group?: string | null;
     }) => ipcRenderer.invoke(ToolChannel.ImportSkills, data),
     previewGitSkill: (data: { gitUrl: string }) =>

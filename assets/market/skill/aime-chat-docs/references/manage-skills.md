@@ -13,7 +13,7 @@ API 地址从环境变量 `AIME_CHAT_API_BASE_URL` 读取（例如 `http://local
 
 ## 使用范围
 
-全局 skill 安装在 Aime Chat 用户数据目录中。可通过环境变量 `AIME_CHAT_SKILL_PATH` 获得 Aime Chat skill 的放置目录。
+全局 skill 安装在 Aime Chat 用户数据目录中。可通过环境变量 `AIME_CHAT_SKILL_PATH` 获得 Aime Chat skill 的放置目录。新导入的全局 skill 默认会自动载入，无需在聊天输入框下方手动选择；若不需要自动载入，传入 `autoLoad: false`（脚本参数为 `--no-auto-load`）。
 
 项目 skill 安装在当前工作目录的 `.aime-chat/skills` 目录下。通过 API 导入项目 skill 时，传入 `--path "$PWD"`，Aime Chat 会自动复制 skill 文件夹并添加或修改 `.aime-chat/skills/skills.json`。
 
@@ -44,6 +44,15 @@ python scripts/preview_git_skill.py https://github.com/resciencelab/opc-skills
 python scripts/import_skills.py \
   --repo-or-url https://github.com/resciencelab/opc-skills \
   --skill skills/reddit
+```
+
+若只想安装但不全局自动载入：
+
+```bash
+python scripts/import_skills.py \
+  --repo-or-url https://github.com/resciencelab/opc-skills \
+  --skill skills/reddit \
+  --no-auto-load
 ```
 
 也可以直接传到 `SKILL.md` 的完整地址。单个 `SKILL.md` 地址会自动导入该 skill：

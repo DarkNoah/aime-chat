@@ -31668,6 +31668,31 @@
           "output": 0
         }
       },
+      "alibaba/wan-v3.0-video": {
+        "id": "alibaba/wan-v3.0-video",
+        "name": "Wan v3.0 Video",
+        "description": "Video model for prompt-guided generation, editing, and motion workflows",
+        "family": "o",
+        "attachment": true,
+        "reasoning": false,
+        "tool_call": false,
+        "release_date": "2026-08-23",
+        "last_updated": "2026-08-23",
+        "modalities": {
+          "input": [
+            "text",
+            "image"
+          ],
+          "output": [
+            "video"
+          ]
+        },
+        "open_weights": false,
+        "limit": {
+          "context": 0,
+          "output": 0
+        }
+      },
       "alibaba/qwen3-coder-plus": {
         "id": "alibaba/qwen3-coder-plus",
         "name": "Qwen3 Coder Plus",
@@ -87061,9 +87086,9 @@
           "output": 384000
         },
         "cost": {
-          "input": 0.088606,
-          "output": 0.177212,
-          "cache_read": 0.017721
+          "input": 0.0854,
+          "output": 0.1708,
+          "cache_read": 0.01708
         }
       },
       "deepseek/deepseek-v4-pro-0813": {
@@ -87152,9 +87177,9 @@
           "output": 384000
         },
         "cost": {
-          "input": 0.790308,
-          "output": 1.580616,
-          "cache_read": 0.065859
+          "input": 0.579072,
+          "output": 1.158144,
+          "cache_read": 0.048256
         }
       },
       "deepseek/deepseek-v3.2": {
@@ -95904,9 +95929,10 @@
           "output": 131072
         },
         "cost": {
-          "input": 0.4,
-          "output": 3,
-          "cache_read": 0.05
+          "input": 0.425,
+          "output": 2.55,
+          "cache_read": 0.085,
+          "cache_write": 0.53125
         }
       },
       "qwen/qwen3.6-plus": {
@@ -97310,7 +97336,7 @@
         },
         "cost": {
           "input": 0.035,
-          "output": 0.075,
+          "output": 0.1,
           "cache_read": 0.008
         }
       },
@@ -109578,7 +109604,11 @@
         "reasoning": true,
         "reasoning_options": [
           {
-            "type": "toggle"
+            "type": "effort",
+            "values": [
+              "none",
+              "high"
+            ]
           }
         ],
         "tool_call": true,
@@ -109698,8 +109728,8 @@
         },
         "open_weights": true,
         "limit": {
-          "context": 65536,
-          "input": 65536,
+          "context": 262144,
+          "input": 262144,
           "output": 32768
         },
         "cost": {
@@ -109751,7 +109781,11 @@
         "reasoning": true,
         "reasoning_options": [
           {
-            "type": "toggle"
+            "type": "effort",
+            "values": [
+              "none",
+              "high"
+            ]
           }
         ],
         "tool_call": true,
@@ -112102,12 +112136,11 @@
         "reasoning": true,
         "reasoning_options": [
           {
-            "type": "toggle"
-          },
-          {
-            "type": "budget_tokens",
-            "min": 1024,
-            "max": 81920
+            "type": "effort",
+            "values": [
+              "none",
+              "high"
+            ]
           }
         ],
         "tool_call": true,
@@ -112768,12 +112801,11 @@
         "reasoning": true,
         "reasoning_options": [
           {
-            "type": "toggle"
-          },
-          {
-            "type": "budget_tokens",
-            "min": 1024,
-            "max": 81920
+            "type": "effort",
+            "values": [
+              "none",
+              "high"
+            ]
           }
         ],
         "tool_call": true,
@@ -114055,8 +114087,8 @@
         },
         "open_weights": true,
         "limit": {
-          "context": 65536,
-          "input": 65536,
+          "context": 262144,
+          "input": 262144,
           "output": 32768
         },
         "cost": {
@@ -114178,7 +114210,15 @@
         "family": "claude",
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [],
+        "reasoning_options": [
+          {
+            "type": "effort",
+            "values": [
+              "none",
+              "high"
+            ]
+          }
+        ],
         "tool_call": true,
         "structured_output": false,
         "release_date": "2026-05-01",
@@ -114213,7 +114253,11 @@
         "reasoning": true,
         "reasoning_options": [
           {
-            "type": "toggle"
+            "type": "effort",
+            "values": [
+              "none",
+              "high"
+            ]
           }
         ],
         "tool_call": true,
@@ -115280,7 +115324,15 @@
         "family": "glm",
         "attachment": false,
         "reasoning": true,
-        "reasoning_options": [],
+        "reasoning_options": [
+          {
+            "type": "effort",
+            "values": [
+              "none",
+              "high"
+            ]
+          }
+        ],
         "tool_call": true,
         "structured_output": false,
         "release_date": "2025-12-23",
@@ -115617,7 +115669,11 @@
         "reasoning": true,
         "reasoning_options": [
           {
-            "type": "toggle"
+            "type": "effort",
+            "values": [
+              "none",
+              "high"
+            ]
           }
         ],
         "tool_call": true,
@@ -117937,8 +117993,8 @@
         },
         "open_weights": true,
         "limit": {
-          "context": 131072,
-          "input": 131072,
+          "context": 262144,
+          "input": 262144,
           "output": 32768
         },
         "cost": {
@@ -118254,8 +118310,8 @@
         },
         "open_weights": true,
         "limit": {
-          "context": 131072,
-          "input": 131072,
+          "context": 262144,
+          "input": 262144,
           "output": 32768
         },
         "cost": {
@@ -124269,8 +124325,8 @@
         },
         "open_weights": true,
         "limit": {
-          "context": 131072,
-          "input": 131072,
+          "context": 262144,
+          "input": 262144,
           "output": 32768
         },
         "cost": {
@@ -124302,8 +124358,8 @@
         },
         "open_weights": true,
         "limit": {
-          "context": 131072,
-          "input": 131072,
+          "context": 262144,
+          "input": 262144,
           "output": 32768
         },
         "cost": {
@@ -125502,8 +125558,8 @@
         },
         "open_weights": true,
         "limit": {
-          "context": 65536,
-          "input": 65536,
+          "context": 262144,
+          "input": 262144,
           "output": 32768
         },
         "cost": {
@@ -125569,8 +125625,8 @@
         },
         "open_weights": true,
         "limit": {
-          "context": 65536,
-          "input": 65536,
+          "context": 262144,
+          "input": 262144,
           "output": 32768
         },
         "cost": {
@@ -172125,9 +172181,8 @@
           "output": 131072
         },
         "cost": {
-          "input": 0.03,
-          "output": 0.13,
-          "cache_read": 0.03
+          "input": 0.02,
+          "output": 0.1
         }
       },
       "openai/gpt-5.4-nano": {
@@ -174188,7 +174243,7 @@
         },
         "open_weights": true,
         "limit": {
-          "context": 262144,
+          "context": 1000000,
           "output": 131072
         },
         "cost": {
@@ -175864,7 +175919,7 @@
         },
         "cost": {
           "input": 0.035,
-          "output": 0.075,
+          "output": 0.1,
           "cache_read": 0.008
         }
       },
@@ -177925,6 +177980,47 @@
           "input": 0.3,
           "output": 1.2,
           "cache_read": 0.03
+        }
+      },
+      "minimax/minimax-m3:free": {
+        "id": "minimax/minimax-m3:free",
+        "name": "MiniMax: MiniMax M3 (free)",
+        "description": "MiniMax-M3 is a multimodal foundation model from MiniMax. It supports text, image, and video inputs with text output, a 1M-token context window, and is suited for long-horizon agentic work, coding,...",
+        "family": "minimax",
+        "attachment": true,
+        "reasoning": true,
+        "reasoning_options": [
+          {
+            "type": "effort",
+            "values": [
+              "none",
+              "high"
+            ]
+          }
+        ],
+        "tool_call": true,
+        "structured_output": false,
+        "temperature": true,
+        "release_date": "2026-06-01",
+        "last_updated": "2026-06-01",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "video"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "limit": {
+          "context": 1048576,
+          "output": 1048576
+        },
+        "cost": {
+          "input": 0,
+          "output": 0
         }
       },
       "minimax/minimax-m2.7:free": {
@@ -212270,7 +212366,7 @@
         },
         "cost": {
           "input": 0.57,
-          "output": 3.41,
+          "output": 3.39,
           "cache_read": 0.2,
           "cache_write": 0
         }
@@ -259980,39 +260076,6 @@
           "cache_read": 0.028
         }
       },
-      "deepseek/deepseek-reasoner": {
-        "id": "deepseek/deepseek-reasoner",
-        "name": "DeepSeek Reasoner",
-        "description": "DeepSeek reasoning model for multi-step analysis, math, coding, and tools",
-        "family": "deepseek-thinking",
-        "attachment": false,
-        "reasoning": true,
-        "reasoning_options": [],
-        "tool_call": false,
-        "structured_output": true,
-        "temperature": true,
-        "knowledge": "2025-09",
-        "release_date": "2025-12-01",
-        "last_updated": "2026-02-28",
-        "modalities": {
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "open_weights": true,
-        "limit": {
-          "context": 131072,
-          "output": 384000
-        },
-        "cost": {
-          "input": 0.28,
-          "output": 0.42,
-          "cache_read": 0.028
-        }
-      },
       "deepseek/deepseek-v4-flash-vision-exp": {
         "id": "deepseek/deepseek-v4-flash-vision-exp",
         "name": "DeepSeek V4 Flash Vision Exp",
@@ -266685,8 +266748,8 @@
           "output": 384000
         },
         "cost": {
-          "input": 0.627,
-          "output": 1.881
+          "input": 1.122,
+          "output": 3.366
         }
       },
       "qwen/qwen3-coder-next": {
@@ -267103,8 +267166,8 @@
           "output": 384000
         },
         "cost": {
-          "input": 0.176,
-          "output": 0.528
+          "input": 0.352,
+          "output": 1.056
         }
       },
       "qwen/qwen3-vl-235b-a22b-instruct": {
@@ -267794,8 +267857,9 @@
           "output": 262144
         },
         "cost": {
-          "input": 0.4,
-          "output": 2
+          "input": 0.44,
+          "output": 2.2,
+          "cache_read": 0.044
         }
       },
       "mistral/mistral-small-2603": {

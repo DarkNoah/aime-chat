@@ -256,6 +256,7 @@ ${assistantSoul}
       },
       tools: _tools,
       mastra: this.mastra,
+      maxRetries: params?.maxRetries,
     });
 
     return agent;
