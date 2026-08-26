@@ -45,6 +45,18 @@ import { requestLogManager } from './app/request-logs';
 
 // 设置为 "true" 时禁用初始化向导（不再跳转到 /setup 页面），其他任何值均不生效
 // process.env.DISABLE_SETUP = "true";
+
+// 品牌定制：值为 assets 目录下的相对路径，越界或不存在时忽略并告警
+// process.env.APP_LOGO = "icon.png";
+// process.env.SIDEBAR_BACKGROUND = "backgrounds/sidebar.png";
+// process.env.CHAT_BACKGROUND = "backgrounds/chat.png";
+
+// 隐藏渲染进程入口，同样只有 "true" 生效
+// process.env.DISABLE_PROJECTS = "true";
+// process.env.DISABLE_MARKET = "true";
+// process.env.DISABLE_CRONS = "true";
+// process.env.DISABLE_KNOWLEDGE_BASE = "true";
+// process.env.DISABLE_AGENTS = "true";
 process.env.DEFAULT_OCR_MODEL = 'rapidocr'
 process.env.API_SERVER_ENABLED = 'true'
 process.env.TLS_REJECT_UNAUTHORIZED = 'false'

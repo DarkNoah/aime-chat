@@ -2,6 +2,7 @@ import {
   formatFileSize,
   getFileExtension,
   getFilePreviewKind,
+  isHtmlFile,
   isMarkdownFile,
   toFileUrl,
 } from './file-workspace-utils';
@@ -12,6 +13,13 @@ describe('file workspace utilities', () => {
     expect(isMarkdownFile('/notes/readme.markdown')).toBe(true);
     expect(isMarkdownFile('/notes/readme.mdx')).toBe(false);
     expect(getFileExtension('/notes/.env')).toBe('');
+  });
+
+  it('recognizes html files case-insensitively', () => {
+    expect(isHtmlFile('C:\\site\\Index.HTML')).toBe(true);
+    expect(isHtmlFile('/site/page.htm')).toBe(true);
+    expect(isHtmlFile('/site/page.xhtml')).toBe(true);
+    expect(isHtmlFile('/site/page.hbs')).toBe(false);
   });
 
   it('uses MIME types before the binary flag for previews', () => {

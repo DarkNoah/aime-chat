@@ -1,7 +1,7 @@
 import { useGlobal } from '@/renderer/hooks/use-global';
 import { useHeader } from '@/renderer/hooks/use-title';
 import { useTranslation } from 'react-i18next';
-import logo from '@/../assets/icon.png';
+import { AppLogo } from '@/renderer/components/app-logo';
 import { Button } from '@/renderer/components/ui/button';
 import { Badge } from '@/renderer/components/ui/badge';
 import { useCallback } from 'react';
@@ -203,7 +203,7 @@ export default function About() {
         <CardContent className="flex flex-col gap-5 p-5 md:flex-row md:items-center md:justify-between">
           <div className="flex min-w-0 items-center gap-4">
             <div className="flex size-16 shrink-0 items-center justify-center rounded-lg border bg-background">
-              <img src={logo} alt="logo" className="size-12" />
+              <AppLogo className="size-12" />
             </div>
             <div className="min-w-0 space-y-2">
               <div className="flex min-w-0 flex-wrap items-center gap-2">

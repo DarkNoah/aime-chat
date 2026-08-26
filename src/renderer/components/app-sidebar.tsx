@@ -63,6 +63,7 @@ import ProjectsList from './project-list';
 import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
 import { cn } from '../lib/utils';
 import { useUpdateState } from '../hooks/use-update-state';
+import { AppLogo } from './app-logo';
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { appInfo } = useGlobal();
@@ -71,6 +72,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const location = useLocation();
   const updateState = useUpdateState();
   const isCompactWindow = appInfo?.windowMode?.current === 'compact';
+  const featureFlags = appInfo?.featureFlags;
+  const projectsDisabled = featureFlags?.projectsDisabled ?? false;
   const [activeTab, setActiveTab] = useState(
     window.localStorage.getItem('activeTab') || 'chat',
   );
@@ -79,6 +82,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   }, [activeTab]);
 
   useEffect(() => {
+    if (projectsDisabled) {
+      if (activeTab !== 'chat') {
+        setActiveTab('chat');
+      }
+      return;
+    }
     if (
       location.pathname.startsWith('/projects/') &&
       activeTab !== 'projects'
@@ -87,7 +96,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     } else if (location.pathname.startsWith('/chat/') && activeTab !== 'chat') {
       setActiveTab('chat');
     }
-  }, [location.pathname]);
+  }, [location.pathname, projectsDisabled]);
 
   const [openProjectDialog, setOpenProjectDialog] = useState(false);
 
@@ -112,6 +121,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         setOpenProjectDialog(true);
       },
       isActive: false,
+      hidden: projectsDisabled,
     },
     {
       title: t('sidebar.tools'),
@@ -124,13 +134,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       url: '/market',
       icon: IconCategory,
       isActive: location.pathname.startsWith('/market'),
-      // hidden: appInfo?.isPackaged,
+      hidden: featureFlags?.marketDisabled,
     },
     {
       title: t('sidebar.crons'),
       url: '/crons',
       icon: IconClock,
-      // hidden: appInfo?.isPackaged,
+      hidden: featureFlags?.cronsDisabled,
       isActive: location.pathname.startsWith('/crons'),
     },
     {
@@ -138,13 +148,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       url: '/knowledge-base',
       icon: IconBook,
       isActive: location.pathname.startsWith('/knowledge-base'),
-      // hidden: appInfo?.isPackaged,
+      hidden: featureFlags?.knowledgeBaseDisabled,
     },
     {
       title: t('sidebar.agents'),
       url: '/agents',
       icon: IconRobot,
       isActive: location.pathname.startsWith('/agents'),
+      hidden: featureFlags?.agentsDisabled,
     },
   ];
   return (
@@ -156,11 +167,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <SidebarMenu>
           <SidebarMenuItem
             className={cn(
-              'flex flex-row gap-2',
+              'flex flex-row items-center gap-2',
               isCompactWindow && 'hidden',
             )}
           >
-            <span className="text-base font-semibold">{appInfo?.name}</span>
+            <AppLogo className="size-5 shrink-0 rounded-sm" />
+            <span className="truncate text-base font-semibold">
+              {appInfo?.name}
+            </span>
             {appInfo?.isPackaged === false && (
               <Badge
                 variant="outline"
@@ -180,42 +194,46 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       ></ChatProjectDialog>
       {!isCompactWindow ? (
         <>
-          <div className="flex flex-row">
-            <Button
-              variant="link"
-              size="sm"
-              onClick={() => setActiveTab('chat')}
-              className={cn(
-                'text-xs ',
-                activeTab === 'chat'
-                  ? 'text-foreground underline'
-                  : 'text-muted-foreground',
-                'transition-all duration-300 ease-in-out',
-              )}
-            >
-              {t('common.chat')}
-            </Button>
-            <Button
-              variant="link"
-              size="sm"
-              onClick={() => setActiveTab('projects')}
-              className={cn(
-                'text-xs ',
-                activeTab === 'projects'
-                  ? 'text-foreground underline'
-                  : 'text-muted-foreground',
-                'transition-all duration-300 ease-in-out',
-              )}
-            >
-              {t('common.project')}
-            </Button>
-          </div>
+          {!projectsDisabled && (
+            <div className="flex flex-row">
+              <Button
+                variant="link"
+                size="sm"
+                onClick={() => setActiveTab('chat')}
+                className={cn(
+                  'text-xs ',
+                  activeTab === 'chat'
+                    ? 'text-foreground underline'
+                    : 'text-muted-foreground',
+                  'transition-all duration-300 ease-in-out',
+                )}
+              >
+                {t('common.chat')}
+              </Button>
+              <Button
+                variant="link"
+                size="sm"
+                onClick={() => setActiveTab('projects')}
+                className={cn(
+                  'text-xs ',
+                  activeTab === 'projects'
+                    ? 'text-foreground underline'
+                    : 'text-muted-foreground',
+                  'transition-all duration-300 ease-in-out',
+                )}
+              >
+                {t('common.project')}
+              </Button>
+            </div>
+          )}
           <ThreadsList
             className={activeTab === 'chat' ? 'block' : 'hidden'}
           />
-          <ProjectsList
-            className={activeTab === 'projects' ? 'block' : 'hidden'}
-          />
+          {!projectsDisabled && (
+            <ProjectsList
+              className={activeTab === 'projects' ? 'block' : 'hidden'}
+            />
+          )}
         </>
       ) : null}
       {/* <SidebarContent>

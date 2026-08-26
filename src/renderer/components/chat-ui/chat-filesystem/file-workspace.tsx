@@ -13,6 +13,7 @@ import {
   IconAlertTriangle,
   IconDeviceFloppy,
   IconFileText,
+  IconFileTypeHtml,
   IconMarkdown,
   IconRefresh,
   IconX,
@@ -29,6 +30,7 @@ import { Textarea } from '../../ui/textarea';
 import {
   formatFileSize,
   getFilePreviewKind,
+  isHtmlFile,
   isMarkdownFile,
   toFileUrl,
 } from './file-workspace-utils';
@@ -52,7 +54,7 @@ const CodeTextEditor = lazy(() =>
   })),
 );
 
-type EditorMode = 'milkdown' | 'source';
+type EditorMode = 'rich' | 'source';
 
 type FileContent = {
   content: string;
@@ -206,6 +208,51 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   );
 };
 
+type HtmlPreviewProps = {
+  fileUrl: string;
+  title: string;
+  reloadKey: number;
+  stale: boolean;
+};
+
+const HtmlPreview: React.FC<HtmlPreviewProps> = ({
+  fileUrl,
+  title,
+  reloadKey,
+  stale,
+}) => {
+  const { t } = useTranslation();
+  const [manualReload, setManualReload] = useState(0);
+
+  return (
+    <div className="flex h-full flex-col overflow-hidden">
+      {stale && (
+        <div className="border-b bg-yellow-500/10 px-4 py-2 text-xs text-yellow-700 dark:text-yellow-300">
+          {t('chat.file_html_preview_stale')}
+        </div>
+      )}
+      <div className="relative min-h-0 flex-1">
+        <iframe
+          key={`${reloadKey}:${manualReload}`}
+          src={fileUrl}
+          title={title}
+          sandbox="allow-scripts allow-same-origin allow-forms allow-modals"
+          className="h-full w-full border-0 bg-white"
+        />
+        <Button
+          variant="outline"
+          size="icon-sm"
+          className="absolute right-3 top-3 size-7 opacity-60 hover:opacity-100"
+          onClick={() => setManualReload((count) => count + 1)}
+          title={t('chat.refresh')}
+        >
+          <IconRefresh className="size-3.5" />
+        </Button>
+      </div>
+    </div>
+  );
+};
+
 export type FileWorkspaceProps = {
   filePath: string;
   workspace: string;
@@ -230,9 +277,10 @@ export const FileWorkspace: React.FC<FileWorkspaceProps> = ({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [editorMode, setEditorMode] = useState<EditorMode>('milkdown');
+  const [editorMode, setEditorMode] = useState<EditorMode>('rich');
   const [editorSelection, setEditorSelection] =
     useState<FileEditorSelection | null>(null);
+  const [savedVersion, setSavedVersion] = useState(0);
   const tRef = useRef(t);
 
   useEffect(() => {
@@ -244,11 +292,15 @@ export const FileWorkspace: React.FC<FileWorkspaceProps> = ({
     [filePath],
   );
   const markdown = isMarkdownFile(filePath);
+  const htmlFile = isHtmlFile(filePath);
   const dirty = draft !== savedContent;
   const previewKind = file
     ? getFilePreviewKind(file.mimeType, file.isBinary)
     : 'unsupported';
   const editable = previewKind === 'text' && !file?.truncated;
+  // 网页预览直接从磁盘加载，内容被截断或被判为二进制时同样能完整渲染。
+  const htmlPreviewable =
+    htmlFile && (previewKind === 'text' || previewKind === 'unsupported');
   const fileUrl = useMemo(() => toFileUrl(filePath), [filePath]);
 
   useEffect(() => {
@@ -341,6 +393,7 @@ export const FileWorkspace: React.FC<FileWorkspaceProps> = ({
         workspace,
       );
       setSavedContent(draft);
+      setSavedVersion((version) => version + 1);
       setFile((current) =>
         current ? { ...current, size: result.size, truncated: false } : current,
       );
@@ -446,6 +499,17 @@ export const FileWorkspace: React.FC<FileWorkspaceProps> = ({
       );
     }
 
+    if (htmlPreviewable && editorMode === 'rich') {
+      return (
+        <HtmlPreview
+          fileUrl={fileUrl}
+          title={fileName}
+          reloadKey={savedVersion}
+          stale={dirty}
+        />
+      );
+    }
+
     if (previewKind === 'text') {
       if (file.truncated) {
         return (
@@ -462,7 +526,7 @@ export const FileWorkspace: React.FC<FileWorkspaceProps> = ({
         );
       }
 
-      if (markdown && editorMode === 'milkdown') {
+      if (markdown && editorMode === 'rich') {
         return (
           <FileSelectionContextMenu
             selection={editorSelection}
@@ -549,11 +613,17 @@ export const FileWorkspace: React.FC<FileWorkspaceProps> = ({
   return (
     <div className="flex h-full min-w-0 flex-col bg-background">
       <div className="flex min-h-11 items-center gap-2 border-b px-2">
-        {markdown ? (
-          <IconMarkdown className="size-4 shrink-0 text-blue-500" />
-        ) : (
-          <IconFileText className="size-4 shrink-0 text-muted-foreground" />
-        )}
+        {(() => {
+          if (markdown)
+            return <IconMarkdown className="size-4 shrink-0 text-blue-500" />;
+          if (htmlFile)
+            return (
+              <IconFileTypeHtml className="size-4 shrink-0 text-orange-500" />
+            );
+          return (
+            <IconFileText className="size-4 shrink-0 text-muted-foreground" />
+          );
+        })()}
         <div className="min-w-0 flex-1" title={filePath}>
           <div className="flex items-center gap-2">
             <span className="truncate text-sm font-medium">{fileName}</span>
@@ -568,15 +638,17 @@ export const FileWorkspace: React.FC<FileWorkspaceProps> = ({
           </p>
         </div>
 
-        {markdown && editable && (
+        {((markdown && editable) || htmlPreviewable) && (
           <div className="flex rounded-md border bg-muted/30 p-0.5">
             <Button
-              variant={editorMode === 'milkdown' ? 'secondary' : 'ghost'}
+              variant={editorMode === 'rich' ? 'secondary' : 'ghost'}
               size="sm"
               className="h-6 px-2 text-xs shadow-none"
-              onClick={() => handleEditorModeChange('milkdown')}
+              onClick={() => handleEditorModeChange('rich')}
             >
-              {t('chat.file_markdown_editor')}
+              {markdown
+                ? t('chat.file_markdown_editor')
+                : t('chat.file_html_preview')}
             </Button>
             <Button
               variant={editorMode === 'source' ? 'secondary' : 'ghost'}
