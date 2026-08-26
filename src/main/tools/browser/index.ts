@@ -5,6 +5,7 @@ import { ToolExecutionContext } from "@mastra/core/tools";
 import { runCommand } from "@/main/utils/shell";
 import { instancesManager } from "@/main/instances";
 import { appManager } from "@/main/app";
+import { truncateText } from "@/utils/common";
 
 export interface AgentBrowserParams extends BaseToolParams {
 
@@ -76,6 +77,6 @@ export class AgentBrowser extends BaseTool<BaseToolParams> {
 
     }
 
-    return result?.output ?? `Result not found, code: ${result?.code}, error: ${result?.stderr}`;
+    return truncateText(result?.output, 64000) ?? `Result not found, code: ${result?.code}, error: ${result?.stderr}`;
   };
 }
