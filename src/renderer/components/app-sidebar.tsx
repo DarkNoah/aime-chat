@@ -108,56 +108,56 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     isActive: boolean;
     hidden?: boolean;
   }[] = [
-    {
-      title: t('sidebar.new_chat'),
-      url: '/chat',
-      icon: IconEdit,
-      isActive: false,
-    },
-    {
-      title: t('sidebar.new_project'),
-      icon: IconFolderPlus,
-      onClick: () => {
-        setOpenProjectDialog(true);
+      {
+        title: t('sidebar.new_chat'),
+        url: '/chat',
+        icon: IconEdit,
+        isActive: false,
       },
-      isActive: false,
-      hidden: projectsDisabled,
-    },
-    {
-      title: t('sidebar.tools'),
-      url: '/tools',
-      icon: IconTools,
-      isActive: location.pathname.startsWith('/tools'),
-    },
-    {
-      title: t('sidebar.market'),
-      url: '/market',
-      icon: IconCategory,
-      isActive: location.pathname.startsWith('/market'),
-      hidden: featureFlags?.marketDisabled,
-    },
-    {
-      title: t('sidebar.crons'),
-      url: '/crons',
-      icon: IconClock,
-      hidden: featureFlags?.cronsDisabled,
-      isActive: location.pathname.startsWith('/crons'),
-    },
-    {
-      title: t('sidebar.knowledge_base'),
-      url: '/knowledge-base',
-      icon: IconBook,
-      isActive: location.pathname.startsWith('/knowledge-base'),
-      hidden: featureFlags?.knowledgeBaseDisabled,
-    },
-    {
-      title: t('sidebar.agents'),
-      url: '/agents',
-      icon: IconRobot,
-      isActive: location.pathname.startsWith('/agents'),
-      hidden: featureFlags?.agentsDisabled,
-    },
-  ];
+      {
+        title: t('sidebar.new_project'),
+        icon: IconFolderPlus,
+        onClick: () => {
+          setOpenProjectDialog(true);
+        },
+        isActive: false,
+        hidden: projectsDisabled,
+      },
+      {
+        title: t('sidebar.tools'),
+        url: '/tools',
+        icon: IconTools,
+        isActive: location.pathname.startsWith('/tools'),
+      },
+      {
+        title: t('sidebar.market'),
+        url: '/market',
+        icon: IconCategory,
+        isActive: location.pathname.startsWith('/market'),
+        hidden: featureFlags?.marketDisabled,
+      },
+      {
+        title: t('sidebar.crons'),
+        url: '/crons',
+        icon: IconClock,
+        hidden: featureFlags?.cronsDisabled,
+        isActive: location.pathname.startsWith('/crons'),
+      },
+      {
+        title: t('sidebar.knowledge_base'),
+        url: '/knowledge-base',
+        icon: IconBook,
+        isActive: location.pathname.startsWith('/knowledge-base'),
+        hidden: featureFlags?.knowledgeBaseDisabled,
+      },
+      {
+        title: t('sidebar.agents'),
+        url: '/agents',
+        icon: IconRobot,
+        isActive: location.pathname.startsWith('/agents'),
+        hidden: featureFlags?.agentsDisabled,
+      },
+    ];
   return (
     <Sidebar
       collapsible={isCompactWindow ? 'icon' : 'offcanvas'}
@@ -194,22 +194,23 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       ></ChatProjectDialog>
       {!isCompactWindow ? (
         <>
-          {!projectsDisabled && (
-            <div className="flex flex-row">
-              <Button
-                variant="link"
-                size="sm"
-                onClick={() => setActiveTab('chat')}
-                className={cn(
-                  'text-xs ',
-                  activeTab === 'chat'
-                    ? 'text-foreground underline'
-                    : 'text-muted-foreground',
-                  'transition-all duration-300 ease-in-out',
-                )}
-              >
-                {t('common.chat')}
-              </Button>
+
+          <div className="flex flex-row">
+            <Button
+              variant="link"
+              size="sm"
+              onClick={() => setActiveTab('chat')}
+              className={cn(
+                'text-xs ',
+                activeTab === 'chat'
+                  ? 'text-foreground underline'
+                  : 'text-muted-foreground',
+                'transition-all duration-300 ease-in-out',
+              )}
+            >
+              {t('common.chat')}
+            </Button>
+            {!projectsDisabled && (
               <Button
                 variant="link"
                 size="sm"
@@ -224,8 +225,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               >
                 {t('common.project')}
               </Button>
-            </div>
-          )}
+            )}
+          </div>
+
           <ThreadsList
             className={activeTab === 'chat' ? 'block' : 'hidden'}
           />
