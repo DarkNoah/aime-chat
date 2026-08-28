@@ -94,6 +94,32 @@ export enum MastraChannel {
   GetUsageSummary = 'mastra:getUsageSummary',
 }
 
+export enum EvalsChannel {
+  ListDatasets = 'evals:listDatasets',
+  GetDataset = 'evals:getDataset',
+  CreateDataset = 'evals:createDataset',
+  UpdateDataset = 'evals:updateDataset',
+  DeleteDataset = 'evals:deleteDataset',
+  ListDatasetItems = 'evals:listDatasetItems',
+  AddDatasetItems = 'evals:addDatasetItems',
+  UpdateDatasetItem = 'evals:updateDatasetItem',
+  DeleteDatasetItem = 'evals:deleteDatasetItem',
+  ImportDataset = 'evals:importDataset',
+  ExportDataset = 'evals:exportDataset',
+  SaveDatasetExport = 'evals:saveDatasetExport',
+  StartExperiment = 'evals:startExperiment',
+  ListExperiments = 'evals:listExperiments',
+  GetExperiment = 'evals:getExperiment',
+  CompareExperiments = 'evals:compareExperiments',
+  ListScorers = 'evals:listScorers',
+  SaveScorer = 'evals:saveScorer',
+  DeleteScorer = 'evals:deleteScorer',
+  TestScorer = 'evals:testScorer',
+  ScoreThread = 'evals:scoreThread',
+  ListThreadScores = 'evals:listThreadScores',
+  ExperimentProgress = 'evals:experiment-progress',
+}
+
 export enum KnowledgeBaseChannel {
   Create = 'knowledge-base:create',
   Update = 'knowledge-base:update',

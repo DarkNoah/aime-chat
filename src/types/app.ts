@@ -50,6 +50,7 @@ export type FeatureFlags = {
   cronsDisabled: boolean;
   knowledgeBaseDisabled: boolean;
   agentsDisabled: boolean;
+  evalsDisabled: boolean;
 };
 
 export type SaveSettingsInput = {

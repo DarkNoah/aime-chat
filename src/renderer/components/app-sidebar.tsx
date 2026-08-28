@@ -27,6 +27,7 @@ import {
   IconCategory,
   IconClock,
   IconDownload,
+  IconChartHistogram,
   type Icon,
 } from '@tabler/icons-react';
 // import { NavMain } from '@/app/(pages)/nav-main';
@@ -144,6 +145,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         isActive: location.pathname.startsWith('/crons'),
       },
       {
+        title: t('sidebar.evals'),
+        url: '/evals',
+        icon: IconChartHistogram,
+        hidden: featureFlags?.evalsDisabled,
+        isActive: location.pathname.startsWith('/evals'),
+      },
+      {
         title: t('sidebar.knowledge_base'),
         url: '/knowledge-base',
         icon: IconBook,
@@ -194,7 +202,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       ></ChatProjectDialog>
       {!isCompactWindow ? (
         <>
-
           <div className="flex flex-row">
             <Button
               variant="link"

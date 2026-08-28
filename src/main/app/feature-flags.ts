@@ -11,6 +11,7 @@ export const isMarketDisabled = () => isEnabled(process.env.DISABLE_MARKET);
 
 export const isCronsDisabled = () => isEnabled(process.env.DISABLE_CRONS);
 
+export const isEvalsDisabled = () => isEnabled(process.env.DISABLE_EVALS);
 export const isKnowledgeBaseDisabled = () =>
   isEnabled(process.env.DISABLE_KNOWLEDGE_BASE);
 
@@ -23,4 +24,7 @@ export const getFeatureFlags = (): FeatureFlags => ({
   cronsDisabled: isCronsDisabled(),
   knowledgeBaseDisabled: isKnowledgeBaseDisabled(),
   agentsDisabled: isAgentsDisabled(),
+  evalsDisabled: isEvalsDisabled(),
 });
+
+

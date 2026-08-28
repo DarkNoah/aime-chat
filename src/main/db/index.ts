@@ -17,6 +17,7 @@ import { Instances } from '@/entities/instances';
 import { Channels } from '@/entities/channels';
 import { Crons } from '@/entities/crons';
 import { RequestLog } from '@/entities/request-logs';
+import { EvalScorer } from '@/entities/eval-scorers';
 
 class DBManager extends BaseManager {
   // defaultDb: Database;
@@ -49,6 +50,7 @@ class DBManager extends BaseManager {
         Channels,
         Crons,
         RequestLog,
+        EvalScorer,
       ],
       // migrationsRun: true,
       // migrations: [],

@@ -71,6 +71,7 @@ import MarketPage from './pages/market';
 import CronsPage from './pages/crons';
 import { GlobalMcpBundleImport } from './components/mcp-bundle-import';
 import { ThemeConfigApplier } from './components/theme-config-applier';
+import EvalsPage from './pages/Evals';
 
 function Hello() {
   const { setTitle } = useHeader();
@@ -269,6 +270,7 @@ function AppRoutes() {
         <Route path="/projects/:id" element={<ProjectsPage />} />
         <Route path="/market" element={<MarketPage />} />
         <Route path="/crons" element={<CronsPage />} />
+        <Route path="/evals/*" element={<EvalsPage />} />
       </Routes>
     </MainLayout>
   );

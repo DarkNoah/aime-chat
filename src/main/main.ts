@@ -33,6 +33,7 @@ import { secretsManager } from './app/secrets';
 import { cronsManager } from './app/crons';
 import { initCrashReporter } from './app/crash-reporter';
 import { requestLogManager } from './app/request-logs';
+import { evalsManager } from './evals';
 
 // process.env.DEFAULT_AGENT = undefined;
 // process.env.DEFAULT_MODEL = undefined;
@@ -90,6 +91,7 @@ async function init() {
     await toolsManager.init();
     await localModelManager.init();
     await agentManager.init();
+    await evalsManager.init();
     await projectManager.init();
     await updateManager.init();
     await instancesManager.init();
