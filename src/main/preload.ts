@@ -106,6 +106,7 @@ import {
 import {
   ProjectChatExportInput,
   ProjectChatExportResult,
+  ProjectTimelinePage,
 } from '@/types/project';
 import {
   EvalDatasetInput,
@@ -372,6 +373,8 @@ const electronHandler = {
       ipcRenderer.invoke(MastraChannel.ChatAbort, chatId),
     killBashSession: (bashId: string): Promise<boolean> =>
       ipcRenderer.invoke(MastraChannel.KillBashSession, bashId),
+    killAgentSession: (sessionId: string): Promise<boolean> =>
+      ipcRenderer.invoke(MastraChannel.KillAgentSession, sessionId),
     saveMessages: (chatId: string, messages: MastraDBMessage[]) =>
       ipcRenderer.invoke(MastraChannel.SaveMessages, chatId, messages),
     clearMessages: (chatId: string) =>
@@ -669,6 +672,14 @@ const electronHandler = {
       input: ProjectChatExportInput,
     ): Promise<ProjectChatExportResult> =>
       ipcRenderer.invoke(ProjectChannel.ExportMessages, input),
+    getTimeline: (input: {
+      projectId: string;
+      page?: number;
+      size?: number;
+    }): Promise<ProjectTimelinePage> =>
+      ipcRenderer.invoke(ProjectChannel.GetTimeline, input),
+    setTimelineEnabled: (projectId: string, enabled: boolean) =>
+      ipcRenderer.invoke(ProjectChannel.SetTimelineEnabled, projectId, enabled),
   },
   taskQueue: {
     add: (options: AddTaskOptions): Promise<string> =>

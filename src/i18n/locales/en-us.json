@@ -594,6 +594,26 @@
     "export_success": "Exported {{threads}} threads and {{messages}} messages",
     "export_failed": "Export failed: {{error}}"
   },
+  "timeline": {
+    "tab": "Timeline",
+    "title": "Project timeline",
+    "description": "After each substantive task, the full conversation history is summarized into a task and deliverables record.",
+    "enabled": "On",
+    "disabled": "Off",
+    "toggle": "Turn the project timeline on or off",
+    "disabled_title": "Timeline is off",
+    "disabled_description": "Turn it on to summarize new substantive tasks after conversations finish. Greetings and conversations without meaningful work are not recorded.",
+    "enable_action": "Turn on timeline",
+    "empty_title": "No timeline entries yet",
+    "empty_description": "Finish a substantive task to see its concise summary, deliverables, start time, and duration here.",
+    "loading": "Loading timeline...",
+    "load_failed": "Timeline failed to load",
+    "load_more": "Load more",
+    "deliverables": "Deliverables",
+    "detailed_summary": "Detailed task summary",
+    "open_thread": "Open conversation",
+    "view_details": "View details for {{summary}}"
+  },
   "knowledge-base": {
     "export_sqlite": "Export",
     "add_url": "Add Url",
@@ -899,5 +919,30 @@
     "waiting_output": "Waiting for output...",
     "home_directory": "~",
     "empty": "No background Bash sessions"
+  },
+  "agent_status": {
+    "title": "Background Agents",
+    "description": "Follow every message, tool call, and tool result from Agents running in the background.",
+    "open_panel": "View background Agent output",
+    "badge_label": "Agents",
+    "badge_running": "{{count}} running",
+    "badge_failed": "{{count}} failed",
+    "badge_done": "done",
+    "running_count": "{{count}} running",
+    "clear_completed": "Clear completed",
+    "status_running": "Running",
+    "status_completed": "Completed",
+    "status_failed": "Failed",
+    "status_aborted": "Stopped",
+    "duration_label": "Duration",
+    "duration_seconds": "{{count}}s",
+    "duration_minutes_seconds": "{{minutes}}m {{seconds}}s",
+    "stop_session": "Stop",
+    "waiting_output": "Waiting for the first message...",
+    "message_label": "Message {{count}}",
+    "tool_call_label": "{{tool}} call",
+    "tool_result_label": "{{tool}} result",
+    "empty_output": "No output",
+    "empty": "No background Agent sessions"
   }
 }

@@ -54,6 +54,8 @@ import {
   ChatChangedType,
   ChatEvent,
   ChatInput,
+  EnqueueChatMessageInput,
+  EnqueueChatMessageResult,
   PendingChatMessageInput,
   ChatRequestContext,
   ChatSlashCommandConfig,
@@ -89,6 +91,8 @@ import { skillManager } from '../tools/common/skill';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { agentManager } from './agents';
 import { projectManager } from '../project';
+import { projectTimelineManager } from '../project/timeline';
+import type { TimelineGenerationInput } from '../project/timeline-entry';
 import { Projects } from '@/entities/projects';
 import path from 'path';
 import fs from 'fs';
@@ -130,15 +134,29 @@ import {
   countCompactHistoryMessages,
   MIN_COMPACT_HISTORY_MESSAGES,
 } from './compact';
+import { formatBashCompletionMessage } from './background-bash-completion';
+import backgroundAgentManager, {
+  type BackgroundAgentCompletion,
+} from '../tools/common/background-agent';
+import { formatAgentCompletionMessage } from './background-agent-completion';
 import {
-  BackgroundBashCompletionCoordinator,
-  formatBashCompletionMessage,
-} from './background-bash-completion';
+  ChatMessageQueue,
+  resolveChatMessageInjectionMode,
+  type ChatMessageQueueEnqueueStatus,
+  type QueuedChatMessage,
+} from './chat-message-queue';
 
 const modelsData = require('../../../assets/models.json');
 
 const BACKGROUND_BASH_COMPLETION_TRIGGER = 'background-bash-completed';
+const BACKGROUND_AGENT_COMPLETION_TRIGGER = 'background-agent-completed';
+const BACKGROUND_COMPLETION_TRIGGER = 'background-completed';
 const CHAT_RETRY_DELAYS = [2000, 4000, 8000] as const;
+
+const isBackgroundCompletionTrigger = (trigger?: string) =>
+  trigger === BACKGROUND_BASH_COMPLETION_TRIGGER ||
+  trigger === BACKGROUND_AGENT_COMPLETION_TRIGGER ||
+  trigger === BACKGROUND_COMPLETION_TRIGGER;
 
 type ChatResult = {
   success: boolean;
@@ -161,6 +179,61 @@ function createBashCompletionUiMessage(
       bashIds: completions.map((completion) => completion.bashId),
     },
   } as UIMessage;
+}
+
+function createAgentCompletionUiMessage(
+  completions: BackgroundAgentCompletion[],
+): UIMessage {
+  return {
+    id: nanoid(),
+    role: 'user',
+    parts: [{ type: 'text', text: formatAgentCompletionMessage(completions) }],
+    metadata: {
+      backgroundAgentCompletion: true,
+      agentSessionIds: completions.map((completion) => completion.sessionId),
+    },
+  } as UIMessage;
+}
+
+function createQueuedMessageBatch(items: QueuedChatMessage[]): UIMessage {
+  if (items.length === 1) return items[0].message;
+
+  const metadata = items.reduce<Record<string, unknown>>(
+    (result, item) => ({
+      ...result,
+      ...((item.message.metadata as Record<string, unknown> | undefined) ?? {}),
+    }),
+    {},
+  );
+  const bashIds = items.flatMap((item) => {
+    const ids = (item.message.metadata as { bashIds?: unknown } | undefined)
+      ?.bashIds;
+    return Array.isArray(ids) ? ids.filter(isString) : [];
+  });
+  const agentSessionIds = items.flatMap((item) => {
+    const ids = (
+      item.message.metadata as { agentSessionIds?: unknown } | undefined
+    )?.agentSessionIds;
+    return Array.isArray(ids) ? ids.filter(isString) : [];
+  });
+
+  return {
+    id: nanoid(),
+    role: 'user',
+    parts: items.flatMap((item) => item.message.parts),
+    metadata: {
+      ...metadata,
+      backgroundBashCompletion: bashIds.length > 0,
+      backgroundAgentCompletion: agentSessionIds.length > 0,
+      bashIds,
+      agentSessionIds,
+      queuedMessageIds: items.map((item) => item.id),
+    },
+  } as UIMessage;
+}
+
+function badRequest(message: string): Error & { status: number } {
+  return Object.assign(new Error(message), { status: 400 });
 }
 
 const waitForChatRetry = (delay: number, signal: AbortSignal) =>
@@ -221,8 +294,6 @@ function getPerPageQuery(value: unknown, fallback: number): number | false {
   return getNumberQuery(value, fallback);
 }
 
-
-
 class MastraManager extends BaseManager {
   app: express.Application;
   public httpServer?: ReturnType<express.Application['listen']>;
@@ -230,9 +301,10 @@ class MastraManager extends BaseManager {
   mastraThreadsUsageRepository: Repository<MastraThreadsUsage>;
   agentsRepository: Repository<Agents>;
   threadChats: (ChatThread & { controller: AbortController })[] = [];
-  pendingChatMessages: Map<string, PendingChatMessageInput[]> = new Map();
 
-  private bashCompletionCoordinator = new BackgroundBashCompletionCoordinator();
+  private chatMessageQueue = new ChatMessageQueue();
+
+  private drainingQueuedThreads = new Set<string>();
 
   statefulTransport?: StreamableHTTPServerTransport;
   constructor() {
@@ -281,6 +353,14 @@ class MastraManager extends BaseManager {
     bashManager.onSessionCompleted((completion) => {
       this.enqueueBashCompletion(completion);
     });
+    backgroundAgentManager.onSessionCompleted((completion) => {
+      this.enqueueAgentCompletion(completion);
+    });
+    backgroundAgentManager.onSessionUpdated((update) => {
+      return appManager.sendEvent(ChatEvent.AgentSessionUpdated, {
+        data: update,
+      });
+    });
   }
 
   async init() {
@@ -325,7 +405,7 @@ class MastraManager extends BaseManager {
     const { apiServer } = await appManager.getInfo();
     if (apiServer?.enabled) {
       // 启动阶段：端口被占用等错误只提示，不应阻断整个应用启动
-      await this.start(apiServer.port).catch(() => { });
+      await this.start(apiServer.port).catch(() => {});
     }
   }
 
@@ -400,7 +480,10 @@ class MastraManager extends BaseManager {
   }
 
   @channel(MastraChannel.GetThread)
-  public async getThread(id: string, onlyThread: boolean = false): Promise<ThreadState> {
+  public async getThread(
+    id: string,
+    onlyThread: boolean = false,
+  ): Promise<ThreadState> {
     const storage = this.mastra.getStorage();
     const memoryStore = await storage.getStore('memory');
     const appInfo = await appManager.getInfo();
@@ -411,8 +494,9 @@ class MastraManager extends BaseManager {
       thread.metadata = {
         ...(thread.metadata || {}),
         agentId: project?.defaultAgentId || appInfo.defaultAgent,
-        model: project?.defaultModelId || appInfo.defaultModel?.model as string,
-      }
+        model:
+          project?.defaultModelId || (appInfo.defaultModel?.model as string),
+      };
     }
 
     // const memory = new Memory({
@@ -432,7 +516,9 @@ class MastraManager extends BaseManager {
     if (onlyThread) {
       return {
         ...thread,
-        status: this.threadChats.find((x) => x.id == id) ? 'streaming' : 'ready',
+        status: this.threadChats.find((x) => x.id == id)
+          ? 'streaming'
+          : 'ready',
       };
     }
 
@@ -450,7 +536,6 @@ class MastraManager extends BaseManager {
 
       // format: 'v2',
     });
-
 
     // const _messages = convertMessages(messages.messages || []).to('AIV5.UI');
 
@@ -563,7 +648,8 @@ class MastraManager extends BaseManager {
       project = await projectManager.getProject(projectId);
     }
     const appInfo = await appManager.getInfo();
-    const agentId = options?.agentId || project?.defaultAgentId || appInfo.defaultAgent;
+    const agentId =
+      options?.agentId || project?.defaultAgentId || appInfo.defaultAgent;
     if (agentId) {
       agent = await agentManager.getAgent(agentId);
     }
@@ -578,7 +664,11 @@ class MastraManager extends BaseManager {
           ...(options || {}),
           ...(options?.metadata ?? {}),
           agentId,
-          model: options?.model || project?.defaultModelId || agent?.defaultModelId || appInfo.defaultModel?.model as string,
+          model:
+            options?.model ||
+            project?.defaultModelId ||
+            agent?.defaultModelId ||
+            (appInfo.defaultModel?.model as string),
         },
       },
     });
@@ -596,10 +686,10 @@ class MastraManager extends BaseManager {
     const memoryStore = await storage.getStore('memory');
     // let thread = await this.getThread(id);
 
-
-    const tools = [...new Set(data?.metadata?.tools as string[] || [])];
-    const subAgents = [...new Set(data?.metadata?.subAgents as string[] || [])];
-
+    const tools = [...new Set((data?.metadata?.tools as string[]) || [])];
+    const subAgents = [
+      ...new Set((data?.metadata?.subAgents as string[]) || []),
+    ];
 
     let thread = await memoryStore.getThreadById({ threadId: id });
     const oldTitle = thread.title || DEFAULT_TITLE;
@@ -607,9 +697,7 @@ class MastraManager extends BaseManager {
       id: id,
       title: data?.title || DEFAULT_TITLE,
       metadata: { ...(data?.metadata || {}), tools, subAgents },
-
     });
-
 
     if (thread.resourceId.startsWith('project:')) {
       const projectId = thread.resourceId.split(':')[1];
@@ -617,15 +705,22 @@ class MastraManager extends BaseManager {
         where: { id: projectId },
       });
       if (project) {
-        project.defaultAgentId = data.metadata?.agentId as string || appInfo.defaultAgent;
+        project.defaultAgentId =
+          (data.metadata?.agentId as string) || appInfo.defaultAgent;
         const agent = await agentManager.getAgent(project.defaultAgentId);
-        project.defaultModelId = data.metadata?.model as string || agent?.defaultModelId || appInfo.defaultModel?.model as string;
-        project.defaultTools = [...new Set(data.metadata?.tools as string[] || [])];
-        project.defaultSubAgents = [...new Set(data.metadata?.subAgents as string[] || [])];
+        project.defaultModelId =
+          (data.metadata?.model as string) ||
+          agent?.defaultModelId ||
+          (appInfo.defaultModel?.model as string);
+        project.defaultTools = [
+          ...new Set((data.metadata?.tools as string[]) || []),
+        ];
+        project.defaultSubAgents = [
+          ...new Set((data.metadata?.subAgents as string[]) || []),
+        ];
         await projectManager.projectsRepository.save(project);
       }
     } else {
-
     }
 
     if (oldTitle !== data.title) {
@@ -662,10 +757,10 @@ class MastraManager extends BaseManager {
     }
   }
 
-
   @channel(MastraChannel.DeleteThread)
   public async deleteThread(id: string): Promise<void> {
-    this.bashCompletionCoordinator.clear(id);
+    this.clearQueuedMessages(id);
+    await projectTimelineManager.deleteByThread(id);
     const storage = this.mastra.getStorage();
     const memoryStore = await storage.getStore('memory');
     const thread = await memoryStore.getThreadById({ threadId: id });
@@ -688,7 +783,7 @@ class MastraManager extends BaseManager {
 
   @channel(MastraChannel.ClearMessages)
   public async clearMessages(id: string): Promise<void> {
-    this.bashCompletionCoordinator.clear(id);
+    this.clearQueuedMessages(id);
     const storage = this.mastra.getStorage();
     const memoryStore = await storage.getStore('memory');
     const messages = await memoryStore.listMessages({ threadId: id });
@@ -708,100 +803,218 @@ class MastraManager extends BaseManager {
     });
 
     appManager.sendEvent(ChatEvent.ChatThreadChanged, {
-      data: { chatId: id, resourceId: thread.resourceId || DEFAULT_RESOURCE_ID },
+      data: {
+        chatId: id,
+        resourceId: thread.resourceId || DEFAULT_RESOURCE_ID,
+      },
     });
     appManager.sendEvent(ChatEvent.ChatMessageChanged, {
-      data: { chatId: id, resourceId: thread.resourceId || DEFAULT_RESOURCE_ID },
+      data: {
+        chatId: id,
+        resourceId: thread.resourceId || DEFAULT_RESOURCE_ID,
+      },
     });
   }
 
+  @api({ method: 'post', path: '/api/threads/enqueue-message' })
   @channel(MastraChannel.EnqueuePendingMessage)
   public async enqueuePendingMessage(
-    input: PendingChatMessageInput,
-  ): Promise<void> {
-    const queue = this.pendingChatMessages.get(input.chatId) ?? [];
-    const index = queue.findIndex((item) => item.id === input.id);
-    if (index >= 0) {
-      queue[index] = {
-        ...queue[index],
-        ...input,
-        immediate: input.immediate ?? queue[index].immediate,
-      };
-    } else {
-      queue.push(input);
+    input: EnqueueChatMessageInput,
+  ): Promise<EnqueueChatMessageResult> {
+    if (!isObject(input)) {
+      throw badRequest('Queue input must be an object');
     }
-    this.pendingChatMessages.set(input.chatId, queue);
+
+    const chatId = isString(input.chatId) ? input.chatId.trim() : '';
+    if (!chatId) {
+      throw badRequest('chatId is required');
+    }
+    if (!isObject(input.message) || input.message.role !== 'user') {
+      throw badRequest('message must be a user UIMessage');
+    }
+    if (
+      !Array.isArray(input.message.parts) ||
+      input.message.parts.length === 0
+    ) {
+      throw badRequest('message.parts must not be empty');
+    }
+    if (input.message.id !== undefined && !isString(input.message.id)) {
+      throw badRequest('message.id must be a string');
+    }
+    if (input.id !== undefined && !isString(input.id)) {
+      throw badRequest('id must be a string');
+    }
+    if (input.immediate !== undefined && typeof input.immediate !== 'boolean') {
+      throw badRequest('immediate must be a boolean');
+    }
+    if (
+      input.injectionMode !== undefined &&
+      input.injectionMode !== 'immediate' &&
+      input.injectionMode !== 'after-session'
+    ) {
+      throw badRequest('injectionMode must be "immediate" or "after-session"');
+    }
+
+    const id = input.id?.trim() || input.message.id?.trim() || nanoid();
+    const existing = this.chatMessageQueue.get(chatId, id);
+    if (existing && existing.source !== 'user') {
+      throw badRequest('id is reserved by an internal queue message');
+    }
+    const injectionMode = resolveChatMessageInjectionMode(
+      input,
+      existing?.injectionMode,
+    );
+    const queued: QueuedChatMessage = {
+      ...(existing ?? {}),
+      id,
+      chatId,
+      message: {
+        ...input.message,
+        id: input.message.id || id,
+      },
+      ...(input.options === undefined ? {} : { options: input.options }),
+      injectionMode,
+      immediate: injectionMode === 'immediate',
+      source: 'user',
+      notifyConsumed: true,
+    };
+    const { status, started } = this.addMessageToQueue(queued);
+
+    return {
+      id,
+      chatId,
+      status: started ? 'started' : status === 'duplicate' ? 'updated' : status,
+    };
   }
 
   @channel(MastraChannel.RemovePendingMessage)
   public async removePendingMessage(chatId: string, id: string): Promise<void> {
-    const queue = this.pendingChatMessages.get(chatId) ?? [];
-    const next = queue.filter((item) => item.id !== id);
-    if (next.length > 0) {
-      this.pendingChatMessages.set(chatId, next);
-    } else {
-      this.pendingChatMessages.delete(chatId);
-    }
+    this.chatMessageQueue.remove(chatId, id);
   }
 
-  private consumePendingChatMessage(
-    chatId: string,
-    immediateOnly = false,
-  ): PendingChatMessageInput | undefined {
-    const queue = this.pendingChatMessages.get(chatId) ?? [];
-    if (queue.length === 0) return undefined;
+  private addMessageToQueue(
+    message: QueuedChatMessage,
+    updateExisting = true,
+  ): { status: ChatMessageQueueEnqueueStatus; started: boolean } {
+    const status = this.chatMessageQueue.enqueue(message, { updateExisting });
+    const started = this.startQueuedContinuationIfIdle(message.chatId);
+    return { status, started };
+  }
 
-    const index = immediateOnly
-      ? queue.findIndex((item) => item.immediate)
-      : 0;
-    if (index < 0) return undefined;
-
-    const [pending] = queue.splice(index, 1);
-    if (queue.length > 0) {
-      this.pendingChatMessages.set(chatId, queue);
-    } else {
-      this.pendingChatMessages.delete(chatId);
-    }
-    appManager.sendEvent(ChatEvent.ChatPendingMessageConsumed, {
-      data: { chatId, id: pending.id },
+  private notifyQueuedMessagesConsumed(messages: QueuedChatMessage[]) {
+    messages.forEach((message) => {
+      if (!message.notifyConsumed) return;
+      appManager.sendEvent(ChatEvent.ChatPendingMessageConsumed, {
+        data: { chatId: message.chatId, id: message.id },
+      });
     });
-    return pending;
+  }
+
+  private clearQueuedMessages(chatId: string) {
+    const messages = this.chatMessageQueue.clear(chatId);
+    this.notifyQueuedMessagesConsumed(messages);
+  }
+
+  private getQueuedMessageTrigger(messages: QueuedChatMessage[]) {
+    const triggers = [
+      ...new Set(messages.map((message) => message.trigger).filter(isString)),
+    ];
+    if (triggers.length === 1) return triggers[0];
+    if (messages.every((message) => message.source !== 'user')) {
+      return BACKGROUND_COMPLETION_TRIGGER;
+    }
+    return undefined;
+  }
+
+  private createQueuedChatInput(
+    chatId: string,
+    messages: QueuedChatMessage[],
+  ): ChatInput {
+    const background = messages.every((message) => message.source !== 'user');
+    const queuedOptions = background ? {} : (messages[0].options ?? {});
+    const { threadId: _threadId, ...options } = queuedOptions;
+
+    return {
+      ...options,
+      chatId,
+      messages: [createQueuedMessageBatch(messages)],
+      trigger: this.getQueuedMessageTrigger(messages),
+      requireToolApproval: background
+        ? false
+        : (queuedOptions.requireToolApproval ?? false),
+    };
+  }
+
+  private startQueuedContinuationIfIdle(chatId: string) {
+    const running = this.threadChats.some((chat) => chat.id === chatId);
+    if (
+      this.drainingQueuedThreads.has(chatId) ||
+      !this.chatMessageQueue.canStart(chatId, running)
+    ) {
+      return false;
+    }
+
+    const messages = this.chatMessageQueue.takeNextBatch(chatId);
+    if (messages.length === 0) return false;
+
+    this.drainingQueuedThreads.add(chatId);
+    this.notifyQueuedMessagesConsumed(messages);
+    const input = this.createQueuedChatInput(chatId, messages);
+    void this.chat(undefined, input)
+      .then((result) => {
+        if (!result.success) {
+          // eslint-disable-next-line no-console
+          console.error(
+            `Failed to resume thread ${chatId} from the message queue: ${result.error || 'Unknown error'}`,
+          );
+        }
+      })
+      .catch((error) => {
+        // eslint-disable-next-line no-console
+        console.error(
+          `Failed to resume thread ${chatId} from the message queue`,
+          error,
+        );
+      })
+      .finally(() => {
+        this.drainingQueuedThreads.delete(chatId);
+        this.startQueuedContinuationIfIdle(chatId);
+      });
+    return true;
   }
 
   private enqueueBashCompletion(completion: BashSessionCompletion) {
     const chatId = completion.threadId;
     if (!chatId) return;
 
-    if (!this.bashCompletionCoordinator.enqueue(completion)) return;
-    this.startBashContinuationIfIdle(chatId);
+    this.addMessageToQueue(
+      {
+        id: `background-bash:${completion.bashId}`,
+        chatId,
+        message: createBashCompletionUiMessage([completion]),
+        source: 'background-bash',
+        injectionMode: 'immediate',
+        trigger: BACKGROUND_BASH_COMPLETION_TRIGGER,
+      },
+      false,
+    );
   }
 
-  private consumeBashCompletions(chatId: string) {
-    return this.bashCompletionCoordinator.consume(chatId);
-  }
+  private enqueueAgentCompletion(completion: BackgroundAgentCompletion) {
+    const chatId = completion.threadId;
+    if (!chatId) return;
 
-  private startBashContinuationIfIdle(chatId: string) {
-    const running = this.threadChats.some((chat) => chat.id === chatId);
-    if (!this.bashCompletionCoordinator.canStart(chatId, running)) {
-      return;
-    }
-
-    const completions = this.consumeBashCompletions(chatId);
-    if (completions.length === 0) return;
-
-    const message = createBashCompletionUiMessage(completions);
-    this.chat(undefined, {
-      chatId,
-      messages: [message],
-      trigger: BACKGROUND_BASH_COMPLETION_TRIGGER,
-      requireToolApproval: false,
-    }).catch((err) => {
-      // eslint-disable-next-line no-console
-      console.error(
-        `Failed to resume thread ${chatId} after background Bash completion`,
-        err,
-      );
-    });
+    this.addMessageToQueue(
+      {
+        id: `background-agent:${completion.sessionId}`,
+        chatId,
+        message: createAgentCompletionUiMessage([completion]),
+        source: 'background-agent',
+        injectionMode: 'immediate',
+        trigger: BACKGROUND_AGENT_COMPLETION_TRIGGER,
+      },
+      false,
+    );
   }
 
   @api({
@@ -816,6 +1029,7 @@ class MastraManager extends BaseManager {
     callback?: ChatCallbackEvent,
   ): Promise<ChatResult> {
     const { chatId } = data;
+    const startedAt = new Date();
     if (this.threadChats.some((chat) => chat.id === chatId)) {
       throw new Error(`Thread ${chatId} is not idle`);
     }
@@ -829,11 +1043,81 @@ class MastraManager extends BaseManager {
     });
 
     try {
-      return await this.runChat(event, data, controller, callback);
+      const result = await this.runChat(event, data, controller, callback);
+      if (
+        result.success &&
+        !result.aborted &&
+        result.status === 'success' &&
+        !isBackgroundCompletionTrigger(data.trigger)
+      ) {
+        const endedAt = new Date();
+        try {
+          const timelineInput = await this.prepareProjectTimeline(
+            data,
+            result,
+            startedAt,
+            endedAt,
+          );
+          if (timelineInput) {
+            projectTimelineManager
+              .generateTimelineEntry(timelineInput)
+              .catch((error) => {
+                console.error(
+                  `Failed to generate project timeline entry for ${chatId}`,
+                  error,
+                );
+              });
+          }
+        } catch (error) {
+          console.error(
+            `Failed to prepare project timeline entry for ${chatId}`,
+            error,
+          );
+        }
+      }
+      return result;
     } finally {
       this.threadChats = this.threadChats.filter((chat) => chat.id !== chatId);
-      this.startBashContinuationIfIdle(chatId);
+      this.startQueuedContinuationIfIdle(chatId);
     }
+  }
+
+  private async prepareProjectTimeline(
+    data: ChatInput,
+    result: ChatResult,
+    startedAt: Date,
+    endedAt: Date,
+  ): Promise<TimelineGenerationInput | undefined> {
+    const storage = this.mastra.getStorage();
+    const memoryStore = await storage.getStore('memory');
+    const thread = await memoryStore.getThreadById({ threadId: data.chatId });
+    if (!thread?.resourceId?.startsWith('project:')) return undefined;
+
+    const projectId = thread.resourceId.slice('project:'.length);
+    if (!projectId || !(await projectTimelineManager.isEnabled(projectId))) {
+      return undefined;
+    }
+    const appInfo = await appManager.getInfo();
+    const modelId =
+      appInfo?.defaultModel?.fastModel ||
+      (thread.metadata?.model as string | undefined) ||
+      data.model;
+    if (!modelId) return undefined;
+
+    const history = await memoryStore.listMessages({
+      threadId: data.chatId,
+      resourceId: thread.resourceId,
+      perPage: false,
+    });
+    return {
+      projectId,
+      threadId: data.chatId,
+      runId: result.runId,
+      modelId,
+      startedAt,
+      endedAt,
+      messages: history.messages,
+    };
   }
 
   private async runChat(
@@ -872,7 +1156,9 @@ class MastraManager extends BaseManager {
 
     let project: Project | undefined;
     if (!projectId) {
-      projectId = currentThread?.resourceId?.startsWith('project:') ? currentThread.resourceId.split(':')[1] : undefined;
+      projectId = currentThread?.resourceId?.startsWith('project:')
+        ? currentThread.resourceId.split(':')[1]
+        : undefined;
     }
     if (projectId) {
       project = await projectManager.getProject(projectId);
@@ -884,13 +1170,13 @@ class MastraManager extends BaseManager {
     const threadMetadata = currentThread.metadata ?? {};
 
     if (
-      trigger === BACKGROUND_BASH_COMPLETION_TRIGGER &&
+      isBackgroundCompletionTrigger(trigger) &&
       typeof threadMetadata.think === 'boolean'
     ) {
       think = threadMetadata.think;
     }
     if (
-      trigger === BACKGROUND_BASH_COMPLETION_TRIGGER &&
+      isBackgroundCompletionTrigger(trigger) &&
       typeof threadMetadata.requireToolApproval === 'boolean'
     ) {
       requireToolApproval = threadMetadata.requireToolApproval;
@@ -898,7 +1184,7 @@ class MastraManager extends BaseManager {
 
     let agent: Agent;
     if (!agentId) {
-      agentId = (threadMetadata?.agentId as string) ?? DefaultAgent.agentName
+      agentId = (threadMetadata?.agentId as string) ?? DefaultAgent.agentName;
     }
 
     model ||= threadMetadata.model as string | undefined;
@@ -915,8 +1201,8 @@ class MastraManager extends BaseManager {
     let selectedTools = [...tools];
     let disabledAutoSkills =
       inputDisabledAutoSkills ??
-      ((threadMetadata.disabledAutoSkills as string[] | undefined) ??
-        []);
+      (threadMetadata.disabledAutoSkills as string[] | undefined) ??
+      [];
     const autoLoadSkillIds = await toolsManager.getAutoLoadSkillIds();
     tools = [
       ...new Set([
@@ -935,13 +1221,10 @@ class MastraManager extends BaseManager {
       subAgents = agentEntity.subAgents as string[];
     }
 
-
-
     // for (const uiMessage of uiMessages) {
     //   delete uiMessage.id;
     // }
     const fastModel = appInfo?.defaultModel?.fastModel || model;
-
 
     let inputMessage = uiMessages[uiMessages.length - 1];
 
@@ -967,7 +1250,7 @@ class MastraManager extends BaseManager {
 
     let requestContext;
     const retryState: { attempt: number; streamError?: Error } = { attempt: 0 };
-    let skipTitleGeneration = trigger === BACKGROUND_BASH_COMPLETION_TRIGGER;
+    let skipTitleGeneration = isBackgroundCompletionTrigger(trigger);
     try {
       // const info = modelsData[provider.type]?.models[_modeId] || {};
       const workspace =
@@ -976,11 +1259,19 @@ class MastraManager extends BaseManager {
       fs.mkdirSync(workspace, { recursive: true });
       fs.mkdirSync(path.join(workspace, 'memory'), { recursive: true });
       if (!fs.existsSync(path.join(workspace, 'memory', 'MEMORY.md'))) {
-        await fs.promises.writeFile(path.join(workspace, 'memory', 'MEMORY.md'), ``, 'utf-8');
+        await fs.promises.writeFile(
+          path.join(workspace, 'memory', 'MEMORY.md'),
+          ``,
+          'utf-8',
+        );
       }
 
       if (!goal) {
-        goal = currentThread.metadata?.goal as GoalConfig || { enable: false, objective: null, status: null };
+        goal = (currentThread.metadata?.goal as GoalConfig) || {
+          enable: false,
+          objective: null,
+          status: null,
+        };
       }
 
       currentThread = await memoryStore.updateThread({
@@ -1011,15 +1302,16 @@ class MastraManager extends BaseManager {
       const skillsLoaded: string[] =
         (currentThread.metadata?.skillsLoaded as string[]) || [];
       const fileLastReadTime: Record<string, number> =
-        (currentThread.metadata?.fileLastReadTime as Record<string, number>) || {};
-      const usage: LanguageModelUsage =
-        currentThread.metadata?.usage as LanguageModelUsage ?? {
-          inputTokens: 0,
-          outputTokens: 0,
-          totalTokens: 0,
-          reasoningTokens: 0,
-          cachedInputTokens: 0,
-        };
+        (currentThread.metadata?.fileLastReadTime as Record<string, number>) ||
+        {};
+      const usage: LanguageModelUsage = (currentThread.metadata
+        ?.usage as LanguageModelUsage) ?? {
+        inputTokens: 0,
+        outputTokens: 0,
+        totalTokens: 0,
+        reasoningTokens: 0,
+        cachedInputTokens: 0,
+      };
       requestContext = new RequestContext<ChatRequestContext>();
       requestContext.set('skillsLoaded', skillsLoaded);
       requestContext.set('model', model);
@@ -1034,7 +1326,10 @@ class MastraManager extends BaseManager {
       requestContext.set('todos', todos);
       requestContext.set('tasks', tasks);
       requestContext.set('fileLastReadTime', fileLastReadTime);
-      requestContext.set('compressedMessage', currentThread.metadata?.compressedMessage);
+      requestContext.set(
+        'compressedMessage',
+        currentThread.metadata?.compressedMessage,
+      );
       requestContext.set(
         'maxContextSize',
         modelInfo?.limit?.context ?? 256 * 1000,
@@ -1046,8 +1341,6 @@ class MastraManager extends BaseManager {
       if (assistantSoul?.enabled && assistantSoul.content?.trim()) {
         requestContext.set('assistantSoul', assistantSoul.content.trim());
       }
-
-
 
       agent = await agentManager.buildAgent(agentId, {
         modelId: model,
@@ -1061,12 +1354,10 @@ class MastraManager extends BaseManager {
       // const recentMessage = agent.getMostRecentUserMessage(uiMessages);
       const signal = controller.signal;
 
-
-
       const historyMessages = await memoryStore.listMessages({
         threadId: chatId,
         resourceId: resourceId,
-        perPage: false
+        perPage: false,
       });
 
       const historyMessagesAISdkV5 = toAISdkV5Messages(
@@ -1101,7 +1392,10 @@ class MastraManager extends BaseManager {
               type: 'text',
               text: `<attachment id="File #${fileIndex}" path="${filePart.path}" name="${path.basename(filePart.path)}" size="${filesize(fs.statSync(filePart.path).size)}" mimeType="${mimeType || 'application/octet-stream'}" ${extInfo}>`,
             });
-            if (modelInfo?.modalities?.input?.includes('image') && mimeType?.startsWith('image/')) {
+            if (
+              modelInfo?.modalities?.input?.includes('image') &&
+              mimeType?.startsWith('image/')
+            ) {
               // filePart['providerMetadata'] = {
               //   openai: {
               //     imageDetail: 'high'
@@ -1117,7 +1411,6 @@ class MastraManager extends BaseManager {
           } else {
             inputParts.push(part);
           }
-
         }
         message.parts = inputParts;
       };
@@ -1147,7 +1440,7 @@ class MastraManager extends BaseManager {
             // 'reasoning.encrypted_content',
             ...(webSearch ? ['web_search_call.action.sources'] : []),
           ],
-          reasoningSummary: "auto",
+          reasoningSummary: 'auto',
         } as OpenAIChatLanguageModelOptions,
         deepseek: {
           thinking: {
@@ -1161,11 +1454,13 @@ class MastraManager extends BaseManager {
           },
         } as GoogleGenerativeAIProviderOptions,
         xai: {
-          reasoningEffort: think ? (appInfo.defaultThink == 'low' ? 'low' : 'high') : undefined
+          reasoningEffort: think
+            ? appInfo.defaultThink == 'low'
+              ? 'low'
+              : 'high'
+            : undefined,
         } as XaiProviderOptions,
-        ollama: {
-
-        }
+        ollama: {},
       };
       // const maxContextSize = requestContext.get('maxContextSize');
       let streamOptions: AgentExecutionOptions<undefined> = {
@@ -1179,7 +1474,7 @@ class MastraManager extends BaseManager {
           headers: {
             ...(options?.modelSettings?.headers ?? {}),
             'X-AIME-CHAT-THREAD-ID': requestContext.get('threadId') as string,
-          }
+          },
         },
         requestContext: requestContext,
         context: convertToModelMessages(historyMessagesAISdkV5),
@@ -1213,10 +1508,15 @@ class MastraManager extends BaseManager {
 
         onStepFinish: async (event) => {
           //storage.saveMessages();
-          const { usage, request = { body: { messages: [] } }, response, text, reasoning } = event;
+          const {
+            usage,
+            request = { body: { messages: [] } },
+            response,
+            text,
+            reasoning,
+          } = event;
 
-
-          const message = request?.body?.messages ?? []
+          const message = request?.body?.messages ?? [];
           const systemMessage = await agent.getInstructions();
           const resolvedUsage = await resolveLanguageModelUsage({
             usage: usage as LanguageModelUsage,
@@ -1228,8 +1528,7 @@ class MastraManager extends BaseManager {
           const maxContextSize = requestContext.get('maxContextSize');
           await callback?.onUsage?.(resolvedUsage, maxContextSize);
           requestContext.set('usage' as never, resolvedUsage as never);
-          const usageRate =
-            (resolvedUsage?.totalTokens / maxContextSize) * 100;
+          const usageRate = (resolvedUsage?.totalTokens / maxContextSize) * 100;
           console.log(
             'usage rate: ' + usageRate.toFixed(2) + '%',
             resolvedUsage,
@@ -1285,7 +1584,6 @@ class MastraManager extends BaseManager {
           }
         },
         requireToolApproval: requireToolApproval,
-
       };
       appManager.sendEvent(`chat:event:${chatId}`, {
         type: ChatEvent.ChatChanged,
@@ -1297,10 +1595,10 @@ class MastraManager extends BaseManager {
       let _inputMessage: UIMessage | undefined = inputMessage as UIMessage;
       let resume = toolCallId
         ? {
-          toolCallId,
-          approved,
-          resumeData,
-        }
+            toolCallId,
+            approved,
+            resumeData,
+          }
         : undefined;
       const prependPendingSystemReminder = (message: UIMessage) => {
         message.parts = [
@@ -1692,14 +1990,15 @@ class MastraManager extends BaseManager {
               },
             );
             const lastMessage = core[core.length - 1];
-            const immediatePending = this.consumePendingChatMessage(chatId, true);
-            const bashCompletions = immediatePending
-              ? []
-              : this.consumeBashCompletions(chatId);
-            if (immediatePending) {
-              await applyPendingChatMessage(immediatePending, true);
-            } else if (bashCompletions.length > 0) {
-              _inputMessage = createBashCompletionUiMessage(bashCompletions);
+            const immediateMessages = this.chatMessageQueue.takeNextBatch(
+              chatId,
+              ['immediate'],
+            );
+            this.notifyQueuedMessagesConsumed(immediateMessages);
+            if (immediateMessages[0]?.source === 'user') {
+              await applyPendingChatMessage(immediateMessages[0], true);
+            } else if (immediateMessages.length > 0) {
+              _inputMessage = createQueuedMessageBatch(immediateMessages);
               resume = undefined;
             } else if (lastMessage.role == 'tool') {
             } else if (lastMessage.role == 'assistant') {
@@ -1796,9 +2095,17 @@ Do not call update_goal unless the goal is complete or the strict blocked audit 
                   tools.splice(tools.indexOf(`${ToolType.BUILD_IN}:${UpdateGoal.toolName}`), 1);
                 }
 
-                const pending = this.consumePendingChatMessage(chatId);
-                if (pending) {
-                  await applyPendingChatMessage(pending);
+                const pending = this.chatMessageQueue.takeNextBatch(chatId, [
+                  'after-session',
+                ]);
+                if (pending.length > 0) {
+                  this.notifyQueuedMessagesConsumed(pending);
+                  if (pending[0].source === 'user') {
+                    await applyPendingChatMessage(pending[0]);
+                  } else {
+                    _inputMessage = createQueuedMessageBatch(pending);
+                    resume = undefined;
+                  }
                 } else {
                   break;
                 }
@@ -1885,22 +2192,15 @@ Do not call update_goal unless the goal is complete or the strict blocked audit 
         // await memoryStore.saveMessages({ messages: [...db, ...messages] });
         await memoryStore.saveMessages({ messages: [...messages] });
       } else {
-
-
-
       }
-
-
-
-
 
       return {
         success: true,
         status: stream?.status,
         aborted: streamOptions.abortSignal.aborted,
         runId: stream?.runId,
-        messages: db_messages
-      }
+        messages: db_messages,
+      };
     } catch (err) {
       console.error(err);
       appManager.sendEvent(`chat:event:${chatId}`, {
@@ -1922,7 +2222,7 @@ Do not call update_goal unless the goal is complete or the strict blocked audit 
         success: false,
         error: errorMessage,
         status: stream?.status,
-      }
+      };
     } finally {
       appManager.sendEvent(`chat:event:${chatId}`, {
         type: ChatEvent.ChatChanged,
@@ -1932,17 +2232,22 @@ Do not call update_goal unless the goal is complete or the strict blocked audit 
         data: { type: ChatChangedType.Finish, chatId, resourceId },
       });
       if (stream?.status === 'suspended') {
-        this.bashCompletionCoordinator.setSuspended(chatId, true);
+        this.chatMessageQueue.setSuspended(chatId, true);
       } else if (stream) {
-        this.bashCompletionCoordinator.setSuspended(chatId, false);
+        this.chatMessageQueue.setSuspended(chatId, false);
       }
 
       currentThread = await memoryStore.getThreadById({ threadId: chatId });
       if (!skipTitleGeneration && currentThread.title == DEFAULT_TITLE) {
         try {
-          this.generateTitle({ modelId: model, userMessage: inputMessage?.parts[0]?.text, chatId, callback });
+          this.generateTitle({
+            modelId: model,
+            userMessage: inputMessage?.parts[0]?.text,
+            chatId,
+            callback,
+          });
         } catch (err) {
-          console.error(err)
+          console.error(err);
         }
       }
     }
@@ -1975,10 +2280,7 @@ Do not call update_goal unless the goal is complete or the strict blocked audit 
       resourceId: resourceId,
     });
     const storage = this.mastra.getStorage();
-    const workflowsStore = await storage?.getStore("workflows");
-
-
-
+    const workflowsStore = await storage?.getStore('workflows');
 
     if (
       runId &&
@@ -2018,19 +2320,33 @@ Do not call update_goal unless the goal is complete or the strict blocked audit 
               toolCallId: toolCall.toolCallId,
             });
             for await (const chunk of stream.fullStream) {
-              console.log(chunk)
+              console.log(chunk);
               // if (chunk.type = 'step-finish') {
               //   break;
               // }
             }
-            const toolResults = (await stream.toolResults);
-            const toolResult = toolResults.find(x => x.runId == suspendedRun.runId)?.payload?.result;
-            const msgIndex = inputMessage.findIndex(x => x.role == 'assistant' && x.parts.find(p => p.state == 'input-available' && p.toolCallId == toolCall.toolCallId));
+            const toolResults = await stream.toolResults;
+            const toolResult = toolResults.find(
+              (x) => x.runId == suspendedRun.runId,
+            )?.payload?.result;
+            const msgIndex = inputMessage.findIndex(
+              (x) =>
+                x.role == 'assistant' &&
+                x.parts.find(
+                  (p) =>
+                    p.state == 'input-available' &&
+                    p.toolCallId == toolCall.toolCallId,
+                ),
+            );
             if (msgIndex != -1) {
-              inputMessage[msgIndex].parts = inputMessage[msgIndex].parts.map(p => p.toolCallId == toolCall.toolCallId ? { ...p, state: 'output-available', output: toolResult } : p);
+              inputMessage[msgIndex].parts = inputMessage[msgIndex].parts.map(
+                (p) =>
+                  p.toolCallId == toolCall.toolCallId
+                    ? { ...p, state: 'output-available', output: toolResult }
+                    : p,
+              );
             }
           }
-
         }
       }
 
@@ -2047,7 +2363,7 @@ Do not call update_goal unless the goal is complete or the strict blocked audit 
 
     const uiStreamReader = uiStream.getReader();
     let cache = {
-      textDelta: {}
+      textDelta: {},
     };
     while (true) {
       const { done, value } = await uiStreamReader.read();
@@ -2074,16 +2390,22 @@ Do not call update_goal unless the goal is complete or the strict blocked audit 
         });
       }
       if (value.type == 'tool-output-available') {
-        await callback?.onToolCallUpdate?.({
-          toolCallId: value.toolCallId,
-          output: value.output,
-        }, 'completed');
+        await callback?.onToolCallUpdate?.(
+          {
+            toolCallId: value.toolCallId,
+            output: value.output,
+          },
+          'completed',
+        );
       }
       if (value.type == 'tool-output-error') {
-        await callback?.onToolCallUpdate?.({
-          toolCallId: value.toolCallId,
-          output: value.errorText,
-        }, 'failed');
+        await callback?.onToolCallUpdate?.(
+          {
+            toolCallId: value.toolCallId,
+            output: value.errorText,
+          },
+          'failed',
+        );
       }
       if (value.type == 'text-start') {
         await callback?.onStart?.();
@@ -2092,11 +2414,11 @@ Do not call update_goal unless the goal is complete or the strict blocked audit 
         await callback?.onEnd?.();
       }
 
-      if (value.type == "tool-input-delta") {
+      if (value.type == 'tool-input-delta') {
         continue;
       }
 
-      if (value.type == "text-delta") {
+      if (value.type == 'text-delta') {
         if (cache.textDelta[value.id]) {
           cache.textDelta[value.id].push(value.delta);
         } else {
@@ -2106,8 +2428,8 @@ Do not call update_goal unless the goal is complete or the strict blocked audit 
 
       if (cache.textDelta && Object.keys(cache.textDelta).length > 0) {
         for (const id of Object.keys(cache.textDelta)) {
-          const textDeltas = cache.textDelta[id]
-          if (textDeltas.length > 10 || value.type != "text-delta") {
+          const textDeltas = cache.textDelta[id];
+          if (textDeltas.length > 10 || value.type != 'text-delta') {
             if (textDeltas.length > 0) {
               appManager.sendEvent(`chat:event:${chatId}`, {
                 type: ChatEvent.ChatChunk,
@@ -2118,7 +2440,7 @@ Do not call update_goal unless the goal is complete or the strict blocked audit 
                 }),
               });
             }
-            if (value.type != "text-delta") {
+            if (value.type != 'text-delta') {
               appManager.sendEvent(`chat:event:${chatId}`, {
                 type: ChatEvent.ChatChunk,
                 data: JSON.stringify(value),
@@ -2130,9 +2452,7 @@ Do not call update_goal unless the goal is complete or the strict blocked audit 
         continue;
       }
 
-
       console.log('Stream chunk:', value);
-
 
       appManager.sendEvent(`chat:event:${chatId}`, {
         type: ChatEvent.ChatChunk,
@@ -2146,7 +2466,6 @@ Do not call update_goal unless the goal is complete or the strict blocked audit 
     // });
     return stream;
   }
-
 
   private async getVisibleBashSessions(threadId: string, resourceId?: string) {
     if (!resourceId?.startsWith('project:')) {
@@ -2175,8 +2494,10 @@ Do not call update_goal unless the goal is complete or the strict blocked audit 
     return Array.from(sessionsById.values());
   }
 
-  public async getInjectMessages(requestContext: RequestContext<ChatRequestContext>, hasCompressed: boolean = false) {
-
+  public async getInjectMessages(
+    requestContext: RequestContext<ChatRequestContext>,
+    hasCompressed: boolean = false,
+  ) {
     const injectedMessages = [];
 
     const workspace = requestContext.get('workspace');
@@ -2185,13 +2506,13 @@ Do not call update_goal unless the goal is complete or the strict blocked audit 
 
     const goal = requestContext.get('goal') ?? null;
 
-
-
     // 注入已载入的技能, 只有当hasCompressed为true时才注入
     if (hasCompressed == true && skillsLoaded.length > 0) {
       let text = `<system-reminder>\nThe following skills were invoked in this session. Continue to follow these guidelines:\n`;
       for (const skillId of skillsLoaded) {
-        const skill = await skillManager.getSkill(skillId as `${ToolType.SKILL}:${string}`)
+        const skill = await skillManager.getSkill(
+          skillId as `${ToolType.SKILL}:${string}`,
+        );
         if (skill) {
           text += `### Skill: ${skill.id}
 Base directory for this skill:  ${skill.path}
@@ -2206,11 +2527,7 @@ ${skill.content}
         type: 'text',
         text: text,
       });
-
     }
-
-
-
 
     // 注入Skills元数据
     let _skills = [];
@@ -2256,7 +2573,6 @@ ${_skills.map((x) => `- [${x.id}]: ${x.description}`).join('\n')}
       });
     }
 
-
     // 注入Goal
     if (goal && goal.enable && goal.objective && goal.status === 'pending') {
       injectedMessages.push({
@@ -2265,7 +2581,6 @@ ${_skills.map((x) => `- [${x.id}]: ${x.description}`).join('\n')}
 Your have a goal to achieve: ${goal.objective}
 </system-reminder>`,
       });
-
     }
 
     // 注入tasks, 只有当hasCompressed为true时才注入
@@ -2281,10 +2596,14 @@ Your have a goal to achieve: ${goal.objective}
     //   }
     // }
 
-
     // 注入AGENTS.md 和 MEMORY.md
     const agentsMdPath = path.join(workspace, `AGENTS.md`);
-    const memoryMdPath = path.join(workspace, '.aime-chat', 'memory', `MEMORY.md`);
+    const memoryMdPath = path.join(
+      workspace,
+      '.aime-chat',
+      'memory',
+      `MEMORY.md`,
+    );
     let agentsMd = '';
     let memoryMd = '';
     if (fs.existsSync(agentsMdPath) && fs.statSync(agentsMdPath).isFile()) {
@@ -2298,9 +2617,13 @@ Your have a goal to achieve: ${goal.objective}
 As you answer the user's questions, you can use the following context:
 ${agentsMd}
 
-${memoryMd ? `Contents of ${memoryMdPath.replaceAll('\\', '/')} (user's auto-memory, persists across conversations):
+${
+  memoryMd
+    ? `Contents of ${memoryMdPath.replaceAll('\\', '/')} (user's auto-memory, persists across conversations):
 ${memoryMd.split('\n').slice(0, 200).join('\n')}
-`: ''}
+`
+    : ''
+}
 # currentDate
 Today's date is ${new Date().toISOString().split('T')[0]}.
 
@@ -2323,9 +2646,6 @@ ${secrets.map((secret) => `- ${secret.key}${secret.description ? `: ${secret.des
       });
     }
 
-
-
-
     // 注入压缩消息
     const compressedMessage = requestContext.get('compressedMessage');
     if (compressedMessage) {
@@ -2342,7 +2662,8 @@ ${compressedMessage}
 
     // 注入全局记忆 wiki 摘要 (index.md + log.md tail)
     try {
-      const { buildContextDigest } = await import('../knowledge-base/static-memory');
+      const { buildContextDigest } =
+        await import('../knowledge-base/static-memory');
       const memoryDigest = await buildContextDigest();
       if (memoryDigest) {
         injectedMessages.push({
@@ -2363,21 +2684,28 @@ ${memoryDigest}
     return injectedMessages;
   }
 
-  public async generateTitle(data: { modelId: string, userMessage: string, chatId: string, callback?: ChatCallbackEvent }) {
+  public async generateTitle(data: {
+    modelId: string;
+    userMessage: string;
+    chatId: string;
+    callback?: ChatCallbackEvent;
+  }) {
     const { modelId, userMessage, chatId, callback } = data;
-    const titleAgentInstance = await agentManager.buildAgent(DefaultAgent.agentName, {
-      modelId: modelId,
-      instructions: `You will generate a short title based on the first message a user begins a conversation with
+    const titleAgentInstance = await agentManager.buildAgent(
+      DefaultAgent.agentName,
+      {
+        modelId: modelId,
+        instructions: `You will generate a short title based on the first message a user begins a conversation with
 - ensure it is not more than 80 characters long
 - the title should be a summary of the user's message
 - do not use quotes or colons
-- the entire text you return will be used as the title.`
-    });
-
+- the entire text you return will be used as the title.`,
+      },
+    );
 
     const title = await titleAgentInstance.generate([
-
-      { role: 'user', content: data.userMessage }]);
+      { role: 'user', content: data.userMessage },
+    ]);
 
     const titleText = title.text.replaceAll('\n', '').trim();
     if (!titleText) {
@@ -2407,12 +2735,7 @@ ${memoryDigest}
       type: ChatEvent.ChatChanged,
       data: { type: ChatChangedType.TitleUpdated, chatId, title: titleText },
     });
-
   }
-
-
-
-
 
   @channel(MastraChannel.ChatAbort)
   public async chatAbort(chatId: string): Promise<void> {
@@ -2424,6 +2747,11 @@ ${memoryDigest}
   public async killBashSession(bashId: string): Promise<boolean> {
     const session = await bashManager.remove(bashId);
     return Boolean(session);
+  }
+
+  @channel(MastraChannel.KillAgentSession)
+  public async killAgentSession(sessionId: string): Promise<boolean> {
+    return backgroundAgentManager.kill(sessionId);
   }
 
   @channel(MastraChannel.SaveMessages)
@@ -2443,7 +2771,7 @@ ${memoryDigest}
     messages: ModelMessage[],
     tools: Record<string, BaseTool<BaseToolParams>>,
     options: {
-      abortSignal?: AbortSignal,
+      abortSignal?: AbortSignal;
       requestContext?: RequestContext<ChatRequestContext>;
       thresholdTokenCount?: number;
       force?: boolean;
@@ -2470,7 +2798,15 @@ ${memoryDigest}
       tokenCount < options.thresholdTokenCount &&
       !options.force
     ) {
-      console.log('Not Compress Now: ' + ((tokenCount / maxContextSize) * 100).toFixed(2) + '% ' + 'Total Tokens: ' + tokenCount + ' Max Size: ' + maxContextSize);
+      console.log(
+        'Not Compress Now: ' +
+          ((tokenCount / maxContextSize) * 100).toFixed(2) +
+          '% ' +
+          'Total Tokens: ' +
+          tokenCount +
+          ' Max Size: ' +
+          maxContextSize,
+      );
       return { keepMessages: messages, hasCompressed: false };
     }
     console.log('Compress starting: Current TokenCount:', tokenCount);
@@ -2480,7 +2816,7 @@ ${memoryDigest}
       data: JSON.stringify({
         type: 'data-compress-start',
       }),
-      transient: true
+      transient: true,
     });
     const systemMessage = messages.find((x) => x.role === 'system');
 
@@ -2501,14 +2837,17 @@ ${memoryDigest}
       keepMessages = [];
     }
 
-    const originalInputMessages = summaryMessages.filter((x) => x.role !== 'system');
+    const originalInputMessages = summaryMessages.filter(
+      (x) => x.role !== 'system',
+    );
 
     const runCompression = async (
       modelId: string,
       // modelId: string,
     ) => {
-
-      const model = await providersManager.getLanguageModel(modelId) as LanguageModelV2;
+      const model = (await providersManager.getLanguageModel(
+        modelId,
+      )) as LanguageModelV2;
 
       compressAgent.model = model;
       const compressionModelInfo = await providersManager.getModelInfo(modelId);
@@ -2520,11 +2859,12 @@ ${memoryDigest}
         supportsVision,
       );
 
-      return compressAgent.generate([
-        ...inputMessages,
-        {
-          role: 'user',
-          content: `Your task is to create a detailed summary of the conversation so far, paying close attention to the user's explicit requests and your previous actions.
+      return compressAgent.generate(
+        [
+          ...inputMessages,
+          {
+            role: 'user',
+            content: `Your task is to create a detailed summary of the conversation so far, paying close attention to the user's explicit requests and your previous actions.
 This summary should be thorough in capturing technical details, code patterns, and architectural decisions that would be essential for continuing development work without losing context.
 
 Before providing your final summary, wrap your analysis in <analysis> tags to organize your thoughts and ensure you've covered all necessary points. In your analysis process:
@@ -2622,26 +2962,27 @@ When you are using compact - please focus on test output and code changes. Inclu
 
 
 IMPORTANT: Do NOT use any tools. You MUST respond with ONLY the <summary>...</summary> block as your text output.`,
-        } as UserModelMessage,
-      ], {
-        abortSignal: options?.abortSignal,
-        providerOptions: {
-          openai: {
-            store: false,
-            maxTokens: 20000
-          },
-          anthropic: {
-            maxTokens: 20000
-          },
-          google: {
-            maxTokens: 20000
-          },
-          azure: {
-            maxTokens: 20000
+          } as UserModelMessage,
+        ],
+        {
+          abortSignal: options?.abortSignal,
+          providerOptions: {
+            openai: {
+              store: false,
+              maxTokens: 20000,
+            },
+            anthropic: {
+              maxTokens: 20000,
+            },
+            google: {
+              maxTokens: 20000,
+            },
+            azure: {
+              maxTokens: 20000,
+            },
           },
         },
-
-      });
+      );
     };
 
     try {
@@ -2667,9 +3008,7 @@ IMPORTANT: Do NOT use any tools. You MUST respond with ONLY the <summary>...</su
         if (!fallbackLanguageModel) {
           throw fastModelError;
         }
-        response = await runCompression(
-          fallbackModelId
-        );
+        response = await runCompression(fallbackModelId);
       }
 
       function getTagContent(text, tag) {
@@ -2713,7 +3052,6 @@ IMPORTANT: Do NOT use any tools. You MUST respond with ONLY the <summary>...</su
           if (lastAssistantIndex < messages.length - 5) {
             break;
           }
-
         }
       }
 
@@ -2729,12 +3067,11 @@ IMPORTANT: Do NOT use any tools. You MUST respond with ONLY the <summary>...</su
         type: ChatEvent.ChatChunk,
         data: JSON.stringify({
           type: 'data-compress-end',
-          data: {}
+          data: {},
         }),
-        transient: true
+        transient: true,
       });
     }
-
   }
 
   public async saveThreadUsage(
@@ -2844,7 +3181,7 @@ IMPORTANT: Do NOT use any tools. You MUST respond with ONLY the <summary>...</su
       .addSelect('SUM(COALESCE(u.total_costs_usd, 0))', 'totalCostsUsd')
       .where(
         base.expressionMap.wheres.map((w) => w.condition).join(' AND ') ||
-        '1=1',
+          '1=1',
         base.getParameters(),
       )
       .groupBy(dayExpr)
@@ -2863,7 +3200,7 @@ IMPORTANT: Do NOT use any tools. You MUST respond with ONLY the <summary>...</su
       .addSelect('SUM(COALESCE(u.total_costs_usd, 0))', 'totalCostsUsd')
       .where(
         base.expressionMap.wheres.map((w) => w.condition).join(' AND ') ||
-        '1=1',
+          '1=1',
         base.getParameters(),
       )
       .groupBy('resourceId')
@@ -2882,7 +3219,7 @@ IMPORTANT: Do NOT use any tools. You MUST respond with ONLY the <summary>...</su
       .addSelect('SUM(COALESCE(u.total_costs_usd, 0))', 'totalCostsUsd')
       .where(
         base.expressionMap.wheres.map((w) => w.condition).join(' AND ') ||
-        '1=1',
+          '1=1',
         base.getParameters(),
       )
       .groupBy('modelId')

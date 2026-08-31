@@ -288,19 +288,14 @@ export function FloatingLiquidGlassButton({
       size="sm"
       data-dragging={isDragging}
       className={cn(
-        'group fixed z-50 isolate h-11 max-w-[220px] touch-none select-none gap-0 overflow-hidden rounded-full px-2.5 pr-4 text-xs',
-        'cursor-grab border-white/60 bg-white/[0.08] text-foreground backdrop-blur-[1px] backdrop-saturate-[1.8] backdrop-contrast-[1.12] active:cursor-grabbing',
-        'shadow-[0_3px_8px_rgba(15,23,42,0.24),inset_0_1px_0_rgba(255,255,255,0.94),inset_0_-1px_0_rgba(244,114,182,0.50),inset_1px_0_0_rgba(34,211,238,0.58),inset_-1px_0_0_rgba(96,165,250,0.42)]',
-        'transition-[left,top,transform,background-color,border-color,box-shadow,backdrop-filter] duration-200 ease-out',
-        'hover:border-white/80 hover:bg-white/[0.12] hover:backdrop-saturate-[2] hover:shadow-[0_4px_8px_rgba(15,23,42,0.27),inset_0_1px_0_rgba(255,255,255,1),inset_0_-1px_0_rgba(244,114,182,0.62),inset_1px_0_0_rgba(34,211,238,0.72),inset_-1px_0_0_rgba(96,165,250,0.52)]',
-        'active:scale-[0.97] active:bg-white/[0.15] active:shadow-[0_1px_5px_rgba(15,23,42,0.20),inset_0_1px_0_rgba(255,255,255,0.82),inset_0_-1px_0_rgba(244,114,182,0.44),inset_1px_0_0_rgba(34,211,238,0.50)]',
+        'fixed z-50 h-11 max-w-[220px] touch-none select-none gap-0 rounded-full px-2.5 pr-4 text-xs',
+        'cursor-grab border-border bg-background/95 text-foreground shadow-md active:cursor-grabbing dark:border-border dark:bg-background/95',
+        'transition-[left,top,transform,background-color] duration-150 ease-out hover:bg-accent active:scale-[0.98] dark:hover:bg-accent',
         'focus-visible:ring-2 focus-visible:ring-primary/45 focus-visible:ring-offset-2',
         'data-[dragging=true]:scale-100 data-[dragging=true]:cursor-grabbing data-[dragging=true]:transition-none',
         'motion-reduce:transition-none motion-reduce:active:scale-100',
-        'dark:border-white/35 dark:bg-white/[0.055] dark:hover:border-white/55 dark:hover:bg-white/10 dark:active:bg-white/[0.13]',
-        '[@media(prefers-reduced-transparency:reduce)]:bg-background/95 [@media(prefers-reduced-transparency:reduce)]:backdrop-blur-none',
-        tone === 'active' && 'border-primary/35 dark:border-primary/35',
-        tone === 'danger' && 'border-destructive/35 dark:border-destructive/35',
+        tone === 'active' && 'border-primary/40 dark:border-primary/40',
+        tone === 'danger' && 'border-destructive/40 dark:border-destructive/40',
         className,
       )}
       style={
@@ -315,39 +310,7 @@ export function FloatingLiquidGlassButton({
       onPointerCancel={finishDrag}
       {...props}
     >
-      <span
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-px z-0 rounded-full opacity-80 mix-blend-screen transition-opacity duration-200 group-hover:opacity-100 motion-reduce:transition-none dark:opacity-65"
-      />
-      <span
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-[2px] z-0 rounded-full "
-      />
-      <span
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-x-4 top-[2px] z-0 h-px rounded-full bg-gradient-to-r from-transparent via-white/95 to-transparent shadow-[0_1px_2px_rgba(255,255,255,0.75)] dark:via-white/75"
-      />
-      <span
-        aria-hidden="true"
-        className={cn(
-          'pointer-events-none absolute -left-3 top-1/2 z-0 size-16 -translate-y-1/2 rounded-full blur-xl',
-          '[@media(prefers-reduced-transparency:reduce)]:hidden',
-          tone === 'active' && 'bg-primary/10',
-          tone === 'danger' && 'bg-destructive/10',
-          tone === 'success' && 'bg-emerald-500/10',
-        )}
-      />
-      <span
-        aria-hidden="true"
-        className="pointer-events-none absolute -right-4 -top-5 z-0 h-9 w-24 rotate-12 rounded-[50%] bg-white/30 opacity-45 blur-[5px] transition-opacity duration-200 group-hover:opacity-70 motion-reduce:transition-none dark:bg-white/20"
-      />
-      <span
-        aria-hidden="true"
-        className="pointer-events-none absolute -bottom-2 left-[18%] z-0 h-3 w-[58%] rounded-full bg-gradient-to-r from-cyan-300/25 via-blue-400/10 to-rose-300/35 blur-[5px] transition-opacity duration-200 group-hover:opacity-100 motion-reduce:transition-none"
-      />
-      <span className="relative z-10 flex min-w-0 items-center gap-2 [text-shadow:0_1px_1px_rgba(255,255,255,0.55)] dark:[text-shadow:0_1px_1px_rgba(0,0,0,0.65)]">
-        {children}
-      </span>
+      <span className="flex min-w-0 items-center gap-2">{children}</span>
     </Button>
   );
 }
@@ -362,25 +325,13 @@ export function FloatingLiquidGlassIcon({
   return (
     <span
       className={cn(
-        'relative isolate flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-full',
-        'border border-white/65 bg-white/10 backdrop-blur-[2px] ',
-        'dark:border-white/35 dark:bg-white/[0.065]',
-        tone === 'active' && 'bg-primary/[0.07] dark:bg-primary/[0.09]',
-        tone === 'danger' && 'bg-destructive/[0.08]',
-        tone === 'success' && 'bg-emerald-500/[0.07]',
+        'flex size-7 shrink-0 items-center justify-center rounded-full bg-muted',
+        tone === 'active' && 'bg-primary/10',
+        tone === 'danger' && 'bg-destructive/10',
+        tone === 'success' && 'bg-emerald-500/10',
       )}
     >
-      <span
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-px rounded-full  opacity-70 mix-blend-screen"
-      />
-      <span
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-x-1.5 top-px h-px rounded-full bg-white/90"
-      />
-      <span className="relative z-10 flex items-center justify-center">
-        {children}
-      </span>
+      {children}
     </span>
   );
 }

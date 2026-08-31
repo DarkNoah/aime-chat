@@ -1,4 +1,5 @@
 import { RequestContext } from '@mastra/core/request-context';
+import type { MemoryConfig } from '@mastra/core/memory';
 import { ChatRequestContext } from './chat';
 
 export type BuildAgentParams = {
@@ -8,8 +9,10 @@ export type BuildAgentParams = {
   modelId: string;
   requestContext?: RequestContext<ChatRequestContext>;
   instructions?: string;
-  disableSubAgent?: boolean;
+  disableTools?: string[];
+  // disableSubAgent?: boolean;
   maxRetries?: number;
+  observationalMemory?: MemoryConfig['observationalMemory'];
 };
 
 export type Agent = {

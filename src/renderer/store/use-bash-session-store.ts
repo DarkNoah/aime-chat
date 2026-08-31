@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { BashSessionUpdate, ChatEvent } from '@/types/chat';
 
+const MAX_OUTPUT_LINES = 1_000;
 const MAX_OUTPUT_LENGTH = 200_000;
 
 export type BashSessionView = {
@@ -37,8 +38,28 @@ type BashSessionStoreState = {
 };
 
 const trimOutput = (value: string) => {
-  if (value.length <= MAX_OUTPUT_LENGTH) return value;
-  return value.slice(value.length - MAX_OUTPUT_LENGTH);
+  let output = value;
+  let lineCount = output.endsWith('\n') ? 0 : 1;
+
+  for (let index = output.length - 1; index >= 0; index -= 1) {
+    if (output[index] === '\n') {
+      lineCount += 1;
+      if (lineCount > MAX_OUTPUT_LINES) {
+        output = output.slice(index + 1);
+        break;
+      }
+    }
+  }
+
+  if (output.length <= MAX_OUTPUT_LENGTH) return output;
+  return output.slice(output.length - MAX_OUTPUT_LENGTH);
+};
+
+const getPreferredSessionId = (
+  sessions: Record<string, BashSessionView>,
+  order: string[],
+) => {
+  return order.find((id) => sessions[id] && !sessions[id].isExited) ?? order[0];
 };
 
 export const useBashSessionStore = create<BashSessionStoreState>(
@@ -89,9 +110,24 @@ export const useBashSessionStore = create<BashSessionStoreState>(
       });
     },
 
-    setPanelOpen: (open) => set({ isPanelOpen: open }),
+    setPanelOpen: (open) =>
+      set((state) => ({
+        isPanelOpen: open,
+        selectedSessionId: open
+          ? getPreferredSessionId(state.sessions, state.order)
+          : state.selectedSessionId,
+      })),
 
-    togglePanel: () => set((state) => ({ isPanelOpen: !state.isPanelOpen })),
+    togglePanel: () =>
+      set((state) => {
+        const isPanelOpen = !state.isPanelOpen;
+        return {
+          isPanelOpen,
+          selectedSessionId: isPanelOpen
+            ? getPreferredSessionId(state.sessions, state.order)
+            : state.selectedSessionId,
+        };
+      }),
 
     selectSession: (bashId) =>
       set({ selectedSessionId: bashId, isPanelOpen: true }),

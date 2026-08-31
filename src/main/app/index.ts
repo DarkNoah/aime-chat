@@ -191,10 +191,6 @@ class AppManager extends BaseManager {
 
 
     await acpManager.init();
-    const acpInfo = await acpManager.getInfo();
-    if (acpInfo.enabled) {
-      await acpManager.start();
-    }
 
     this.updateModelsJson().catch((err) =>
       console.error('Failed to update models.json:', err),
@@ -212,6 +208,13 @@ class AppManager extends BaseManager {
           message: err instanceof Error ? err.message : String(err),
         });
       });
+  }
+
+  public async startConfiguredServices(): Promise<void> {
+    const acpInfo = await acpManager.getInfo();
+    if (acpInfo.enabled) {
+      await acpManager.start();
+    }
   }
 
   private async updateModelsJson(): Promise<void> {

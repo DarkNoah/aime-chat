@@ -1,6 +1,6 @@
 import { EventEmitter } from 'events';
 import { PassThrough } from 'stream';
-import { activateBashPythonRuntime, BashManager } from '../bash';
+import { activateBashPythonRuntime, Bash, BashManager } from '../bash';
 
 jest.mock('electron', () => ({
   app: {
@@ -75,6 +75,15 @@ function createFakeShell() {
 
 type FakeShell = ReturnType<typeof createFakeShell>;
 type BashManagerInstance = InstanceType<typeof BashManager>;
+
+describe('Bash tool input schema', () => {
+  it('keeps background completion injection mode internal', () => {
+    const tool = new Bash();
+
+    expect(Object.keys(tool.inputSchema.shape)).not.toContain('injection_mode');
+    expect(tool.description).not.toContain('injection_mode');
+  });
+});
 
 function configureShell(shell: FakeShell, timedOut = false) {
   const abortController = new AbortController();

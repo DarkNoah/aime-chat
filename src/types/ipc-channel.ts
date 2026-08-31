@@ -88,6 +88,7 @@ export enum MastraChannel {
   ChatWorkflow = 'mastra:chatWorkflow',
   ChatAbort = 'mastra:chatAbort',
   KillBashSession = 'mastra:killBashSession',
+  KillAgentSession = 'mastra:killAgentSession',
   SaveMessages = 'mastra:saveMessages',
   ClearMessages = 'mastra:clearMessages',
   GetUsage = 'mastra:getUsage',
@@ -186,6 +187,8 @@ export enum ProjectChannel {
   DeleteSkill = 'project:deleteSkill',
   OpenWith = 'project:openWith',
   ExportMessages = 'project:exportMessages',
+  GetTimeline = 'project:getTimeline',
+  SetTimelineEnabled = 'project:setTimelineEnabled',
 }
 
 export enum TaskQueueChannel {

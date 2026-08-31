@@ -644,6 +644,26 @@
     "export_success": "已导出 {{threads}} 个线程、{{messages}} 条消息",
     "export_failed": "导出失败：{{error}}"
   },
+  "timeline": {
+    "tab": "时间线",
+    "title": "项目时间线",
+    "description": "每次实质任务结束后，使用完整对话历史生成任务摘要和交付物记录。",
+    "enabled": "已开启",
+    "disabled": "未开启",
+    "toggle": "开启或关闭项目时间线",
+    "disabled_title": "时间线尚未开启",
+    "disabled_description": "开启后，新的实质任务会在对话结束后自动整理。普通闲聊和无实质任务的对话不会记录。",
+    "enable_action": "开启时间线",
+    "empty_title": "还没有时间线记录",
+    "empty_description": "完成下一次实质任务后，这里会显示最短摘要、交付物、开始时间和处理时长。",
+    "loading": "正在加载时间线...",
+    "load_failed": "时间线加载失败",
+    "load_more": "加载更多",
+    "deliverables": "交付物",
+    "detailed_summary": "详细任务总结",
+    "open_thread": "打开对话",
+    "view_details": "查看 {{summary}} 的详情"
+  },
   "knowledge-base": {
     "export_sqlite": "导出",
     "add_url": "添加网址",
@@ -956,6 +976,31 @@
     "waiting_output": "等待输出...",
     "home_directory": "~",
     "empty": "暂无后台 Bash 会话"
+  },
+  "agent_status": {
+    "title": "后台 Agent",
+    "description": "实时查看后台 Agent 的每条消息、工具调用及工具输出。",
+    "open_panel": "查看后台 Agent 输出",
+    "badge_label": "Agent",
+    "badge_running": "{{count}}运行",
+    "badge_failed": "{{count}}失败",
+    "badge_done": "已完成",
+    "running_count": "{{count}} 运行中",
+    "clear_completed": "清除已完成",
+    "status_running": "运行中",
+    "status_completed": "已完成",
+    "status_failed": "失败",
+    "status_aborted": "已停止",
+    "duration_label": "耗时",
+    "duration_seconds": "{{count}}秒",
+    "duration_minutes_seconds": "{{minutes}}分 {{seconds}}秒",
+    "stop_session": "停止",
+    "waiting_output": "等待第一条消息...",
+    "message_label": "消息 {{count}}",
+    "tool_call_label": "{{tool}} 调用",
+    "tool_result_label": "{{tool}} 输出",
+    "empty_output": "无输出",
+    "empty": "暂无后台 Agent 会话"
   },
   "translation": {
     "tools": {

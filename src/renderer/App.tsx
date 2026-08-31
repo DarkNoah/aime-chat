@@ -64,9 +64,11 @@ import { ChatProvider } from './hooks/use-chat';
 import SetupPage from './pages/Setup';
 import { TaskBadge, TaskManagerPanel } from './components/task-manager';
 import { BashOutputPanel, BashStatusBar } from './components/bash-status';
+import { AgentOutputPanel, AgentStatusBar } from './components/agent-status';
 import { initTaskQueueIpcListeners } from './store/use-task-queue-store';
 import { initProgressIpcListeners } from './store/use-progress-store';
 import { initBashSessionIpcListeners } from './store/use-bash-session-store';
+import { initAgentSessionIpcListeners } from './store/use-agent-session-store';
 import MarketPage from './pages/market';
 import CronsPage from './pages/crons';
 import { GlobalMcpBundleImport } from './components/mcp-bundle-import';
@@ -170,6 +172,7 @@ function MainLayout(props: { children: ReactNode }) {
     initTaskQueueIpcListeners();
     initProgressIpcListeners();
     initBashSessionIpcListeners();
+    initAgentSessionIpcListeners();
   }, []);
 
   return (
@@ -198,6 +201,8 @@ function MainLayout(props: { children: ReactNode }) {
         <Toaster />
         <BashStatusBar />
         <BashOutputPanel />
+        <AgentStatusBar />
+        <AgentOutputPanel />
         <TaskBadge />
         <TaskManagerPanel />
       </SidebarProvider>

@@ -25,6 +25,7 @@ import {
   IconFile,
   IconFolder,
   IconDashboard,
+  IconTimeline,
 } from '@tabler/icons-react';
 import { ChatUsageView } from '../chat-usage-view';
 import { ChatFilesystem } from '../chat-filesystem';
@@ -33,6 +34,7 @@ import { useTranslation } from 'react-i18next';
 import { Project } from '@/types/project';
 import { ProjectView } from '../../project-ui/project-view';
 import type { ChatFileSelectionReference } from '@/renderer/lib/chat-file-selection';
+import { ProjectTimelineView } from '../../project-ui/project-timeline-view';
 
 export type ChatPreviewProps = {
   threadId?: string;
@@ -44,6 +46,7 @@ export type ChatPreviewProps = {
   onPreviewDataChange?: (previewData: ChatPreviewData) => void;
   onProjectChanged?: () => void;
   onAddToChat?: (reference: ChatFileSelectionReference) => void;
+  onThreadSelect?: (threadId: string) => void;
 };
 
 export interface ChatPreviewRef {}
@@ -62,6 +65,7 @@ export const ChatPreview = React.forwardRef<ChatPreviewRef, ChatPreviewProps>(
       project,
       onProjectChanged,
       onAddToChat,
+      onThreadSelect,
     } = props;
     const [isGenerating, setIsGenerating] = useState(false);
     const [messages, setMessages] = useState<UIMessage[]>([]);
@@ -130,6 +134,16 @@ export const ChatPreview = React.forwardRef<ChatPreviewRef, ChatPreviewProps>(
               {t('chat.project')}
             </ToggleGroupItem>
           )}
+          {project && (
+            <ToggleGroupItem
+              value={ChatPreviewType.TIMELINE}
+              size="sm"
+              className="data-[state=off]:bg-transparent bg-secondary "
+            >
+              <IconTimeline />
+              {t('timeline.tab')}
+            </ToggleGroupItem>
+          )}
           <ToggleGroupItem
             value={ChatPreviewType.TODO}
             size="sm"
@@ -176,7 +190,15 @@ export const ChatPreview = React.forwardRef<ChatPreviewRef, ChatPreviewProps>(
             Usage
           </ToggleGroupItem>
         </ToggleGroup>
-        <div className="flex-1 h-full min-h-0">
+        <div
+          className={`flex-1 h-full min-h-0 ${
+            previewData.previewPanel === ChatPreviewType.USAGE ||
+            previewData.previewPanel === ChatPreviewType.PROJECT ||
+            previewData.previewPanel === ChatPreviewType.TIMELINE
+              ? 'hidden'
+              : ''
+          }`}
+        >
           <div
             className={`h-full ${previewData.previewPanel === ChatPreviewType.WEB_PREVIEW ? '' : 'hidden'}`}
           >
@@ -264,7 +286,7 @@ export const ChatPreview = React.forwardRef<ChatPreviewRef, ChatPreviewProps>(
           )}
         </div>
         {previewData.previewPanel === ChatPreviewType.USAGE ? (
-          <div className="h-full overflow-y-auto">
+          <div className="min-h-0 flex-1 overflow-y-auto">
             <ChatUsageView
               threadId={threadId}
               resourceId={resourceId}
@@ -273,7 +295,7 @@ export const ChatPreview = React.forwardRef<ChatPreviewRef, ChatPreviewProps>(
         ) : null}
         {project && (
           <div
-            className={`h-full overflow-y-auto ${previewData.previewPanel === ChatPreviewType.PROJECT ? '' : 'hidden'}`}
+            className={`min-h-0 flex-1 overflow-y-auto ${previewData.previewPanel === ChatPreviewType.PROJECT ? '' : 'hidden'}`}
           >
             <ProjectView
               project={project}
@@ -281,6 +303,17 @@ export const ChatPreview = React.forwardRef<ChatPreviewRef, ChatPreviewProps>(
                 onProjectChanged?.();
               }}
             ></ProjectView>
+          </div>
+        )}
+        {project && (
+          <div
+            className={`min-h-0 flex-1 ${previewData.previewPanel === ChatPreviewType.TIMELINE ? '' : 'hidden'}`}
+          >
+            <ProjectTimelineView
+              project={project}
+              active={previewData.previewPanel === ChatPreviewType.TIMELINE}
+              onThreadSelect={onThreadSelect}
+            />
           </div>
         )}
       </div>

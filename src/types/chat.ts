@@ -56,6 +56,7 @@ export enum ChatEvent {
   ChatThreadChanged = 'chat:chat-thread-changed',
   ChatMessageChanged = 'chat:chat-message-changed',
   BashSessionUpdated = 'chat:bash-session-updated',
+  AgentSessionUpdated = 'chat:agent-session-updated',
 }
 
 export type BashSessionUpdateEvent =
@@ -81,6 +82,44 @@ export type BashSessionUpdate = {
   processSignal?: string | null;
   timedOut?: boolean;
   pid?: number;
+  startTime: string;
+  updatedAt: string;
+};
+
+export type AgentSessionMessageType = 'text' | 'tool-call' | 'tool-result';
+
+export type AgentSessionMessage = {
+  id: string;
+  type: AgentSessionMessageType;
+  content: string;
+  toolCallId?: string;
+  toolName?: string;
+  isError?: boolean;
+  createdAt: string;
+};
+
+export type AgentSessionStatus = 'running' | 'completed' | 'failed' | 'aborted';
+
+export type AgentSessionUpdateEvent =
+  | 'started'
+  | 'message'
+  | 'error'
+  | 'exited';
+
+export type AgentSessionUpdate = {
+  event: AgentSessionUpdateEvent;
+  threadId?: string;
+  resourceId?: string;
+  sessionId: string;
+  subagentThreadId: string;
+  description: string;
+  prompt: string;
+  subagentType: string;
+  message?: AgentSessionMessage;
+  result?: string;
+  errorMessage?: string;
+  status: AgentSessionStatus;
+  isExited: boolean;
   startTime: string;
   updatedAt: string;
 };
@@ -118,6 +157,7 @@ export enum ChatPreviewType {
   USAGE = 'usage',
   FILE_SYSTEM = 'file-system',
   PROJECT = 'project',
+  TIMELINE = 'timeline',
 }
 
 export type ChatPreviewData = {
@@ -170,6 +210,7 @@ export type ChatRequestContext = {
   compressedMessage?: string;
   usage?: LanguageModelUsage;
   suspended?: boolean;
+  isSubAgent?: boolean;
 };
 
 export const DEFAULT_RESOURCE_ID = 'default';
@@ -193,12 +234,30 @@ export type ChatSubmitOptions = {
   projectId?: string;
 };
 
+export type ChatMessageInjectionMode = 'immediate' | 'after-session';
+
 export type PendingChatMessageInput = {
   id: string;
   chatId: string;
   message: UIMessage;
   options?: ChatSubmitOptions;
+  injectionMode?: ChatMessageInjectionMode;
+  /** @deprecated Use injectionMode. Kept for renderer IPC compatibility. */
   immediate?: boolean;
+};
+
+export type EnqueueChatMessageInput = Omit<
+  PendingChatMessageInput,
+  'id' | 'message'
+> & {
+  id?: string;
+  message: Omit<UIMessage, 'id'> & { id?: string };
+};
+
+export type EnqueueChatMessageResult = {
+  id: string;
+  chatId: string;
+  status: 'queued' | 'updated' | 'started';
 };
 
 export const ChatSlashCommandConfig = [

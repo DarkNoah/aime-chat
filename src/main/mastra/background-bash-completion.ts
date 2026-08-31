@@ -1,49 +1,5 @@
 import type { BashSessionCompletion } from '../tools/file-system/bash';
 
-export class BackgroundBashCompletionCoordinator {
-  private pending = new Map<string, Map<string, BashSessionCompletion>>();
-
-  private suspendedThreads = new Set<string>();
-
-  enqueue(completion: BashSessionCompletion) {
-    const { threadId } = completion;
-    if (!threadId) return false;
-
-    const completions =
-      this.pending.get(threadId) ?? new Map<string, BashSessionCompletion>();
-    if (completions.has(completion.bashId)) return false;
-
-    completions.set(completion.bashId, completion);
-    this.pending.set(threadId, completions);
-    return true;
-  }
-
-  consume(threadId: string) {
-    const completions = this.pending.get(threadId);
-    if (!completions || completions.size === 0) return [];
-
-    this.pending.delete(threadId);
-    return Array.from(completions.values());
-  }
-
-  clear(threadId: string) {
-    this.pending.delete(threadId);
-    this.suspendedThreads.delete(threadId);
-  }
-
-  setSuspended(threadId: string, suspended: boolean) {
-    if (suspended) {
-      this.suspendedThreads.add(threadId);
-    } else {
-      this.suspendedThreads.delete(threadId);
-    }
-  }
-
-  canStart(threadId: string, running: boolean) {
-    return !running && !this.suspendedThreads.has(threadId);
-  }
-}
-
 export function formatBashCompletionStatus(completion: BashSessionCompletion) {
   if (completion.timedOut) return 'Timed out';
   if (completion.processSignal) {
