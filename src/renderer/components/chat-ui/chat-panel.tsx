@@ -19,6 +19,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import {
   ChatChangedType,
   ChatEvent,
+  type ChatMessageInjectionMode,
   ChatPreviewData,
   ChatPreviewType,
   ChatSubmitOptions,
@@ -849,6 +850,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
           uiMessage,
           options,
           createdAt: Date.now(),
+          immediate: false,
         };
         syncPendingSubmits([...pendingSubmitsRef.current, pending]);
         try {
@@ -857,6 +859,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
             chatId: threadId,
             message: uiMessage,
             options,
+            injectionMode: 'after-session',
           });
         } catch (err) {
           syncPendingSubmits(
@@ -880,8 +883,8 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
       [syncPendingSubmits, threadId],
     );
 
-    const submitPendingImmediately = useCallback(
-      async (id: string) => {
+    const setPendingInjectionMode = useCallback(
+      async (id: string, injectionMode: ChatMessageInjectionMode) => {
         if (!threadId) {
           return;
         }
@@ -897,7 +900,9 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
         if (status === 'streaming' || status === 'submitted') {
           syncPendingSubmits(
             pendingSubmitsRef.current.map((pending) =>
-              pending.id === id ? { ...pending, immediate: true } : pending,
+              pending.id === id
+                ? { ...pending, immediate: injectionMode === 'immediate' }
+                : pending,
             ),
           );
           await window.electron.mastra.enqueuePendingMessage({
@@ -905,7 +910,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
             chatId: threadId,
             message: item.uiMessage,
             options: item.options,
-            immediate: true,
+            injectionMode,
           });
           return;
         }
@@ -1426,7 +1431,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
                   </Badge>
                 </div>
                 <span className="text-[11px] text-muted-foreground">
-                  当前回复结束后自动发送
+                  可选择即时注入或会话结束后注入
                 </span>
               </div>
               <div className="flex max-h-28 flex-col gap-1 overflow-y-auto">
@@ -1451,7 +1456,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
                     )}
                     {item.immediate && (
                       <span className="shrink-0 text-[11px] text-primary">
-                        优先
+                        即时
                       </span>
                     )}
                     <Button
@@ -1459,10 +1464,26 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
                       variant={item.immediate ? 'secondary' : 'ghost'}
                       size="icon"
                       className="size-6 shrink-0"
-                      title="立即提交"
-                      onClick={() => submitPendingImmediately(item.id)}
+                      title="即时注入"
+                      aria-label="即时注入"
+                      onClick={() =>
+                        setPendingInjectionMode(item.id, 'immediate')
+                      }
                     >
                       <SendIcon className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={!item.immediate ? 'secondary' : 'ghost'}
+                      size="icon"
+                      className="size-6 shrink-0"
+                      title="会话结束后注入"
+                      aria-label="会话结束后注入"
+                      onClick={() =>
+                        setPendingInjectionMode(item.id, 'after-session')
+                      }
+                    >
+                      <ClockIcon className="size-3.5" />
                     </Button>
                     <Button
                       type="button"

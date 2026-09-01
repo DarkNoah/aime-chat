@@ -14,6 +14,9 @@ export const getEnv = async (requestContext?: RequestContext<Record<string, any>
     env['AIME_CHAT_API_BASE_URL'] = `http://localhost:${appInfo.apiServer.port}`;
   }
   env['AIME_CHAT_SKILL_PATH'] = path.join(app.getPath('userData'), 'skills');
+  env['SKILL_PATH'] = path.join(app.getPath('userData'), 'skills');
+  env['SKILL_ROOT'] = path.join(app.getPath('userData'), 'skills');
+
   let modelId = requestContext?.get('model' as never) as string || appInfo.defaultModel.model;
 
   const visionModel = appInfo?.defaultModel?.visionModel || modelId;

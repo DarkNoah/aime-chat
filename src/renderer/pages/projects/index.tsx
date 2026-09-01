@@ -507,10 +507,14 @@ function ProjectsPage() {
           >
             <div className="min-w-0 p-2 flex-1 h-full">
               <ChatPreview
+                threadId={threadId}
                 resourceId={projectResourceId}
                 workspace={project?.path}
                 part={previewToolPart}
                 onAddToChat={handleAddSelectionToChat}
+                onThreadSelect={(selectedThreadId) => {
+                  setThreadId(selectedThreadId);
+                }}
                 previewData={previewData}
                 project={project}
                 onProjectChanged={() => {

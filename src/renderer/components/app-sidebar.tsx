@@ -27,6 +27,7 @@ import {
   IconCategory,
   IconClock,
   IconDownload,
+  IconChartHistogram,
   type Icon,
 } from '@tabler/icons-react';
 // import { NavMain } from '@/app/(pages)/nav-main';
@@ -63,6 +64,7 @@ import ProjectsList from './project-list';
 import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
 import { cn } from '../lib/utils';
 import { useUpdateState } from '../hooks/use-update-state';
+import { AppLogo } from './app-logo';
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { appInfo } = useGlobal();
@@ -71,6 +73,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const location = useLocation();
   const updateState = useUpdateState();
   const isCompactWindow = appInfo?.windowMode?.current === 'compact';
+  const featureFlags = appInfo?.featureFlags;
+  const projectsDisabled = featureFlags?.projectsDisabled ?? false;
   const [activeTab, setActiveTab] = useState(
     window.localStorage.getItem('activeTab') || 'chat',
   );
@@ -79,6 +83,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   }, [activeTab]);
 
   useEffect(() => {
+    if (projectsDisabled) {
+      if (activeTab !== 'chat') {
+        setActiveTab('chat');
+      }
+      return;
+    }
     if (
       location.pathname.startsWith('/projects/') &&
       activeTab !== 'projects'
@@ -87,7 +97,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     } else if (location.pathname.startsWith('/chat/') && activeTab !== 'chat') {
       setActiveTab('chat');
     }
-  }, [location.pathname]);
+  }, [location.pathname, projectsDisabled]);
 
   const [openProjectDialog, setOpenProjectDialog] = useState(false);
 
@@ -99,54 +109,63 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     isActive: boolean;
     hidden?: boolean;
   }[] = [
-    {
-      title: t('sidebar.new_chat'),
-      url: '/chat',
-      icon: IconEdit,
-      isActive: false,
-    },
-    {
-      title: t('sidebar.new_project'),
-      icon: IconFolderPlus,
-      onClick: () => {
-        setOpenProjectDialog(true);
+      {
+        title: t('sidebar.new_chat'),
+        url: '/chat',
+        icon: IconEdit,
+        isActive: false,
       },
-      isActive: false,
-    },
-    {
-      title: t('sidebar.tools'),
-      url: '/tools',
-      icon: IconTools,
-      isActive: location.pathname.startsWith('/tools'),
-    },
-    {
-      title: t('sidebar.market'),
-      url: '/market',
-      icon: IconCategory,
-      isActive: location.pathname.startsWith('/market'),
-      // hidden: appInfo?.isPackaged,
-    },
-    {
-      title: t('sidebar.crons'),
-      url: '/crons',
-      icon: IconClock,
-      // hidden: appInfo?.isPackaged,
-      isActive: location.pathname.startsWith('/crons'),
-    },
-    {
-      title: t('sidebar.knowledge_base'),
-      url: '/knowledge-base',
-      icon: IconBook,
-      isActive: location.pathname.startsWith('/knowledge-base'),
-      // hidden: appInfo?.isPackaged,
-    },
-    {
-      title: t('sidebar.agents'),
-      url: '/agents',
-      icon: IconRobot,
-      isActive: location.pathname.startsWith('/agents'),
-    },
-  ];
+      {
+        title: t('sidebar.new_project'),
+        icon: IconFolderPlus,
+        onClick: () => {
+          setOpenProjectDialog(true);
+        },
+        isActive: false,
+        hidden: projectsDisabled,
+      },
+      {
+        title: t('sidebar.tools'),
+        url: '/tools',
+        icon: IconTools,
+        isActive: location.pathname.startsWith('/tools'),
+      },
+      {
+        title: t('sidebar.market'),
+        url: '/market',
+        icon: IconCategory,
+        isActive: location.pathname.startsWith('/market'),
+        hidden: featureFlags?.marketDisabled,
+      },
+      {
+        title: t('sidebar.crons'),
+        url: '/crons',
+        icon: IconClock,
+        hidden: featureFlags?.cronsDisabled,
+        isActive: location.pathname.startsWith('/crons'),
+      },
+      {
+        title: t('sidebar.evals'),
+        url: '/evals',
+        icon: IconChartHistogram,
+        hidden: featureFlags?.evalsDisabled,
+        isActive: location.pathname.startsWith('/evals'),
+      },
+      {
+        title: t('sidebar.knowledge_base'),
+        url: '/knowledge-base',
+        icon: IconBook,
+        isActive: location.pathname.startsWith('/knowledge-base'),
+        hidden: featureFlags?.knowledgeBaseDisabled,
+      },
+      {
+        title: t('sidebar.agents'),
+        url: '/agents',
+        icon: IconRobot,
+        isActive: location.pathname.startsWith('/agents'),
+        hidden: featureFlags?.agentsDisabled,
+      },
+    ];
   return (
     <Sidebar
       collapsible={isCompactWindow ? 'icon' : 'offcanvas'}
@@ -156,11 +175,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <SidebarMenu>
           <SidebarMenuItem
             className={cn(
-              'flex flex-row gap-2',
+              'flex flex-row items-center gap-2',
               isCompactWindow && 'hidden',
             )}
           >
-            <span className="text-base font-semibold">{appInfo?.name}</span>
+            <AppLogo className="size-5 shrink-0 rounded-sm" />
+            <span className="truncate text-base font-semibold">
+              {appInfo?.name}
+            </span>
             {appInfo?.isPackaged === false && (
               <Badge
                 variant="outline"
@@ -195,27 +217,32 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             >
               {t('common.chat')}
             </Button>
-            <Button
-              variant="link"
-              size="sm"
-              onClick={() => setActiveTab('projects')}
-              className={cn(
-                'text-xs ',
-                activeTab === 'projects'
-                  ? 'text-foreground underline'
-                  : 'text-muted-foreground',
-                'transition-all duration-300 ease-in-out',
-              )}
-            >
-              {t('common.project')}
-            </Button>
+            {!projectsDisabled && (
+              <Button
+                variant="link"
+                size="sm"
+                onClick={() => setActiveTab('projects')}
+                className={cn(
+                  'text-xs ',
+                  activeTab === 'projects'
+                    ? 'text-foreground underline'
+                    : 'text-muted-foreground',
+                  'transition-all duration-300 ease-in-out',
+                )}
+              >
+                {t('common.project')}
+              </Button>
+            )}
           </div>
+
           <ThreadsList
             className={activeTab === 'chat' ? 'block' : 'hidden'}
           />
-          <ProjectsList
-            className={activeTab === 'projects' ? 'block' : 'hidden'}
-          />
+          {!projectsDisabled && (
+            <ProjectsList
+              className={activeTab === 'projects' ? 'block' : 'hidden'}
+            />
+          )}
         </>
       ) : null}
       {/* <SidebarContent>

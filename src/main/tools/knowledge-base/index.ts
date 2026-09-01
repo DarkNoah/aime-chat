@@ -28,7 +28,7 @@ import {
 export class KnowledgeBaseList extends BaseTool {
   static readonly toolName = 'KnowledgeBaseList';
   id: string = 'KnowledgeBaseList';
-  description = `List all knowledge bases.`;
+  description = `List all knowledge bases with their item counts.`;
 
   inputSchema = z.object({
 
@@ -41,8 +41,17 @@ export class KnowledgeBaseList extends BaseTool {
   execute = async (inputData: z.infer<typeof this.inputSchema>, options?: ToolExecutionContext<ZodSchema, any>) => {
     const { } = inputData;
     const { writer } = options;
-    const knowledgeBases = await knowledgeBaseManager.getKnowledgeBaseList();
-    return knowledgeBases.map(x => { return { id: x.id, name: x.name, description: x.description, extendColumns: x.vectorStoreConfig?.extendColumns } });
+    const [knowledgeBases, itemCounts] = await Promise.all([
+      knowledgeBaseManager.getKnowledgeBaseList(),
+      knowledgeBaseManager.getKnowledgeBaseItemCounts(),
+    ]);
+    return knowledgeBases.map((knowledgeBase) => ({
+      id: knowledgeBase.id,
+      name: knowledgeBase.name,
+      description: knowledgeBase.description,
+      itemCount: itemCounts[knowledgeBase.id] ?? 0,
+      extendColumns: knowledgeBase.vectorStoreConfig?.extendColumns,
+    }));
   }
 }
 

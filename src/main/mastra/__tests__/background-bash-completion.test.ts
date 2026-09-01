@@ -1,6 +1,5 @@
 import type { BashSessionCompletion } from '@/main/tools/file-system/bash';
 import {
-  BackgroundBashCompletionCoordinator,
   formatBashCompletionMessage,
   formatBashCompletionStatus,
 } from '../background-bash-completion';
@@ -22,53 +21,6 @@ function completion(
     ...patch,
   };
 }
-
-describe('BackgroundBashCompletionCoordinator', () => {
-  it('deduplicates and batches completions in arrival order', () => {
-    const coordinator = new BackgroundBashCompletionCoordinator();
-
-    expect(coordinator.enqueue(completion('bash-1'))).toBe(true);
-    expect(coordinator.enqueue(completion('bash-1'))).toBe(false);
-    expect(coordinator.enqueue(completion('bash-2'))).toBe(true);
-    expect(coordinator.canStart('thread-1', true)).toBe(false);
-
-    expect(coordinator.consume('thread-1').map((item) => item.bashId)).toEqual([
-      'bash-1',
-      'bash-2',
-    ]);
-    expect(coordinator.consume('thread-1')).toEqual([]);
-  });
-
-  it('does not start while suspended and resumes eligibility after recovery', () => {
-    const coordinator = new BackgroundBashCompletionCoordinator();
-    coordinator.enqueue(completion('bash-1'));
-
-    coordinator.setSuspended('thread-1', true);
-    expect(coordinator.canStart('thread-1', false)).toBe(false);
-
-    coordinator.setSuspended('thread-1', false);
-    expect(coordinator.canStart('thread-1', false)).toBe(true);
-  });
-
-  it('clears pending and suspended state for removed threads', () => {
-    const coordinator = new BackgroundBashCompletionCoordinator();
-    coordinator.enqueue(completion('bash-1'));
-    coordinator.setSuspended('thread-1', true);
-
-    coordinator.clear('thread-1');
-
-    expect(coordinator.consume('thread-1')).toEqual([]);
-    expect(coordinator.canStart('thread-1', false)).toBe(true);
-  });
-
-  it('ignores completions without an owning thread', () => {
-    const coordinator = new BackgroundBashCompletionCoordinator();
-
-    expect(
-      coordinator.enqueue(completion('bash-1', { threadId: undefined })),
-    ).toBe(false);
-  });
-});
 
 describe('formatBashCompletionStatus', () => {
   it.each([

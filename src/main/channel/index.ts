@@ -91,6 +91,9 @@ class ChannelManager extends BaseManager {
 
   async init(): Promise<void> {
     this.channelsRepository = dbManager.dataSource.getRepository(Channels);
+  }
+
+  public async startConfiguredChannels(): Promise<void> {
     const channelItems = await this.getChannels();
 
     for (const channelItem of channelItems) {

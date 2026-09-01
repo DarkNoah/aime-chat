@@ -65,6 +65,8 @@ type BackgroundSettingProps = {
   background: ThemeBackgroundConfig;
   importing: boolean;
   disabled: boolean;
+  /** The image is pinned by an environment variable and cannot be replaced. */
+  locked: boolean;
   onChoose: () => void;
   onRemove: () => void;
   onChange: (value: ThemeBackgroundConfig, persist: boolean) => void;
@@ -76,6 +78,7 @@ function BackgroundSetting({
   background,
   importing,
   disabled,
+  locked,
   onChoose,
   onRemove,
   onChange,
@@ -100,7 +103,7 @@ function BackgroundSetting({
             type="button"
             variant="outline"
             size="sm"
-            disabled={disabled}
+            disabled={disabled || locked}
             onClick={onChoose}
           >
             {importing ? (
@@ -116,7 +119,7 @@ function BackgroundSetting({
             type="button"
             variant="ghost"
             size="sm"
-            disabled={!background.url || disabled}
+            disabled={!background.url || disabled || locked}
             onClick={onRemove}
           >
             <IconTrash />
@@ -157,7 +160,9 @@ function BackgroundSetting({
       </div>
 
       <p className="text-xs text-muted-foreground">
-        {t('settings.background_image_requirements')}
+        {locked
+          ? t('settings.background_managed_by_environment')
+          : t('settings.background_image_requirements')}
       </p>
 
       <div className="grid gap-5 sm:grid-cols-2">
@@ -439,6 +444,11 @@ export default function Appearance() {
     [config.primaryColor],
   );
 
+  const backgroundLocks = appInfo?.themeBackgroundLocks ?? {
+    sidebar: false,
+    chat: false,
+  };
+
   return (
     <div className="h-full overflow-y-auto">
       <FieldGroup className="mx-auto max-w-4xl p-4 pb-10 sm:p-6">
@@ -542,6 +552,7 @@ export default function Appearance() {
             background={config.sidebarBackground}
             importing={importing === 'sidebar'}
             disabled={Boolean(importing)}
+            locked={backgroundLocks.sidebar}
             onChoose={() => chooseBackground('sidebar')}
             onRemove={() => removeBackground('sidebar')}
             onChange={(value, persist) =>
@@ -554,6 +565,7 @@ export default function Appearance() {
             background={config.chatBackground}
             importing={importing === 'chat'}
             disabled={Boolean(importing)}
+            locked={backgroundLocks.chat}
             onChoose={() => chooseBackground('chat')}
             onRemove={() => removeBackground('chat')}
             onChange={(value, persist) =>

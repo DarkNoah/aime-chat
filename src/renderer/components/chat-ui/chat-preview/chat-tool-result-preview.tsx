@@ -1,5 +1,5 @@
 /* eslint-disable camelcase */
-import React, { ForwardedRef, useCallback, useMemo, useState } from 'react';
+import React, { ForwardedRef, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../ui/card';
 import { isArray, isObject, isString } from '@/utils/is';
 import { Streamdown } from '../../ai-elements/streamdown';
@@ -9,11 +9,9 @@ import { Alert, AlertTitle } from '../../ui/alert';
 import { AlertCircleIcon } from 'lucide-react';
 import { ToolUIPart } from 'ai';
 import { Label } from '../../ui/label';
-import { CodeBlock } from '../../ai-elements/code-block';
 import { Badge } from '../../ui/badge';
 import { Button } from '../../ui/button';
 import { IconFile, IconSearch } from '@tabler/icons-react';
-import { Source, Sources, SourcesContent } from '../../ai-elements/sources';
 import {
   Item,
   ItemContent,
@@ -30,6 +28,9 @@ import {
 import { ChatToolGenerateImagePreview } from './chat-tool-generate-image-preview';
 import { ChatToolBashPreview } from './chat-tool-bash-preview';
 import { ChatToolAgentHistoryPreview } from './chat-tool-agent-history-preview';
+import { ChatToolKnowledgeBaseSearchPreview } from './chat-tool-knowledge-base-search-preview';
+import { ChatToolKnowledgeBaseGetItemPreview } from './chat-tool-knowledge-base-get-item-preview';
+import { ChatToolKnowledgeBaseListPreview } from './chat-tool-knowledge-base-list-preview';
 import { FileIcon } from '../../file-icon';
 import { PhotoProvider, PhotoView } from 'react-photo-view';
 import 'react-photo-view/dist/react-photo-view.css';
@@ -144,7 +145,7 @@ export const ChatToolResultPreview = React.forwardRef<
     ref: ForwardedRef<ChatToolResultPreviewRef>,
   ) => {
     const toolName = part?.type?.split('-').slice(1).join('-');
-    const { theme, resolvedTheme } = useTheme();
+    const { resolvedTheme } = useTheme();
     const renderResult = () => {
       if (!part?.output) return null;
       if (toolName === 'WebSearch') {
@@ -181,6 +182,13 @@ export const ChatToolResultPreview = React.forwardRef<
         );
       }
       if (toolName === 'Bash') {
+        return null;
+      }
+      if (
+        toolName === 'KnowledgeBaseSearch' ||
+        toolName === 'KnowledgeBaseGetItem' ||
+        toolName === 'KnowledgeBaseList'
+      ) {
         return null;
       }
       if (
@@ -323,7 +331,14 @@ export const ChatToolResultPreview = React.forwardRef<
     };
 
     const renderInput = useCallback(() => {
-      if (!part?.input) return null;
+      if (
+        !part?.input &&
+        toolName !== 'KnowledgeBaseSearch' &&
+        toolName !== 'KnowledgeBaseGetItem' &&
+        toolName !== 'KnowledgeBaseList'
+      ) {
+        return null;
+      }
       switch (toolName) {
         case 'PythonExecute':
         case 'CodeExecution':
@@ -445,6 +460,12 @@ export const ChatToolResultPreview = React.forwardRef<
         }
         case 'Bash':
           return <ChatToolBashPreview part={part} />;
+        case 'KnowledgeBaseSearch':
+          return <ChatToolKnowledgeBaseSearchPreview part={part} />;
+        case 'KnowledgeBaseGetItem':
+          return <ChatToolKnowledgeBaseGetItemPreview part={part} />;
+        case 'KnowledgeBaseList':
+          return <ChatToolKnowledgeBaseListPreview part={part} />;
 
         default:
           return (
@@ -456,7 +477,18 @@ export const ChatToolResultPreview = React.forwardRef<
             </>
           );
       }
-    }, [part?.input, toolName]);
+    }, [part, toolName]);
+    const isKnowledgeBasePreview =
+      toolName === 'KnowledgeBaseSearch' ||
+      toolName === 'KnowledgeBaseGetItem' ||
+      toolName === 'KnowledgeBaseList';
+    const isToolExecutionFailure =
+      isObject(part?.output) &&
+      'code' in part.output &&
+      part.output.code === 'TOOL_EXECUTION_FAILED';
+    const toolExecutionFailureMessage = isToolExecutionFailure
+      ? String(part.output.message ?? 'Tool execution failed')
+      : undefined;
     return (
       <Card className={cn('h-fit w-full', className)}>
         <CardHeader>
@@ -469,8 +501,20 @@ export const ChatToolResultPreview = React.forwardRef<
         </CardHeader>
         <CardContent>
           <div className="flex flex-col gap-2">
-            {part?.input && <>{renderInput()}</>}
+            {(part?.input ||
+              (isKnowledgeBasePreview && !isToolExecutionFailure)) && (
+              <>{renderInput()}</>
+            )}
             {part?.output && <>{renderResult()}</>}
+            {part?.errorText ||
+            (isKnowledgeBasePreview && toolExecutionFailureMessage) ? (
+              <Alert variant="destructive" className="bg-muted">
+                <AlertCircleIcon />
+                <AlertTitle>
+                  {part?.errorText ?? toolExecutionFailureMessage}
+                </AlertTitle>
+              </Alert>
+            ) : null}
             {(toolName === 'Agent' || toolName === 'Task') && part?.toolCallId ? (
               <ChatToolAgentHistoryPreview toolCallId={part.toolCallId} />
             ) : null}

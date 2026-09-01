@@ -204,6 +204,64 @@ describe('FileWorkspace', () => {
     });
   });
 
+  it('renders html files in a preview frame and can switch to source', async () => {
+    readFileContent.mockResolvedValue({
+      content: '<h1>hello</h1>',
+      truncated: false,
+      size: 14,
+      mimeType: 'text/html',
+      isBinary: false,
+    });
+    render(
+      <FileWorkspace
+        filePath="/workspace/index.html"
+        workspace="/workspace"
+        onClose={jest.fn()}
+        onDirtyChange={jest.fn()}
+      />,
+    );
+
+    const frame = await screen.findByTitle('index.html');
+    expect(frame).toHaveAttribute('src', 'file:///workspace/index.html');
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'chat.file_source_editor' }),
+    );
+    expect(
+      await screen.findByRole('textbox', { name: 'chat.file_source_editor' }),
+    ).toHaveValue('<h1>hello</h1>');
+  });
+
+  it('still renders the preview frame for truncated html files', async () => {
+    readFileContent.mockResolvedValue({
+      content: '<h1>huge</h1>',
+      truncated: true,
+      size: 8 * 1024 * 1024,
+      mimeType: 'text/html',
+      isBinary: false,
+    });
+    render(
+      <FileWorkspace
+        filePath="/workspace/report.html"
+        workspace="/workspace"
+        onClose={jest.fn()}
+        onDirtyChange={jest.fn()}
+      />,
+    );
+
+    expect(await screen.findByTitle('report.html')).toHaveAttribute(
+      'src',
+      'file:///workspace/report.html',
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'chat.file_source_editor' }),
+    );
+    expect(
+      await screen.findByText('chat.file_too_large_readonly'),
+    ).toBeInTheDocument();
+  });
+
   it('keeps line metadata when Markdown is edited in source mode', async () => {
     readFileContent.mockResolvedValue({
       content: '# Heading\nfirst paragraph\nsecond paragraph',

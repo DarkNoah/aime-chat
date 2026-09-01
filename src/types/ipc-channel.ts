@@ -88,10 +88,37 @@ export enum MastraChannel {
   ChatWorkflow = 'mastra:chatWorkflow',
   ChatAbort = 'mastra:chatAbort',
   KillBashSession = 'mastra:killBashSession',
+  KillAgentSession = 'mastra:killAgentSession',
   SaveMessages = 'mastra:saveMessages',
   ClearMessages = 'mastra:clearMessages',
   GetUsage = 'mastra:getUsage',
   GetUsageSummary = 'mastra:getUsageSummary',
+}
+
+export enum EvalsChannel {
+  ListDatasets = 'evals:listDatasets',
+  GetDataset = 'evals:getDataset',
+  CreateDataset = 'evals:createDataset',
+  UpdateDataset = 'evals:updateDataset',
+  DeleteDataset = 'evals:deleteDataset',
+  ListDatasetItems = 'evals:listDatasetItems',
+  AddDatasetItems = 'evals:addDatasetItems',
+  UpdateDatasetItem = 'evals:updateDatasetItem',
+  DeleteDatasetItem = 'evals:deleteDatasetItem',
+  ImportDataset = 'evals:importDataset',
+  ExportDataset = 'evals:exportDataset',
+  SaveDatasetExport = 'evals:saveDatasetExport',
+  StartExperiment = 'evals:startExperiment',
+  ListExperiments = 'evals:listExperiments',
+  GetExperiment = 'evals:getExperiment',
+  CompareExperiments = 'evals:compareExperiments',
+  ListScorers = 'evals:listScorers',
+  SaveScorer = 'evals:saveScorer',
+  DeleteScorer = 'evals:deleteScorer',
+  TestScorer = 'evals:testScorer',
+  ScoreThread = 'evals:scoreThread',
+  ListThreadScores = 'evals:listThreadScores',
+  ExperimentProgress = 'evals:experiment-progress',
 }
 
 export enum KnowledgeBaseChannel {
@@ -160,6 +187,8 @@ export enum ProjectChannel {
   DeleteSkill = 'project:deleteSkill',
   OpenWith = 'project:openWith',
   ExportMessages = 'project:exportMessages',
+  GetTimeline = 'project:getTimeline',
+  SetTimelineEnabled = 'project:setTimelineEnabled',
 }
 
 export enum TaskQueueChannel {

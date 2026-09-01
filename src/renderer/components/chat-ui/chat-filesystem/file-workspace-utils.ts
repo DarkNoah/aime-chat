@@ -18,6 +18,10 @@ export function isMarkdownFile(filePath: string): boolean {
   return ['md', 'markdown'].includes(getFileExtension(filePath));
 }
 
+export function isHtmlFile(filePath: string): boolean {
+  return ['html', 'htm', 'xhtml'].includes(getFileExtension(filePath));
+}
+
 export function getFilePreviewKind(
   mimeType: string,
   isBinary: boolean,

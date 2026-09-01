@@ -127,8 +127,13 @@ import { api } from '../api/ApiController';
 import { getCrashDumpDirectory } from './crash-reporter';
 import { WindowModeController } from './window-mode';
 import { writeWorkspaceTextFile } from '../utils/workspace-file';
-import { isPersonalityDisabled } from './feature-flags';
+import { getFeatureFlags, isPersonalityDisabled } from './feature-flags';
 import { normalizeThemeConfig, saveThemeConfig } from './theme-background';
+import {
+  applyBrandingThemeBackgrounds,
+  getBrandingLogoUrl,
+  getThemeBackgroundLocks,
+} from './branding';
 
 // provider logo svg 内容缓存（getProviderLogo 用，避免重复读磁盘）
 const providerLogoCache = new Map<string, string | null>();
@@ -186,10 +191,6 @@ class AppManager extends BaseManager {
 
 
     await acpManager.init();
-    const acpInfo = await acpManager.getInfo();
-    if (acpInfo.enabled) {
-      await acpManager.start();
-    }
 
     this.updateModelsJson().catch((err) =>
       console.error('Failed to update models.json:', err),
@@ -207,6 +208,13 @@ class AppManager extends BaseManager {
           message: err instanceof Error ? err.message : String(err),
         });
       });
+  }
+
+  public async startConfiguredServices(): Promise<void> {
+    const acpInfo = await acpManager.getInfo();
+    if (acpInfo.enabled) {
+      await acpManager.start();
+    }
   }
 
   private async updateModelsJson(): Promise<void> {
@@ -307,9 +315,11 @@ class AppManager extends BaseManager {
     const appLocale = app.getSystemLocale().toLowerCase();
     const language = settings.find((x) => x.id === 'language')?.value || appLocale || 'en-us';
     const theme = process.env.THEME || nativeTheme.themeSource;
-    const themeConfig = normalizeThemeConfig(
-      settings.find((x) => x.id === 'themeConfig')?.value,
-      app.getPath('userData'),
+    const themeConfig = applyBrandingThemeBackgrounds(
+      normalizeThemeConfig(
+        settings.find((x) => x.id === 'themeConfig')?.value,
+        app.getPath('userData'),
+      ),
     );
 
     return {
@@ -331,6 +341,9 @@ class AppManager extends BaseManager {
       isPackaged: app.isPackaged,
       theme,
       themeConfig,
+      themeBackgroundLocks: getThemeBackgroundLocks(),
+      featureFlags: getFeatureFlags(),
+      logo: getBrandingLogoUrl(),
       language,
       shouldUseDarkColors: nativeTheme.shouldUseDarkColors,
       defaultModel: defaultModel,

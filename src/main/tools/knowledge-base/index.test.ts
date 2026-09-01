@@ -6,6 +6,7 @@ import {
   KnowledgeBaseCreate,
   KnowledgeBaseGetItem,
   KnowledgeBaseGraphSearch,
+  KnowledgeBaseList,
   KnowledgeBaseSaveItem,
   KnowledgeBaseSearch,
   KnowledgeBaseToolkit,
@@ -17,6 +18,7 @@ jest.mock('@/main/knowledge-base', () => {
     getKnowledgeBase: jest.fn(),
     getKnowledgeBaseItem: jest.fn(),
     getKnowledgeBaseList: jest.fn(),
+    getKnowledgeBaseItemCounts: jest.fn(),
     searchKnowledgeBase: jest.fn(),
     importSource: jest.fn(),
     updateKnowledgeBaseItem: jest.fn(),
@@ -41,6 +43,49 @@ jest.mock('@/main/app', () => ({
 jest.mock('@mastra/rag', () => ({
   createGraphRAGTool: jest.fn(),
 }));
+
+describe('KnowledgeBaseList', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('returns the item count for each knowledge base', async () => {
+    jest.mocked(knowledgeBaseManager.getKnowledgeBaseList).mockResolvedValue([
+      {
+        id: 'kb-1',
+        name: 'Docs',
+        description: 'Product documentation',
+        vectorStoreConfig: {
+          extendColumns: [{ name: 'category', columnType: 'text' }],
+        },
+      } as any,
+      { id: 'kb-2', name: 'Notes' } as any,
+    ]);
+    jest.mocked(knowledgeBaseManager.getKnowledgeBaseItemCounts).mockResolvedValue({
+      'kb-1': 12,
+      'kb-2': 3,
+    });
+
+    const result = await new KnowledgeBaseList().execute({}, {} as any);
+
+    expect(result).toEqual([
+      {
+        id: 'kb-1',
+        name: 'Docs',
+        description: 'Product documentation',
+        itemCount: 12,
+        extendColumns: [{ name: 'category', columnType: 'text' }],
+      },
+      {
+        id: 'kb-2',
+        name: 'Notes',
+        description: undefined,
+        itemCount: 3,
+        extendColumns: undefined,
+      },
+    ]);
+  });
+});
 
 describe('KnowledgeBaseCreate', () => {
   beforeEach(() => {

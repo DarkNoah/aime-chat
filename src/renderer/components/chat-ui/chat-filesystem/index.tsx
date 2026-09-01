@@ -1,4 +1,10 @@
-import React, { ForwardedRef, useCallback, useEffect, useState } from 'react';
+import React, {
+  ForwardedRef,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import {
   IconBrandVscode,
   IconChevronDown,
@@ -61,6 +67,7 @@ type TreeNodeProps = {
   node: DirectoryTreeNode;
   level: number;
   defaultOpen?: boolean;
+  refreshVersion: number;
   selectedFilePath?: string | null;
   onPreviewFile: (path: string) => void;
 };
@@ -70,6 +77,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({
   node,
   level,
   defaultOpen = false,
+  refreshVersion,
   selectedFilePath,
   onPreviewFile,
 }) => {
@@ -82,6 +90,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({
   const [isLoaded, setIsLoaded] = useState(
     (node.children && node.children.length > 0) || node.children === undefined,
   );
+  const handledRefreshVersionRef = useRef(refreshVersion);
   const hasChildren = node.children !== undefined;
 
   const handleDragStart = (event: React.DragEvent) => {
@@ -120,6 +129,29 @@ const TreeNode: React.FC<TreeNodeProps> = ({
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (handledRefreshVersionRef.current === refreshVersion) return;
+    handledRefreshVersionRef.current = refreshVersion;
+    if (!isOpen || !hasChildren || refreshVersion === 0) return;
+
+    const refreshChildren = async () => {
+      setIsLoading(true);
+      try {
+        const loadedChildren = await window.electron.app.getDirectoryChildren(
+          node.path,
+        );
+        setChildren(loadedChildren);
+        setIsLoaded(true);
+      } catch {
+        setChildren([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    refreshChildren().catch(() => undefined);
+  }, [hasChildren, isOpen, node.path, refreshVersion]);
 
   const paddingLeft = level * 16;
 
@@ -160,6 +192,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({
                   node={child}
                   level={level + 1}
                   rootPath={rootPath}
+                  refreshVersion={refreshVersion}
                   selectedFilePath={selectedFilePath}
                   onPreviewFile={onPreviewFile}
                 />
@@ -362,6 +395,7 @@ export const ChatFilesystem = React.forwardRef<
   const { t } = useTranslation();
   const { workspace, className, active = true, onAddToChat } = props;
   const [tree, setTree] = useState<DirectoryTreeNode | null>(null);
+  const [refreshVersion, setRefreshVersion] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -372,6 +406,7 @@ export const ChatFilesystem = React.forwardRef<
   const [isSearchMode, setIsSearchMode] = useState(false);
   const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null);
   const [editorDirty, setEditorDirty] = useState(false);
+  const loadRequestIdRef = useRef(0);
 
   const handlePreviewFile = useCallback(
     (filePath: string) => {
@@ -386,6 +421,9 @@ export const ChatFilesystem = React.forwardRef<
   );
 
   const loadTree = useCallback(async () => {
+    const requestId = loadRequestIdRef.current + 1;
+    loadRequestIdRef.current = requestId;
+
     if (!workspace) {
       setTree(null);
       return;
@@ -394,15 +432,19 @@ export const ChatFilesystem = React.forwardRef<
     setLoading(true);
     setError(null);
     try {
-      setTree(await window.electron.app.getDirectoryTree(workspace));
+      const nextTree = await window.electron.app.getDirectoryTree(workspace);
+      if (loadRequestIdRef.current !== requestId) return;
+      setTree(nextTree);
+      setRefreshVersion((version) => version + 1);
     } catch (loadError) {
+      if (loadRequestIdRef.current !== requestId) return;
       setError(
         loadError instanceof Error
           ? loadError.message
           : 'Failed to load directory',
       );
     } finally {
-      setLoading(false);
+      if (loadRequestIdRef.current === requestId) setLoading(false);
     }
   }, [workspace]);
 
@@ -447,10 +489,19 @@ export const ChatFilesystem = React.forwardRef<
   );
 
   useEffect(() => {
+    loadRequestIdRef.current += 1;
+    setTree(null);
+    setRefreshVersion(0);
+    setLoading(false);
+    setError(null);
     setSelectedFilePath(null);
     setEditorDirty(false);
+  }, [workspace]);
+
+  useEffect(() => {
+    if (!active) return;
     loadTree().catch(() => undefined);
-  }, [loadTree]);
+  }, [active, loadTree]);
 
   if (!workspace) {
     return (
@@ -465,7 +516,7 @@ export const ChatFilesystem = React.forwardRef<
     );
   }
 
-  if (loading) {
+  if (loading && !tree) {
     return (
       <div className={cn('flex h-full items-center justify-center', className)}>
         <IconRefresh className="size-5 animate-spin text-muted-foreground" />
@@ -555,7 +606,7 @@ export const ChatFilesystem = React.forwardRef<
             onClick={loadTree}
             title={t('common.refresh')}
           >
-            <IconRefresh className="size-3" />
+            <IconRefresh className={cn('size-3', loading && 'animate-spin')} />
           </Button>
         </div>
       </div>
@@ -635,6 +686,7 @@ export const ChatFilesystem = React.forwardRef<
                 node={child}
                 level={0}
                 rootPath={workspace}
+                refreshVersion={refreshVersion}
                 selectedFilePath={selectedFilePath}
                 onPreviewFile={handlePreviewFile}
               />

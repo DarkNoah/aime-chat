@@ -52,4 +52,6 @@ export class Projects {
   @Column('json', { nullable: true })
   defaultSubAgents?: any;
 
+  @Column({ default: false })
+  timelineEnabled!: boolean;
 }

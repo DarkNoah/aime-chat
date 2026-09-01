@@ -869,6 +869,22 @@ export class KnowledgeBaseManager extends BaseManager {
     return kbs;
   }
 
+  public async getKnowledgeBaseItemCounts(): Promise<Record<string, number>> {
+    const counts = await this.knowledgeBaseItemRepository
+      .createQueryBuilder('item')
+      .select('item.knowledgeBaseId', 'knowledgeBaseId')
+      .addSelect('COUNT(*)', 'count')
+      .groupBy('item.knowledgeBaseId')
+      .getRawMany<{ knowledgeBaseId: string; count: string | number }>();
+
+    return Object.fromEntries(
+      counts.map(({ knowledgeBaseId, count }) => [
+        knowledgeBaseId,
+        Number(count),
+      ]),
+    );
+  }
+
   @channel(KnowledgeBaseChannel.ExportSQLite)
   public async exportSQLite(id: string, targetPath: string, exportKbId?: string): Promise<string> {
     if (!targetPath?.trim()) {

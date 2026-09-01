@@ -45,6 +45,8 @@ export const filterFilePartsForModel = (
           if (part.output.type == 'json') {
             let _output = part.output;
             if (_output.type == 'json' && isObject(_output.value) && _output.value.content && Array.isArray(_output.value.content)) {
+
+
               _output.value.content = _output.value.content.filter((item: any) => item.type !== 'image' && item.type !== 'audio' && item.type !== 'video');
             }
             return {

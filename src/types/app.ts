@@ -37,6 +37,22 @@ export type ThemeBackgroundSourcePaths = Partial<
   Record<ThemeBackgroundTarget, string>
 >;
 
+/**
+ * Backgrounds pinned by an environment variable cannot be changed from the
+ * appearance settings, so the renderer disables the controls for them.
+ */
+export type ThemeBackgroundLocks = Record<ThemeBackgroundTarget, boolean>;
+
+export type FeatureFlags = {
+  personalityDisabled: boolean;
+  projectsDisabled: boolean;
+  marketDisabled: boolean;
+  cronsDisabled: boolean;
+  knowledgeBaseDisabled: boolean;
+  agentsDisabled: boolean;
+  evalsDisabled: boolean;
+};
+
 export type SaveSettingsInput = {
   id: string;
   value: any;
@@ -63,6 +79,10 @@ export class AppInfo {
   isPackaged: boolean;
   theme: string;
   themeConfig: ThemeConfig;
+  themeBackgroundLocks: ThemeBackgroundLocks;
+  featureFlags: FeatureFlags;
+  /** Branded logo resolved from the APP_LOGO asset path, when configured. */
+  logo?: string;
   shouldUseDarkColors: boolean;
   language: string;
   defaultModel: {

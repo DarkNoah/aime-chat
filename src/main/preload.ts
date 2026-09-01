@@ -36,6 +36,7 @@ import {
   SecretsChannel,
   CronsChannel,
   RequestLogChannel,
+  EvalsChannel,
 } from '@/types/ipc-channel';
 import {
   CreateKnowledgeBase,
@@ -105,7 +106,16 @@ import {
 import {
   ProjectChatExportInput,
   ProjectChatExportResult,
+  ProjectTimelinePage,
 } from '@/types/project';
+import {
+  EvalDatasetInput,
+  EvalDatasetItemInput,
+  EvalExperimentInput,
+  EvalScorerInput,
+  EvalScorerTestInput,
+  EvalThreadScoreInput,
+} from '@/types/evals';
 
 // export type Channels = 'ipc-example';
 
@@ -363,6 +373,8 @@ const electronHandler = {
       ipcRenderer.invoke(MastraChannel.ChatAbort, chatId),
     killBashSession: (bashId: string): Promise<boolean> =>
       ipcRenderer.invoke(MastraChannel.KillBashSession, bashId),
+    killAgentSession: (sessionId: string): Promise<boolean> =>
+      ipcRenderer.invoke(MastraChannel.KillAgentSession, sessionId),
     saveMessages: (chatId: string, messages: MastraDBMessage[]) =>
       ipcRenderer.invoke(MastraChannel.SaveMessages, chatId, messages),
     clearMessages: (chatId: string) =>
@@ -402,6 +414,80 @@ const electronHandler = {
         threadId,
         resourceId,
       }),
+  },
+  evals: {
+    listDatasets: (input?: {
+      page?: number;
+      perPage?: number;
+      name?: string;
+    }) => ipcRenderer.invoke(EvalsChannel.ListDatasets, input),
+    getDataset: (id: string) =>
+      ipcRenderer.invoke(EvalsChannel.GetDataset, id),
+    createDataset: (input: EvalDatasetInput) =>
+      ipcRenderer.invoke(EvalsChannel.CreateDataset, input),
+    updateDataset: (input: EvalDatasetInput & { id: string }) =>
+      ipcRenderer.invoke(EvalsChannel.UpdateDataset, input),
+    deleteDataset: (id: string) =>
+      ipcRenderer.invoke(EvalsChannel.DeleteDataset, id),
+    listDatasetItems: (input: {
+      datasetId: string;
+      page?: number;
+      perPage?: number;
+      search?: string;
+    }) => ipcRenderer.invoke(EvalsChannel.ListDatasetItems, input),
+    addDatasetItems: (input: {
+      datasetId: string;
+      items: EvalDatasetItemInput[];
+    }) => ipcRenderer.invoke(EvalsChannel.AddDatasetItems, input),
+    updateDatasetItem: (input: {
+      datasetId: string;
+      itemId: string;
+      item: Partial<EvalDatasetItemInput>;
+    }) => ipcRenderer.invoke(EvalsChannel.UpdateDatasetItem, input),
+    deleteDatasetItem: (input: {
+      datasetId: string;
+      itemId: string;
+    }) => ipcRenderer.invoke(EvalsChannel.DeleteDatasetItem, input),
+    importDataset: (input: {
+      datasetId: string;
+      format: 'csv' | 'jsonl';
+      content: string;
+    }) => ipcRenderer.invoke(EvalsChannel.ImportDataset, input),
+    exportDataset: (input: {
+      datasetId: string;
+      format: 'csv' | 'jsonl';
+    }) => ipcRenderer.invoke(EvalsChannel.ExportDataset, input),
+    saveDatasetExport: (input: { filePath: string; content: string }) =>
+      ipcRenderer.invoke(EvalsChannel.SaveDatasetExport, input),
+    startExperiment: (input: EvalExperimentInput) =>
+      ipcRenderer.invoke(EvalsChannel.StartExperiment, input),
+    listExperiments: (input: {
+      datasetId: string;
+      page?: number;
+      perPage?: number;
+    }) => ipcRenderer.invoke(EvalsChannel.ListExperiments, input),
+    getExperiment: (input: {
+      datasetId: string;
+      experimentId: string;
+    }) => ipcRenderer.invoke(EvalsChannel.GetExperiment, input),
+    compareExperiments: (input: {
+      experimentIds: string[];
+      baselineId?: string;
+    }) => ipcRenderer.invoke(EvalsChannel.CompareExperiments, input),
+    listScorers: () => ipcRenderer.invoke(EvalsChannel.ListScorers),
+    saveScorer: (input: EvalScorerInput) =>
+      ipcRenderer.invoke(EvalsChannel.SaveScorer, input),
+    deleteScorer: (id: string) =>
+      ipcRenderer.invoke(EvalsChannel.DeleteScorer, id),
+    testScorer: (input: EvalScorerTestInput) =>
+      ipcRenderer.invoke(EvalsChannel.TestScorer, input),
+    scoreThread: (input: EvalThreadScoreInput) =>
+      ipcRenderer.invoke(EvalsChannel.ScoreThread, input),
+    listThreadScores: (input: {
+      threadId: string;
+      page?: number;
+      perPage?: number;
+    }) => ipcRenderer.invoke(EvalsChannel.ListThreadScores, input),
   },
   knowledgeBase: {
     create: (data: CreateKnowledgeBase): Promise<KnowledgeBase> =>
@@ -586,6 +672,14 @@ const electronHandler = {
       input: ProjectChatExportInput,
     ): Promise<ProjectChatExportResult> =>
       ipcRenderer.invoke(ProjectChannel.ExportMessages, input),
+    getTimeline: (input: {
+      projectId: string;
+      page?: number;
+      size?: number;
+    }): Promise<ProjectTimelinePage> =>
+      ipcRenderer.invoke(ProjectChannel.GetTimeline, input),
+    setTimelineEnabled: (projectId: string, enabled: boolean) =>
+      ipcRenderer.invoke(ProjectChannel.SetTimelineEnabled, projectId, enabled),
   },
   taskQueue: {
     add: (options: AddTaskOptions): Promise<string> =>

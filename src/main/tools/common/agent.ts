@@ -9,6 +9,32 @@ import { AgentExecutionOptions } from "@mastra/core/agent";
 import mastraManager from "@/main/mastra";
 import { getSubAgentThreadId } from "@/utils/subagent-thread";
 import { OpenAIChatLanguageModelOptions } from "@ai-sdk/openai";
+import { nanoid } from '@/utils/nanoid';
+import backgroundAgentManager from './background-agent';
+import type { AgentSessionMessage, ChatRequestContext } from '@/types/chat';
+import { providersManager } from '@/main/providers';
+import { AskUserQuestion } from "./ask-user-question";
+import { RequestContext } from "@mastra/core/request-context";
+
+const formatAgentOutput = (value: unknown) => {
+  if (typeof value === 'string') return value;
+  if (value instanceof Error) return value.message;
+  try {
+    return (
+      JSON.stringify(
+        value,
+        (_key, item) => {
+          if (typeof item === 'bigint') return item.toString();
+          if (item instanceof Error) return item.message;
+          return item;
+        },
+        2,
+      ) ?? String(value)
+    );
+  } catch {
+    return String(value);
+  }
+};
 
 export interface AgentToolParams extends BaseToolParams {
   subAgents: SubAgentInfo[] | string[];
@@ -37,7 +63,8 @@ When NOT to use the Task tool:
 
 Usage notes:
 - Launch multiple agents concurrently whenever possible, to maximize performance; to do that, use a single message with multiple tool uses
-- When the agent is done, it will return a single message back to you. The result returned by the agent is not visible to the user. To show the user the result, you should send a text message back to the user with a concise summary of the result.
+- Use the run_in_background parameter for long-running tasks when you do not need the result immediately. The user can follow every message in the background Agent panel, and you will be notified when the agent finishes or fails.
+- A foreground agent returns one final message to you. A background completion or failure is injected into the parent conversation automatically. In either mode, send the user a concise summary of the outcome.
 - Each agent invocation is stateless. You will not be able to send additional messages to the agent, nor will the agent be able to communicate with you outside of its final report. Therefore, your prompt should contain a highly detailed task description for the agent to perform autonomously and you should specify exactly what information the agent should return back to you in its final and only message to you.
 - Agents with "access to current context" can see the full conversation history before the tool call. When using these agents, you can write concise prompts that reference earlier context (e.g., "investigate the error discussed above") instead of repeating information. The agent will receive all prior messages and understand the context.
 - The agent's outputs should generally be trusted
@@ -89,6 +116,12 @@ assistant: "I'm going to use the Task tool to launch the greeting-responder agen
     subagent_type: z
       .string()
       .describe('The type of specialized agent to use for this task'),
+    run_in_background: z
+      .boolean()
+      .optional()
+      .describe(
+        'Set to true to run the agent in the background. You will be notified when it completes or fails.',
+      ),
   });
 
   constructor(config?: AgentToolParams) {
@@ -126,7 +159,8 @@ When NOT to use the Task tool:
 
 Usage notes:
 - Launch multiple agents concurrently whenever possible, to maximize performance; to do that, use a single message with multiple tool uses
-- When the agent is done, it will return a single message back to you. The result returned by the agent is not visible to the user. To show the user the result, you should send a text message back to the user with a concise summary of the result.
+- Use the run_in_background parameter for long-running tasks when you do not need the result immediately. The user can follow every message in the background Agent panel, and you will be notified when the agent finishes or fails.
+- A foreground agent returns one final message to you. A background completion or failure is injected into the parent conversation automatically. In either mode, send the user a concise summary of the outcome.
 - Each agent invocation is stateless. You will not be able to send additional messages to the agent, nor will the agent be able to communicate with you outside of its final report. Therefore, your prompt should contain a highly detailed task description for the agent to perform autonomously and you should specify exactly what information the agent should return back to you in its final and only message to you.
 - Agents with "access to current context" can see the full conversation history before the tool call. When using these agents, you can write concise prompts that reference earlier context (e.g., "investigate the error discussed above") instead of repeating information. The agent will receive all prior messages and understand the context.
 - The agent's outputs should generally be trusted
@@ -186,7 +220,7 @@ assistant: "I'm going to use the Task tool to launch the greeting-responder agen
       requestContext,
       agent: agentContext,
     } = context;
-    const toolCallId = agentContext.toolCallId;
+    const toolCallId = agentContext.toolCallId || nanoid(8);
     const rootAgentModel = requestContext.get('model' as never) as string;
     const rootAgentId = requestContext.get('agentId' as never) as string;
     const rootThreadId = requestContext.get('threadId' as never) as string;
@@ -195,12 +229,15 @@ assistant: "I'm going to use the Task tool to launch the greeting-responder agen
 
     rootAgentTools = [...new Set([...rootAgentTools])];
 
-    rootAgentTools = rootAgentTools.filter(x => x !== `${ToolType.BUILD_IN}:${this.id}`);
-
+    // rootAgentTools = rootAgentTools.filter(x => x !== `${ToolType.BUILD_IN}:${this.id}`);
+    // rootAgentTools = rootAgentTools.filter(x => x !== `${ToolType.BUILD_IN}:${AskUserQuestion.toolName}`);
 
 
 
     const appInfo = await appManager.getInfo();
+    const observationalMemoryModel = await providersManager.getLanguageModel(
+      appInfo.defaultModel?.fastModel?.trim() || rootAgentModel,
+    );
     if (subagent_type == 'general-purpose') {
 
       subagent_type = rootAgentId ?? appInfo.defaultAgent;
@@ -208,14 +245,20 @@ assistant: "I'm going to use the Task tool to launch the greeting-responder agen
     const agent = await agentManager.buildAgent(subagent_type, {
       modelId: rootAgentModel,
       tools: rootAgentTools,
-      disableSubAgent: true,
+      disableTools: [`${ToolType.BUILD_IN}:${this.id}`, `${ToolType.BUILD_IN}:${AskUserQuestion.toolName}`],
       maxRetries: 3,
+      observationalMemory: {
+        model: observationalMemoryModel,
+        observation: {
+          messageTokens: 64_000,
+        },
+      },
     });
     // agent.tools
 
     const threadId = getSubAgentThreadId(toolCallId);
     const resourceId = `${rootResourceId}:${toolCallId}`;
-    const thread = await memory.saveThread({
+    await memory.saveThread({
       thread: {
         id: threadId,
         title: `SubAgent:${toolCallId}`,
@@ -229,83 +272,159 @@ assistant: "I'm going to use the Task tool to launch the greeting-responder agen
       },
     });
 
+    const _requestContext = new RequestContext<ChatRequestContext>();
+    const all = requestContext.all as Record<string, any>
 
-    let streamOptions: AgentExecutionOptions<undefined> = {
-      includeRawChunks: false,
-      modelSettings: {
-        headers: {
-          'X-AIME-CHAT-THREAD-ID': rootThreadId,
-        }
-      },
-      providerOptions: {
-        openai: {
-          store: false,
-          reasoningEffort: appInfo.defaultThink ?? undefined,
-          reasoningSummary: "auto",
-        } as OpenAIChatLanguageModelOptions,
-      },
-      requestContext: requestContext,
-      maxSteps: 100,
-      memory: {
-        thread: {
-          id: threadId,
+    Object.keys(all).forEach((key: string) => {
+      _requestContext.set(key, all[key]);
+    });
+
+    _requestContext.set('isSubAgent', true);
+
+
+    const runAgent = async (
+      runAbortSignal: AbortSignal | undefined,
+      isBackground: boolean,
+    ) => {
+      const streamOptions: AgentExecutionOptions = {
+        includeRawChunks: false,
+        modelSettings: {
+          headers: {
+            'X-AIME-CHAT-THREAD-ID': rootThreadId,
+          },
         },
-        resource: resourceId,
-        options: {
-          readOnly: false,
-          lastMessages: false,
-          observationalMemory: true,
+        providerOptions: {
+          openai: {
+            store: false,
+            reasoningEffort: appInfo.defaultThink ?? undefined,
+            reasoningSummary: 'auto',
+          } as OpenAIChatLanguageModelOptions,
         },
-      },
-      abortSignal: abortSignal,
-      savePerStep: true,
-    };
-    // const model = await providersManager.getLanguageModel(model);
-    const stream = await agent.stream(prompt, streamOptions);
+        _requestContext,
+        maxSteps: 100,
+        memory: {
+          thread: { id: threadId },
+          resource: resourceId,
+          options: {
+            readOnly: false,
+            lastMessages: false,
+          },
+        },
+        abortSignal: runAbortSignal,
+        savePerStep: true,
+      };
+      const stream = await agent.stream(prompt, streamOptions);
 
+      const appendBackgroundMessage = (
+        message: Omit<AgentSessionMessage, 'id' | 'createdAt'>,
+      ) => {
+        backgroundAgentManager.appendMessage(toolCallId, {
+          ...message,
+          id: nanoid(),
+          createdAt: new Date().toISOString(),
+        });
+      };
 
-    for await (const chunk of stream.fullStream) {
-      if (chunk.type == 'tool-result') {
-      }
-      if (chunk.type === 'step-finish') {
-        const { payload } = chunk;
-        const { messages, output } = payload;
-        const { text, toolCalls, usage } = output;
-        if (text.trim()) {
-          await writer.write({
-            type: `data-task-${toolCallId}`,
-            data: { value: text, type: 'text' },
+      for await (const chunk of stream.fullStream) {
+        if (isBackground && chunk.type === 'tool-call') {
+          appendBackgroundMessage({
+            type: 'tool-call',
+            toolCallId: chunk.payload.toolCallId,
+            toolName: chunk.payload.toolName,
+            content: formatAgentOutput(chunk.payload.args),
+          });
+        } else if (isBackground && chunk.type === 'tool-result') {
+          appendBackgroundMessage({
+            type: 'tool-result',
+            toolCallId: chunk.payload.toolCallId,
+            toolName: chunk.payload.toolName,
+            content: formatAgentOutput(chunk.payload.result),
+            isError: chunk.payload.isError,
+          });
+        } else if (isBackground && chunk.type === 'tool-error') {
+          appendBackgroundMessage({
+            type: 'tool-result',
+            toolCallId: chunk.payload.toolCallId,
+            toolName: chunk.payload.toolName,
+            content: formatAgentOutput(chunk.payload.error),
+            isError: true,
           });
         }
-        if (toolCalls.length > 0) {
-          for (const toolCall of toolCalls) {
-            await writer.write({
-              type: `data-task-${toolCallId}`,
-              data: { value: toolCall, type: 'tool-call' },
-            });
+
+        if (chunk.type === 'step-finish') {
+          const { text = '', toolCalls = [] } = chunk.payload.output;
+          if (text.trim()) {
+            if (isBackground) {
+              appendBackgroundMessage({ type: 'text', content: text });
+            } else {
+              await writer.write({
+                type: `data-task-${toolCallId}`,
+                data: { value: text, type: 'text' },
+              });
+            }
+          }
+          if (!isBackground) {
+            for (const toolCall of toolCalls) {
+              await writer.write({
+                type: `data-task-${toolCallId}`,
+                data: { value: toolCall, type: 'tool-call' },
+              });
+            }
           }
         }
       }
 
-      // await writer.write(chunk);
-      // console.log(chunk.type);
+      if (runAbortSignal?.aborted) {
+        return {
+          status: 'aborted' as const,
+          errorMessage: 'Task was aborted by the user.',
+        };
+      }
+
+      const streamedText = await stream.text;
+      const result =
+        streamedText ||
+        (await stream.content)
+          .filter((item) => item.type === 'text')
+          .map((item) => item.text)
+          .join('\n');
+
+      if (stream.status === 'success' && !stream.error?.message) {
+        return { status: 'completed' as const, result };
+      }
+      return {
+        status: 'failed' as const,
+        errorMessage: stream.error?.message || 'Agent execution failed.',
+      };
+    };
+
+    if (inputData.run_in_background) {
+      const backgroundAbortSignal = backgroundAgentManager.start({
+        threadId: rootThreadId,
+        resourceId: rootResourceId,
+        sessionId: toolCallId,
+        subagentThreadId: threadId,
+        description,
+        prompt,
+        subagentType: subagent_type,
+      });
+
+      void runAgent(backgroundAbortSignal, true)
+        .then((result) => backgroundAgentManager.complete(toolCallId, result))
+        .catch((error) => {
+          backgroundAgentManager.complete(toolCallId, {
+            status: backgroundAbortSignal.aborted ? 'aborted' : 'failed',
+            errorMessage:
+              error instanceof Error ? error.message : String(error),
+          });
+        });
+
+      return `Agent running in background with ID: ${toolCallId}. You will be notified when it completes or fails.`;
     }
 
-    if (abortSignal?.aborted) {
-      return `Task was aborted by the user.`;
-    }
-
-    // await stream.textStream.pipeTo(writer);
-    // await stream.fullStream.pipeTo(writer);
-
-    if (stream.status === 'success' && !stream.error?.message) {
-
-      return stream.text || (await stream.content)
-        .filter((x) => x.type === 'text')
-        .map((x) => x.text)
-        .join('\n');
-    } else {
-      return stream.error?.message;
-    }
+    const result = await runAgent(abortSignal, false);
+    return result.status === 'completed'
+      ? result.result
+      : result.errorMessage;
   };
 }

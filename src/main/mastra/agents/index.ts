@@ -140,7 +140,7 @@ class AgentManager extends BaseManager {
     if (!agentEntity) {
       throw new Error('Agent not found');
     }
-    let { tools = [], subAgents = [], instructions, disableSubAgent = false } = params || {};
+    let { tools = [], subAgents = [], instructions, disableTools = [] } = params || {};
 
     let _skills = []; //await skillManager.getClaudeSkills();
 
@@ -176,7 +176,7 @@ class AgentManager extends BaseManager {
         } as SubAgentInfo;
       });
 
-    const toolIds = [
+    let toolIds = [
       ...new Set([
         ...(builtInAgent?.tools ?? []),
         ...(agentEntity.tools ?? []),
@@ -185,7 +185,7 @@ class AgentManager extends BaseManager {
     ];
     if (
       subAgentsInfo.length > 0 &&
-      !toolIds.includes(`${ToolType.BUILD_IN}:${AgentTool.toolName}`) && !disableSubAgent
+      !toolIds.includes(`${ToolType.BUILD_IN}:${AgentTool.toolName}`)
     ) {
       toolIds.push(`${ToolType.BUILD_IN}:${AgentTool.toolName}`);
     }
@@ -194,6 +194,9 @@ class AgentManager extends BaseManager {
       !toolIds.includes(`${ToolType.BUILD_IN}:${Skill.toolName}`)
     ) {
       toolIds.push(`${ToolType.BUILD_IN}:${Skill.toolName}`);
+    }
+    if (disableTools && disableTools.length > 0) {
+      toolIds = toolIds.filter(x => !disableTools.includes(x));
     }
     const _tools = await toolsManager.buildTools(toolIds, {
       [`${ToolType.BUILD_IN}:${Skill.toolName}`]: {
@@ -243,6 +246,7 @@ ${assistantSoul}
             enabled: false,
           },
           lastMessages: false,
+          observationalMemory: params?.observationalMemory,
         },
         vector: getVectorStore(),
       }),
