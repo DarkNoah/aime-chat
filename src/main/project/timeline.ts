@@ -15,6 +15,7 @@ import { ProjectEvent, ProjectTimelinePage } from '@/types/project';
 import { toAISdkV5Messages } from '../utils/convertToCoreMessages';
 import {
   buildTimelineEntry,
+  selectLatestTimelineMessages,
   timelineSummarySchema,
   type TimelineGenerationInput,
 } from './timeline-entry';
@@ -115,18 +116,17 @@ class ProjectTimelineManager extends BaseManager {
       model,
       instructions: `You summarize completed project-chat sessions for a private project timeline.
 
-Read the entire supplied conversation history for context, but describe only the substantive task completed in the latest session. Ignore injected system reminders, routine greetings, acknowledgements, empty exchanges, and conversations with no meaningful task.
+The supplied messages begin with the latest real user input. Summarize only this conversation segment and the substantive task completed from that input. Ignore routine greetings, acknowledgements, empty exchanges, and conversations with no meaningful task.
 
 Be factual. Do not invent deliverables or claim checks that are not visible in the conversation. Keep the short summary extremely concise. Put implementation details, decisions, validation, unresolved limitations, and every explicit user choice that materially shaped the latest task in detailedSummary. Describe those choices in context, but never infer a choice the user did not make. Use an empty deliverables array when nothing concrete was delivered.`,
     });
 
     const modelInfo = await providersManager.getModelInfo(input.modelId);
     const supportsVision =
-      modelInfo?.modelInfo?.modalities?.input?.includes('image') ??
-      false;
+      modelInfo?.modelInfo?.modalities?.input?.includes('image') ?? false;
 
-    const history = input.messages.filter(x => x.content?.metadata?.injectMessage !== true);
-
+    const history = selectLatestTimelineMessages(input.messages);
+    if (history.length === 0) return undefined;
 
     // const modelMessages = convertToCoreMessages(toAISdkV5Messages(history));
 
@@ -134,7 +134,6 @@ Be factual. Do not invent deliverables or claim checks that are not visible in t
     //   modelMessages,
     //   supportsVision,
     // );
-
 
     const response = await timelineAgent.generate(history, {
       structuredOutput: {

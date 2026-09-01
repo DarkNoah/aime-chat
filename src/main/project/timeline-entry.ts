@@ -39,6 +39,46 @@ export type TimelineGenerationInput = {
   messages: MastraDBMessage[];
 };
 
+type TimelineMessageMetadata = {
+  injectMessage?: boolean;
+  systemReminder?: boolean;
+  backgroundBashCompletion?: boolean;
+  backgroundAgentCompletion?: boolean;
+};
+
+function isAutomatedUserMessage(message: MastraDBMessage): boolean {
+  const metadata = message.content?.metadata as
+    | TimelineMessageMetadata
+    | undefined;
+
+  return Boolean(
+    metadata?.injectMessage ||
+    metadata?.systemReminder ||
+    metadata?.backgroundBashCompletion ||
+    metadata?.backgroundAgentCompletion,
+  );
+}
+
+export function selectLatestTimelineMessages(
+  messages: MastraDBMessage[],
+): MastraDBMessage[] {
+  let latestUserMessageIndex = -1;
+
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+    if (message.role === 'user' && !isAutomatedUserMessage(message)) {
+      latestUserMessageIndex = index;
+      break;
+    }
+  }
+
+  if (latestUserMessageIndex < 0) return [];
+
+  return messages
+    .slice(latestUserMessageIndex)
+    .filter((message) => !isAutomatedUserMessage(message));
+}
+
 export function buildTimelineEntry(
   input: TimelineGenerationInput,
   summary: TimelineSummary,

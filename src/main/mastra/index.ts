@@ -405,7 +405,7 @@ class MastraManager extends BaseManager {
     const { apiServer } = await appManager.getInfo();
     if (apiServer?.enabled) {
       // 启动阶段：端口被占用等错误只提示，不应阻断整个应用启动
-      await this.start(apiServer.port).catch(() => {});
+      await this.start(apiServer.port).catch(() => { });
     }
   }
 
@@ -1595,10 +1595,10 @@ class MastraManager extends BaseManager {
       let _inputMessage: UIMessage | undefined = inputMessage as UIMessage;
       let resume = toolCallId
         ? {
-            toolCallId,
-            approved,
-            resumeData,
-          }
+          toolCallId,
+          approved,
+          resumeData,
+        }
         : undefined;
       const prependPendingSystemReminder = (message: UIMessage) => {
         message.parts = [
@@ -2617,13 +2617,12 @@ Your have a goal to achieve: ${goal.objective}
 As you answer the user's questions, you can use the following context:
 ${agentsMd}
 
-${
-  memoryMd
-    ? `Contents of ${memoryMdPath.replaceAll('\\', '/')} (user's auto-memory, persists across conversations):
+${memoryMd
+        ? `Contents of ${memoryMdPath.replaceAll('\\', '/')} (user's auto-memory, persists across conversations):
 ${memoryMd.split('\n').slice(0, 200).join('\n')}
 `
-    : ''
-}
+        : ''
+      }
 # currentDate
 Today's date is ${new Date().toISOString().split('T')[0]}.
 
@@ -2800,12 +2799,12 @@ ${memoryDigest}
     ) {
       console.log(
         'Not Compress Now: ' +
-          ((tokenCount / maxContextSize) * 100).toFixed(2) +
-          '% ' +
-          'Total Tokens: ' +
-          tokenCount +
-          ' Max Size: ' +
-          maxContextSize,
+        ((tokenCount / maxContextSize) * 100).toFixed(2) +
+        '% ' +
+        'Total Tokens: ' +
+        tokenCount +
+        ' Max Size: ' +
+        maxContextSize,
       );
       return { keepMessages: messages, hasCompressed: false };
     }
@@ -2969,16 +2968,16 @@ IMPORTANT: Do NOT use any tools. You MUST respond with ONLY the <summary>...</su
           providerOptions: {
             openai: {
               store: false,
-              maxTokens: 20000,
+              //maxTokens: 20000,
             },
             anthropic: {
-              maxTokens: 20000,
+              //maxTokens: 20000,
             },
             google: {
-              maxTokens: 20000,
+              //maxTokens: 20000,
             },
             azure: {
-              maxTokens: 20000,
+              //maxTokens: 20000,
             },
           },
         },
@@ -3181,7 +3180,7 @@ IMPORTANT: Do NOT use any tools. You MUST respond with ONLY the <summary>...</su
       .addSelect('SUM(COALESCE(u.total_costs_usd, 0))', 'totalCostsUsd')
       .where(
         base.expressionMap.wheres.map((w) => w.condition).join(' AND ') ||
-          '1=1',
+        '1=1',
         base.getParameters(),
       )
       .groupBy(dayExpr)
@@ -3200,7 +3199,7 @@ IMPORTANT: Do NOT use any tools. You MUST respond with ONLY the <summary>...</su
       .addSelect('SUM(COALESCE(u.total_costs_usd, 0))', 'totalCostsUsd')
       .where(
         base.expressionMap.wheres.map((w) => w.condition).join(' AND ') ||
-          '1=1',
+        '1=1',
         base.getParameters(),
       )
       .groupBy('resourceId')
@@ -3219,7 +3218,7 @@ IMPORTANT: Do NOT use any tools. You MUST respond with ONLY the <summary>...</su
       .addSelect('SUM(COALESCE(u.total_costs_usd, 0))', 'totalCostsUsd')
       .where(
         base.expressionMap.wheres.map((w) => w.condition).join(' AND ') ||
-          '1=1',
+        '1=1',
         base.getParameters(),
       )
       .groupBy('modelId')
