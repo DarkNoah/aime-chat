@@ -203,7 +203,7 @@ export function SkillImportDialog({
         });
       }
 
-      // toast.success(t('common.import_success'));
+      toast.success(t('common.import_success'));
       onImportSkillsSuccess?.(skills);
       onOpenChange(false);
       reset();

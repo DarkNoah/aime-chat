@@ -71,6 +71,7 @@ function MarketPage() {
   const installSkill = async (skill) => {
     try {
       const data = await window.electron.tools.importSkills(skill);
+      toast.success(t('common.import_success'));
       await getData(activeTab);
     } catch (err) {
       toast.error(err.message);
@@ -98,13 +99,13 @@ function MarketPage() {
         <ItemDescription>
           {activeTab === MARKET_KNOWLEDGE_BASE
             ? [
-                tool.description,
-                t('market.kb_item_count', '{{count}} items', {
-                  count: tool.itemCount ?? 0,
-                }),
-              ]
-                .filter(Boolean)
-                .join(' · ')
+              tool.description,
+              t('market.kb_item_count', '{{count}} items', {
+                count: tool.itemCount ?? 0,
+              }),
+            ]
+              .filter(Boolean)
+              .join(' · ')
             : tool.description}
         </ItemDescription>
       </>

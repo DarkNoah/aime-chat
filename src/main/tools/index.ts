@@ -1722,6 +1722,7 @@ class ToolsManager extends BaseManager {
     isActive?: boolean;
     autoLoad?: boolean;
     group?: string | null;
+
   }) {
     let skillsPath;
     if (data.path) {
@@ -1785,9 +1786,9 @@ class ToolsManager extends BaseManager {
         path.join(skillsPath, 'skills.json'),
         JSON.stringify(skilljsonData, null, 2),
       );
-      await appManager.toast('Skills install successfully', {
-        type: 'success',
-      });
+      // await appManager.toast('Skills install successfully', {
+      //   type: 'success',
+      // });
       return {
         success: true,
       };
@@ -1845,7 +1846,7 @@ class ToolsManager extends BaseManager {
           skilljsonData.push({ source: repo_or_url, id: skillName });
           await fs.promises.writeFile(path.join(skillsPath, 'skills.json'), JSON.stringify(skilljsonData, null, 2));
         }
-        await appManager.toast('Skills install successfully', { type: 'success' });
+        // await appManager.toast('Skills install successfully', { type: 'success' });
         return { success: true };
       } else if (repo_or_url.includes('github.com')) {
         // Parse full GitHub URL
@@ -2042,7 +2043,7 @@ class ToolsManager extends BaseManager {
           status: 'updated',
         });
       }
-      await appManager.toast('Skills install successfully', { type: 'success' });
+      // await appManager.toast('Skills install successfully', { type: 'success' });
       return {
         success: true,
       };
@@ -2100,7 +2101,7 @@ class ToolsManager extends BaseManager {
           await fs.promises.writeFile(path.join(skillsPath, 'skills.json'), JSON.stringify(skilljsonData, null, 2));
         }
       }
-      await appManager.toast('Skills install successfully', { type: 'success' });
+      // await appManager.toast('Skills install successfully', { type: 'success' });
       return {
         success: true,
       };
@@ -2144,7 +2145,7 @@ class ToolsManager extends BaseManager {
           }
         }
       }
-      await appManager.toast('Skills install successfully', { type: 'success' });
+      // await appManager.toast('Skills install successfully', { type: 'success' });
       return {
         success: true,
       };

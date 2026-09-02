@@ -188,6 +188,7 @@ function ToolDetail() {
       await window.electron.tools.importSkills({
         repo_or_url: tool.source,
       });
+      toast.success(t('common.import_success'));
     } catch (err) {
       toast.error(err.message);
     } finally {
