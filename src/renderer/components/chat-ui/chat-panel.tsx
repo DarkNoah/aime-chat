@@ -124,6 +124,7 @@ import {
 
 type ChatMessageItemProps = {
   message: UIMessage;
+  responseDurationMs?: number;
   isLastMessage: boolean;
   showAllParts: boolean;
   expanded: boolean;
@@ -207,6 +208,49 @@ const getLastResponsePart = (message: UIMessage) => {
   return undefined;
 };
 
+const getUserMessageCreatedAtMs = (message: UIMessage) => {
+  const createdAt = (message.metadata as any)?.createdAt;
+  if (!createdAt) return undefined;
+
+  const timestamp =
+    createdAt instanceof Date
+      ? createdAt.getTime()
+      : new Date(createdAt).getTime();
+  return Number.isFinite(timestamp) ? timestamp : undefined;
+};
+
+const getAssistantMessageCreatedAtMs = (message: UIMessage) => {
+  const lastPart = message.parts[message.parts.length - 1] as any;
+  const createdAt =
+    lastPart?.callProviderMetadata?.mastra?.createdAt ||
+    lastPart?.providerMetadata?.mastra?.createdAt;
+  if (createdAt === undefined || createdAt === null) return undefined;
+
+  const timestamp = Number(createdAt);
+  return Number.isFinite(timestamp) ? timestamp : undefined;
+};
+
+const getPreviousUserMessageCreatedAtMs = (
+  messages: UIMessage[],
+  currentIndex: number,
+) => {
+  for (let index = currentIndex - 1; index >= 0; index -= 1) {
+    if (messages[index].role === 'user') {
+      return getUserMessageCreatedAtMs(messages[index]);
+    }
+  }
+  return undefined;
+};
+
+const formatResponseDuration = (durationMs: number) => {
+  if (durationMs < 1000) return `${durationMs}ms`;
+  if (durationMs < 60_000) return `${(durationMs / 1000).toFixed(1)}s`;
+
+  const minutes = Math.floor(durationMs / 60_000);
+  const seconds = Math.floor((durationMs % 60_000) / 1000);
+  return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
+};
+
 const hasPendingToolInteraction = (message: UIMessage, part: any) => {
   if (!part?.type?.startsWith('tool-') || !part.toolCallId) {
     return false;
@@ -265,6 +309,7 @@ const shouldShowManualRetry = (
 const ChatMessageItem = React.memo(
   ({
     message,
+    responseDurationMs,
     isLastMessage,
     showAllParts,
     expanded,
@@ -575,11 +620,20 @@ const ChatMessageItem = React.memo(
               );
             })}
         </ChatMessageAttachments>
+        {message.role === 'assistant' && responseDurationMs !== undefined && (
+          <MessageActions className="justify-start">
+            <small className="flex items-center gap-1 text-xs text-gray-500">
+              <ClockIcon className="size-3" />
+              <span>耗时 {formatResponseDuration(responseDurationMs)}</span>
+            </small>
+          </MessageActions>
+        )}
       </Collapsible>
     );
   },
   (prev, next) =>
     prev.message === next.message &&
+    prev.responseDurationMs === next.responseDurationMs &&
     prev.isLastMessage === next.isLastMessage &&
     prev.showAllParts === next.showAllParts &&
     prev.expanded === next.expanded &&
@@ -1380,10 +1434,29 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
                   {JSON.stringify(threadState?.messages, null, 2)}
                 </pre> */}
                 {displayedMessages.map((message, index: number) => {
+                  const assistantCreatedAt =
+                    message.role === 'assistant'
+                      ? getAssistantMessageCreatedAtMs(message)
+                      : undefined;
+                  const userCreatedAt =
+                    message.role === 'assistant'
+                      ? getPreviousUserMessageCreatedAtMs(
+                          displayedMessages,
+                          index,
+                        )
+                      : undefined;
+                  const responseDurationMs =
+                    assistantCreatedAt !== undefined &&
+                    userCreatedAt !== undefined &&
+                    assistantCreatedAt >= userCreatedAt
+                      ? assistantCreatedAt - userCreatedAt
+                      : undefined;
+
                   return (
                     <ChatMessageItem
                       key={message.id}
                       message={message}
+                      responseDurationMs={responseDurationMs}
                       isLastMessage={index === displayedMessages.length - 1}
                       showAllParts={replay.isActive}
                       expanded={expandedMessages.includes(message.id)}
