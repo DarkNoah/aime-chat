@@ -2,7 +2,7 @@
   <img src="assets/banner.png" alt="AIME Chat" width="100%" />
 
   <p>
-    <img src="https://img.shields.io/badge/source-0.3.47-blue.svg" alt="Source version 0.3.47">
+    <img src="https://img.shields.io/badge/source-0.3.52-blue.svg" alt="Source version 0.3.52">
     <img src="https://img.shields.io/badge/platform-macOS%20|%20Windows%20|%20Linux-lightgrey.svg" alt="Platform">
     <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License">
   </p>
@@ -23,6 +23,7 @@
 - 🦾 **Harness Engineering** - A complete agent harness around the model (Agent = Model + Harness): orchestration loop, tools, context & memory, sub-agents, guardrails, and observability turn a stateless model into a reliable, long-running agent
 - 🤖 **Multiple AI Provider Support** - Integrated with mainstream AI providers including OpenAI, DeepSeek, Google, Zhipu AI, MiniMax, Ollama, LMStudio, ModelScope, and more
 - 💬 **Intelligent Conversations** - Powerful AI Agent system based on Mastra framework, supporting streaming responses and tool calling
+- ⏯️ **Message Replay** - Review saved conversation parts, including compressed history, with adjustable playback speed, pause/resume, and progress seeking; assistant replies show elapsed time when timestamps are available
 - 🤝 **Open CoWork Capability** - AI is not just for chatting: it can edit project files in an integrated workspace, execute code, search the web, and more
 - 📚 **Knowledge Base Management** - Local knowledge bases with hybrid semantic/BM25 retrieval, optional reranking, source-text inspection, document/Excel parsing, and long-term cultivation memory
 - 📤 **Project Chat Export** - Select project threads and export complete histories as Markdown, raw JSON, Excel, or Unsloth JSONL
@@ -169,6 +170,14 @@ Supported providers include:
 AIME Chat includes a global memory knowledge base maintained by the built-in `Cultivation` Agent. When the `Cultivation Daily` cron task is enabled, it reads newly updated user conversations, filters out automation-generated threads, deduplicates against existing memories, and writes useful long-term information into Markdown pages such as `preferences.md`, `habits.md`, and project notes.
 
 This helps future conversations automatically inherit stable preferences, working habits, important people/entities, and ongoing project context without pasting old chat logs into every prompt.
+
+### Message Replay
+
+After the current response finishes, click **Replay messages** in the chat toolbar and choose an interval of 0.5, 1, 3, or 5 seconds. Replay reveals saved text, reasoning, tool, and file parts in sequence, merging available compressed history with the current conversation and removing duplicate message IDs. Use the controls to pause/resume, adjust speed, seek, replay from the beginning after completion, or exit.
+
+Replay displays stored messages without rerunning the Agent or its tools. Switching chats or starting a new response exits replay automatically. Reply elapsed time is calculated from the preceding user message and the assistant's last-part timestamp; it is omitted when timestamps are missing or invalid.
+
+See the [basic usage guide](packages/docs/docs/getting-started/basic-usage.md) for replay and compressed-history controls.
 
 ### Tool System
 

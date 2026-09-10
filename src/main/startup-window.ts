@@ -17,15 +17,15 @@ export type StartupWindowController = {
 const createStartupHtml = (isChinese: boolean, logoDataUrl: string) => {
   const copy = isChinese
     ? {
-        title: '正在准备你的工作区',
-        hint: '首次启动或版本升级后可能需要更长时间',
-        error: '初始化未完成',
-      }
+      title: '正在准备你的工作区',
+      hint: '首次启动或版本升级后可能需要更长时间',
+      error: '初始化未完成',
+    }
     : {
-        title: 'Preparing your workspace',
-        hint: 'The first launch after an install or update may take longer',
-        error: 'Initialization did not finish',
-      };
+      title: 'Preparing your workspace',
+      hint: 'The first launch after an install or update may take longer',
+      error: 'Initialization did not finish',
+    };
 
   return `<!doctype html>
 <html lang="${isChinese ? 'zh-CN' : 'en'}">
@@ -36,7 +36,7 @@ const createStartupHtml = (isChinese: boolean, logoDataUrl: string) => {
       http-equiv="Content-Security-Policy"
       content="default-src 'none'; img-src data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'"
     />
-    <title>AIME Chat</title>
+    <title>${process.env.APP_NAME || app.getName()}</title>
     <style>
       :root {
         color-scheme: light dark;
@@ -175,7 +175,7 @@ const createStartupHtml = (isChinese: boolean, logoDataUrl: string) => {
     <main>
       <div class="brand">
         <img src="${logoDataUrl}" alt="" />
-        <div class="brand-name">AIME Chat</div>
+        <div class="brand-name">${process.env.APP_NAME || app.getName()}</div>
       </div>
       <h1 id="heading">${copy.title}</h1>
       <p id="detail" aria-live="polite"></p>
@@ -233,7 +233,7 @@ export const createStartupWindow = (): StartupWindowController => {
     maximizable: false,
     fullscreenable: false,
     backgroundColor: nativeTheme.shouldUseDarkColors ? '#1d2024' : '#f6f7f9',
-    title: 'AIME Chat',
+    title: process.env.APP_NAME || app.getName(),
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,

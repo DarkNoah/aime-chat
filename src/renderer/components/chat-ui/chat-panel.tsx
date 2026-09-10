@@ -9,6 +9,7 @@ import React, {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useMemo,
   useRef,
   useState,
 } from 'react';
@@ -112,10 +113,20 @@ import {
   type ChatFileSelectionReference,
 } from '@/renderer/lib/chat-file-selection';
 import { ChatFileSelectionCard } from './chat-file-selection-card';
+import {
+  buildReplaySequence,
+  ChatReplayButton,
+  ChatReplayControls,
+  isReplayableMessage,
+  isReplayablePart,
+  useChatReplay,
+} from './chat-replay';
 
 type ChatMessageItemProps = {
   message: UIMessage;
+  responseDurationMs?: number;
   isLastMessage: boolean;
+  showAllParts: boolean;
   expanded: boolean;
   theme: string | undefined;
   threadId?: string;
@@ -145,6 +156,8 @@ type ChatRetryState = {
   delay: number;
   error?: string;
 };
+
+const EMPTY_MESSAGES: UIMessage[] = [];
 
 const isRenderableMessagePart = (part: any) =>
   part.type === 'text' || part.type.startsWith('tool-');
@@ -193,6 +206,49 @@ const getLastResponsePart = (message: UIMessage) => {
     }
   }
   return undefined;
+};
+
+const getUserMessageCreatedAtMs = (message: UIMessage) => {
+  const createdAt = (message.metadata as any)?.createdAt;
+  if (!createdAt) return undefined;
+
+  const timestamp =
+    createdAt instanceof Date
+      ? createdAt.getTime()
+      : new Date(createdAt).getTime();
+  return Number.isFinite(timestamp) ? timestamp : undefined;
+};
+
+const getAssistantMessageCreatedAtMs = (message: UIMessage) => {
+  const lastPart = message.parts[message.parts.length - 1] as any;
+  const createdAt =
+    lastPart?.callProviderMetadata?.mastra?.createdAt ||
+    lastPart?.providerMetadata?.mastra?.createdAt;
+  if (createdAt === undefined || createdAt === null) return undefined;
+
+  const timestamp = Number(createdAt);
+  return Number.isFinite(timestamp) ? timestamp : undefined;
+};
+
+const getPreviousUserMessageCreatedAtMs = (
+  messages: UIMessage[],
+  currentIndex: number,
+) => {
+  for (let index = currentIndex - 1; index >= 0; index -= 1) {
+    if (messages[index].role === 'user') {
+      return getUserMessageCreatedAtMs(messages[index]);
+    }
+  }
+  return undefined;
+};
+
+const formatResponseDuration = (durationMs: number) => {
+  if (durationMs < 1000) return `${durationMs}ms`;
+  if (durationMs < 60_000) return `${(durationMs / 1000).toFixed(1)}s`;
+
+  const minutes = Math.floor(durationMs / 60_000);
+  const seconds = Math.floor((durationMs % 60_000) / 1000);
+  return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
 };
 
 const hasPendingToolInteraction = (message: UIMessage, part: any) => {
@@ -253,7 +309,9 @@ const shouldShowManualRetry = (
 const ChatMessageItem = React.memo(
   ({
     message,
+    responseDurationMs,
     isLastMessage,
+    showAllParts,
     expanded,
     theme,
     threadId,
@@ -265,7 +323,7 @@ const ChatMessageItem = React.memo(
     let canExpandParts = [];
     let lastParts = [];
 
-    if (message.role === 'user' || isLastMessage) {
+    if (showAllParts || message.role === 'user' || isLastMessage) {
       lastParts = message.parts;
     } else {
       for (let i = message.parts.length - 1; i >= 0; i -= 1) {
@@ -280,7 +338,9 @@ const ChatMessageItem = React.memo(
     if (
       !(
         canExpandParts.find(isRenderableMessagePart) ||
-        lastParts.find(isRenderableMessagePart)
+        lastParts.find(
+          showAllParts ? isReplayablePart : isRenderableMessagePart,
+        )
       )
     ) {
       return null;
@@ -560,12 +620,22 @@ const ChatMessageItem = React.memo(
               );
             })}
         </ChatMessageAttachments>
+        {message.role === 'assistant' && responseDurationMs !== undefined && (
+          <MessageActions className="justify-start">
+            <small className="flex items-center gap-1 text-xs text-gray-500">
+              <ClockIcon className="size-3" />
+              <span>耗时 {formatResponseDuration(responseDurationMs)}</span>
+            </small>
+          </MessageActions>
+        )}
       </Collapsible>
     );
   },
   (prev, next) =>
     prev.message === next.message &&
+    prev.responseDurationMs === next.responseDurationMs &&
     prev.isLastMessage === next.isLastMessage &&
+    prev.showAllParts === next.showAllParts &&
     prev.expanded === next.expanded &&
     prev.theme === next.theme &&
     prev.threadId === next.threadId &&
@@ -648,6 +718,47 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
     );
     const pendingSubmitsRef = useRef<PendingChatSubmit[]>([]);
     const [fetching, setFetching] = useState(false);
+    const liveMessages = threadState?.messages ?? EMPTY_MESSAGES;
+    const isChatInProgress =
+      threadState?.status === 'streaming' ||
+      threadState?.status === 'submitted';
+    const loadReplayHistory = useCallback(async () => {
+      if (!threadId) return EMPTY_MESSAGES;
+
+      const data = await window.electron.mastra.getThreadMessages({
+        threadId,
+        resourceId: `${threadState?.resourceId || 'default'}.history`,
+        perPage: false,
+      });
+      return data.messages ?? EMPTY_MESSAGES;
+    }, [threadId, threadState?.resourceId]);
+    const replay = useChatReplay({
+      threadId,
+      liveMessages,
+      isChatInProgress,
+      loadHistory: loadReplayHistory,
+    });
+    const { exit: exitReplay, start: startReplay } = replay;
+    const displayedMessages = useMemo(
+      () =>
+        replay.isActive
+          ? replay.visibleMessages
+          : buildReplaySequence(historyMessages, liveMessages),
+      [historyMessages, liveMessages, replay.isActive, replay.visibleMessages],
+    );
+    const hasReplaySourceMessages =
+      liveMessages.some(isReplayableMessage) ||
+      (threadState?.historyMessagesCount ?? 0) > 0;
+
+    const handleStartReplay = useCallback(async (intervalMs: number) => {
+      try {
+        const result = await startReplay(intervalMs);
+        if (result === 'empty') toast.error(t('chat.replay_empty'));
+      } catch (err) {
+        console.error(err);
+        toast.error(t('chat.replay_load_failed'));
+      }
+    }, [startReplay, t]);
 
     useImperativeHandle(ref, () => ({
       sendMessage: (
@@ -708,7 +819,14 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
         };
         sendMessage(threadId, undefined, options);
       },
-      [agentId, modelId, projectId, requireToolApproval, sendMessage, threadId],
+      [
+        agentId,
+        modelId,
+        projectId,
+        requireToolApproval,
+        sendMessage,
+        threadId,
+      ],
     );
 
     const handleRetry = useCallback(() => {
@@ -1028,10 +1146,12 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
       setRequireToolApproval(false);
       setHistoryMessages([]);
       syncPendingSubmits([]);
+      exitReplay();
     };
 
     const handleClearMessages = async () => {
       if (threadId) {
+        exitReplay();
         await clearMessages(threadId);
         // clearError(threadId);
         setUsage(undefined);
@@ -1200,14 +1320,11 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
     const handleShowHistory = async () => {
       const data = await window.electron.mastra.getThreadMessages({
         threadId: threadState.id,
-        resourceId: `${threadState?.resourceId}.history`,
+        resourceId: `${threadState?.resourceId || 'default'}.history`,
+        perPage: false,
       });
       if (data.messages.length > 0) {
         setHistoryMessages(data.messages);
-        setMessages(threadState.id, [
-          ...data.messages,
-          ...threadState.messages,
-        ]);
       }
       console.log(data);
     };
@@ -1290,7 +1407,8 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
                 </Message>
               </div>
             )}
-            {threadState?.historyMessagesCount > 0 &&
+            {!replay.isActive &&
+              threadState?.historyMessagesCount > 0 &&
               historyMessages.length === 0 && (
                 <div className="w-full flex flex-row justify-center">
                   <Button
@@ -1301,43 +1419,56 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
                     }}
                   >
                     <IconArrowUp size={16} />
-                    Show History
+                    {t('chat.show_compressed_history')}
                   </Button>
                 </div>
               )}
 
-            {(!threadState || threadState?.messages.length === 0) &&
-              !fetching && (
-                <ChatEmpty className="h-full" onClick={handleTemplateClick} />
-              )}
+            {(!threadState || displayedMessages.length === 0) && !fetching && (
+              <ChatEmpty className="h-full" onClick={handleTemplateClick} />
+            )}
 
-            {threadState?.messages.length > 0 && (
+            {displayedMessages.length > 0 && (
               <div className="mt-6">
                 {/* <pre className="text-xs whitespace-pre-wrap break-all bg-secondary p-2 rounded-2xl mb-2">
                   {JSON.stringify(threadState?.messages, null, 2)}
                 </pre> */}
-                {threadState?.messages
-                  .filter((x) => x.metadata?.systemReminder !== true)
-                  .map((message, index: number) => {
-                    return (
-                      <ChatMessageItem
-                        key={message.id}
-                        message={message}
-                        isLastMessage={
-                          index === (threadState?.messages.length ?? 0) - 1
-                        }
-                        expanded={expandedMessages.includes(message.id)}
-                        theme={theme}
-                        threadId={threadId}
-                        interruptedLabel={t(
-                          'common.request_interrupted_by_user',
-                        )}
-                        onExpandedChange={handleExpandedMessages}
-                        onResumeChat={handleResumeChat}
-                        onToolMessageClick={onToolMessageClick}
-                      />
-                    );
-                  })}
+                {displayedMessages.map((message, index: number) => {
+                  const assistantCreatedAt =
+                    message.role === 'assistant'
+                      ? getAssistantMessageCreatedAtMs(message)
+                      : undefined;
+                  const userCreatedAt =
+                    message.role === 'assistant'
+                      ? getPreviousUserMessageCreatedAtMs(
+                          displayedMessages,
+                          index,
+                        )
+                      : undefined;
+                  const responseDurationMs =
+                    assistantCreatedAt !== undefined &&
+                    userCreatedAt !== undefined &&
+                    assistantCreatedAt >= userCreatedAt
+                      ? assistantCreatedAt - userCreatedAt
+                      : undefined;
+
+                  return (
+                    <ChatMessageItem
+                      key={message.id}
+                      message={message}
+                      responseDurationMs={responseDurationMs}
+                      isLastMessage={index === displayedMessages.length - 1}
+                      showAllParts={replay.isActive}
+                      expanded={expandedMessages.includes(message.id)}
+                      theme={theme}
+                      threadId={threadId}
+                      interruptedLabel={t('common.request_interrupted_by_user')}
+                      onExpandedChange={handleExpandedMessages}
+                      onResumeChat={handleResumeChat}
+                      onToolMessageClick={onToolMessageClick}
+                    />
+                  );
+                })}
               </div>
             )}
 
@@ -1375,10 +1506,11 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
                 </AlertDescription>
               </Alert>
             )}
-            {shouldShowManualRetry(
-              threadState?.messages,
-              threadState?.status,
-            ) && (
+            {!replay.isActive &&
+              shouldShowManualRetry(
+                threadState?.messages,
+                threadState?.status,
+              ) && (
                 <Button
                   type="button"
                   variant="outline"
@@ -1390,7 +1522,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
                   {t('common.retry')}
                 </Button>
               )}
-            {threadState?.messages.length > 0 && <div className="pb-20"></div>}
+            {displayedMessages.length > 0 && <div className="pb-20"></div>}
           </ConversationContent>
           <ConversationScrollButton className="z-10 backdrop-blur" />
         </Conversation>
@@ -1417,9 +1549,39 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
                   }}
                 />
               ) : null}
+              {!replay.isActive ? (
+                <ChatReplayButton
+                  disabled={
+                    isChatInProgress ||
+                    replay.isLoading ||
+                    !hasReplaySourceMessages
+                  }
+                  isChatInProgress={isChatInProgress}
+                  isLoading={replay.isLoading}
+                  onStart={handleStartReplay}
+                />
+              ) : null}
               <WindowModeToggle />
             </div>
           </div>
+          {replay.isActive ? (
+            <ChatReplayControls
+              canSlowDown={replay.canSlowDown}
+              canSpeedUp={replay.canSpeedUp}
+              current={replay.position}
+              includesCompressedHistory={replay.includesCompressedHistory}
+              isComplete={replay.isComplete}
+              isPlaying={replay.isPlaying}
+              intervalMs={replay.intervalMs}
+              total={replay.total}
+              onExit={exitReplay}
+              onPause={replay.pause}
+              onResume={replay.resume}
+              onSeek={replay.seek}
+              onSlowDown={replay.slowDown}
+              onSpeedUp={replay.speedUp}
+            />
+          ) : null}
           {pendingSubmits.length > 0 && (
             <div className="rounded-lg border bg-background/95 p-2 shadow-sm">
               <div className="mb-2 flex items-center justify-between gap-2">

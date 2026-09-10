@@ -2,7 +2,7 @@
   <img src="assets/banner.png" alt="AIME Chat" width="100%" />
 
   <p>
-    <img src="https://img.shields.io/badge/source-0.3.47-blue.svg" alt="源码版本 0.3.47">
+    <img src="https://img.shields.io/badge/source-0.3.52-blue.svg" alt="源码版本 0.3.52">
     <img src="https://img.shields.io/badge/platform-macOS%20|%20Windows%20|%20Linux-lightgrey.svg" alt="Platform">
     <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License">
   </p>
@@ -23,6 +23,7 @@
 - 🦾 **Harness Engineering（智能体外壳工程）** - 围绕模型构建完整的 Agent 外壳（Agent = Model + Harness）：编排循环、工具、上下文与记忆、子 Agent、权限护栏和可观测性，将无状态模型变为可靠、可长时间运行的智能体
 - 🤖 **多 AI 提供商支持** - 集成 OpenAI、DeepSeek、Google、智谱 AI、Ollama、LMStudio、ModelScope、MiniMax 等多个主流 AI 提供商
 - 💬 **智能对话** - 基于 Mastra 框架的强大 AI Agent 系统，支持流式响应和工具调用
+- ⏯️ **消息回放** - 按片段回顾已保存的对话及压缩历史，支持调速、暂停/恢复和进度跳转；时间信息可用时显示助手回复耗时
 - 🤝 **Open CoWork 能力** - AI 不只是聊天，还能在集成式项目工作区中编辑文件、执行代码、搜索网络等
 - 📚 **知识库管理** - 本地知识库支持语义向量与 BM25 混合检索、可选重排、原文读取、文档/Excel 解析和长期养成记忆
 - 📤 **项目聊天导出** - 可选择项目聊天线程，并将完整历史导出为 Markdown、原始 JSON、Excel 或 Unsloth JSONL
@@ -169,6 +170,14 @@ AIME Chat 提供的外壳分层：
 AIME Chat 内置由 `Cultivation` Agent 维护的全局记忆知识库。启用 `Cultivation Daily` 定时任务后，系统会读取最近更新的用户聊天记录，过滤自动化任务产生的线程，与已有记忆去重，并把值得长期保留的信息写入 `preferences.md`、`habits.md`、项目笔记等 Markdown 页面。
 
 这能让后续对话自动继承稳定的用户偏好、工作习惯、重要人物/实体和持续推进的项目上下文，而不需要每次手动粘贴历史聊天。
+
+### 消息回放
+
+当前回复结束后，点击聊天工具栏的 **回放消息**，选择每 0.5、1、3 或 5 秒播放一个片段。回放依次展示已保存的文本、思考、工具及文件片段，将可用的压缩历史与当前对话合并，并按消息 ID 去重。控制栏支持暂停/恢复、调速、拖动进度、播放完成后从头回放，以及退出回放。
+
+回放展示已保存的消息，不会重新运行 Agent 或工具。切换会话或开始新回复时会自动退出回放。回复耗时根据前一条用户消息与助手最后一个片段的时间差计算；时间信息缺失或无效时不显示。
+
+回放和压缩历史的具体操作见 [基本使用指南](packages/docs/docs/getting-started/basic-usage.md)。
 
 ### 工具系统
 

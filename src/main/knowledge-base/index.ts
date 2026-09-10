@@ -218,6 +218,17 @@ export class KnowledgeBaseManager extends BaseManager {
     };
   }
 
+  private isExistingImageFile(query: string): boolean {
+    try {
+      return (
+        (mime.lookup(query) || '').startsWith('image/') &&
+        fs.statSync(query).isFile()
+      );
+    } catch {
+      return false;
+    }
+  }
+
   async calcClipCosineSimilarity(modeId: string, embedding1: number[], embedding2: number[]): Promise<number> {
     const appInfo = await appManager.getInfo();
     const modelPath = path.join(appInfo.modelPath, 'clip', modeId);
@@ -1008,6 +1019,9 @@ export class KnowledgeBaseManager extends BaseManager {
     }
     await this.ensureFtsIndex(kb);
     const originalQuery = query;
+    // 图搜图的 query 是图片路径、图 chunk 没有文本，文本 reranker 打分没有意义
+    const isImageQuery =
+      fileTpye === 'image' && this.isExistingImageFile(originalQuery);
     const { vectorStoreConfig } = kb;
     const candidateLimit = Math.max(top_k * 3, top_k);
     const extendSelect = vectorStoreConfig?.extendColumns?.length > 0
@@ -1329,7 +1343,7 @@ export class KnowledgeBaseManager extends BaseManager {
 
     let _results = await hydrateResults(resultRows);
 
-    if (kb.reranker && originalQuery && _results.length > 0) {
+    if (kb.reranker && originalQuery && !isImageQuery && _results.length > 0) {
       try {
         const model = await providersManager.getRerankModel(kb.reranker);
         const rereankResults = await model.doRerank({
