@@ -39,7 +39,7 @@ export type ChatModelSelectProps = {
   clearable?: boolean;
 };
 
-export interface ChatModelSelectRef { }
+export interface ChatModelSelectRef {}
 
 export const ChatModelSelect = React.forwardRef<
   ChatModelSelectRef,
@@ -56,39 +56,32 @@ export const ChatModelSelect = React.forwardRef<
   } = props;
   const [data, setData] = useState<Provider[]>([]);
   const [modelSelectorOpen, setModelSelectorOpen] = useState(false);
-  const [selectedModelData, setSelectedModelData] =
-    useState<ProviderModel | null>(null);
+  const selectedModelData = data
+    .flatMap((provider) => provider.models)
+    .find((model) => model.id === value);
   const [loading, setLoading] = useState<boolean>(false);
   const { t } = useTranslation();
 
   useEffect(() => {
+    let cancelled = false;
     const getAvailableModels = async () => {
       setLoading(true);
+      setData([]);
       try {
         const providers =
           await window.electron.providers.getAvailableModels(type);
-
-        const models = [];
-        providers.forEach((provider) => {
-          models.push(...provider.models);
-        });
-        if (
-          (!selectedModelData || selectedModelData?.id !== value) &&
-          models.length > 0
-        ) {
-          if (value && models.find((m) => m.id === value)) {
-            const model = models.find((m) => m.id === value);
-            setSelectedModelData(model);
-            onChange?.(model.id);
-          }
-        }
-        setData(providers);
+        if (!cancelled) setData(providers ?? []);
+      } catch (error) {
+        if (!cancelled) console.error('Failed to load models', error);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
     getAvailableModels();
-  }, [type, value]);
+    return () => {
+      cancelled = true;
+    };
+  }, [type]);
 
   return (
     <ModelSelector onOpenChange={setModelSelectorOpen} open={modelSelectorOpen}>
@@ -141,7 +134,6 @@ export const ChatModelSelect = React.forwardRef<
                       e.preventDefault();
                       e.stopPropagation();
                       onChange?.('');
-                      setSelectedModelData(null);
                       setModelSelectorOpen(false);
                     }}
                   >
@@ -171,7 +163,6 @@ export const ChatModelSelect = React.forwardRef<
                       key={m.id}
                       onSelect={() => {
                         onChange?.(m.id);
-                        setSelectedModelData(m);
                         setModelSelectorOpen(false);
                       }}
                       value={m.id}

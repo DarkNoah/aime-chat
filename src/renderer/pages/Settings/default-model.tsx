@@ -27,6 +27,7 @@ import {
   ScanText,
   Speech,
   Zap,
+  Video,
 } from 'lucide-react';
 import { Input } from '@/renderer/components/ui/input';
 import { IconFolder } from '@tabler/icons-react';
@@ -41,10 +42,11 @@ import { Select } from '@/renderer/components/ui/select';
 import { ChatModelSelect } from '@/renderer/components/chat-ui/chat-model-select';
 import { AppInfo } from '@/types/app';
 import { ModelType } from '@/types/provider';
+import { toast } from 'react-hot-toast';
 
 export default function DefaultModel() {
   const { t } = useTranslation();
-  const { appInfo, getAppInfo } = useGlobal();
+  const { appInfo, updateDefaultModel } = useGlobal();
   const { setTitle } = useHeader();
 
   useEffect(() => {
@@ -55,14 +57,15 @@ export default function DefaultModel() {
     model: string,
     type: keyof AppInfo['defaultModel'],
   ) => {
-    await window.electron.app.saveSettings({
-      id: 'defaultModel',
-      value: {
-        ...appInfo?.defaultModel,
-        [type]: model,
-      },
-    });
-    await getAppInfo();
+    try {
+      await updateDefaultModel({ [type]: model });
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : t('settings.default_model_save_failed'),
+      );
+    }
   };
 
   return (
@@ -243,6 +246,29 @@ export default function DefaultModel() {
             value={appInfo?.defaultModel?.generateImageModel}
             onChange={(model) => {
               onChangeDefaultModel(model, 'generateImageModel');
+            }}
+          />
+        </ItemActions>
+      </Item>
+      <Item variant="outline">
+        <ItemContent>
+          <ItemTitle>
+            <Video className="w-5 h-5" />
+            {t(
+              'settings.default_generate_video',
+              'Default Video Generation Model',
+            )}
+          </ItemTitle>
+          <ItemDescription></ItemDescription>
+        </ItemContent>
+        <ItemActions>
+          <ChatModelSelect
+            clearable
+            type={ModelType.VIDEO_GENERATION}
+            className="w-[200px] border"
+            value={appInfo?.defaultModel?.generateVideoModel}
+            onChange={(model) => {
+              onChangeDefaultModel(model, 'generateVideoModel');
             }}
           />
         </ItemActions>

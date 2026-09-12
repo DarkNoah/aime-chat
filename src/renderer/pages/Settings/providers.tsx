@@ -1,3 +1,8 @@
+import {
+  ALIBABA_DNS_LABEL,
+  ALIBABA_REGIONS,
+  DEFAULT_ALIBABA_REGION,
+} from '@/types/alibaba';
 import { Button } from '@/renderer/components/ui/button';
 import { useHeader } from '@/renderer/hooks/use-title';
 import { useTranslation } from 'react-i18next';
@@ -34,6 +39,7 @@ import {
   CreateProvider,
   UpdateProvider,
   ProviderTypeList,
+  ProviderType,
 } from '@/types/provider';
 import {
   AlertDialog,
@@ -205,6 +211,7 @@ function Providers() {
       isActive: true,
       apiBase: '',
       apiKey: '',
+      config: { workspaceId: '', region: DEFAULT_ALIBABA_REGION },
     },
   });
   const selectedType = form.watch('type');
@@ -256,15 +263,20 @@ function Providers() {
   };
 
   const openEdit = async (data: Provider) => {
-    setEditProvider(data);
     const provider: any = await window.electron.providers.get(data.id);
     console.log(provider);
+    setEditProvider({ ...data, ...provider });
 
     form.reset();
     form.setValue('name', provider.name);
     form.setValue('isActive', provider.isActive);
     form.setValue('apiBase', provider.apiBase);
     form.setValue('apiKey', provider.apiKey);
+    form.setValue('config.workspaceId', provider.config?.workspaceId || '');
+    form.setValue(
+      'config.region',
+      provider.config?.region || DEFAULT_ALIBABA_REGION,
+    );
     form.setValue('icon', provider.icon);
     form.unregister('type');
     setEditorOpen(true);
@@ -273,13 +285,23 @@ function Providers() {
   const saveProvider = async (data: CreateProvider | UpdateProvider) => {
     setSubmitting(true);
     try {
+      const providerType = editProvider?.type ?? selectedType;
+      const config = { ...editProvider?.config, ...data.config };
+      if (
+        ['alibaba', 'alibaba-cn', ProviderType.TONGYI].includes(providerType)
+      ) {
+        delete config.videoApiBase;
+        config.workspaceId = config.workspaceId?.trim() || '';
+        config.region = config.region?.trim() || DEFAULT_ALIBABA_REGION;
+      }
+      const payload = { ...data, ...(data.config ? { config } : {}) };
       if (editProvider) {
         await window.electron.providers.update(
           editProvider.id,
-          data as UpdateProvider,
+          payload as UpdateProvider,
         );
       } else {
-        await window.electron.providers.create(data as CreateProvider);
+        await window.electron.providers.create(payload as CreateProvider);
       }
     } catch (err) {
       toast.error(err.message);
@@ -847,6 +869,88 @@ function Providers() {
                     </FormItem>
                   )}
                 ></FormField>
+                {['alibaba', 'alibaba-cn', ProviderType.TONGYI].includes(
+                  editProvider?.type ?? selectedType,
+                ) && (
+                  <>
+                    <FormField
+                      control={form.control}
+                      name="config.workspaceId"
+                      rules={{
+                        validate: (value) =>
+                          !value?.trim() ||
+                          ALIBABA_DNS_LABEL.test(value.trim()) ||
+                          t('providers.invalid_workspace_id'),
+                      }}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Workspace ID</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              value={field.value ?? ''}
+                              placeholder={t(
+                                'providers.workspace_id_placeholder',
+                              )}
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            {t('providers.workspace_id_description')}
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="config.region"
+                      rules={{
+                        validate: (value) =>
+                          !value?.trim() ||
+                          ALIBABA_DNS_LABEL.test(value.trim()) ||
+                          t('providers.invalid_region'),
+                      }}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{t('providers.region')}</FormLabel>
+                          <div className="flex gap-2">
+                            <FormControl>
+                              <Input
+                                {...field}
+                                value={field.value ?? DEFAULT_ALIBABA_REGION}
+                                placeholder={DEFAULT_ALIBABA_REGION}
+                              />
+                            </FormControl>
+                            <Select
+                              value={
+                                ALIBABA_REGIONS.includes(field.value)
+                                  ? field.value
+                                  : ''
+                              }
+                              onValueChange={field.onChange}
+                            >
+                              <SelectTrigger
+                                className="w-10 shrink-0"
+                                aria-label={t('providers.select_region')}
+                              />
+                              <SelectContent>
+                                {ALIBABA_REGIONS.map((region) => (
+                                  <SelectItem key={region} value={region}>
+                                    {region}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <FormDescription>
+                            {t('providers.region_description')}
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </>
+                )}
                 <FormField
                   control={form.control}
                   name="apiKey"

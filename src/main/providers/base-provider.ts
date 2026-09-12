@@ -1,4 +1,6 @@
+import type { Model3D } from '@/types/model3d';
 import { Providers } from '@/entities/providers';
+import type { VideoModel } from '@/types/video';
 import { EmbeddingModel, LanguageModel } from 'ai';
 import {
   EmbeddingModelV2,
@@ -73,22 +75,16 @@ export interface MusicModel {
   readonly modelId: string;
   doGenerate: (options: {
     prompt: string;
+    lyrics?: string;
+    is_instrumental?: boolean;
+    abortSignal?: AbortSignal;
     sample_rate?: number;
     format?: 'mp3' | 'wav' | 'pcm'
   }) => Promise<string>;
 }
 
 
-export interface VideoModel {
-  readonly provider: string;
-  readonly modelId: string;
-  doGenerate: (options: {
-    prompt: string;
-    image?: string[];
-    duration?: number;
-
-  }) => Promise<string>;
-}
+export type { VideoModel } from '@/types/video';
 
 
 
@@ -152,8 +148,12 @@ export abstract class BaseProvider implements ProviderV2 {
   musicModel?(modelId: string): MusicModel {
     throw new Error('Method not implemented.');
   }
+  model3d?(modelId: string): Model3D {
+    throw new Error('3D generation is not supported by this provider.');
+  }
+
   videoModel?(modelId: string): VideoModel {
-    throw new Error('Method not implemented.');
+    throw new Error('Video generation is not supported by this provider.');
   }
 
 
@@ -176,6 +176,10 @@ export abstract class BaseProvider implements ProviderV2 {
   async getSpeechModelList(): Promise<{ name: string; id: string }[]> {
     return Promise.resolve([]);
   }
+  async get3DModelList(): Promise<{ name: string; id: string }[]> {
+    return [];
+  }
+
   async getVideoModelList(): Promise<{ name: string; id: string }[]> {
     return Promise.resolve([]);
   }

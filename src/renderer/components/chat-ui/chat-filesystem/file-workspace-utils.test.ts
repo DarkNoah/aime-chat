@@ -33,6 +33,26 @@ describe('file workspace utilities', () => {
     );
   });
 
+  it.each(['glb', 'gltf', 'fbx', 'obj', 'stl'])(
+    'recognizes %s models even with generic MIME types or text contents',
+    (ext) => {
+      expect(
+        getFilePreviewKind(
+          'application/octet-stream',
+          true,
+          `/models/model.${ext}`,
+        ),
+      ).toBe('model');
+      expect(
+        getFilePreviewKind(
+          'text/plain',
+          false,
+          `C:\\models\\MODEL.${ext.toUpperCase()}`,
+        ),
+      ).toBe('model');
+    },
+  );
+
   it('creates encoded file URLs for Windows and POSIX paths', () => {
     expect(toFileUrl('C:\\work\\hello world#1?.png')).toBe(
       'file:///C:/work/hello%20world%231%3F.png',

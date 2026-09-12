@@ -8,6 +8,7 @@ import React, {
   useMemo,
   useEffect,
   useCallback,
+  useRef,
 } from 'react';
 import { Toaster, toast } from 'react-hot-toast';
 import { Spinner } from '../components/ui/spinner';
@@ -25,6 +26,9 @@ type GlobalState = {
   user?: string;
   setUser: (user?: string) => void;
   getAppInfo: () => Promise<AppInfo>;
+  updateDefaultModel: (
+    patch: Partial<AppInfo['defaultModel']>,
+  ) => Promise<void>;
   setWindowMode: (
     mode: WindowMode,
     persist: boolean,
@@ -39,13 +43,75 @@ export function GlobalProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<string | undefined>();
   const [appInfo, setAppInfo] = useState<AppInfo | undefined>();
   const [setupStatus, setSetupStatus] = useState<SetupStatus | undefined>();
+  const appInfoRef = useRef<AppInfo | undefined>(undefined);
+  const infoRequestId = useRef(0);
+  const modelRevision = useRef(0);
+  const pendingModelSaves = useRef(0);
+  const savedModels = useRef<AppInfo['defaultModel'] | undefined>(undefined);
+  const modelSaveQueue = useRef<Promise<void>>(Promise.resolve());
 
   const getAppInfo = useCallback(async () => {
+    infoRequestId.current += 1;
+    const requestId = infoRequestId.current;
+    const revision = modelRevision.current;
     const data = await window.electron.app.getInfo();
-    console.log('appInfo', data);
-    setAppInfo(data);
-    return data;
+    if (requestId === infoRequestId.current) {
+      const preserveModels =
+        pendingModelSaves.current > 0 || revision !== modelRevision.current;
+      const next =
+        preserveModels && appInfoRef.current
+          ? { ...data, defaultModel: appInfoRef.current.defaultModel }
+          : data;
+      if (!preserveModels) savedModels.current = data.defaultModel;
+      appInfoRef.current = next;
+      setAppInfo(next);
+    }
+    return appInfoRef.current ?? data;
   }, []);
+
+  const updateDefaultModel = useCallback(
+    async (patch: Partial<AppInfo['defaultModel']>) => {
+      if (!appInfoRef.current)
+        throw new Error('Application settings have not loaded');
+      const change = { ...patch };
+      modelRevision.current += 1;
+      pendingModelSaves.current += 1;
+      const next = {
+        ...appInfoRef.current,
+        defaultModel: { ...appInfoRef.current.defaultModel, ...change },
+      };
+      appInfoRef.current = next;
+      setAppInfo(next);
+
+      // Merge each change with the latest successfully persisted values, not a render snapshot.
+      const save = modelSaveQueue.current
+        .then(async () => {
+          const defaultModel = { ...savedModels.current, ...change };
+          await window.electron.app.saveSettings({
+            id: 'defaultModel',
+            value: defaultModel,
+          });
+          savedModels.current = defaultModel;
+          return undefined;
+        })
+        .finally(() => {
+          pendingModelSaves.current -= 1;
+          modelRevision.current += 1;
+          if (pendingModelSaves.current === 0) {
+            // Roll back failed changes while retaining any later successful changes.
+            const confirmed = {
+              ...appInfoRef.current,
+              defaultModel: savedModels.current,
+            };
+            appInfoRef.current = confirmed;
+            setAppInfo(confirmed);
+          }
+        });
+      modelSaveQueue.current = save.catch(() => undefined);
+      await save;
+    },
+    [],
+  );
 
   const getSetupStatus = useCallback(async (): Promise<SetupStatus> => {
     const data = await window.electron.app.getSetupStatus();
@@ -54,9 +120,10 @@ export function GlobalProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const updateWindowMode = useCallback((windowMode: WindowModeState) => {
-    setAppInfo((previous) =>
-      previous ? { ...previous, windowMode } : previous,
-    );
+    if (appInfoRef.current) {
+      appInfoRef.current = { ...appInfoRef.current, windowMode };
+      setAppInfo(appInfoRef.current);
+    }
   }, []);
 
   const setWindowMode = useCallback(
@@ -77,11 +144,20 @@ export function GlobalProvider({ children }: { children: ReactNode }) {
       setUser,
       appInfo,
       getAppInfo,
+      updateDefaultModel,
       setWindowMode,
       setupStatus,
       getSetupStatus,
     }),
-    [user, appInfo, getAppInfo, setWindowMode, setupStatus, getSetupStatus],
+    [
+      user,
+      appInfo,
+      getAppInfo,
+      updateDefaultModel,
+      setWindowMode,
+      setupStatus,
+      getSetupStatus,
+    ],
   );
 
   const handleToast = useCallback(

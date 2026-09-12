@@ -30,7 +30,7 @@ interface SetupStepProps {
 
 function ModelStep({ onNext, onBack, onSkip }: SetupStepProps) {
   const { t } = useTranslation();
-  const { appInfo, getAppInfo } = useGlobal();
+  const { appInfo, updateDefaultModel } = useGlobal();
   const [saving, setSaving] = useState(false);
   const [fastModel, setFastModel] = useState<string | undefined>(
     appInfo?.defaultModel?.fastModel,
@@ -49,15 +49,7 @@ function ModelStep({ onNext, onBack, onSkip }: SetupStepProps) {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await window.electron.app.saveSettings({
-        id: 'defaultModel',
-        value: {
-          ...appInfo?.defaultModel,
-          fastModel,
-          model,
-        },
-      });
-      await getAppInfo();
+      await updateDefaultModel({ fastModel, model });
       toast.success(t('setup.model.saved_success'));
       onNext();
     } catch (err: any) {

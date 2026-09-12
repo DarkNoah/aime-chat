@@ -30,6 +30,7 @@ import { Textarea } from '../../ui/textarea';
 import {
   formatFileSize,
   getFilePreviewKind,
+  getFileExtension,
   isHtmlFile,
   isMarkdownFile,
   toFileUrl,
@@ -51,6 +52,12 @@ const EDITABLE_FILE_LIMIT = 2 * 1024 * 1024;
 const CodeTextEditor = lazy(() =>
   import('./code-text-editor').then((module) => ({
     default: module.CodeTextEditor,
+  })),
+);
+
+const ModelViewer = lazy(() =>
+  import('../../model-viewer').then((module) => ({
+    default: module.ModelViewer,
   })),
 );
 
@@ -295,7 +302,7 @@ export const FileWorkspace: React.FC<FileWorkspaceProps> = ({
   const htmlFile = isHtmlFile(filePath);
   const dirty = draft !== savedContent;
   const previewKind = file
-    ? getFilePreviewKind(file.mimeType, file.isBinary)
+    ? getFilePreviewKind(file.mimeType, file.isBinary, filePath)
     : 'unsupported';
   const editable = previewKind === 'text' && !file?.truncated;
   // 网页预览直接从磁盘加载，内容被截断或被判为二进制时同样能完整渲染。
@@ -450,6 +457,26 @@ export const FileWorkspace: React.FC<FileWorkspaceProps> = ({
     }
 
     if (!file) return null;
+
+    if (previewKind === 'model') {
+      return (
+        <Suspense
+          fallback={
+            <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+              {t('common.loading')}
+            </div>
+          }
+        >
+          <ModelViewer
+            key={filePath}
+            url={fileUrl}
+            ext={getFileExtension(filePath)}
+            className="h-full w-full"
+            style={{ height: '100%', borderRadius: 0 }}
+          />
+        </Suspense>
+      );
+    }
 
     if (previewKind === 'image') {
       return (

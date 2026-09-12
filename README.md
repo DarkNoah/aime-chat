@@ -2,7 +2,7 @@
   <img src="assets/banner.png" alt="AIME Chat" width="100%" />
 
   <p>
-    <img src="https://img.shields.io/badge/source-0.3.52-blue.svg" alt="Source version 0.3.52">
+    <img src="https://img.shields.io/badge/source-0.3.53-blue.svg" alt="Source version 0.3.53">
     <img src="https://img.shields.io/badge/platform-macOS%20|%20Windows%20|%20Linux-lightgrey.svg" alt="Platform">
     <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License">
   </p>
@@ -30,7 +30,9 @@
 - 🧠 **Cultivation Memory** - A scheduled Cultivation Agent extracts preferences, habits, project context, and important facts from chat history into a structured memory wiki
 - ⏰ **Cron Automation** - Run scheduled AI tasks with project context, selectable agents/tools, and either reusable or per-run chat threads
 - 🛠️ **Tool Integration** - Support for MCP (Model Context Protocol) client with extensible tool capabilities
-- 🎙️ **Audio Processing** - Built-in Speech-to-Text (STT) and Text-to-Speech (TTS) powered by Qwen3-TTS models
+- 🎙️ **Audio Processing** - Local and provider-backed speech recognition and synthesis, including Alibaba ASR/TTS and MiniMax ASR; MiniMax Music generates songs or instrumental tracks and saves the audio locally
+- 🎬 **Video Generation** - Generate videos with MiniMax H3 / H3 Max or Alibaba Wan 3.0, using text, frames, or reference media supported by the selected model
+- 🧊 **3D Generation & Preview** - Generate GLB models from text or images with Alibaba Tripo, then inspect GLB, glTF, FBX, OBJ, or STL files in the project workspace with material and wireframe views
 - 🔍 **Skill System** - Search, import, and manage AI skills from Git repositories or the online skill marketplace
 - 🧑‍💻 **Assistant Personalities** - Built-in assistant personalities can be selected instantly and customized through the current personality format
 - 🖥️ **Background Bash Sessions** - Track long-running shell processes from the current chat or the whole project, with direct stop controls in the UI
@@ -150,6 +152,7 @@ Supported providers include:
 | Google | Cloud | Gemini series models |
 | Zhipu AI | Cloud | GLM series models |
 | MiniMax | Cloud | MiniMax series models |
+| Alibaba / Alibaba (China) | Cloud | Chat, Wan video, Tripo 3D, and regional speech models |
 | Ollama | Local | Run open-source models locally |
 | LMStudio | Local | Local model management tool |
 | ModelScope | Cloud | ModelScope community models |
@@ -191,7 +194,9 @@ Rich built-in tools that AI Agents can call autonomously:
 | Image Processing | GenerateImage, EditImage, RMBG | Image generation, editing, and background removal |
 | Vision Analysis | Vision | LLM-powered image recognition and analysis (with OCR integration) |
 | OCR Recognition | PaddleOCR | Document and image text recognition (supports PDF/images) |
-| Audio Processing | SpeechToText, TextToSpeech | Speech-to-text and text-to-speech (powered by Qwen3-TTS) |
+| Video Generation | GenerateVideo | Video generation with automatic task polling and local saving |
+| 3D Generation | Generate3D | Text, single-image, or multi-view generation, saving GLB models and available preview images |
+| Audio Processing | SpeechToText, TextToSpeech, MusicGeneration | Speech recognition, synthesis, and music generation using configured models |
 | Database | LibSQL | Database query and management |
 | Translation | Translation | Multi-language text translation |
 | Task Management | TaskCreate, TaskGet, TaskList, TaskUpdate | Structured task creation, query, and status management |
@@ -202,6 +207,12 @@ Rich built-in tools that AI Agents can call autonomously:
 - 🔌 **MCP Protocol Support** - Extensible third-party tools
 - ⚙️ **Tool Configuration UI** - Visual tool management and configuration
 - 🔍 **Skill Marketplace** - Search and import skills from Git repositories or online marketplace (skills.sh)
+
+### Media Tool Setup
+
+Configure and enable the provider first. Alibaba media tools use **Workspace ID** and **Region** from provider settings; chat continues to use its configured API Base. Tripo currently requires `cn-beijing`. Choose video, transcription, and speech models in **Settings → Default Models**, with per-tool overrides when needed. Select 3D and music models in their respective tool configurations; existing `music-2.5` configurations need a supported replacement.
+
+Generation tools wait for the result and save it to the workspace. Stopping ends local waiting; provider-side cancellation varies by service. See the [tool guide](packages/docs/docs/features/tools.md) for supported inputs and the [provider guide](packages/docs/docs/getting-started/ai-providers.md) for setup.
 
 ### Channel Integration
 

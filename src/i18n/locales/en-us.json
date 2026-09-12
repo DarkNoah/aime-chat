@@ -1,4 +1,11 @@
 {
+  "model_viewer": {
+    "show_wireframe": "Show model wireframe",
+    "hide_wireframe": "Hide model wireframe",
+    "maximize": "Expand preview",
+    "minimize": "Collapse preview"
+  },
+  "tool_name": { "generatevideo": "Video Generation" },
   "language": {
     "en-us": "English",
     "zh-cn": "中文"
@@ -14,6 +21,8 @@
   "supportFilesDescription": "Open the folders and logs needed for troubleshooting.",
   "userData": "User data",
   "settings": {
+    "default_model_save_failed": "Failed to save the default model",
+    "default_generate_video": "Default Video Generation Model",
     "about": "About",
     "language": "Language",
     "theme": "Theme",
@@ -778,6 +787,13 @@
     "add_provider": "Add Provider",
     "select_type": "Select type",
     "api_base": "API Base",
+    "workspace_id_placeholder": "Enter your workspace ID",
+    "workspace_id_description": "Workspace ID for Wan video generation. Must match the API key and region.",
+    "invalid_workspace_id": "Use letters, numbers and internal hyphens for the workspace ID.",
+    "region": "Region",
+    "select_region": "Select a region",
+    "region_description": "Select a region on the right or enter a custom region. Defaults to cn-beijing.",
+    "invalid_region": "Enter a valid region identifier, such as cn-beijing.",
     "api_key": "API Key",
     "provider_name_placeholder": "OpenAI-US",
     "model_management": "Model Management",
