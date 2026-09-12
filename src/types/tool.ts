@@ -288,6 +288,21 @@ export const ToolConfig = {
       },
     },
   },
+  Generate3D: {
+    configSchema: z.strictObject({
+      modelId: z.string().optional(),
+    }),
+    uiSchema: {
+      modelId: {
+        'ui:widget': 'modelSelector',
+        'ui:title': t('common.model'),
+        'ui:options': {
+          type: ModelType.MODEL_3D,
+          clearable: true,
+        },
+      },
+    },
+  },
   GenerateVideo: {
     configSchema: z.strictObject({
       modelId: z.string().optional(),
@@ -298,6 +313,7 @@ export const ToolConfig = {
         'ui:title': t('common.model'),
         'ui:options': {
           type: ModelType.VIDEO_GENERATION,
+          clearable: true,
         },
       },
     },

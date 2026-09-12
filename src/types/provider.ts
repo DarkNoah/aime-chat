@@ -6,6 +6,7 @@ export interface Provider {
   models?: ProviderModel[];
   apiKey?: string;
   hasChatModel?: boolean;
+  config?: Record<string, any>;
 }
 
 export interface ProviderModel {
@@ -85,6 +86,7 @@ export enum ModelType {
   EMBEDDING = 'embedding',
   RERANKER = 'reranker',
   IMAGE_GENERATION = 'image_generation',
+  MODEL_3D = 'model_3d',
   VIDEO_GENERATION = 'video_generation',
   TRANSCRIPTION = 'transcription',
   SPEECH = 'speech',

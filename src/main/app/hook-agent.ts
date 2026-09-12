@@ -269,6 +269,18 @@ function removeContentLength(headers: Dispatcher.DispatchOptions['headers']) {
   return next as Dispatcher.DispatchOptions['headers'];
 }
 
+function isJsonRequest(headers: Dispatcher.DispatchOptions['headers']) {
+  const mediaType = getHeader(headers, 'content-type')
+    ?.split(';')[0]
+    .trim()
+    .toLowerCase();
+  // Model content rewriting only applies to JSON. Decoding multipart or raw
+  // file bodies as UTF-8 corrupts binary bytes before they reach the server.
+  return Boolean(
+    mediaType && /^application\/(?:json|[\w.-]+\+json)$/.test(mediaType),
+  );
+}
+
 export class HookAgent extends Agent {
   dispatch(
     options: Agent.DispatchOptions,
@@ -281,7 +293,12 @@ export class HookAgent extends Agent {
     );
     const requestBodyCapture = new TextCapture();
 
-    if (method !== 'GET' && method !== 'HEAD' && options.body) {
+    if (
+      method !== 'GET' &&
+      method !== 'HEAD' &&
+      options.body &&
+      isJsonRequest(options.headers)
+    ) {
       const originalBody = options.body;
       const originalContent =
         typeof originalBody === 'string' ||
@@ -374,7 +391,7 @@ export class HookProxyAgent extends ProxyAgent {
     );
     const requestBodyCapture = new TextCapture();
 
-    if (method === 'POST' && options.body) {
+    if (method === 'POST' && options.body && isJsonRequest(options.headers)) {
       options.body = this.transformBody(
         options.body,
         shouldLog ? requestBodyCapture : undefined,

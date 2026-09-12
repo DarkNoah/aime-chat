@@ -35,6 +35,8 @@ import { Plan } from './plan-agent';
 import { LibSQLDatabaseInfo, LibSQLDescribeTable, LibSQLListTable, LibSQLRun } from '@/main/tools/database/libsql';
 import { Message } from '@/main/tools/common/message';
 import { AgentBrowser } from '@/main/tools/browser';
+import { GenerateVideo } from '@/main/tools/video/generate-video';
+import { Generate3D } from '@/main/tools/3d/generate-3d';
 import { GenerateImage } from '@/main/tools/image/generate-image';
 import { EditImage } from '@/main/tools/image/edit-image';
 import { MemoryRead, MemorySearch } from '@/main/tools/memory/memory';
@@ -46,6 +48,7 @@ import {
   KnowledgeBaseSearch,
 } from '@/main/tools/knowledge-base';
 import { InteractiveHtml } from '@/main/tools/common/interactive-html';
+import { MusicGeneration, SpeechToText, TextToSpeech, ListVoices } from '@/main/tools/audio';
 
 export class CodeAgent extends BaseAgent {
   static readonly agentName = 'CodeAgent';
@@ -90,7 +93,16 @@ export class CodeAgent extends BaseAgent {
     `${ToolType.BUILD_IN}:${KnowledgeBaseGetItem.toolName}`,
     `${ToolType.BUILD_IN}:${AgentBrowser.toolName}`,
     `${ToolType.BUILD_IN}:${GenerateImage.toolName}`,
+    `${ToolType.BUILD_IN}:${GenerateVideo.toolName}`,
+    `${ToolType.BUILD_IN}:${Generate3D.toolName}`,
     `${ToolType.BUILD_IN}:${EditImage.toolName}`,
+
+
+    /** Audio Tools */
+    `${ToolType.BUILD_IN}:${SpeechToText.toolName}`,
+    `${ToolType.BUILD_IN}:${TextToSpeech.toolName}`,
+    `${ToolType.BUILD_IN}:${ListVoices.toolName}`,
+
     `${ToolType.BUILD_IN}:${CreateGoal.toolName}`,
     `${ToolType.SKILL}:local:agent-browser`,
     `${ToolType.SKILL}:local:aime-chat-docs`,

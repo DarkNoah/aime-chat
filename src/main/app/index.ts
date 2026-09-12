@@ -300,6 +300,7 @@ class AppManager extends BaseManager {
       transcriptionModel: process.env.DEFAULT_TRANSCRIPTION_MODEL,
       speechModel: process.env.DEFAULT_SPEECH_MODEL,
       generateImageModel: process.env.DEFAULT_GENERATE_IMAGE_MODEL,
+      generateVideoModel: process.env.DEFAULT_GENERATE_VIDEO_MODEL,
       ...(savedDefaultModel ?? {}),
     };
     const defaultAgent = settings.find((x) => x.id === 'defaultAgent')?.value || process.env.DEFAULT_AGENT || CodeAgent.agentName;

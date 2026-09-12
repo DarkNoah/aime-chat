@@ -95,6 +95,7 @@ export class AppInfo {
     transcriptionModel: string;
     speechModel: string;
     generateImageModel: string;
+    generateVideoModel?: string;
   };
   defaultAgent: string;
   defaultThink: 'low' | 'medium' | 'high';

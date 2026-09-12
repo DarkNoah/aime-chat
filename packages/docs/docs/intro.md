@@ -86,9 +86,13 @@ AI Agent 可自主调用各类工具：
 | 网络工具 | Web Fetch、Web Search               | 网页抓取与搜索              |
 | 图像处理 | GenerateImage、EditImage、RMBG      | 图像生成、编辑和背景移除    |
 | 视觉分析 | Vision                              | 图像识别与分析              |
-| 语音处理 | SpeechToText、TextToSpeech          | 语音转文字与文字转语音      |
+| 视频生成 | GenerateVideo | MiniMax / 万相视频生成并保存到本地 |
+| 3D 生成 | Generate3D | 文本或图片生成 GLB，并在项目中预览 |
+| 音频处理 | SpeechToText、TextToSpeech、MusicGeneration | 语音识别、合成与音乐生成 |
 | 数据库   | LibSQL                              | 数据库操作                  |
 | 任务管理 | Todo、Task                          | 任务创建与管理              |
+
+媒体工具的模型选择、输入限制与停止行为见 [工具系统](./features/tools)，业务空间和地域配置见 [AI 服务商配置](./getting-started/ai-providers)。
 
 长时间运行的 Bash 命令会显示为后台会话。项目级聊天可以汇总整个项目范围内的后台 Bash 进程，并在界面中直接停止。
 

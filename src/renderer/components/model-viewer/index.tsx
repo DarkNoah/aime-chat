@@ -1,21 +1,35 @@
 /* eslint-disable react/no-unknown-property */
-import React, { Suspense, useMemo, useState, useCallback } from 'react';
+import React, {
+  Suspense,
+  useMemo,
+  useState,
+  useCallback,
+  useLayoutEffect,
+} from 'react';
 import { Canvas, useLoader } from '@react-three/fiber';
-import { OrbitControls, Center, useGLTF, useFBX } from '@react-three/drei';
+import {
+  OrbitControls,
+  Center,
+  Environment,
+  Lightformer,
+  useGLTF,
+  useFBX,
+} from '@react-three/drei';
 import * as THREE from 'three';
+import { useTranslation } from 'react-i18next';
 import {
   IconAlertCircle,
   IconArrowsMaximize,
   IconArrowsMinimize,
+  Icon3dCubeSphere,
 } from '@tabler/icons-react';
 // @ts-expect-error three/examples loaders lack type declarations in this setup
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader';
 // @ts-expect-error three/examples loaders lack type declarations in this setup
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader';
+import { applyModelWireframe } from './wireframe';
 
-const SUPPORTED_EXTENSIONS = ['.glb', '.gltf', '.fbx', '.obj', '.stl'] as const;
-
-type SupportedExtension = (typeof SUPPORTED_EXTENSIONS)[number];
+export { isSupportedModelFile } from './formats';
 
 type ErrorBoundaryProps = {
   children: React.ReactNode;
@@ -27,44 +41,60 @@ type ErrorBoundaryState = {
   error: Error | null;
 };
 
-export function isSupportedModelFile(ext?: string): boolean {
-  if (!ext) return false;
-  const normalized = ext.toLowerCase().startsWith('.')
-    ? ext.toLowerCase()
-    : `.${ext.toLowerCase()}`;
-  return SUPPORTED_EXTENSIONS.includes(normalized as SupportedExtension);
+type ModelSourceProps = { url: string; wireframe: boolean };
+
+// Loader objects are cached and shared by inline and expanded previews.
+// Wireframe materials belong to each preview; cached assets stay intact.
+function ModelObject({
+  object,
+  wireframe,
+}: {
+  object: THREE.Object3D;
+  wireframe: boolean;
+}) {
+  const instance = useMemo(() => object.clone(), [object]);
+
+  useLayoutEffect(() => {
+    if (!wireframe) return undefined;
+    return applyModelWireframe(instance);
+  }, [instance, wireframe]);
+
+  return <primitive object={instance} />;
 }
 
-function GLTFModel({ url }: { url: string }) {
+function GLTFModel({ url, wireframe }: ModelSourceProps) {
   const { scene } = useGLTF(url);
-  return <primitive object={scene.clone()} />;
+  return <ModelObject object={scene} wireframe={wireframe} />;
 }
 
-function FBXModel({ url }: { url: string }) {
+function FBXModel({ url, wireframe }: ModelSourceProps) {
   const fbx = useFBX(url);
-  return <primitive object={fbx.clone()} />;
+  return <ModelObject object={fbx} wireframe={wireframe} />;
 }
 
-function OBJModel({ url }: { url: string }) {
+function OBJModel({ url, wireframe }: ModelSourceProps) {
   const obj = useLoader(OBJLoader, url);
-  return <primitive object={obj.clone()} />;
+  return <ModelObject object={obj} wireframe={wireframe} />;
 }
 
-function STLModel({ url }: { url: string }) {
+function STLModel({ url, wireframe }: ModelSourceProps) {
   const geometry = useLoader(STLLoader, url);
-  const material = useMemo(
-    () =>
-      new THREE.MeshStandardMaterial({
-        color: '#8899aa',
-        metalness: 0.3,
-        roughness: 0.6,
-      }),
-    [],
+  return (
+    <mesh geometry={geometry}>
+      {wireframe ? (
+        <meshBasicMaterial color="#e2e8f0" wireframe toneMapped={false} />
+      ) : (
+        <meshStandardMaterial color="#8899aa" metalness={0.3} roughness={0.6} />
+      )}
+    </mesh>
   );
-  return <mesh geometry={geometry} material={material} />;
 }
 
-function ModelContent({ url, ext }: { url: string; ext: string }) {
+function ModelContent({
+  url,
+  ext,
+  wireframe,
+}: ModelSourceProps & { ext: string }) {
   const normalized = ext.toLowerCase().startsWith('.')
     ? ext.toLowerCase()
     : `.${ext.toLowerCase()}`;
@@ -72,13 +102,13 @@ function ModelContent({ url, ext }: { url: string; ext: string }) {
   switch (normalized) {
     case '.glb':
     case '.gltf':
-      return <GLTFModel url={url} />;
+      return <GLTFModel url={url} wireframe={wireframe} />;
     case '.fbx':
-      return <FBXModel url={url} />;
+      return <FBXModel url={url} wireframe={wireframe} />;
     case '.obj':
-      return <OBJModel url={url} />;
+      return <OBJModel url={url} wireframe={wireframe} />;
     case '.stl':
-      return <STLModel url={url} />;
+      return <STLModel url={url} wireframe={wireframe} />;
     default:
       return null;
   }
@@ -150,19 +180,42 @@ class ModelErrorBoundary extends React.Component<
   }
 }
 
-function ModelScene({ url, ext }: { url: string; ext: string }) {
+function ModelScene({
+  url,
+  ext,
+  wireframe,
+}: ModelSourceProps & { ext: string }) {
   return (
     <Canvas
       camera={{ position: [0, 2, 5], fov: 45 }}
       gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping }}
     >
       <ambientLight intensity={0.6} />
-      <directionalLight position={[5, 10, 5]} intensity={1} castShadow />
-      <directionalLight position={[-5, -2, -5]} intensity={0.4} />
-      <hemisphereLight args={['#b1e1ff', '#b97a20', 0.5]} />
+      <directionalLight position={[5, 10, 5]} intensity={2} />
+      <directionalLight position={[-5, 2, -5]} intensity={1} />
+      <hemisphereLight args={['#ffffff', '#c4c9d1', 1]} />
+      {/* Local studio reflections for PBR materials, with no remote HDR download. */}
+      <Environment resolution={128} frames={1}>
+        <mesh scale={10}>
+          <sphereGeometry args={[1, 32, 16]} />
+          <meshBasicMaterial color="#bfc5cc" side={THREE.BackSide} />
+        </mesh>
+        <Lightformer
+          intensity={3}
+          position={[0, 5, 0]}
+          rotation={[Math.PI / 2, 0, 0]}
+          scale={[8, 8, 1]}
+        />
+        <Lightformer
+          intensity={2}
+          position={[-5, 1, 0]}
+          rotation={[0, Math.PI / 2, 0]}
+          scale={[4, 6, 1]}
+        />
+      </Environment>
       <Suspense fallback={<LoadingFallback />}>
         <Center>
-          <ModelContent url={url} ext={ext} />
+          <ModelContent url={url} ext={ext} wireframe={wireframe} />
         </Center>
       </Suspense>
       <OrbitControls makeDefault enableDamping />
@@ -170,11 +223,64 @@ function ModelScene({ url, ext }: { url: string; ext: string }) {
   );
 }
 
-function ModelViewport({ url, ext }: { url: string; ext: string }) {
+function ModelViewport({
+  url,
+  ext,
+  wireframe,
+}: ModelSourceProps & { ext: string }) {
   return (
     <ModelErrorBoundary resetKey={`${ext}:${url}`} fallback={ModelErrorState}>
-      <ModelScene url={url} ext={ext} />
+      <ModelScene url={url} ext={ext} wireframe={wireframe} />
     </ModelErrorBoundary>
+  );
+}
+
+function PreviewControls({
+  maximized,
+  wireframe,
+  onToggleMaximize,
+  onToggleWireframe,
+}: {
+  maximized: boolean;
+  wireframe: boolean;
+  onToggleMaximize: () => void;
+  onToggleWireframe: () => void;
+}) {
+  const { t } = useTranslation();
+  const wireframeLabel = t(
+    wireframe ? 'model_viewer.hide_wireframe' : 'model_viewer.show_wireframe',
+  );
+  const maximizeLabel = t(
+    maximized ? 'model_viewer.minimize' : 'model_viewer.maximize',
+  );
+  const buttonClass =
+    'inline-flex size-8 items-center justify-center rounded-lg bg-black/50 text-white aria-pressed:bg-white aria-pressed:text-slate-900 aria-pressed:ring-2 aria-pressed:ring-white/50 transition-colors hover:bg-black/70 aria-pressed:hover:bg-white/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white motion-reduce:transition-none';
+  return (
+    <div className="absolute top-2 right-2 z-10 flex gap-1.5">
+      <button
+        type="button"
+        className={buttonClass}
+        onClick={onToggleWireframe}
+        aria-label={wireframeLabel}
+        title={wireframeLabel}
+        aria-pressed={wireframe}
+      >
+        <Icon3dCubeSphere size={18} aria-hidden="true" />
+      </button>
+      <button
+        type="button"
+        className={buttonClass}
+        onClick={onToggleMaximize}
+        aria-label={maximizeLabel}
+        title={maximizeLabel}
+      >
+        {maximized ? (
+          <IconArrowsMinimize size={18} aria-hidden="true" />
+        ) : (
+          <IconArrowsMaximize size={18} aria-hidden="true" />
+        )}
+      </button>
+    </div>
   );
 }
 
@@ -187,6 +293,8 @@ export interface ModelViewerProps {
 
 export function ModelViewer({ url, ext, className, style }: ModelViewerProps) {
   const [maximized, setMaximized] = useState(false);
+  const [wireframe, setWireframe] = useState(false);
+  const toggleWireframe = useCallback(() => setWireframe((v) => !v), []);
   const toggleMaximize = useCallback(() => setMaximized((v) => !v), []);
 
   return (
@@ -204,20 +312,19 @@ export function ModelViewer({ url, ext, className, style }: ModelViewerProps) {
             onClick={(e) => e.stopPropagation()}
             role="presentation"
           >
-            <button
-              type="button"
-              className="absolute top-3 right-3 z-10 rounded-lg bg-white/10 p-2 text-white backdrop-blur-sm transition-colors hover:bg-white/20"
-              onClick={toggleMaximize}
-            >
-              <IconArrowsMinimize size={18} />
-            </button>
+            <PreviewControls
+              maximized
+              wireframe={wireframe}
+              onToggleMaximize={toggleMaximize}
+              onToggleWireframe={toggleWireframe}
+            />
             <div
               className="size-full overflow-hidden rounded-xl"
               style={{
-                background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
+                background: '#424852',
               }}
             >
-              <ModelViewport url={url} ext={ext} />
+              <ModelViewport url={url} ext={ext} wireframe={wireframe} />
             </div>
           </div>
         </div>
@@ -229,18 +336,17 @@ export function ModelViewer({ url, ext, className, style }: ModelViewerProps) {
           height: 300,
           borderRadius: 12,
           overflow: 'hidden',
-          background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
+          background: '#424852',
           ...style,
         }}
       >
-        <button
-          type="button"
-          className="absolute top-2 right-2 z-10 rounded-lg bg-white/10 p-1.5 text-white backdrop-blur-sm transition-colors hover:bg-white/20"
-          onClick={toggleMaximize}
-        >
-          <IconArrowsMaximize size={16} />
-        </button>
-        <ModelViewport url={url} ext={ext} />
+        <PreviewControls
+          maximized={false}
+          wireframe={wireframe}
+          onToggleMaximize={toggleMaximize}
+          onToggleWireframe={toggleWireframe}
+        />
+        <ModelViewport url={url} ext={ext} wireframe={wireframe} />
       </div>
     </>
   );

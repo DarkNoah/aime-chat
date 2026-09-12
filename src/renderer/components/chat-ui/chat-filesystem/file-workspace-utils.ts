@@ -1,4 +1,7 @@
+import { isSupportedModelFile } from '../../model-viewer/formats';
+
 export type FilePreviewKind =
+  | 'model'
   | 'image'
   | 'audio'
   | 'video'
@@ -25,7 +28,9 @@ export function isHtmlFile(filePath: string): boolean {
 export function getFilePreviewKind(
   mimeType: string,
   isBinary: boolean,
+  filePath = '',
 ): FilePreviewKind {
+  if (isSupportedModelFile(getFileExtension(filePath))) return 'model';
   if (mimeType.startsWith('image/')) return 'image';
   if (mimeType.startsWith('audio/')) return 'audio';
   if (mimeType.startsWith('video/')) return 'video';

@@ -9,6 +9,12 @@ jest.mock('react-i18next', () => ({
   }),
 }));
 
+jest.mock('../../model-viewer', () => ({
+  ModelViewer: ({ url, ext }: { url: string; ext: string }) => (
+    <div data-testid="model-preview" data-url={url} data-extension={ext} />
+  ),
+}));
+
 Object.defineProperty(window, 'DOMRect', {
   configurable: true,
   value: {
@@ -90,6 +96,45 @@ describe('FileWorkspace', () => {
       },
     });
   });
+
+  it.each([
+    ['C:\\workspace\\模型 #1.GLB', 'application/octet-stream', true, 'glb'],
+    ['/workspace/model.gltf', 'application/json', false, 'gltf'],
+    ['/workspace/model.obj', 'text/plain', false, 'obj'],
+  ])(
+    'previews model %s from disk without treating it as editable text',
+    async (filePath, mimeType, isBinary, ext) => {
+      readFileContent.mockResolvedValue({
+        content: 'partial model data',
+        truncated: true,
+        size: 3 * 1024 * 1024,
+        mimeType,
+        isBinary,
+      });
+      render(
+        <FileWorkspace
+          filePath={filePath}
+          workspace="/workspace"
+          onClose={jest.fn()}
+          onDirtyChange={jest.fn()}
+        />,
+      );
+      const preview = await screen.findByTestId('model-preview');
+      expect(preview).toHaveAttribute('data-extension', ext);
+      expect(preview).toHaveAttribute(
+        'data-url',
+        ext === 'glb'
+          ? 'file:///C:/workspace/%E6%A8%A1%E5%9E%8B%20%231.GLB'
+          : `file://${filePath}`,
+      );
+      expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+      expect(
+        screen.queryByText('chat.file_preview_unsupported'),
+      ).not.toBeInTheDocument();
+      fireEvent.keyDown(window, { key: 's', ctrlKey: true });
+      expect(writeFileContent).not.toHaveBeenCalled();
+    },
+  );
 
   it('edits and manually saves a text file', async () => {
     const onDirtyChange = jest.fn();

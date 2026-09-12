@@ -1,3 +1,4 @@
+import { MusicGeneration } from './music-generation';
 import fs from 'fs';
 import path from 'path';
 import { app } from 'electron';
@@ -7,12 +8,6 @@ import { randomUUID } from 'crypto';
 import { ToolExecutionContext } from '@mastra/core/tools';
 import BaseTool, { BaseToolParams } from '../base-tool';
 import BaseToolkit, { BaseToolkitParams } from '../base-toolkit';
-import {
-  getQwenAsrPythonService,
-  AudioLoaderOptions,
-  TTSOptions,
-  AudioLoader,
-} from '@/main/utils/loaders/audio-loader';
 import { downloadFile, saveFile } from '@/main/utils/file';
 import { isObject, isString, isUrl } from '@/utils/is';
 import { nanoid } from '@/utils/nanoid';
@@ -20,7 +15,11 @@ import { ToolConfig } from '@/types/tool';
 import { providersManager } from '@/main/providers';
 import mime from 'mime';
 import type { SpeechModelV2, TranscriptionModelV2 } from '@ai-sdk/provider';
+import type { UrlTranscriptionModel } from '@/types/transcription';
 import { appManager } from '@/main/app';
+
+export { MusicGeneration } from './music-generation';
+export type { MusicGenerationParams } from './music-generation';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -737,7 +736,9 @@ Output types:
     inputData: z.infer<typeof this.inputSchema>,
     context?: ToolExecutionContext,
   ) => {
-    const { source, output_type, save_path, ass_style } = inputData;
+    const { source, output_type, save_path, ass_style } =
+      this.inputSchema.parse(inputData);
+    context?.abortSignal?.throwIfAborted();
     const workspace =
       (context?.requestContext?.get('workspace' as never) as string) ||
       undefined;
@@ -750,65 +751,73 @@ Output types:
     const tempFiles: string[] = [];
 
     try {
-      // -----------------------------------------------------------------
-      // 1. Resolve source to a local file path
-      // -----------------------------------------------------------------
-      let localPath: string;
-
-      if (isUrl(source)) {
-        localPath = await downloadFile(source);
-        tempFiles.push(localPath);
-      } else {
-        if (!fs.existsSync(source)) {
-          throw new Error(`File not found: ${source}`);
-        }
-        localPath = source;
-      }
-
-      // -----------------------------------------------------------------
-      // 2. Convert video / non-WAV to WAV if needed
-      // -----------------------------------------------------------------
-      const ext = path.extname(localPath).toLowerCase();
-      let audioPath: string;
-
-      if (VIDEO_EXTENSIONS.has(ext)) {
-        audioPath = await convertToWav(localPath);
-        tempFiles.push(audioPath);
-      } else if (AUDIO_EXTENSIONS.has(ext) && ext !== '.wav') {
-        // Non-WAV audio �?convert for best ASR compatibility
-        audioPath = await convertToWav(localPath);
-        tempFiles.push(audioPath);
-      } else {
-        audioPath = localPath;
-      }
-
-      // -----------------------------------------------------------------
-      // 3. Run ASR transcription (always with timestamps for srt/ass)
-      // -----------------------------------------------------------------
-      const buffer = await fs.promises.readFile(audioPath);
-      // const service = await getQwenAsrPythonService();
-      // const asrResult = await service.transcribe(buffer, {
-      //   outputType: 'asr',
-      //   ext: '.wav',
-      //   model: this.modelId?.split('/').pop() || undefined,
-      // });
-
       const provider = await providersManager.getProvider(modelId.split('/')[0]);
+      if (!provider) throw new Error('Provider not found');
+      const transcriptionModel = provider.transcriptionModel?.(
+        modelId.split('/').slice(1).join('/'),
+      ) as UrlTranscriptionModel | undefined;
+      if (!transcriptionModel)
+        throw new Error('The selected provider does not support transcription');
       let result: Awaited<ReturnType<TranscriptionModelV2['doGenerate']>>;
-      if (provider) {
-        const transcriptionModel = provider.transcriptionModel(modelId.split('/').slice(1).join('/'));
-        result = await transcriptionModel.doGenerate({
-          audio: buffer,
-          mediaType: mime.lookup(audioPath),
-          providerOptions: {
-            "openai": {
-              "timestampGranularities": ["word"]
-            }
-          }
+      if (
+        isUrl(source) &&
+        transcriptionModel.doGenerateFromUrl &&
+        (transcriptionModel.canGenerateFromUrl?.(source) ?? true)
+      ) {
+        result = await transcriptionModel.doGenerateFromUrl({
+          url: source,
+          abortSignal: context?.abortSignal,
         });
       } else {
-        throw new Error('Provider not found');
+        // -----------------------------------------------------------------
+        // 1. Resolve source to a local file path
+        // -----------------------------------------------------------------
+        let localPath: string;
+
+        if (isUrl(source)) {
+          localPath = await downloadFile(source);
+          tempFiles.push(localPath);
+        } else {
+          localPath = path.isAbsolute(source)
+            ? source
+            : path.resolve(workspace || '.', source);
+          if (!fs.existsSync(localPath)) {
+            throw new Error(`File not found: ${localPath}`);
+          }
+        }
+
+        // -----------------------------------------------------------------
+        // 2. Convert video / non-WAV to WAV if needed
+        // -----------------------------------------------------------------
+        const ext = path.extname(localPath).toLowerCase();
+        let audioPath: string;
+
+        if (VIDEO_EXTENSIONS.has(ext)) {
+          audioPath = await convertToWav(localPath);
+          tempFiles.push(audioPath);
+        } else if (AUDIO_EXTENSIONS.has(ext) && ext !== '.wav') {
+          // Non-WAV audio �?convert for best ASR compatibility
+          audioPath = await convertToWav(localPath);
+          tempFiles.push(audioPath);
+        } else {
+          audioPath = localPath;
+        }
+
+        // -----------------------------------------------------------------
+        // 3. Run ASR transcription (always with timestamps for srt/ass)
+        // -----------------------------------------------------------------
+        const buffer = await fs.promises.readFile(audioPath, {
+          signal: context?.abortSignal,
+        });
+
+        result = await transcriptionModel.doGenerate({
+          audio: buffer,
+          mediaType: mime.lookup(audioPath) || 'audio/wav',
+          abortSignal: context?.abortSignal,
+          providerOptions: { openai: { timestampGranularities: ['word'] } },
+        });
       }
+      context?.abortSignal?.throwIfAborted();
 
       //const result = asrResult.result;
       const text: string = result.text || '';
@@ -935,14 +944,10 @@ export interface TextToSpeechParams extends BaseToolParams {
 export class TextToSpeech extends BaseTool {
   static readonly toolName = 'TextToSpeech';
   id: string = 'TextToSpeech';
-  description = `Convert text to speech audio using Qwen3-TTS models.
-
-Supports multiple modes (selected automatically based on parameters):
-1. Custom Voice (voice provided): Uses a predefined speaker with optional emotion/style control via "instruct".
-   Available speakers Chinese: Vivian, Serena, Uncle_Fu, Dylan, Eric; English: Ryan, Aiden
-2. Voice Design (instruct provided, NO voice): Creates any voice from a text description (e.g. "a calm, deep male voice with a British accent").
-3. Voice Cloning (ref_audio + ref_text provided, NO voice): Clones a voice from a reference audio sample and its transcript.
-
+  description = `Convert text to a WAV audio file using the configured speech model.
+Voice IDs and instruction support depend on the provider and model. Alibaba defaults: Qwen3 TTS uses Cherry; Qwen Audio 3.0 uses longanhuan_v3.6; CosyVoice v3 uses longanyang; MiniMax uses male-qn-qingse.
+Alibaba CosyVoice 3.5 and Qwen3 VD/VC require an existing custom voice ID created in Alibaba. This tool does not create Alibaba voices from instruct or ref_audio.
+Local Qwen3 models can support voice design via instruct or voice cloning via ref_audio + ref_text. ListVoices lists locally saved reference voices only.
 Output: Returns the path to the generated WAV audio file.`;
 
   inputSchema = z.object({
@@ -963,7 +968,7 @@ Output: Returns the path to the generated WAV audio file.`;
       .string()
       .optional()
       .describe(
-        'Voice design instruction for custom voice synthesis (e.g. "a calm, deep male voice with a British accent"). When provided, the VoiceDesign model will be used.',
+        'Speech style instruction when supported by the selected model. Local Qwen3 can also use this for voice design; Alibaba requires a compatible model and voice.',
       ),
     ref_audio: z
       .string()
@@ -997,7 +1002,8 @@ Output: Returns the path to the generated WAV audio file.`;
     context?: ToolExecutionContext,
   ) => {
     const { text, language, voice, instruct, ref_audio, ref_text, save_path } =
-      inputData;
+      this.inputSchema.parse(inputData);
+    context?.abortSignal?.throwIfAborted();
     const workspace =
       (context?.requestContext?.get('workspace' as never) as string) ||
       undefined;
@@ -1022,10 +1028,12 @@ Output: Returns the path to the generated WAV audio file.`;
         resolvedRefAudio = await downloadFile(ref_audio);
         tempFiles.push(resolvedRefAudio);
       } else if (ref_audio) {
-        if (!fs.existsSync(ref_audio)) {
+        resolvedRefAudio = path.isAbsolute(ref_audio)
+          ? ref_audio
+          : path.resolve(workspace || process.cwd(), ref_audio);
+        if (!fs.existsSync(resolvedRefAudio)) {
           throw new Error(`Reference audio file not found: ${ref_audio}`);
         }
-        resolvedRefAudio = ref_audio;
       }
 
       // Generate output path in temp directory, then move to final location
@@ -1036,13 +1044,15 @@ Output: Returns the path to the generated WAV audio file.`;
 
       const provider = await providersManager.getProvider(modelId.split('/')[0]);
       let _result: Awaited<ReturnType<SpeechModelV2['doGenerate']>>;
-      if (provider) {
+      if (provider?.speechModel) {
         const speechModel = provider.speechModel(modelId.split('/').slice(1).join('/'));
         _result = await speechModel.doGenerate({
           text,
           language,
           voice,
           instructions: instruct,
+          outputFormat: 'wav',
+          abortSignal: context?.abortSignal,
           providerOptions: {
             "local": {
               "ref_audio": resolvedRefAudio,
@@ -1053,23 +1063,13 @@ Output: Returns the path to the generated WAV audio file.`;
               "speed": 1.0,
               "response_format": "wav",
             }
-          }
-          // outputPath: tempOutputPath,
+          },
         });
       } else {
         throw new Error('Provider not found');
       }
 
-      // const service = await getQwenAsrPythonService();
-      // const result = await service.synthesize({
-      //   text,
-      //   language,
-      //   voice,
-      //   instruct,
-      //   ref_audio: resolvedRefAudio,
-      //   ref_text,
-      //   outputPath: tempOutputPath,
-      // });
+      context?.abortSignal?.throwIfAborted();
 
       // Move to final save location
       const fileName = save_path || `${nanoid()}.wav`;
@@ -1079,18 +1079,27 @@ Output: Returns the path to the generated WAV audio file.`;
       } else {
         buffer = _result.audio as Uint8Array;
       }
+      if (!buffer?.byteLength) throw new Error('Speech model returned empty audio');
+      context?.abortSignal?.throwIfAborted();
       const filePath = await saveFile(Buffer.from(buffer), fileName, workspace);
 
       // Cleanup temp output
       const outputPath: string = _result.providerMetadata?.['local']?.outputPath as string;
 
-      if (fs.existsSync(outputPath) && outputPath !== filePath) {
+      if (typeof outputPath === 'string' && fs.existsSync(outputPath) && outputPath !== filePath) {
         await fs.promises.rm(outputPath).catch(() => { });
       }
 
-      const sampleRate: number = Object.values(_result.providerMetadata ?? {})[0]?.['sampleRate'] as number || 24000;
-      const duration: number = Object.values(_result.providerMetadata ?? {})[0]?.['duration'] as number || (buffer.byteLength / sampleRate);
-      return `Generated speech audio (${duration?.toFixed(1)}s, ${sampleRate}Hz) saved to: \n<file>${filePath}</file>`;
+      const metadata = Object.values(_result.providerMetadata ?? {})[0];
+      const sampleRate = metadata?.sampleRate;
+      const duration = metadata?.duration;
+      const details = [
+        typeof duration === 'number' && Number.isFinite(duration) && duration > 0
+          ? `${duration.toFixed(1)}s` : undefined,
+        typeof sampleRate === 'number' && Number.isFinite(sampleRate) && sampleRate > 0
+          ? `${sampleRate}Hz` : undefined,
+      ].filter(Boolean).join(', ');
+      return `Generated speech audio${details ? ` (${details})` : ''} saved to: \n<file>${filePath}</file>`;
     } finally {
       for (const tempFile of tempFiles) {
         try {
@@ -1104,48 +1113,6 @@ Output: Returns the path to the generated WAV audio file.`;
     }
   };
 }
-
-export interface MusicGenerationParams extends BaseToolParams {
-  modelId?: string;
-}
-export class MusicGeneration extends BaseTool {
-  static readonly toolName = 'MusicGeneration';
-  id: string = 'MusicGeneration';
-  description = `Generate music from a text prompt.`;
-  inputSchema = z.object({
-    prompt: z.string().describe('The text prompt to generate music from'),
-  });
-  configSchema = ToolConfig.MusicGeneration.configSchema;
-  modelId?: string;
-
-  constructor(config?: MusicGenerationParams) {
-    super(config);
-    this.modelId = config?.modelId;
-  }
-  execute = async (
-    inputData: z.infer<typeof this.inputSchema>,
-    context?: ToolExecutionContext,
-  ) => {
-    const { prompt } = inputData;
-    const workspace =
-      (context?.requestContext?.get('workspace' as never) as string) ||
-      undefined;
-    if (!this.modelId) {
-      throw new Error('Model is not set');
-    }
-    const provider = await providersManager.getProvider(this.modelId);
-    if (provider) {
-      const musicModel = provider.musicModel(this.modelId.split('/').slice(1).join('/'));
-      const result = await musicModel.doGenerate({ prompt });
-      return `Generated music saved to: \n<file>${result}</file>`;
-    }
-  }
-
-}
-
-
-
-
 
 export interface ListVoicesParams extends BaseToolParams { }
 

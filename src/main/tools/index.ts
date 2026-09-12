@@ -48,6 +48,8 @@ import { mcpBundleManager } from './mcp-bundle';
 import TodoToolkit from './common/task';
 import { WebFetch } from './web/web-fetch';
 import { Extract } from './work/extract';
+import { GenerateVideo } from './video/generate-video';
+import { Generate3D } from './3d/generate-3d';
 import { GenerateImage } from './image/generate-image';
 import { EditImage } from './image/edit-image';
 import { Translation } from './work/translation';
@@ -207,6 +209,8 @@ class ToolsManager extends BaseManager {
     // await this.registerBuiltInTool(Vision);
     await this.registerBuiltInTool(ToolToolkit);
     await this.registerBuiltInTool(ImageToolkit);
+    await this.registerBuiltInTool(GenerateVideo);
+    await this.registerBuiltInTool(Generate3D);
 
     await this.registerBuiltInTool(AgentBrowser);
     // await this.registerBuiltInTool(GenerateImage);

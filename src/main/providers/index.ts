@@ -47,6 +47,7 @@ import { appManager } from '../app';
 import { SerpapiProvider } from './serpapi-provider';
 import { MineruProvider } from './mineru-provider';
 import { ElevenlabsProvider } from './elevenlabs-provider';
+import { AlibabaProvider } from './alibaba-provider';
 import { MiniMaxProvider } from './minimax-provider';
 import { PaddleOcrApiProvider } from './paddleocrapi-provider';
 import { api } from '../api/ApiController';
@@ -243,6 +244,10 @@ class ProvidersManager extends BaseManager {
       return this.getAvailableSpeechModels();
     } else if (type == ModelType.OCR) {
       return this.getAvailableOcrModels();
+    } else if (type == ModelType.MODEL_3D) {
+      return this.getAvailable3DModels();
+    } else if (type == ModelType.VIDEO_GENERATION) {
+      return this.getAvailableVideoGenerationModels();
     } else if (type == ModelType.MUSIC) {
       return this.getAvailableMusicModels();
     }
@@ -816,6 +821,78 @@ class ProvidersManager extends BaseManager {
     return data;
   }
 
+  public async getAvailable3DModels(): Promise<Provider[]> {
+    const providers = await this.repository.find({
+      where: {
+        isActive: true,
+      },
+    });
+    const data: Provider[] = [];
+    for (const providerData of providers) {
+      const provider = await this.getProvider(providerData.id);
+      if (provider) {
+        try {
+          const models3d = await provider.get3DModelList();
+          if (models3d.length > 0) {
+            data.push({
+              id: providerData.id,
+              name: providerData.name,
+              type: providerData.type,
+              models: models3d
+                .map((x) => ({
+                  id: `${providerData.id}/${x.id}`,
+                  name: x.name,
+                  providerType: providerData.type,
+                  isActive: true,
+                }))
+                .sort((a, b) => b.name.localeCompare(a.name)),
+            });
+          }
+        } catch { }
+      }
+    }
+
+    return data;
+
+  }
+
+
+  public async getAvailableVideoGenerationModels(): Promise<Provider[]> {
+    const providers = await this.repository.find({
+      where: {
+        isActive: true,
+      },
+    });
+    const data: Provider[] = [];
+    for (const providerData of providers) {
+      const provider = await this.getProvider(providerData.id);
+      if (provider) {
+        try {
+          const videoModels = await provider.getVideoModelList();
+          if (videoModels.length > 0) {
+            data.push({
+              id: providerData.id,
+              name: providerData.name,
+              type: providerData.type,
+              models: videoModels
+                .map((x) => ({
+                  id: `${providerData.id}/${x.id}`,
+                  name: x.name,
+                  providerType: providerData.type,
+                  isActive: true,
+                }))
+                .sort((a, b) => b.name.localeCompare(a.name)),
+            });
+          }
+        } catch { }
+      }
+    }
+
+    return data;
+
+  }
+
+
   public async getAvailableMusicModels(): Promise<Provider[]> {
     const providers = await this.repository.find({
       where: {
@@ -898,6 +975,10 @@ class ProvidersManager extends BaseManager {
         return new MineruProvider(provider);
       case ProviderType.ELEVENLABS:
         return new ElevenlabsProvider(provider);
+      case 'alibaba':
+      case 'alibaba-cn':
+      case ProviderType.TONGYI:
+        return new AlibabaProvider(provider);
       case ProviderType.MINIMAX_CN:
         return new MiniMaxProvider(provider, ProviderType.MINIMAX_CN);
       case ProviderType.MINIMAX:

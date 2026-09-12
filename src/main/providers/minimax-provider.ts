@@ -1,3 +1,6 @@
+import { MiniMaxTranscriptionModel } from './minimax-transcription-model';
+import { MiniMaxMusicModel } from './minimax-music-model';
+import { MiniMaxVideoModel } from './minimax-video-model';
 import { Providers } from '@/entities/providers';
 import { BaseProvider, MusicModel, RerankModel } from './base-provider';
 import fs from 'fs';
@@ -15,12 +18,14 @@ import {
   SpeechModelV2CallOptions,
   SpeechModelV2CallWarning,
   TranscriptionModelV2,
-  TranscriptionModelV2CallOptions,
 } from '@ai-sdk/provider';
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import { createZhipu } from 'zhipu-ai-provider';
 import { isString } from '@/utils/is';
 import { m } from 'motion/react';
+
+export { MiniMaxTranscriptionModel } from './minimax-transcription-model';
+export { MiniMaxMusicModel } from './minimax-music-model';
 
 export class MiniMaxImageModel implements ImageModelV2 {
   specificationVersion: 'v2' = 'v2';
@@ -84,68 +89,6 @@ export class MiniMaxImageModel implements ImageModelV2 {
       },
     };
   }
-}
-
-export class MiniMaxTranscriptionModel implements TranscriptionModelV2 {
-  specificationVersion: 'v2';
-  provider: string = 'minimax';
-  modelId: string;
-  providerEntity: Providers;
-  apiBase: string;
-  constructor({ modelId, provider, apiBase }: { modelId: string; provider: Providers; apiBase: string }) {
-    this.providerEntity = provider;
-    this.modelId = modelId;
-    this.apiBase = apiBase;
-  }
-
-
-  async doGenerate(options: TranscriptionModelV2CallOptions): Promise<{ text: string; segments: Array<{ text: string; startSecond: number; endSecond: number; }>; language: string | undefined; durationInSeconds: number | undefined; warnings: Array<TranscriptionModelV2CallWarning>; request?: { body?: string; }; response: { timestamp: Date; modelId: string; headers?: SharedV2Headers; body?: unknown; }; providerMetadata?: Record<string, Record<string, JSONValue>>; }> {
-    let audio: Uint8Array<ArrayBufferLike>;
-    if (isString(options.audio)) {
-      audio = Buffer.from(options.audio, 'base64');
-    } else {
-      audio = options.audio
-    }
-
-    const form = new FormData();
-    form.append('model', 'glm-asr-2512');
-    form.append('stream', 'false');
-    form.append('file', new Blob([audio], { type: options.mediaType }), 'audio.wav');
-
-
-    const res = await fetch('https://open.bigmodel.cn/api/paas/v4/audio/transcriptions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${this.providerEntity.apiKey}`,
-      },
-      body: form,
-      signal: options.abortSignal,
-    });
-    const data = await res.json();
-    if (data.error) {
-      throw new Error(data.error.message);
-    }
-    return {
-      text: result.text,
-      segments: result.result.items.map(item => {
-        return {
-          text: item.text,
-          startSecond: item.start,
-          endSecond: item.end,
-        }
-      }),
-      language: result.result.language,
-      durationInSeconds: result.result.duration,
-      warnings: [],
-      response: {
-        timestamp: new Date(),
-        modelId: this.modelId,
-        headers: options.headers,
-        body: result,
-      },
-    };
-  }
-
 }
 
 export class MiniMaxSpeechModel implements SpeechModelV2 {
@@ -234,43 +177,6 @@ export class MiniMaxSpeechModel implements SpeechModelV2 {
   }
 }
 
-export class MiniMaxMusicModel implements MusicModel {
-  provider: string = 'minimax';
-  modelId: string;
-  providerEntity: Providers;
-  apiBase: string;
-  constructor({ modelId, provider, apiBase }: { modelId: string; provider: Providers; apiBase: string }) {
-    this.apiBase = apiBase;
-    this.providerEntity = provider;
-    this.modelId = modelId;
-  }
-  async doGenerate(options: {
-    prompt: string; lyrics?: string; sample_rate?: number; format?: 'mp3' | 'wav' | 'pcm';
-  }): Promise<string> {
-    const body = {
-      model: this.modelId || 'music-2.5',
-      prompt: options.prompt,
-      lyrics: options.lyrics,
-      audio_setting: {
-        sample_rate: options.sample_rate || 24000,
-        format: options.format || 'wav',
-        output_format: 'url'
-      }
-
-    };
-    const res = await fetch(this.apiBase + '/music_generation', {
-      method: 'POST',
-      headers: {
-        Authorization: 'Bearer ' + this.providerEntity.apiKey,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
-    });
-    const data = await res.json();
-    return data.data.audio;
-  }
-}
-
 export class MiniMaxProvider extends BaseProvider {
   name: string = 'minimax';
   type: ProviderType;
@@ -317,7 +223,7 @@ export class MiniMaxProvider extends BaseProvider {
     return [];
   }
   async getTranscriptionModelList(): Promise<{ name: string; id: string }[]> {
-    return [];
+    return [{ id: 'asr-1.0', name: 'MiniMax ASR 1.0' }];
   }
   async getSpeechModelList(): Promise<{ name: string; id: string }[]> {
     return [{ id: 'speech-2.8-hd', name: 'Speech 2.8 HD' },
@@ -331,8 +237,26 @@ export class MiniMaxProvider extends BaseProvider {
   }
 
 
+  async getVideoModelList(): Promise<{ name: string; id: string }[]> {
+    return [
+      { id: 'MiniMax-H3', name: 'MiniMax H3' },
+      { id: 'MiniMax-H3-Max', name: 'MiniMax H3 Max' },
+    ];
+  }
+
+  videoModel(modelId: string): MiniMaxVideoModel {
+    return new MiniMaxVideoModel({
+      modelId,
+      apiKey: this.provider.apiKey,
+      apiBase: this.provider.apiBase || (this.type === ProviderType.MINIMAX_CN ? 'https://api.minimax.cn/v1' : this.defaultApiBase),
+    });
+  }
+
   async getMusicModelList(): Promise<{ name: string; id: string }[]> {
-    return [{ id: 'music-2.5', name: 'Music 2.5' }];
+    return [
+      { id: 'music-3.0', name: 'Music 3.0' },
+      { id: 'music-2.6', name: 'Music 2.6' },
+    ];
   }
 
   getCredits(): Promise<ProviderCredits | undefined> {
@@ -344,8 +268,12 @@ export class MiniMaxProvider extends BaseProvider {
   imageModel(modelId: string): ImageModelV2 {
     return undefined;
   }
-  transcriptionModel?(modelId: string): TranscriptionModelV2 {
-    return undefined;
+  transcriptionModel(modelId: string): TranscriptionModelV2 {
+    return new MiniMaxTranscriptionModel({
+      modelId,
+      provider: this.provider,
+      apiBase: this.provider.apiBase || this.defaultApiBase,
+    });
   }
   speechModel?(modelId: string): SpeechModelV2 {
     return new MiniMaxSpeechModel({ modelId, provider: this.provider, apiBase: this.provider.apiBase || this.defaultApiBase });
@@ -354,6 +282,12 @@ export class MiniMaxProvider extends BaseProvider {
     return undefined;
   }
   musicModel?(modelId: string): MusicModel {
-    return new MiniMaxMusicModel({ modelId, provider: this.provider, apiBase: this.provider.apiBase || this.defaultApiBase });
+    return new MiniMaxMusicModel({
+      modelId,
+      provider: this.provider,
+      apiBase: this.provider.apiBase || (this.type === ProviderType.MINIMAX_CN
+        ? 'https://api.minimax.cn/v1'
+        : this.defaultApiBase),
+    });
   }
 }

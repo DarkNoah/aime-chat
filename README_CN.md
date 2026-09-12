@@ -2,7 +2,7 @@
   <img src="assets/banner.png" alt="AIME Chat" width="100%" />
 
   <p>
-    <img src="https://img.shields.io/badge/source-0.3.52-blue.svg" alt="源码版本 0.3.52">
+    <img src="https://img.shields.io/badge/source-0.3.53-blue.svg" alt="源码版本 0.3.53">
     <img src="https://img.shields.io/badge/platform-macOS%20|%20Windows%20|%20Linux-lightgrey.svg" alt="Platform">
     <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License">
   </p>
@@ -30,7 +30,9 @@
 - 🧠 **养成记忆** - 由定时运行的 Cultivation Agent 从聊天记录中提取偏好、习惯、项目上下文和重要事实，沉淀为结构化记忆 Wiki
 - ⏰ **自动化任务** - 支持按计划执行 AI 任务，可绑定项目上下文、指定 Agent/工具，并选择复用同一聊天线程或每次创建新线程
 - 🛠️ **工具集成** - 支持 MCP（Model Context Protocol）客户端，可扩展各类工具能力
-- 🎙️ **语音处理** - 内置语音转文字（STT）和文字转语音（TTS）能力，基于 Qwen3-TTS 模型
+- 🎙️ **音频处理** - 支持本地与云端语音识别、合成，接入阿里云 ASR/TTS 和 MiniMax ASR；MiniMax Music 可生成歌曲或纯音乐并保存到本地
+- 🎬 **视频生成** - 接入 MiniMax H3 / H3 Max 与阿里云万相 3.0，按模型能力支持文本、首尾帧或参考媒体生成视频
+- 🧊 **3D 生成与预览** - 通过阿里云 Tripo 将文本或图片生成 GLB 模型，在项目工作区查看 GLB、glTF、FBX、OBJ、STL，并切换材质与线框视图
 - 🔍 **Skill 技能系统** - 支持从 Git 仓库或在线技能市场搜索、导入和管理 AI 技能
 - 🧑‍💻 **助手人格** - 内置助手人格可直接选择使用，并支持通过当前人格格式进行定制
 - 🖥️ **后台 Bash 会话** - 支持在当前会话或项目级范围查看长时间运行的 Bash 进程，并可在界面中直接停止
@@ -150,6 +152,7 @@ AIME Chat 提供的外壳分层：
 | Google | 云端 | Gemini 系列模型 |
 | 智谱 AI | 云端 | GLM 系列模型 |
 | MiniMax | 云端 | MiniMax 系列模型 |
+| Alibaba / Alibaba (China) | 云端 | 聊天、万相视频、Tripo 3D 与按地域提供的语音模型 |
 | Ollama | 本地 | 本地运行开源模型 |
 | LMStudio | 本地 | 本地模型管理工具 |
 | ModelScope | 云端 | 魔搭社区模型 |
@@ -191,7 +194,9 @@ AIME Chat 内置由 `Cultivation` Agent 维护的全局记忆知识库。启用 
 | 图像处理 | GenerateImage, EditImage, RMBG | 图像生成、编辑和背景移除 |
 | 视觉分析 | Vision | LLM 驱动的图像识别和分析（集成 OCR） |
 | OCR 识别 | PaddleOCR | 文档和图片文字识别（支持 PDF/图片） |
-| 语音处理 | SpeechToText, TextToSpeech | 语音转文字和文字转语音（基于 Qwen3-TTS） |
+| 视频生成 | GenerateVideo | 自动查询生成任务并将视频保存到本地 |
+| 3D 生成 | Generate3D | 文本、单图或多视角生成，保存 GLB 模型与可用预览图 |
+| 音频处理 | SpeechToText, TextToSpeech, MusicGeneration | 使用已配置模型进行语音识别、合成与音乐生成 |
 | 数据库 | LibSQL | 数据库查询和管理 |
 | 翻译 | Translation | 多语言文本翻译 |
 | 任务管理 | TaskCreate, TaskGet, TaskList, TaskUpdate | 结构化任务创建、查询和状态管理 |
@@ -202,6 +207,12 @@ AIME Chat 内置由 `Cultivation` Agent 维护的全局记忆知识库。启用 
 - 🔌 **MCP 协议支持** - 可扩展第三方工具
 - ⚙️ **工具配置界面** - 可视化管理和配置工具
 - 🔍 **Skill 技能市场** - 从 Git 仓库或在线技能市场（skills.sh）搜索和导入技能
+
+### 媒体工具配置
+
+使用前先配置并启用供应商。阿里云媒体工具使用供应商设置中的 **Workspace ID** 与 **Region**，聊天仍使用已配置的 API Base；Tripo 当前要求 `cn-beijing`。视频、语音识别和语音合成可在 **设置 → 默认模型** 中选择，也可在工具配置中单独指定。3D 和音乐模型需在各自工具配置中选择；旧的 `music-2.5` 配置需要重新选择受支持模型。
+
+生成工具会等待结果并保存到工作区。点击停止会结束本地等待，是否取消云端任务取决于服务商能力。输入格式与限制见 [工具指南](packages/docs/docs/features/tools.md)，配置步骤见 [服务商指南](packages/docs/docs/getting-started/ai-providers.md)。
 
 ### 频道接入
 

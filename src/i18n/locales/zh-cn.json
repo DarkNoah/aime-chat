@@ -1,4 +1,10 @@
 {
+  "model_viewer": {
+    "show_wireframe": "显示模型线框",
+    "hide_wireframe": "隐藏模型线框",
+    "maximize": "放大预览",
+    "minimize": "缩小预览"
+  },
   "language": {
     "en-us": "English",
     "zh-cn": "中文"
@@ -14,6 +20,8 @@
   "supportFilesDescription": "打开排查问题时需要的目录和日志。",
   "userData": "用户数据",
   "settings": {
+    "default_model_save_failed": "默认模型保存失败",
+    "default_generate_video": "默认视频生成模型",
     "about": "关于我们",
     "language": "语言",
     "theme": "主题",
@@ -585,6 +593,7 @@
     "tool_active": "已启用"
   },
   "tool_name": {
+    "generatevideo": "视频生成",
     "codeexecution": "代码执行",
     "removebackground": "移除背景",
     "generateimage": "图片生成",
@@ -828,6 +837,13 @@
     "add_provider": "新建 Provider",
     "select_type": "选择类型",
     "api_base": "API Base",
+    "workspace_id_placeholder": "输入业务空间 ID",
+    "workspace_id_description": "万相视频生成使用的业务空间 ID，须与 API Key 和地域匹配。",
+    "invalid_workspace_id": "业务空间 ID 只能包含字母、数字和中间的连字符。",
+    "region": "地域（Region）",
+    "select_region": "选择地域",
+    "region_description": "可从右侧选择地域，也可直接输入自定义地域。默认 cn-beijing。",
+    "invalid_region": "请输入有效的地域标识，如 cn-beijing。",
     "api_key": "API Key",
     "provider_name_placeholder": "OpenAI-US",
     "model_management": "模型管理",
