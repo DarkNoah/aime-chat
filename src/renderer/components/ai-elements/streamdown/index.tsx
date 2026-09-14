@@ -14,6 +14,7 @@ import type { Pluggable } from 'unified';
 import { components as defaultComponents } from './lib/components';
 import { parseMarkdownIntoBlocks } from './lib/parse-blocks';
 import { parseIncompleteMarkdown } from './lib/parse-incomplete-markdown';
+import { rehypeLocalFileLinks } from './lib/local-file-link';
 import { cn } from '@/renderer/lib/utils';
 
 export { defaultUrlTransform } from 'react-markdown';
@@ -38,16 +39,18 @@ export type StreamdownProps = Options & {
 };
 
 export const defaultRehypePlugins: Record<string, Pluggable> = {
+  raw: rehypeRaw,
+  localFileLinks: rehypeLocalFileLinks,
   harden: [
     harden,
     {
       allowedImagePrefixes: ['*'],
       allowedLinkPrefixes: ['*'],
+      allowedProtocols: ['streamdown:'],
       defaultOrigin: undefined,
       allowDataImages: true,
     },
   ],
-  raw: rehypeRaw,
   katex: [rehypeKatex, { errorColor: 'var(--color-muted-foreground)' }],
 } as const;
 
