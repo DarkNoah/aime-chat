@@ -48,7 +48,7 @@ type Capability = {
 const documentRoutes: DocumentRoute[] = [
   {
     step: '01',
-    title: '安装 AIME Chat',
+    title: '安装 Aime Chat',
     description: '选择适合你的桌面安装包，或从源码启动开发环境。',
     to: '/docs/getting-started/installation',
     icon: <IconDownload size={21} aria-hidden="true" />,
@@ -156,11 +156,11 @@ function Hero() {
         <div className={styles.heroCopy}>
           <div className={styles.brandLine}>
             <img src={iconUrl} alt="" width="36" height="36" />
-            <span>AIME Chat 文档</span>
+            <span>Aime Chat 文档</span>
           </div>
 
           <Heading as="h1" className={styles.heroTitle}>
-            <span className={styles.heroProductName}>AIME Chat</span>
+            <span className={styles.heroProductName}>Aime Chat</span>
             <span className={styles.heroTitleLine}>让 AI 在你的</span>
             <span className={styles.heroTitleLine}>项目里工作。</span>
           </Heading>
@@ -171,7 +171,7 @@ function Hero() {
           </p>
 
           <div className={styles.heroActions}>
-            <PrimaryLink to="#download-title">下载 AIME Chat</PrimaryLink>
+            <PrimaryLink to="#download-title">下载 Aime Chat</PrimaryLink>
             <Link className={styles.secondaryLink} to="/docs/intro">
               <IconBook size={18} aria-hidden="true" />
               浏览文档
@@ -194,7 +194,7 @@ function Hero() {
             <img
               className={styles.heroScreenshot}
               src={screenshotUrl}
-              alt="AIME Chat 项目工作区：左侧管理项目文件，中间与 Agent 对话，右侧查看任务用量"
+              alt="Aime Chat 项目工作区：左侧管理项目文件，中间与 Agent 对话，右侧查看任务用量"
               width="1307"
               height="877"
               loading="eager"
@@ -262,13 +262,13 @@ function WorkspaceLoop() {
             </Heading>
           </div>
           <p className={styles.sectionDescription}>
-            从准备项目资料到 Agent 执行、验证与导出，AIME Chat
+            从准备项目资料到 Agent 执行、验证与导出，Aime Chat
             把每一步放在同一个桌面工作区里。
           </p>
         </div>
 
         <div className={styles.workspaceLayout}>
-          <div className={styles.loopPanel} aria-label="AIME Chat 任务流程">
+          <div className={styles.loopPanel} aria-label="Aime Chat 任务流程">
             <div className={styles.loopHeading}>
               <IconRoute size={23} aria-hidden="true" />
               <span>项目任务 / 执行路径</span>
@@ -498,7 +498,7 @@ export default function Home(): ReactNode {
   return (
     <Layout
       title={`${siteConfig.title} 文档 | AI 桌面工作台`}
-      description="AIME Chat 是一个开源 AI 桌面工作台，连接模型、Agent、知识库与工具，在本地项目上下文中完成真实任务。"
+      description="Aime Chat 是一个开源 AI 桌面工作台，连接模型、Agent、知识库与工具，在本地项目上下文中完成真实任务。"
     >
       <main className={styles.homePage}>
         <Hero />
