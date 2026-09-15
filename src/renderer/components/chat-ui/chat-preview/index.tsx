@@ -247,7 +247,13 @@ export const ChatPreview = React.forwardRef<ChatPreviewRef, ChatPreviewProps>(
             className={`h-full ${previewData.previewPanel === ChatPreviewType.FILE_SYSTEM ? '' : 'hidden'}`}
           >
             <ChatFilesystem
+              key={threadId}
               workspace={workspace}
+              filePreviewRequest={
+                previewData.filePreviewRequest?.threadId === threadId
+                  ? previewData.filePreviewRequest
+                  : undefined
+              }
               onAddToChat={onAddToChat}
               active={
                 previewData.previewPanel === ChatPreviewType.FILE_SYSTEM

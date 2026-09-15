@@ -21,7 +21,6 @@ import {
 } from 'lucide-react';
 import type { ComponentProps, HTMLAttributes, ReactElement } from 'react';
 import { createContext, memo, useContext, useEffect, useState } from 'react';
-import { Streamdown } from './streamdown';
 import { PhotoProvider, PhotoView } from 'react-photo-view';
 
 export type MessageProps = HTMLAttributes<HTMLDivElement> & {
@@ -53,6 +52,7 @@ export function MessageContent({
       className={cn(
         'is-user:dark flex w-fit flex-col gap-2 overflow-hidden text-sm',
         'group-[.is-user]:ml-auto group-[.is-user]:rounded-lg group-[.is-user]:bg-secondary group-[.is-user]:px-4 group-[.is-user]:py-3 group-[.is-user]:text-foreground',
+        'group-[.is-user]:has-[[data-structured-message-compact]]:bg-transparent group-[.is-user]:has-[[data-structured-message-compact]]:px-0 group-[.is-user]:has-[[data-structured-message-compact]]:py-0',
         'group-[.is-assistant]:text-foreground',
         className,
       )}
@@ -311,22 +311,10 @@ export function MessageBranchPage({
   );
 }
 
-export type MessageResponseProps = ComponentProps<typeof Streamdown>;
-
-export const MessageResponse = memo(
-  ({ className, ...props }: MessageResponseProps) => (
-    <Streamdown
-      className={cn(
-        'size-full [&>*:first-child]:mt-0 [&>*:last-child]:mb-0',
-        className,
-      )}
-      {...props}
-    />
-  ),
-  (prevProps, nextProps) => prevProps.children === nextProps.children,
-);
-
-MessageResponse.displayName = 'MessageResponse';
+export {
+  StructuredMessageResponse as MessageResponse,
+  type StructuredMessageResponseProps as MessageResponseProps,
+} from './structured-message-response';
 
 export type MessageAttachmentProps = HTMLAttributes<HTMLDivElement> & {
   data: FileUIPart;

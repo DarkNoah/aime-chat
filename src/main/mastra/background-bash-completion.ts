@@ -1,4 +1,5 @@
 import type { BashSessionCompletion } from '../tools/file-system/bash';
+import { messageXmlField } from '@/utils/structured-message';
 
 export function formatBashCompletionStatus(completion: BashSessionCompletion) {
   if (completion.timedOut) return 'Timed out';
@@ -16,35 +17,25 @@ export function formatBashCompletionStatus(completion: BashSessionCompletion) {
 export function formatBashCompletionMessage(
   completions: BashSessionCompletion[],
 ) {
-  const lines = [
-    completions.length === 1
-      ? 'Background execution completed.'
-      : `Background execution completed (${completions.length} tasks).`,
-    '',
-  ];
-
-  completions.forEach((completion, index) => {
-    lines.push(
-      `${index + 1}. Bash ID: ${completion.bashId}`,
-      ``,
-      `   Description: ${completion.description || 'None'}`,
-      ``,
-      `   Command: ${completion.command}`,
-      ``,
-      `   Directory: ${completion.directory || 'None'}`,
-      ``,
-      `   Status: ${formatBashCompletionStatus(completion)}`,
-      ``,
-      `   Exit code: ${completion.exitCode ?? 'None'}`,
-      ``,
-      `   Signal: ${completion.processSignal || 'None'}`,
-      ``,
-      `   Timed out: ${completion.timedOut ? 'Yes' : 'No'}`,
-      ``,
-      `   Error: ${completion.errorMessage || 'None'}`,
-    );
-    if (index < completions.length - 1) lines.push('');
-  });
-
-  return lines.join('\n');
+  return [
+    '<background-bash-completion version="1">',
+    ...completions.map((completion) =>
+      [
+        '<task>',
+        messageXmlField('bash-id', completion.bashId),
+        messageXmlField('description', completion.description),
+        messageXmlField('command', completion.command),
+        messageXmlField('directory', completion.directory),
+        messageXmlField('status', formatBashCompletionStatus(completion)),
+        messageXmlField('exit-code', completion.exitCode),
+        messageXmlField('signal', completion.processSignal),
+        messageXmlField('timed-out', completion.timedOut),
+        messageXmlField('error', completion.errorMessage),
+        messageXmlField('start-time', completion.startTime),
+        messageXmlField('finished-at', completion.finishedAt),
+        '</task>',
+      ].join('\n'),
+    ),
+    '</background-bash-completion>',
+  ].join('\n');
 }

@@ -14,6 +14,10 @@ export type GoalConfig = {
   status: 'pending' | 'complete' | 'blocked' | null;
 };
 
+export type DeleteThreadOptions = {
+  deleteWorkspace?: boolean;
+};
+
 export type ChatInput = {
   agentId?: string;
   projectId?: string;
@@ -160,9 +164,15 @@ export enum ChatPreviewType {
   TIMELINE = 'timeline',
 }
 
+export type ChatFilePreviewRequest = {
+  threadId: string;
+  filePath: string;
+};
+
 export type ChatPreviewData = {
   previewPanel: ChatPreviewType;
   webPreviewUrl?: string;
+  filePreviewRequest?: ChatFilePreviewRequest;
   todos?: {
     content: string;
     status: 'pending' | 'in_progress' | 'completed';

@@ -12,6 +12,7 @@ import {
 import { ChatInput } from '@/types/chat';
 import mastraManager from '../mastra';
 import { nanoid } from '@/utils/nanoid';
+import { formatCronMessage } from './cron-message';
 import {
   buildCronThreadCreateOptions,
   prepareCronRunStart,
@@ -143,25 +144,6 @@ class CronsManager extends BaseManager {
       cronEntity.runHistory = this.replaceLastRun(cronEntity.runHistory, record);
       await this.repository.save(cronEntity);
 
-      const sinceIso = previousRunAt
-        ? previousRunAt.toISOString()
-        : new Date(startedAt.getTime() - 24 * 60 * 60 * 1000).toISOString();
-      const cronContext = [
-        '<cron-context>',
-        `cron_id: ${cronEntity.id}`,
-        `cron_name: ${cronEntity.name}`,
-        `started_at: ${startedAt.toISOString()}`,
-        `previous_run_at: ${previousRunAt?.toISOString() ?? '(none)'}`,
-        `ingest_since: ${sinceIso}`,
-        '',
-        'Notes:',
-        '- This conversation was started by a scheduled cron job, not by the user. Do not ingest this thread itself or any other thread whose metadata.cronId is present.',
-        '- When using ChatHistoryList / ChatHistorySearch, pass since=ingest_since so you only process new activity since the previous run.',
-        '- ChatHistoryList already filters out cron-created threads by default; do not set includeCron unless explicitly asked.',
-        '</cron-context>',
-        '',
-      ].join('\n');
-
       const inputMessage: ChatInput = {
         projectId: cronEntity.projectId,
         messages: [
@@ -171,7 +153,14 @@ class CronsManager extends BaseManager {
             parts: [
               {
                 type: 'text',
-                text: `${cronContext}${cronEntity.prompt}`,
+                text: formatCronMessage({
+                  id: cronEntity.id,
+                  name: cronEntity.name,
+                  prompt: cronEntity.prompt,
+                  trigger,
+                  startedAt,
+                  previousRunAt,
+                }),
               },
             ],
           },

@@ -434,6 +434,7 @@ const ChatMessageItem = React.memo(
                 >
                   <MessageContent>
                     <MessageResponse
+                      messageRole={message.role}
                       className={`text-xs wrap-break-word ${message.role === 'user' ? 'whitespace-break-spaces' : ''}`}
                       mermaidConfig={{
                         theme: theme === 'dark' ? 'dark' : 'forest',

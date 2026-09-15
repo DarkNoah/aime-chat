@@ -8,13 +8,7 @@ import React, {
   useMemo,
   useState,
 } from 'react';
-import {
-  Item,
-  ItemContent,
-  ItemDescription,
-  ItemMedia,
-  ItemTitle,
-} from '../../ui/item';
+import { Item, ItemContent, ItemDescription, ItemTitle } from '../../ui/item';
 import { Card } from '../../ui/card';
 import { FileIcon } from '../../file-icon';
 import { FileInfo } from '@/types/common';
@@ -25,17 +19,24 @@ import { cn } from '@/renderer/lib/utils';
 import { splitContextAndFiles } from '@/utils/context-utils';
 import { IconWorldWww } from '@tabler/icons-react';
 import { Progress } from '../../ui/progress';
-
-const toFileUrl = (filePath: string) => new URL(filePath, 'file:').href;
+import { LocalFileActions } from './local-file-actions';
+import { useIsCompactWindow } from '../chat-preview-visibility';
+import { toFileUrl } from '../chat-filesystem/file-workspace-utils';
+import { useTranslation } from 'react-i18next';
+import { useThreadStore } from '@/renderer/store/use-thread-store';
+import { isFileWithinDirectory } from '../chat-filesystem/file-preview-path';
 
 type SendEventInput = {
   event?: string;
   data?: string;
 };
 
-export interface SendEventMessageRef { }
+export interface SendEventMessageRef {}
 
-export type SendEventMessageProps = ComponentProps<typeof Card> & {
+export type SendEventMessageProps = Omit<
+  ComponentProps<typeof Card>,
+  'part'
+> & {
   threadId?: string;
   part: ToolUIPart;
 };
@@ -58,6 +59,48 @@ export const SendEventMessage = React.forwardRef<
   const [data, setData] = useState<string>('');
   const { sendEvent } = useChat();
   const input = part?.input as SendEventInput | undefined;
+  const { t } = useTranslation();
+  const isCompactWindow = useIsCompactWindow();
+  const workspace = useThreadStore(
+    (state) => state.threadStates[threadId]?.metadata?.workspace,
+  );
+  const canOpenInFilesystem = (file: FileInfo) =>
+    Boolean(
+      threadId &&
+      sendEvent &&
+      !isCompactWindow &&
+      file.isFile !== false &&
+      typeof workspace === 'string' &&
+      file.path &&
+      isFileWithinDirectory(file.path, workspace),
+    );
+  const openInFilesystem = (file: FileInfo) => {
+    if (canOpenInFilesystem(file))
+      sendEvent(threadId, 'file_preview', { filePath: file.path });
+    else window.electron.app.openPath(file.path);
+  };
+  const renderFileActions = (file: FileInfo) => (
+    <LocalFileActions
+      fileName={file.name || file.path}
+      onOpenInFilesystem={
+        canOpenInFilesystem(file) ? () => openInFilesystem(file) : undefined
+      }
+      onShowInExplorer={() => window.electron.app.openPath(file.path)}
+    />
+  );
+  const renderFileHeader = (file: FileInfo) => (
+    <div className="flex min-w-0 items-center gap-1 border-b border-border/60 bg-card px-3 py-1.5">
+      <button
+        type="button"
+        className="min-w-0 flex-1 truncate rounded-sm py-1 text-left text-sm font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        title={file.path}
+        onClick={() => openInFilesystem(file)}
+      >
+        {file.name}
+      </button>
+      {renderFileActions(file)}
+    </div>
+  );
 
   const parsedData = useCallback((_data: string) => {
     try {
@@ -68,6 +111,7 @@ export const SendEventMessage = React.forwardRef<
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
     setEvent(input?.event ?? '');
     setData(input?.data ?? '');
 
@@ -83,7 +127,7 @@ export const SendEventMessage = React.forwardRef<
         const parsed = JSON.parse(input.data ?? '{}') as { files?: string[] };
         for (const filePath of parsed.files ?? []) {
           const info = await window.electron.app.getFileInfo(filePath);
-          if (info && info.isExist) {
+          if (info?.isExist && info.path) {
             fileInfos.push(info);
           }
         }
@@ -97,11 +141,14 @@ export const SendEventMessage = React.forwardRef<
         // Ignore malformed preview payloads and render no attachments.
       }
 
-      setFiles(fileInfos);
+      if (!cancelled) setFiles(fileInfos);
     };
 
     fetchFiles();
-  }, [input]);
+    return () => {
+      cancelled = true;
+    };
+  }, [input, part?.output]);
 
   const { imageFiles, previewCardFiles, documentFiles } = useMemo(() => {
     const images: FileInfo[] = [];
@@ -135,6 +182,7 @@ export const SendEventMessage = React.forwardRef<
           className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm"
           key={`${file.path}-${i}`}
         >
+          {renderFileHeader(file)}
           <video
             src={toFileUrl(file.path)}
             controls
@@ -149,11 +197,15 @@ export const SendEventMessage = React.forwardRef<
     if (file.mimeType?.startsWith('audio/')) {
       return (
         <div
-          className="rounded-2xl border border-border/60 bg-card p-3 shadow-sm"
+          className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm"
           key={`${file.path}-${i}`}
         >
-          <div className="mb-2 text-sm font-medium">{file.name}</div>
-          <audio src={toFileUrl(file.path)} controls className="w-full">
+          {renderFileHeader(file)}
+          <audio
+            src={toFileUrl(file.path)}
+            controls
+            className="my-3 w-full px-3"
+          >
             <track kind="captions" />
           </audio>
         </div>
@@ -166,9 +218,7 @@ export const SendEventMessage = React.forwardRef<
           className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm"
           key={`${file.path}-${i}`}
         >
-          <div className="border-b border-border/60 px-3 py-2 text-sm font-medium">
-            {file.name}
-          </div>
+          {renderFileHeader(file)}
           <ModelViewer
             url={toFileUrl(file.path)}
             ext={file.ext!}
@@ -184,9 +234,7 @@ export const SendEventMessage = React.forwardRef<
         className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm"
         key={`${file.path}-${i}`}
       >
-        <div className="border-b border-border/60 px-3 py-2 text-sm font-medium">
-          {file.name}
-        </div>
+        {renderFileHeader(file)}
         <iframe
           src={toFileUrl(file.path)}
           className="h-[420px] w-full bg-background"
@@ -224,37 +272,31 @@ export const SendEventMessage = React.forwardRef<
             <PhotoProvider>
               <div className="flex flex-wrap gap-2">
                 {imageFiles.map((file, i) => (
-                  <PhotoView
-                    src={toFileUrl(file.path)}
+                  <div
                     key={`${file.path}-${i}`}
+                    className={cn(
+                      'overflow-hidden rounded-2xl border border-border/60 bg-muted shadow-sm',
+                      imageFiles.length === 1 ? 'w-[260px] max-w-full' : 'w-40',
+                    )}
                   >
-                    <div
-                      className={cn(
-                        'group relative overflow-hidden rounded-2xl border border-border/60 bg-muted shadow-sm',
-                        imageFiles.length === 1 ? 'max-w-[260px]' : 'size-32',
-                      )}
-                    >
-                      <img
-                        alt={file.name || 'attachment'}
-                        className={cn(
-                          'w-full object-cover transition-transform duration-200 group-hover:scale-[1.03]',
-                          imageFiles.length === 1
-                            ? 'max-h-[260px]'
-                            : 'size-full',
-                        )}
-                        height={imageFiles.length === 1 ? 260 : 128}
-                        src={toFileUrl(file.path)}
-                        width={imageFiles.length === 1 ? 260 : 128}
-                      />
-                      {file.name ? (
-                        <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent px-2 py-1.5">
-                          <span className="block truncate text-[11px] text-white/90">
-                            {file.name}
-                          </span>
-                        </div>
-                      ) : null}
-                    </div>
-                  </PhotoView>
+                    <PhotoView src={toFileUrl(file.path)}>
+                      <button
+                        type="button"
+                        aria-label={`${t('chat.preview_file')}: ${file.name}`}
+                        className="group block w-full overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                      >
+                        <img
+                          alt={file.name || 'attachment'}
+                          className={cn(
+                            'w-full object-cover transition-transform duration-200 group-hover:scale-[1.03]',
+                            imageFiles.length === 1 ? 'max-h-[260px]' : 'h-32',
+                          )}
+                          src={toFileUrl(file.path)}
+                        />
+                      </button>
+                    </PhotoView>
+                    {renderFileHeader(file)}
+                  </div>
                 ))}
               </div>
             </PhotoProvider>
@@ -272,22 +314,28 @@ export const SendEventMessage = React.forwardRef<
                 <Item
                   key={`${file.path}-${i}`}
                   variant="outline"
-                  className="w-full cursor-pointer items-start gap-3 rounded-2xl border-border/60 bg-secondary/60 p-3 transition-colors hover:bg-secondary"
-                  onClick={() => {
-                    window.electron.app.openPath(file.path);
-                  }}
+                  className="w-full flex-nowrap items-center gap-1 rounded-2xl border-border/60 bg-secondary/60 p-1 transition-colors hover:bg-secondary"
                 >
-                  <ItemMedia className="pt-0.5">
-                    <FileIcon filePath={file.path} className="size-10" />
-                  </ItemMedia>
-                  <ItemContent className="min-w-0">
-                    <ItemTitle className="max-w-full truncate">
-                      {file.name}
-                    </ItemTitle>
-                    <ItemDescription>
-                      <span className="block truncate">{file.path}</span>
-                    </ItemDescription>
-                  </ItemContent>
+                  <button
+                    type="button"
+                    className="flex min-w-0 flex-1 items-start gap-3 rounded-xl p-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    title={file.path}
+                    onClick={() => openInFilesystem(file)}
+                  >
+                    <FileIcon
+                      filePath={file.path}
+                      className="size-10 shrink-0"
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium">
+                        {file.name}
+                      </span>
+                      <span className="block truncate text-sm text-muted-foreground">
+                        {file.path}
+                      </span>
+                    </span>
+                  </button>
+                  {renderFileActions(file)}
                 </Item>
               ))}
             </div>
@@ -303,12 +351,12 @@ export const SendEventMessage = React.forwardRef<
           )}
         </div>
       )}
-      {event === 'progress' && data?.message && (
+      {event === 'progress' && parsedData(data)?.message && (
         <Progress
-          value={Number(data?.percent ?? 0)}
+          value={Number(parsedData(data)?.percent ?? 0)}
           className="w-full max-w-sm"
         >
-          {data?.message ?? 's'}
+          {parsedData(data)?.message}
         </Progress>
       )}
     </>

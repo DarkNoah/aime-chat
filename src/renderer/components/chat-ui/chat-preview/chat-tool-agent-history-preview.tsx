@@ -118,7 +118,9 @@ export function ChatToolAgentHistoryPreview({
                 return (
                   <Message from={message.role} key={`${message.id}-${index}`}>
                     <MessageContent>
-                      <MessageResponse>{part.text}</MessageResponse>
+                      <MessageResponse messageRole={message.role}>
+                        {part.text}
+                      </MessageResponse>
                     </MessageContent>
                   </Message>
                 );
