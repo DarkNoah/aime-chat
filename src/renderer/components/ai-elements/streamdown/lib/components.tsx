@@ -19,6 +19,7 @@ import { ImageComponent } from './image';
 import { Mermaid } from './mermaid';
 import { TableCopyButton, TableDownloadDropdown } from './table';
 import { cn } from '@/renderer/lib/utils';
+import { MarkdownFileLink, MarkdownLink } from './link';
 
 const LANGUAGE_REGEX = /language-([^\s]+)/;
 
@@ -153,32 +154,6 @@ const MemoStrong = memo<StrongProps>(
   (p, n) => sameClassAndNode(p, n),
 );
 MemoStrong.displayName = 'MarkdownStrong';
-
-type AProps = WithNode<JSX.IntrinsicElements['a']> & { href?: string };
-const MemoA = memo<AProps>(
-  ({ children, className, href, node, ...props }: AProps) => {
-    const isIncomplete = href === 'streamdown:incomplete-link';
-
-    return (
-      <a
-        className={cn(
-          'wrap-anywhere font-medium text-primary underline',
-          className,
-        )}
-        data-incomplete={isIncomplete}
-        data-streamdown="link"
-        href={href}
-        rel="noreferrer"
-        target="_blank"
-        {...props}
-      >
-        {children}
-      </a>
-    );
-  },
-  (p, n) => sameClassAndNode(p, n) && p.href === n.href,
-);
-MemoA.displayName = 'MarkdownA';
 
 type HeadingProps<TTag extends keyof JSX.IntrinsicElements> = WithNode<
   JSX.IntrinsicElements[TTag]
@@ -696,13 +671,16 @@ const MemoParagraph = memo<ParagraphProps>(
 );
 MemoParagraph.displayName = 'MarkdownParagraph';
 
-export const components: Options['components'] = {
+export const components: Options['components'] & {
+  'aime-file-link': typeof MarkdownFileLink;
+} = {
   ol: MemoOl,
   li: MemoLi,
   ul: MemoUl,
   hr: MemoHr,
   strong: MemoStrong,
-  a: MemoA,
+  a: MarkdownLink,
+  'aime-file-link': MarkdownFileLink,
   h1: MemoH1,
   h2: MemoH2,
   h3: MemoH3,

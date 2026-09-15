@@ -1,0 +1,92 @@
+.quickStart {
+  margin-block: 2rem 2.5rem;
+  background: var(--docs-surface);
+  border: 1px solid var(--docs-border);
+  border-radius: 0.75rem;
+}
+
+.introduction {
+  display: flex;
+  padding: 1.25rem 1.5rem;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.introduction strong {
+  color: var(--ifm-heading-color);
+  font-size: 1.0625rem;
+}
+
+.introduction > span,
+.copy > span {
+  color: var(--docs-muted);
+  font-size: 0.875rem;
+}
+
+.steps {
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.steps li + li {
+  margin-top: 0;
+}
+
+.quickStart .step {
+  display: flex;
+  padding: 1rem 1.5rem;
+  gap: 1rem;
+  align-items: center;
+  color: var(--ifm-heading-color);
+  text-decoration: none;
+  border-top: 1px solid var(--docs-border);
+  transition: background-color 160ms ease-out;
+}
+
+.step:hover {
+  color: var(--ifm-color-primary);
+  background: var(--docs-accent-soft);
+  text-decoration: none;
+}
+
+.steps li:last-child .step {
+  border-radius: 0 0 0.75rem 0.75rem;
+}
+
+.number {
+  display: grid;
+  width: 1.75rem;
+  height: 1.75rem;
+  flex-shrink: 0;
+  place-items: center;
+  color: var(--ifm-color-primary);
+  background: var(--docs-accent-soft);
+  border-radius: 50%;
+  font-size: 0.8125rem;
+  font-weight: 650;
+}
+
+.copy {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  align-items: baseline;
+}
+
+.step svg {
+  flex-shrink: 0;
+  color: var(--ifm-color-primary);
+}
+
+@media (max-width: 576px) {
+  .introduction,
+  .step {
+    padding: 1rem;
+  }
+
+  .copy {
+    flex-direction: column;
+  }
+}

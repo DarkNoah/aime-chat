@@ -34,7 +34,7 @@ const parseJson = (value: unknown): unknown => {
 
 /**
  * Adapts AIME's knowledge-base vector table to the query contract expected by
- * Mastra's GraphRAG tool. The adapter is deliberately read-only because
+ * Mastra's GraphRAG retrieval. The adapter is deliberately read-only because
  * knowledge-base writes remain owned by KnowledgeBaseManager.
  */
 export const createKnowledgeBaseGraphVectorStore = ({
@@ -164,7 +164,7 @@ export const createKnowledgeBaseGraphVectorStore = ({
     },
   };
 
-  // createGraphRAGTool only consumes the vector store's query contract. The
+  // Graph candidate retrieval only consumes the vector store's query contract. The
   // cast keeps the adapter read-only instead of exposing misleading mutations.
   return vectorStore as MastraVector;
 };

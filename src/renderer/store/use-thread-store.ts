@@ -10,7 +10,10 @@ interface ThreadStoreState {
   updateStatus: (threadId: string, status: ChatStatus) => void;
   updateError: (threadId: string, error: Error | undefined) => void;
   updateThreadState: (threadId: string, state: Partial<ThreadState>) => void;
-  updateThreadMeatadata: (threadId: string, metadata: Record<string, any>) => void;
+  updateThreadMeatadata: (
+    threadId: string,
+    metadata: Record<string, any>,
+  ) => void;
   removeThread: (threadId: string) => void;
   registerThread: (threadId: string, state: ThreadState) => void;
   getThreads: () => Record<string, ThreadState>;
@@ -29,67 +32,47 @@ export const useThreadStore = create<ThreadStoreState>((set, get) => ({
   },
   unkeepThread: (threadId) => {
     set((state) => ({
-      threadKeepList: [...new Set((state.threadKeepList ?? []).filter((id) => id !== threadId))],
+      threadKeepList: [
+        ...new Set(
+          (state.threadKeepList ?? []).filter((id) => id !== threadId),
+        ),
+      ],
     }));
   },
 
   updateMessages: (threadId, messages) => {
-    set((state) => ({
-      threadStates: {
-        ...state.threadStates,
-        [threadId]: {
-          ...state.threadStates[threadId],
-          messages,
-        },
-      },
-    }));
+    get().updateThreadState(threadId, { messages });
   },
 
   updateStatus: (threadId, status) => {
-    set((state) => ({
-      threadStates: {
-        ...state.threadStates,
-        [threadId]: {
-          ...state.threadStates[threadId],
-          status,
-        },
-      },
-    }));
+    get().updateThreadState(threadId, { status });
   },
 
   updateError: (threadId, error) => {
-    set((state) => ({
-      threadStates: {
-        ...state.threadStates,
-        [threadId]: {
-          ...state.threadStates[threadId],
-          error,
-        },
-      },
-    }));
+    get().updateThreadState(threadId, { error });
   },
 
+  // Late events must not create partial records or resurrect removed threads.
   updateThreadState: (threadId, partialState) => {
-    set((state) => ({
-      threadStates: {
-        ...state.threadStates,
-        [threadId]: {
-          messages: state.threadStates[threadId]?.messages ?? [],
-          status: state.threadStates[threadId]?.status ?? 'ready',
-          ...state.threadStates[threadId],
-          ...partialState,
-        },
-      },
-    }));
+    set((state) =>
+      state.threadStates[threadId]
+        ? {
+            threadStates: {
+              ...state.threadStates,
+              [threadId]: {
+                messages: state.threadStates[threadId]?.messages ?? [],
+                status: state.threadStates[threadId]?.status ?? 'ready',
+                ...state.threadStates[threadId],
+                ...partialState,
+              },
+            },
+          }
+        : state,
+    );
   },
 
   updateThreadMeatadata: (threadId, metadata) => {
-    set((state) => ({
-      threadStates: {
-        ...state.threadStates,
-        [threadId]: { ...state.threadStates[threadId], metadata },
-      },
-    }));
+    get().updateThreadState(threadId, { metadata });
   },
 
   removeThread: (threadId) => {

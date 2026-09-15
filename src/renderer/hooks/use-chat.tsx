@@ -1,174 +1,51 @@
-/* eslint-disable no-underscore-dangle */
-/* eslint-disable camelcase */
-import { PromptInputMessage } from '../components/ai-elements/prompt-input';
-import { useChat as useAiSdkChat } from '@ai-sdk/react';
-
-import { IpcChatTransport } from '../pages/chat/ipc-chat-transport';
-import toast from 'react-hot-toast';
-import { ChatOnFinishCallback, UIDataTypes, UIMessage, UITools } from 'ai';
-import React, {
+import { Chat, useChat as useAiSdkChat } from '@ai-sdk/react';
+import type { UIMessage } from 'ai';
+import {
   createContext,
-  ForwardedRef,
   ReactNode,
-  useCallback,
   useContext,
   useEffect,
-  useImperativeHandle,
   useMemo,
-  useRef,
   useState,
 } from 'react';
+import toast from 'react-hot-toast';
+import { useShallow } from 'zustand/react/shallow';
 import {
   ChatChangedType,
   ChatEvent,
   ChatSubmitOptions,
   ThreadState,
 } from '@/types/chat';
+import type { PromptInputMessage } from '../components/ai-elements/prompt-input';
 import { useThreadStore } from '../store/use-thread-store';
-import { useShallow } from 'zustand/react/shallow';
 import { eventBus } from '../lib/event-bus';
 import { useGlobal } from './use-global';
+import { ChatRuntime } from './chat-runtime';
 
-export type ChatSessionProps = {
-  threadId: string;
-  onData?: (dataPart: any) => void;
-  onUsageChange?: (usage: any) => void;
-  onError?: (err: Error) => void;
-  onFinish?: (event: any) => void;
-  onThreadChanged?: (event: any) => void;
-};
+function ChatSession({
+  chat,
+  runtime,
+}: {
+  chat: Chat<UIMessage>;
+  runtime: ChatRuntime;
+}) {
+  const { messages, status, error } = useAiSdkChat({ chat });
+  const thread = useThreadStore((state) => state.threadStates[chat.id]);
+  const { appInfo } = useGlobal();
 
-export type ChatSessionRef = {
-  stop: () => void;
-  sendMessage: (
-    message: PromptInputMessage | undefined,
-    options?: ChatSubmitOptions,
-  ) => void;
-  setMessages: (messages: UIMessage[]) => void;
-  clearError: () => void;
-  clearMessages: () => Promise<void>;
-};
+  useEffect(() => {
+    runtime.syncSession(chat.id, chat);
+  }, [runtime, chat, messages, status, error]);
 
-export const ChatSession = React.forwardRef<ChatSessionRef, ChatSessionProps>(
-  (props: ChatSessionProps, ref: ForwardedRef<ChatSessionRef>) => {
-    const {
-      threadId,
-      onError,
-      onUsageChange,
-      onData,
-      onFinish,
-      onThreadChanged,
-    } = props;
-    const { appInfo } = useGlobal();
-
-    const threadState = useThreadStore(
-      useShallow((s) => s.threadStates[threadId]),
-    );
-    const {
-      updateMessages,
-      updateStatus,
-      updateError,
-      updateThreadState,
-      registerThread,
-    } = useThreadStore();
-
-    // 使用 useRef 保持 transport 实例稳定，避免每次渲染创建新实例
-    const transportRef = useRef(new IpcChatTransport());
-
-    const {
-      messages: aiSdkMessages,
-      setMessages,
-      sendMessage: aiSdkSendMessage,
-      status,
-      error,
-      stop,
-      clearError,
-    } = useAiSdkChat({
-      id: threadId,
-      transport: transportRef.current,
-      onFinish: (event) => {
-        // console.log('onFinish', event);
-        // onFinish?.(event);
-      },
-      onData: (dataPart) => {
-        onData?.(dataPart);
-        if (dataPart.type === 'data-usage') {
-          onUsageChange?.(dataPart.data);
-        }
-        // if (dataPart.type === 'data-step-finish') {
-        //   onFinish?.(dataPart.data);
-        // }
-        if (dataPart.type === 'data-thread-changed') {
-          onThreadChanged?.(dataPart.data);
-        }
-      },
-      onError: (err) => {
-        onError?.(err);
-        toast.error(err.message);
-      },
-    });
-
-    useEffect(() => {
-      const thread = useThreadStore.getState().threadStates[threadId];
-      if (thread) {
-        setMessages(thread.messages || []);
-      }
-    }, [setMessages, threadId]);
-
-    const clearMessages = async () => {
-      await window.electron.mastra.clearMessages(threadId);
-      updateMessages(threadId, []);
-      updateError(threadId, undefined);
-      setMessages([]);
-      clearError();
-    };
-
-    useImperativeHandle(ref, () => ({
-      sendMessage: (message, options) => {
-        aiSdkSendMessage(
-          message
-            ? {
-                text: message.text || 'Sent with attachments',
-                files: message.files,
-              }
-            : undefined,
-          {
-            body: options,
-            headers: {},
-            metadata: {},
-          },
-        );
-      },
-      stop,
-      clearError,
-      clearMessages,
-      setMessages: (message) => {
-        setMessages(message);
-      },
-    }));
-
-    useEffect(() => {
-      updateMessages(threadId, aiSdkMessages);
-    }, [threadId, aiSdkMessages, updateMessages]);
-
-    useEffect(() => {
-      updateStatus(threadId, status);
-    }, [threadId, status, updateStatus]);
-
-    useEffect(() => {
-      updateError(threadId, error);
-    }, [threadId, error, updateError]);
-
-    return (
-      <div
-        className={` p-2 h-10 bg-muted-foreground/20 backdrop-blur text-xs text-muted-foreground items-center justify-center flex-row gap-2 rounded-xl ${appInfo?.isPackaged ? 'hidden' : ''}`}
-      >
-        {threadId.substring(0, 2)} {threadState.status}
-        <div>{threadState.messages?.length}</div>
-      </div>
-    );
-  },
-);
+  return (
+    <div
+      className={`p-2 h-10 bg-muted-foreground/20 backdrop-blur text-xs text-muted-foreground items-center justify-center flex-row gap-2 rounded-xl ${appInfo?.isPackaged ? 'hidden' : ''}`}
+    >
+      {chat.id.substring(0, 2)} {thread?.status}
+      <div>{thread?.messages?.length}</div>
+    </div>
+  );
+}
 
 export type ChatState = {
   sendEvent?: (threadId: string, event: string, data: any) => void;
@@ -181,8 +58,8 @@ export type ChatState = {
   setMessages: (threadId: string, messages: UIMessage[]) => void;
   clearMessages: (threadId: string) => Promise<void>;
   clearError: (threadId: string) => void;
-  ensureThread: (threadId: string) => Promise<ThreadState>;
-  unregisterThread: (threadId: string, skipKeep: boolean) => void;
+  ensureThread: (threadId: string, keep?: boolean) => Promise<ThreadState>;
+  unregisterThread: (threadId: string, skipKeep?: boolean) => void;
   getThread: (threadId: string) => Promise<ThreadState>;
 };
 
@@ -190,293 +67,112 @@ export const ChatContext = createContext<ChatState | null>(null);
 
 export function useChat() {
   const context = useContext(ChatContext);
-  if (!context) {
-    throw new Error('useChat 必须在 ChatProvider 内使用');
-  }
+  if (!context) throw new Error('useChat 必须在 ChatProvider 内使用');
   return context;
 }
 
 export function ChatProvider({ children }: { children: ReactNode }) {
-  const {
-    threadStates,
-    registerThread,
-    removeThread,
-    updateMessages,
-    updateThreadState,
-    updateThreadMeatadata,
-    keepThread,
-    unkeepThread,
-  } = useThreadStore();
-
-  const chatSessionRefs = useRef(new Map<string, ChatSessionRef>());
-  const getThread = useCallback(async (threadId: string) => {
-    const _thread = await window.electron.mastra.getThread(threadId);
-    return _thread;
-  }, []);
-
-  const ensureThread = useCallback(
-    async (threadId: string, keep: boolean = true) => {
-      if (keep) {
-        keepThread(threadId);
-      }
-      if (threadStates[threadId]) {
-        return threadStates[threadId];
-      } else {
-        const _thread = await window.electron.mastra.getThread(threadId);
-        console.log('registerThread', threadId, _thread);
-        registerThread(threadId, _thread);
-        return _thread;
-      }
-    },
-    [threadStates, registerThread, keepThread],
+  const [runtime] = useState(
+    () =>
+      new ChatRuntime({
+        onData: (threadId, data) =>
+          eventBus.emit(`chat:onData:${threadId}`, data),
+        onFinish: (threadId, event) =>
+          eventBus.emit(`chat:onFinish:${threadId}`, event),
+        onThreadChanged: (threadId, event) =>
+          eventBus.emit(`chat:onThreadChanged:${threadId}`, event),
+        onError: (error) => toast.error(error.message),
+      }),
+  );
+  const sessions = useThreadStore(
+    useShallow((state) =>
+      Object.keys(state.threadStates).map(runtime.getSession),
+    ),
   );
 
-  const unregisterThread = useCallback(
-    (threadId: string, skipKeep: boolean = false) => {
-      const { threadKeepList, threadStates: threadStatesState } =
-        useThreadStore.getState();
-      const threadState = threadStatesState[threadId];
-      console.log('UnregisterThread', threadId, threadKeepList, threadState);
-      if (threadKeepList.includes(threadId) && !skipKeep) {
-        return;
-      }
-      if (
-        threadState &&
-        (threadState.status === 'ready' || threadState.status === 'error')
-      ) {
-        chatSessionRefs.current.delete(threadId);
-        unkeepThread(threadId);
-        removeThread(threadId);
-      }
-    },
-    [removeThread, unkeepThread],
-  );
-
-  const sendMessage = useCallback(
-    (
-      threadId: string,
-      message: PromptInputMessage | undefined,
-      options?: ChatSubmitOptions,
-    ) => {
-      const chatSessionRef = chatSessionRefs.current.get(threadId);
-      if (chatSessionRef) {
-        chatSessionRef.sendMessage(message, options);
-      } else {
-        toast.error(`线程 ${threadId} 未初始化`);
-      }
-    },
-    [chatSessionRefs],
-  );
-
-  const stop = useCallback(
-    (threadId: string) => {
-      const chatSessionRef = chatSessionRefs.current.get(threadId);
-      if (chatSessionRef) {
-        chatSessionRef.stop();
-      } else {
-        toast.error(`stop: 线程 ${threadId} 未初始化`);
-      }
-    },
-    [chatSessionRefs],
-  );
-
-  const clearMessages = useCallback(async (threadId: string) => {
-    const chatSessionRef = chatSessionRefs.current.get(threadId);
-    if (chatSessionRef) {
-      chatSessionRef.clearMessages();
-    } else {
-      toast.error(`clearMessages: 线程 ${threadId} 未初始化`);
-    }
-    // await window.electron.mastra.clearMessages(threadId);
-    // updateMessages(threadId, []);
-  }, []);
-
-  const clearError = useCallback((threadId: string) => {
-    const chatSessionRef = chatSessionRefs.current.get(threadId);
-    if (chatSessionRef) {
-      chatSessionRef.stop();
-    } else {
-      toast.error(`clearError: 线程 ${threadId} 未初始化`);
-    }
-  }, []);
-
-  const setMessages = useCallback((threadId: string, messages: UIMessage[]) => {
-    const chatSessionRef = chatSessionRefs.current.get(threadId);
-    if (chatSessionRef) {
-      chatSessionRef.setMessages(messages || []);
-    } else {
-      console.log(chatSessionRefs.current);
-      toast.error(`setMessages: 线程 ${threadId} 未初始化`);
-    }
-  }, []);
-
-  const onFinish = useCallback(async (threadId, event) => {
-    eventBus.emit(`chat:onFinish:${threadId}`, event);
-    // const chatSessionRef = chatSessionRefs.current.get(threadId);
-    console.log(`chat:onFinish:${threadId}`);
-    try {
-      const _thread = await window.electron.mastra.getThread(threadId);
-      setMessages(threadId, _thread.messages);
-      return _thread;
-    } catch (err) {
-      toast.error(err.message);
-      return null;
-    }
-    // window.electron.mastra
-    //   .getThreadMessages({ threadId })
-    //   .then((data) => {
-    //     setMessages(threadId, data.messages);
-    //     return data;
-    //   })
-    //   .catch((err) => {
-    //     toast.error(err.message);
-    //   });
-  }, []);
-
-  const onThreadChanged = useCallback((threadId, event) => {
-    eventBus.emit(`chat:onThreadChanged:${threadId}`, event);
-    console.log('onThreadChanged', threadId, event);
-    window.electron.mastra
-      .getThread(threadId, true)
-      .then((_thread) => {
-        updateThreadMeatadata(threadId, _thread?.metadata || {});
-        return _thread;
-      })
-      .catch((err) => {
-        toast.error(err.message);
-      });
-  }, []);
-
-  const onData = useCallback((threadId, event) => {
-    eventBus.emit(`chat:onData:${threadId}`, event);
-  }, []);
-
-  const sendEvent = useCallback(
-    (threadId: string, event: string, data: any) => {
-      eventBus.emit(`chat:onEvent:${threadId}`, { event, data });
-    },
-    [],
-  );
-
-  const value = useMemo(
+  const value = useMemo<ChatState>(
     () => ({
-      sendEvent,
-      ensureThread,
-      unregisterThread,
-      sendMessage,
-      setMessages,
-      getThread,
-      stop,
-      clearMessages,
-      clearError,
+      ensureThread: runtime.ensureThread,
+      unregisterThread: runtime.unregisterThread,
+      getThread: (threadId) => window.electron.mastra.getThread(threadId),
+      sendEvent: (threadId, event, data) =>
+        eventBus.emit(`chat:onEvent:${threadId}`, { event, data }),
+      sendMessage: (threadId, message, options) => {
+        runtime
+          .sendMessage(threadId, message, options)
+          .catch(runtime.reportError);
+      },
+      setMessages: (threadId, messages) => {
+        runtime.setMessages(threadId, messages).catch(runtime.reportError);
+      },
+      stop: (threadId) => {
+        runtime.stop(threadId).catch(runtime.reportError);
+      },
+      clearMessages: runtime.clearMessages,
+      clearError: runtime.clearError,
     }),
-    [
-      sendEvent,
-      ensureThread,
-      unregisterThread,
-      sendMessage,
-      setMessages,
-      getThread,
-      stop,
-      clearMessages,
-      clearError,
-    ],
+    [runtime],
   );
 
   useEffect(() => {
-    const handleChatChangedEvent = async (event: {
-      data: {
-        type: ChatChangedType;
-        chatId?: string;
-        title?: string;
-      };
+    runtime.setActive(true);
+    const handleChatChanged = (event: {
+      data: { type: ChatChangedType; chatId?: string; title?: string };
     }) => {
-      console.log('handleChatChangedEvent', event.data);
-      if (event.data.type === ChatChangedType.TitleUpdated) {
-        updateThreadState(event.data.chatId, {
-          title: event.data.title,
-        });
-      } else if (event.data.type === ChatChangedType.Finish) {
-        const { chatId } = event.data;
-        await onFinish(chatId, event.data);
-        updateThreadState(chatId, {
-          status: 'ready',
-        });
-        unregisterThread(event.data.chatId);
-      } else if (event.data.type === ChatChangedType.Start) {
-        const { chatId } = event.data;
-        await ensureThread(chatId, false);
-        updateThreadState(chatId, {
-          status: 'streaming',
-        });
-      }
+      const { chatId, type, title } = event.data;
+      if (!chatId) return;
+      let operation: Promise<void> | undefined;
+      if (type === ChatChangedType.Start) operation = runtime.started(chatId);
+      else if (type === ChatChangedType.Finish)
+        operation = runtime.finished(chatId, event.data);
+      else if (type === ChatChangedType.TitleUpdated)
+        operation = runtime.titleChanged(chatId, title);
+      operation?.catch(runtime.reportError);
     };
-    const handleChatThreadChangedEvent = (event: {
-      data: {
-        chatId: string;
-        resourceId: string;
-      };
-    }) => {
-      console.log('handleChatThreadChangedEvent', event.data);
-      const { chatId, resourceId } = event.data;
-      onThreadChanged(chatId, event.data);
+    const handleThreadChanged = (event: { data: { chatId: string } }) => {
+      if (event.data.chatId)
+        runtime
+          .threadChanged(event.data.chatId, event.data)
+          .catch(runtime.reportError);
     };
-    const handleChatMessageChangedEvent = async (event: {
-      data: {
-        chatId: string;
-        resourceId: string;
-      };
-    }) => {
-      console.log('handleChatMessageChangedEvent', event.data);
-      const { chatId, resourceId } = event.data;
-      const _thread = await window.electron.mastra.getThread(chatId);
-      setMessages(chatId, _thread.messages || []);
+    const handleMessagesChanged = (event: { data: { chatId: string } }) => {
+      if (event.data.chatId)
+        runtime.messagesChanged(event.data.chatId).catch(runtime.reportError);
     };
-    window.electron.ipcRenderer.on(
-      ChatEvent.ChatChanged,
-      handleChatChangedEvent,
-    );
+    window.electron.ipcRenderer.on(ChatEvent.ChatChanged, handleChatChanged);
     window.electron.ipcRenderer.on(
       ChatEvent.ChatThreadChanged,
-      handleChatThreadChangedEvent,
+      handleThreadChanged,
     );
     window.electron.ipcRenderer.on(
       ChatEvent.ChatMessageChanged,
-      handleChatMessageChangedEvent,
+      handleMessagesChanged,
     );
     return () => {
-      window.electron.ipcRenderer.removeListener(
-        ChatEvent.ChatMessageChanged,
-        handleChatMessageChangedEvent,
-      );
+      runtime.setActive(false);
       window.electron.ipcRenderer.removeListener(
         ChatEvent.ChatChanged,
-        handleChatChangedEvent,
+        handleChatChanged,
       );
       window.electron.ipcRenderer.removeListener(
         ChatEvent.ChatThreadChanged,
-        handleChatThreadChangedEvent,
+        handleThreadChanged,
+      );
+      window.electron.ipcRenderer.removeListener(
+        ChatEvent.ChatMessageChanged,
+        handleMessagesChanged,
       );
     };
-  }, []);
+  }, [runtime]);
 
   return (
     <ChatContext.Provider value={value}>
       <div className="fixed top-0 left-0 flex flex-row gap-2 z-20">
-        {Object.keys(threadStates).map((threadId) => (
+        {sessions.map((chat) => (
           <ChatSession
-            key={threadId}
-            threadId={threadId}
-            ref={(node) => {
-              if (node) {
-                chatSessionRefs.current.set(threadId, node);
-              } else {
-                chatSessionRefs.current.delete(threadId);
-              }
-            }}
-            onFinish={(event) => onFinish(threadId, event)}
-            onData={(event) => onData(threadId, event)}
-            onThreadChanged={(event) => onThreadChanged(threadId, event)}
+            key={runtime.getSessionKey(chat.id)}
+            chat={chat}
+            runtime={runtime}
           />
         ))}
       </div>

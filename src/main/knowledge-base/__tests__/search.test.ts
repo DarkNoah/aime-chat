@@ -1,4 +1,4 @@
-import { createGraphRAGTool } from '@mastra/rag';
+import { searchKnowledgeBaseGraph } from '@/main/tools/knowledge-base/graph-search';
 import { providersManager } from '@/main/providers';
 import { KnowledgeBaseManager } from '../index';
 
@@ -26,7 +26,9 @@ jest.mock('@/main/local-model/clip', () => ({ LocalCLIPModel: jest.fn() }));
 jest.mock('@/utils/nanoid', () => ({ nanoid: jest.fn(() => 'temp-id') }));
 jest.mock('@mastra/rag', () => ({
   MDocument: {},
-  createGraphRAGTool: jest.fn(),
+}));
+jest.mock('@/main/tools/knowledge-base/graph-search', () => ({
+  searchKnowledgeBaseGraph: jest.fn(),
 }));
 
 const result = (rows: any[] = []) => ({ rows });
@@ -104,6 +106,8 @@ const setupManager = () => {
 };
 
 describe('KnowledgeBaseManager GraphRAG hybrid search', () => {
+  afterEach(() => jest.restoreAllMocks());
+
   beforeEach(() => {
     jest.clearAllMocks();
     jest.mocked(providersManager.getEmbeddingModel).mockResolvedValue({
@@ -112,7 +116,7 @@ describe('KnowledgeBaseManager GraphRAG hybrid search', () => {
   });
 
   it('maps GraphRAG node metadata back into the existing hybrid row contract', async () => {
-    const graphExecute = jest.fn().mockResolvedValue({
+    jest.mocked(searchKnowledgeBaseGraph).mockResolvedValue({
       relevantContext: ['Graph chunk'],
       sources: [
         {
@@ -149,9 +153,6 @@ describe('KnowledgeBaseManager GraphRAG hybrid search', () => {
         },
       ],
     });
-    jest.mocked(createGraphRAGTool).mockReturnValue({
-      execute: graphExecute,
-    } as any);
     const manager = setupManager();
 
     const search = await manager.searchKnowledgeBase(
@@ -162,17 +163,13 @@ describe('KnowledgeBaseManager GraphRAG hybrid search', () => {
       2,
     );
 
-    expect(createGraphRAGTool).toHaveBeenCalledWith(
+    expect(searchKnowledgeBaseGraph).toHaveBeenCalledWith(
       expect.objectContaining({
+        queryText: 'shared question',
+        topK: 6,
         indexName: 'kb_kb-1_3',
         includeSources: true,
         graphOptions: { dimension: 3 },
-      }),
-    );
-    expect(graphExecute).toHaveBeenCalledWith(
-      { queryText: 'shared question', topK: 6 },
-      expect.objectContaining({
-        mastra: expect.objectContaining({ getLogger: expect.any(Function) }),
       }),
     );
     expect(search.searchType).toBe('hybrid');
@@ -211,12 +208,11 @@ describe('KnowledgeBaseManager GraphRAG hybrid search', () => {
   });
 
   it('falls back to BM25 when GraphRAG produces no usable sources', async () => {
-    jest.mocked(createGraphRAGTool).mockReturnValue({
-      execute: jest.fn().mockResolvedValue({
-        relevantContext: [],
-        sources: [],
-      }),
-    } as any);
+    const logError = jest.spyOn(console, 'error').mockImplementation(() => {});
+    jest.mocked(searchKnowledgeBaseGraph).mockResolvedValue({
+      relevantContext: [],
+      sources: [],
+    });
     const manager = setupManager();
 
     const search = await manager.searchKnowledgeBase(
@@ -232,6 +228,38 @@ describe('KnowledgeBaseManager GraphRAG hybrid search', () => {
       id: 'chunk-shared',
       itemId: 'item-shared',
     });
+    expect(logError).not.toHaveBeenCalled();
+  });
+
+  it('returns no matches when both semantic and lexical retrieval are empty', async () => {
+    jest.mocked(searchKnowledgeBaseGraph).mockResolvedValue({
+      relevantContext: [],
+      sources: [],
+    });
+    const manager = setupManager();
+    jest.mocked(manager.libSQLClient.execute).mockResolvedValue(result() as any);
+
+    const search = await manager.searchKnowledgeBase('kb-1', 'unmatched query');
+
+    expect(search.searchType).toBe('bm25');
+    expect(search.results).toEqual([]);
+    expect(manager.knowledgeBaseItemRepository.find).not.toHaveBeenCalled();
+  });
+
+  it('logs genuine graph retrieval errors and retains the BM25 fallback', async () => {
+    const logError = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const error = new Error('embedding unavailable');
+    jest.mocked(searchKnowledgeBaseGraph).mockRejectedValue(error);
+    const manager = setupManager();
+
+    const search = await manager.searchKnowledgeBase('kb-1', 'lexical question');
+
+    expect(search.searchType).toBe('bm25');
+    expect(search.results.length).toBeGreaterThan(0);
+    expect(logError).toHaveBeenCalledWith(
+      expect.stringContaining('falling back to BM25'),
+      error,
+    );
   });
 
   it('rejects unsafe GraphRAG candidate limits before querying', async () => {

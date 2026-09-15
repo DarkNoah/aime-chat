@@ -17,7 +17,7 @@ import {
 } from '@/types/knowledge-base';
 import { In, Repository } from 'typeorm';
 import { Client as LibSQLClient, Value } from '@libsql/client';
-import { createGraphRAGTool, MDocument } from '@mastra/rag';
+import { MDocument } from '@mastra/rag';
 import type { EmbeddingModelV2 } from '@ai-sdk/provider';
 import { nanoid } from '@/utils/nanoid';
 import { providersManager } from '../providers';
@@ -53,6 +53,7 @@ import {
   createKnowledgeBaseGraphVectorStore,
   getKnowledgeBaseGraphIndexName,
 } from '../tools/knowledge-base/graph-vector-store';
+import { searchKnowledgeBaseGraph } from '../tools/knowledge-base/graph-search';
 
 type KnowledgeBaseChunk = {
   text: string;
@@ -1053,10 +1054,9 @@ export class KnowledgeBaseManager extends BaseManager {
         }
         const extendColumns =
           vectorStoreConfig?.extendColumns?.map((column) => column.name) ?? [];
-        const graphTool = createGraphRAGTool({
-          id: `KnowledgeBaseSearch-${kb.id}`,
-          description:
-            'Graph-based semantic retrieval for knowledge base search.',
+        const graphResult = await searchKnowledgeBaseGraph({
+          queryText: embeddingQuery,
+          topK: candidateLimit,
           vectorStore: createKnowledgeBaseGraphVectorStore({
             client: this.libSQLClient,
             knowledgeBaseId: kb.id,
@@ -1073,21 +1073,6 @@ export class KnowledgeBaseManager extends BaseManager {
             dimension: kb.vectorLength,
           },
         });
-        const graphResult = await graphTool.execute(
-          { queryText: embeddingQuery, topK: candidateLimit },
-          {
-            mastra: {
-              getLogger: () => ({
-                debug: () => undefined,
-                error: (message: string, details?: Record<string, unknown>) =>
-                  console.error(
-                    `[knowledge-base] ${message}`,
-                    details?.error ?? details,
-                  ),
-              }),
-            },
-          } as any,
-        );
         for (const source of graphResult?.sources ?? []) {
           const metadata = source?.metadata as Record<string, any> | undefined;
           const internal = metadata?.['__knowledgeBase'] as

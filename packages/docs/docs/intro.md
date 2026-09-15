@@ -1,20 +1,21 @@
 ---
 sidebar_position: 1
+description: 了解 AIME Chat 的项目工作区、模型接入、Agent 工具与知识库，并完成首次安装和配置。
 ---
+
+import QuickStart from '@site/src/components/QuickStart';
 
 # 项目介绍
 
-欢迎使用 **AIME Chat** - 一款强大的 AI 桌面聊天应用！
+**AIME Chat** 是连接模型、文件与工具的开源 AI 桌面工作台。
+
+<QuickStart />
 
 ## 什么是 AIME Chat？
 
 AIME Chat 是一款基于 **Electron** 构建的跨平台 AI 聊天桌面应用，集成了多种主流
 AI
 服务商，提供智能对话、知识库管理、工具调用等丰富功能。应用状态与聊天数据默认保存在本机；使用云端 Provider 或联网工具时，相关请求仍会发送给对应服务。
-
-<div align="center">
-  <img src="/aime-chat/img/icon.png" alt="AIME Chat Logo" width="200" />
-</div>
 
 ## ✨ 核心特性
 
