@@ -79,7 +79,18 @@ const config: Config = {
           type: 'docSidebar',
           sidebarId: 'tutorialSidebar',
           position: 'left',
-          label: '文档',
+          label: '使用文档',
+        },
+        {
+          to: '/docs/getting-started/installation',
+          label: '快速开始',
+          position: 'left',
+        },
+        {
+          to: '/#download-title',
+          label: '下载应用',
+          className: 'navbar-download',
+          position: 'right',
         },
         {
           href: 'https://github.com/DarkNoah/aime-chat',
@@ -96,11 +107,15 @@ const config: Config = {
           items: [
             {
               label: '快速开始',
-              to: '/docs/intro',
+              to: '/docs/getting-started/installation',
             },
             {
               label: '功能指南',
-              to: '/docs/getting-started/ai-providers',
+              to: '/docs/intro',
+            },
+            {
+              label: '常见问题',
+              to: '/docs/getting-started/faq',
             },
           ],
         },

@@ -11,7 +11,7 @@ import {
   SearchKnowledgeBaseItemResult,
   VectorStoreType,
 } from "@/types/knowledge-base";
-import { createGraphRAGTool } from '@mastra/rag';
+import { searchKnowledgeBaseGraph } from './graph-search';
 import { providersManager } from "@/main/providers";
 import { appManager } from "@/main/app";
 import {
@@ -277,9 +277,10 @@ For direct fact lookup without relationship traversal, use KnowledgeBaseSearch i
       knowledgeBase.id,
       knowledgeBase.vectorLength,
     );
-    const graphTool = createGraphRAGTool({
-      id: `${KnowledgeBaseGraphSearch.toolName}-${knowledgeBase.id}`,
-      description: this.description,
+    const result = await searchKnowledgeBaseGraph({
+      queryText: query,
+      topK: top_k,
+      abortSignal: options?.abortSignal,
       vectorStore: createKnowledgeBaseGraphVectorStore({
         client: knowledgeBaseManager.libSQLClient,
         knowledgeBaseId: knowledgeBase.id,
@@ -295,10 +296,6 @@ For direct fact lookup without relationship traversal, use KnowledgeBaseSearch i
         restartProb: restart_probability,
       },
     });
-    const result = await graphTool.execute(
-      { queryText: query, topK: top_k },
-      (options ?? {}) as any,
-    );
 
     return {
       knowledgeBase: {

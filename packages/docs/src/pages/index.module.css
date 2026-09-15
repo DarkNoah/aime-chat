@@ -1,15 +1,15 @@
 .homePage {
-  --home-accent: #08b65f;
-  --home-accent-strong: #08783f;
-  --home-accent-soft: #e7f8ee;
-  --home-ink: #101713;
-  --home-muted: #5a655e;
-  --home-border: #dce3de;
-  --home-surface: #ffffff;
-  --home-surface-muted: #f4f7f5;
-  --home-download-surface: oklch(97% 0.018 151);
-  --home-download-card: #ffffff;
-  --home-download-border: oklch(88% 0.026 151);
+  --home-accent: var(--ifm-color-primary);
+  --home-accent-strong: var(--ifm-color-primary);
+  --home-accent-soft: var(--docs-accent-soft);
+  --home-ink: var(--ifm-heading-color);
+  --home-muted: var(--docs-muted);
+  --home-border: var(--docs-border);
+  --home-surface: var(--ifm-background-color);
+  --home-surface-muted: var(--docs-surface);
+  --home-download-surface: var(--docs-surface);
+  --home-download-card: var(--ifm-background-color);
+  --home-download-border: var(--docs-border);
   overflow: hidden;
   background: var(--ifm-background-color);
   color: var(--home-ink);
@@ -18,29 +18,15 @@
 .homePage :global(.container) {
   width: 100%;
   max-width: 1280px;
-  padding-top: 0 !important;
-  padding-right: 1.5rem !important;
-  padding-bottom: 0 !important;
-  padding-left: 1.5rem !important;
-}
-
-[data-theme='dark'] .homePage {
-  --home-accent: #1aed73;
-  --home-accent-strong: #55f391;
-  --home-accent-soft: #10291a;
-  --home-ink: #f2f5f3;
-  --home-muted: #aab4ae;
-  --home-border: #2a332d;
-  --home-surface: #101512;
-  --home-surface-muted: #0b0f0d;
-  --home-download-surface: oklch(20% 0.025 151);
-  --home-download-card: oklch(24% 0.02 151);
-  --home-download-border: oklch(32% 0.03 151);
+  padding-top: 0;
+  padding-right: 1.5rem;
+  padding-bottom: 0;
+  padding-left: 1.5rem;
 }
 
 .hero {
   position: relative;
-  padding: clamp(4.25rem, 8vw, 7rem) 0 clamp(4rem, 7vw, 6.5rem);
+  padding: 4.5rem 0;
   overflow: hidden;
   color: #f7faf8;
   background: #07100b;
@@ -62,8 +48,8 @@
 .heroLayout {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 0.88fr) minmax(34rem, 1.12fr);
-  gap: clamp(2.75rem, 6vw, 5.5rem);
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.3fr);
+  gap: 3.5rem;
   align-items: center;
 }
 
@@ -91,13 +77,20 @@
 }
 
 .heroTitle {
-  max-width: 12.5ch;
+  max-width: none;
   margin: 0;
   color: #ffffff;
-  font-size: clamp(2.75rem, 5vw, 4.75rem);
-  line-height: 1.05;
-  letter-spacing: -0.045em;
+  font-size: 3.25rem;
+  line-height: 1.25;
+  letter-spacing: 0;
   text-wrap: balance;
+}
+
+.heroProductName {
+  display: block;
+  margin-bottom: 0.65rem;
+  color: #78e5a5;
+  font-size: 1.1em;
 }
 
 .heroTitleLine {
@@ -108,7 +101,7 @@
   max-width: 42rem;
   margin: 1.5rem 0 0;
   color: #b7c2bb;
-  font-size: clamp(1rem, 1.6vw, 1.13rem);
+  font-size: 1.0625rem;
   line-height: 1.8;
 }
 
@@ -173,7 +166,7 @@
 .loopLink:focus-visible,
 .textLink:focus-visible,
 .platformActions a:focus-visible {
-  outline: 3px solid rgba(26, 237, 115, 0.38);
+  outline: 2px solid var(--docs-focus);
   outline-offset: 3px;
 }
 
@@ -233,7 +226,7 @@
   align-items: center;
   justify-content: space-between;
   color: #aab6ae;
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   border-top: 1px solid #293b2f;
 }
 
@@ -246,7 +239,7 @@
 .routesSection,
 .workspaceSection,
 .downloadSection {
-  padding: clamp(5rem, 9vw, 8rem) 0;
+  padding: 5rem 0;
 }
 
 .routesSection {
@@ -271,9 +264,9 @@
   max-width: 18ch;
   margin: 0;
   color: var(--home-ink);
-  font-size: clamp(2rem, 3.4vw, 3rem);
-  line-height: 1.13;
-  letter-spacing: -0.035em;
+  font-size: 2.25rem;
+  line-height: 1.4;
+  letter-spacing: 0;
   text-wrap: balance;
 }
 
@@ -324,12 +317,10 @@
   text-decoration: none;
   transition:
     background-color 160ms ease,
-    padding 160ms ease;
+    color 160ms ease;
 }
 
 .routeItem:hover {
-  padding-right: 0.75rem;
-  padding-left: 0.75rem;
   color: var(--home-ink);
   background: var(--home-surface-muted);
   text-decoration: none;
@@ -340,7 +331,7 @@
   padding-top: 0.15rem;
   color: var(--home-muted);
   font-family: var(--ifm-font-family-monospace);
-  font-size: 0.72rem;
+  font-size: 0.8125rem;
 }
 
 .routeIcon,
@@ -477,7 +468,7 @@
   background: #1aed73;
   border-radius: 50%;
   font-family: var(--ifm-font-family-monospace);
-  font-size: 0.76rem;
+  font-size: 0.8125rem;
   font-weight: 800;
 }
 
@@ -495,7 +486,7 @@
 
 .loopList small {
   color: #96a49b;
-  font-size: 0.76rem;
+  font-size: 0.8125rem;
 }
 
 .loopLink {
@@ -532,8 +523,8 @@
 }
 
 .capabilityItem:hover .capabilityIcon {
-  color: #061009;
-  background: var(--home-accent);
+  color: var(--home-accent-strong);
+  background: var(--home-accent-soft);
 }
 
 .capabilityIcon {
@@ -570,7 +561,7 @@
 .capabilityHeading small {
   color: var(--home-muted);
   font-family: var(--ifm-font-family-monospace);
-  font-size: 0.68rem;
+  font-size: 0.8125rem;
   overflow-wrap: anywhere;
   text-align: right;
 }
@@ -657,7 +648,7 @@
   background: rgba(255, 255, 255, 0.45);
   border: 1px solid #accfb8;
   border-radius: 8px;
-  font-size: 0.78rem;
+  font-size: 0.875rem;
   font-weight: 650;
 }
 
@@ -672,7 +663,7 @@
   max-width: 45rem;
   margin: 0;
   color: #496650;
-  font-size: 0.76rem;
+  font-size: 0.8125rem;
   line-height: 1.55;
 }
 
@@ -721,7 +712,7 @@
 
 .platformItem {
   display: flex;
-  min-height: 14.25rem;
+  min-height: 12rem;
   padding: 1.5rem;
   flex-direction: column;
   justify-content: space-between;
@@ -746,7 +737,7 @@
 .platformHeading p {
   margin: 0.3rem 0 0;
   color: var(--home-muted);
-  font-size: 0.8rem;
+  font-size: 0.875rem;
 }
 
 .platformActions {
@@ -766,7 +757,7 @@
   background: var(--home-surface);
   border: 1px solid var(--home-border);
   border-radius: 8px;
-  font-size: 0.78rem;
+  font-size: 0.875rem;
   font-weight: 700;
   text-decoration: none;
   transition:
@@ -843,12 +834,12 @@
 
 @media (max-width: 1100px) {
   .heroLayout {
-    grid-template-columns: minmax(0, 0.85fr) minmax(30rem, 1.15fr);
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
     gap: 2.5rem;
   }
 
   .heroTitle {
-    font-size: clamp(2.6rem, 5vw, 3.8rem);
+    font-size: 2.75rem;
   }
 
   .workspaceLayout {
@@ -919,8 +910,8 @@
 
 @media (max-width: 768px) {
   .homePage :global(.container) {
-    padding-right: 1.15rem !important;
-    padding-left: 1.15rem !important;
+    padding-right: 1.15rem;
+    padding-left: 1.15rem;
   }
 
   .hero {
@@ -932,7 +923,7 @@
   }
 
   .heroTitle {
-    font-size: clamp(2.4rem, 10vw, 3.25rem);
+    font-size: 2.75rem;
   }
 
   .productFrame figcaption,
@@ -984,8 +975,8 @@
 
   .heroTitle {
     max-width: none;
-    font-size: clamp(2.15rem, 10.5vw, 2.75rem);
-    line-height: 1.08;
+    font-size: 2.125rem;
+    line-height: 1.3;
   }
 
   .heroDescription {
@@ -994,14 +985,12 @@
   }
 
   .heroActions {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
+    display: flex;
   }
 
   .primaryLink,
   .secondaryLink {
-    width: 100%;
-    min-height: 3.15rem;
+    min-height: 3rem;
   }
 
   .heroFacts {
@@ -1020,12 +1009,12 @@
   .routesSection,
   .workspaceSection,
   .downloadSection {
-    padding: 4.5rem 0;
+    padding: 3.5rem 0;
   }
 
   .sectionTitle {
     max-width: none;
-    font-size: 2rem;
+    font-size: 1.75rem;
   }
 
   .routeItem {
@@ -1077,7 +1066,7 @@
 
   .platformActions {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
   }
 
   .platformActions a:only-child {

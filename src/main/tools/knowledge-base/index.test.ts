@@ -1,7 +1,7 @@
 import { knowledgeBaseManager } from '@/main/knowledge-base';
 import { appManager } from '@/main/app';
 import { providersManager } from '@/main/providers';
-import { createGraphRAGTool } from '@mastra/rag';
+import { searchKnowledgeBaseGraph } from './graph-search';
 import {
   KnowledgeBaseCreate,
   KnowledgeBaseGetItem,
@@ -40,8 +40,8 @@ jest.mock('@/main/app', () => ({
     getInfo: jest.fn(),
   },
 }));
-jest.mock('@mastra/rag', () => ({
-  createGraphRAGTool: jest.fn(),
+jest.mock('./graph-search', () => ({
+  searchKnowledgeBaseGraph: jest.fn(),
 }));
 
 describe('KnowledgeBaseList', () => {
@@ -152,9 +152,8 @@ describe('KnowledgeBaseGraphSearch', () => {
     const embeddingModel = { specificationVersion: 'v2' };
     const graphResult = {
       relevantContext: ['direct context', 'connected context'],
-      sources: [{ id: '0', metadata: { itemId: 'item-1' } }],
+      sources: [{ id: '0', score: 1, metadata: { itemId: 'item-1' } }],
     };
-    const graphExecute = jest.fn().mockResolvedValue(graphResult);
     jest.mocked(knowledgeBaseManager.getKnowledgeBaseList).mockResolvedValue([
       {
         id: 'kb-1',
@@ -166,9 +165,7 @@ describe('KnowledgeBaseGraphSearch', () => {
     jest
       .mocked(providersManager.getEmbeddingModel)
       .mockResolvedValue(embeddingModel as any);
-    jest.mocked(createGraphRAGTool).mockReturnValue({
-      execute: graphExecute,
-    } as any);
+    jest.mocked(searchKnowledgeBaseGraph).mockResolvedValue(graphResult);
 
     const result = await new KnowledgeBaseGraphSearch().execute({
       query: 'How do the components depend on each other?',
@@ -180,8 +177,10 @@ describe('KnowledgeBaseGraphSearch', () => {
       include_sources: true,
     });
 
-    expect(createGraphRAGTool).toHaveBeenCalledWith(
+    expect(searchKnowledgeBaseGraph).toHaveBeenCalledWith(
       expect.objectContaining({
+        queryText: 'How do the components depend on each other?',
+        topK: 8,
         indexName: 'kb_kb-1_3',
         model: embeddingModel,
         includeSources: true,
@@ -192,13 +191,6 @@ describe('KnowledgeBaseGraphSearch', () => {
           restartProb: 0.2,
         },
       }),
-    );
-    expect(graphExecute).toHaveBeenCalledWith(
-      {
-        queryText: 'How do the components depend on each other?',
-        topK: 8,
-      },
-      {},
     );
     expect(result).toEqual({
       knowledgeBase: {

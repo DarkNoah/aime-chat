@@ -160,21 +160,18 @@ function Hero() {
           </div>
 
           <Heading as="h1" className={styles.heroTitle}>
-            <span className={styles.heroTitleLine}>把模型、工具</span>
-            <span className={styles.heroTitleLine}>和本地项目，</span>
-            <span className={styles.heroTitleLine}>放进同一个</span>
-            <span className={styles.heroTitleLine}>桌面工作台。</span>
+            <span className={styles.heroProductName}>AIME Chat</span>
+            <span className={styles.heroTitleLine}>让 AI 在你的</span>
+            <span className={styles.heroTitleLine}>项目里工作。</span>
           </Heading>
 
           <p className={styles.heroDescription}>
-            AIME Chat 是一个开源 AI 桌面应用。连接你选择的模型，让 Agent
-            在项目上下文中读取文件、检索知识、调用工具，并把结果留在自己的工作区。
+            连接模型、文件与工具的开源桌面工作台。让 Agent
+            读取项目资料、检索知识并执行任务，结果保存在你的工作区。
           </p>
 
           <div className={styles.heroActions}>
-            <PrimaryLink to="/docs/getting-started/installation">
-              安装并开始
-            </PrimaryLink>
+            <PrimaryLink to="#download-title">下载 AIME Chat</PrimaryLink>
             <Link className={styles.secondaryLink} to="/docs/intro">
               <IconBook size={18} aria-hidden="true" />
               浏览文档
@@ -222,7 +219,7 @@ function DocumentRoutes() {
         <div className={styles.sectionCopy}>
           <p className={styles.sectionLabel}>从这里开始</p>
           <Heading as="h2" id="routes-title" className={styles.sectionTitle}>
-            按任务找到下一步，少走弯路。
+            从安装到第一个任务
           </Heading>
           <p className={styles.sectionDescription}>
             第一次使用可以按顺序完成四步；已有环境时，直接进入你需要的部分。
@@ -260,9 +257,8 @@ function WorkspaceLoop() {
       <div className="container">
         <div className={styles.workspaceHeader}>
           <div>
-            <p className={styles.sectionLabel}>一个连续工作流</p>
             <Heading as="h2" id="loop-title" className={styles.sectionTitle}>
-              上下文不散落，任务才真正闭环。
+              围绕项目，组织每一步工作
             </Heading>
           </div>
           <p className={styles.sectionDescription}>
@@ -403,7 +399,7 @@ function Downloads() {
               id="download-title"
               className={styles.sectionTitle}
             >
-              选择你的平台，开始工作。
+              选择你的桌面版本
             </Heading>
           </div>
           <p className={styles.sectionDescription}>
