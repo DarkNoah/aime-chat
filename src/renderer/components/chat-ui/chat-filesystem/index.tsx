@@ -21,6 +21,7 @@ import {
 import { ChevronDownIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { DirectoryTreeNode, SearchResult } from '@/types/common';
+import type { ChatFilePreviewRequest } from '@/types/chat';
 import { cn } from '@/renderer/lib/utils';
 import { setChatFileReferenceDragData } from '@/renderer/lib/chat-file-reference';
 import type { ChatFileSelectionReference } from '@/renderer/lib/chat-file-selection';
@@ -52,10 +53,12 @@ import {
   ResizablePanelGroup,
 } from '../../ui/resizable';
 import { FileWorkspace } from './file-workspace';
+import { isFileWithinDirectory } from './file-preview-path';
 
 export type ChatFilesystemProps = {
   workspace?: string;
   active?: boolean;
+  filePreviewRequest?: ChatFilePreviewRequest;
   className?: string;
   onAddToChat?: (reference: ChatFileSelectionReference) => void;
 };
@@ -91,6 +94,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({
     (node.children && node.children.length > 0) || node.children === undefined,
   );
   const handledRefreshVersionRef = useRef(refreshVersion);
+  const fileNodeRef = useRef<HTMLDivElement>(null);
   const hasChildren = node.children !== undefined;
 
   const handleDragStart = (event: React.DragEvent) => {
@@ -112,23 +116,38 @@ const TreeNode: React.FC<TreeNodeProps> = ({
     });
   };
 
-  const handleToggle = async (open: boolean) => {
-    setIsOpen(open);
-    if (!open || isLoaded || !hasChildren) return;
+  const handleToggle = useCallback(
+    async (open: boolean) => {
+      setIsOpen(open);
+      if (!open || isLoaded || !hasChildren) return;
 
-    setIsLoading(true);
-    try {
-      const loadedChildren = await window.electron.app.getDirectoryChildren(
-        node.path,
-      );
-      setChildren(loadedChildren);
-      setIsLoaded(true);
-    } catch {
-      setChildren([]);
-    } finally {
-      setIsLoading(false);
+      setIsLoading(true);
+      try {
+        const loadedChildren = await window.electron.app.getDirectoryChildren(
+          node.path,
+        );
+        setChildren(loadedChildren);
+        setIsLoaded(true);
+      } catch {
+        setChildren([]);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [hasChildren, isLoaded, node.path],
+  );
+
+  useEffect(() => {
+    if (!selectedFilePath) return;
+    if (
+      node.isDirectory &&
+      isFileWithinDirectory(selectedFilePath, node.path)
+    ) {
+      handleToggle(true).catch(() => undefined);
+    } else if (selectedFilePath === node.path) {
+      fileNodeRef.current?.scrollIntoView?.({ block: 'nearest' });
     }
-  };
+  }, [handleToggle, node.isDirectory, node.path, selectedFilePath]);
 
   useEffect(() => {
     if (handledRefreshVersionRef.current === refreshVersion) return;
@@ -218,6 +237,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({
     <ContextMenu>
       <ContextMenuTrigger asChild>
         <div
+          ref={fileNodeRef}
           role="button"
           tabIndex={0}
           className={cn(
@@ -393,7 +413,13 @@ export const ChatFilesystem = React.forwardRef<
   ChatFilesystemProps
 >((props: ChatFilesystemProps, _ref: ForwardedRef<ChatFilesystemRef>) => {
   const { t } = useTranslation();
-  const { workspace, className, active = true, onAddToChat } = props;
+  const {
+    workspace,
+    className,
+    active = true,
+    onAddToChat,
+    filePreviewRequest,
+  } = props;
   const [tree, setTree] = useState<DirectoryTreeNode | null>(null);
   const [refreshVersion, setRefreshVersion] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -407,15 +433,19 @@ export const ChatFilesystem = React.forwardRef<
   const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null);
   const [editorDirty, setEditorDirty] = useState(false);
   const loadRequestIdRef = useRef(0);
+  const handledPreviewRequestRef = useRef<ChatFilePreviewRequest | undefined>(
+    undefined,
+  );
 
   const handlePreviewFile = useCallback(
     (filePath: string) => {
-      if (filePath === selectedFilePath) return;
+      if (filePath === selectedFilePath) return true;
       // eslint-disable-next-line no-alert
       if (editorDirty && !window.confirm(t('chat.file_discard_changes')))
-        return;
+        return false;
       setEditorDirty(false);
       setSelectedFilePath(filePath);
+      return true;
     },
     [editorDirty, selectedFilePath, t],
   );
@@ -496,12 +526,36 @@ export const ChatFilesystem = React.forwardRef<
     setError(null);
     setSelectedFilePath(null);
     setEditorDirty(false);
-  }, [workspace]);
+    handleClearSearch();
+  }, [workspace, handleClearSearch]);
+
+  useEffect(() => {
+    if (
+      !active ||
+      !filePreviewRequest ||
+      handledPreviewRequestRef.current === filePreviewRequest
+    )
+      return;
+    handledPreviewRequestRef.current = filePreviewRequest;
+    if (
+      !workspace ||
+      !isFileWithinDirectory(filePreviewRequest.filePath, workspace)
+    )
+      return;
+    if (!handlePreviewFile(filePreviewRequest.filePath)) return;
+    handleClearSearch();
+  }, [
+    active,
+    workspace,
+    filePreviewRequest,
+    handleClearSearch,
+    handlePreviewFile,
+  ]);
 
   useEffect(() => {
     if (!active) return;
     loadTree().catch(() => undefined);
-  }, [active, loadTree]);
+  }, [active, loadTree, filePreviewRequest]);
 
   if (!workspace) {
     return (

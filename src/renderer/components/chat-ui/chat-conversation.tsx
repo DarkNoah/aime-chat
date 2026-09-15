@@ -114,7 +114,9 @@ export const ChatConversation = React.forwardRef<
                         <Fragment key={`${message.id}-${i}`}>
                           <Message from={message.role}>
                             <MessageContent>
-                              <MessageResponse>{part.text}</MessageResponse>
+                              <MessageResponse messageRole={message.role}>
+                                {part.text}
+                              </MessageResponse>
                             </MessageContent>
                           </Message>
                           <MessageActions

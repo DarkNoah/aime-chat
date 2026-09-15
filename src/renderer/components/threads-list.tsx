@@ -11,16 +11,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/renderer/components/ui/dropdown-menu';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/renderer/components/ui/alert-dialog';
+import { DeleteThreadDialog } from './delete-thread-dialog';
+import type { DeleteThreadOptions } from '@/types/chat';
 import { t } from 'i18next';
 
 import {
@@ -120,12 +112,11 @@ export default function ThreadsList({ className }: ThreadsListProps) {
     }
   }, []);
 
-  const onDeleteThread = async (id: string) => {
-    await window.electron.mastra.deleteThread(id);
+  const onDeleteThread = async (id: string, options: DeleteThreadOptions) => {
+    await window.electron.mastra.deleteThread(id, options);
     setItems((prev) => prev.filter((item) => item.id !== id));
     const currentIdFromPath = location.pathname.split('/')[2];
     if (currentIdFromPath === id) handleNavigation('/chat');
-    return true;
   };
 
   useEffect(() => {
@@ -337,43 +328,14 @@ export default function ThreadsList({ className }: ThreadsListProps) {
           <div ref={sentinelRef} className="h-1 w-full" />
         </div>
       </ScrollArea>
-      <AlertDialog
-        open={threadPendingDeletion !== null}
-        onOpenChange={(_open) => {
-          if (!_open) {
-            setThreadPendingDeletion(null);
-          }
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t('common.delect_chat')}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {threadPendingDeletion?.title}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-            <AlertDialogAction
-              color="red"
-              className="bg-destructive"
-              onClick={async (event) => {
-                event.preventDefault();
-                const item = threadPendingDeletion;
-                if (!item) {
-                  return;
-                }
-                const success = await onDeleteThread(item.id);
-                if (success) {
-                  setThreadPendingDeletion(null);
-                }
-              }}
-            >
-              <IconTrashX /> {t('common.delete')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {threadPendingDeletion && (
+        <DeleteThreadDialog
+          key={threadPendingDeletion.id}
+          thread={threadPendingDeletion}
+          onDelete={onDeleteThread}
+          onClose={() => setThreadPendingDeletion(null)}
+        />
+      )}
     </div>
   );
 }

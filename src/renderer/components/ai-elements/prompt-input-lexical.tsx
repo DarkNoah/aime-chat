@@ -58,6 +58,7 @@ import {
   parseChatFileSelectionSegments,
 } from '@/renderer/lib/chat-file-selection';
 import { cn } from '@/renderer/lib/utils';
+import { SkillBadge } from '../ui/skill-badge';
 import {
   findInstantSlashItem,
   findMatchingSkillSlashItem,
@@ -266,6 +267,21 @@ function ComposerMentionComponent(
   const { t } = useTranslation();
   const displayLabel = data?.displayLabel || value;
   const isSkill = data?.mentionKind === 'skill';
+  if (isSkill) {
+    return (
+      <SkillBadge
+        {...props}
+        ref={ref}
+        aria-label={`${trigger}${displayLabel}`}
+        data-beautiful-mention={serializedMention}
+        className={className}
+        title={data?.description || `${trigger}${value}`}
+      >
+        {trigger}
+        {displayLabel}
+      </SkillBadge>
+    );
+  }
   const isDirectory = data?.mentionKind === 'directory';
   const isFileReference = isDirectory || data?.mentionKind === 'file';
   const isFileSelection = data?.mentionKind === 'file-selection';
@@ -297,13 +313,6 @@ function ComposerMentionComponent(
           range: fileSelectionLineLabel,
         })
       : `${fileReferenceType} ${displayLabel}`;
-  } else if (isSkill) {
-    mentionClassName = cn(
-      'mx-0.5 inline-flex max-w-full cursor-default items-center rounded-md border border-primary/25 bg-primary/10 px-1.5 py-0.5 align-baseline font-medium text-primary leading-none',
-      'selection:bg-primary/20',
-      className,
-    );
-    mentionTitle = data?.description || `${trigger}${value}`;
   }
 
   return (

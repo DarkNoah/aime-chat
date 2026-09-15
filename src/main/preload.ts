@@ -12,7 +12,7 @@ import {
   UpdateState,
   WindowModeState,
 } from '@/types/app';
-import { ChatInput, ThreadState } from '@/types/chat';
+import { ChatInput, DeleteThreadOptions, ThreadState } from '@/types/chat';
 import {
   DirectoryTreeNode,
   FileInfo,
@@ -360,8 +360,8 @@ const electronHandler = {
       ipcRenderer.invoke(MastraChannel.UpdateThread, id, data),
     createThread: (options?: any) =>
       ipcRenderer.invoke(MastraChannel.CreateThread, options),
-    deleteThread: (id: string) =>
-      ipcRenderer.invoke(MastraChannel.DeleteThread, id),
+    deleteThread: (id: string, options?: DeleteThreadOptions): Promise<void> =>
+      ipcRenderer.invoke(MastraChannel.DeleteThread, id, options),
     chat: (data: any) => ipcRenderer.send(MastraChannel.Chat, data),
     enqueuePendingMessage: (data: any) =>
       ipcRenderer.invoke(MastraChannel.EnqueuePendingMessage, data),

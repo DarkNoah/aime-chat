@@ -1,19 +1,19 @@
 ---
 sidebar_position: 1
-description: 了解 AIME Chat 的项目工作区、模型接入、Agent 工具与知识库，并完成首次安装和配置。
+description: 了解 Aime Chat 的项目工作区、模型接入、Agent 工具与知识库，并完成首次安装和配置。
 ---
 
 import QuickStart from '@site/src/components/QuickStart';
 
 # 项目介绍
 
-**AIME Chat** 是连接模型、文件与工具的开源 AI 桌面工作台。
+**Aime Chat** 是连接模型、文件与工具的开源 AI 桌面工作台。
 
 <QuickStart />
 
-## 什么是 AIME Chat？
+## 什么是 Aime Chat？
 
-AIME Chat 是一款基于 **Electron** 构建的跨平台 AI 聊天桌面应用，集成了多种主流
+Aime Chat 是一款基于 **Electron** 构建的跨平台 AI 聊天桌面应用，集成了多种主流
 AI
 服务商，提供智能对话、知识库管理、工具调用等丰富功能。应用状态与聊天数据默认保存在本机；使用云端 Provider 或联网工具时，相关请求仍会发送给对应服务。
 
@@ -21,7 +21,7 @@ AI
 
 ### 🦾 Harness Engineering（智能体外壳工程）
 
-模型本身不负责本地文件、工具权限或持久状态。AIME Chat 使用 `Agent = Model + Harness` 的工程视角，在模型周围组织一套可执行、可观察的运行环境：
+模型本身不负责本地文件、工具权限或持久状态。Aime Chat 使用 `Agent = Model + Harness` 的工程视角，在模型周围组织一套可执行、可观察的运行环境：
 
 - 🔁 **编排循环** - prompt → 工具调用 → 观察 → 下一步，直至任务完成
 - 🧭 **指引** - Agent 指令、助手人格与 Skill 技能
@@ -139,7 +139,7 @@ AI Agent 可自主调用各类工具：
 ## 🚀 快速开始
 
 准备好开始使用了吗？前往 [安装指南](./getting-started/installation)
-了解如何安装和配置 AIME Chat。
+了解如何安装和配置 Aime Chat。
 
 ```bash
 # 克隆项目

@@ -3,6 +3,7 @@ import {
   formatBashCompletionMessage,
   formatBashCompletionStatus,
 } from '../background-bash-completion';
+import { parseStructuredMessage } from '@/renderer/components/ai-elements/structured-message-parser';
 
 function completion(
   bashId: string,
@@ -60,13 +61,40 @@ describe('formatBashCompletionMessage', () => {
       }),
     ]);
 
-    expect(text).toContain('Background execution completed (2 tasks).');
-    expect(text).toContain('1. Bash ID: bash-1');
-    expect(text).toContain('Description: build project');
-    expect(text).toContain('Command: command bash-1');
-    expect(text).toContain('Directory: /workspace');
-    expect(text).toContain('2. Bash ID: bash-2');
-    expect(text).toContain('Status: Failed (exit code 3)');
-    expect(text).toContain('Error: build failed');
+    expect(text).toContain('<background-bash-completion version="1">');
+    expect(text).toContain('<status>Failed (exit code 3)</status>');
+    expect(parseStructuredMessage(text)).toMatchObject({
+      type: 'background-bash-completion',
+      tasks: [
+        {
+          bashId: 'bash-1',
+          description: 'build project',
+          command: 'command bash-1',
+          directory: '/workspace',
+          exitCode: 0,
+        },
+        { bashId: 'bash-2', exitCode: 3, errorMessage: 'build failed' },
+      ],
+    });
+  });
+
+  it('round trips shell metacharacters, Unicode, multiline errors and null exit codes', () => {
+    const value = completion('bash-xml', {
+      command:
+        'printf \'<task>&amp; "测试"</task>\'\r\ncat < input > output && exit 2',
+      description: 'Build & test <project>',
+      directory: '/tmp/中文 & files',
+      errorMessage: 'first line\n</error><task>not markup</task>',
+      exitCode: null,
+      processSignal: 'SIGTERM',
+      timedOut: true,
+    });
+    const { threadId, resourceId, ...expected } = value;
+    expect(
+      parseStructuredMessage(formatBashCompletionMessage([value])),
+    ).toEqual({
+      type: 'background-bash-completion',
+      tasks: [expected],
+    });
   });
 });

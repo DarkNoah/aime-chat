@@ -54,6 +54,7 @@ import {
   ChatChangedType,
   ChatEvent,
   ChatInput,
+  DeleteThreadOptions,
   EnqueueChatMessageInput,
   EnqueueChatMessageResult,
   PendingChatMessageInput,
@@ -96,11 +97,17 @@ import type { TimelineGenerationInput } from '../project/timeline-entry';
 import { Projects } from '@/entities/projects';
 import path from 'path';
 import fs from 'fs';
+import { deleteThreadWorkspace } from './thread-workspace';
 import BaseTool, { BaseToolParams } from '../tools/base-tool';
 import {
   filterFilePartsForModel,
   getLastMessageIndex,
 } from '../utils/messageUtils';
+import {
+  filterImagesBeforeSend,
+  replaceImagesForCompression,
+} from '../utils/message-image-filter';
+import { messageImagesProcessor } from './processors/message-images';
 import { MastraThreadsUsage } from '@/entities/mastra-threads-usage';
 import { Repository } from 'typeorm';
 import { dbManager } from '../db';
@@ -758,27 +765,31 @@ class MastraManager extends BaseManager {
   }
 
   @channel(MastraChannel.DeleteThread)
-  public async deleteThread(id: string): Promise<void> {
-    this.clearQueuedMessages(id);
-    await projectTimelineManager.deleteByThread(id);
+  public async deleteThread(
+    id: string,
+    options: DeleteThreadOptions = {},
+  ): Promise<void> {
     const storage = this.mastra.getStorage();
     const memoryStore = await storage.getStore('memory');
     const thread = await memoryStore.getThreadById({ threadId: id });
-    await memoryStore.deleteThread({ threadId: id });
-    const workspace = thread.metadata?.workspace as string;
+    if (!thread) return;
 
-    await this.deleteWorkflowRuns(id, thread.resourceId);
-
-    if (workspace) {
-      if (fs.existsSync(workspace) && fs.statSync(workspace).isDirectory()) {
-        const entries = fs.readdirSync(workspace, { withFileTypes: true });
-        const files = entries.filter((e) => e.isFile()).length;
-        const dirs = entries.filter((e) => e.isDirectory()).length;
-        if (files === 0 && dirs === 0) {
-          fs.rmdirSync(workspace, { recursive: true });
-        }
+    if (
+      options.deleteWorkspace === true &&
+      !thread.resourceId?.startsWith('project:')
+    ) {
+      if (this.threadChats.some((chat) => chat.id === id)) {
+        throw new Error('Stop the chat before deleting its workspace.');
       }
+      const { userData } = await appManager.getInfo();
+      // Keep the thread available for retry if removing its files fails.
+      await deleteThreadWorkspace(thread, userData);
     }
+
+    this.clearQueuedMessages(id);
+    await projectTimelineManager.deleteByThread(id);
+    await this.deleteWorkflowRuns(id, thread.resourceId);
+    await memoryStore.deleteThread({ threadId: id });
   }
 
   @channel(MastraChannel.ClearMessages)
@@ -1464,6 +1475,7 @@ class MastraManager extends BaseManager {
       };
       // const maxContextSize = requestContext.get('maxContextSize');
       let streamOptions: AgentExecutionOptions<undefined> = {
+        inputProcessors: [messageImagesProcessor],
         includeRawChunks: false,
         // structuredOutput: undefined,
         runId: runId,
@@ -1681,20 +1693,13 @@ class MastraManager extends BaseManager {
 
           if (_inputMessage) input.push(_inputMessage);
 
-          let messages = convertToModelMessages(historyMessagesAISdkV5);
-          messages = messages.map(m => {
-            if (m.role == 'tool' && isArray(m.content) && m.content.length > 0) {
-              m.content = m.content.map(c => {
-                if (c.type == 'tool-result' && c.providerOptions?.mastra?.modelOutput) {
-                  delete c.providerOptions?.mastra?.modelOutput
-                }
-                return c;
-              });
-
-
-            }
-            return m;
-          })
+          const historyModelMessages = convertToModelMessages(historyMessagesAISdkV5);
+          // Include pending input when choosing the latest user and allocating
+          // the shared image budget, but compact only persisted history.
+          const messages = filterImagesBeforeSend([
+            ...historyModelMessages,
+            ...(_inputMessage ? convertToModelMessages([_inputMessage]) : []),
+          ]).slice(0, historyModelMessages.length);
 
 
 
@@ -2853,8 +2858,10 @@ ${memoryDigest}
       const supportsVision =
         compressionModelInfo?.modelInfo?.modalities?.input?.includes('image') ??
         false;
+      // Images are always text, including when retrying with a vision model.
+      // Keep the existing capability filtering for other file/media types.
       const inputMessages = filterFilePartsForModel(
-        originalInputMessages,
+        replaceImagesForCompression(originalInputMessages),
         supportsVision,
       );
 

@@ -7,7 +7,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 const gtagTrackingId = process.env.GA_MEASUREMENT_ID;
 
 const config: Config = {
-  title: 'AIME Chat',
+  title: 'Aime Chat',
   tagline: '强大的 AI 桌面聊天应用',
   favicon: 'img/favicon.ico',
 
@@ -69,9 +69,9 @@ const config: Config = {
       respectPrefersColorScheme: true,
     },
     navbar: {
-      title: 'AIME Chat',
+      title: 'Aime Chat',
       logo: {
-        alt: 'AIME Chat Logo',
+        alt: 'Aime Chat Logo',
         src: 'img/home-icon.png',
       },
       items: [
@@ -138,7 +138,7 @@ const config: Config = {
           ],
         },
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} AIME Chat. Built with Docusaurus.`,
+      copyright: `Copyright © ${new Date().getFullYear()} Aime Chat. Built with Docusaurus.`,
     },
     prism: {
       theme: prismThemes.github,

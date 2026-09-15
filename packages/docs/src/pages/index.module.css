@@ -33,18 +33,6 @@
   border-bottom: 1px solid #1d3325;
 }
 
-.hero::before {
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: min(32vw, 30rem);
-  height: 100%;
-  content: '';
-  background: #0a1a10;
-  border-left: 1px solid #122a1b;
-  pointer-events: none;
-}
-
 .heroLayout {
   position: relative;
   display: grid;
@@ -852,10 +840,6 @@
     padding-top: 4rem;
   }
 
-  .hero::before {
-    width: 38%;
-  }
-
   .heroLayout,
   .routesLayout,
   .workspaceLayout,
@@ -965,10 +949,6 @@
 }
 
 @media (max-width: 540px) {
-  .hero::before {
-    display: none;
-  }
-
   .brandLine {
     margin-bottom: 1.2rem;
   }

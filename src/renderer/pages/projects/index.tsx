@@ -1,3 +1,4 @@
+import { getChatPreviewEventUpdate } from '@/renderer/lib/chat-preview-event';
 import {
   ChatPanel,
   ChatPanelRef,
@@ -228,15 +229,10 @@ function ProjectsPage() {
   useEffect(() => {
     if (threadId) {
       eventBus.on(`chat:onEvent:${threadId}`, (event: any) => {
-        console.log('chat:onEvent', event);
+        const update = getChatPreviewEventUpdate(event, threadId);
+        if (!update) return;
 
-        setPreviewData((data) => {
-          return {
-            ...data,
-            previewPanel: ChatPreviewType.WEB_PREVIEW,
-            webPreviewUrl: event.data?.url,
-          };
-        });
+        setPreviewData((data) => ({ ...data, ...update }));
       });
       return () => {
         eventBus.off(`chat:onEvent:${threadId}`);

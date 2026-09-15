@@ -143,17 +143,20 @@ flowchart TD
 
 自动养成时，系统会给 Agent 注入一个 Cron 上下文，其中包含：
 
-```text
-<cron-context>
-cron_id: builtin_cultivation_daily
-cron_name: Cultivation Daily
-started_at: 2026-04-28T15:00:00.000Z
-previous_run_at: 2026-04-27T15:00:00.000Z
-ingest_since: 2026-04-27T15:00:00.000Z
+```xml
+<cron-context version="1">
+<cron_id>builtin_cultivation_daily</cron_id>
+<cron_name>Cultivation Daily</cron_name>
+<trigger>schedule</trigger>
+<started_at>2026-04-28T15:00:00.000Z</started_at>
+<previous_run_at>2026-04-27T15:00:00.000Z</previous_run_at>
+<ingest_since>2026-04-27T15:00:00.000Z</ingest_since>
 </cron-context>
 ```
 
 Agent 会把 `ingest_since` 作为 `ChatHistoryList` 和 `ChatHistoryRead` 的时间过滤条件，只处理上次执行之后的新内容。
+
+聊天中，这类用户消息显示为可展开的定时任务标识；展开后可查看任务内容、开始时间和触发方式。内部上下文仍完整传给 Agent，旧版消息也兼容此展示方式。
 
 ## 防止重复养成
 

@@ -1,6 +1,7 @@
 /* eslint-disable camelcase */
 /* eslint-disable no-underscore-dangle */
 /* eslint-disable react/no-array-index-key */
+import { getChatPreviewEventUpdate } from '@/renderer/lib/chat-preview-event';
 import {
   Fragment,
   useEffect,
@@ -242,17 +243,12 @@ function ChatPage() {
         chatPanelRef?.current?.sendMessage(message, options);
       }
       eventBus.on(`chat:onEvent:${threadId}`, (event: any) => {
-        console.log('chat:onEvent', event);
+        const update = getChatPreviewEventUpdate(event, threadId);
+        if (!update) return;
         if (!isCompactWindowRef.current) {
           setShowPreview(true);
         }
-        setPreviewData((data) => {
-          return {
-            ...data,
-            previewPanel: ChatPreviewType.WEB_PREVIEW,
-            webPreviewUrl: event.data?.url,
-          };
-        });
+        setPreviewData((data) => ({ ...data, ...update }));
       });
       return () => {
         eventBus.off(`chat:onEvent:${threadId}`);

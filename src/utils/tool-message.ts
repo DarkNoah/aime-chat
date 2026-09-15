@@ -41,6 +41,7 @@ export const getToolMessageDescription = (toolName: string, input: any) => {
     case 'LibSQLRun':
       return input?.sql;
     case 'KnowledgeBaseSearch':
+    case 'MemorySearch':
       return input?.query;
     case 'Message':
       let data;
