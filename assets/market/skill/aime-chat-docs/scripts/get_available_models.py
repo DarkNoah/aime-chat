@@ -8,7 +8,7 @@ Usage:
 
 Options:
     --type TYPE  Model type: llm (default), embedding, reranker,
-                 image_generation, transcription, speech, ocr, music
+                 image_generation, video_generation, transcription, speech, ocr, music
     --json       Print the raw JSON response instead of the formatted list
 """
 
@@ -25,6 +25,7 @@ MODEL_TYPES = [
     "embedding",
     "reranker",
     "image_generation",
+    "video_generation",
     "transcription",
     "speech",
     "ocr",

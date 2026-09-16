@@ -93,8 +93,8 @@ export class CodeAgent extends BaseAgent {
     `${ToolType.BUILD_IN}:${KnowledgeBaseGetItem.toolName}`,
     `${ToolType.BUILD_IN}:${AgentBrowser.toolName}`,
     `${ToolType.BUILD_IN}:${GenerateImage.toolName}`,
-    `${ToolType.BUILD_IN}:${GenerateVideo.toolName}`,
-    `${ToolType.BUILD_IN}:${Generate3D.toolName}`,
+    // `${ToolType.BUILD_IN}:${GenerateVideo.toolName}`,
+    // `${ToolType.BUILD_IN}:${Generate3D.toolName}`,
     `${ToolType.BUILD_IN}:${EditImage.toolName}`,
 
 

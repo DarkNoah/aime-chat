@@ -1,6 +1,8 @@
 /* eslint-disable class-methods-use-this, no-continue, no-await-in-loop, no-void, no-console, import/no-cycle */
 import { parse } from 'csv-parse/sync';
 import fs from 'fs/promises';
+import { constants as fsConstants } from 'fs';
+import path from 'path';
 import { BrowserWindow } from 'electron';
 import { Repository } from 'typeorm';
 import { getTextContentFromMastraDBMessage } from '@mastra/evals/scorers/utils';
@@ -12,6 +14,7 @@ import { BaseManager } from '@/main/BaseManager';
 import { appManager } from '@/main/app';
 import { dbManager } from '@/main/db';
 import { channel } from '@/main/ipc/IpcController';
+import { api } from '@/main/api/ApiController';
 import mastraManager from '@/main/mastra';
 import { agentManager } from '@/main/mastra/agents';
 import { nanoid } from '@/utils/nanoid';
@@ -30,6 +33,7 @@ import {
   EvalThreadScoreResult,
 } from '@/types/evals';
 import { ScorerRegistry } from './scorer-registry';
+import { queryInteger, queryString } from './api-query';
 
 const jsonCell = (value: unknown) => {
   if (typeof value !== 'string') return value;
@@ -64,6 +68,17 @@ class EvalsManager extends BaseManager {
     console.log('EvalsManager initialized');
   }
 
+  @api({
+    method: 'get',
+    path: '/api/evals/list-datasets',
+    args: (req) => [
+      {
+        page: queryInteger(req.query.page, 'page', 0),
+        perPage: queryInteger(req.query.perPage, 'perPage', 1),
+        name: queryString(req.query.name, 'name'),
+      },
+    ],
+  })
   @channel(EvalsChannel.ListDatasets)
   async listDatasets(input?: {
     page?: number;
@@ -80,12 +95,25 @@ class EvalsManager extends BaseManager {
     });
   }
 
+  @api({
+    method: 'get',
+    path: '/api/evals/get-dataset',
+    args: (req) => [queryString(req.query.id, 'id', true)],
+  })
   @channel(EvalsChannel.GetDataset)
   async getDataset(id: string) {
     const dataset = await mastraManager.mastra.datasets.get({ id });
-    return dataset.getDetails();
+    const [details, appInfo] = await Promise.all([
+      dataset.getDetails(),
+      appManager.getInfo(),
+    ]);
+    return {
+      ...details,
+      defaultWorkspace: path.join(appInfo.userData, 'evals', id),
+    };
   }
 
+  @api({ method: 'post', path: '/api/evals/create-dataset' })
   @channel(EvalsChannel.CreateDataset)
   async createDataset(input: EvalDatasetInput) {
     const dataset = await mastraManager.mastra.datasets.create({
@@ -98,6 +126,7 @@ class EvalsManager extends BaseManager {
     return dataset.getDetails();
   }
 
+  @api({ method: 'post', path: '/api/evals/update-dataset' })
   @channel(EvalsChannel.UpdateDataset)
   async updateDataset({ id, ...input }: EvalDatasetInput & { id: string }) {
     const dataset = await mastraManager.mastra.datasets.get({ id });
@@ -110,11 +139,28 @@ class EvalsManager extends BaseManager {
     });
   }
 
+  @api({
+    method: 'post',
+    path: '/api/evals/delete-dataset',
+    args: (req) => [queryString(req.body?.id, 'id', true)],
+  })
   @channel(EvalsChannel.DeleteDataset)
   async deleteDataset(id: string) {
     await mastraManager.mastra.datasets.delete({ id });
   }
 
+  @api({
+    method: 'get',
+    path: '/api/evals/list-dataset-items',
+    args: (req) => [
+      {
+        datasetId: queryString(req.query.datasetId, 'datasetId', true),
+        page: queryInteger(req.query.page, 'page', 0),
+        perPage: queryInteger(req.query.perPage, 'perPage', 1),
+        search: queryString(req.query.search, 'search'),
+      },
+    ],
+  })
   @channel(EvalsChannel.ListDatasetItems)
   async listDatasetItems(input: {
     datasetId: string;
@@ -132,6 +178,7 @@ class EvalsManager extends BaseManager {
     });
   }
 
+  @api({ method: 'post', path: '/api/evals/add-dataset-items' })
   @channel(EvalsChannel.AddDatasetItems)
   async addDatasetItems(input: {
     datasetId: string;
@@ -143,6 +190,7 @@ class EvalsManager extends BaseManager {
     return dataset.addItems({ items: input.items });
   }
 
+  @api({ method: 'post', path: '/api/evals/update-dataset-item' })
   @channel(EvalsChannel.UpdateDatasetItem)
   async updateDatasetItem(input: {
     datasetId: string;
@@ -158,6 +206,7 @@ class EvalsManager extends BaseManager {
     });
   }
 
+  @api({ method: 'post', path: '/api/evals/delete-dataset-item' })
   @channel(EvalsChannel.DeleteDatasetItem)
   async deleteDatasetItem(input: { datasetId: string; itemId: string }) {
     const dataset = await mastraManager.mastra.datasets.get({
@@ -166,6 +215,7 @@ class EvalsManager extends BaseManager {
     await dataset.deleteItem({ itemId: input.itemId });
   }
 
+  @api({ method: 'post', path: '/api/evals/import-dataset' })
   @channel(EvalsChannel.ImportDataset)
   async importDataset(input: {
     datasetId: string;
@@ -228,6 +278,24 @@ class EvalsManager extends BaseManager {
     return result;
   }
 
+  @api({
+    method: 'get',
+    path: '/api/evals/export-dataset',
+    args: (req) => {
+      const format = queryString(req.query.format, 'format', true);
+      if (format !== 'csv' && format !== 'jsonl') {
+        throw Object.assign(new Error('format must be csv or jsonl'), {
+          status: 400,
+        });
+      }
+      return [
+        {
+          datasetId: queryString(req.query.datasetId, 'datasetId', true),
+          format,
+        },
+      ];
+    },
+  })
   @channel(EvalsChannel.ExportDataset)
   async exportDataset(input: {
     datasetId: string;
@@ -273,11 +341,23 @@ class EvalsManager extends BaseManager {
     await fs.writeFile(input.filePath, input.content, 'utf8');
   }
 
+  @api({ method: 'post', path: '/api/evals/start-experiment' })
   @channel(EvalsChannel.StartExperiment)
   async startExperiment(input: EvalExperimentInput) {
+    if (typeof input.workspace !== 'string' || !input.workspace.trim()) {
+      throw Object.assign(new Error('workspace is required'), { status: 400 });
+    }
+    if (!path.isAbsolute(input.workspace.trim())) {
+      throw Object.assign(new Error('workspace must be an absolute path'), {
+        status: 400,
+      });
+    }
+    const workspace = path.normalize(input.workspace.trim());
     const dataset = await mastraManager.mastra.datasets.get({
       id: input.datasetId,
     });
+    await fs.mkdir(workspace, { recursive: true });
+    await fs.access(workspace, fsConstants.W_OK);
     const [scorers, agentConfig, appInfo] = await Promise.all([
       Promise.all(
         input.scorerIds.map((id) => this.registry.get(id, input.modelId)),
@@ -295,6 +375,7 @@ class EvalsManager extends BaseManager {
         agentId: input.agentId,
         modelId: input.modelId,
         scorerIds: input.scorerIds,
+        workspace,
       },
       task: async ({ input: itemInput, signal }) => {
         const evaluationThreadId = `evals:${input.datasetId}:${nanoid()}`;
@@ -305,6 +386,7 @@ class EvalsManager extends BaseManager {
         requestContext.set('subAgents', agentConfig.subAgents || []);
         requestContext.set('threadId', evaluationThreadId);
         requestContext.set('resourceId', experimentResourceId);
+        requestContext.set('workspace', workspace);
         requestContext.set('think', true);
 
         const agent = await agentManager.buildAgent(input.agentId, {
@@ -359,6 +441,17 @@ class EvalsManager extends BaseManager {
     return pending;
   }
 
+  @api({
+    method: 'get',
+    path: '/api/evals/list-experiments',
+    args: (req) => [
+      {
+        datasetId: queryString(req.query.datasetId, 'datasetId', true),
+        page: queryInteger(req.query.page, 'page', 0),
+        perPage: queryInteger(req.query.perPage, 'perPage', 1),
+      },
+    ],
+  })
   @channel(EvalsChannel.ListExperiments)
   async listExperiments(input: {
     datasetId: string;
@@ -374,6 +467,16 @@ class EvalsManager extends BaseManager {
     });
   }
 
+  @api({
+    method: 'get',
+    path: '/api/evals/get-experiment',
+    args: (req) => [
+      {
+        datasetId: queryString(req.query.datasetId, 'datasetId', true),
+        experimentId: queryString(req.query.experimentId, 'experimentId', true),
+      },
+    ],
+  })
   @channel(EvalsChannel.GetExperiment)
   async getExperiment(input: { datasetId: string; experimentId: string }) {
     const dataset = await mastraManager.mastra.datasets.get({
@@ -423,6 +526,7 @@ class EvalsManager extends BaseManager {
     };
   }
 
+  @api({ method: 'post', path: '/api/evals/compare-experiments' })
   @channel(EvalsChannel.CompareExperiments)
   async compareExperiments(input: {
     experimentIds: string[];
@@ -431,21 +535,29 @@ class EvalsManager extends BaseManager {
     return mastraManager.mastra.datasets.compareExperiments(input);
   }
 
+  @api({ method: 'get', path: '/api/evals/list-scorers', args: () => [] })
   @channel(EvalsChannel.ListScorers)
   async listScorers() {
     return this.registry.list();
   }
 
+  @api({ method: 'post', path: '/api/evals/save-scorer' })
   @channel(EvalsChannel.SaveScorer)
   async saveScorer(input: EvalScorerInput) {
     return this.registry.save(input);
   }
 
+  @api({
+    method: 'post',
+    path: '/api/evals/delete-scorer',
+    args: (req) => [queryString(req.body?.id, 'id', true)],
+  })
   @channel(EvalsChannel.DeleteScorer)
   async deleteScorer(id: string) {
     await this.registry.delete(id);
   }
 
+  @api({ method: 'post', path: '/api/evals/test-scorer' })
   @channel(EvalsChannel.TestScorer)
   async testScorer(input: EvalScorerTestInput): Promise<EvalScorerRunResult> {
     const scorer = await this.registry.createTemporary(input.scorer);
@@ -469,6 +581,7 @@ class EvalsManager extends BaseManager {
     }
   }
 
+  @api({ method: 'post', path: '/api/evals/score-thread' })
   @channel(EvalsChannel.ScoreThread)
   async scoreThread(
     input: EvalThreadScoreInput,
@@ -553,6 +666,17 @@ class EvalsManager extends BaseManager {
     return results;
   }
 
+  @api({
+    method: 'get',
+    path: '/api/evals/list-thread-scores',
+    args: (req) => [
+      {
+        threadId: queryString(req.query.threadId, 'threadId', true),
+        page: queryInteger(req.query.page, 'page', 0),
+        perPage: queryInteger(req.query.perPage, 'perPage', 1),
+      },
+    ],
+  })
   @channel(EvalsChannel.ListThreadScores)
   async listThreadScores(input: {
     threadId: string;

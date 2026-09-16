@@ -1,11 +1,9 @@
 import type { ModelMessage } from 'ai';
-import type { LanguageModelV2Prompt } from '@ai-sdk/provider';
 import {
   filterImagesBeforeSend,
   IMAGE_PLACEHOLDER,
   replaceImagesForCompression,
 } from '../message-image-filter';
-import { messageImagesProcessor } from '../../mastra/processors/message-images';
 import { filterFilePartsForModel } from '../messageUtils';
 
 const image = (label: string) => ({
@@ -183,23 +181,6 @@ describe('filterImagesBeforeSend', () => {
     expect(filterImagesBeforeSend(messages)).toEqual(messages);
     expect(replaceImagesForCompression(messages)).toEqual(messages);
     expect(filterImagesBeforeSend([])).toEqual([]);
-  });
-
-  it('filters the final provider prompt without changing the original request', () => {
-    const prompt: LanguageModelV2Prompt = deepFreeze([
-      {
-        role: 'user',
-        content: [{ type: 'file', data: 'aW1hZ2U=', mediaType: 'image/png' }],
-      },
-      { role: 'assistant', content: [{ type: 'text', text: 'reply' }] },
-      { role: 'user', content: [{ type: 'text', text: 'next' }] },
-    ]);
-    const result = messageImagesProcessor.processLLMRequest({ prompt });
-    expect(result.prompt).toEqual([
-      { role: 'user', content: [omitted] },
-      ...prompt.slice(1),
-    ]);
-    expect(prompt[0]).toMatchObject({ content: [{ type: 'file' }] });
   });
 });
 

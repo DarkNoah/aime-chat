@@ -14,6 +14,7 @@ import {
 import { searchKnowledgeBaseGraph } from './graph-search';
 import { providersManager } from "@/main/providers";
 import { appManager } from "@/main/app";
+import { localModelManager } from '@/main/local-model';
 import {
   createKnowledgeBaseGraphVectorStore,
   getKnowledgeBaseGraphIndexName,
@@ -533,8 +534,9 @@ export class KnowledgeBaseCreate extends BaseTool {
   static readonly toolName = 'KnowledgeBaseCreate';
   id: string = 'KnowledgeBaseCreate';
   description = `Create a knowledge base.
-When embeddingModel is omitted, the globally configured default embedding model is used.
-Use skill:local:aime-chat-docs to look up the available embedding models when needed.
+When embeddingModel or rerankerModel is omitted, its globally configured default is used.
+Before creating a knowledge base with local models, read skill:local:aime-chat-docs (references/local-models.md). Check local embedding and reranker availability. If either is missing, guide the user to download the missing model, wait for completion, then create the knowledge base with the provider model IDs returned by the API.
+Reuse configured remote models when appropriate. If no embedding model is configured, guide model setup first; only create a keyword-only knowledge base when the user requests that mode.
 `;
 
   inputSchema = z.object({
@@ -543,7 +545,11 @@ Use skill:local:aime-chat-docs to look up the available embedding models when ne
     embeddingModel: z
       .string()
       .optional()
-      .describe('Optional embedding model. Uses the global default when omitted.'),
+      .describe('Optional embedding model. Uses the global default when omitted; pass an empty string only for an explicitly requested keyword-only knowledge base.'),
+    rerankerModel: z
+      .string()
+      .optional()
+      .describe('Optional reranker model. Uses the global default when omitted; pass an empty string to disable reranking for this knowledge base.'),
 
     extendColumns: z.array(z.object({ columnType: z.enum(['text', 'blob', 'number', 'boolean']), name: z.string() })).optional(),
   });
@@ -553,15 +559,14 @@ Use skill:local:aime-chat-docs to look up the available embedding models when ne
   }
 
   execute = async (inputData: z.infer<typeof this.inputSchema>, options?: ToolExecutionContext<ZodSchema, any>) => {
-    const { name, description, embeddingModel, extendColumns = [] } = inputData;
+    const { name, description, embeddingModel, rerankerModel, extendColumns = [] } = inputData;
     const appInfo = await appManager.getInfo();
-    const embedding =
-      embeddingModel?.trim() ||
-      appInfo.defaultModel.embeddingModel?.trim() ||
-      undefined;
-    const reranker =
-      appInfo.defaultModel.rerankerModel?.trim() ||
-      undefined;
+    const embedding = (embeddingModel === undefined
+      ? appInfo.defaultModel.embeddingModel?.trim()
+      : embeddingModel.trim()) || undefined;
+    const reranker = (rerankerModel === undefined
+      ? appInfo.defaultModel.rerankerModel?.trim()
+      : rerankerModel.trim()) || undefined;
     const data: CreateKnowledgeBase = {
       name,
       description,
@@ -573,10 +578,42 @@ Use skill:local:aime-chat-docs to look up the available embedding models when ne
       }
     }
     try {
+      if (!embedding && embeddingModel === undefined) {
+        return {
+          success: false,
+          needsModelSetup: true,
+          error: 'No embedding model is configured for this knowledge base',
+          tips: 'Read skill:local:aime-chat-docs references/local-models.md. Guide the user to select and download local embedding/reranker models, or select available remote models, then retry with their provider model IDs. Use embeddingModel="" only when the user explicitly requests keyword-only retrieval.',
+        };
+      }
+      const selected = [
+        { type: 'embedding' as const, id: embedding },
+        { type: 'reranker' as const, id: reranker },
+      ].filter((model) => model.id?.startsWith('local/'));
+      if (selected.length) {
+        const localModels = await localModelManager.getList();
+        const missingModels = selected.flatMap(({ type, id }) => {
+          const modelId = id.slice('local/'.length);
+          const candidates = type === 'embedding'
+            ? [...localModels.embedding, ...localModels.clip] : localModels.reranker;
+          const model = candidates.find((item) => item.id === modelId);
+          return model?.isDownloaded ? [] : [{
+            type: model?.type || type, modelId, providerModelId: id,
+          }];
+        });
+        if (missingModels.length) {
+          return {
+            success: false,
+            error: 'Local knowledge base models are not fully downloaded',
+            missingModels,
+            tips: 'Read skill:local:aime-chat-docs references/local-models.md. Guide the user to download the missing embedding/reranker models, verify isDownloaded=true, then retry KnowledgeBaseCreate.',
+          };
+        }
+      }
       const knowledgeBase = await knowledgeBaseManager.createKnowledgeBase(data);
       return { success: true, knowledgeBaseId: knowledgeBase.id };
     } catch (err) {
-      return { success: false, error: (err as Error).message, tips: `You need to read skill:local:aime-chat-docs to get the available embedding models` };
+      return { success: false, error: (err as Error).message, tips: 'Read skill:local:aime-chat-docs references/local-models.md and references/get-available-models.md to check embedding/reranker availability. Resolve any missing local downloads before retrying.' };
     }
 
   }

@@ -31,6 +31,7 @@ llm
 embedding
 reranker
 image_generation
+video_generation
 transcription
 speech
 ocr
@@ -66,3 +67,4 @@ music
 - `llm` 类型只返回已启用 provider 中已启用的聊天模型。
 - `embedding`、`reranker`、`transcription`、`speech`、`ocr` 等类型会按 provider 能力查询，并可能包含本地 provider 的模型。
 - 没有可用模型时返回空数组 `[]`。
+- 创建知识库时若缺少本地 embedding 或 reranker，按 [本地模型与知识库准备](local-models.md) 查询目录并引导下载；确认下载完成后再创建知识库。已有可用远程模型时可继续使用用户选定的远程方案。

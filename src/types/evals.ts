@@ -72,6 +72,7 @@ export interface EvalExperimentInput {
   datasetId: string;
   name: string;
   description?: string;
+  workspace: string;
   agentId: string;
   modelId: string;
   scorerIds: string[];

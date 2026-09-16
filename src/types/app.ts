@@ -188,6 +188,16 @@ export interface ScreenSource {
   thumbnail: string; // base64
 }
 
+export type RuntimeId = keyof RuntimeInfo;
+export type RuntimeAction = 'install' | 'reinstall' | 'uninstall';
+export type RuntimeDetails = RuntimeInfo[RuntimeId] & {
+  id: RuntimeId;
+  name: string;
+  dependencies: RuntimeId[];
+  supportedActions: RuntimeAction[];
+  operation?: RuntimeAction;
+};
+
 export interface RuntimeInfo {
   uv?: {
     status: 'installed' | 'not_installed' | 'installing' | undefined;

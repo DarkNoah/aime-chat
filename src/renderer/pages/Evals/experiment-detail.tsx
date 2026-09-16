@@ -137,6 +137,11 @@ export default function ExperimentDetailPage() {
               <p className="mt-1 text-sm text-muted-foreground">
                 {experiment.description || t('evals.no_description')}
               </p>
+              {experiment.metadata?.workspace ? (
+                <p className="mt-1 break-all text-xs text-muted-foreground">
+                  {t('evals.workspace')}: {experiment.metadata.workspace}
+                </p>
+              ) : null}
             </div>
           </div>
           <Button variant="outline" size="sm" onClick={() => void load()}>

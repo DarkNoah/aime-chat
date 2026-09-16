@@ -261,6 +261,7 @@ export class OpenAIProvider extends BaseProvider {
 
   async getImageGenerationList(): Promise<{ name: string; id: string }[]> {
     return [
+      { id: 'gpt-image-2.5', name: 'GPT Image 2.5' },
       { id: 'gpt-image-2', name: 'GPT Image 2' },
       { id: 'gpt-image-1.5', name: 'GPT Image 1.5' },
       { id: 'gpt-image-1', name: 'GPT Image 1' },

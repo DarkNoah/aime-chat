@@ -1,6 +1,7 @@
 import { knowledgeBaseManager } from '@/main/knowledge-base';
 import { appManager } from '@/main/app';
 import { providersManager } from '@/main/providers';
+import { localModelManager } from '@/main/local-model';
 import { searchKnowledgeBaseGraph } from './graph-search';
 import {
   KnowledgeBaseCreate,
@@ -39,6 +40,9 @@ jest.mock('@/main/app', () => ({
   appManager: {
     getInfo: jest.fn(),
   },
+}));
+jest.mock('@/main/local-model', () => ({
+  localModelManager: { getList: jest.fn() },
 }));
 jest.mock('./graph-search', () => ({
   searchKnowledgeBaseGraph: jest.fn(),
@@ -132,6 +136,62 @@ describe('KnowledgeBaseCreate', () => {
         reranker: 'provider/default-reranker',
       }),
     );
+  });
+
+  it('reports missing local embedding and reranker models before creating any knowledge base', async () => {
+    jest.mocked(localModelManager.getList).mockResolvedValue({
+      embedding: [{ id: 'bge-m3', type: 'embedding', isDownloaded: false }],
+      reranker: [{ id: 'bge-reranker-base', type: 'reranker', isDownloaded: false }],
+      clip: [], ocr: [], other: [],
+    });
+    const result = await new KnowledgeBaseCreate().execute({
+      name: 'Local KB', embeddingModel: 'local/bge-m3', rerankerModel: 'local/bge-reranker-base',
+    });
+    expect(result).toMatchObject({
+      success: false,
+      missingModels: [
+        { type: 'embedding', modelId: 'bge-m3' },
+        { type: 'reranker', modelId: 'bge-reranker-base' },
+      ],
+    });
+    expect(knowledgeBaseManager.createKnowledgeBase).not.toHaveBeenCalled();
+  });
+
+  it('creates with the explicit local pair after downloads complete, without changing global defaults', async () => {
+    jest.mocked(localModelManager.getList).mockResolvedValue({
+      embedding: [{ id: 'bge-m3', isDownloaded: true }],
+      reranker: [{ id: 'bge-reranker-base', isDownloaded: true }],
+      clip: [], ocr: [], other: [],
+    });
+    const result = await new KnowledgeBaseCreate().execute({
+      name: 'Local KB', embeddingModel: 'local/bge-m3', rerankerModel: 'local/bge-reranker-base',
+    });
+    expect(result.success).toBe(true);
+    expect(knowledgeBaseManager.createKnowledgeBase).toHaveBeenCalledWith(expect.objectContaining({
+      embedding: 'local/bge-m3', reranker: 'local/bge-reranker-base',
+    }));
+  });
+
+  it('allows the user to disable reranking without affecting the global default', async () => {
+    await new KnowledgeBaseCreate().execute({ name: 'No reranker', rerankerModel: '' });
+    expect(knowledgeBaseManager.createKnowledgeBase).toHaveBeenCalledWith(expect.objectContaining({
+      embedding: 'provider/default-embedding', reranker: undefined,
+    }));
+    expect(localModelManager.getList).not.toHaveBeenCalled();
+  });
+
+  it('guides model setup instead of silently creating a keyword-only knowledge base', async () => {
+    jest.mocked(appManager.getInfo).mockResolvedValue({ defaultModel: {} } as any);
+    const result = await new KnowledgeBaseCreate().execute({ name: 'Needs models' });
+    expect(result).toMatchObject({ success: false, needsModelSetup: true });
+    expect(knowledgeBaseManager.createKnowledgeBase).not.toHaveBeenCalled();
+  });
+
+  it('allows an explicitly requested keyword-only knowledge base despite configured defaults', async () => {
+    await new KnowledgeBaseCreate().execute({ name: 'Keyword KB', embeddingModel: '', rerankerModel: '' });
+    expect(knowledgeBaseManager.createKnowledgeBase).toHaveBeenCalledWith(expect.objectContaining({
+      embedding: undefined, reranker: undefined,
+    }));
   });
 });
 

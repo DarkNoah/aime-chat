@@ -50,7 +50,7 @@ Important:
       .describe(
         `The skill id (no arguments). E.g., "skill:anthropic-agent-skills:pdf" or "skill:anthropic-agent-skills:xlsx"`,
       ),
-    args: z.string().optional().describe(`Optional arguments for the skill`),
+    // args: z.string().optional().describe(`Optional arguments for the skill`),
   });
 
   //outputSchema = z.string();
@@ -117,7 +117,8 @@ ${_skills
     inputData: z.infer<typeof this.inputSchema>,
     context: ToolExecutionContext<z.ZodSchema, any>,
   ) => {
-    const { skill_id, args } = inputData;
+    // const { skill_id, args } = inputData;
+    const { skill_id } = inputData;
     const { requestContext } = context ?? {};
     let _skillId = skill_id;
     if (!skill_id.startsWith(`${ToolType.SKILL}:`)) {
@@ -168,8 +169,6 @@ Base directory for this skill: ${skillInfo.path}
 
 ${skillInfo.content || skillInfo.skillmd}
 
-
-${args ? 'ARGUMENTS: ' + args : ''}
 `;
     }
     return `skill id: "${_skillId}" not found`;

@@ -5,6 +5,7 @@ export interface DatasetRecord {
   version: number;
   targetIds?: string[] | null;
   scorerIds?: string[] | null;
+  defaultWorkspace?: string;
   createdAt: string | Date;
   updatedAt: string | Date;
 }
@@ -30,6 +31,7 @@ export interface Experiment {
     agentId?: string;
     modelId?: string;
     scorerIds?: string[];
+    workspace?: string;
   };
   startedAt?: string | Date | null;
   completedAt?: string | Date | null;

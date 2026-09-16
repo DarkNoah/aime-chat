@@ -33,6 +33,9 @@ Use templates when the user is vague or when edits must be precise.
 Editing template (preserve everything else):
 "Change ONLY: <single change>. Keep identical: subject, composition/crop, pose, lighting, color palette, background, text, and overall style. Do not add new objects. If text exists, keep it unchanged."
 
+Image Generation Skill:
+You can load \`skill:local:imagegen\` to read the prompt examples.
+
 Returns:
 - A list of image file paths.
   example:

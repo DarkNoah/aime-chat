@@ -51,6 +51,7 @@ import { AlibabaProvider } from './alibaba-provider';
 import { MiniMaxProvider } from './minimax-provider';
 import { PaddleOcrApiProvider } from './paddleocrapi-provider';
 import { api } from '../api/ApiController';
+import { describeProvider } from '../api/diagnostics';
 const modelsData = require('../../../assets/models.json');
 class ProvidersManager extends BaseManager {
   repository: Repository<Providers>;
@@ -217,6 +218,25 @@ class ProvidersManager extends BaseManager {
     //   });
     // }
     return proviers;
+  }
+
+  @api({ method: 'get', path: '/api/providers/status', args: () => [] })
+  public async getStatus() {
+    const providers = await this.repository.find();
+    return Promise.all(providers.map(async (provider) => {
+      let defaultApiBase: string | undefined;
+      if (!provider.apiBase) {
+        // Only construct the adapter; do not fetch remote models or test credentials.
+        try {
+          defaultApiBase = (await this.getProvider(provider.id))?.defaultApiBase
+            || modelsData[provider.type]?.api;
+        } catch {
+          // A broken adapter must not hide the remaining configured providers.
+          defaultApiBase = modelsData[provider.type]?.api;
+        }
+      }
+      return describeProvider(provider, defaultApiBase);
+    }));
   }
 
   @api({
@@ -830,7 +850,7 @@ class ProvidersManager extends BaseManager {
     const data: Provider[] = [];
     for (const providerData of providers) {
       const provider = await this.getProvider(providerData.id);
-      if (provider) {
+      if (provider && provider.provider?.isActive) {
         try {
           const models3d = await provider.get3DModelList();
           if (models3d.length > 0) {

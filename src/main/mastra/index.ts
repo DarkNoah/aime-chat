@@ -107,7 +107,7 @@ import {
   filterImagesBeforeSend,
   replaceImagesForCompression,
 } from '../utils/message-image-filter';
-import { messageImagesProcessor } from './processors/message-images';
+import { startNextStep, type NextStepResume } from './next-step';
 import { MastraThreadsUsage } from '@/entities/mastra-threads-usage';
 import { Repository } from 'typeorm';
 import { dbManager } from '../db';
@@ -1475,7 +1475,6 @@ class MastraManager extends BaseManager {
       };
       // const maxContextSize = requestContext.get('maxContextSize');
       let streamOptions: AgentExecutionOptions<undefined> = {
-        inputProcessors: [messageImagesProcessor],
         includeRawChunks: false,
         // structuredOutput: undefined,
         runId: runId,
@@ -2262,102 +2261,14 @@ Do not call update_goal unless the goal is complete or the strict blocked audit 
     agent: Agent,
     inputMessage: MessageListInput,
     streamOptions: AgentExecutionOptions,
-    resume?: {
-      toolCallId?: string;
-      approved?: boolean;
-      resumeData?: Record<string, any>;
-    },
+    resume?: NextStepResume,
     callback?: ChatCallbackEvent,
   ) {
     const chatId = streamOptions.requestContext.get(
       'threadId' as never,
     ) as string;
-    const resourceId = streamOptions.requestContext.get(
-      'resourceId' as never,
-    ) as string;
-
-    const runId = streamOptions.runId;
-    let stream: MastraModelOutput<unknown>;
     await appManager.refreshPreventSleep();
-
-    const suspendedRuns = await agent.listSuspendedRuns({
-      threadId: chatId,
-      resourceId: resourceId,
-    });
-    const storage = this.mastra.getStorage();
-    const workflowsStore = await storage?.getStore('workflows');
-
-    if (
-      runId &&
-      resume?.toolCallId &&
-      (resume?.approved !== undefined || resume?.resumeData !== undefined)
-    ) {
-      if (resume?.approved === true) {
-        stream = await agent.approveToolCall({
-          ...streamOptions,
-          runId: runId,
-          toolCallId: resume?.toolCallId,
-        });
-      } else if (resume?.approved === false) {
-        stream = await agent.declineToolCall({
-          ...streamOptions,
-          runId: runId,
-          toolCallId: resume?.toolCallId,
-        });
-      } else {
-        stream = await agent.resumeStream(
-          { ...resume?.resumeData },
-          {
-            ...streamOptions,
-            runId: runId,
-            toolCallId: resume?.toolCallId,
-          },
-        );
-      }
-    } else {
-      if (suspendedRuns.total > 0) {
-        const messagesStore = await storage.getStore('memory');
-        for (const suspendedRun of suspendedRuns.runs) {
-          for (const toolCall of suspendedRun.toolCalls) {
-            stream = await agent.declineToolCall({
-              ...streamOptions,
-              runId: suspendedRun.runId,
-              toolCallId: toolCall.toolCallId,
-            });
-            for await (const chunk of stream.fullStream) {
-              console.log(chunk);
-              // if (chunk.type = 'step-finish') {
-              //   break;
-              // }
-            }
-            const toolResults = await stream.toolResults;
-            const toolResult = toolResults.find(
-              (x) => x.runId == suspendedRun.runId,
-            )?.payload?.result;
-            const msgIndex = inputMessage.findIndex(
-              (x) =>
-                x.role == 'assistant' &&
-                x.parts.find(
-                  (p) =>
-                    p.state == 'input-available' &&
-                    p.toolCallId == toolCall.toolCallId,
-                ),
-            );
-            if (msgIndex != -1) {
-              inputMessage[msgIndex].parts = inputMessage[msgIndex].parts.map(
-                (p) =>
-                  p.toolCallId == toolCall.toolCallId
-                    ? { ...p, state: 'output-available', output: toolResult }
-                    : p,
-              );
-            }
-          }
-        }
-      }
-
-      console.log(inputMessage);
-      stream = await agent.stream(inputMessage, streamOptions);
-    }
+    const stream = await startNextStep(agent, inputMessage, streamOptions, resume);
     const uiStream = toAISdkStream(stream, {
       from: 'agent',
       sendReasoning: false,

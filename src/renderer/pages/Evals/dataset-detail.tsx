@@ -81,6 +81,7 @@ export default function DatasetDetailPage() {
   const [importContent, setImportContent] = useState('');
   const [runOpen, setRunOpen] = useState(false);
   const [runName, setRunName] = useState('');
+  const [workspace, setWorkspace] = useState('');
   const [agentId, setAgentId] = useState('');
   const [modelId, setModelId] = useState('');
   const [selectedScorers, setSelectedScorers] = useState<string[]>([]);
@@ -262,16 +263,38 @@ export default function DatasetDetailPage() {
     setSelectedScorers(
       dataset?.scorerIds || customScorers.map((item) => item.id),
     );
+    setWorkspace(dataset?.defaultWorkspace || '');
     setRunOpen(true);
   };
 
+  const pickWorkspace = async () => {
+    try {
+      const result = await window.electron.app.showOpenDialog({
+        properties: ['openDirectory', 'createDirectory'],
+        defaultPath: workspace || dataset?.defaultWorkspace,
+      });
+      if (!result.canceled && result.filePaths?.[0]) {
+        setWorkspace(result.filePaths[0]);
+      }
+    } catch (error) {
+      toast.error(String(error));
+    }
+  };
+
   const runExperiment = async () => {
-    if (!agentId || !modelId || selectedScorers.length === 0) return;
+    if (
+      !workspace.trim() ||
+      !agentId ||
+      !modelId ||
+      selectedScorers.length === 0
+    )
+      return;
     setRunning(true);
     try {
       const result = await window.electron.evals.startExperiment({
         datasetId: id,
         name: runName,
+        workspace: workspace.trim(),
         agentId,
         modelId,
         scorerIds: selectedScorers,
@@ -599,6 +622,33 @@ export default function DatasetDetailPage() {
               </div>
             </div>
             <div className="grid gap-2">
+              <Label htmlFor="eval-workspace">{t('evals.workspace')} *</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="eval-workspace"
+                  required
+                  aria-describedby="eval-workspace-hint"
+                  value={workspace}
+                  onChange={(event) => setWorkspace(event.target.value)}
+                  disabled={running}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={running}
+                  onClick={() => void pickWorkspace()}
+                >
+                  {t('evals.choose_workspace')}
+                </Button>
+              </div>
+              <p
+                id="eval-workspace-hint"
+                className="text-xs text-muted-foreground"
+              >
+                {t('evals.workspace_hint')}
+              </p>
+            </div>
+            <div className="grid gap-2">
               <Label>{t('evals.concurrency')}</Label>
               <Input
                 type="number"
@@ -649,6 +699,7 @@ export default function DatasetDetailPage() {
               disabled={
                 running ||
                 !runName.trim() ||
+                !workspace.trim() ||
                 !agentId ||
                 !modelId ||
                 !selectedScorers.length
