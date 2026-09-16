@@ -1,4 +1,14 @@
-import { LocalModelItem, LocalModelType } from '@/types/local-model';
+import {
+  LocalModelItem,
+  LocalModelType,
+  LocalModelTypes,
+} from '@/types/local-model';
+import { api } from '../api/ApiController';
+import {
+  buildModelDownloadCommand,
+  DOWNLOAD_MARKER,
+  isModelFullyDownloaded,
+} from './model-files';
 import { BaseManager } from '../BaseManager';
 import { channel } from '../ipc/IpcController';
 import { LocalModelChannel } from '@/types/ipc-channel';
@@ -25,59 +35,43 @@ const MODEL_RELEASE_DELAY_MS = 5 * 60 * 1000;
 
 type CachedModel = {
   model: Awaited<ReturnType<typeof AutoModel.from_pretrained>>;
-  processor?: Awaited<ReturnType<typeof AutoProcessor.from_pretrained>>;
+  processor?:
+    | Awaited<ReturnType<typeof AutoProcessor.from_pretrained>>
+    | Awaited<ReturnType<typeof JinaCLIPImageProcessor.from_pretrained>>;
   tokenizer?: Awaited<ReturnType<typeof AutoTokenizer.from_pretrained>>;
-  textModel?: Awaited<ReturnType<typeof CLIPTextModelWithProjection.from_pretrained>>;
+  textModel?: Awaited<
+    ReturnType<typeof CLIPTextModelWithProjection.from_pretrained>
+  >;
   lastUsed?: number;
   releaseTimer?: ReturnType<typeof setTimeout>;
 };
 
-/** 递归检查目录中是否存在下载未完成标记文件（如 HuggingFace 的 *.incomplete） */
-function hasIncompleteDownloadFiles(dirPath: string): boolean {
-  if (!fs.existsSync(dirPath)) return false;
-
-  const walk = (dir: string): boolean => {
-    let entries: fs.Dirent[];
-    try {
-      entries = fs.readdirSync(dir, { withFileTypes: true });
-    } catch {
-      return false;
-    }
-    for (const entry of entries) {
-      const fullPath = path.join(dir, entry.name);
-      if (entry.isDirectory()) {
-        if (walk(fullPath)) return true;
-      } else if (
-        entry.name.endsWith('.incomplete') ||
-        entry.name.endsWith('.tmp')
-      ) {
-        return true;
-      }
-    }
-    return false;
-  };
-
-  return walk(dirPath);
+function localModelError(message: string, status = 400) {
+  return Object.assign(new Error(message), { status });
 }
 
-/** 判断模型是否已完整下载（目录存在、非空、且无 incomplete/tmp 残留） */
-function isModelFullyDownloaded(modelPath: string): boolean {
-  if (!fs.existsSync(modelPath)) return false;
-
-  let entries: string[];
-  try {
-    entries = fs.readdirSync(modelPath);
-  } catch {
-    return false;
+function validateModelType(type: unknown): asserts type is LocalModelType {
+  if (
+    typeof type !== 'string' ||
+    !LocalModelTypes.includes(type as LocalModelType)
+  ) {
+    throw localModelError(`Unknown local model type: ${String(type)}`);
   }
-  if (entries.length === 0) return false;
+}
 
-  if (hasIncompleteDownloadFiles(modelPath)) return false;
-
-  return true;
+function getCatalogModel(type: unknown, modelId: unknown): LocalModelItem {
+  validateModelType(type);
+  if (typeof modelId !== 'string')
+    throw localModelError('modelId must be a string');
+  const model = (models[type] as LocalModelItem[]).find(
+    (item) => item.id === modelId,
+  );
+  if (!model) throw localModelError(`Unknown ${type} model: ${modelId}`);
+  return model;
 }
 
 class LocalModelManager extends BaseManager {
+  private operations = new Map<string, 'downloading' | 'deleting'>();
   models: Record<string, CachedModel> = {};
   modelLoadPromises: Record<string, Promise<CachedModel>> = {};
 
@@ -85,98 +79,178 @@ class LocalModelManager extends BaseManager {
     super();
   }
 
-  public async init() { }
+  public async init() {}
 
+  private modelStatus(
+    model: LocalModelItem,
+    type: LocalModelType,
+    root: string,
+  ): LocalModelItem {
+    const modelPath = path.join(root, type, model.id.split('/').pop());
+    const operation = this.operations.get(`${type}:${model.id}`);
+    const isDownloaded = !operation && isModelFullyDownloaded(modelPath);
+    return {
+      ...model,
+      type,
+      modelPath,
+      providerModelId: ['embedding', 'reranker', 'clip'].includes(type)
+        ? `local/${model.id}`
+        : undefined,
+      isDownloaded,
+      status:
+        operation ||
+        (isDownloaded
+          ? 'downloaded'
+          : fs.existsSync(modelPath)
+            ? 'incomplete'
+            : 'not_downloaded'),
+    };
+  }
+
+  @api({
+    method: 'get',
+    path: '/api/local-models/list',
+    args: (req) => [req.query.type],
+  })
   @channel(LocalModelChannel.GetList)
   public async getList(
     type?: LocalModelType,
   ): Promise<Record<LocalModelType, LocalModelItem[]>> {
-    const types = Object.keys(models);
+    if (type !== undefined) validateModelType(type);
     const output = {} as Record<LocalModelType, LocalModelItem[]>;
     const appInfo = await appManager.getInfo();
-    for (const _type of types) {
-      if (type && _type !== type) continue;
-      const modelList = models[_type];
-
-      for (const model of modelList) {
-        const modelName = model.id.split('/').pop();
-        const modelPath = path.join(appInfo.modelPath, _type, modelName);
-        model.isDownloaded = isModelFullyDownloaded(modelPath);
-      }
-      output[_type] = modelList;
+    for (const modelType of LocalModelTypes) {
+      if (type && modelType !== type) continue;
+      output[modelType] = (models[modelType] as LocalModelItem[]).map((model) =>
+        this.modelStatus(model, modelType, appInfo.modelPath),
+      );
     }
-
     return output;
   }
 
+  @api({ method: 'post', path: '/api/local-models/download' })
   @channel(LocalModelChannel.DownloadModel)
   public async downloadModel(data: {
     modelId: string;
     type: string;
     source: string;
-  }): Promise<void> {
-    const modelInfo = Object.values(models)
-      .flat()
-      .find((x) => x.id === data.modelId);
-    const downloadInfo = modelInfo?.download?.find(
-      (x) => x.source === data.source,
-    );
-    const appInfo = await appManager.getInfo();
-    const uv = await getUVRuntime();
-    const modelName = data.modelId.split('/').pop();
-
-    const modelPath = path.join(appInfo.modelPath, data.type, modelName);
-    const isWindows = process.platform === 'win32';
-    const preCommand = isWindows ? './uvx.exe' : './uvx';
-
-    fs.mkdirSync(modelPath, { recursive: true });
-    if (data.source === 'modelscope') {
-      const res = await runCommand(
-        `${preCommand} --with "setuptools<81" modelscope download --model ${modelInfo.repo} --local_dir "${modelPath}"`,
-        {
-          cwd: uv.dir,
-          usePowerShell: isWindows,
-          env: {
-            UV_DEFAULT_INDEX: `https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple`
-          }
-        },
+  }): Promise<LocalModelItem> {
+    const model = getCatalogModel(data?.type, data?.modelId);
+    const { type, source } = data;
+    if (
+      !['huggingface', 'modelscope'].includes(source) ||
+      !model.download?.some((item) => item.source === source) ||
+      !model.repo
+    ) {
+      throw localModelError(`Unsupported download source: ${String(source)}`);
+    }
+    const key = `${type}:${model.id}`;
+    if (this.operations.has(key))
+      throw localModelError('A model operation is already in progress', 409);
+    this.operations.set(key, 'downloading');
+    try {
+      const appInfo = await appManager.getInfo();
+      const modelPath = path.join(
+        appInfo.modelPath,
+        type,
+        model.id.split('/').pop(),
       );
-      if (res.code !== 0) {
-        await fs.promises.rm(modelPath, { recursive: true });
-        throw new Error(`Failed to download model: ${res.stderr}`);
+      if (!isModelFullyDownloaded(modelPath)) {
+        const uv = await getUVRuntime(true);
+        const isWindows = process.platform === 'win32';
+        if (
+          !uv?.installed ||
+          uv.status !== 'installed' ||
+          !uv.dir ||
+          !fs.existsSync(path.join(uv.dir, isWindows ? 'uvx.exe' : 'uvx'))
+        ) {
+          throw localModelError(
+            'UV runtime is required. Use the runtime skill to install or repair UV before downloading models.',
+            409,
+          );
+        }
+        fs.mkdirSync(modelPath, { recursive: true });
+        const marker = path.join(modelPath, DOWNLOAD_MARKER);
+        fs.writeFileSync(
+          marker,
+          'Download has not completed. Retry through Aime Chat.',
+        );
+        const result = await runCommand(
+          buildModelDownloadCommand(
+            source as 'huggingface' | 'modelscope',
+            model.repo,
+            modelPath,
+            isWindows,
+          ),
+          {
+            cwd: uv.dir,
+            usePowerShell: isWindows,
+            env: {
+              UV_DEFAULT_INDEX:
+                'https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple',
+            },
+          },
+        );
+        if (result.code !== 0) {
+          throw localModelError(
+            `Failed to download model: ${result.stderr || result.stdout || result.error?.message || result.code}`,
+            500,
+          );
+        }
+        await fs.promises.rm(marker, { force: true });
+        if (!isModelFullyDownloaded(modelPath)) {
+          fs.writeFileSync(
+            marker,
+            'Downloaded files did not pass the completeness check.',
+          );
+          throw localModelError(
+            'Model download is incomplete; query the model status before retrying',
+            500,
+          );
+        }
       }
-    } else if (data.source === 'huggingface') {
-      const res = await runCommand(
-        `${preCommand} hf download ${modelInfo.repo} --local-dir "${modelPath}"`,
-        {
-          cwd: uv.dir,
-          usePowerShell: isWindows,
-          env: {
-            UV_DEFAULT_INDEX: `https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple`
-          }
-        },
-      );
-      if (res.code !== 0) {
-        await fs.promises.rm(modelPath, { recursive: true });
-        throw new Error(`Failed to download model: ${res.stderr}`);
-      }
+      this.operations.delete(key);
+      return this.modelStatus(model, type as LocalModelType, appInfo.modelPath);
+    } finally {
+      this.operations.delete(key);
     }
   }
 
+  @api({
+    method: 'post',
+    path: '/api/local-models/delete',
+    args: (req) => [req.body?.modelId, req.body?.type],
+  })
   @channel(LocalModelChannel.DeleteModel)
   public async deleteModel(
     modelId: string,
     type: LocalModelType,
-  ): Promise<void> {
-    const modelInfo = Object.values(models)
-      .flat()
-      .find((x) => x.id === modelId);
-    const appInfo = await appManager.getInfo();
-    const modelName = modelId.split('/').pop();
-
-    const modelPath = path.join(appInfo.modelPath, type, modelName);
-    if (fs.existsSync(modelPath)) {
-      await fs.promises.rm(modelPath, { recursive: true });
+  ): Promise<LocalModelItem> {
+    const model = getCatalogModel(type, modelId);
+    const key = `${type}:${model.id}`;
+    if (
+      this.operations.has(key) ||
+      this.models[modelId] ||
+      this.modelLoadPromises[modelId]
+    ) {
+      throw localModelError(
+        'Model is downloading, deleting or loaded in memory; retry after it is idle',
+        409,
+      );
+    }
+    this.operations.set(key, 'deleting');
+    try {
+      const appInfo = await appManager.getInfo();
+      const modelPath = path.join(
+        appInfo.modelPath,
+        type,
+        model.id.split('/').pop(),
+      );
+      await fs.promises.rm(modelPath, { recursive: true, force: true });
+      this.operations.delete(key);
+      return this.modelStatus(model, type, appInfo.modelPath);
+    } finally {
+      this.operations.delete(key);
     }
   }
 
@@ -192,17 +266,6 @@ class LocalModelManager extends BaseManager {
     modelPath: string,
     options?: {
       dtype?:
-      | 'auto'
-      | 'fp16'
-      | 'q8'
-      | 'q4'
-      | 'fp32'
-      | 'int8'
-      | 'uint8'
-      | 'bnb4'
-      | 'q4f16'
-      | Record<
-        string,
         | 'auto'
         | 'fp16'
         | 'q8'
@@ -212,9 +275,28 @@ class LocalModelManager extends BaseManager {
         | 'uint8'
         | 'bnb4'
         | 'q4f16'
-      >;
+        | Record<
+            string,
+            | 'auto'
+            | 'fp16'
+            | 'q8'
+            | 'q4'
+            | 'fp32'
+            | 'int8'
+            | 'uint8'
+            | 'bnb4'
+            | 'q4f16'
+          >;
     },
   ): Promise<CachedModel> {
+    if (
+      [...this.operations.keys()].some((key) => key.endsWith(`:${modelName}`))
+    ) {
+      throw localModelError(
+        'Model files are being downloaded or deleted; retry after the operation completes',
+        409,
+      );
+    }
     // 如果模型已缓存，更新 lastUsed 并重置计时器
     if (this.models[modelName]) {
       const entry = this.models[modelName];
@@ -245,10 +327,15 @@ class LocalModelManager extends BaseManager {
           model,
           processor,
         };
-      } else if (modelName == 'chinese-clip-vit-large-patch14-336px' || modelName == 'jina-clip-v2') {
+      } else if (
+        modelName == 'chinese-clip-vit-large-patch14-336px' ||
+        modelName == 'jina-clip-v2'
+      ) {
         const [tokenizer, processor, model] = await Promise.all([
           AutoTokenizer.from_pretrained(modelPath),
-          modelName == 'jina-clip-v2' ? JinaCLIPImageProcessor.from_pretrained(modelPath) : AutoProcessor.from_pretrained(modelPath),
+          modelName == 'jina-clip-v2'
+            ? JinaCLIPImageProcessor.from_pretrained(modelPath)
+            : AutoProcessor.from_pretrained(modelPath),
           AutoModel.from_pretrained(modelPath),
         ]);
         entry = {
@@ -291,19 +378,15 @@ class LocalModelManager extends BaseManager {
           CLIPTextModelWithProjection.from_pretrained(modelPath, {
             local_files_only: true,
             dtype: options?.dtype,
-          })
+          }),
         ]);
         entry = {
           model,
           tokenizer,
           processor,
-          textModel
+          textModel,
         };
-
       } else if (task == 'jina-clip-v2') {
-
-
-
       }
       entry.lastUsed = Date.now();
       this.models[modelName] = entry;

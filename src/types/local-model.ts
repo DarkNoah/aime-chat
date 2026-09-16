@@ -14,6 +14,9 @@ export type LocalModelItem = {
   repo?: string;
   type?: LocalModelType;
   isDownloaded?: boolean;
+  status?: 'not_downloaded' | 'downloading' | 'downloaded' | 'incomplete' | 'deleting';
+  modelPath?: string;
+  providerModelId?: string;
   download?: {
     url: string;
     source: string;

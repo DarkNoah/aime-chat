@@ -4,7 +4,9 @@ import { app, net } from 'electron';
 import path from 'path';
 import { appManager } from '.';
 import { getAssetPath } from '../utils';
-import { RuntimeInfo } from '@/types/app';
+import { RuntimeAction, RuntimeDetails, RuntimeId, RuntimeInfo } from '@/types/app';
+import { BaseManager } from '../BaseManager';
+import { api } from '../api/ApiController';
 import TOML from '@iarna/toml';
 import { appLog } from './logger';
 import {
@@ -57,14 +59,14 @@ export const paddleOcr: RuntimeInfo['paddleOcr'] = {
 };
 export const bun: RuntimeInfo['bun'] = {
   status: 'not_installed' as 'installed' | 'not_installed' | 'installing',
-  installed: undefined,
+  installed: false,
   path: undefined,
   dir: undefined,
   version: undefined,
 };
 export const qwenAudio: RuntimeInfo['qwenAudio'] = {
   status: 'not_installed' as 'installed' | 'not_installed' | 'installing',
-  installed: undefined,
+  installed: false,
   path: undefined,
   dir: undefined,
   version: undefined,
@@ -72,7 +74,7 @@ export const qwenAudio: RuntimeInfo['qwenAudio'] = {
 
 export const agentBrowser: RuntimeInfo['agentBrowser'] = {
   status: 'not_installed' as 'installed' | 'not_installed' | 'installing',
-  installed: undefined,
+  installed: false,
   version: undefined,
 };
 
@@ -410,9 +412,6 @@ export async function getUVRuntime(refresh = false) {
     };
     return uv;
   }
-  if (uv.status === 'installed' && refresh == false) {
-    return uv;
-  }
   const result = await runCommand(`${isWindows ? 'uv.exe' : './uv'} --version`, {
     timeout: 1000 * 5,
     cwd: path.dirname(uvPath),
@@ -426,6 +425,13 @@ export async function getUVRuntime(refresh = false) {
     uv.pythonRuntime = await getUVPythonRuntimeInfo();
     return uv;
   }
+  uv.status = 'not_installed';
+  uv.installed = false;
+  uv.path = undefined;
+  uv.dir = undefined;
+  uv.version = undefined;
+  uv.pythonRuntime = { installed: false };
+  return uv;
 }
 function resetNodeRuntimeState() {
   node.status = 'not_installed';
@@ -439,7 +445,7 @@ function resetNodeRuntimeState() {
 
 export async function getNodeRuntime(refresh = false) {
   if (
-    (node.status === 'installing' && !refresh) ||
+    node.status === 'installing' ||
     (node.installed && !refresh)
   ) {
     return node;
@@ -478,13 +484,10 @@ export async function getNodeRuntime(refresh = false) {
 }
 
 export async function installNodeRuntime() {
+  if (node.status === 'installing') return node;
   const currentNode = await getNodeRuntime(true);
-  if (currentNode.installed) {
+  if (currentNode.installed || currentNode.status === 'installing') {
     return currentNode;
-  }
-
-  if (node.status === 'installing') {
-    return node;
   }
 
   node.status = 'installing';
@@ -563,6 +566,7 @@ export async function installNodeRuntime() {
   // platforms (elevation prompts, reboot-required codes, shell quirks), so the
   // post-install verification is the source of truth for whether Node is
   // actually usable.
+  node.status = 'not_installed';
   const refreshedNode = await getNodeRuntime(true);
   if (refreshedNode.installed) {
     if (!success) {
@@ -627,9 +631,6 @@ export async function getPaddleOcrRuntime(refresh = false) {
       paddleOcr.version = undefined;
       return paddleOcr;
     }
-    if (paddleOcr.status === 'installed' && refresh == false) {
-      return paddleOcr;
-    }
     const isWindows = process.platform === 'win32';
     const uvPreCommand = isWindows ? 'uv.exe' : './uv';
 
@@ -659,6 +660,12 @@ export async function getPaddleOcrRuntime(refresh = false) {
       return paddleOcr;
     }
   } catch { }
+  paddleOcr.status = 'not_installed';
+  paddleOcr.installed = false;
+  paddleOcr.path = undefined;
+  paddleOcr.dir = undefined;
+  paddleOcr.version = undefined;
+  return paddleOcr;
 }
 
 export async function installPaddleOcrRuntime() {
@@ -813,13 +820,9 @@ export async function installPaddleOcrRuntime() {
   }
 }
 export async function uninstallPaddleOcrRuntime() {
-  try {
-    const paddleOcrDir = path.join(app.getPath('userData'), ".runtime", 'paddleocr-runtime');
-    if (fs.existsSync(paddleOcrDir)) {
-      await fs.promises.rm(paddleOcrDir, { recursive: true });
-    }
-  } catch {
-
+  const paddleOcrDir = path.join(app.getPath('userData'), '.runtime', 'paddleocr-runtime');
+  if (fs.existsSync(paddleOcrDir)) {
+    await fs.promises.rm(paddleOcrDir, { recursive: true });
   }
 
   paddleOcr.status = 'not_installed';
@@ -849,10 +852,7 @@ export async function getBunRuntime(refresh = false) {
     bun.version = undefined;
     return bun;
   }
-  if (bun.status === 'installed' && !refresh) {
-    return bun;
-  }
-  const result = await runCommand(`${isWindows ? 'bun.exe' : 'bun'} --version`, {
+  const result = await runCommand(`${isWindows ? 'bun.exe' : './bun'} --version`, {
     timeout: 1000 * 5,
     cwd: path.dirname(bunPath),
   });
@@ -864,6 +864,12 @@ export async function getBunRuntime(refresh = false) {
     bun.version = result.stdout.trim();
     return bun;
   }
+  bun.status = 'not_installed';
+  bun.installed = false;
+  bun.path = undefined;
+  bun.dir = undefined;
+  bun.version = undefined;
+  return bun;
 }
 
 export async function installBunRuntime() {
@@ -952,7 +958,6 @@ export async function getQwenAudioRuntime(refresh = false) {
       qwenAudio.version = undefined;
       return qwenAudio;
     }
-    console.log(qwenAudio);
 
     const sttDir = path.join(
       app.getPath('userData'),
@@ -965,9 +970,6 @@ export async function getQwenAudioRuntime(refresh = false) {
       qwenAudio.path = undefined;
       qwenAudio.dir = undefined;
       qwenAudio.version = undefined;
-      return qwenAudio;
-    }
-    if (qwenAudio.status === 'installed' || refresh == false) {
       return qwenAudio;
     }
     const isWindows = process.platform === 'win32';
@@ -1175,6 +1177,9 @@ export async function installAgentBrowserRuntime() {
     if (result.code === 0) {
       const resultVersion = await runCommand(`agent-browser -V`);
       const resultInstall = await runCommand(`agent-browser install`);
+      if (resultVersion.code !== 0 || resultInstall.code !== 0) {
+        throw new Error('Failed to initialize Agent Browser Runtime');
+      }
       agentBrowser.status = 'installed';
       agentBrowser.installed = true;
       agentBrowser.version = resultVersion.stdout.trim().split(' ')[1];
@@ -1193,6 +1198,9 @@ export async function installAgentBrowserRuntime() {
 
 export async function uninstallAgentBrowserRuntime() {
   const result = await runCommand(`npm uninstall -g agent-browser`);
+  if (result.code !== 0) {
+    throw new Error(result.stderr || result.stdout || 'Failed to uninstall Agent Browser Runtime');
+  }
   agentBrowser.status = 'not_installed';
   agentBrowser.installed = false;
   agentBrowser.version = undefined;
@@ -1218,3 +1226,241 @@ export async function getAgentBrowserRuntime(refresh = false) {
   agentBrowser.version = undefined;
   return agentBrowser;
 }
+
+const runtimeDefinitions: Record<
+  RuntimeId,
+  {
+    name: string;
+    dependencies: RuntimeId[];
+    get: (refresh?: boolean) => Promise<RuntimeInfo[RuntimeId]>;
+    install: () => Promise<RuntimeInfo[RuntimeId] | void>;
+    uninstall?: () => Promise<unknown>;
+  }
+> = {
+  uv: {
+    name: 'UV / Python',
+    dependencies: [],
+    get: getUVRuntime,
+    install: installUVRuntime,
+    uninstall: unInstallUVRuntime,
+  },
+  bun: {
+    name: 'Bun',
+    dependencies: [],
+    get: getBunRuntime,
+    install: installBunRuntime,
+    uninstall: uninstallBunRuntime,
+  },
+  node: {
+    // Node uses the system installation (MSI / user NVM), as in Settings.
+    name: 'Node.js',
+    dependencies: [],
+    get: getNodeRuntime,
+    install: installNodeRuntime,
+  },
+  paddleOcr: {
+    name: 'PaddleOCR',
+    dependencies: ['uv'],
+    get: getPaddleOcrRuntime,
+    install: installPaddleOcrRuntime,
+    uninstall: uninstallPaddleOcrRuntime,
+  },
+  qwenAudio: {
+    name: 'QwenAudio',
+    dependencies: ['uv'],
+    get: getQwenAudioRuntime,
+    install: installQwenAudioRuntime,
+    uninstall: uninstallQwenAudioRuntime,
+  },
+  agentBrowser: {
+    name: 'Agent Browser',
+    dependencies: ['node'],
+    get: getAgentBrowserRuntime,
+    install: installAgentBrowserRuntime,
+    uninstall: uninstallAgentBrowserRuntime,
+  },
+};
+
+function runtimeError(message: string, status = 500) {
+  return Object.assign(new Error(message), { status });
+}
+
+function parseRuntimeRefresh(value: unknown) {
+  if (value === undefined || value === 'true' || value === '1') return true;
+  if (value === 'false' || value === '0') return false;
+  throw runtimeError('refresh must be true, false, 1 or 0', 400);
+}
+
+class RuntimeManager extends BaseManager {
+  private operation?: { pkg: RuntimeId; action: RuntimeAction };
+  private refreshing?: Promise<RuntimeInfo>;
+
+  async init() {}
+
+  async getRuntimeInfo(refresh = false): Promise<RuntimeInfo> {
+    // A status read must not probe half-removed environments or reset an
+    // installer's state. Mutations verify their target before releasing this lock.
+    if (!refresh || this.operation)
+      return { uv, bun, node, paddleOcr, qwenAudio, agentBrowser };
+    if (!this.refreshing) {
+      this.refreshing = this.refreshRuntimeInfo().finally(() => {
+        this.refreshing = undefined;
+      });
+    }
+    return this.refreshing;
+  }
+
+  private async refreshRuntimeInfo(): Promise<RuntimeInfo> {
+    return {
+      uv: await getUVRuntime(true),
+      bun: await getBunRuntime(true),
+      node: await getNodeRuntime(true),
+      paddleOcr: await getPaddleOcrRuntime(true),
+      qwenAudio: await getQwenAudioRuntime(true),
+      agentBrowser: await getAgentBrowserRuntime(true),
+    };
+  }
+
+  @api({
+    method: 'get',
+    path: '/api/runtime/list',
+    args: (req) => [parseRuntimeRefresh(req.query.refresh)],
+  })
+  async listRuntimes(refresh = true): Promise<RuntimeDetails[]> {
+    const info = await this.getRuntimeInfo(refresh);
+    return (Object.keys(runtimeDefinitions) as RuntimeId[]).map((id) => {
+      const definition = runtimeDefinitions[id];
+      return {
+        ...info[id],
+        id,
+        name: definition.name,
+        dependencies: [...definition.dependencies],
+        supportedActions: definition.uninstall
+          ? ['install', 'reinstall', 'uninstall']
+          : ['install'],
+        operation:
+          this.operation?.pkg === id ? this.operation.action : undefined,
+      };
+    });
+  }
+
+  @api({
+    method: 'post',
+    path: '/api/runtime/install',
+    args: (req) => [req.body?.pkg],
+  })
+  async installRuntime(pkg: string) {
+    return this.mutateRuntime(pkg, 'install');
+  }
+
+  @api({
+    method: 'post',
+    path: '/api/runtime/reinstall',
+    args: (req) => [req.body?.pkg],
+  })
+  async reinstallRuntime(pkg: string) {
+    return this.mutateRuntime(pkg, 'reinstall');
+  }
+
+  @api({
+    method: 'post',
+    path: '/api/runtime/uninstall',
+    args: (req) => [req.body?.pkg],
+  })
+  async uninstallRuntime(pkg: string) {
+    return this.mutateRuntime(pkg, 'uninstall');
+  }
+
+  private async mutateRuntime(pkg: string, action: RuntimeAction) {
+    if (typeof pkg !== 'string' || !Object.hasOwn(runtimeDefinitions, pkg)) {
+      throw runtimeError(`Unknown runtime package: ${String(pkg)}`, 400);
+    }
+    const id = pkg as RuntimeId;
+    const definition = runtimeDefinitions[id];
+    if (action !== 'install' && !definition.uninstall) {
+      throw runtimeError(
+        `${definition.name} is system-managed; ${action} is not supported`,
+        400,
+      );
+    }
+    if (
+      this.operation ||
+      [uv, bun, node, paddleOcr, qwenAudio, agentBrowser].some(
+        (runtime) => runtime.status === 'installing',
+      )
+    ) {
+      throw runtimeError(
+        'A runtime operation is already in progress; query /api/runtime/list before retrying',
+        409,
+      );
+    }
+
+    this.operation = { pkg: id, action };
+    appLog.write('info', `[runtime] ${action} started`, { pkg });
+    try {
+      // Let an already-running status probe finish before touching its files.
+      await this.refreshing;
+      // Check prerequisites before a reinstall removes the existing environment.
+      if (action !== 'uninstall') {
+        for (const dependency of definition.dependencies) {
+          const info = await runtimeDefinitions[dependency].get(true);
+          if (!info?.installed || (dependency === 'node' && !node.npmVersion)) {
+            throw runtimeError(
+              `Install ${dependency}${dependency === 'node' ? ' (with npm)' : ''} before ${pkg}`,
+              409,
+            );
+          }
+        }
+      }
+      if (action !== 'install') {
+        await definition.uninstall();
+        const removed = await definition.get(true);
+        if (removed?.installed)
+          throw runtimeError(`Failed to uninstall ${pkg}`);
+      }
+      if (action !== 'uninstall') {
+        const installed = await definition.install();
+        if (installed && !installed.installed) {
+          throw runtimeError(
+            `Failed to install ${pkg}; check the runtime logs`,
+          );
+        }
+      }
+      const result = await definition.get(true);
+      if (!result || (action !== 'uninstall' && !result.installed)) {
+        throw runtimeError(
+          `Failed to ${action} ${pkg}; check the runtime logs`,
+        );
+      }
+      if (id === 'uv' && action !== 'uninstall') {
+        if (!uv.pythonRuntime?.installed) {
+          throw runtimeError(
+            'UV is installed, but its managed Python environment is not ready',
+          );
+        }
+        scheduleCodeExecutionPackageCacheWarmup(uv);
+      }
+      if (id === 'uv') {
+        await getPaddleOcrRuntime(true);
+        await getQwenAudioRuntime(true);
+      }
+      appLog.write('info', `[runtime] ${action} completed`, { pkg, ...result });
+      return result;
+    } catch (error) {
+      appLog.write('error', `[runtime] ${action} failed`, {
+        pkg,
+        message: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    } finally {
+      const state = { uv, bun, node, paddleOcr, qwenAudio, agentBrowser }[id];
+      if (state.status === 'installing') {
+        state.status = 'not_installed';
+        state.installed = false;
+      }
+      this.operation = undefined;
+    }
+  }
+}
+
+export const runtimeManager = new RuntimeManager();

@@ -33,6 +33,9 @@ Use templates when the user is vague or when edits must be precise.
 
 Generation template:
 "<subject>. Style: <style>. Composition: <camera/shot>. Lighting: <lighting>. Background: <background>. Color palette: <palette>. Avoid: <list>."
+
+Image Generation Skill:
+Load skill:local:imagegen
 `;
   inputSchema = z.object({
     prompt: z.string().describe('The prompt to generate the image'),

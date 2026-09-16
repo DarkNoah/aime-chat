@@ -54,26 +54,10 @@ import { Settings } from '@/entities/settings';
 import { getMainWindow } from '../main';
 import { HttpsProxyAgent } from 'https-proxy-agent';
 import {
-  getAgentBrowserRuntime,
-  getBunRuntime,
-  getNodeRuntime,
-  getPaddleOcrRuntime,
-  getQwenAudioRuntime,
   getUVRuntime,
   ensurePythonRuntimeEnvironment,
-  installAgentBrowserRuntime,
-  installBunRuntime,
-  installNodeRuntime,
-  installPaddleOcrRuntime,
-  installQwenAudioRuntime,
-  installUVRuntime,
   scheduleCodeExecutionPackageCacheWarmup,
-  uninstallAgentBrowserRuntime,
-  uninstallBunRuntime,
-  uninstallNodeRuntime,
-  uninstallPaddleOcrRuntime,
-  uninstallQwenAudioRuntime,
-  unInstallUVRuntime,
+  runtimeManager,
 } from './runtime';
 import { fstat } from 'fs';
 import path from 'path';
@@ -124,11 +108,14 @@ import {
   SaveAssistantSoulInput,
 } from '@/types/assistant-soul';
 import { api } from '../api/ApiController';
+import { buildHealthReport } from '../api/diagnostics';
+import type { Request, Response } from 'express';
 import { getCrashDumpDirectory } from './crash-reporter';
 import { WindowModeController } from './window-mode';
 import { writeWorkspaceTextFile } from '../utils/workspace-file';
 import { getFeatureFlags, isPersonalityDisabled } from './feature-flags';
 import { normalizeThemeConfig, saveThemeConfig } from './theme-background';
+import { DefaultModelSettings, resolveDefaultModels } from './default-models';
 import {
   applyBrandingThemeBackgrounds,
   getBrandingLogoUrl,
@@ -149,6 +136,18 @@ class AppManager extends BaseManager {
   defaultApiServerPort = 41100;
   defaultACPPort = 41101;
   private themeConfigSaveQueue: Promise<void> = Promise.resolve();
+  private readonly defaultModelSettings = new DefaultModelSettings({
+    read: async () =>
+      (await this.settingsRepository.findOne({
+        where: { id: 'defaultModel' },
+      }))?.value,
+    write: async (value) => {
+      await this.settingsRepository.upsert(
+        new Settings('defaultModel', value),
+        ['id'],
+      );
+    },
+  });
   private readonly windowModeController = new WindowModeController({
     getWindow: () => getMainWindow(),
     getWorkArea: (bounds) => screen.getDisplayMatching(bounds).workArea,
@@ -274,6 +273,18 @@ class AppManager extends BaseManager {
     }
   }
 
+  @api({ method: 'get', path: '/api/health', raw: true })
+  public getHealth(_req: Request, res: Response) {
+    const report = buildHealthReport({
+      version: app.getVersion(),
+      server: mastraManager.httpServer,
+      proxy: this.appProxy,
+      insecureTls: isInsecureTlsEnabled(),
+    });
+    res.setHeader('Cache-Control', 'no-store');
+    res.status(report.status === 'ok' ? 200 : 503).json(report);
+  }
+
   @api({
     method: 'get',
     path: '/api/app/info',
@@ -290,19 +301,7 @@ class AppManager extends BaseManager {
     const savedDefaultModel = settings.find(
       (x) => x.id === 'defaultModel',
     )?.value;
-    const defaultModel = {
-      model: process.env.DEFAULT_MODEL,
-      fastModel: process.env.DEFAULT_FAST_MODEL,
-      visionModel: process.env.DEFAULT_VISION_MODEL,
-      embeddingModel: process.env.DEFAULT_EMBEDDING_MODEL,
-      rerankerModel: process.env.DEFAULT_RERANKER_MODEL,
-      ocrModel: process.env.DEFAULT_OCR_MODEL,
-      transcriptionModel: process.env.DEFAULT_TRANSCRIPTION_MODEL,
-      speechModel: process.env.DEFAULT_SPEECH_MODEL,
-      generateImageModel: process.env.DEFAULT_GENERATE_IMAGE_MODEL,
-      generateVideoModel: process.env.DEFAULT_GENERATE_VIDEO_MODEL,
-      ...(savedDefaultModel ?? {}),
-    };
+    const defaultModel = resolveDefaultModels(savedDefaultModel);
     const defaultAgent = settings.find((x) => x.id === 'defaultAgent')?.value || process.env.DEFAULT_AGENT || CodeAgent.agentName;
     const defaultThink = settings.find((x) => x.id === 'defaultThink')?.value || process.env.THINK || 'medium';
     const assistantSoul = isPersonalityDisabled()
@@ -366,6 +365,22 @@ class AppManager extends BaseManager {
       windowMode: this.windowModeController.getState(),
       insecureTls: isInsecureTlsEnabled(),
     };
+  }
+
+  @api({
+    method: 'get',
+    path: '/api/app/default-models',
+    args: () => [],
+  })
+  public async getDefaultModels(): Promise<AppInfo['defaultModel']> {
+    return this.defaultModelSettings.list();
+  }
+
+  @api({ method: 'post', path: '/api/app/default-models' })
+  public async setDefaultModels(
+    patch: Partial<AppInfo['defaultModel']>,
+  ): Promise<AppInfo['defaultModel']> {
+    return this.defaultModelSettings.set(patch);
   }
 
   public getInitialWindowSize() {
@@ -1072,6 +1087,10 @@ class AppManager extends BaseManager {
         'Theme background source paths require the themeConfig setting.',
       );
     }
+    if (settings.id === 'defaultModel') {
+      await this.defaultModelSettings.replace(settings.value);
+      return;
+    }
     await this.settingsRepository.upsert(
       new Settings(settings.id, settings.value),
       ['id'],
@@ -1136,89 +1155,17 @@ class AppManager extends BaseManager {
 
   @channel(AppChannel.InstasllRumtime)
   public async installRuntime(pkg: string) {
-    appLog.write('info', '[runtime] install started', { pkg });
-    try {
-      if (pkg == 'uv') {
-        await installUVRuntime();
-      } else if (pkg == 'paddleOcr') {
-        await installPaddleOcrRuntime();
-      } else if (pkg == 'bun') {
-        await installBunRuntime();
-      } else if (pkg == 'node') {
-        await installNodeRuntime();
-      } else if (pkg == 'qwenAudio') {
-        await installQwenAudioRuntime();
-      } else if (pkg == 'agentBrowser') {
-        await installAgentBrowserRuntime();
-      } else {
-        throw new Error(`Unknown runtime package: ${pkg}`);
-      }
-
-      const runtimeInfo = await this.getRuntimeInfo(true);
-      const runtimeResult = runtimeInfo[pkg as keyof RuntimeInfo];
-      if (pkg === 'uv') {
-        scheduleCodeExecutionPackageCacheWarmup(runtimeInfo.uv);
-      }
-      const runtimeLogData = {
-        pkg,
-        ...(runtimeResult ?? {
-          status: 'not_installed',
-          installed: false,
-          message: 'Runtime install finished without runtime info',
-        }),
-      };
-      appLog.write(
-        runtimeResult?.installed ? 'info' : 'error',
-        runtimeResult?.installed
-          ? '[runtime] install completed'
-          : '[runtime] install failed',
-        runtimeLogData,
-      );
-      return runtimeResult;
-    } catch (error) {
-      appLog.write('error', '[runtime] install failed', {
-        pkg,
-        status: 'not_installed',
-        installed: false,
-        message: error instanceof Error ? error.message : String(error),
-      });
-      throw error;
-    }
+    return runtimeManager.installRuntime(pkg);
   }
 
   @channel(AppChannel.UninstallRumtime)
   public async UninstallRumtime(pkg: string) {
-    if (pkg == 'uv') {
-      await unInstallUVRuntime();
-    } else if (pkg == 'paddleOcr') {
-      await uninstallPaddleOcrRuntime();
-    } else if (pkg == 'bun') {
-      await uninstallBunRuntime();
-    } else if (pkg == 'node') {
-      await uninstallNodeRuntime();
-    } else if (pkg == 'qwenAudio') {
-      await uninstallQwenAudioRuntime();
-    } else if (pkg == 'agentBrowser') {
-      await uninstallAgentBrowserRuntime();
-    }
+    return runtimeManager.uninstallRuntime(pkg);
   }
 
   @channel(AppChannel.GetRuntimeInfo)
   public async getRuntimeInfo(refresh = false): Promise<RuntimeInfo> {
-    const uv = await getUVRuntime(refresh);
-    const bun = await getBunRuntime(refresh);
-    const node = await getNodeRuntime(refresh);
-    const paddleOcr = await getPaddleOcrRuntime(refresh);
-    const qwenAudio = await getQwenAudioRuntime(refresh);
-    const agentBrowser = await getAgentBrowserRuntime(refresh);
-    return {
-      uv: uv,
-      bun: bun,
-      node: node,
-      paddleOcr: paddleOcr,
-      qwenAudio: qwenAudio,
-      agentBrowser: agentBrowser,
-    };
+    return runtimeManager.getRuntimeInfo(refresh);
   }
 
   @channel(AppChannel.SetApiServerPort)
