@@ -18,6 +18,17 @@ export type SkillMessageData = {
   args?: string;
 };
 
+export type AgentCompletionMessageTask = {
+  sessionId: string;
+  description: string;
+  subagentType: string;
+  status: 'completed' | 'failed' | 'aborted';
+  result?: string;
+  errorMessage?: string;
+  startTime?: string;
+  finishedAt?: string;
+};
+
 export type CronMessageData = {
   id: string;
   name: string;
@@ -30,6 +41,10 @@ export type CronMessageData = {
 
 export type StructuredMessageData =
   | { type: 'background-bash-completion'; tasks: BashCompletionMessageTask[] }
+  | {
+      type: 'background-agent-completion';
+      agents: AgentCompletionMessageTask[];
+    }
   | { type: 'skill'; skill: SkillMessageData }
   | { type: 'cron'; cron: CronMessageData };
 

@@ -1,10 +1,14 @@
 import type {
+  AgentCompletionMessageTask,
   BashCompletionMessageTask,
   StructuredMessageData,
 } from '@/utils/structured-message';
+import { parseLegacyAgentCompletion } from './legacy-agent-completion';
 
 export const isStructuredMessageXml = (text: string) =>
-  /^<(?:background-bash-completion|cron-context)(?:\s|>)/.test(text.trim());
+  /^<(?:background-bash-completion|background-agent-completion|cron-context)(?:\s|>)/.test(
+    text.trim(),
+  );
 
 // Only direct text fields are accepted. Nested markup is never rendered as HTML.
 function readFields(element: Element): Record<string, string> | null {
@@ -60,6 +64,27 @@ function parseSkillCommand(text: string): StructuredMessageData | null {
       name: id.split(':').pop() || id,
       args: args || undefined,
     },
+  };
+}
+
+function parseAgent(element: Element): AgentCompletionMessageTask | null {
+  if (element.tagName !== 'agent') return null;
+  const fields = readFields(element);
+  if (
+    !fields?.['agent-id']?.trim() ||
+    !fields['agent-type']?.trim() ||
+    !['completed', 'failed', 'aborted'].includes(fields.status)
+  )
+    return null;
+  return {
+    sessionId: fields['agent-id'],
+    description: fields.description || '',
+    subagentType: fields['agent-type'],
+    status: fields.status as AgentCompletionMessageTask['status'],
+    result: fields.result,
+    errorMessage: fields.error,
+    startTime: fields['start-time'],
+    finishedAt: fields['finished-at'],
   };
 }
 
@@ -138,13 +163,24 @@ export function parseStructuredMessage(
   if (/^<cron-context(?:\s|>)/.test(trimmed))
     return parseCronMessage(text.trimStart());
   if (!isStructuredMessageXml(trimmed))
-    return parseSkillCommand(text.trimStart());
+    return (
+      parseSkillCommand(text.trimStart()) ?? parseLegacyAgentCompletion(trimmed)
+    );
   // No declarations, external entities, or processing instructions in this format.
   if (/<!DOCTYPE|<!ENTITY|<\?/i.test(trimmed)) return null;
   const document = new DOMParser().parseFromString(trimmed, 'application/xml');
   if (document.querySelector('parsererror')) return null;
   const root = document.documentElement;
   if (root.getAttribute('version') !== '1') return null;
+
+  if (root.tagName === 'background-agent-completion') {
+    const agents = Array.from(root.children).map(parseAgent);
+    if (!agents.length || agents.some((agent) => agent === null)) return null;
+    return {
+      type: 'background-agent-completion',
+      agents: agents as AgentCompletionMessageTask[],
+    };
+  }
 
   if (root.tagName === 'background-bash-completion') {
     const tasks = Array.from(root.children).map(parseTask);

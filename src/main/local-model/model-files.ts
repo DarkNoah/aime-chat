@@ -1,10 +1,15 @@
 import fs from 'fs';
 import path from 'path';
+import type { LocalModelItem } from '@/types/local-model';
 
 export const DOWNLOAD_MARKER = '.aime-download.incomplete';
 
-/** Basic on-disk readiness for the ONNX models in the supported catalog. */
-export function isModelFullyDownloaded(modelPath: string): boolean {
+/** Check model metadata, nonempty weights, shard indexes and bundled codecs. */
+export function isModelFullyDownloaded(
+  modelPath: string,
+  model?: LocalModelItem,
+): boolean {
+  const audio = model?.library === 'mlx' || model?.library === 'pytorch';
   let hasWeights = false;
   let incomplete = false;
   const walk = (directory: string) => {
@@ -15,7 +20,33 @@ export function isModelFullyDownloaded(modelPath: string): boolean {
       const fullPath = path.join(directory, entry.name);
       if (entry.isDirectory()) {
         walk(fullPath);
+      } else if (audio && entry.name.endsWith('.safetensors.index.json')) {
+        const index = JSON.parse(fs.readFileSync(fullPath, 'utf8'));
+        const shards = new Set(Object.values(index.weight_map || {}));
+        if (!shards.size) incomplete = true;
+        for (const shard of shards) {
+          if (typeof shard !== 'string') {
+            incomplete = true;
+          } else {
+            const shardPath = path.resolve(directory, shard);
+            if (
+              !shardPath.startsWith(`${path.resolve(directory)}${path.sep}`) ||
+              !fs.statSync(shardPath).isFile() ||
+              fs.statSync(shardPath).size === 0
+            ) {
+              incomplete = true;
+            }
+          }
+        }
       } else if (
+        audio &&
+        directory === modelPath &&
+        entry.name.endsWith('.safetensors') &&
+        fs.statSync(fullPath).size > 0
+      ) {
+        hasWeights = true;
+      } else if (
+        !audio &&
         entry.name.endsWith('.onnx') &&
         fs.statSync(fullPath).size > 0
       ) {
@@ -26,11 +57,23 @@ export function isModelFullyDownloaded(modelPath: string): boolean {
   try {
     const config = fs.statSync(path.join(modelPath, 'config.json'));
     if (!config.isFile() || config.size === 0) return false;
+    for (const file of model?.requiredFiles || []) {
+      const info = fs.statSync(path.join(modelPath, file));
+      if (!info.isFile() || info.size === 0) return false;
+    }
     walk(modelPath);
     return hasWeights && !incomplete;
   } catch {
     return false;
   }
+}
+
+export function getLocalModelPath(root: string, type: string, modelId: string) {
+  return path.join(
+    root,
+    type,
+    ['tts', 'stt'].includes(type) ? modelId : modelId.split('/').pop(),
+  );
 }
 
 export function buildModelDownloadCommand(

@@ -1,31 +1,25 @@
 import type { BackgroundAgentCompletion } from '../tools/common/background-agent';
+import { messageXmlField } from '@/utils/structured-message';
 
 export function formatAgentCompletionMessage(
   completions: BackgroundAgentCompletion[],
 ) {
-  const lines = [
-    completions.length === 1
-      ? 'Background agent finished.'
-      : `Background agents finished (${completions.length} agents).`,
-    '',
-  ];
-
-  completions.forEach((completion, index) => {
-    lines.push(
-      `${index + 1}. Agent ID: ${completion.sessionId}`,
-      '',
-      `   Description: ${completion.description}`,
-      '',
-      `   Agent type: ${completion.subagentType}`,
-      '',
-      `   Status: ${completion.status}`,
-      '',
-      `   Result: ${completion.result || 'None'}`,
-      '',
-      `   Error: ${completion.errorMessage || 'None'}`,
-    );
-    if (index < completions.length - 1) lines.push('');
-  });
-
-  return lines.join('\n');
+  return [
+    '<background-agent-completion version="1">',
+    ...completions.map((completion) =>
+      [
+        '<agent>',
+        messageXmlField('agent-id', completion.sessionId),
+        messageXmlField('description', completion.description),
+        messageXmlField('agent-type', completion.subagentType),
+        messageXmlField('status', completion.status),
+        messageXmlField('result', completion.result),
+        messageXmlField('error', completion.errorMessage),
+        messageXmlField('start-time', completion.startTime),
+        messageXmlField('finished-at', completion.finishedAt),
+        '</agent>',
+      ].join('\n'),
+    ),
+    '</background-agent-completion>',
+  ].join('\n');
 }

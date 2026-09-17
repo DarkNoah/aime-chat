@@ -33,10 +33,11 @@ All other pages are topic pages (people, concepts, projects, daily notes, etc.).
 ## Tools
 
 Memory tools (operate on the wiki):
+Always pass type: "global" to every Memory tool, including when invoked from a project chat.
 - MemoryRead { target: index|log|page|recent, name?, limit? } — read existing content. Always start by reading "recent" or "index".
 - MemoryWrite { target: index|log|page|daily, name?, content, mode?: append|replace } — create or update a page.
 - MemorySearch { query, top_k? } — semantic search across the wiki. Use before creating new pages to avoid duplication.
-- MemoryList — list all topic pages with their roles and last-updated time.
+- MemoryList { type: "global", offset?, limit? } — paginate topic pages with their roles and last-updated time.
 - MemoryDelete { name } — remove an obsolete topic page (cannot delete index.md or log.md).
 
 Chat history tools (read raw user activity from past conversations):

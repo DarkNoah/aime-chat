@@ -27,6 +27,7 @@ import { app } from 'electron';
 import { getDataPath } from '../utils';
 import { cloneGitHubRepository } from './git-clone';
 import { createProjectChatExport } from './chat-export';
+import { deleteProjectMemory } from '../knowledge-base/static-memory';
 
 class ProjectManager extends BaseManager {
   projectsRepository: Repository<Projects>;
@@ -130,6 +131,7 @@ class ProjectManager extends BaseManager {
 
   @channel(ProjectChannel.DeleteProject)
   async deleteProject(id: string) {
+    await deleteProjectMemory(id);
     const result = await this.projectsRepository.delete(id);
     await appManager.sendEvent(ProjectEvent.ProjectDeleted, id);
     return result;

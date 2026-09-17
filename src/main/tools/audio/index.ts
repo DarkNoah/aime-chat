@@ -685,6 +685,7 @@ export class SpeechToText extends BaseTool {
   static readonly toolName = 'SpeechToText';
   id: string = 'SpeechToText';
   description = `Transcribe speech from audio or video files to text, SRT subtitles, or ASS subtitles.
+Local speech models must first be downloaded in Settings > Local Models > STT; inference does not download weights.
 
 Supports:
 - Audio files: wav, mp3, flac, aac, ogg, oga, m4a, wma, opus
@@ -945,9 +946,11 @@ export class TextToSpeech extends BaseTool {
   static readonly toolName = 'TextToSpeech';
   id: string = 'TextToSpeech';
   description = `Convert text to a WAV audio file using the configured speech model.
+Local speech models must first be downloaded in Settings > Local Models > TTS; inference does not download weights.
 Voice IDs and instruction support depend on the provider and model. Alibaba defaults: Qwen3 TTS uses Cherry; Qwen Audio 3.0 uses longanhuan_v3.6; CosyVoice v3 uses longanyang; MiniMax uses male-qn-qingse.
 Alibaba CosyVoice 3.5 and Qwen3 VD/VC require an existing custom voice ID created in Alibaba. This tool does not create Alibaba voices from instruct or ref_audio.
 Local Qwen3 models can support voice design via instruct or voice cloning via ref_audio + ref_text. ListVoices lists locally saved reference voices only.
+Local Breeze TTS 2 supports English/Chinese voice design via instruct, voice cloning via ref_audio + ref_text, or voice direction by combining both. It has no preset voice names: omit voice or use S0. Describe language/accent/style in instruct. Inline vocal events such as (laugh) or [笑] are preserved.
 Output: Returns the path to the generated WAV audio file.`;
 
   inputSchema = z.object({
@@ -968,7 +971,7 @@ Output: Returns the path to the generated WAV audio file.`;
       .string()
       .optional()
       .describe(
-        'Speech style instruction when supported by the selected model. Local Qwen3 can also use this for voice design; Alibaba requires a compatible model and voice.',
+        'Speech style instruction when supported by the selected model. Local Qwen3 and Breeze TTS 2 also support voice design; Breeze can combine instruct with ref_audio + ref_text. Alibaba requires a compatible model and voice.',
       ),
     ref_audio: z
       .string()

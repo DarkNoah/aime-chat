@@ -217,6 +217,33 @@ CodeExecution 用于结构化的 Python 执行、数据处理和文件生成。P
 
 接口依据：[非实时语音识别指南](https://help.aliyun.com/zh/model-studio/non-realtime-speech-recognition-user-guide)、[Qwen-ASR RESTful API（含临时 OSS URL 支持）](https://help.aliyun.com/zh/model-studio/qwen-asr-api-reference)、[临时文件上传](https://help.aliyun.com/zh/model-studio/get-temporary-file-url)。
 
+**本地语音模型的下载与管理** 在 **设置 → 运行环境** 安装 QwenAudio，然后进入 **设置 → 本地模型**，在「语音合成（TTS）」或「语音识别（STT）」中下载模型。它们与 Embedding、Reranker 共用页面顶部配置的模型目录，支持查看下载状态、重试未完成的下载和删除。当前语音模型均提供 Hugging Face 与 ModelScope 下载源；macOS 的 MLX 版本也可从 ModelScope 下载，下载源不会改变模型格式或量化版本。
+
+- TTS 提供 Qwen3 TTS、VoxCPM2、Breeze TTS 2。Qwen 的 CustomVoice 用于预设音色和普通朗读，VoiceDesign 用于声音描述，Base 用于参考音频克隆；按需要下载对应变体。默认模型选择器仍按 Qwen 的参数规模合并显示，调用时会检查所需变体是否已下载。
+- STT 提供 Qwen3 ASR 1.7B / 0.6B，下载时会一并下载字幕时间戳需要的 ForcedAligner。对齐模型在管理页可见，不作为独立识别模型供选择。
+- 默认模型和工具配置只列出已完整下载的本地语音模型。推理只读取管理目录中的文件；未下载或文件不完整时提示先下载，不会在调用时下载权重。正在推理的模型不能删除，空闲时删除会先释放语音运行时。
+- 旧版 Hugging Face / ModelScope 缓存不会自动迁移或删除；升级后请在本地模型页下载到管理目录。更改模型目录后，列表按新目录重新检查。
+
+**TextToSpeech：本地 Breeze TTS 2** 下载后，在 **设置 → 默认模型 → 默认语音合成模型** 的本地模型中选择 Breeze TTS 2，也可在 TextToSpeech 工具配置中指定。Apple Silicon 提供 `mlx-community/Breeze-TTS-2-mlx-4bit`、`mlx-community/Breeze-TTS-2-mlx-8bit` 和 `mlx-community/Breeze-TTS-2-mlx`（bf16）；其他平台提供 `BreezeBlue/Breeze-TTS-2`，要求 NVIDIA CUDA GPU。
+
+首次使用仍可能安装推理依赖：MLX 路径会检查 Breeze 支持，必要时更新 MLX Audio；PyTorch 路径会在 QwenAudio 目录下创建独立的 Breeze 环境，下载固定版本的官方推理代码并安装 Torch 2.9.1 / CUDA 12.8 依赖。现有 Qwen/VoxCPM 的依赖不受此环境影响。模型权重从本地模型管理目录加载。PyTorch 每次调用单独加载模型，首次安装和模型加载需要等待；官方建议至少 12 GB 显存。
+
+- 声音设计：用 `instruct` 描述声音、语言、口音和表现方式。
+- 声音克隆：同时提供 `ref_audio` 和准确的 `ref_text`；参考音频支持本地路径、工作区相对路径或 URL。
+- 克隆并控制表现：同时提供参考音频、文字稿和 `instruct`。
+
+Breeze 支持中文和英文，无预设音色名称，`voice` 留空或填 `S0`。`language` 不会单独改变 Breeze 的提示词；语言与口音要求请写入 `instruct`。文本中的 `[笑]`、`[叹气]`、`(laugh)`、`(sigh)` 等事件标记会原样传入。输出会合并全部音频段并保存 WAV，`save_path` 支持工作区相对路径。
+
+```json
+{
+  "text": "[笑] 欢迎来到今天的故事时间。",
+  "instruct": "一位声音清晰温柔的年轻女性，用自然的普通话讲故事，语速稍慢。",
+  "save_path": "breeze-story.wav"
+}
+```
+
+模型与自部署输出受 BreezeBlue 研究与非商业许可约束，详见[官方模型说明与许可](https://huggingface.co/BreezeBlue/Breeze-TTS-2)。实现依据：[官方 PyTorch 推理](https://github.com/breezeblue-ai/breeze-tts)、[MLX Audio Breeze 文档](https://blaizzy.github.io/mlx-audio/models/tts/breeze-tts/)。
+
 **TextToSpeech：阿里云非实时语音合成** 沿用 Alibaba / Alibaba (China) 供应商的 API Key、Workspace ID 和 Region。在 **设置 → 默认模型 → 默认语音合成模型** 中选择模型，也可以在 TextToSpeech 的工具配置中覆盖。工具等待合成完成并保存 WAV 文件，返回本地路径；`save_path` 支持工作区相对路径。
 
 | 系列 | 已接入模型 | 默认音色 |

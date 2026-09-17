@@ -29,9 +29,23 @@ def _has_voxcpm2_support() -> bool:
         return False
 
 
-def ensure_mlx_audio(require_voxcpm2: bool = False) -> None:
+def _has_breeze_support() -> bool:
+    try:
+        importlib.import_module("mlx_audio.tts.models.breeze_tts")
+        return True
+    except ImportError:
+        return False
+
+
+def ensure_mlx_audio(
+    require_voxcpm2: bool = False, require_breeze: bool = False
+) -> None:
     global _mlx_audio_ready
-    if _mlx_audio_ready and (not require_voxcpm2 or _has_voxcpm2_support()):
+    if (
+        _mlx_audio_ready
+        and (not require_voxcpm2 or _has_voxcpm2_support())
+        and (not require_breeze or _has_breeze_support())
+    ):
         return
     try:
         import mlx_audio  # noqa: F401
@@ -50,6 +64,15 @@ def ensure_mlx_audio(require_voxcpm2: bool = False) -> None:
             file=sys.stderr,
         )
         _uv_add(package_spec, "--prerelease=allow", "--upgrade-package", "mlx-audio")
+
+    if require_breeze and not _has_breeze_support():
+        print("Updating mlx-audio for Breeze TTS 2 support...", file=sys.stderr)
+        _uv_add("mlx-audio", "--prerelease=allow", "--upgrade-package", "mlx-audio")
+        if not _has_breeze_support():
+            raise RuntimeError(
+                "Installed mlx-audio does not support Breeze TTS 2. "
+                "Update the QwenAudio runtime and restart the app."
+            )
 
     _mlx_audio_ready = True
 

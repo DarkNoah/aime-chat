@@ -1,20 +1,51 @@
+/* eslint-disable import/no-cycle */
 import { KnowledgeBase, KnowledgeBaseItem } from '@/entities/knowledge-base';
-import {
-  KnowledgeBaseItemState,
-  KnowledgeBaseSourceType,
-  VectorStoreType,
-} from '@/types/knowledge-base';
-import knowledgeBaseManager from './index';
+import { VectorStoreType } from '@/types/knowledge-base';
+import memoryKnowledgeBaseManager from './index';
 import { dbManager } from '../db';
 import { providersManager } from '../providers';
 import { Settings } from '@/entities/settings';
+import { createHash } from 'crypto';
 
 export const STATIC_MEMORY_KB_ID = 'static_memory';
 export const STATIC_MEMORY_KB_NAME = 'Memory';
+export const PROJECT_MEMORY_KB_ID = 'project_memory';
+export const PROJECT_MEMORY_KB_NAME = 'Project Memory';
+
+export type MemoryScope =
+  | { type: 'global' }
+  | { type: 'project'; projectId: string; threadId?: string };
+
+const GLOBAL_SCOPE: MemoryScope = { type: 'global' };
+const pendingKnowledgeBases = new Map<
+  string,
+  Promise<KnowledgeBase | undefined>
+>();
+const pendingWrites = new Map<string, Promise<KnowledgeBaseItem | undefined>>();
+
+function memoryKBId(scope: MemoryScope): string {
+  if (scope.type === 'project' && !scope.projectId) {
+    throw new Error('Project memory requires a project chat thread.');
+  }
+  return scope.type === 'project' ? PROJECT_MEMORY_KB_ID : STATIC_MEMORY_KB_ID;
+}
+
+function memoryItems(scope: MemoryScope) {
+  const query = dbManager.dataSource
+    .getRepository(KnowledgeBaseItem)
+    .createQueryBuilder('item')
+    .where('item.knowledgeBaseId = :kbId', { kbId: memoryKBId(scope) });
+  if (scope.type === 'project') {
+    query.andWhere("json_extract(item.metadata, '$.projectId') = :projectId", {
+      projectId: scope.projectId,
+    });
+  }
+  return query;
+}
 export const INDEX_DOC_NAME = 'index.md';
 export const LOG_DOC_NAME = 'log.md';
 
-export type MemoryRole = 'index' | 'log' | 'page' | 'daily';
+export type MemoryRole = 'index' | 'log' | 'page' | 'daily' | 'timeline';
 
 const formatTimestamp = (d: Date) => {
   const pad = (n: number) => String(n).padStart(2, '0');
@@ -60,43 +91,50 @@ async function pickDefaultEmbedding(
   return undefined;
 }
 
-export async function getMemoryKB(): Promise<KnowledgeBase | undefined> {
+export async function getMemoryKB(
+  scope: MemoryScope = GLOBAL_SCOPE,
+): Promise<KnowledgeBase | undefined> {
   const repo = dbManager.dataSource.getRepository(KnowledgeBase);
-  return (await repo.findOne({ where: { id: STATIC_MEMORY_KB_ID } })) ?? undefined;
+  return (
+    (await repo.findOne({ where: { id: memoryKBId(scope) } })) ?? undefined
+  );
 }
 
-export async function getOrCreateMemoryKB(): Promise<KnowledgeBase | undefined> {
-  let kb = await getMemoryKB();
-  if (kb) return kb;
+export async function getMemoryItemByName(
+  name: string,
+  scope: MemoryScope = GLOBAL_SCOPE,
+): Promise<KnowledgeBaseItem | undefined> {
+  return (
+    (await memoryItems(scope)
+      .andWhere('item.name = :name', { name })
+      .getOne()) ?? undefined
+  );
+}
 
-  const defaultModels = await getDefaultKnowledgeBaseModels();
-  const embedding = await pickDefaultEmbedding(defaultModels.embedding);
-  if (!embedding) {
-    console.log(
-      '[static-memory] No default embedding model configured; skip creating static memory KB.',
-    );
-    return undefined;
-  }
+export async function getProjectMemoryItemByRun(
+  projectId: string,
+  threadId: string,
+  runId: string,
+): Promise<KnowledgeBaseItem | undefined> {
+  return (
+    (await memoryItems({ type: 'project', projectId })
+      .andWhere("json_extract(item.metadata, '$.role') = 'timeline'")
+      .andWhere("json_extract(item.metadata, '$.threadId') = :threadId", {
+        threadId,
+      })
+      .andWhere("json_extract(item.metadata, '$.runId') = :runId", { runId })
+      .getOne()) ?? undefined
+  );
+}
 
-  try {
-    kb = await knowledgeBaseManager.createKnowledgeBase({
-      id: STATIC_MEMORY_KB_ID,
-      name: STATIC_MEMORY_KB_NAME,
-      description: 'Global memory wiki maintained by the Cultivation agent.',
-      vectorStoreType: VectorStoreType.LibSQL,
-      embedding,
-      reranker: defaultModels.reranker,
-      static: true,
-    } as any);
-  } catch (err) {
-    console.error('[static-memory] createKnowledgeBase failed', err);
-    return undefined;
-  }
-
-  await ensureSystemPage(INDEX_DOC_NAME, 'index', initialIndex());
-  await ensureSystemPage(LOG_DOC_NAME, 'log', initialLog());
-
-  return kb;
+export async function getMemoryItemById(
+  id: string,
+  scope: MemoryScope = GLOBAL_SCOPE,
+) {
+  return (
+    (await memoryItems(scope).andWhere('item.id = :id', { id }).getOne()) ??
+    undefined
+  );
 }
 
 const initialIndex = () => `# Wiki Index
@@ -114,110 +152,285 @@ const initialLog = () => `# Log
 Append-only timeline of memory updates.
 `;
 
-async function ensureSystemPage(name: string, role: MemoryRole, fallback: string) {
+async function ensureSystemPage(
+  name: string,
+  role: MemoryRole,
+  fallback: string,
+) {
   const existing = await getMemoryItemByName(name);
   if (existing) return existing;
-  return upsertMemoryItem({ name, role, content: fallback, mode: 'replace' });
-}
-
-export async function getMemoryItemByName(name: string): Promise<KnowledgeBaseItem | undefined> {
-  const repo = dbManager.dataSource.getRepository(KnowledgeBaseItem);
-  return (
-    (await repo.findOne({ where: { knowledgeBaseId: STATIC_MEMORY_KB_ID, name } })) ?? undefined
-  );
-}
-
-export async function listMemoryPages(): Promise<KnowledgeBaseItem[]> {
-  const repo = dbManager.dataSource.getRepository(KnowledgeBaseItem);
-  const items = await repo.find({
-    where: { knowledgeBaseId: STATIC_MEMORY_KB_ID },
-    order: { updatedAt: 'DESC' as any },
+  const key = JSON.stringify([STATIC_MEMORY_KB_ID, '', name]);
+  return memoryKnowledgeBaseManager.saveMemoryTextItem({
+    id: `memory-${createHash('sha256').update(key).digest('hex')}`,
+    kbId: STATIC_MEMORY_KB_ID,
+    name,
+    content: fallback,
+    metadata: { role },
   });
-  return items.filter((x) => x.name !== INDEX_DOC_NAME && x.name !== LOG_DOC_NAME);
 }
 
-/**
- * Upsert a memory item (index, log, or topic page).
- * - mode 'replace' (default): rewrite content entirely
- * - mode 'append': append to existing content (or create if missing)
- *
- * Internally we delete the existing item (its vector rows are removed by FK)
- * and re-import via the standard text source pipeline so embeddings stay fresh.
- */
+export async function getOrCreateMemoryKB(
+  scope: MemoryScope = GLOBAL_SCOPE,
+): Promise<KnowledgeBase | undefined> {
+  const id = memoryKBId(scope);
+  const existing = await getMemoryKB(scope);
+  const pending = pendingKnowledgeBases.get(id);
+  if (pending) return pending;
+  if (existing) return existing;
+
+  const creating = (async () => {
+    const defaultModels = await getDefaultKnowledgeBaseModels();
+    const embedding = await pickDefaultEmbedding(defaultModels.embedding);
+    // Project timelines must remain writable without an embedding provider.
+    // The knowledge base then uses its existing BM25-only pipeline.
+    if (!embedding && scope.type === 'global') return undefined;
+    const projectMemory = scope.type === 'project';
+    const kb = await memoryKnowledgeBaseManager.createKnowledgeBase({
+      id,
+      name: projectMemory ? PROJECT_MEMORY_KB_NAME : STATIC_MEMORY_KB_NAME,
+      description: projectMemory
+        ? 'Project memories and completed task summaries, isolated by project.'
+        : 'Global memory wiki maintained by the Cultivation agent.',
+      vectorStoreType: VectorStoreType.LibSQL,
+      vectorStoreConfig: projectMemory
+        ? {
+            extendColumns: [
+              { name: 'projectId', columnType: 'text' },
+              { name: 'threadId', columnType: 'text' },
+            ],
+          }
+        : undefined,
+      embedding,
+      reranker: defaultModels.reranker,
+      static: true,
+    });
+    if (!projectMemory) {
+      await ensureSystemPage(INDEX_DOC_NAME, 'index', initialIndex());
+      await ensureSystemPage(LOG_DOC_NAME, 'log', initialLog());
+    }
+    return kb;
+  })();
+  pendingKnowledgeBases.set(id, creating);
+  try {
+    return await creating;
+  } finally {
+    pendingKnowledgeBases.delete(id);
+  }
+}
+
+export type MemoryPageOptions = {
+  offset?: number;
+  limit?: number;
+  role?: MemoryRole;
+  excludeThreadId?: string;
+};
+
+export async function listMemoryPage(
+  scope: MemoryScope = GLOBAL_SCOPE,
+  options: MemoryPageOptions = {},
+) {
+  const limit = Math.min(100, Math.max(1, Math.floor(options.limit ?? 20)));
+  const offset = Math.max(0, Math.floor(options.offset ?? 0));
+  const query = memoryItems(scope).andWhere(
+    'item.name NOT IN (:...systemPages)',
+    { systemPages: [INDEX_DOC_NAME, LOG_DOC_NAME] },
+  );
+  if (options.role) {
+    query.andWhere("json_extract(item.metadata, '$.role') = :role", {
+      role: options.role,
+    });
+  }
+  if (options.excludeThreadId) {
+    query.andWhere(
+      "(json_extract(item.metadata, '$.threadId') IS NULL OR json_extract(item.metadata, '$.threadId') != :excludeThreadId)",
+      { excludeThreadId: options.excludeThreadId },
+    );
+  }
+  query
+    .orderBy(
+      options.role === 'timeline'
+        ? "json_extract(item.metadata, '$.startedAt')"
+        : 'item.updatedAt',
+      'DESC',
+    )
+    .addOrderBy('item.id', 'DESC');
+  const [items, total] = await query.skip(offset).take(limit).getManyAndCount();
+  return {
+    items,
+    total,
+    offset,
+    limit,
+    hasMore: offset + items.length < total,
+  };
+}
+
+// Retain the unpaginated helper for existing internal callers.
+export async function listMemoryPages(
+  scope: MemoryScope = GLOBAL_SCOPE,
+): Promise<KnowledgeBaseItem[]> {
+  return memoryItems(scope)
+    .andWhere('item.name NOT IN (:...systemPages)', {
+      systemPages: [INDEX_DOC_NAME, LOG_DOC_NAME],
+    })
+    .orderBy('item.updatedAt', 'DESC')
+    .addOrderBy('item.id', 'DESC')
+    .getMany();
+}
+
+/** Persist the item and its metadata before returning; index through the KB pipeline. */
 export async function upsertMemoryItem(opts: {
+  id?: string;
   name: string;
   content: string;
   role: MemoryRole;
   mode?: 'replace' | 'append';
+  scope?: MemoryScope;
+  metadata?: Record<string, unknown>;
 }): Promise<KnowledgeBaseItem | undefined> {
-  const { name, content, role, mode = 'replace' } = opts;
-  const kb = await getOrCreateMemoryKB();
-  if (!kb) return undefined;
-
-  let nextContent = content;
-  const existing = await getMemoryItemByName(name);
-  if (existing && mode === 'append') {
-    const oldContent = existing.content ?? '';
-    nextContent = oldContent.endsWith('\n')
-      ? `${oldContent}${content}`
-      : `${oldContent}\n${content}`;
-  }
-
-  if (existing) {
-    try {
-      await knowledgeBaseManager.deleteKnowledgeBaseItem(existing.id);
-    } catch (err) {
-      console.error('[static-memory] deleteKnowledgeBaseItem failed', err);
+  const { name, content, role, mode = 'replace', scope = GLOBAL_SCOPE } = opts;
+  const kbId = memoryKBId(scope);
+  const key = JSON.stringify([
+    kbId,
+    scope.type === 'project' ? scope.projectId : '',
+    opts.id ? { id: opts.id } : name,
+  ]);
+  const previous = pendingWrites.get(key);
+  const writing = (async () => {
+    await previous?.catch(() => undefined);
+    const kb = await getOrCreateMemoryKB(scope);
+    if (!kb) return undefined;
+    const existing = opts.id
+      ? await getMemoryItemById(opts.id, scope)
+      : await getMemoryItemByName(name, scope);
+    if (
+      opts.id &&
+      !existing &&
+      (await dbManager.dataSource
+        .getRepository(KnowledgeBaseItem)
+        .findOneBy({ id: opts.id }))
+    ) {
+      throw new Error('Memory item belongs to another scope');
     }
+    const oldContent = existing?.content ?? '';
+    const nextContent =
+      existing && mode === 'append'
+        ? `${oldContent}${oldContent.endsWith('\n') ? '' : '\n'}${content}`
+        : content;
+    const provenance =
+      scope.type === 'project'
+        ? {
+            projectId: scope.projectId,
+            threadId: scope.threadId ?? existing?.metadata?.threadId,
+          }
+        : {};
+    const metadata = {
+      ...existing?.metadata,
+      ...opts.metadata,
+      ...provenance,
+      role,
+    };
+    const extendData = scope.type === 'project' ? provenance : undefined;
+    return memoryKnowledgeBaseManager.saveMemoryTextItem({
+      id:
+        existing?.id ??
+        opts.id ??
+        `memory-${createHash('sha256').update(key).digest('hex')}`,
+      kbId,
+      name,
+      content: nextContent,
+      metadata,
+      extendData,
+    });
+  })();
+  pendingWrites.set(key, writing);
+  try {
+    return await writing;
+  } finally {
+    if (pendingWrites.get(key) === writing) pendingWrites.delete(key);
   }
-
-  await knowledgeBaseManager.importSource({
-    kbId: STATIC_MEMORY_KB_ID,
-    type: KnowledgeBaseSourceType.Text,
-    source: { content: nextContent, name, role },
-  });
-
-  // wait briefly for the background task to materialize the item, then reload.
-  // The caller can also fetch by name later; we just return the freshly resolved item.
-  for (let i = 0; i < 20; i++) {
-    const item = await getMemoryItemByName(name);
-    if (item && item.state === KnowledgeBaseItemState.Completed) {
-      // patch the meta so name/role are stored consistently
-      const repo = dbManager.dataSource.getRepository(KnowledgeBaseItem);
-      const meta = (item.metadata as any) ?? {};
-      if (meta.role !== role || item.name !== name) {
-        item.name = name;
-        item.metadata = { ...meta, role };
-        await repo.save(item);
-      }
-      return item;
-    }
-    await new Promise((r) => setTimeout(r, 200));
-  }
-  return await getMemoryItemByName(name);
 }
 
-export async function appendToLog(entry: string): Promise<void> {
+export async function deleteProjectMemory(
+  projectId?: string,
+  threadId?: string,
+): Promise<void> {
+  if (!projectId && !threadId) throw new Error('Project or thread is required');
+  const query = dbManager.dataSource
+    .getRepository(KnowledgeBaseItem)
+    .createQueryBuilder('item')
+    .where('item.knowledgeBaseId = :kbId', { kbId: PROJECT_MEMORY_KB_ID });
+  if (projectId)
+    query.andWhere("json_extract(item.metadata, '$.projectId') = :projectId", {
+      projectId,
+    });
+  if (threadId) {
+    query.andWhere("json_extract(item.metadata, '$.threadId') = :threadId", {
+      threadId,
+    });
+  }
+  const items = await query.getMany();
+  await Promise.all(
+    items.map((item) =>
+      memoryKnowledgeBaseManager.deleteKnowledgeBaseItem(item.id),
+    ),
+  );
+}
+
+export async function appendToLog(
+  entry: string,
+  scope: MemoryScope = GLOBAL_SCOPE,
+): Promise<void> {
   const ts = formatTimestamp(new Date());
   const block = `\n## [${ts}]\n\n${entry}\n`;
   await upsertMemoryItem({
     name: LOG_DOC_NAME,
     role: 'log',
+    scope,
     content: block,
     mode: 'append',
   });
 }
 
-export async function searchMemory(query: string, top_k: number = 8) {
-  const kb = await getOrCreateMemoryKB();
+export async function searchMemory(
+  query: string,
+  topK: number = 8,
+  scope: MemoryScope = GLOBAL_SCOPE,
+) {
+  const kb = await getOrCreateMemoryKB(scope);
   if (!kb) return { query, embedding: '', results: [] };
-  return await knowledgeBaseManager.searchKnowledgeBase(
-    STATIC_MEMORY_KB_ID,
+  return memoryKnowledgeBaseManager.searchKnowledgeBase(
+    memoryKBId(scope),
     query,
     'text',
-    undefined,
-    top_k,
+    scope.type === 'project'
+      ? `"projectId" = '${scope.projectId.replace(/'/g, "''")}'`
+      : undefined,
+    topK,
   );
+}
+
+/**
+ * Current project's ten most recent timeline titles from other threads,
+ * ordered by task start time.
+ */
+export async function buildProjectTimelineDigest(
+  projectId: string,
+  currentThreadId?: string,
+): Promise<string | undefined> {
+  if (!projectId) return undefined;
+  const { items } = await listMemoryPage(
+    { type: 'project', projectId },
+    {
+      offset: 0,
+      limit: 10,
+      role: 'timeline',
+      excludeThreadId: currentThreadId,
+    },
+  );
+  if (items.length === 0) return undefined;
+  return items
+    .map((item, index) => `${index + 1}. ${JSON.stringify(item.name)}`)
+    .join('\n');
 }
 
 /**

@@ -398,7 +398,7 @@ export class LocalTranscriptionModel implements TranscriptionModelV2 {
     } else {
       audio = options.audio
     }
-    const audioLoader = new AudioLoader(new Blob([audio], { type: "application/octet-stream" }), {
+    const audioLoader = new AudioLoader(new Blob([new Uint8Array(audio)], { type: "application/octet-stream" }), {
       model: this.modelId,
       backend: process.platform !== "darwin" ? 'transformers' : 'mlx-audio',
       returnTimeStamps: true,
@@ -607,27 +607,11 @@ export class LocalProvider extends BaseProvider {
   }
 
   async getTranscriptionModelList(): Promise<{ name: string; id: string }[]> {
-    if (process.platform !== "darwin") {
-      return [{ id: 'Qwen/Qwen3-ASR-1.7B', name: 'Qwen3-ASR-1.7B' },
-      { id: 'Qwen/Qwen3-ASR-0.6B', name: 'Qwen3-ASR-0.6B' }];
-    } else {
-      return [{ id: 'mlx-community/Qwen3-ASR-1.7B-bf16', name: 'Qwen3-ASR-1.7B-bf16' },
-      { id: 'mlx-community/Qwen3-ASR-0.6B-bf16', name: 'Qwen3-ASR-0.6B-bf16' }];
-    }
+    return localModelManager.getAvailableAudioModels('stt');
   }
 
   async getSpeechModelList(): Promise<{ name: string; id: string }[]> {
-    if (process.platform !== "darwin") {
-      return [{ id: 'Qwen/Qwen3-TTS-1.7B', name: 'Qwen3-TTS-1.7B' },
-      { id: 'Qwen/Qwen3-TTS-0.6B', name: 'Qwen3-TTS-0.6B' },
-      { id: 'openbmb/VoxCPM2', name: 'VoxCPM2' }];
-    } else {
-      return [{ id: 'mlx-community/Qwen3-TTS-1.7B', name: 'Qwen3-TTS-1.7B' },
-      { id: 'mlx-community/Qwen3-TTS-0.6B', name: 'Qwen3-TTS-0.6B' },
-      { id: 'mlx-community/VoxCPM2-8bit', name: 'VoxCPM2-8bit' },
-      { id: 'mlx-community/VoxCPM2-4bit', name: 'VoxCPM2-4bit' },
-      { id: 'mlx-community/VoxCPM2-bf16', name: 'VoxCPM2-bf16' }];
-    }
+    return localModelManager.getAvailableAudioModels('tts');
   }
 
   async getOCRModelList(): Promise<{ name: string; id: string }[]> {

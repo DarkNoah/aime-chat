@@ -16,6 +16,7 @@ from typing import Any, Dict, Optional, Tuple
 import soundfile as sf
 
 from config import (
+    DEFAULT_BREEZE_TTS_MODEL,
     DEFAULT_DEVICE,
     DEFAULT_DTYPE,
     DEFAULT_QWEN_TTS_CUSTOM_MODEL,
@@ -31,7 +32,8 @@ from config import (
     DEFAULT_VOXTRAL_TTS_VOICE_ID,
     IS_DARWIN,
 )
-from mlx_runtime import ensure_mlx_audio, load_mlx_model_with_modelscope_fallback
+from mlx_runtime import ensure_mlx_audio
+from model_store import load_local_model, resolve_model_path
 
 # ---------- MLX TTS model management ----------
 _mlx_tts_model = None
@@ -102,16 +104,19 @@ def get_mlx_tts_model(model_name: str) -> Any:
     global _mlx_tts_model, _mlx_tts_model_key
 
     model_name = (model_name or DEFAULT_QWEN_TTS_MODEL).strip()
-    key = model_name
+    key = resolve_model_path(model_name)
 
     with _mlx_tts_model_lock:
         if _mlx_tts_model is not None and _mlx_tts_model_key == key:
             return _mlx_tts_model
 
-        ensure_mlx_audio(require_voxcpm2=_is_voxcpm2_model(model_name))
+        ensure_mlx_audio(
+            require_voxcpm2=_is_voxcpm2_model(model_name),
+            require_breeze=_is_breeze_model(model_name),
+        )
         from mlx_audio.tts.utils import load_model as load_tts_model  # type: ignore
 
-        _mlx_tts_model = load_mlx_model_with_modelscope_fallback(
+        _mlx_tts_model = load_local_model(
             load_tts_model, model_name
         )
         _mlx_tts_model_key = key
@@ -176,7 +181,7 @@ def get_qwen_tts_model(
     resolved_dtype = (dtype or DEFAULT_DTYPE).strip()
     key = json.dumps(
         {
-            "model": resolved_model_name,
+            "model": resolve_model_path(resolved_model_name),
             "device": resolved_device,
             "dtype": resolved_dtype,
         },
@@ -193,11 +198,7 @@ def get_qwen_tts_model(
                 "device_map": resolved_device,
                 "dtype": _resolve_torch_dtype(resolved_dtype, torch),
             }
-            # When loading from a local directory (cache hit or ModelScope
-            # fallback) force offline so transformers never tries to reach
-            # Hugging Face again.
-            if os.path.isdir(name):
-                load_kwargs["local_files_only"] = True
+            load_kwargs["local_files_only"] = True
 
             # Flash attention is optional. If unavailable, retry without it.
             if resolved_device.startswith("cuda"):
@@ -213,7 +214,7 @@ def get_qwen_tts_model(
                 load_kwargs.pop("attn_implementation", None)
                 return Qwen3TTSModel.from_pretrained(name, **load_kwargs)
 
-        _qwen_tts_model = load_mlx_model_with_modelscope_fallback(
+        _qwen_tts_model = load_local_model(
             _load, resolved_model_name
         )
         _qwen_tts_model_key = key
@@ -336,7 +337,7 @@ def _run_mlx_tts(
             temperature=temperature,
         ))
 
-    else:
+    elif ref_audio or ref_text:
         # ── Base model: predefined voice or voice cloning ──
         effective_model = _resolve_qwen_tts_repo(model_name, "Base", mlx=True)
         model = get_mlx_tts_model(effective_model)
@@ -352,6 +353,13 @@ def _run_mlx_tts(
             kwargs["temperature"] = temperature
         results = list(model.generate(**kwargs))
 
+    else:
+        effective_model = _resolve_qwen_tts_repo(model_name, "CustomVoice", mlx=True)
+        model = get_mlx_tts_model(effective_model)
+        results = list(model.generate_custom_voice(
+            text=text, speaker=_default_qwen_speaker(lang), language=lang,
+        ))
+
     if not results:
         raise RuntimeError("TTS generation failed: no audio output returned")
 
@@ -366,6 +374,78 @@ def _run_mlx_tts(
         "sample_rate": sample_rate,
         "duration": duration,
         "model": effective_model,
+    }
+
+
+def _breeze_options(
+    voice: Optional[str],
+    instruct: Optional[str],
+    ref_audio: Optional[str],
+    ref_text: Optional[str],
+) -> Dict[str, Any]:
+    instruction = instruct.strip() if instruct else None
+    transcript = ref_text.strip() if ref_text else None
+    if bool(ref_audio) != bool(transcript):
+        raise ValueError("Breeze TTS 2 requires ref_audio and ref_text together")
+    if voice and voice != "S0":
+        raise ValueError(
+            "Breeze TTS 2 has no preset voices. Use instruct for voice design "
+            "or ref_audio + ref_text for cloning; the speaker tag is S0."
+        )
+    options: Dict[str, Any] = {"voice": "S0"}
+    if instruction:
+        options.update(instruct=instruction, cfg_scale=4.0)
+    if ref_audio:
+        options.update(ref_audio=ref_audio, ref_text=transcript)
+    return options
+
+
+def _run_breeze_mlx_tts(
+    text: str,
+    output_path: str,
+    model_name: str,
+    voice: Optional[str] = None,
+    instruct: Optional[str] = None,
+    ref_audio: Optional[str] = None,
+    ref_text: Optional[str] = None,
+    temperature: Optional[float] = None,
+    max_tokens: Optional[int] = None,
+) -> Dict[str, Any]:
+    import numpy as np  # type: ignore
+
+    if model_name.lower().startswith("breezeblue/"):
+        raise ValueError(
+            "Select an mlx-community/Breeze-TTS-2-mlx model on Apple Silicon; "
+            "the original PyTorch checkpoint cannot be loaded by MLX."
+        )
+    kwargs = _breeze_options(voice, instruct, ref_audio, ref_text)
+    if temperature is not None:
+        kwargs["temperature"] = temperature
+    if max_tokens is not None:
+        kwargs["max_tokens"] = max_tokens
+    model = get_mlx_tts_model(model_name)
+    # Breeze splits long/multiline input into several GenerationResults.
+    # Consume every result so the saved WAV includes the complete speech.
+    chunks = []
+    sample_rate = None
+    for result in model.generate(text=text, stream=False, **kwargs):
+        rate = _get_sample_rate(result, model)
+        if sample_rate is not None and rate != sample_rate:
+            raise RuntimeError("Breeze TTS 2 returned inconsistent sample rates")
+        sample_rate = rate
+        audio = np.asarray(_get_audio(result), dtype=np.float32).reshape(-1)
+        if audio.size:
+            chunks.append(audio)
+    if not chunks:
+        raise RuntimeError("Breeze TTS 2 generation returned no audio")
+    audio = np.concatenate(chunks)
+    sf.write(output_path, audio, sample_rate)
+    return {
+        "output_path": output_path,
+        "sample_rate": sample_rate,
+        "duration": len(audio) / sample_rate,
+        "model": model_name,
+        "backend": "mlx-audio",
     }
 
 
@@ -473,7 +553,7 @@ def get_voxcpm2_torch_model(
     resolved_model_name = (model_name or DEFAULT_VOXCPM2_TTS_MODEL).strip()
     resolved_device = _normalize_tts_device(device or DEFAULT_DEVICE)
     key = json.dumps(
-        {"model": resolved_model_name, "device": resolved_device},
+        {"model": resolve_model_path(resolved_model_name), "device": resolved_device},
         sort_keys=True,
         ensure_ascii=False,
     )
@@ -483,25 +563,19 @@ def get_voxcpm2_torch_model(
             return _voxcpm2_torch_model
 
         def _load(name: str) -> Any:
-            # `name` is a local directory when resolved from cache or downloaded
-            # via the ModelScope fallback; in that case force offline loading so
-            # VoxCPM/huggingface_hub never tries to reach Hugging Face again.
-            is_local_dir = os.path.isdir(name)
             logging.info(
-                "Loading VoxCPM2 (torch) model from %s on device %s (local=%s)",
+                "Loading local VoxCPM2 (torch) model from %s on device %s",
                 name,
                 resolved_device,
-                is_local_dir,
             )
             load_kwargs: Dict[str, Any] = {
                 "load_denoiser": False,
                 "device": resolved_device,
+                "local_files_only": True,
             }
-            if is_local_dir:
-                load_kwargs["local_files_only"] = True
             return VoxCPM.from_pretrained(name, **load_kwargs)
 
-        _voxcpm2_torch_model = load_mlx_model_with_modelscope_fallback(
+        _voxcpm2_torch_model = load_local_model(
             _load, resolved_model_name
         )
         _voxcpm2_torch_model_key = key
@@ -701,6 +775,10 @@ def _is_voxcpm2_model(model_name: Optional[str]) -> bool:
     return "voxcpm2" in (model_name or "").strip().lower()
 
 
+def _is_breeze_model(model_name: Optional[str]) -> bool:
+    return "breeze-tts" in (model_name or "").strip().lower().replace("_", "-")
+
+
 def _voxcpm2_backend() -> str:
     """VoxCPM2 runs through MLX on Apple Silicon and through the PyTorch
     `voxcpm` package on every other platform (e.g. Windows/Linux)."""
@@ -709,6 +787,8 @@ def _voxcpm2_backend() -> str:
 
 def resolve_tts_backend(params: Dict[str, Any]) -> str:
     explicit = _normalize_backend(params.get("backend") or params.get("tts_backend"))
+    if _is_breeze_model(params.get("model")) or explicit in {"breeze", "breeze-tts"}:
+        return "mlx-audio" if IS_DARWIN else "breeze"
     if explicit:
         if explicit == "voxcpm2":
             return _voxcpm2_backend()
@@ -897,6 +977,10 @@ def method_tts(params: Dict[str, Any]) -> Dict[str, Any]:
     prompt_text = params.get("prompt_text")
     prompt_audio = params.get("prompt_audio")
     backend = resolve_tts_backend(params)
+    if _normalize_backend(params.get("backend") or params.get("tts_backend")) in {
+        "breeze", "breeze-tts"
+    }:
+        model_name = model_name or DEFAULT_BREEZE_TTS_MODEL
 
     if ref_audio and not os.path.exists(ref_audio):
         raise FileNotFoundError(f"reference audio not found: {ref_audio}")
@@ -914,6 +998,36 @@ def method_tts(params: Dict[str, Any]) -> Dict[str, Any]:
             response_format=params.get("response_format"),
             api_key=params.get("api_key"),
             base_url=params.get("base_url"),
+        )
+
+    if backend == "breeze" or (
+        backend == "mlx-audio" and (
+            _is_breeze_model(model_name)
+            or _normalize_backend(params.get("backend") or params.get("tts_backend"))
+            in {"breeze", "breeze-tts"}
+        )
+    ):
+        if IS_DARWIN:
+            return _run_breeze_mlx_tts(
+                text=text,
+                output_path=output_path,
+                model_name=model_name or DEFAULT_BREEZE_TTS_MODEL,
+                voice=voice,
+                instruct=instruct,
+                ref_audio=ref_audio,
+                ref_text=ref_text,
+                temperature=params.get("temperature"),
+                max_tokens=params.get("max_tokens"),
+            )
+        from breeze_runtime import run_breeze_tts
+
+        options = _breeze_options(voice, instruct, ref_audio, ref_text)
+        return run_breeze_tts(
+            text=text,
+            output_path=output_path,
+            model_name=model_name or DEFAULT_BREEZE_TTS_MODEL,
+            model_path=resolve_model_path(model_name or DEFAULT_BREEZE_TTS_MODEL),
+            options=options,
         )
 
     if backend == "voxcpm2":
@@ -977,6 +1091,7 @@ def get_tts_status() -> Dict[str, Any]:
         "default_tts_model": DEFAULT_QWEN_TTS_MODEL,
         "default_tts_voicedesign_model": DEFAULT_QWEN_TTS_VOICEDESIGN_MODEL,
         "default_voxcpm2_tts_model": DEFAULT_VOXCPM2_TTS_MODEL,
+        "default_breeze_tts_model": DEFAULT_BREEZE_TTS_MODEL,
         "default_voxtral_tts_model": DEFAULT_VOXTRAL_TTS_MODEL,
         "default_voxtral_tts_open_weight_model": DEFAULT_VOXTRAL_TTS_OPEN_WEIGHT_MODEL,
     }

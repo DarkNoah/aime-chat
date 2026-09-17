@@ -30,6 +30,22 @@ class LocalModelsCliTests(unittest.TestCase):
         self.assertEqual(json.loads(output), result)
         self.assertEqual(http.call_args.args[0].full_url, "http://localhost:41100/api/local-models/list?type=embedding")
         self.assertEqual(http.call_args.args[0].get_method(), "GET")
+        self.assertIsNone(http.call_args.kwargs["timeout"])
+
+    def test_default_download_uses_modelscope_without_timeout(self):
+        with patch.object(local_models.urllib.request, "urlopen", return_value=io.BytesIO(b'{}')) as http:
+            code, _, _ = self.run_cli(["download", "--type", "tts", "--model-id", "BreezeBlue/Breeze-TTS-2"])
+        self.assertEqual(code, 0)
+        self.assertEqual(json.loads(http.call_args.args[0].data), {
+            "type": "tts", "modelId": "BreezeBlue/Breeze-TTS-2", "source": "modelscope",
+        })
+        self.assertIsNone(http.call_args.kwargs["timeout"])
+
+    def test_default_delete_has_no_timeout(self):
+        with patch.object(local_models.urllib.request, "urlopen", return_value=io.BytesIO(b'{}')) as http:
+            code, _, _ = self.run_cli(["delete", "--type", "embedding", "--model-id", "bge-m3"])
+        self.assertEqual(code, 0)
+        self.assertIsNone(http.call_args.kwargs["timeout"])
 
     def test_download_and_delete_preserve_catalog_id_with_slash(self):
         for action in ("download", "delete"):
@@ -45,6 +61,17 @@ class LocalModelsCliTests(unittest.TestCase):
             self.assertEqual(request.get_method(), "POST")
             self.assertEqual(json.loads(request.data), body)
             self.assertEqual(http.call_args.kwargs["timeout"], 7200)
+
+    def test_audio_categories_are_available_for_listing_and_download(self):
+        for model_type, model_id in (("tts", "BreezeBlue/Breeze-TTS-2"), ("stt", "Qwen/Qwen3-ASR-1.7B")):
+            with patch.object(local_models.urllib.request, "urlopen", return_value=io.BytesIO(b'{}')) as http:
+                code, _, _ = self.run_cli(["list", "--type", model_type])
+            self.assertEqual(code, 0)
+            self.assertTrue(http.call_args.args[0].full_url.endswith("?type=" + model_type))
+            with patch.object(local_models.urllib.request, "urlopen", return_value=io.BytesIO(b'{}')) as http:
+                code, _, _ = self.run_cli(["download", "--type", model_type, "--model-id", model_id, "--source", "huggingface"])
+            self.assertEqual(code, 0)
+            self.assertEqual(json.loads(http.call_args.args[0].data), {"type": model_type, "modelId": model_id, "source": "huggingface"})
 
     def test_missing_base_url_makes_no_request(self):
         with patch.object(local_models.urllib.request, "urlopen") as http:

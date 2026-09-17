@@ -173,8 +173,9 @@ Returns:
     const config = this.config;
     const appInfo = await appManager.getInfo();
 
+    const currentModel = requestContext.get('model' as never) as string;
     if (!this.modelId) {
-      this.modelId = appInfo.defaultModel.visionModel;
+      this.modelId = appInfo.defaultModel.visionModel || currentModel;
     }
     if (!this.modelId) {
       throw new Error('Model is not set');
@@ -199,7 +200,7 @@ Returns:
     //   },
     // }]
     const provider = await providersManager.getProvider(this.modelId?.split('/')[0]);
-    const currentModel = requestContext.get('model' as never) as string;
+
     const modelInfo = await providersManager.getModelInfo(currentModel);
     if (mimeType.startsWith('image/')) {
       let ocr

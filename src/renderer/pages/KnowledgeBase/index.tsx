@@ -777,7 +777,7 @@ function KnowledgeBasePage() {
                         <span className="truncate">{kb.name}</span>
                         {kb.static && (
                           <Badge variant="secondary" className="shrink-0 text-[10px]">
-                            {t('knowledge-base.static-badge', '全局记忆')}
+                            {t(kb.id === 'project_memory' ? 'knowledge-base.project-memory-badge' : 'knowledge-base.static-badge')}
                           </Badge>
                         )}
                       </ItemTitle>

@@ -1,4 +1,18 @@
 {
+  "local-model": {
+    "embedding": "Embedding",
+    "reranker": "Reranker",
+    "other": "Other models",
+    "ocr": "OCR",
+    "clip": "Image and text models",
+    "tts": "Text to speech (TTS)",
+    "stt": "Speech to text (STT)",
+    "change_directory": "Change directory",
+    "audio_hint": "Download TTS / STT models here before selecting them. Inference never downloads model weights. For Qwen TTS, choose CustomVoice for preset speakers, VoiceDesign for voice design, or Base for cloning.",
+    "incomplete": "Incomplete download; retry available",
+    "dependencies": "Also downloads required models: {{models}}",
+    "dependency_model": "Auxiliary model; unavailable as a default model"
+  },
   "model_viewer": {
     "show_wireframe": "Show model wireframe",
     "hide_wireframe": "Hide model wireframe",
@@ -440,6 +454,9 @@
   },
   "chat": {
     "structured_message": {
+      "background_agents_completed_one": "Background agent finished · {{count}} task",
+      "background_agents_completed_other": "Background agents finished · {{count}} tasks",
+      "agent_type": "Agent type",
       "cron_triggered": "Scheduled task · {{name}} · Triggered",
       "trigger": "Trigger",
       "trigger_schedule": "Scheduled",
@@ -662,13 +679,14 @@
   "timeline": {
     "tab": "Timeline",
     "title": "Project timeline",
-    "description": "After each substantive task, the full conversation history is summarized into a task and deliverables record.",
+    "description": "After each substantive task, its summary and deliverables are saved to the project memory knowledge base.",
     "enabled": "On",
     "disabled": "Off",
     "toggle": "Turn the project timeline on or off",
     "disabled_title": "Timeline is off",
     "disabled_description": "Turn it on to summarize new substantive tasks after conversations finish. Greetings and conversations without meaningful work are not recorded.",
     "enable_action": "Turn on timeline",
+    "enable_description": "Automatically record task summaries and deliverables after conversations finish to review project progress. Generating summaries uses a small number of additional tokens.",
     "empty_title": "No timeline entries yet",
     "empty_description": "Finish a substantive task to see its concise summary, deliverables, start time, and duration here.",
     "loading": "Loading timeline...",
@@ -710,6 +728,8 @@
     "column-type": "Type",
     "add-column": "Add Column",
     "column-name-placeholder": "Enter column name",
+    "project-memory-badge": "Project Memory",
+    "project-memory-tip": "Stores project task summaries and memories with their project and source conversation. Memory tools retrieve records for the current project.",
     "static-badge": "Global Memory",
     "static-tip": "This knowledge base is the global memory wiki maintained by the Cultivation agent. index.md and log.md are system pages and cannot be deleted."
   },

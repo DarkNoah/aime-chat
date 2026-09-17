@@ -1382,6 +1382,7 @@ export class KnowledgeBaseManager extends BaseManager {
       source?: any;
       metadata?: any;
       extendData?: Record<string, any>;
+      reindex?: boolean;
     },
   ): Promise<KnowledgeBaseItem> {
     let item = await this.knowledgeBaseItemRepository.findOne({
@@ -1402,7 +1403,8 @@ export class KnowledgeBaseManager extends BaseManager {
         ? data.name.trim()
         : item.name;
     const contentChanged =
-      typeof data.content === 'string' && data.content !== (item.content ?? '');
+      typeof data.content === 'string' &&
+      (data.reindex || data.content !== (item.content ?? ''));
     const nextContent = contentChanged ? data.content : item.content;
 
     item.name = nextName;
@@ -1506,6 +1508,39 @@ export class KnowledgeBaseManager extends BaseManager {
       items: [item],
     });
     return item;
+  }
+
+  /** Memory writes await persistence and indexing instead of polling the import queue. */
+  public async saveMemoryTextItem(data: {
+    id: string;
+    kbId: string;
+    name: string;
+    content: string;
+    metadata: Record<string, unknown>;
+    extendData?: Record<string, unknown>;
+  }): Promise<KnowledgeBaseItem> {
+    this.assertKnowledgeBaseNotReembedding(data.kbId);
+    let item = await this.knowledgeBaseItemRepository.findOneBy({ id: data.id });
+    if (item && item.knowledgeBaseId !== data.kbId) {
+      throw new Error('Memory item belongs to another knowledge base');
+    }
+    if (!item) {
+      item = new KnowledgeBaseItem(data.id, data.kbId, '', KnowledgeBaseSourceType.Text);
+      item.name = data.name;
+      item.metadata = data.metadata;
+      item.extendData = data.extendData;
+      item.isEnable = false;
+      item.state = KnowledgeBaseItemState.Pending;
+      item = await this.knowledgeBaseItemRepository.save(item);
+    }
+    return this.updateKnowledgeBaseItem(item.id, {
+      name: data.name,
+      content: data.content,
+      source: { name: data.name, content: data.content },
+      metadata: data.metadata,
+      extendData: data.extendData,
+      reindex: item.state !== KnowledgeBaseItemState.Completed,
+    });
   }
 
   @channel(KnowledgeBaseChannel.DeleteKnowledgeBaseItem)

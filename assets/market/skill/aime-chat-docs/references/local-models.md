@@ -11,30 +11,31 @@ python "${AIME_CHAT_SKILL_PATH}/aime-chat-docs/scripts/local_models.py" list --t
 python "${AIME_CHAT_SKILL_PATH}/aime-chat-docs/scripts/local_models.py" list --type reranker
 ```
 
-省略 `--type` 返回所有受支持类型：`embedding`、`reranker`、`clip`、`ocr`、`other`。结果按类型分组，模型包含：
+省略 `--type` 返回所有受支持类型：`embedding`、`reranker`、`clip`、`ocr`、`other`、`tts`、`stt`。语音模型目录按当前平台提供 MLX 或 PyTorch 版本。结果按类型分组，模型包含：
 
 - `id`：目录中的模型 ID，下载、删除使用此值。
 - `repo`、`download[]`：模型仓库和可选来源，`source` 为 `modelscope` 或 `huggingface`。
 - `isDownloaded`、`status`：文件是否已就绪；状态为 `not_downloaded`、`downloading`、`downloaded`、`incomplete` 或 `deleting`。
 - `modelPath`：模型所在本地目录。
-- `providerModelId`：embedding、reranker、CLIP 模型用于默认模型设置、知识库创建的完整 ID，例如 `local/bge-m3` 或 `local/Qwen/Qwen3-Embedding-0.6B`。
+- `providerModelId`：embedding、reranker、CLIP、TTS、STT 模型用于默认模型设置或知识库创建的完整 ID，例如 `local/bge-m3` 或 `local/Qwen/Qwen3-Embedding-0.6B`。辅助对齐模型不提供此字段。
+- `dependencies`：随当前语音模型一起下载的依赖模型 ID；`selectable=false` 表示辅助模型，不作为默认模型选择。
 
-`isDownloaded=true` 表示存在非空配置和 ONNX 权重，且没有未完成下载标记；这是文件检查，不是推理健康检查。不要把存在目录、请求已开始或某个 CLI 输出当成下载完成。
+`isDownloaded=true` 表示存在非空配置和所需权重，且没有未完成下载标记。语音模型还会检查 safetensors 分片、分词器/音频编解码器和依赖模型；其他模型检查 ONNX 权重。这是文件检查，不是推理健康检查。不要把存在目录、请求已开始或某个 CLI 输出当成下载完成。
 
 ## 下载、确认状态与删除
 
-先查询目录，再使用实际返回的 `id`、类型和下载来源。以下 ID 是目录中的示例，执行前仍需确认：
+先查询目录，再使用实际返回的 `id` 和类型。默认使用 ModelScope，脚本省略 `--source` 等同于 `--source modelscope`；仅在用户指定 Hugging Face 或目录没有 ModelScope 来源时显式传 `--source huggingface`。以下 ID 是目录中的示例，执行前仍需确认：
 
 ```bash
 python "${AIME_CHAT_SKILL_PATH}/aime-chat-docs/scripts/local_models.py" download \
-  --type embedding --model-id bge-m3 --source modelscope
+  --type embedding --model-id bge-m3
 python "${AIME_CHAT_SKILL_PATH}/aime-chat-docs/scripts/local_models.py" download \
-  --type reranker --model-id bge-reranker-base --source modelscope
+  --type reranker --model-id bge-reranker-base
 ```
 
 下载需要 UV / uvx。若接口返回缺少 UV，按 [runtime 环境说明](runtime.md) 检查并安装或修复 UV，再下载。下载使用 ModelScope CLI 或 [Hugging Face 的 `hf download`](https://huggingface.co/docs/huggingface_hub/main/en/guides/cli)，不会安装到任意用户传入的目录。
 
-请求等待下载及文件检查完成后返回该模型状态。默认 HTTP 超时为 3600 秒，可用 `--timeout 7200` 延长。超时或断连不会取消后台下载，先执行 `list --type ...` 查看状态；`downloading` 时不要重复提交或创建依赖它的知识库。失败或中断会保留下载文件及未完成标记，确认没有活动下载后可重试；`incomplete` 不可作为可用模型。
+请求等待下载及文件检查完成后返回该模型状态。脚本所有子命令默认不设置 HTTP 超时；正常执行时省略 `--timeout`，也不要额外给下载命令设置执行超时。只有用户明确要求限时等待时才传入 `--timeout 秒数`。断连或显式设置的超时不会取消后台下载，先执行 `list --type ...` 查看状态；`downloading` 时不要重复提交或创建依赖它的知识库。失败或中断会保留下载文件及未完成标记，确认没有活动下载后可重试；`incomplete` 不可作为可用模型。
 
 下载完成后，再运行列表确认 `isDownloaded=true`，并通过 [可用模型查询](get-available-models.md) 核对 provider ID：
 
@@ -52,10 +53,25 @@ python "${AIME_CHAT_SKILL_PATH}/aime-chat-docs/scripts/local_models.py" delete \
 
 删除移除该模型的磁盘文件，不删除知识库，也不自动清空默认模型设置。使用该模型的知识库之后可能无法导入或向量检索。同一模型正在下载、删除或已加载到内存时返回 409；停止使用并等待空闲释放后再试。只按用户要求删除模型。
 
+## 本地语音模型
+
+设置页的「本地模型」也提供 TTS / STT 下载和删除。语音推理只从配置的模型目录加载，不再自动下载权重；旧 Hugging Face / ModelScope 缓存不会自动迁移或删除。使用前先准备 QwenAudio 运行环境，再下载所需模型。
+
+当前语音模型（包括 macOS 的 MLX 版本）均提供 `huggingface` 和 `modelscope` 来源，两者对应同一模型格式和量化版本。Windows/Linux 使用原版 PyTorch 仓库，macOS 使用 `mlx-community` 仓库；ModelScope 来源同样遵循该平台区分。
+
+```bash
+python "${AIME_CHAT_SKILL_PATH}/aime-chat-docs/scripts/local_models.py" list --type tts
+python "${AIME_CHAT_SKILL_PATH}/aime-chat-docs/scripts/local_models.py" list --type stt
+```
+
+TTS 包含 Qwen3 TTS、VoxCPM2、Breeze TTS 2。Qwen 按 CustomVoice（预设音色/普通朗读）、VoiceDesign（声音描述）、Base（参考音频克隆）分别下载；默认模型选择器按参数规模合并显示，调用时检查实际用途需要的变体。STT 的 Qwen3 ASR 会一并下载 ForcedAligner；删除对齐模型后，依赖它的 ASR 会显示未就绪。语音推理期间删除返回 409，空闲时删除会先释放语音运行时。
+
+使用列表返回的具体 `id` 和 `download[].source` 下载，确认 `isDownloaded=true` 后，用 `get_available_models.py --type speech --json` 或 `--type transcription --json` 获取可用于默认模型配置的 ID。下载 ID 使用 `tts` / `stt` 类型，供应商可用模型查询使用 `speech` / `transcription` 类型。
+
 ## 创建知识库前的流程
 
 1. 查询 [默认模型](default-models.md)，确认用户准备使用本地还是已配置的远程模型；保留用户选定的模型方案。
-2. 使用本地方案时，分别列出 `embedding` 和 `reranker`。已有可用模型时直接复用；缺哪类就向用户说明并列出该类可下载模型和来源。用户已要求下载或准备指定本地模型时直接执行，否则让用户选择缺失模型与来源后再下载。
+2. 使用本地方案时，分别列出 `embedding` 和 `reranker`。已有可用模型时直接复用；缺哪类就向用户说明并列出该类可下载模型。用户已要求下载或准备指定本地模型时直接执行，否则让用户选择缺失模型后再下载；来源默认 ModelScope，不必再次询问来源，用户指定其他来源时遵循其选择。
 3. 按上面的下载流程等待完成并复查两类模型。部分成功时只处理失败项，不重复下载已完成的模型，也不提前创建依赖缺失模型的知识库。
 4. 调用已有的 `KnowledgeBaseCreate` 工具，显式传入选定模型的 `providerModelId`：
 

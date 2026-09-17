@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { MastraDBMessage } from '@mastra/core/agent';
-import { ProjectTimelineEntry } from '@/entities/project-timeline';
+import type { ProjectTimelineEntry } from '@/types/project';
 import { nanoid } from '@/utils/nanoid';
 
 export const timelineSummarySchema = z.object({
@@ -89,7 +89,7 @@ export function buildTimelineEntry(
   const detailedSummary = summary.detailedSummary.trim();
   if (!conciseSummary || !detailedSummary) return undefined;
 
-  const entry = new ProjectTimelineEntry(nanoid());
+  const entry = { id: nanoid(), createdAt: new Date() } as ProjectTimelineEntry;
   entry.projectId = input.projectId;
   entry.threadId = input.threadId;
   entry.runId = input.runId || nanoid();

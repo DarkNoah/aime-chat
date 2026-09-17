@@ -142,6 +142,48 @@ describe('TextToSpeech', () => {
     ).toBe('generated');
   });
 
+  it('passes Breeze voice direction and saves the result in the workspace', async () => {
+    const reference = path.join(workspace, 'reference.wav');
+    await fs.writeFile(reference, 'reference');
+    const doGenerate = jest.fn().mockResolvedValue({
+      audio: Buffer.from('breeze-audio'),
+      providerMetadata: { local: { duration: 1, sampleRate: 24000 } },
+    });
+    speechModel.mockReturnValue({ doGenerate });
+    const result = await new TextToSpeech({
+      modelId: 'local/mlx-community/Breeze-TTS-2-mlx-4bit',
+    }).execute(
+      {
+        text: '[笑] 欢迎回来。',
+        instruct: '温柔的女声',
+        ref_audio: 'reference.wav',
+        ref_text: '参考录音',
+        save_path: 'breeze.wav',
+      },
+      context,
+    );
+    expect(speechModel).toHaveBeenCalledWith(
+      'mlx-community/Breeze-TTS-2-mlx-4bit',
+    );
+    expect(doGenerate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: '[笑] 欢迎回来。',
+        instructions: '温柔的女声',
+        outputFormat: 'wav',
+        providerOptions: expect.objectContaining({
+          local: expect.objectContaining({
+            ref_audio: reference,
+            ref_text: '参考录音',
+          }),
+        }),
+      }),
+    );
+    expect(await fs.readFile(path.join(workspace, 'breeze.wav'), 'utf8')).toBe(
+      'breeze-audio',
+    );
+    expect(result).toContain('(1.0s, 24000Hz)');
+  });
+
   it('does not save after cancellation during synthesis', async () => {
     const controller = new AbortController();
     context.abortSignal = controller.signal;

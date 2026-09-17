@@ -621,7 +621,7 @@ function KnowledgeBaseDetail() {
           {kb?.rerankerModel && (
             <Badge variant="secondary">@{kb?.rerankerModel}</Badge>
           )}
-          {kb?.static && <Badge>{t('knowledge-base.static-badge')}</Badge>}
+          {kb?.static && <Badge>{t(kb.id === 'project_memory' ? 'knowledge-base.project-memory-badge' : 'knowledge-base.static-badge')}</Badge>}
         </div>
         <Button
           type="button"
@@ -676,7 +676,7 @@ function KnowledgeBaseDetail() {
       </Dialog>
       {kb?.static && (
         <div className="rounded-md border border-dashed bg-muted/40 p-3 text-xs text-muted-foreground">
-          {t('knowledge-base.static-tip')}
+          {t(kb.id === 'project_memory' ? 'knowledge-base.project-memory-tip' : 'knowledge-base.static-tip')}
         </div>
       )}
 
