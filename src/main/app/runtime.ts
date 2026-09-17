@@ -976,7 +976,7 @@ export async function getQwenAudioRuntime(refresh = false) {
     const uvPreCommand = isWindows ? 'uv.exe' : './uv';
 
     const result2 = await runCommand(
-      `"${uvPreCommand}" --project "${sttDir}" run python -c "from importlib import metadata; print(metadata.version('${isWindows ? 'qwen-asr' : 'mlx-audio'}'))"`,
+      `"${uvPreCommand}" --project "${sttDir}" run python -c "from importlib import metadata; print(metadata.version('${process.platform === 'darwin' ? 'mlx-audio' : 'qwen-asr'}'))"`,
       {
         cwd: uvRuntime?.dir,
         timeout: 1000 * 30,
@@ -1048,7 +1048,7 @@ export async function installQwenAudioRuntime() {
 
     let hasGPU = false;
 
-    if (isWindows) {
+    if (process.platform !== 'darwin') {
       const hasGPUResult = await runCommand(`nvidia-smi`, {
         cwd: uvRuntime?.dir,
       });
@@ -1074,7 +1074,7 @@ export async function installQwenAudioRuntime() {
 
 
         const result2 = await runCommand(
-          `"${activateSourcePython}" -c "${qwenAudioHealthCheckScript(isWindows)}"`,
+          `"${activateSourcePython}" -c "${qwenAudioHealthCheckScript(true)}"`,
           {
             cwd: uvRuntime?.dir,
             // timeout: 1000 * 120,
@@ -1176,8 +1176,8 @@ export async function installAgentBrowserRuntime() {
     const result = await runCommand(`npm install -g agent-browser`)
     if (result.code === 0) {
       const resultVersion = await runCommand(`agent-browser -V`);
-      const resultInstall = await runCommand(`agent-browser install`);
-      if (resultVersion.code !== 0 || resultInstall.code !== 0) {
+      // Browser pages use Electron's Chromium; no separate browser download.
+      if (resultVersion.code !== 0) {
         throw new Error('Failed to initialize Agent Browser Runtime');
       }
       agentBrowser.status = 'installed';

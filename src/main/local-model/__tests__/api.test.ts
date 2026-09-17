@@ -9,10 +9,13 @@ import { appManager } from '../../app';
 import { getUVRuntime } from '../../app/runtime';
 import { runCommand } from '../../utils/shell';
 import { localModelManager } from '..';
+import type { LocalModelItem } from '@/types/local-model';
+import { getAudioModelCatalog, resolveSpeechModelId } from '../audio-models';
 import {
   buildModelDownloadCommand,
   DOWNLOAD_MARKER,
   isModelFullyDownloaded,
+  getLocalModelPath,
 } from '../model-files';
 
 jest.mock('electron', () => ({}));
@@ -66,6 +69,182 @@ function createModel(directory: string) {
   );
 }
 
+function createAudioModel(directory: string, model: LocalModelItem) {
+  for (const file of [...(model.requiredFiles || []), 'model.safetensors']) {
+    const target = path.join(directory, file);
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, file.endsWith('.json') ? '{}' : 'fixture weights');
+  }
+}
+
+it('keeps undownloaded audio out of selectors and never downloads during acquisition', async () => {
+  const model = getAudioModelCatalog('tts')[0];
+  expect(await localModelManager.getAvailableAudioModels('tts')).toEqual([]);
+  await expect(
+    localModelManager.acquireAudioModel('tts', model.id),
+  ).rejects.toThrow('Settings > Local Models');
+  expect(runCommand).not.toHaveBeenCalled();
+});
+
+it.each(['huggingface', 'modelscope'])(
+  'downloads ASR and its aligner from %s and tracks dependency deletion',
+  async (source) => {
+    const catalog = getAudioModelCatalog('stt');
+    const model = catalog[0];
+    const aligner = catalog.find((item) => item.id === model.dependencies[0]);
+    jest.mocked(runCommand).mockImplementation(async (command) => {
+      const selected = catalog.find((item) =>
+        String(command).includes(item.repo),
+      );
+      createAudioModel(getLocalModelPath(root, 'stt', selected.id), selected);
+      return result();
+    });
+    const downloaded = await localModelManager.downloadModel({
+      type: 'stt',
+      modelId: model.id,
+      source,
+    });
+    expect(downloaded.isDownloaded).toBe(true);
+    expect(runCommand).toHaveBeenCalledTimes(2);
+    for (const [command] of jest.mocked(runCommand).mock.calls) {
+      expect(command).toContain(
+        source === 'modelscope' ? "'modelscope'" : "'hf'",
+      );
+    }
+    expect(await localModelManager.getAvailableAudioModels('stt')).toEqual([
+      { id: model.id, name: model.name },
+    ]);
+    const lease = await localModelManager.acquireAudioModel('stt', model.id);
+    expect(lease.modelPaths[model.id]).toBe(
+      getLocalModelPath(root, 'stt', model.id),
+    );
+    expect(lease.modelPaths[aligner.id]).toBe(
+      getLocalModelPath(root, 'stt', aligner.id),
+    );
+    expect(lease.alignerModel).toBe(aligner.id);
+    await expect(
+      localModelManager.deleteModel(aligner.id, 'stt'),
+    ).rejects.toMatchObject({ status: 409 });
+    lease.release();
+    lease.release();
+    const releaseRuntime = jest.fn().mockResolvedValue(undefined);
+    localModelManager.setAudioModelReleaseHandler(releaseRuntime);
+    await localModelManager.deleteModel(aligner.id, 'stt');
+    expect(releaseRuntime).toHaveBeenCalledTimes(1);
+    expect(await localModelManager.getAvailableAudioModels('stt')).toEqual([]);
+    expect(fs.existsSync(downloaded.modelPath)).toBe(true);
+  },
+);
+
+it('downloads Breeze from ModelScope into its managed model directory', async () => {
+  const model = getAudioModelCatalog('tts').find((item) =>
+    item.id.includes('Breeze'),
+  );
+  const directory = getLocalModelPath(root, 'tts', model.id);
+  jest.mocked(runCommand).mockImplementationOnce(async () => {
+    createAudioModel(directory, model);
+    return result();
+  });
+  const downloaded = await localModelManager.downloadModel({
+    type: 'tts',
+    modelId: model.id,
+    source: 'modelscope',
+  });
+  expect(downloaded).toMatchObject({
+    isDownloaded: true,
+    modelPath: directory,
+  });
+  const command = jest.mocked(runCommand).mock.calls[0][0];
+  expect(command).toContain("'modelscope' 'download' '--model'");
+  expect(command).toContain(model.id);
+  expect(command).toContain(directory);
+});
+
+it('checks bundled codecs and every weight shard before making TTS selectable', async () => {
+  const model = getAudioModelCatalog('tts').find((item) =>
+    item.id.includes('Breeze'),
+  );
+  const directory = getLocalModelPath(root, 'tts', model.id);
+  createAudioModel(directory, model);
+  expect(isModelFullyDownloaded(directory, model)).toBe(true);
+  fs.rmSync(path.join(directory, 'audio_tokenizer/model.safetensors'));
+  expect(isModelFullyDownloaded(directory, model)).toBe(false);
+  createAudioModel(directory, model);
+  fs.writeFileSync(
+    path.join(directory, 'model.safetensors.index.json'),
+    JSON.stringify({
+      weight_map: { a: 'part-1.safetensors', b: 'part-2.safetensors' },
+    }),
+  );
+  fs.writeFileSync(path.join(directory, 'part-1.safetensors'), 'weights');
+  expect(await localModelManager.getAvailableAudioModels('tts')).toEqual([]);
+  fs.writeFileSync(path.join(directory, 'part-2.safetensors'), 'weights');
+  expect(await localModelManager.getAvailableAudioModels('tts')).toEqual([
+    { id: model.id, name: model.name },
+  ]);
+});
+
+it('retains Qwen family IDs while requiring the correct downloaded variant', async () => {
+  const model = getAudioModelCatalog('tts').find((item) =>
+    item.id.includes('1.7B-VoiceDesign'),
+  );
+  createAudioModel(getLocalModelPath(root, 'tts', model.id), model);
+  expect(await localModelManager.getAvailableAudioModels('tts')).toEqual([
+    { id: model.speechModelId, name: 'Qwen3-TTS-1.7B' },
+  ]);
+  expect(resolveSpeechModelId(model.speechModelId, { instruct: 'warm' })).toBe(
+    model.id,
+  );
+  const voiceId = resolveSpeechModelId(model.speechModelId, {
+    voice: 'Vivian',
+  });
+  await expect(
+    localModelManager.acquireAudioModel('tts', voiceId),
+  ).rejects.toThrow('not downloaded');
+  expect(runCommand).not.toHaveBeenCalled();
+});
+
+it.each(['darwin', 'win32', 'linux'])(
+  'catalogs only supported audio runtimes on %s',
+  (platform) => {
+    const models = [
+      ...getAudioModelCatalog('tts', platform),
+      ...getAudioModelCatalog('stt', platform),
+    ];
+    expect(
+      models.every(
+        (model) =>
+          model.library === (platform === 'darwin' ? 'mlx' : 'pytorch'),
+      ),
+    ).toBe(true);
+    expect(models.some((model) => model.id.includes('Breeze-TTS-2'))).toBe(
+      true,
+    );
+    expect(models.some((model) => model.id.includes('VoxCPM2'))).toBe(true);
+    for (const model of models) {
+      expect(model.download.map((source) => source.source).sort()).toEqual([
+        'huggingface',
+        'modelscope',
+      ]);
+      const source = model.download.find(
+        (item) => item.source === 'modelscope',
+      );
+      expect(source.repo || model.repo).toBe(
+        model.id === 'openbmb/VoxCPM2' ? 'OpenBMB/VoxCPM2' : model.id,
+      );
+      expect(model.repo.startsWith('mlx-community/')).toBe(
+        platform === 'darwin',
+      );
+    }
+    expect(
+      models.some(
+        (model) =>
+          model.selectable === false && model.id.includes('ForcedAligner'),
+      ),
+    ).toBe(true);
+  },
+);
+
 beforeAll(() => BaseManager.registerApiRoutes(app));
 beforeEach(() => {
   jest.clearAllMocks();
@@ -111,7 +290,7 @@ it('lists catalog snapshots with provider IDs and verified file status', async (
   ).toBe('local/Qwen/Qwen3-Embedding-0.6B');
 });
 
-it.each(['../embedding', ['embedding'], 'tts', '__proto__'])(
+it.each(['../embedding', ['embedding'], 'unknown', '__proto__'])(
   'rejects invalid model type %p',
   async (type) => {
     expect(

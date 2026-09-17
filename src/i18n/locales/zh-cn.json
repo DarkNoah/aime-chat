@@ -1,4 +1,18 @@
 {
+  "local-model": {
+    "embedding": "向量模型",
+    "reranker": "重排模型",
+    "other": "其他模型",
+    "ocr": "文字识别",
+    "clip": "图文模型",
+    "tts": "语音合成（TTS）",
+    "stt": "语音识别（STT）",
+    "change_directory": "更改目录",
+    "audio_hint": "TTS / STT 请先在此下载，下载完整后才能选择使用。推理时不会自动下载权重。Qwen TTS 按用途分别下载 CustomVoice（预设音色）、VoiceDesign（声音设计）或 Base（声音克隆）。",
+    "incomplete": "下载不完整，可重新下载",
+    "dependencies": "同时下载所需模型：{{models}}",
+    "dependency_model": "辅助模型，不作为默认模型选择"
+  },
   "model_viewer": {
     "show_wireframe": "显示模型线框",
     "hide_wireframe": "隐藏模型线框",
@@ -104,23 +118,16 @@
     "apiServerTRunningips": "服务端口正在运行中",
     "instances": "实例管理",
     "instances_user_data": "浏览器用户数据目录",
-    "instances_select_browser": "选择浏览器配置",
-    "instances_browse": "浏览...",
-    "instances_current_path": "当前路径",
-    "instances_custom_dir": "自定义目录",
-    "instances_executable": "浏览器可执行文件",
-    "instances_select_executable": "选择浏览器",
-    "instances_executable_path": "当前可执行文件路径",
-    "instances_browser_not_installed": "未安装",
-    "instances_run": "运行",
-    "instances_stop": "停止",
+    "browser_on_demand": "按需使用",
+    "browser_shared_description": "聊天浏览器与网页抓取统一使用 Electron Chromium。所有聊天共享登录状态，各自管理标签页与操作，无需单独启动浏览器。",
+    "browser_engine_version": "Chromium 版本",
+    "browser_open_pages": "打开的页面",
+    "browser_page_count": "{{tabs}} 个标签页 · {{threads}} 个聊天",
+    "browser_open_directory": "打开数据目录",
+    "browser_close_tabs": "关闭所有浏览器标签页",
+    "browser_close_tabs_hint": "关闭将停止所有聊天的浏览器操作，登录状态仍保留。下次使用时会自动创建页面。",
+    "browser_tabs_closed": "所有浏览器标签页已关闭",
     "instances_running": "运行中",
-    "instances_started": "实例已启动",
-    "instances_stopped": "实例已停止",
-    "instances_start_failed": "启动实例失败",
-    "instances_config_saved": "配置已保存",
-    "instances_empty": "暂无实例",
-    "instances_debug_port": "远程调试端口",
     "vision_model": "视觉模型",
     "default_ocr": "默认Ocr模型",
     "usage": "模型用量",
@@ -200,8 +207,7 @@
     "secrets_delete_confirm": "确定要删除此密钥吗？此操作不可撤消。",
     "secrets_description_placeholder": "可选描述",
     "secrets_global": "全局",
-    "default_generate_image": "默认图片生成模型",
-    "instances_headless": "无头模式"
+    "default_generate_image": "默认图片生成模型"
   },
   "common": {
     "edit": "编辑",
@@ -448,6 +454,8 @@
   },
   "chat": {
     "structured_message": {
+      "background_agents_completed": "后台 Agent 执行完成 · {{count}} 个任务",
+      "agent_type": "Agent 类型",
       "cron_triggered": "定时任务 · {{name}} · 已触发",
       "trigger": "触发方式",
       "trigger_schedule": "定时触发",
@@ -485,6 +493,12 @@
     "project": "项目",
     "file_preview": "文件预览",
     "preview_file": "预览文件",
+    "speech_audio_unavailable": "无法播放音频，请检查文件是否存在或格式是否受支持。",
+    "speech_audio_missing": "音频文件不存在，可能已被移动或删除。",
+    "voices_count": "可用音色（{{count}}）",
+    "voice_preview": "试听音色：{{name}}",
+    "voices_empty": "暂无可用音色。",
+    "voices_directory": "音色目录",
     "file_open_options": "{{name}} 的打开方式",
     "open_in_filesystem_default": "在文件系统中打开（默认）",
     "show_in_system_explorer": "在本机资源管理器中显示",
@@ -711,13 +725,14 @@
   "timeline": {
     "tab": "时间线",
     "title": "项目时间线",
-    "description": "每次实质任务结束后，使用完整对话历史生成任务摘要和交付物记录。",
+    "description": "每次实质任务结束后，将本次任务的总结和产出保存到项目记忆知识库。",
     "enabled": "已开启",
     "disabled": "未开启",
     "toggle": "开启或关闭项目时间线",
     "disabled_title": "时间线尚未开启",
     "disabled_description": "开启后，新的实质任务会在对话结束后自动整理。普通闲聊和无实质任务的对话不会记录。",
     "enable_action": "开启时间线",
+    "enable_description": "对话完成后自动记录任务总结和产出，方便回顾项目进展。生成总结会额外消耗少量 Token。",
     "empty_title": "还没有时间线记录",
     "empty_description": "完成下一次实质任务后，这里会显示最短摘要、交付物、开始时间和处理时长。",
     "loading": "正在加载时间线...",
@@ -759,6 +774,8 @@
     "column-type": "类型",
     "add-column": "添加列",
     "column-name-placeholder": "请输入列名",
+    "project-memory-badge": "项目记忆",
+    "project-memory-tip": "保存项目任务总结和记忆，每条记录包含所属项目与来源对话。Memory 工具按当前项目检索。",
     "static-badge": "全局记忆",
     "static-tip": "这是由 Cultivation 养成 agent 自动维护的全局记忆 wiki。index.md 与 log.md 为系统页面，不可删除。"
   },
@@ -1077,5 +1094,20 @@
     "tools": {
       "tool_active": ""
     }
+  },
+  "browser": {
+    "tabs": "浏览器标签页",
+    "new_tab": "新建标签页",
+    "close_tab": "关闭 {{name}}",
+    "back": "后退",
+    "forward": "前进",
+    "reload": "刷新",
+    "stop": "停止",
+    "address": "网页地址",
+    "address_placeholder": "输入网址",
+    "go": "前往",
+    "running": "Agent 正在操作 {{tab}}",
+    "empty": "在此打开网页，Agent 可以操作这些标签页，其他聊天可同时继续。",
+    "restart": "重启应用以启用浏览器预览。"
   }
 }

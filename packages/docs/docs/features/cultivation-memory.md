@@ -107,24 +107,23 @@ static_memory
 
 ## Memory 工具集
 
-Cultivation Agent 通过 Memory 工具集操作全局记忆。
+Cultivation Agent 通过 Memory 工具集操作全局记忆，并始终显式传入 `type: "global"`。所有 Memory 工具支持可选 `type: "global" | "project"`；省略时，项目聊天使用当前项目记忆，普通聊天使用全局记忆。项目记忆使用独立的 Project Memory 知识库，条目通过 `projectId` 隔离，并保留 `threadId` 来源。
 
 | 工具 | 作用 |
 |------|------|
 | `MemoryRead` | 读取 `index.md`、`log.md`、某个主题页，或读取最近记忆摘要 |
 | `MemoryWrite` | 写入 `index.md`、`log.md`、主题页或每日笔记 |
-| `MemorySearch` | 在全局记忆中做语义搜索，用来去重和查找相关页面 |
+| `MemorySearch` | 在所选范围检索记忆；有向量模型时使用混合检索，否则使用 BM25 |
 | `MemoryDelete` | 删除普通主题页，不能删除 `index.md` 和 `log.md` |
-| `MemoryList` | 列出所有普通主题页 |
+| `MemoryList` | 使用 `offset` 和 `limit` 分页列出主题页及时间线条目；默认 0 / 20，limit 最大 100 |
 
-写入主题页时，系统会重新走知识库的导入流程：
+写入主题页时，系统保存稳定的知识库条目与元数据，并等待知识库索引更新完成后返回：
 
 ```mermaid
 flowchart TD
   Write["MemoryWrite page"] --> Check["检查同名页面"]
-  Check --> DeleteOld["删除旧 item 和向量"]
-  DeleteOld --> Import["按 Text source 重新导入"]
-  Import --> Chunk["Markdown 分块"]
+  Check --> Save["创建或更新 item，保留 ID"]
+  Save --> Chunk["文本分块"]
   Chunk --> Embed["向量化"]
   Embed --> Store["保存到 LibSQL 向量库"]
 ```

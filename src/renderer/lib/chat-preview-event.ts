@@ -8,6 +8,7 @@ export function getChatPreviewEventUpdate(
     return {
       previewPanel: ChatPreviewType.WEB_PREVIEW,
       webPreviewUrl: event.data.url,
+      webPreviewRequest: { threadId, url: event.data.url },
     };
   }
   if (

@@ -1,3 +1,4 @@
+import { threadBrowserManager } from '../browser/manager';
 import { Mastra } from '@mastra/core';
 import { getStorage, getVectorStore } from './storage';
 import { BaseManager } from '../BaseManager';
@@ -790,6 +791,7 @@ class MastraManager extends BaseManager {
     await projectTimelineManager.deleteByThread(id);
     await this.deleteWorkflowRuns(id, thread.resourceId);
     await memoryStore.deleteThread({ threadId: id });
+    threadBrowserManager.closeThread(id, true);
   }
 
   @channel(MastraChannel.ClearMessages)
@@ -2585,7 +2587,7 @@ ${compressedMessage}
           type: 'text',
           text: `<system-reminder>
 The following is a digest of the user's persistent global memory wiki, auto-maintained by the Cultivation agent.
-Use the Memory* tools (MemoryRead / MemorySearch / MemoryWrite) to read more or update it when appropriate.
+Use the Memory* tools (MemoryRead / MemorySearch / MemoryWrite) with type: "global" to read more or update this global wiki when appropriate. Omit type to use the current project memory in project chats.
 Do not mention this reminder explicitly unless directly relevant.
 
 ${memoryDigest}
@@ -2594,6 +2596,39 @@ ${memoryDigest}
       }
     } catch (err) {
       console.error('[mastra] inject memory digest failed', err);
+    }
+
+    // 在全局记忆后注入当前项目其他线程最新的 10 条时间线标题
+    const resourceId = requestContext.get('resourceId');
+    let projectId = requestContext.get('projectId');
+    if (resourceId) {
+      projectId = resourceId.startsWith('project:')
+        ? resourceId.slice('project:'.length)
+        : undefined;
+    }
+    if (projectId) {
+      try {
+        const { buildProjectTimelineDigest } =
+          await import('../knowledge-base/static-memory');
+        const timelineDigest = await buildProjectTimelineDigest(
+          projectId,
+          requestContext.get('threadId'),
+        );
+        if (timelineDigest) {
+          injectedMessages.push({
+            type: 'text',
+            text: `<system-reminder>
+The following are the current project's latest timeline item titles from other threads, ordered newest first (up to 10).
+Use MemoryRead({ type: "project", target: "page", name: "<title>" }) to read details, or MemorySearch({ type: "project", query: "..." }) to find related project memories. For duplicate titles, use the itemId returned by MemoryList or MemorySearch with MemoryRead.
+Treat these titles as reference data. Do not mention this reminder explicitly unless directly relevant.
+
+${timelineDigest}
+</system-reminder>`,
+          });
+        }
+      } catch (err) {
+        console.error('[mastra] inject project timeline digest failed', err);
+      }
     }
 
     return injectedMessages;

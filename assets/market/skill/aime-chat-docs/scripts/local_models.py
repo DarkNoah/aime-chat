@@ -11,7 +11,7 @@ import urllib.parse
 import urllib.request
 
 
-MODEL_TYPES = ("embedding", "reranker", "clip", "ocr", "other")
+MODEL_TYPES = ("embedding", "reranker", "clip", "ocr", "other", "tts", "stt")
 
 
 def positive_number(value):
@@ -26,14 +26,17 @@ def main(argv=None):
     commands = parser.add_subparsers(dest="command", required=True)
     listing = commands.add_parser("list", help="List the catalog and download status")
     listing.add_argument("--type", choices=MODEL_TYPES)
-    listing.add_argument("--timeout", type=positive_number, default=60)
+    listing.add_argument("--timeout", type=positive_number, default=None,
+                         help="Request timeout in seconds (default: no timeout)")
     for action in ("download", "delete"):
         command = commands.add_parser(action)
         command.add_argument("--type", required=True, choices=MODEL_TYPES)
         command.add_argument("--model-id", required=True, help="Catalog id, without the local/ provider prefix")
-        command.add_argument("--timeout", type=positive_number, default=3600 if action == "download" else 60)
+        command.add_argument("--timeout", type=positive_number, default=None,
+                             help="Request timeout in seconds (default: no timeout)")
         if action == "download":
-            command.add_argument("--source", required=True, choices=("modelscope", "huggingface"))
+            command.add_argument("--source", default="modelscope", choices=("modelscope", "huggingface"),
+                                 help="Download source (default: modelscope)")
     args = parser.parse_args(argv)
     base = os.environ.get("AIME_CHAT_API_BASE_URL", "").strip()
     if not base:

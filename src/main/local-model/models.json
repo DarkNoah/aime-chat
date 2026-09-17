@@ -125,47 +125,6 @@
       ]
     }
   ],
-  "tts": [
-    {
-      "id": "kokoro-multi-lang-v1_1",
-      "type": "github",
-      "download": "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/kokoro-multi-lang-v1_1.tar.bz2"
-    },
-    {
-      "id": "matcha-icefall-zh-baker",
-      "type": "github",
-      "download": "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/matcha-icefall-zh-baker.tar.bz2"
-    },
-    {
-      "id": "vits-icefall-zh-aishell3",
-      "type": "github",
-      "download": "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-icefall-zh-aishell3.tar.bz2"
-    },
-    {
-      "id": "vits-melo-tts-zh_en",
-      "type": "github",
-      "download": "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-melo-tts-zh_en.tar.bz2"
-    }
-  ],
-  "stt": [
-    {
-      "id": "sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17",
-      "type": "github",
-      "download": "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17.tar.bz2"
-    },
-    {
-      "id": "sherpa-onnx-whisper-large-v3",
-      "type": "huggingface",
-      "repo": "csukuangfj/sherpa-onnx-whisper-large-v3",
-      "download": "https://huggingface.co/csukuangfj/sherpa-onnx-whisper-large-v3"
-    },
-    {
-      "id": "sherpa-onnx-whisper-small",
-      "type": "huggingface",
-      "repo": "csukuangfj/sherpa-onnx-whisper-small",
-      "download": "https://huggingface.co/csukuangfj/sherpa-onnx-whisper-small"
-    }
-  ],
   "vad": [
     {
       "id": "silero_vad",

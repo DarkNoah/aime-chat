@@ -14,6 +14,7 @@ import {
   getBunRuntime,
   getQwenAudioRuntime,
   getUVRuntime,
+  installQwenAudioRuntime,
   runtimeManager,
 } from '../runtime';
 
@@ -21,7 +22,7 @@ jest.mock('electron', () => ({ app: { getPath: () => '/test/user-data' } }));
 jest.mock('fs', () => ({
   existsSync: jest.fn(),
   mkdirSync: jest.fn(),
-  promises: { rm: jest.fn() },
+  promises: { rm: jest.fn(), writeFile: jest.fn() },
 }));
 jest.mock('..', () => ({ appManager: { toast: jest.fn() } }));
 jest.mock('../../utils/shell', () => ({ runCommand: jest.fn() }));
@@ -267,7 +268,7 @@ it('reports a failed install instead of returning an apparently successful HTTP 
   expect(bun.status).toBe('not_installed');
 });
 
-it('does not accept the installed CLI when Agent Browser download fails', async () => {
+it('installs the Agent Browser CLI without downloading a separate Chromium', async () => {
   jest.mocked(runCommand).mockImplementation(async (command) => {
     if (command === 'node --version') return commandResult(0, 'v22.0.0');
     if (command === 'npm --version') return commandResult(0, '10.0.0');
@@ -279,8 +280,46 @@ it('does not accept the installed CLI when Agent Browser download fails', async 
   const { error } = await invoke('post', 'install', {
     body: { pkg: 'agentBrowser' },
   });
-  expect(error).toMatchObject({ status: 500 });
-  expect(agentBrowser.installed).toBe(false);
+  expect(error).toBeUndefined();
+  expect(agentBrowser.installed).toBe(true);
+  expect(runCommand).not.toHaveBeenCalledWith('agent-browser install');
+});
+
+it('installs and detects the PyTorch audio runtime on Linux', async () => {
+  const platform = Object.getOwnPropertyDescriptor(process, 'platform')!;
+  Object.defineProperty(process, 'platform', { value: 'linux' });
+  try {
+    files.add(path.join(root, 'bin', 'uv'));
+    jest.mocked(runCommand).mockImplementation(async (command) => {
+      if (String(command).includes('--version'))
+        return commandResult(0, 'uv 0.9.0');
+      if (String(command).includes(' init '))
+        return commandResult(0, 'Initialized project');
+      if (command === 'nvidia-smi') return commandResult(0, 'NVIDIA-SMI');
+      return commandResult(0, '0.1.1');
+    });
+    expect((await installQwenAudioRuntime()).installed).toBe(true);
+    expect(fs.promises.writeFile).toHaveBeenCalledWith(
+      path.join(root, 'qwen-audio-runtime', 'pyproject.toml'),
+      expect.stringContaining('qwen-tts'),
+    );
+    expect(runCommand).toHaveBeenCalledWith(
+      expect.stringContaining('import torch, torchaudio'),
+      expect.anything(),
+    );
+    expect(runCommand).not.toHaveBeenCalledWith(
+      expect.stringContaining('add mlx-audio'),
+      expect.anything(),
+    );
+    files.add(path.join(root, 'qwen-audio-runtime'));
+    await getQwenAudioRuntime(true);
+    expect(runCommand).toHaveBeenLastCalledWith(
+      expect.stringContaining("metadata.version('qwen-asr')"),
+      expect.anything(),
+    );
+  } finally {
+    Object.defineProperty(process, 'platform', platform);
+  }
 });
 
 it('clears stale installed status when UV, Bun or QwenAudio health checks fail', async () => {

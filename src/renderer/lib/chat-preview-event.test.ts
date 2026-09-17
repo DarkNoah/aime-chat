@@ -25,6 +25,7 @@ it('preserves web previews and ignores unrelated or invalid events', () => {
   ).toEqual({
     previewPanel: ChatPreviewType.WEB_PREVIEW,
     webPreviewUrl: 'https://example.com',
+    webPreviewRequest: { threadId: 'thread-1', url: 'https://example.com' },
   });
   expect(
     getChatPreviewEventUpdate({ event: 'files_preview' }, 'thread-1'),

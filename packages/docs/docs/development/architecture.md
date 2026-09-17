@@ -50,7 +50,8 @@ AIME Chat 是一个本地优先的 Electron 桌面 Agent 工作区。本页以�
 - `src/main/tools`：内置工具、MCP、Skill 与权限配置
 - `src/main/knowledge-base`：导入、BM25/向量检索、重排和 SQLite 迁移
 - `src/main/project`：项目、Git 克隆与聊天导出
-- `src/main/instances`：Chrome/Edge/Chromium 实例检测和启动
+- `src/main/browser`：Electron Chromium 共享会话、数据迁移、聊天标签页和自动化操作隔离
+- `src/main/instances`：统一浏览器实例配置、状态和关闭标签页入口
 - `src/main/providers`：模型服务商与模型适配
 - `src/main/db`：TypeORM DataSource 与共享 LibSQL 客户端
 

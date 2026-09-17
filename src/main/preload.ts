@@ -1,3 +1,9 @@
+import { ThreadBrowserChannel } from '@/types/thread-browser';
+import type {
+  ThreadBrowserState,
+  ThreadBrowserAction,
+  BrowserPresentation,
+} from '@/types/thread-browser';
 // Disable no-unused-vars, broken for spread args
 /* eslint no-unused-vars: off */
 import { Agent } from '@/types/agent';
@@ -710,23 +716,21 @@ const electronHandler = {
     clearCompleted: (): Promise<void> =>
       ipcRenderer.invoke(TaskQueueChannel.ClearCompleted),
   },
+  browser: {
+    state: (threadId: string): Promise<ThreadBrowserState> =>
+      ipcRenderer.invoke(ThreadBrowserChannel.State, threadId),
+    action: (input: ThreadBrowserAction): Promise<ThreadBrowserState> =>
+      ipcRenderer.invoke(ThreadBrowserChannel.Action, input),
+    present: (input: BrowserPresentation): Promise<void> =>
+      ipcRenderer.invoke(ThreadBrowserChannel.Present, input),
+  },
   instances: {
     getInstances: (): Promise<InstanceInfo[]> =>
       ipcRenderer.invoke(InstancesChannel.GetInstances),
-    runInstance: (id: string) =>
-      ipcRenderer.invoke(InstancesChannel.RunInstance, id),
     stopInstance: (id: string) =>
       ipcRenderer.invoke(InstancesChannel.StopInstance, id),
-    updateInstance: (id: string, data: any) =>
-      ipcRenderer.invoke(InstancesChannel.UpdateInstance, id, data),
-    deleteInstance: (id: string) =>
-      ipcRenderer.invoke(InstancesChannel.DeleteInstance, id),
-    createInstance: (data: any) =>
-      ipcRenderer.invoke(InstancesChannel.CreateInstance, data),
     getInstance: (id: string) =>
       ipcRenderer.invoke(InstancesChannel.GetInstance, id),
-    detectBrowserProfiles: () =>
-      ipcRenderer.invoke(InstancesChannel.DetectBrowserProfiles),
   },
   market: {
     getMarketData: (type: MarketDataType) =>

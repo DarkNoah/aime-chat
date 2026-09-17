@@ -1,6 +1,7 @@
 ---
 name: imagegen
 description: Provide prompt guidelines and examples for image generation, creation from references, and image editing. Use for raster tasks such as photos, illustrations, product images, posters, UI mockups, infographics, and transparent-background assets. Not for directly editing existing SVG or vector source files, or implementing web interfaces in code.
+autoInstall: true
 ---
 
 # Image Prompt Guidelines

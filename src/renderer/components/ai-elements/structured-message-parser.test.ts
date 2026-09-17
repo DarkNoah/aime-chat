@@ -5,8 +5,102 @@ const task =
   '<task><bash-id>1</bash-id><command>ls</command><timed-out>false</timed-out></task>';
 const xml = (body: string, version = '1') =>
   `<background-bash-completion version="${version}">${body}</background-bash-completion>`;
+const agent =
+  '<agent><agent-id>agent-1</agent-id><description>Inspect files</description><agent-type>Explore</agent-type><status>completed</status><result>Done</result><error></error></agent>';
+const agentXml = (body = agent, version = '1') =>
+  `<background-agent-completion version="${version}">${body}</background-agent-completion>`;
+const legacyAgent = (index: number, status = 'completed', result = 'Done') =>
+  [
+    `${index}. Agent ID: agent-${index}`,
+    '',
+    '   Description: 检查项目',
+    '',
+    '   Agent type: Explore',
+    '',
+    `   Status: ${status}`,
+    '',
+    `   Result: ${result}`,
+    '',
+    '   Error: None',
+  ].join('\n');
 
 describe('parseStructuredMessage', () => {
+  it.each(['completed', 'failed', 'aborted'])(
+    'parses agent completion status %s',
+    (status) => {
+      const parsed = parseStructuredMessage(
+        agentXml(
+          agent.replace(
+            '<status>completed</status>',
+            `<status>${status}</status>`,
+          ),
+        ),
+      );
+      expect(parsed).toMatchObject({
+        type: 'background-agent-completion',
+        agents: [{ sessionId: 'agent-1', status, result: 'Done' }],
+      });
+    },
+  );
+
+  it('recognizes single and batched historical agent notifications', () => {
+    const single = `Background agent finished.\n\n${legacyAgent(1, 'aborted', 'None')}`;
+    expect(parseStructuredMessage(single)).toMatchObject({
+      type: 'background-agent-completion',
+      agents: [{ status: 'aborted', result: undefined }],
+    });
+    const batch = `Background agents finished (2 agents).\n\n${legacyAgent(1, 'completed', 'Line 1\n\nLine 2')}\n\n${legacyAgent(2, 'failed')}`;
+    expect(parseStructuredMessage(batch.replace(/\n/g, '\r\n'))).toMatchObject({
+      type: 'background-agent-completion',
+      agents: [
+        {
+          sessionId: 'agent-1',
+          status: 'completed',
+          result: 'Line 1\n\nLine 2',
+        },
+        { sessionId: 'agent-2', status: 'failed' },
+      ],
+    });
+  });
+
+  it.each([
+    agentXml('', '1'),
+    agentXml(agent, '2'),
+    agentXml(agent.replace('<agent-id>agent-1</agent-id>', '')),
+    agentXml(agent.replace('<agent-type>Explore</agent-type>', '')),
+    agentXml(
+      agent.replace('<status>completed</status>', '<status>running</status>'),
+    ),
+    agentXml(
+      agent.replace(
+        '<result>Done</result>',
+        '<result><img src="x" /></result>',
+      ),
+    ),
+    agentXml(
+      agent.replace(
+        '<result>Done</result>',
+        '<result>A</result><result>B</result>',
+      ),
+    ),
+    agentXml(agent.replace('Done', '&unknown;')),
+    agentXml(agent.replace('Done', '<?instruction text?>')),
+    '<background-agent-completion version="1"><agent>',
+    `Example: ${agentXml()}`,
+    `\`\`\`xml\n${agentXml()}\n\`\`\``,
+    'Background agent finished.',
+    `Background agents finished (2 agents).\n\n${legacyAgent(1)}`,
+    `Background agent finished.\n\n${legacyAgent(1, 'running')}`,
+    `Background agent finished.\n\n${legacyAgent(1, 'completed', 'Output\n\n   Error: ambiguous result')}`,
+    `Example: Background agent finished.\n\n${legacyAgent(1)}`,
+    `\`\`\`text\nBackground agent finished.\n\n${legacyAgent(1)}\n\`\`\``,
+  ])(
+    'leaves malformed or ambiguous agent notifications and examples as ordinary text',
+    (text) => {
+      expect(parseStructuredMessage(text)).toBeNull();
+    },
+  );
+
   const cron = formatCronMessage({
     id: 'cron-1',
     name: '日报 & <检查>',

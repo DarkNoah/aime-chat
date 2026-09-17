@@ -1,82 +1,75 @@
-import { ToolConfig, ToolType } from "@/types/tool";
-import BaseTool, { BaseToolParams } from "../base-tool";
-import z from "zod";
-import { ToolExecutionContext } from "@mastra/core/tools";
-import { runCommand } from "@/main/utils/shell";
-import { instancesManager } from "@/main/instances";
-import { appManager } from "@/main/app";
-import { truncateText } from "@/utils/common";
+import { ToolType } from '@/types/tool';
+import BaseTool, { BaseToolParams } from '../base-tool';
+import z from 'zod';
+import type { ToolExecutionContext } from '@mastra/core/tools' with {
+  'resolution-mode': 'import',
+};
+// Runtime manager also registers built-in tools.
+// eslint-disable-next-line import/no-cycle
+import { appManager } from '@/main/app';
+import { executeBrowserCommands } from '@/main/browser/automation';
 
-export interface AgentBrowserParams extends BaseToolParams {
+export interface AgentBrowserParams extends BaseToolParams {}
 
-}
-export class AgentBrowser extends BaseTool<BaseToolParams> {
+export class AgentBrowser extends BaseTool<AgentBrowserParams> {
   static readonly toolName = 'AgentBrowser';
 
-  id: string = 'AgentBrowser';
-  description = `Control the browser use agent-browser command`;
+  id = 'AgentBrowser';
+
+  description = `Control this chat thread's browser tabs inside the Electron preview using agent-browser commands.
+All threads share cookies and login state. Each thread owns its tabs and actions.
+Use "tab list", "tab new <url>", "tab <tabId>", and "tab close <tabId>" to manage this thread's tabs.
+Pass tabId to target a specific tab. Otherwise the thread's automation tab is used, independent of the tab the user is viewing.
+Element refs are local to each tab. Take a new snapshot after navigation. Use this tool for browser automation, including when following the agent-browser skill.
+Do not pass connection/session/profile flags. "close" closes only this thread's tabs. Commands may be joined with &&.`;
+
   inputSchema = z
     .object({
-      command: z.string().describe('The command to execute, eg. `agent-browser open https://www.google.com`'),
-      description: z.string().optional().describe('Clear, concise description of what this command does in -10 words.'),
+      command: z
+        .string()
+        .describe(
+          'Browser command, e.g. agent-browser open https://example.com or snapshot -i',
+        ),
+      tabId: z
+        .string()
+        .optional()
+        .describe(
+          'A tab ID returned by tab list/new, owned by this chat thread.',
+        ),
+      description: z
+        .string()
+        .optional()
+        .describe('Concise description of the action.'),
     })
     .strict();
 
-  // onfigSchema = ToolConfig.WebFetch.configSchema;
-
-  constructor(config?: AgentBrowserParams) {
-    super(config);
-  }
-
   execute = async (
-    inputData: z.infer<typeof this.inputSchema>,
+    input: z.infer<typeof this.inputSchema>,
     options?: ToolExecutionContext,
   ) => {
-    let { command } = inputData;
-    const config = this.config;
-    const { requestContext } = options ?? {};
-    const workspace = requestContext?.get('workspace' as never) as string;
-    const skillsLoaded = requestContext?.get('skillsLoaded' as never) as string[] || [];
-    if (!skillsLoaded.includes(`${ToolType.SKILL}:local:agent-browser`) && requestContext?.size() > 0) {
+    const requestContext = options?.requestContext;
+    const threadId = requestContext?.get('threadId' as never) as string;
+    if (!threadId)
+      throw new Error(
+        'AgentBrowser requires a chat thread. Run it from a conversation.',
+      );
+    const skills =
+      (requestContext?.get('skillsLoaded' as never) as string[]) || [];
+    if (!skills.includes(`${ToolType.SKILL}:local:agent-browser`))
       return `You need to read ${ToolType.SKILL}:local:agent-browser skill first.`;
-    }
-    let runtimeInfo = await appManager.getRuntimeInfo();
-    if (!runtimeInfo?.agentBrowser?.installed) {
+    let runtime = await appManager.getRuntimeInfo();
+    if (!runtime.agentBrowser?.installed) {
       await appManager.installRuntime('agentBrowser');
-      runtimeInfo = await appManager.getRuntimeInfo(true);
+      runtime = await appManager.getRuntimeInfo(true);
     }
-
-    if (!runtimeInfo?.agentBrowser?.installed) {
-      return 'Error: Agent Browser installation failed';
-    }
-
-    if (!command.startsWith('agent-browser')) {
-      command = `agent-browser ${command}`;
-      // throw new Error('Invalid command must start with "agent-browser <command>"');
-    }
-    const instances = await instancesManager.getInstances();
-    const defaultInstance = instances?.find(x => x.status == 'running' && x.id == instancesManager.DEFAULT_BROWSER_INSTANCE_ID);
-    if (!defaultInstance) {
-      const result = await instancesManager.runInstance(instancesManager.DEFAULT_BROWSER_INSTANCE_ID);
-      if (result.status !== 'running') {
-        throw new Error('Failed to run default browser instance');
-      }
-    }
-
-    const result = await runCommand(command, {
-      abortSignal: options?.abortSignal,
-      cwd: workspace,
-      env: {
-        AGENT_BROWSER_SESSION: "dev1"
-      }
+    if (!runtime.agentBrowser?.installed)
+      throw new Error('Agent Browser installation failed.');
+    return executeBrowserCommands({
+      threadId,
+      command: input.command,
+      tabId: input.tabId,
+      workspace: requestContext?.get('workspace' as never) as string,
+      signal: options?.abortSignal,
     });
-    if (result.processSignal) {
-      return 'Action cancelled by user';
-    }
-    if (result.code != 0) {
-
-    }
-
-    return truncateText(result?.output, 64000) ?? `Result not found, code: ${result?.code}, error: ${result?.stderr}`;
   };
 }

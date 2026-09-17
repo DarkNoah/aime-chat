@@ -36,7 +36,7 @@
 - 🔍 **Skill System** - Search, import, and manage AI skills from Git repositories or the online skill marketplace
 - 🧑‍💻 **Assistant Personalities** - Built-in assistant personalities can be selected instantly and customized through the current personality format
 - 🖥️ **Background Bash Sessions** - Track long-running shell processes from the current chat or the whole project, with direct stop controls in the UI
-- 🌐 **Browser Instances** - Detect Chrome, Edge, and Chromium; select the executable and browser profile used by an automation instance
+- 🌐 **Embedded Browser** - Electron Chromium with shared sign-in data, multiple tabs per chat, and isolated actions across concurrent chats
 - 📡 **Channel Integration** - Connect AI capabilities to messaging platforms like WeChat and Telegram
 - 🔐 **Secrets Management** - Centrally manage credentials for tools and services and inject them into configured local workflows
 - 🎨 **Customizable UI** - Choose light, dark, or system mode, set an accent color, and configure independent sidebar/chat backgrounds
@@ -288,7 +288,7 @@ The Bash tool can use either AIME Chat's independent Python runtime (recommended
 ### Appearance and Browser Instances
 
 - Open **Settings → Appearance** to choose the theme mode and accent color, or add separate JPG/PNG/WebP backgrounds for the sidebar and chat area. Background opacity and blur can be adjusted independently.
-- Open **Settings → Instances** to select an installed Google Chrome, Microsoft Edge, or Chromium executable, choose a detected or custom user-data directory, and configure the debug port or headless mode.
+- Open **Settings → Instances** to view the shared Electron Chromium browser, its data directory and open tab counts, or close all browser tabs. Browser data lives in `<application data>/instances/default_browser`; no separate browser installation is required.
 
 ### Data Storage
 

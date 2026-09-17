@@ -5,10 +5,13 @@ import {
   CircleAlertIcon,
   ChevronDownIcon,
   Clock3Icon,
+  BotIcon,
   TerminalIcon,
+  type LucideIcon,
 } from 'lucide-react';
 import {
   getBashCompletionState,
+  type AgentCompletionMessageTask,
   type BashCompletionMessageTask,
   type CronMessageData,
   type SkillMessageData,
@@ -35,25 +38,32 @@ function MessageField({
   );
 }
 
-function BashTask({ task }: { task: BashCompletionMessageTask }) {
+function TaskHeading({ title, state }: { title: string; state: string }) {
   const { t } = useTranslation();
-  const state = getBashCompletionState(task);
   const successful = state === 'succeeded' || state === 'completed';
   const StatusIcon = successful ? CheckCircle2Icon : CircleAlertIcon;
   return (
+    <div className="flex flex-wrap items-start justify-between gap-2">
+      <span className="min-w-0 break-words font-medium">{title}</span>
+      <span className="inline-flex shrink-0 items-center gap-1 text-xs">
+        <StatusIcon
+          aria-hidden="true"
+          className={`size-3.5 ${successful ? 'text-foreground' : 'text-destructive dark:text-destructive-foreground'}`}
+        />
+        {t(`chat.structured_message.${state}`)}
+      </span>
+    </div>
+  );
+}
+
+function BashTask({ task }: { task: BashCompletionMessageTask }) {
+  const { t } = useTranslation();
+  return (
     <div className="min-w-0 space-y-2 border-t border-border pt-3">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <span className="min-w-0 break-words font-medium">
-          {task.description || task.bashId}
-        </span>
-        <span className="inline-flex shrink-0 items-center gap-1 text-xs">
-          <StatusIcon
-            aria-hidden="true"
-            className={`size-3.5 ${successful ? 'text-foreground' : 'text-destructive dark:text-destructive-foreground'}`}
-          />
-          {t(`chat.structured_message.${state}`)}
-        </span>
-      </div>
+      <TaskHeading
+        title={task.description || task.bashId}
+        state={getBashCompletionState(task)}
+      />
       <pre className="max-h-40 overflow-auto whitespace-pre-wrap break-words rounded-md bg-muted/60 p-2 font-mono text-xs">
         {task.command}
       </pre>
@@ -96,6 +106,76 @@ function BashTask({ task }: { task: BashCompletionMessageTask }) {
         </dl>
       </details>
     </div>
+  );
+}
+
+function AgentTask({ agent }: { agent: AgentCompletionMessageTask }) {
+  const { t } = useTranslation();
+  const state = {
+    completed: 'succeeded',
+    failed: 'failed',
+    aborted: 'terminated',
+  }[agent.status];
+  return (
+    <div className="min-w-0 space-y-2 border-t border-border pt-3">
+      <TaskHeading title={agent.description || agent.sessionId} state={state} />
+      {agent.result ? (
+        <div className="max-h-60 overflow-auto whitespace-pre-wrap break-words rounded-md bg-muted/60 p-2 text-sm">
+          {agent.result}
+        </div>
+      ) : null}
+      {agent.errorMessage ? (
+        <p className="whitespace-pre-wrap break-words text-xs text-foreground">
+          {agent.errorMessage}
+        </p>
+      ) : null}
+      <details className="min-w-0">
+        <summary className={summaryClassName}>
+          {t('chat.structured_message.details')}
+        </summary>
+        <dl className="mt-2 space-y-1.5 text-xs">
+          <MessageField label="Agent ID">{agent.sessionId}</MessageField>
+          <MessageField label={t('chat.structured_message.agent_type')}>
+            {agent.subagentType}
+          </MessageField>
+          {agent.startTime ? (
+            <MessageField label={t('chat.structured_message.started_at')}>
+              {agent.startTime}
+            </MessageField>
+          ) : null}
+          {agent.finishedAt ? (
+            <MessageField label={t('chat.structured_message.finished_at')}>
+              {agent.finishedAt}
+            </MessageField>
+          ) : null}
+        </dl>
+      </details>
+    </div>
+  );
+}
+
+function BackgroundCompletion({
+  type,
+  title,
+  icon: Icon,
+  children,
+}: {
+  type: string;
+  title: string;
+  icon: LucideIcon;
+  children: ReactNode;
+}) {
+  return (
+    <section
+      className="not-prose w-full min-w-0 space-y-3 whitespace-normal text-left text-sm"
+      data-structured-message={type}
+    >
+      <div className="flex items-center gap-2 text-xs font-medium">
+        <Icon aria-hidden="true" className="size-4 shrink-0" />
+        {title}
+      </div>
+      {children}
+    </section>
   );
 }
 
@@ -164,20 +244,32 @@ export function StructuredMessage({ data }: { data: StructuredMessageData }) {
   const { t } = useTranslation();
   if (data.type === 'skill') return <SkillBody skill={data.skill} />;
   if (data.type === 'cron') return <CronBody cron={data.cron} />;
-  return (
-    <section
-      className="not-prose w-full min-w-0 space-y-3 whitespace-normal text-left text-sm"
-      data-structured-message={data.type}
-    >
-      <div className="flex items-center gap-2 text-xs font-medium">
-        <TerminalIcon aria-hidden="true" className="size-4 shrink-0" />
-        {t('chat.structured_message.background_completed', {
-          count: data.tasks.length,
+  if (data.type === 'background-agent-completion') {
+    return (
+      <BackgroundCompletion
+        type={data.type}
+        icon={BotIcon}
+        title={t('chat.structured_message.background_agents_completed', {
+          count: data.agents.length,
         })}
-      </div>
+      >
+        {data.agents.map((agent, index) => (
+          <AgentTask key={`${agent.sessionId}-${index}`} agent={agent} />
+        ))}
+      </BackgroundCompletion>
+    );
+  }
+  return (
+    <BackgroundCompletion
+      type={data.type}
+      icon={TerminalIcon}
+      title={t('chat.structured_message.background_completed', {
+        count: data.tasks.length,
+      })}
+    >
       {data.tasks.map((task, index) => (
         <BashTask key={`${task.bashId}-${index}`} task={task} />
       ))}
-    </section>
+    </BackgroundCompletion>
   );
 }

@@ -1,6 +1,5 @@
 /* eslint-disable import/no-cycle */
 import { Agent } from '@mastra/core/agent';
-import { convertToModelMessages } from 'ai';
 import { Repository } from 'typeorm';
 import { BaseManager } from '../BaseManager';
 import { dbManager } from '../db';
@@ -8,28 +7,54 @@ import { providersManager } from '../providers';
 import { appManager } from '../app';
 import { channel } from '../ipc/IpcController';
 import { api } from '../api/ApiController';
-import { ProjectTimelineEntry } from '@/entities/project-timeline';
+import type { ProjectTimelineEntry } from '@/types/project';
 import { Projects } from '@/entities/projects';
 import { ProjectChannel } from '@/types/ipc-channel';
 import { ProjectEvent, ProjectTimelinePage } from '@/types/project';
-import { toAISdkV5Messages } from '../utils/convertToCoreMessages';
 import {
   buildTimelineEntry,
   selectLatestTimelineMessages,
   timelineSummarySchema,
   type TimelineGenerationInput,
 } from './timeline-entry';
-import { filterFilePartsForModel } from '../utils/messageUtils';
+import { deleteProjectMemory } from '../knowledge-base/static-memory';
+import {
+  findTimelineMemory,
+  listTimelineMemory,
+  saveTimelineMemory,
+} from './timeline-memory';
+import { migrateLegacyTimeline } from './migrate-timeline';
+import { normalizeTimelineMemoryItems } from './normalize-timeline-memory';
 
-class ProjectTimelineManager extends BaseManager {
-  private timelineRepository: Repository<ProjectTimelineEntry>;
-
+export class ProjectTimelineManager extends BaseManager {
   private projectsRepository: Repository<Projects>;
 
+  private migration?: Promise<void>;
+
+  private ensureMemoryReady(): Promise<void> {
+    if (!this.migration) {
+      this.migration = migrateLegacyTimeline(dbManager.dataSource)
+        .then(() => normalizeTimelineMemoryItems(dbManager.dataSource))
+        .catch((error) => {
+          this.migration = undefined;
+          throw error;
+        });
+    }
+    return this.migration;
+  }
+
   async init() {
-    this.timelineRepository =
-      dbManager.dataSource.getRepository(ProjectTimelineEntry);
     this.projectsRepository = dbManager.dataSource.getRepository(Projects);
+    try {
+      await this.ensureMemoryReady();
+    } catch (error) {
+      // Keep the application usable if a provider is temporarily unavailable.
+      // Timeline access retries migration; legacy rows remain intact until success.
+      console.error(
+        '[timeline] Memory migration failed; will retry on access',
+        error,
+      );
+    }
   }
 
   @api({
@@ -53,22 +78,8 @@ class ProjectTimelineManager extends BaseManager {
     page?: number;
     size?: number;
   }): Promise<ProjectTimelinePage> {
-    const safePage = Math.max(0, page);
-    const safeSize = Math.min(100, Math.max(1, size));
-    const [items, total] = await this.timelineRepository.findAndCount({
-      where: { projectId },
-      order: { startedAt: 'DESC' },
-      skip: safePage * safeSize,
-      take: safeSize,
-    });
-
-    return {
-      items,
-      total,
-      page: safePage,
-      size: safeSize,
-      hasMore: total > (safePage + 1) * safeSize,
-    };
+    await this.ensureMemoryReady();
+    return listTimelineMemory(projectId, page, size);
   }
 
   @channel(ProjectChannel.SetTimelineEnabled)
@@ -95,6 +106,7 @@ class ProjectTimelineManager extends BaseManager {
   async generateTimelineEntry(
     input: TimelineGenerationInput,
   ): Promise<ProjectTimelineEntry | undefined> {
+    await this.ensureMemoryReady();
     const project = await this.projectsRepository.findOne({
       where: { id: input.projectId },
     });
@@ -103,9 +115,11 @@ class ProjectTimelineManager extends BaseManager {
     }
 
     if (input.runId) {
-      const existing = await this.timelineRepository.findOne({
-        where: { threadId: input.threadId, runId: input.runId },
-      });
+      const existing = await findTimelineMemory(
+        input.projectId,
+        input.threadId,
+        input.runId,
+      );
       if (existing) return existing;
     }
 
@@ -121,19 +135,8 @@ The supplied messages begin with the latest real user input. Summarize only this
 Be factual. Do not invent deliverables or claim checks that are not visible in the conversation. Keep the short summary extremely concise. Put implementation details, decisions, validation, unresolved limitations, and every explicit user choice that materially shaped the latest task in detailedSummary. Describe those choices in context, but never infer a choice the user did not make. Use an empty deliverables array when nothing concrete was delivered.`,
     });
 
-    const modelInfo = await providersManager.getModelInfo(input.modelId);
-    const supportsVision =
-      modelInfo?.modelInfo?.modalities?.input?.includes('image') ?? false;
-
     const history = selectLatestTimelineMessages(input.messages);
     if (history.length === 0) return undefined;
-
-    // const modelMessages = convertToCoreMessages(toAISdkV5Messages(history));
-
-    // const inputMessages = filterFilePartsForModel(
-    //   modelMessages,
-    //   supportsVision,
-    // );
 
     const response = await timelineAgent.generate(history, {
       structuredOutput: {
@@ -147,7 +150,7 @@ Be factual. Do not invent deliverables or claim checks that are not visible in t
     if (!entry) return undefined;
     if (!(await this.isEnabled(input.projectId))) return undefined;
 
-    const saved = await this.timelineRepository.save(entry);
+    const saved = await saveTimelineMemory(entry);
     await appManager.sendEvent(ProjectEvent.TimelineUpdated, {
       projectId: input.projectId,
       entry: saved,
@@ -156,7 +159,8 @@ Be factual. Do not invent deliverables or claim checks that are not visible in t
   }
 
   async deleteByThread(threadId: string): Promise<void> {
-    await this.timelineRepository.delete({ threadId });
+    await this.ensureMemoryReady();
+    await deleteProjectMemory(undefined, threadId);
   }
 }
 

@@ -7,7 +7,7 @@ import {
 import { useGlobal } from '@/renderer/hooks/use-global';
 import { useHeader } from '@/renderer/hooks/use-title';
 import { useTranslation } from 'react-i18next';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/renderer/components/ui/button';
 import { IconLoader2 } from '@tabler/icons-react';
 import {
@@ -47,6 +47,13 @@ export default function LocalModel() {
   const downloadingIds = useLocalModelStore((state) => state.downloadingIds);
   const startDownload = useLocalModelStore((state) => state.startDownload);
   const finishDownload = useLocalModelStore((state) => state.finishDownload);
+  const isBusy =
+    downloadingIds.size > 0 ||
+    Object.values(localModelList).some((items) =>
+      items.some(
+        (item) => item.status === 'downloading' || item.status === 'deleting',
+      ),
+    );
 
   const onSelectPath = async () => {
     const res = await window.electron.app.showOpenDialog({
@@ -63,14 +70,27 @@ export default function LocalModel() {
     await getAppInfo();
   };
 
-  const getData = async () => {
+  const getData = useCallback(async () => {
     const res = await window.electron.localModel.getList();
     setLocalModelList(res);
-  };
+  }, []);
 
   useEffect(() => {
-    getData();
-  }, []);
+    const refresh = () => {
+      getData().catch((err) => toast.error(err.message));
+    };
+    refresh();
+    window.addEventListener('focus', refresh);
+    return () => window.removeEventListener('focus', refresh);
+  }, [getData, appInfo?.modelPath]);
+
+  useEffect(() => {
+    if (!isBusy) return undefined;
+    const timer = setInterval(() => {
+      getData().catch(() => {});
+    }, 1500);
+    return () => clearInterval(timer);
+  }, [getData, isBusy]);
 
   const handleDownload = async (
     model: LocalModelItem,
@@ -86,11 +106,9 @@ export default function LocalModel() {
           type,
           source,
         })
-        .then(() => {
-          return getData();
-        })
-        .finally(() => {
+        .finally(async () => {
           finishDownload(model.id);
+          await getData();
         }),
       {
         loading: t('common.downloading_model', { id: model.id }),
@@ -124,9 +142,14 @@ export default function LocalModel() {
             >
               <span className="truncate">{appInfo?.modelPath}</span>
             </Button>
-            <Button onClick={onSelectPath}>更改目录</Button>
+            <Button onClick={onSelectPath} disabled={isBusy}>
+              {t('local-model.change_directory')}
+            </Button>
           </FieldContent>
         </Field>
+        <p className="text-sm text-muted-foreground">
+          {t('local-model.audio_hint')}
+        </p>
       </FieldGroup>
       {LocalModelTypes.map((type) => (
         <FieldGroup className="p-4" key={type}>
@@ -136,12 +159,15 @@ export default function LocalModel() {
             </FieldLabel>
             <FieldContent className="flex flex-col gap-2">
               {localModelList[type]?.map((model) => {
-                const isDownloading = downloadingIds.has(model.id);
+                const isDownloading =
+                  downloadingIds.has(model.id) ||
+                  model.status === 'downloading';
+                const isDeleting = model.status === 'deleting';
                 return (
                   <Item key={model.id} variant="outline">
                     <ItemContent>
                       <ItemTitle className="flex-col items-start gap-0.5">
-                        {model.id}{' '}
+                        {model.name || model.id}{' '}
                         <small className="text-muted-foreground text-xs">
                           {model.repo}
                         </small>
@@ -152,17 +178,36 @@ export default function LocalModel() {
                         )}
 
                         {model.description}
+                        {model.status === 'incomplete' && (
+                          <span className="ml-2">
+                            {t('local-model.incomplete')}
+                          </span>
+                        )}
+                        {model.dependencies?.length ? (
+                          <span className="block mt-1">
+                            {t('local-model.dependencies', {
+                              models: model.dependencies.join(', '),
+                            })}
+                          </span>
+                        ) : null}
+                        {model.selectable === false && (
+                          <span className="ml-2">
+                            {t('local-model.dependency_model')}
+                          </span>
+                        )}
                       </ItemDescription>
                     </ItemContent>
                     <ItemActions>
-                      {model.isDownloaded && !isDownloading && (
-                        <Button
-                          variant="destructive"
-                          onClick={() => handleDelete(model, type)}
-                        >
-                          {t('common.delete')}
-                        </Button>
-                      )}
+                      {(model.isDownloaded || model.status === 'incomplete') &&
+                        !isDownloading && (
+                          <Button
+                            variant="destructive"
+                            disabled={isDeleting}
+                            onClick={() => handleDelete(model, type)}
+                          >
+                            {t('common.delete')}
+                          </Button>
+                        )}
                       {isDownloading && (
                         <Button variant="outline" disabled>
                           <IconLoader2 className="animate-spin" />
@@ -172,7 +217,7 @@ export default function LocalModel() {
                       {!model.isDownloaded && !isDownloading && (
                         <DropdownMenu modal={false}>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="outline">
+                            <Button variant="outline" disabled={isDeleting}>
                               {t('common.download')}
                             </Button>
                           </DropdownMenuTrigger>

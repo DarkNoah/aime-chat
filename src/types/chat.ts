@@ -172,6 +172,7 @@ export type ChatFilePreviewRequest = {
 export type ChatPreviewData = {
   previewPanel: ChatPreviewType;
   webPreviewUrl?: string;
+  webPreviewRequest?: { threadId: string; url: string };
   filePreviewRequest?: ChatFilePreviewRequest;
   todos?: {
     content: string;

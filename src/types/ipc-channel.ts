@@ -1,12 +1,7 @@
 export enum InstancesChannel {
   GetInstances = 'instances:getInstances',
-  UpdateInstance = 'instances:updateInstance',
-  DeleteInstance = 'instances:deleteInstance',
-  CreateInstance = 'instances:createInstance',
   GetInstance = 'instances:getInstance',
-  RunInstance = 'instances:runInstance',
   StopInstance = 'instances:stopInstance',
-  DetectBrowserProfiles = 'instances:detectBrowserProfiles',
 }
 
 export enum ProviderChannel {

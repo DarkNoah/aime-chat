@@ -1,3 +1,4 @@
+import { threadBrowserManager } from './browser/manager';
 /* eslint global-require: off, no-console: off, promise/always-return: off */
 
 /**
@@ -386,6 +387,7 @@ const createWindow = async () => {
     mainWindow.center();
   }
 
+  threadBrowserManager.setWindow(mainWindow);
   mainWindow.loadURL(resolveHtmlPath('index.html'));
 
   mainWindow.on('ready-to-show', () => {
@@ -405,7 +407,10 @@ const createWindow = async () => {
   });
 
   mainWindow.on('closed', () => {
+    threadBrowserManager.setWindow(undefined);
     mainWindow = null;
+    // Managed background browser views keep a hidden BaseWindow alive.
+    if (process.platform !== 'darwin') app.quit();
   });
 
   const menuBuilder = new MenuBuilder(mainWindow);
@@ -439,7 +444,10 @@ if (!gotSingleInstanceLock) {
     }
 
     isDisconnectingMcpClients = true;
-    void toolsManager.disconnectMcpClients().finally(() => {
+    void Promise.allSettled([
+      threadBrowserManager.dispose(),
+      toolsManager.disconnectMcpClients(),
+    ]).finally(() => {
       areMcpClientsDisconnected = true;
       app.quit();
     });

@@ -8,6 +8,11 @@ import { getAssetPath } from '..';
 import { getQwenAudioRuntime, getUVRuntime } from '@/main/app/runtime';
 import { appManager } from '@/main/app';
 import { runCommand } from '../shell';
+import { localModelManager } from '@/main/local-model';
+import {
+  getAudioModelCatalog,
+  resolveSpeechModelId,
+} from '@/main/local-model/audio-models';
 
 export type AudioLoaderOptions = {
   model?: string;
@@ -94,11 +99,7 @@ function createPythonClient({ command, args, cwd, env }: PythonClientOptions) {
     });
   }
 
-  function call(
-    method: string,
-    params: Record<string, any>,
-
-  ): Promise<any> {
+  function call(method: string, params: Record<string, any>): Promise<any> {
     start();
     const id = randomUUID();
     const payload = { id, method, params };
@@ -114,9 +115,23 @@ function createPythonClient({ command, args, cwd, env }: PythonClientOptions) {
     });
   }
 
-  function stop() {
+  async function stop(): Promise<void> {
     if (!proc) return;
-    proc.kill();
+    const child = proc;
+    await new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(
+        () =>
+          reject(
+            new Error('Audio runtime did not stop; retry deleting the model.'),
+          ),
+        5000,
+      );
+      child.once('exit', () => {
+        clearTimeout(timer);
+        resolve();
+      });
+      child.kill();
+    });
   }
 
   return { call, start, stop };
@@ -130,7 +145,7 @@ export async function destroyQwenAsrService(): Promise<void> {
   qwenAsrInitializing = null;
   qwenAsrService = null;
   if (pythonClient) {
-    pythonClient.stop();
+    await pythonClient.stop();
     pythonClient = null;
   }
 }
@@ -221,7 +236,7 @@ async function ensureMlxAudioLatest(
   runtimeDir: string,
   env?: Record<string, string>,
 ) {
-  if (process.platform === 'win32') {
+  if (process.platform !== 'darwin') {
     return;
   }
 
@@ -352,15 +367,21 @@ export async function getQwenAsrPythonService(): Promise<QwenAudioService> {
         PYTHONUNBUFFERED: '1',
         PYTHONUTF8: '1',
         PYTHONIOENCODING: 'utf-8',
+        AIME_AUDIO_UV_PATH: uvBin,
+        HF_HUB_OFFLINE: '1',
+        TRANSFORMERS_OFFLINE: '1',
         ...env,
       },
     });
 
+    localModelManager.setAudioModelReleaseHandler(destroyQwenAsrService);
     qwenAsrService = {
       transcribe: async (
         buffer: Buffer,
         options: AudioLoaderOptions & { ext?: string } = {},
       ): Promise<{ text: string; result: any }> => {
+        const model = options.model || getAudioModelCatalog('stt')[0].id;
+        const lease = await localModelManager.acquireAudioModel('stt', model);
         const ext =
           options.ext && options.ext.startsWith('.')
             ? options.ext
@@ -369,12 +390,13 @@ export async function getQwenAsrPythonService(): Promise<QwenAudioService> {
               : '.wav';
         const audioPath = path.join(tempDir, `${randomUUID()}${ext}`);
 
-        await fs.promises.writeFile(audioPath, buffer);
-
         try {
+          await fs.promises.writeFile(audioPath, buffer);
           const response = await pythonClient!.call('predict', {
             audio_path: audioPath,
-            model: options.model,
+            model,
+            model_paths: lease.modelPaths,
+            aligner_model: lease.alignerModel,
             backend:
               process.platform === 'darwin' ? 'mlx-audio' : options.backend,
             device: options.device,
@@ -398,6 +420,7 @@ export async function getQwenAsrPythonService(): Promise<QwenAudioService> {
           console.error('[qwen-asr-py]', error);
           throw error;
         } finally {
+          lease.release();
           if (fs.existsSync(audioPath)) {
             await fs.promises.rm(audioPath);
           }
@@ -411,24 +434,35 @@ export async function getQwenAsrPythonService(): Promise<QwenAudioService> {
         duration: number;
         model: string;
       }> => {
-        const response = await pythonClient!.call('tts', {
-          text: options.text.replaceAll('\r\n', '\n').replaceAll('\n', ''),
-          language: options.language ?? 'English',
-          voice: options.voice ?? undefined,
-          instruct: options.instruct ?? undefined,
-          ref_audio: options.ref_audio ?? undefined,
-          ref_text: options.ref_text ?? undefined,
-          model: options.model ?? undefined,
-          output_path: options.outputPath,
-        });
+        const defaultModel = getAudioModelCatalog('tts')[0];
+        const model = resolveSpeechModelId(
+          options.model || defaultModel.speechModelId || defaultModel.id,
+          options,
+        );
+        const lease = await localModelManager.acquireAudioModel('tts', model);
+        try {
+          const response = await pythonClient!.call('tts', {
+            text: options.text.replaceAll('\r\n', '\n').replaceAll('\n', ''),
+            language: options.language ?? 'English',
+            voice: options.voice ?? undefined,
+            instruct: options.instruct ?? undefined,
+            ref_audio: options.ref_audio ?? undefined,
+            ref_text: options.ref_text ?? undefined,
+            model,
+            model_paths: lease.modelPaths,
+            output_path: options.outputPath,
+          });
 
-        const result = response.result || {};
-        return {
-          outputPath: result.output_path || options.outputPath,
-          sampleRate: result.sample_rate || 24000,
-          duration: result.duration || 0,
-          model: result.model || '',
-        };
+          const result = response.result || {};
+          return {
+            outputPath: result.output_path || options.outputPath,
+            sampleRate: result.sample_rate || 24000,
+            duration: result.duration || 0,
+            model: result.model || '',
+          };
+        } finally {
+          lease.release();
+        }
       },
       ping: async () => {
         const response = await pythonClient!.call('ping', {});

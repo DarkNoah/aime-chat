@@ -137,16 +137,15 @@ AIME Chat 内置多种 Agent，针对不同场景优化：
 
 ## 浏览器实例
 
-需要浏览器自动化或复用本地登录状态时，进入 **设置 → 实例管理**：
+AgentBrowser 会按需在聊天预览中打开内置 Electron Chromium，支持同一聊天多个标签页。首次需要登录网站时，在对应页面手动登录即可，后续聊天共享该登录状态。
 
-1. 选择系统检测到的浏览器用户数据目录，或指定自定义目录
-2. 为内置配置选择已安装的 Google Chrome、Microsoft Edge 或 Chromium
-3. 按需配置远程调试端口和无头模式
-4. 启动实例；使用结束后可在同一页面停止
+进入 **设置 → 实例管理** 可以：
 
-未安装的浏览器会显示为不可用。AIME Chat 只会为实际检测到的浏览器提供可执行文件路径。
+- 查看 Chromium 版本、标签页和聊天数量
+- 打开固定的 `instances/default_browser` 数据目录
+- 关闭所有浏览器标签页并取消操作，保留登录数据
 
-跨平台检测路径和排障方式见 [浏览器实例](../features/browser-instances)。
+共享数据与旧目录迁移说明见 [浏览器实例](../features/browser-instances)。
 
 ## Bash 的 Python 运行器
 
@@ -170,7 +169,6 @@ AIME Chat 内置多种 Agent，针对不同场景优化：
 - 了解如何 [配置 AI 服务商](./ai-providers)
 - 探索 [知识库功能](../features/knowledge-base)
 - 学习 [工具系统](../features/tools) 的高级用法
-
 
 
 

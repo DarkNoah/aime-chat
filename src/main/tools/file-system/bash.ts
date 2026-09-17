@@ -364,6 +364,15 @@ While the Bash tool can do similar things, it’s better to use the built-in too
     inputData: z.infer<typeof this.inputSchema>,
     context: ToolExecutionContext<z.ZodSchema, any>,
   ) => {
+    // Browser commands must use the same thread-owned execution path, even when
+    // an agent reaches for Bash while following a CLI-oriented skill.
+    if (/^\s*(?:npx\s+(?:-y\s+)?)?agent-browser\b/.test(inputData.command)) {
+      const { AgentBrowser } = await import('../browser');
+      return new AgentBrowser().execute(
+        { command: inputData.command.replace(/^\s*npx\s+(?:-y\s+)?/, '') },
+        context,
+      );
+    }
     const { timeout, directory, run_in_background, env } = inputData;
     const { requestContext } = context;
     const threadId = requestContext.get('threadId' as never) as string;

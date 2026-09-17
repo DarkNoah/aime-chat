@@ -8,7 +8,9 @@ import {
   buildModelDownloadCommand,
   DOWNLOAD_MARKER,
   isModelFullyDownloaded,
+  getLocalModelPath,
 } from './model-files';
+import { getAudioModelCatalog } from './audio-models';
 import { BaseManager } from '../BaseManager';
 import { channel } from '../ipc/IpcController';
 import { LocalModelChannel } from '@/types/ipc-channel';
@@ -59,19 +61,28 @@ function validateModelType(type: unknown): asserts type is LocalModelType {
   }
 }
 
+function getCatalog(type: LocalModelType): LocalModelItem[] {
+  return type === 'tts' || type === 'stt'
+    ? getAudioModelCatalog(type)
+    : (models[type] as LocalModelItem[]);
+}
+
 function getCatalogModel(type: unknown, modelId: unknown): LocalModelItem {
   validateModelType(type);
   if (typeof modelId !== 'string')
     throw localModelError('modelId must be a string');
-  const model = (models[type] as LocalModelItem[]).find(
-    (item) => item.id === modelId,
-  );
+  const model = getCatalog(type).find((item) => item.id === modelId);
   if (!model) throw localModelError(`Unknown ${type} model: ${modelId}`);
   return model;
 }
 
 class LocalModelManager extends BaseManager {
   private operations = new Map<string, 'downloading' | 'deleting'>();
+
+  private audioUses = new Map<string, number>();
+
+  private releaseAudioModels?: () => Promise<void>;
+
   models: Record<string, CachedModel> = {};
   modelLoadPromises: Record<string, Promise<CachedModel>> = {};
 
@@ -86,16 +97,28 @@ class LocalModelManager extends BaseManager {
     type: LocalModelType,
     root: string,
   ): LocalModelItem {
-    const modelPath = path.join(root, type, model.id.split('/').pop());
+    const modelPath = getLocalModelPath(root, type, model.id);
     const operation = this.operations.get(`${type}:${model.id}`);
-    const isDownloaded = !operation && isModelFullyDownloaded(modelPath);
+    const isDownloaded =
+      !operation &&
+      isModelFullyDownloaded(modelPath, model) &&
+      (model.dependencies || []).every(
+        (id) =>
+          !this.operations.has(`${type}:${id}`) &&
+          isModelFullyDownloaded(
+            getLocalModelPath(root, type, id),
+            getCatalogModel(type, id),
+          ),
+      );
     return {
       ...model,
       type,
       modelPath,
-      providerModelId: ['embedding', 'reranker', 'clip'].includes(type)
-        ? `local/${model.id}`
-        : undefined,
+      providerModelId:
+        ['embedding', 'reranker', 'clip', 'tts', 'stt'].includes(type) &&
+        model.selectable !== false
+          ? `local/${model.speechModelId || model.id}`
+          : undefined,
       isDownloaded,
       status:
         operation ||
@@ -121,7 +144,7 @@ class LocalModelManager extends BaseManager {
     const appInfo = await appManager.getInfo();
     for (const modelType of LocalModelTypes) {
       if (type && modelType !== type) continue;
-      output[modelType] = (models[modelType] as LocalModelItem[]).map((model) =>
+      output[modelType] = getCatalog(modelType).map((model) =>
         this.modelStatus(model, modelType, appInfo.modelPath),
       );
     }
@@ -150,12 +173,13 @@ class LocalModelManager extends BaseManager {
     this.operations.set(key, 'downloading');
     try {
       const appInfo = await appManager.getInfo();
-      const modelPath = path.join(
-        appInfo.modelPath,
-        type,
-        model.id.split('/').pop(),
-      );
-      if (!isModelFullyDownloaded(modelPath)) {
+      for (const dependency of model.dependencies || []) {
+        // These downloads are part of the user's explicit model-download action.
+        // eslint-disable-next-line no-await-in-loop
+        await this.downloadModel({ modelId: dependency, type, source });
+      }
+      const modelPath = getLocalModelPath(appInfo.modelPath, type, model.id);
+      if (!isModelFullyDownloaded(modelPath, model)) {
         const uv = await getUVRuntime(true);
         const isWindows = process.platform === 'win32';
         if (
@@ -178,7 +202,8 @@ class LocalModelManager extends BaseManager {
         const result = await runCommand(
           buildModelDownloadCommand(
             source as 'huggingface' | 'modelscope',
-            model.repo,
+            model.download.find((item) => item.source === source)?.repo ||
+              model.repo,
             modelPath,
             isWindows,
           ),
@@ -198,7 +223,7 @@ class LocalModelManager extends BaseManager {
           );
         }
         await fs.promises.rm(marker, { force: true });
-        if (!isModelFullyDownloaded(modelPath)) {
+        if (!isModelFullyDownloaded(modelPath, model)) {
           fs.writeFileSync(
             marker,
             'Downloaded files did not pass the completeness check.',
@@ -230,6 +255,7 @@ class LocalModelManager extends BaseManager {
     const key = `${type}:${model.id}`;
     if (
       this.operations.has(key) ||
+      (['tts', 'stt'].includes(type) && this.audioUses.size > 0) ||
       this.models[modelId] ||
       this.modelLoadPromises[modelId]
     ) {
@@ -240,18 +266,81 @@ class LocalModelManager extends BaseManager {
     }
     this.operations.set(key, 'deleting');
     try {
+      if (type === 'tts' || type === 'stt') await this.releaseAudioModels?.();
       const appInfo = await appManager.getInfo();
-      const modelPath = path.join(
-        appInfo.modelPath,
-        type,
-        model.id.split('/').pop(),
-      );
+      const modelPath = getLocalModelPath(appInfo.modelPath, type, model.id);
       await fs.promises.rm(modelPath, { recursive: true, force: true });
       this.operations.delete(key);
       return this.modelStatus(model, type, appInfo.modelPath);
     } finally {
       this.operations.delete(key);
     }
+  }
+
+  public setAudioModelReleaseHandler(handler: () => Promise<void>) {
+    this.releaseAudioModels = handler;
+  }
+
+  public async getAvailableAudioModels(type: 'tts' | 'stt') {
+    const catalog = (await this.getList(type))[type];
+    const available = new Map<string, { id: string; name: string }>();
+    for (const item of catalog) {
+      if (item.isDownloaded && item.selectable !== false) {
+        const id = item.speechModelId || item.id;
+        available.set(id, {
+          id,
+          name: item.speechModelId ? id.split('/').pop() : item.name || item.id,
+        });
+      }
+    }
+    return [...available.values()];
+  }
+
+  public async acquireAudioModel(type: 'tts' | 'stt', modelId: string) {
+    const model = getCatalogModel(type, modelId);
+    const { modelPath: root } = await appManager.getInfo();
+    if (
+      [...this.operations].some(
+        ([key, op]) => op === 'deleting' && /^(tts|stt):/.test(key),
+      )
+    ) {
+      throw localModelError(
+        'An audio model is being deleted; retry when it finishes.',
+        409,
+      );
+    }
+    const ids = [modelId, ...(model.dependencies || [])];
+    const modelPaths: Record<string, string> = {};
+    for (const id of ids) {
+      const item = this.modelStatus(getCatalogModel(type, id), type, root);
+      if (!item.isDownloaded) {
+        throw localModelError(
+          `Audio model ${id} is not downloaded or incomplete. Download it in Settings > Local Models (${type.toUpperCase()}) first.`,
+          409,
+        );
+      }
+      modelPaths[id] = item.modelPath;
+    }
+    for (const id of ids)
+      this.audioUses.set(
+        `${type}:${id}`,
+        (this.audioUses.get(`${type}:${id}`) || 0) + 1,
+      );
+    let released = false;
+    return {
+      modelPaths,
+      alignerModel: type === 'stt' ? model.dependencies?.[0] : undefined,
+      release: () => {
+        if (released) return;
+        released = true;
+        for (const id of ids) {
+          const key = `${type}:${id}`;
+          const count = (this.audioUses.get(key) || 1) - 1;
+          if (count) this.audioUses.set(key, count);
+          else this.audioUses.delete(key);
+        }
+      },
+    };
   }
 
   public async ensureModelLoaded(

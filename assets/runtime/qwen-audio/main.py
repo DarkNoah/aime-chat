@@ -31,6 +31,7 @@ from config import (
 )
 from stt import get_qwen_model, get_mlx_models, get_stt_status, method_predict, set_touch_callback
 from tts import get_tts_status, method_tts
+from model_store import managed_model_paths
 
 
 if hasattr(sys.stdin, "reconfigure"):
@@ -123,9 +124,11 @@ def handle_request(req: Dict[str, Any]) -> Dict[str, Any]:
     if method == "ping":
         return method_ping(params)
     if method == "predict":
-        return method_predict(params)
+        with managed_model_paths(params.get("model_paths")):
+            return method_predict(params)
     if method == "tts":
-        return method_tts(params)
+        with managed_model_paths(params.get("model_paths")):
+            return method_tts(params)
 
     raise ValueError(f"unknown method: {method}")
 

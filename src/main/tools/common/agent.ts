@@ -272,7 +272,7 @@ assistant: "I'm going to use the Task tool to launch the greeting-responder agen
       },
     });
 
-    const _requestContext = new RequestContext<ChatRequestContext>();
+    const _requestContext = new RequestContext<any>();
     const all = requestContext.all as Record<string, any>
 
     Object.keys(all).forEach((key: string) => {
@@ -300,7 +300,7 @@ assistant: "I'm going to use the Task tool to launch the greeting-responder agen
             reasoningSummary: 'auto',
           } as OpenAIChatLanguageModelOptions,
         },
-        _requestContext,
+        requestContext: _requestContext,
         maxSteps: 100,
         memory: {
           thread: { id: threadId },

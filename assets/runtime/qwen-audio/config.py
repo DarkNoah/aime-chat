@@ -3,8 +3,6 @@
 
 import os
 import sys
-import urllib.error
-import urllib.request
 
 # ---------- Config ----------
 IS_DARWIN = sys.platform == "darwin"
@@ -60,6 +58,10 @@ DEFAULT_VOXCPM2_TTS_MODEL = os.environ.get(
     "VOXCPM2_TTS_MODEL",
     "mlx-community/VoxCPM2-bf16" if IS_DARWIN else "openbmb/VoxCPM2",
 )
+DEFAULT_BREEZE_TTS_MODEL = os.environ.get(
+    "BREEZE_TTS_MODEL",
+    "mlx-community/Breeze-TTS-2-mlx-4bit" if IS_DARWIN else "BreezeBlue/Breeze-TTS-2",
+)
 
 
 def _resolve_default_device() -> str:
@@ -98,39 +100,9 @@ DEFAULT_MLX_TAIL_SILENCE_WINDOW_SEC = float(
 DEFAULT_MLX_MERGE_TAIL_SEC = float(os.environ.get("QWEN_ASR_MLX_MERGE_TAIL_SEC", "60"))
 
 
-def _strtobool(value: str) -> bool:
-    return str(value).strip().lower() not in {"0", "false", "off", "no"}
-
-
-def _can_reach_hf(endpoint: str, timeout_sec: float = 2.0) -> bool:
-    url = endpoint.rstrip("/")
-    if not url.startswith(("http://", "https://")):
-        url = f"https://{url}"
-    try:
-        req = urllib.request.Request(url, method="HEAD")
-        with urllib.request.urlopen(req, timeout=timeout_sec):
-            return True
-    except urllib.error.HTTPError:
-        return True
-    except Exception:
-        return False
-
-
-def _configure_hf() -> None:
-    use_mirror = _strtobool(os.environ.get("QWEN_ASR_HF_MIRROR", "1"))
-    endpoint = "https://hf-mirror.com" if use_mirror else os.environ.get(
-        "HF_ENDPOINT", "https://huggingface.co"
-    )
-    os.environ["HF_ENDPOINT"] = endpoint
-    if not _can_reach_hf(endpoint):
-        os.environ["HF_HUB_OFFLINE"] = "1"
-        print(
-            "! cannot reach Hugging Face endpoint, enabled offline mode",
-            file=sys.stderr,
-        )
-
-
-_configure_hf()
+# Weights are downloaded only by LocalModelManager, never during inference.
+os.environ["HF_HUB_OFFLINE"] = "1"
+os.environ["TRANSFORMERS_OFFLINE"] = "1"
 
 
 DEFAULT_VOXTRAL_TTS_MODEL = os.environ.get("VOXTRAL_TTS_MODEL", "voxtral-mini-tts-2603")

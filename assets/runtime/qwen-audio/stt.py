@@ -30,7 +30,8 @@ from config import (
     DEFAULT_MODEL,
     DEFAULT_QWEN_ALIGNER_MODEL,
 )
-from mlx_runtime import ensure_mlx_audio, load_mlx_model_with_modelscope_fallback
+from mlx_runtime import ensure_mlx_audio
+from model_store import load_local_model, resolve_model_path
 
 _touch_callback: Callable[[], None] = lambda: None
 
@@ -98,7 +99,9 @@ def get_qwen_model(
     global _model, _model_key
     _, Qwen3ASRModel = _ensure_qwen_backend()
 
-    model_name = (model_name or DEFAULT_MODEL).strip()
+    model_name = resolve_model_path((model_name or DEFAULT_MODEL).strip())
+    if forced_aligner:
+        forced_aligner = resolve_model_path(forced_aligner)
     backend = (backend or DEFAULT_BACKEND).strip().lower()
     if backend != "transformers":
         raise ValueError(f"unsupported qwen backend: {backend}")
@@ -124,6 +127,7 @@ def get_qwen_model(
             return _model
 
         init_kwargs: Dict[str, Any] = {
+            "local_files_only": True,
             "dtype": _resolve_dtype(dtype),
             "device_map": device,
             "max_inference_batch_size": max_batch,
@@ -150,8 +154,8 @@ _mlx_aligner_model = None
 def get_mlx_models(model_name: str, aligner_model_name: str) -> Tuple[Any, Any]:
     global _mlx_asr_model, _mlx_aligner_model, _mlx_model_key
 
-    model_name = (model_name or DEFAULT_MLX_MODEL).strip()
-    aligner_model_name = (aligner_model_name or DEFAULT_MLX_ALIGNER_MODEL).strip()
+    model_name = resolve_model_path((model_name or DEFAULT_MLX_MODEL).strip())
+    aligner_model_name = resolve_model_path((aligner_model_name or DEFAULT_MLX_ALIGNER_MODEL).strip())
     key = json.dumps(
         {"model": model_name, "aligner_model": aligner_model_name},
         sort_keys=True,
@@ -169,10 +173,10 @@ def get_mlx_models(model_name: str, aligner_model_name: str) -> Tuple[Any, Any]:
         ensure_mlx_audio()
         from mlx_audio.stt.utils import load_model as load_stt_model  # type: ignore
 
-        _mlx_asr_model = load_mlx_model_with_modelscope_fallback(
+        _mlx_asr_model = load_local_model(
             load_stt_model, model_name
         )
-        _mlx_aligner_model = load_mlx_model_with_modelscope_fallback(
+        _mlx_aligner_model = load_local_model(
             load_stt_model, aligner_model_name
         )
         _mlx_model_key = key

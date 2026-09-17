@@ -11,6 +11,7 @@ import {
 } from '@/renderer/components/ui/dialog';
 import { Input } from '@/renderer/components/ui/input';
 import { Label } from '@/renderer/components/ui/label';
+import { Switch } from '@/renderer/components/ui/switch';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Field, FieldContent, FieldLabel } from '../ui/field';
@@ -20,8 +21,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
+  FormLabel,
   FormMessage,
 } from '@/renderer/components/ui/form';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
@@ -48,6 +51,7 @@ const chatProjectSchema = z.object({
   path: z.string(),
   tag: z.string().optional(),
   githubUrl: z.string().trim().optional(),
+  timelineEnabled: z.boolean(),
 });
 
 type ChatProjectFormData = z.infer<typeof chatProjectSchema>;
@@ -73,6 +77,7 @@ export function ChatProjectDialog(props: ChatProjectDialogProps) {
       path: value?.path,
       tag: value?.tag,
       githubUrl: '',
+      timelineEnabled: value ? Boolean(value.timelineEnabled) : true,
     },
     reValidateMode: 'onSubmit',
   });
@@ -102,6 +107,10 @@ export function ChatProjectDialog(props: ChatProjectDialogProps) {
       form.setValue('path', value?.path);
       form.setValue('tag', value?.tag);
       form.setValue('githubUrl', '');
+      form.setValue(
+        'timelineEnabled',
+        value ? Boolean(value.timelineEnabled) : true,
+      );
     }
   }, [open, form, value, appInfo.defaultModel?.model]);
   return (
@@ -225,6 +234,31 @@ export function ChatProjectDialog(props: ChatProjectDialogProps) {
                       </ToggleGroup>
                     </FieldContent>
                   </Field>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="timelineEnabled"
+                render={({ field }) => (
+                  <FormItem className="flex items-start justify-between gap-4">
+                    <div className="min-w-0 space-y-1.5">
+                      <FormLabel>{t('timeline.enable_action')}</FormLabel>
+                      <FormDescription className="text-xs leading-5">
+                        {t('timeline.enable_description')}
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        className="mt-0.5"
+                        name={field.name}
+                        ref={field.ref}
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        onBlur={field.onBlur}
+                        disabled={form.formState.isSubmitting}
+                      />
+                    </FormControl>
+                  </FormItem>
                 )}
               />
               {/* <Alert>
