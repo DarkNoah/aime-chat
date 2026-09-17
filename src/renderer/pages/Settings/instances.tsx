@@ -1,447 +1,164 @@
-/* eslint-disable no-nested-ternary */
-import { Badge } from '@/renderer/components/ui/badge';
-import { Button } from '@/renderer/components/ui/button';
-import {
-  Item,
-  ItemActions,
-  ItemContent,
-  ItemDescription,
-  ItemTitle,
-} from '@/renderer/components/ui/item';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/renderer/components/ui/select';
-import { Input } from '@/renderer/components/ui/input';
-import { Spinner } from '@/renderer/components/ui/spinner';
-import { useHeader } from '@/renderer/hooks/use-title';
-import {
-  IconBrowser,
-  IconFolder,
-  IconPlayerPlay,
-  IconPlayerStop,
-} from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { IconBrowser, IconFolder, IconX } from '@tabler/icons-react';
 import toast from 'react-hot-toast';
-import type {
-  BrowserProfile,
-  BrowserType,
-  InstanceInfo,
-} from '@/types/instance';
-import { Switch } from '@/renderer/components/ui/switch';
-
-interface InstanceConfig {
-  executablePath?: string;
-  userDataPath?: string;
-  cdpUrl?: string;
-  wssUrl?: string;
-  debugPort?: number;
-}
+import { Badge } from '@/renderer/components/ui/badge';
+import { Button } from '@/renderer/components/ui/button';
+import { Spinner } from '@/renderer/components/ui/spinner';
+import { useHeader } from '@/renderer/hooks/use-title';
+import type { InstanceInfo } from '@/types/instance';
+import { ThreadBrowserChannel } from '@/types/thread-browser';
 
 function Instances() {
   const { setTitle } = useHeader();
   const { t } = useTranslation();
-  setTitle(t('settings.instances'));
-
-  const [instances, setInstances] = useState<InstanceInfo[]>([]);
-  const [profiles, setProfiles] = useState<BrowserProfile[]>([]);
-  const [loading, setLoading] = useState<Record<string, boolean>>({});
-  const [runningStatus, setRunningStatus] = useState<Record<string, string>>(
-    {},
-  );
-
-  const loadInstances = async () => {
-    try {
-      const data = await window.electron.instances.getInstances();
-      setInstances(data);
-      console.log(data);
-      data.forEach((instance) => {
-        setRunningStatus((prev) => ({
-          ...prev,
-          [instance.id]: instance.status,
-        }));
-      });
-    } catch (err) {
-      console.error('Failed to load instances', err);
-    }
-  };
-
-  const loadProfiles = async () => {
-    try {
-      const data = await window.electron.instances.detectBrowserProfiles();
-      setProfiles(data);
-    } catch (err) {
-      console.error('Failed to detect browser profiles', err);
-    }
-  };
+  const [instance, setInstance] = useState<InstanceInfo>();
+  const [error, setError] = useState('');
+  const [pending, setPending] = useState(false);
+  const [revision, setRevision] = useState(0);
 
   useEffect(() => {
-    loadInstances();
-    loadProfiles();
-  }, []);
-
-  const handleSelectProfile = async (
-    instanceId: string,
-    profileValue: string,
-  ) => {
-    const profile = profiles.find((p) => p.userDataPath === profileValue);
-    if (!profile) return;
-
-    try {
-      await window.electron.instances.updateInstance(instanceId, {
-        config: {
-          userDataPath: profile.userDataPath,
-          executablePath: profile.executablePath,
-        },
-      });
-      await loadInstances();
-      toast.success(t('settings.instances_config_saved'));
-    } catch (err) {
-      toast.error(err.message || 'Failed to update instance');
-    }
-  };
-
-  const handleSelectCustomDir = async (instanceId: string) => {
-    const res = await window.electron.app.showOpenDialog({
-      properties: ['openDirectory'],
-    });
-    if (res.canceled) return;
-    const { filePaths } = res;
-    if (filePaths.length !== 1) return;
-
-    try {
-      await window.electron.instances.updateInstance(instanceId, {
-        config: {
-          userDataPath: filePaths[0],
-        },
-      });
-      await loadInstances();
-      toast.success(t('settings.instances_config_saved'));
-    } catch (err) {
-      toast.error(err.message || 'Failed to update instance');
-    }
-  };
-
-  const getBuiltInProfile = () => profiles.find((profile) => profile.isBuiltIn);
-
-  const isBuiltInSelected = (instance: InstanceInfo) => {
-    const builtInProfile = getBuiltInProfile();
-    return (
-      Boolean(builtInProfile) &&
-      instance.config?.userDataPath === builtInProfile?.userDataPath
+    setTitle(t('settings.instances'));
+  }, [setTitle, t]);
+  useEffect(() => {
+    let cancelled = false;
+    let request = 0;
+    let timer: ReturnType<typeof setTimeout>;
+    const load = async () => {
+      request += 1;
+      const current = request;
+      try {
+        const values = await window.electron.instances.getInstances();
+        if (!cancelled && current === request) {
+          setInstance(values[0]);
+          setError('');
+        }
+      } catch (reason) {
+        if (!cancelled && current === request) setError(String(reason));
+      }
+    };
+    load();
+    const unsubscribe = window.electron.ipcRenderer.on(
+      ThreadBrowserChannel.Changed,
+      () => {
+        clearTimeout(timer);
+        timer = setTimeout(load, 100);
+      },
     );
-  };
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+      unsubscribe();
+    };
+  }, [revision]);
 
-  const getAvailableBrowsers = (instance: InstanceInfo) =>
-    isBuiltInSelected(instance)
-      ? (getBuiltInProfile()?.availableBrowsers ?? [])
-      : [];
-
-  const getSelectedExecutableBrowser = (instance: InstanceInfo) => {
-    const availableBrowsers = getAvailableBrowsers(instance);
-    const matchedBrowser = availableBrowsers.find(
-      (browser) => browser.executablePath === instance.config?.executablePath,
-    );
-
-    if (matchedBrowser) return matchedBrowser.browser;
-
-    return (
-      availableBrowsers.find((browser) => browser.installed)?.browser ?? ''
-    );
-  };
-
-  const handleSelectExecutable = async (
-    instanceId: string,
-    browserType: BrowserType,
-  ) => {
-    const builtInProfile = getBuiltInProfile();
-    const browser = builtInProfile?.availableBrowsers?.find(
-      (item) => item.browser === browserType,
-    );
-
-    if (!browser?.executablePath) return;
-
+  const closeTabs = async () => {
+    if (!instance) return;
+    setPending(true);
+    setError('');
     try {
-      await window.electron.instances.updateInstance(instanceId, {
-        config: {
-          executablePath: browser.executablePath,
-        },
-      });
-      await loadInstances();
-      toast.success(t('settings.instances_config_saved'));
-    } catch (err) {
-      toast.error(err.message || 'Failed to update instance');
-    }
-  };
-
-  const handleRunInstance = async (instanceId: string) => {
-    setLoading((prev) => ({ ...prev, [instanceId]: true }));
-    try {
-      const result = await window.electron.instances.runInstance(instanceId);
-      await loadInstances();
-      toast.success(result?.message || t('settings.instances_started'));
-    } catch (err) {
-      toast.error(err.message || t('settings.instances_start_failed'));
+      await window.electron.instances.stopInstance(instance.id);
+      setRevision((value) => value + 1);
+      toast.success(t('settings.browser_tabs_closed'));
+    } catch (reason) {
+      setError(String(reason));
     } finally {
-      setLoading((prev) => ({ ...prev, [instanceId]: false }));
+      setPending(false);
     }
   };
-
-  const handleStopInstance = async (instanceId: string) => {
-    setLoading((prev) => ({ ...prev, [instanceId]: true }));
+  const openDirectory = async () => {
+    if (!instance) return;
     try {
-      await window.electron.instances.stopInstance(instanceId);
-      await loadInstances();
-      toast.success(t('settings.instances_stopped'));
-    } catch (err) {
-      toast.error(err.message || 'Failed to stop instance');
-    } finally {
-      setLoading((prev) => ({ ...prev, [instanceId]: false }));
-    }
-  };
-
-  const getSelectedProfile = (instance: InstanceInfo) => {
-    if (!instance.config?.userDataPath) return undefined;
-    const profile = profiles.find(
-      (p) => p.userDataPath === instance.config?.userDataPath,
-    );
-    return profile ? profile.userDataPath : undefined;
-  };
-
-  const isCustomDir = (instance: InstanceInfo) => {
-    if (!instance.config?.userDataPath) return false;
-    return !profiles.find(
-      (p) => p.userDataPath === instance.config?.userDataPath,
-    );
-  };
-
-  const handleDebugPortChange = async (instanceId: string, value: string) => {
-    const port = value === '' ? 9222 : parseInt(value, 10);
-    if (Number.isNaN(port) || port < 1 || port > 65535) return;
-
-    try {
-      await window.electron.instances.updateInstance(instanceId, {
-        config: { debugPort: port },
-      });
-      await loadInstances();
-      toast.success(t('settings.instances_config_saved'));
-    } catch (err) {
-      toast.error(err.message || 'Failed to update instance');
-    }
-  };
-  const handleHeadlessChange = async (instanceId: string, value: boolean) => {
-    try {
-      await window.electron.instances.updateInstance(instanceId, {
-        config: { headless: value },
-      });
-      await loadInstances();
-      toast.success(t('settings.instances_config_saved'));
-    } catch (err) {
-      toast.error(err.message || 'Failed to update instance');
+      await window.electron.app.openPath(instance.config.userDataPath);
+    } catch (reason) {
+      setError(String(reason));
     }
   };
 
   return (
-    <div className="flex flex-col gap-2 p-4">
-      {instances.map((instance) => (
-        <Item key={instance.id} variant="outline">
-          <ItemContent className="min-w-0">
-            <ItemTitle>
-              <IconBrowser className="size-4" />
-              {instance.name}
-              {runningStatus[instance.id] === 'running' && (
-                <Badge variant="default" className="bg-green-500 text-white">
-                  {t('settings.instances_running')}
-                </Badge>
-              )}
-            </ItemTitle>
-            <ItemDescription>
-              <div className="flex flex-col gap-2 mt-2 w-full">
-                {/* Browser profile selector */}
-                <div className="flex flex-col gap-1">
-                  <span className="text-xs text-muted-foreground">
-                    {t('settings.instances_user_data')}
-                  </span>
-                  <div className="flex flex-row gap-2 items-center">
-                    <Select
-                      value={getSelectedProfile(instance) || ''}
-                      onValueChange={(value) =>
-                        handleSelectProfile(instance.id, value)
-                      }
-                    >
-                      <SelectTrigger className="w-64 h-8 text-xs">
-                        <SelectValue
-                          placeholder={t('settings.instances_select_browser')}
-                        />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {profiles.map((profile) => (
-                          <SelectItem
-                            key={profile.userDataPath}
-                            value={profile.userDataPath}
-                          >
-                            {profile.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleSelectCustomDir(instance.id)}
-                    >
-                      <IconFolder className="size-4" />
-                      {t('settings.instances_browse')}
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Show current path */}
-                {instance.config?.userDataPath && (
-                  <div className="flex flex-col gap-1">
-                    <span className="text-xs text-muted-foreground">
-                      {t('settings.instances_current_path')}
-                    </span>
-                    <span className="text-xs font-mono truncate">
-                      {instance.config.userDataPath}
-                    </span>
-                    {isCustomDir(instance) && (
-                      <Badge variant="outline" className="w-fit text-xs">
-                        {t('settings.instances_custom_dir')}
-                      </Badge>
-                    )}
-                  </div>
-                )}
-
-                {/* Executable path */}
-                {isBuiltInSelected(instance) && (
-                  <div className="flex flex-col gap-1">
-                    <span className="text-xs text-muted-foreground">
-                      {t('settings.instances_executable')}
-                    </span>
-                    <Select
-                      value={getSelectedExecutableBrowser(instance)}
-                      onValueChange={(value: BrowserType) =>
-                        handleSelectExecutable(instance.id, value)
-                      }
-                      disabled={getAvailableBrowsers(instance).every(
-                        (browser) => !browser.installed,
-                      )}
-                    >
-                      <SelectTrigger className="w-64 h-8 text-xs">
-                        <SelectValue
-                          placeholder={t(
-                            'settings.instances_select_executable',
-                          )}
-                        />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {getAvailableBrowsers(instance).map((browser) => (
-                          <SelectItem
-                            key={browser.browser}
-                            value={browser.browser}
-                            disabled={!browser.installed}
-                          >
-                            {browser.installed
-                              ? browser.label
-                              : `${browser.label} (${t('settings.instances_browser_not_installed')})`}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-
-                {instance.config?.executablePath && (
-                  <div className="flex flex-col gap-1">
-                    <span className="text-xs text-muted-foreground">
-                      {t('settings.instances_executable_path')}
-                    </span>
-                    <span className="text-xs font-mono truncate">
-                      {instance.config.executablePath}
-                    </span>
-                  </div>
-                )}
-
-                {/* Remote debugging port */}
-                <div className="flex flex-col gap-1">
-                  <span className="text-xs text-muted-foreground">
-                    {t('settings.instances_debug_port')}
-                  </span>
-                  <Input
-                    type="number"
-                    className="w-32 h-8 text-xs"
-                    placeholder="9222"
-                    defaultValue={instance.config?.debugPort ?? 9222}
-                    min={1}
-                    max={65535}
-                    onBlur={(e) =>
-                      handleDebugPortChange(instance.id, e.target.value)
-                    }
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        (e.target as HTMLInputElement).blur();
-                      }
-                    }}
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <span className="text-xs text-muted-foreground">
-                    {t('settings.instances_headless')}
-                  </span>
-                  <Switch
-                    checked={instance.config?.headless ?? false}
-                    onCheckedChange={(value) =>
-                      handleHeadlessChange(instance.id, value)
-                    }
-                  />
-                </div>
-
-                {instance.webSocketUrl && (
-                  <div className="flex flex-col gap-1">
-                    <span className="text-xs text-muted-foreground">
-                      {t('settings.instances_websocketurl', 'WebSocketUrl')}
-                    </span>
-                    <span className="text-xs font-mono truncate">
-                      {instance.webSocketUrl}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </ItemDescription>
-          </ItemContent>
-          <ItemActions>
-            {loading[instance.id] ? (
-              <Button disabled size="sm">
-                <Spinner />
-              </Button>
-            ) : runningStatus[instance.id] === 'running' ? (
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => handleStopInstance(instance.id)}
-              >
-                <IconPlayerStop className="size-4" />
-                {t('settings.instances_stop')}
-              </Button>
-            ) : (
-              <Button size="sm" onClick={() => handleRunInstance(instance.id)}>
-                <IconPlayerPlay className="size-4" />
-                {t('settings.instances_run')}
-              </Button>
-            )}
-          </ItemActions>
-        </Item>
-      ))}
-
-      {instances.length === 0 && (
-        <div className="text-center text-muted-foreground py-8">
-          {t('settings.instances_empty')}
+    <div className="flex max-w-3xl flex-col gap-5 p-4">
+      {error && (
+        <div
+          role="alert"
+          className="flex items-center justify-between gap-3 rounded-md border border-destructive p-3 text-sm text-destructive"
+        >
+          <span className="break-words">{error}</span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setRevision((value) => value + 1)}
+          >
+            {t('common.retry')}
+          </Button>
         </div>
+      )}
+      {!instance && !error && (
+        <div role="status" aria-label={t('common.loading')}>
+          <Spinner />
+        </div>
+      )}
+      {instance && (
+        <>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="flex items-center gap-2 font-medium">
+              <IconBrowser className="size-5" />
+              Electron Chromium
+            </h2>
+            <Badge variant="secondary">
+              {instance.tabCount
+                ? t('settings.instances_running')
+                : t('settings.browser_on_demand')}
+            </Badge>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            {t('settings.browser_shared_description')}
+          </p>
+          <dl className="grid min-w-0 gap-4 border-y py-4 text-sm">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <dt className="text-muted-foreground">
+                {t('settings.browser_engine_version')}
+              </dt>
+              <dd>{instance.chromiumVersion}</dd>
+            </div>
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <dt className="text-muted-foreground">
+                {t('settings.browser_open_pages')}
+              </dt>
+              <dd>
+                {t('settings.browser_page_count', {
+                  tabs: instance.tabCount,
+                  threads: instance.threadCount,
+                })}
+              </dd>
+            </div>
+            <div className="flex min-w-0 flex-col gap-2">
+              <dt className="text-muted-foreground">
+                {t('settings.instances_user_data')}
+              </dt>
+              <dd className="break-all font-mono text-xs leading-relaxed">
+                {instance.config.userDataPath}
+              </dd>
+            </div>
+          </dl>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={openDirectory}>
+              <IconFolder className="size-4" />
+              {t('settings.browser_open_directory')}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!instance.tabCount || pending}
+              onClick={closeTabs}
+            >
+              {pending ? <Spinner /> : <IconX className="size-4" />}
+              {t('settings.browser_close_tabs')}
+            </Button>
+          </div>
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            {t('settings.browser_close_tabs_hint')}
+          </p>
+        </>
       )}
     </div>
   );

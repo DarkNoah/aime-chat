@@ -3,7 +3,6 @@ import BaseTool, { BaseToolParams } from "../base-tool";
 import z from "zod";
 import { ToolExecutionContext } from "@mastra/core/tools";
 import { runCommand } from "@/main/utils/shell";
-import { instancesManager } from "@/main/instances";
 import { appManager } from "@/main/app";
 import { providersManager } from "@/main/providers";
 import { agentManager } from "@/main/mastra/agents";

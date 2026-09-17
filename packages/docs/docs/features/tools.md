@@ -178,7 +178,7 @@ CodeExecution 用于结构化的 Python 执行、数据处理和文件生成。P
 
 - **WebSearch** 搜索网络；具体可用性取决于 Provider/搜索配置
 - **WebFetch** 获取网页或 API 内容
-- **AgentBrowser** 使用配置好的浏览器实例执行页面任务，详见 [浏览器实例](./browser-instances)
+- **AgentBrowser** 在聊天内置浏览器中执行页面任务，支持线程内多 Tab、线程间并发操作和共享登录状态，详见 [浏览器实例](./browser-instances)
 - **GenerateImage / EditImage** 调用已配置的图像模型
 - **RemoveBackground** 使用本地背景移除模型，详见 [背景移除](./tools/rmbg)
 

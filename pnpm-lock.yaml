@@ -435,6 +435,9 @@ importers:
       cross-env:
         specifier: ^7.0.3
         version: 7.0.3
+      cross-spawn:
+        specifier: ^7.0.6
+        version: 7.0.6
       css-loader:
         specifier: ^7.1.2
         version: 7.1.2(@rspack/core@1.6.8)(webpack@5.103.0)
@@ -846,6 +849,9 @@ importers:
       word-extractor:
         specifier: ^1.0.4
         version: 1.0.4
+      ws:
+        specifier: ^8.18.3
+        version: 8.18.3(bufferutil@4.1.0)
       xlsx:
         specifier: ^0.18.5
         version: 0.18.5

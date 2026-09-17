@@ -4,7 +4,7 @@ import os from 'os';
 import path from 'path';
 import { appManager } from '@/main/app';
 import { providersManager } from '@/main/providers';
-import { saveFile } from '@/main/utils/file';
+import { downloadFile, saveFile } from '@/main/utils/file';
 import { AlibabaSpeechModel } from '@/main/providers/alibaba-speech-model';
 import { TextToSpeech } from '../index';
 
@@ -68,6 +68,67 @@ describe('TextToSpeech', () => {
   });
   afterAll(() => {
     global.fetch = originalFetch;
+  });
+
+  it('returns setup guidance without starting work when no speech model is configured', async () => {
+    (appManager.getInfo as jest.Mock).mockResolvedValue({ defaultModel: {} });
+    const result = new TextToSpeech().execute(
+      {
+        text: 'Hello',
+        ref_audio: 'https://example.com/reference.wav',
+        ref_text: 'Reference',
+      },
+      context,
+    );
+    await expect(result).rejects.toThrow('Default Speech Model');
+    await expect(result).rejects.toThrow('Settings > Local Models');
+    expect(providersManager.getProvider).not.toHaveBeenCalled();
+    expect(downloadFile).not.toHaveBeenCalled();
+    expect(saveFile).not.toHaveBeenCalled();
+  });
+
+  it('returns provider setup guidance before downloading reference audio', async () => {
+    (providersManager.getProvider as jest.Mock).mockResolvedValue(undefined);
+    await expect(
+      new TextToSpeech({ modelId: 'missing/tts' }).execute(
+        {
+          text: 'Hello',
+          ref_audio: 'https://example.com/reference.wav',
+          ref_text: 'Reference',
+        },
+        context,
+      ),
+    ).rejects.toThrow('Settings > Providers');
+    expect(downloadFile).not.toHaveBeenCalled();
+    expect(speechModel).not.toHaveBeenCalled();
+    expect(saveFile).not.toHaveBeenCalled();
+  });
+
+  it.each([{}, { speechModel: () => undefined }])(
+    'returns model selection guidance for a provider without a speech model: %p',
+    async (provider) => {
+      (providersManager.getProvider as jest.Mock).mockResolvedValue(provider);
+      await expect(
+        new TextToSpeech().execute({ text: 'Hello' }, context),
+      ).rejects.toThrow('Select a supported speech model');
+      expect(saveFile).not.toHaveBeenCalled();
+    },
+  );
+
+  it('preserves local model download guidance in the failure result', async () => {
+    const error = new Error(
+      'Audio model BreezeBlue/Breeze-TTS-2 is not downloaded or incomplete. Download it in Settings > Local Models (TTS) first.',
+    );
+    speechModel.mockReturnValue({
+      doGenerate: jest.fn().mockRejectedValue(error),
+    });
+    await expect(
+      new TextToSpeech({ modelId: 'local/BreezeBlue/Breeze-TTS-2' }).execute(
+        { text: 'Hello' },
+        context,
+      ),
+    ).rejects.toBe(error);
+    expect(saveFile).not.toHaveBeenCalled();
   });
 
   it('uses the default model, preserves slash IDs and saves bytes without local metadata', async () => {

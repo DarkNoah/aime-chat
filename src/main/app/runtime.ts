@@ -1176,8 +1176,8 @@ export async function installAgentBrowserRuntime() {
     const result = await runCommand(`npm install -g agent-browser`)
     if (result.code === 0) {
       const resultVersion = await runCommand(`agent-browser -V`);
-      const resultInstall = await runCommand(`agent-browser install`);
-      if (resultVersion.code !== 0 || resultInstall.code !== 0) {
+      // Browser pages use Electron's Chromium; no separate browser download.
+      if (resultVersion.code !== 0) {
         throw new Error('Failed to initialize Agent Browser Runtime');
       }
       agentBrowser.status = 'installed';

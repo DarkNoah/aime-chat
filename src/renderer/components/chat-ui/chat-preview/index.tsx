@@ -1,14 +1,8 @@
+import { ThreadBrowserPreview } from './thread-browser-preview';
 /* eslint-disable no-nested-ternary */
 import React, { ForwardedRef, use, useEffect, useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../ui/tabs';
 import { ChatCanvas } from '../chat-canvas';
-import {
-  WebPreview,
-  WebPreviewBody,
-  WebPreviewNavigation,
-  WebPreviewUrl,
-} from '../../ai-elements/web-preview';
-import { Loader } from '../../ai-elements/loader';
 import { ToggleGroup, ToggleGroupItem } from '../../ui/toggle-group';
 import { ChatToolResultPreview } from './chat-tool-result-preview';
 import { ToolUIPart, UIMessage } from 'ai';
@@ -67,22 +61,9 @@ export const ChatPreview = React.forwardRef<ChatPreviewRef, ChatPreviewProps>(
       onAddToChat,
       onThreadSelect,
     } = props;
-    const [isGenerating, setIsGenerating] = useState(false);
     const [messages, setMessages] = useState<UIMessage[]>([]);
     const { appInfo } = useGlobal();
     const { t } = useTranslation();
-    // const [previewUrl, setPreviewUrl] = useState<string | null>(
-    //   previewData?.webPreviewUrl ?? 'about:blank',
-    // );
-    const [urlInputValue, setUrlInputValue] = useState<string | null>(
-      'about:blank',
-    );
-
-    useEffect(() => {
-      // setPreviewUrl(previewData?.webPreviewUrl ?? 'about:blank');
-      setUrlInputValue(previewData?.webPreviewUrl ?? 'about:blank');
-    }, [previewData?.webPreviewUrl]);
-
     useEffect(() => {
       if (previewData.previewPanel === ChatPreviewType.MESSAGES && threadId) {
         const getMessages = async () => {
@@ -202,39 +183,14 @@ export const ChatPreview = React.forwardRef<ChatPreviewRef, ChatPreviewProps>(
           <div
             className={`h-full ${previewData.previewPanel === ChatPreviewType.WEB_PREVIEW ? '' : 'hidden'}`}
           >
-            {isGenerating ? (
-              <div className="flex flex-col items-center justify-center h-full">
-                <Loader />
-                <p className="mt-4 text-muted-foreground">
-                  Generating app, this may take a few seconds...
-                </p>
-              </div>
-            ) : previewData?.webPreviewUrl ? (
-              <WebPreview defaultUrl={previewData?.webPreviewUrl}>
-                <WebPreviewNavigation>
-                  <WebPreviewUrl
-                    value={urlInputValue}
-                    onChange={(e) => setUrlInputValue(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        // setPreviewUrl(urlInputValue);
-                        onPreviewDataChange?.((prev) => {
-                          return {
-                            ...prev,
-                            webPreviewUrl: urlInputValue,
-                          };
-                        });
-                      }
-                    }}
-                  />
-                </WebPreviewNavigation>
-                <WebPreviewBody src={previewData?.webPreviewUrl} />
-              </WebPreview>
-            ) : (
-              <div className="flex items-center justify-center h-full text-muted-foreground">
-                Your generated app will appear here
-              </div>
-            )}
+            {threadId ? (
+              <ThreadBrowserPreview
+                key={threadId}
+                threadId={threadId}
+                active={previewData.previewPanel === ChatPreviewType.WEB_PREVIEW}
+                request={previewData.webPreviewRequest}
+              />
+            ) : null}
           </div>
 
           {/* <div

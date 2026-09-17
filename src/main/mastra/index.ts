@@ -1,3 +1,4 @@
+import { threadBrowserManager } from '../browser/manager';
 import { Mastra } from '@mastra/core';
 import { getStorage, getVectorStore } from './storage';
 import { BaseManager } from '../BaseManager';
@@ -790,6 +791,7 @@ class MastraManager extends BaseManager {
     await projectTimelineManager.deleteByThread(id);
     await this.deleteWorkflowRuns(id, thread.resourceId);
     await memoryStore.deleteThread({ threadId: id });
+    threadBrowserManager.closeThread(id, true);
   }
 
   @channel(MastraChannel.ClearMessages)

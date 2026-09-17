@@ -19,7 +19,10 @@
     "maximize": "Expand preview",
     "minimize": "Collapse preview"
   },
-  "tool_name": { "generatevideo": "Video Generation" },
+  "tool_name": {
+    "generatevideo": "Video Generation",
+    "texttospeech": "Text to Speech"
+  },
   "language": {
     "en-us": "English",
     "zh-cn": "中文"
@@ -119,24 +122,17 @@
     "apiServerTRunningips": "Server is running on ",
     "instances": "Instances",
     "instances_user_data": "Browser User Data Directory",
-    "instances_select_browser": "Select browser profile",
-    "instances_browse": "Browse...",
-    "instances_current_path": "Current Path",
-    "instances_custom_dir": "Custom Directory",
-    "instances_executable": "Browser Executable",
-    "instances_select_executable": "Select browser",
-    "instances_executable_path": "Current Executable Path",
-    "instances_browser_not_installed": "Not installed",
-    "instances_run": "Run",
-    "instances_stop": "Stop",
+    "browser_on_demand": "On demand",
+    "browser_shared_description": "Chat browsing and web fetching use Electron Chromium. All chats share sign-in data while owning their tabs and actions. No separate browser needs to be started.",
+    "browser_engine_version": "Chromium version",
+    "browser_open_pages": "Open pages",
+    "browser_page_count": "{{tabs}} tabs · {{threads}} chats",
+    "browser_open_directory": "Open data directory",
+    "browser_close_tabs": "Close all browser tabs",
+    "browser_close_tabs_hint": "Closing tabs stops browser actions in all chats and keeps sign-in data. New pages are created when needed.",
+    "browser_tabs_closed": "All browser tabs closed",
     "instances_running": "Running",
-    "instances_started": "Instance started",
-    "instances_stopped": "Instance stopped",
-    "instances_start_failed": "Failed to start instance",
-    "instances_config_saved": "Configuration saved",
-    "instances_empty": "No instances",
     "instances_websocketurl": "WebSocketUrl",
-    "instances_debug_port": "Remote Debugging Port",
     "vision_model": "Vision Model",
     "default_ocr": "Ocr Model",
     "usage": "Usage",
@@ -212,8 +208,7 @@
     "secrets_delete_title": "Delete Secret",
     "secrets_delete_confirm": "Are you sure you want to delete this secret? This action cannot be undone.",
     "secrets_description_placeholder": "Optional description",
-    "secrets_global": "Global",
-    "instances_headless": "Headless"
+    "secrets_global": "Global"
   },
   "common": {
     "edit": "Edit",
@@ -495,6 +490,12 @@
     "project": "Project",
     "file_preview": "File Preview",
     "preview_file": "Preview File",
+    "speech_audio_unavailable": "Unable to play audio. Check that the file exists and its format is supported.",
+    "speech_audio_missing": "The audio file does not exist. It may have been moved or deleted.",
+    "voices_count": "Available voices ({{count}})",
+    "voice_preview": "Preview voice: {{name}}",
+    "voices_empty": "No voices available.",
+    "voices_directory": "Voices directory",
     "file_open_options": "Open options for {{name}}",
     "open_in_filesystem_default": "Open in File System (default)",
     "show_in_system_explorer": "Show in System File Explorer",
@@ -1036,5 +1037,20 @@
     "tool_result_label": "{{tool}} result",
     "empty_output": "No output",
     "empty": "No background Agent sessions"
+  },
+  "browser": {
+    "tabs": "Browser tabs",
+    "new_tab": "New tab",
+    "close_tab": "Close {{name}}",
+    "back": "Back",
+    "forward": "Forward",
+    "reload": "Reload",
+    "stop": "Stop",
+    "address": "Website address",
+    "address_placeholder": "Enter a URL",
+    "go": "Go",
+    "running": "Agent is operating {{tab}}",
+    "empty": "Open a website here. Your agent can operate these tabs while other chats continue.",
+    "restart": "Restart the app to enable the browser preview."
   }
 }

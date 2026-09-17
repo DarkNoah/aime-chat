@@ -44,6 +44,8 @@ import {
   ChatMessageAttachments,
 } from '../chat-message-attachment';
 import { InteractiveHtmlMessage } from './interactive-html-message';
+import { TextToSpeechMessage } from './text-to-speech-message';
+import { ListVoicesMessage } from './list-voices-message';
 
 export type ToolSuspended = {
   toolName: string;
@@ -53,7 +55,7 @@ export type ToolSuspended = {
   runId: string;
 };
 
-export interface ToolMessageRef { }
+export interface ToolMessageRef {}
 
 export type ToolMessageProps = Omit<ComponentProps<typeof Badge>, 'part'> & {
   threadId?: string;
@@ -173,6 +175,10 @@ export const ToolMessage = React.forwardRef<ToolMessageRef, ToolMessageProps>(
         return (
           <SendEventMessage threadId={threadId} part={part}></SendEventMessage>
         );
+      } else if (toolName === 'TextToSpeech') {
+        return <TextToSpeechMessage part={part} />;
+      } else if (toolName === 'ListVoices') {
+        return <ListVoicesMessage part={part} />;
       } else if (toolName === 'Vision') {
         return <VisionMessage threadId={threadId} part={part}></VisionMessage>;
       } else if (

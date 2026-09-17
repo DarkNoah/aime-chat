@@ -1,3 +1,4 @@
+import { ThreadBrowserChannel } from '@/types/thread-browser';
 /* eslint-disable camelcase */
 /* eslint-disable no-underscore-dangle */
 /* eslint-disable react/no-array-index-key */
@@ -242,6 +243,28 @@ function ChatPage() {
         location.state = null;
         chatPanelRef?.current?.sendMessage(message, options);
       }
+      let browserCancelled = false;
+      const showBrowser = () => {
+        if (!isCompactWindowRef.current) setShowPreview(true);
+        setPreviewData((data) => ({
+          ...data,
+          previewPanel: ChatPreviewType.WEB_PREVIEW,
+        }));
+      };
+      const unsubscribeBrowser = window.electron.ipcRenderer.on(
+        ThreadBrowserChannel.Requested,
+        (event) => {
+          if ((event as { threadId: string }).threadId === threadId)
+            showBrowser();
+        },
+      );
+      window.electron.browser
+        ?.state(threadId)
+        .then((browser) => {
+          if (!browserCancelled && browser.tabs.length) showBrowser();
+          return undefined;
+        })
+        .catch(() => undefined);
       eventBus.on(`chat:onEvent:${threadId}`, (event: any) => {
         const update = getChatPreviewEventUpdate(event, threadId);
         if (!update) return;
@@ -251,6 +274,8 @@ function ChatPage() {
         setPreviewData((data) => ({ ...data, ...update }));
       });
       return () => {
+        browserCancelled = true;
+        unsubscribeBrowser();
         eventBus.off(`chat:onEvent:${threadId}`);
       };
     } else if (location.pathname === '/chat') {

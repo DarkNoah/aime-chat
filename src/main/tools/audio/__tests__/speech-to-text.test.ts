@@ -118,6 +118,112 @@ describe('MiniMax through SpeechToText', () => {
     },
   );
 
+  it.each([997, 1000, 1001, 3000])(
+    'limits a %i-line transcription and its formatted model output to 1000 lines',
+    async (lineCount) => {
+      const lines = Array.from(
+        { length: lineCount },
+        (_, index) => `Transcript line ${index + 1}`,
+      );
+      const text = lines.join('\n');
+      transcriptionModel.mockReturnValue({
+        doGenerate: jest.fn().mockResolvedValue({
+          text,
+          segments: [],
+          durationInSeconds: 42,
+        }),
+      });
+
+      const tool = new SpeechToText();
+      const result = await tool.execute({ source: 'input.wav' } as any, context);
+      expect(typeof result).toBe('object');
+      if (typeof result === 'string') throw new Error('Expected text output');
+      expect(result.durationInSeconds).toBe(42);
+      expect(result.text.split('\n')).toHaveLength(Math.min(lineCount, 1000));
+      expect(result.text).toContain(lines[0]);
+      expect(result.text).toContain(lines[lineCount - 1]);
+      if (lineCount <= 1000) expect(result.text).toBe(text);
+      else expect(result.text).toContain('...[truncated]...');
+
+      const modelOutput = tool.toModelOutput(result);
+      if (typeof modelOutput === 'string') throw new Error('Expected text part');
+      const fullOutput = `<system-reminder>This audio file duration is 42.00s.</system-reminder>\n<transcription-text>\n${text}\n</transcription-text>`;
+      expect(modelOutput.value.split('\n')).toHaveLength(
+        Math.min(lineCount + 3, 1000),
+      );
+      expect(modelOutput.value).toContain('duration is 42.00s');
+      expect(modelOutput.value).toContain(`<transcription-text>\n${lines[0]}`);
+      expect(modelOutput.value).toContain(`${lines[lineCount - 1]}\n</transcription-text>`);
+      if (lineCount + 3 <= 1000) expect(modelOutput.value).toBe(fullOutput);
+      else expect(modelOutput.value).toContain('...[truncated]...');
+    },
+  );
+
+  it.each(['srt', 'ass'] as const)(
+    'limits the %s preview while saving every subtitle to disk',
+    async (outputType) => {
+      const segments = Array.from({ length: 1100 }, (_, index) => ({
+        text: `Subtitle segment number ${String(index + 1).padStart(4, '0')}.`,
+        startSecond: index * 3,
+        endSecond: index * 3 + 2,
+      }));
+      transcriptionModel.mockReturnValue({
+        doGenerate: jest.fn().mockResolvedValue({
+          text: segments.map((segment) => segment.text).join('\n'),
+          segments,
+          durationInSeconds: 3300,
+        }),
+      });
+
+      const tool = new SpeechToText();
+      const result = await tool.execute(
+        { source: 'input.wav', output_type: outputType },
+        context,
+      );
+      if (typeof result !== 'string') throw new Error('Expected subtitle output');
+      const saved = await fs.readFile(
+        path.join(workspace, `subtitle-id.${outputType}`),
+        'utf8',
+      );
+      expect(saved.split('\n').length).toBeGreaterThan(1000);
+      expect(saved).not.toContain('...[truncated]...');
+      for (const segment of segments) {
+        expect(saved).toContain(segment.text.replace(/\.$/, ''));
+      }
+      expect(result.split('\n')).toHaveLength(1000);
+      expect(result).toContain('...[truncated]...');
+      expect(result).toContain('Subtitle segment number 0001');
+      expect(result).toContain('Subtitle segment number 1100');
+      expect(result).not.toContain('Subtitle segment number 0550');
+      expect(result).toContain(`<file>${workspace}/subtitle-id.${outputType}</file>`);
+      expect(result.endsWith('</transcription-text>')).toBe(true);
+      expect(tool.toModelOutput(result)).toBe(result);
+    },
+  );
+
+  it.each(['srt', 'ass'] as const)(
+    'limits the %s fallback when timestamps are missing',
+    async (outputType) => {
+      transcriptionModel.mockReturnValue({
+        doGenerate: jest.fn().mockResolvedValue({
+          text: Array.from({ length: 1500 }, (_, index) => `Line ${index + 1}`).join('\n'),
+          segments: [],
+        }),
+      });
+
+      const result = await new SpeechToText().execute(
+        { source: 'input.wav', output_type: outputType },
+        context,
+      );
+      if (typeof result !== 'string') throw new Error('Expected fallback output');
+      expect(result.split('\n')).toHaveLength(1000);
+      expect(result).toContain('No timed segments');
+      expect(result).toContain('...[truncated]...');
+      expect(result.endsWith('Line 1500')).toBe(true);
+      expect(saveFile).not.toHaveBeenCalled();
+    },
+  );
+
   it('lets the tool configuration override the default model', async () => {
     await new SpeechToText({ modelId: 'custom/asr-1.0' }).execute(
       { source: 'input.wav', output_type: 'text' },

@@ -2,14 +2,32 @@
 name: agent-browser
 description: Browser automation CLI for AI agents. Use when the user needs to interact with websites, including navigating pages, filling forms, clicking buttons, taking screenshots, extracting data, testing web apps, or automating any browser task. Triggers include requests to "open a website", "fill out a form", "click a button", "take a screenshot", "scrape data from a page", "test this web app", "login to a site", "automate browser actions", or any task requiring programmatic web interaction.
 autoInstall: true
-allowed-tools: Bash(npx agent-browser:*), Bash(agent-browser:*)
+allowed-tools: AgentBrowser
 ---
 
 # Browser Automation with agent-browser
 
 ## How to use
 
-All bash commands must be executed using the AgentBrowser tool.
+All browser commands must be executed using the AgentBrowser tool.
+
+In AIME Chat, the browser is embedded in the chat preview. All threads share
+cookies and login state, while each thread owns multiple tabs. Do not launch or
+connect to another browser, and do not supply --session, --cdp, --config or
+--profile flags: the application binds commands to the calling chat thread.
+
+- `tab list`: list only this thread's tabs, with stable IDs such as `t1`.
+- `tab new <url>`: create and select a tab for this thread.
+- `tab t1`: select the thread's automation tab.
+- `tab close t1`: close that tab. A closed target never falls back to another tab.
+- The AgentBrowser tool's optional `tabId` targets one tab explicitly.
+- Each tab has its own element refs. Snapshot the target tab before using refs.
+- Manually viewing another tab does not change the automation target.
+- `close` closes only the calling thread's tabs.
+- Use `&&` for sequential commands. Shell scripts, pipes, redirects, session and
+  browser-launch examples elsewhere in this upstream reference do not apply to
+  the embedded AIME Chat browser. Use separate AgentBrowser calls instead.
+
 If screenshot , need to use Read tool to see the image file. 
 
 ## Core Workflow

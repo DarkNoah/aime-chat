@@ -116,9 +116,9 @@ AI Agent 可自主调用各类工具：
 
 ### 🌐 浏览器实例
 
-- 自动检测 Google Chrome、Microsoft Edge 与 Chromium
-- 可选择浏览器可执行文件、用户数据目录、远程调试端口和无头模式
-- 适合需要复用本地浏览器登录状态的自动化任务
+- 使用内置 Electron Chromium，在聊天预览中显示并操作网页
+- 所有聊天共享登录状态，每个聊天拥有独立的多个标签页与操作队列
+- 在实例管理中查看共享数据目录、标签页数量，或关闭所有浏览器标签页
 
 ### 🌍 国际化
 
@@ -161,7 +161,7 @@ pnpm start
 - **[Harness Engineering](./features/harness-engineering)** - 理解 `Agent = Model + Harness` 的设计理念
 - **[AI 服务商配置](./getting-started/ai-providers)** - 配置各类 AI 服务商
 - **[项目与文件工作区](./features/project-workspace)** - 管理文件、聊天线程与导出
-- **[浏览器实例](./features/browser-instances)** - 配置 Chrome、Edge 或 Chromium 自动化实例
+- **[浏览器实例](./features/browser-instances)** - Electron Chromium 共享数据、聊天标签页与旧数据迁移
 - **[知识库使用](./features/knowledge-base)** - 构建和使用知识库
 - **[养成记忆](./features/cultivation-memory)** - 了解长期记忆 Wiki 的自动维护方式
 - **[自动化 Crons](./features/crons)** - 创建按计划执行的 AI 任务

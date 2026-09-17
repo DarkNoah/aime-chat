@@ -1,3 +1,4 @@
+import { ThreadBrowserChannel } from '@/types/thread-browser';
 import { getChatPreviewEventUpdate } from '@/renderer/lib/chat-preview-event';
 import {
   ChatPanel,
@@ -228,6 +229,27 @@ function ProjectsPage() {
 
   useEffect(() => {
     if (threadId) {
+      let browserCancelled = false;
+      const showBrowser = () => {
+        setPreviewData((data) => ({
+          ...data,
+          previewPanel: ChatPreviewType.WEB_PREVIEW,
+        }));
+      };
+      const unsubscribeBrowser = window.electron.ipcRenderer.on(
+        ThreadBrowserChannel.Requested,
+        (event) => {
+          if ((event as { threadId: string }).threadId === threadId)
+            showBrowser();
+        },
+      );
+      window.electron.browser
+        ?.state(threadId)
+        .then((browser) => {
+          if (!browserCancelled && browser.tabs.length) showBrowser();
+          return undefined;
+        })
+        .catch(() => undefined);
       eventBus.on(`chat:onEvent:${threadId}`, (event: any) => {
         const update = getChatPreviewEventUpdate(event, threadId);
         if (!update) return;
@@ -235,6 +257,8 @@ function ProjectsPage() {
         setPreviewData((data) => ({ ...data, ...update }));
       });
       return () => {
+        browserCancelled = true;
+        unsubscribeBrowser();
         eventBus.off(`chat:onEvent:${threadId}`);
       };
     }

@@ -4,68 +4,57 @@ sidebar_position: 3
 
 # 浏览器实例
 
-浏览器实例用于启动或连接一个可被 Agent 自动化控制的 Chromium 内核浏览器。AIME Chat 可以检测 Google Chrome、Microsoft Edge 和 Chromium，并为实例选择独立或已有的用户数据目录。
+AIME Chat 统一使用 **Electron Chromium**。AgentBrowser 在聊天预览中显示并操作网页，WebFetch 的浏览器回退也复用同一会话，无需安装或启动独立 Edge、Chrome。
 
-## 支持的浏览器
+## 实例管理
 
-- Google Chrome
-- Microsoft Edge
-- Chromium
+进入 **设置 → 实例管理**，可以查看 Chromium 版本、打开的标签页和聊天数量，以及共享数据目录。
 
-应用会按 Chrome → Edge → Chromium 的顺序选择第一个已安装的浏览器作为内置实例默认值。浏览器必须真实安装在系统中；Playwright 下载缓存不会自动作为系统浏览器显示。
+- **打开数据目录**：在系统文件管理器中查看浏览器数据。
+- **关闭所有浏览器标签页**：关闭所有聊天的页面，取消正在执行和排队的浏览器操作，保留 Cookie 和登录状态。后续使用会重新创建页面。
 
-## 配置实例
+浏览器按需工作，不再提供浏览器品牌、可执行文件、调试端口、无头模式或系统 Profile 选择。
 
-进入 **设置 → 实例管理**：
+## 数据目录与迁移
 
-1. 在 **浏览器用户数据目录** 中选择配置
-2. 使用内置配置时，在 **浏览器可执行文件** 中选择已安装的浏览器
-3. 按需修改远程调试端口，默认端口为 `9222`
-4. 选择是否启用无头模式
-5. 点击 **运行**；使用结束后点击 **停止**
+共享浏览器数据固定保存在：
 
-### 用户数据目录
+```text
+<应用用户数据目录>/instances/default_browser
+```
 
-- **Default (Built-in)**：AIME Chat 在自己的用户资料目录中维护独立浏览器数据，不复用日常浏览器配置
-- **系统检测配置**：仅当对应浏览器可执行文件和用户数据目录都存在时显示，可复用该浏览器已有配置
-- **自定义目录**：手动指定其他用户数据目录
+macOS 默认位置：
 
-:::warning 登录状态与并发占用
-复用系统浏览器目录可能包含登录 Cookie、历史记录和扩展。只在你信任的 Agent 与任务中使用；同一用户数据目录被另一个浏览器进程占用时，实例也可能无法启动。需要隔离时优先使用内置目录。
-:::
+```text
+~/Library/Application Support/aime-chat/instances/default_browser
+```
 
-### 可执行文件与配置目录是两项设置
+首次使用新版时，应用会在创建浏览器会话前执行一次迁移：
 
-浏览器可执行文件决定启动 Chrome、Edge 还是 Chromium；用户数据目录决定加载哪套浏览器配置。使用内置目录时可以切换已安装的浏览器，而无需迁移项目或聊天数据。
+1. 将此前内置浏览器 `Partitions/aime-browser` 的数据迁入上述目录，保留当前内置浏览器的 Cookie、登录状态和站点存储。
+2. 清理该目录原有的外部浏览器资料。旧 Edge／Chrome 实例中的登录状态不迁入。
+3. 将实例配置统一为 Electron Chromium，移除旧的外部浏览器配置。系统浏览器及原先指定的其他自定义目录不会被删除。
 
-## 平台检测位置
+迁移使用阶段记录和完成标记，失败后可重试，完成后不会在每次启动时清空数据。执行迁移前应退出仍使用旧默认目录的浏览器。
 
-AIME Chat 会使用各平台的常见安装路径，并在 Linux 上从 `PATH` 解析 `chromium` 或 `chromium-browser` 等命令。系统配置目录通常位于：
+## 聊天与标签页
 
-| 平台 | Chrome | Edge | Chromium |
-|------|--------|------|----------|
-| Windows | `%LOCALAPPDATA%\Google\Chrome\User Data` | `%LOCALAPPDATA%\Microsoft\Edge\User Data` | `%LOCALAPPDATA%\Chromium\User Data` |
-| macOS | `~/Library/Application Support/Google/Chrome` | `~/Library/Application Support/Microsoft Edge` | `~/Library/Application Support/Chromium` |
-| Linux | `~/.config/google-chrome` | `~/.config/microsoft-edge` | `~/.config/chromium` |
+- 所有聊天共享 Cookie、登录状态和 localStorage。一个聊天退出登录或切换账号，会影响其他聊天。
+- 每个聊天拥有自己的多个 Tab，支持新建、切换、关闭、地址栏、前进、后退和刷新。
+- Agent 的操作 Tab 与用户正在查看的 Tab 分开维护，查看其他页面不会改变动作目标。
+- 不同聊天可并行操作；同一聊天的工具动作依次执行，页面元素引用按 Tab 保存。
+- 页面弹窗归属于来源聊天；停止操作、关闭单个 Tab 或删除聊天只释放对应资源。
+- WebFetch 的临时页面共享登录状态，读取结束后关闭，不切换聊天当前页面。
+- 单独关闭操作目标后，后续命令会明确报错，需要新建或选择 Tab。
+- 应用重启后登录数据保留，打开的 Tab 需要重新建立。
 
-Linux 会尊重 `XDG_CONFIG_HOME`；Chrome/Chromium 还会优先使用 `CHROME_CONFIG_HOME`。
+```text
+AgentBrowser(command="tab new https://example.com")
+AgentBrowser(command="tab list")
+AgentBrowser(command="snapshot -i", tabId="t1")
+AgentBrowser(command="click @e2", tabId="t1")
+AgentBrowser(command="tab t2")
+AgentBrowser(command="tab close t1")
+```
 
-## 常见问题
-
-### 浏览器显示“未安装”
-
-1. 确认浏览器已经完成安装，而不只是下载了安装包
-2. 完全重启 AIME Chat，让主进程重新检测可执行文件
-3. Linux 用户确认浏览器命令可从应用进程的 `PATH` 找到
-4. 如果使用便携版浏览器，可考虑选择自定义用户数据目录；当前页面仍只列出系统检测到的可执行文件
-
-### 实例启动失败
-
-1. 检查调试端口是否被其他进程占用
-2. 停止正在使用同一用户数据目录的浏览器进程
-3. 改用内置用户数据目录排除配置锁或扩展冲突
-4. 在 **关于** 页面打开应用日志查看启动错误
-
-### 何时使用无头模式
-
-无头模式适合不需要人工观察的后台任务；登录、验证码、授权或需要检查页面状态时，使用可见窗口更容易排查问题。
+通过 AgentBrowser 工具执行命令，不要指定 `--session`、`--cdp`、`--config` 或 `--profile`。需要手动登录时，打开聊天预览中的对应 Tab 即可。

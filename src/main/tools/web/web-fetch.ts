@@ -10,9 +10,8 @@ import { ToolConfig } from '@/types/tool';
 import { providersManager } from '@/main/providers';
 import { ProviderType } from '@/types/provider';
 import { ZhipuAIProvider } from '@/main/providers/zhipuai-provider';
-import { BrowserContext, chromium } from 'playwright';
 import { appManager } from '@/main/app';
-import { instancesManager } from '@/main/instances';
+import { threadBrowserManager } from '@/main/browser/manager';
 import { JinaAIProvider } from '@/main/providers/jinaai-provider';
 import { Agent } from '@mastra/core/agent';
 import { saveFile } from '@/main/utils/file';
@@ -191,7 +190,7 @@ ${result.text}`;
 
     let html: string;
     const { parseHTML } = await import('linkedom');
-    let article: Readability.Article;
+    let article: ReturnType<Readability['parse']>;
     try {
       const res = await fetch(url, {
         headers: {
@@ -220,14 +219,12 @@ ${result.text}`;
         throw new Error('Readability failed to extract content');
       }
     } catch {
-      const instance = await instancesManager.getWebBrowserInstance();
-      const page = await instance.browserContext.newPage();
-      try {
-        await page.goto(url, { timeout: 15000 });
-        await page.waitForLoadState('networkidle', { timeout: 10000 });
-      } catch { }
-      html = await page.content();
-      await page.close();
+      if (abortSignal?.aborted) return 'Task was aborted by the user.';
+      html = await threadBrowserManager.readPage(
+        requestContext?.get('threadId' as never) as string | undefined,
+        url,
+        abortSignal,
+      );
       const { document } = parseHTML(html);
       const reader = new Readability(document as any);
       article = reader.parse();

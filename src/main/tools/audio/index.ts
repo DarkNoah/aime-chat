@@ -17,6 +17,7 @@ import mime from 'mime';
 import type { SpeechModelV2, TranscriptionModelV2 } from '@ai-sdk/provider';
 import type { UrlTranscriptionModel } from '@/types/transcription';
 import { appManager } from '@/main/app';
+import { truncateText } from '@/utils/common';
 
 export { MusicGeneration } from './music-generation';
 export type { MusicGenerationParams } from './music-generation';
@@ -24,6 +25,8 @@ export type { MusicGenerationParams } from './music-generation';
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
+
+const MAX_TRANSCRIPTION_OUTPUT_LINES = 1000;
 
 const VIDEO_EXTENSIONS = new Set([
   '.mp4',
@@ -842,19 +845,17 @@ Output types:
       if (output_type === 'text') {
         return {
           durationInSeconds: result.durationInSeconds,
-          text: text,
-        }
-        return `${system_reminder}
-<transcription-text>
-${text}
-</transcription-text>`;
+          text: truncateText(text, MAX_TRANSCRIPTION_OUTPUT_LINES, 'lines'),
+        };
       }
 
       if (output_type === 'srt') {
         if (subtitleSegments.length === 0) {
-          return (
+          return truncateText(
             'No timed segments available for SRT generation. Transcribed text: ' +
-            text
+              text,
+            MAX_TRANSCRIPTION_OUTPUT_LINES,
+            'lines',
           );
         }
         const srtContent = generateSrtContent(subtitleSegments);
@@ -865,18 +866,24 @@ ${text}
           workspace,
         );
         const fileContent = await fs.promises.readFile(filePath, 'utf-8');
-        return `${system_reminder}
+        return truncateText(
+          `${system_reminder}
 File saved to: <file>${filePath}</file>
 <transcription-text>
 ${fileContent}
-</transcription-text>`;
+</transcription-text>`,
+          MAX_TRANSCRIPTION_OUTPUT_LINES,
+          'lines',
+        );
       }
 
       if (output_type === 'ass') {
         if (subtitleSegments.length === 0) {
-          return (
+          return truncateText(
             'No timed segments available for ASS generation. Transcribed text: ' +
-            text
+              text,
+            MAX_TRANSCRIPTION_OUTPUT_LINES,
+            'lines',
           );
         }
         const assStyleOptions = normalizeAssStyleInput(ass_style);
@@ -891,14 +898,18 @@ ${fileContent}
           workspace,
         );
         const fileContent = await fs.promises.readFile(filePath, 'utf-8');
-        return `${system_reminder}
+        return truncateText(
+          `${system_reminder}
 File saved to: <file>${filePath}</file>
 <transcription-text>
 ${fileContent}
-</transcription-text>`;
+</transcription-text>`,
+          MAX_TRANSCRIPTION_OUTPUT_LINES,
+          'lines',
+        );
       }
 
-      return text;
+      return truncateText(text, MAX_TRANSCRIPTION_OUTPUT_LINES, 'lines');
     } finally {
       // -----------------------------------------------------------------
       // 5. Cleanup temporary files
@@ -916,7 +927,8 @@ ${fileContent}
   };
 
   toModelOutput = (output: any) => {
-    if (isString(output)) return output;
+    if (isString(output))
+      return truncateText(output, MAX_TRANSCRIPTION_OUTPUT_LINES, 'lines');
     else if (isObject(output) && 'text' in output) {
       let system_reminder = '';
       if (output.durationInSeconds) {
@@ -925,13 +937,17 @@ ${fileContent}
 
       return {
         type: 'text',
-        value: `${system_reminder}
+        value: truncateText(
+          `${system_reminder}
 <transcription-text>
 ${output.text}
 </transcription-text>`,
-      }
+          MAX_TRANSCRIPTION_OUTPUT_LINES,
+          'lines',
+        ),
+      };
     }
-  }
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -946,11 +962,8 @@ export class TextToSpeech extends BaseTool {
   static readonly toolName = 'TextToSpeech';
   id: string = 'TextToSpeech';
   description = `Convert text to a WAV audio file using the configured speech model.
-Local speech models must first be downloaded in Settings > Local Models > TTS; inference does not download weights.
-Voice IDs and instruction support depend on the provider and model. Alibaba defaults: Qwen3 TTS uses Cherry; Qwen Audio 3.0 uses longanhuan_v3.6; CosyVoice v3 uses longanyang; MiniMax uses male-qn-qingse.
-Alibaba CosyVoice 3.5 and Qwen3 VD/VC require an existing custom voice ID created in Alibaba. This tool does not create Alibaba voices from instruct or ref_audio.
-Local Qwen3 models can support voice design via instruct or voice cloning via ref_audio + ref_text. ListVoices lists locally saved reference voices only.
-Local Breeze TTS 2 supports English/Chinese voice design via instruct, voice cloning via ref_audio + ref_text, or voice direction by combining both. It has no preset voice names: omit voice or use S0. Describe language/accent/style in instruct. Inline vocal events such as (laugh) or [笑] are preserved.
+Supports voice design, voice cloning, and expressive speech when supported by the selected model.
+Read skill:local:audiogen for model-specific prompts, voice controls, and Chinese/English vocal event syntax.
 Output: Returns the path to the generated WAV audio file.`;
 
   inputSchema = z.object({
@@ -965,13 +978,13 @@ Output: Returns the path to the generated WAV audio file.`;
       .string()
       .optional()
       .describe(
-        'Voice name/identifier for basic TTS mode (e.g. "Chelsie", "Vivian")',
+        'Existing voice name or identifier supported by the selected model.',
       ),
     instruct: z
       .string()
       .optional()
       .describe(
-        'Speech style instruction when supported by the selected model. Local Qwen3 and Breeze TTS 2 also support voice design; Breeze can combine instruct with ref_audio + ref_text. Alibaba requires a compatible model and voice.',
+        'Voice design or speech delivery instruction when supported by the selected model.',
       ),
     ref_audio: z
       .string()
@@ -1020,7 +1033,22 @@ Output: Returns the path to the generated WAV audio file.`;
     const appInfo = await appManager.getInfo();
     const modelId = this.modelId || appInfo?.defaultModel?.speechModel;
     if (!modelId) {
-      throw new Error('Model is not set');
+      throw new Error(
+        'No speech model is configured. Select a model in the TextToSpeech tool configuration or Settings > Default Model > Default Speech Model. For local speech, first download a TTS model in Settings > Local Models, then select it and retry.',
+      );
+    }
+    const [providerId, ...modelParts] = modelId.split('/');
+    const provider = await providersManager.getProvider(providerId);
+    if (!provider) {
+      throw new Error(
+        `Speech provider "${providerId}" is unavailable. Configure it in Settings > Providers, or select another speech model in the TextToSpeech tool configuration or Settings > Default Model > Default Speech Model, then retry.`,
+      );
+    }
+    const speechModel = provider.speechModel?.(modelParts.join('/'));
+    if (!speechModel) {
+      throw new Error(
+        `Provider "${providerId}" does not support the selected speech model. Select a supported speech model in the TextToSpeech tool configuration or Settings > Default Model > Default Speech Model, then retry.`,
+      );
     }
     // If ref_audio is a URL, download it first
     let resolvedRefAudio: string | undefined = ref_audio;
@@ -1045,11 +1073,8 @@ Output: Returns the path to the generated WAV audio file.`;
         `tts-${randomUUID()}.wav`,
       );
 
-      const provider = await providersManager.getProvider(modelId.split('/')[0]);
-      let _result: Awaited<ReturnType<SpeechModelV2['doGenerate']>>;
-      if (provider?.speechModel) {
-        const speechModel = provider.speechModel(modelId.split('/').slice(1).join('/'));
-        _result = await speechModel.doGenerate({
+      const _result: Awaited<ReturnType<SpeechModelV2['doGenerate']>> =
+        await speechModel.doGenerate({
           text,
           language,
           voice,
@@ -1068,9 +1093,6 @@ Output: Returns the path to the generated WAV audio file.`;
             }
           },
         });
-      } else {
-        throw new Error('Provider not found');
-      }
 
       context?.abortSignal?.throwIfAborted();
 

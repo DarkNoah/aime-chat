@@ -1,3 +1,4 @@
+import { threadBrowserManager } from '../browser/manager';
 import { Repository } from 'typeorm';
 import { BaseManager } from '../BaseManager';
 import { Providers } from '@/entities/providers';
@@ -1021,6 +1022,7 @@ class AppManager extends BaseManager {
       const settingData = new Settings('proxy', { mode: 'noproxy' });
       await this.settingsRepository.upsert(settingData, ['id']);
     }
+    await threadBrowserManager.setProxy(proxyConfig || {});
   }
 
   @channel(AppChannel.SetLanguage)

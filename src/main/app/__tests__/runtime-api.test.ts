@@ -268,7 +268,7 @@ it('reports a failed install instead of returning an apparently successful HTTP 
   expect(bun.status).toBe('not_installed');
 });
 
-it('does not accept the installed CLI when Agent Browser download fails', async () => {
+it('installs the Agent Browser CLI without downloading a separate Chromium', async () => {
   jest.mocked(runCommand).mockImplementation(async (command) => {
     if (command === 'node --version') return commandResult(0, 'v22.0.0');
     if (command === 'npm --version') return commandResult(0, '10.0.0');
@@ -280,8 +280,9 @@ it('does not accept the installed CLI when Agent Browser download fails', async 
   const { error } = await invoke('post', 'install', {
     body: { pkg: 'agentBrowser' },
   });
-  expect(error).toMatchObject({ status: 500 });
-  expect(agentBrowser.installed).toBe(false);
+  expect(error).toBeUndefined();
+  expect(agentBrowser.installed).toBe(true);
+  expect(runCommand).not.toHaveBeenCalledWith('agent-browser install');
 });
 
 it('installs and detects the PyTorch audio runtime on Linux', async () => {
