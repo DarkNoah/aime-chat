@@ -10,18 +10,15 @@ export const timelineSummarySchema = z.object({
       'Only true when the latest completed conversation session contains a substantive task, decision, investigation, change, or deliverable.',
     ),
   summary: z
-    .string()
-    .max(80)
+    .string().optional()
     .describe('The shortest accurate summary of the latest completed task.'),
   detailedSummary: z
-    .string()
-    .max(4000)
+    .string().optional()
     .describe(
       'A detailed factual summary of the task, explicit user choices, important decisions, implementation or analysis performed, validation, and any remaining limitations.',
     ),
   deliverables: z
-    .array(z.string().max(240))
-    .max(12)
+    .array(z.string()).optional()
     .describe(
       'Concrete outputs delivered in the latest session, such as changed files, documents, decisions, reports, commands, or verified results.',
     ),

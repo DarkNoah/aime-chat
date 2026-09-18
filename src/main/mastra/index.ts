@@ -1112,9 +1112,7 @@ class MastraManager extends BaseManager {
     }
     const appInfo = await appManager.getInfo();
     const modelId =
-      appInfo?.defaultModel?.fastModel ||
-      (thread.metadata?.model as string | undefined) ||
-      data.model;
+      data.model || appInfo?.defaultModel?.fastModel;
     if (!modelId) return undefined;
 
     const history = await memoryStore.listMessages({
