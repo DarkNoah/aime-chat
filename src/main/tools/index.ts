@@ -62,6 +62,7 @@ import { LibSQLToolkit } from './database/libsql';
 import { Message } from './common/message';
 import { ImageToolkit } from './image';
 import { AgentBrowser } from './browser';
+import { PlaywrightTest } from './test/playwright-test';
 import { KnowledgeBaseToolkit } from './knowledge-base';
 import { CronsToolkit } from './crons';
 import ChatHistoryToolkit from './chat-history';
@@ -236,6 +237,7 @@ class ToolsManager extends BaseManager {
     if (!app.isPackaged) {
       await this.registerBuiltInTool(ExpenseManagementToolkit);
       await this.registerBuiltInTool(StreamTest);
+      await this.registerBuiltInTool(PlaywrightTest);
     }
 
     const skills = await skillManager.getSkills();

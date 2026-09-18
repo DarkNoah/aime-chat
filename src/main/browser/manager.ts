@@ -345,6 +345,24 @@ export class ThreadBrowserManager extends EventEmitter {
     };
   }
 
+  async prepareCdpTab(threadId: string, tabId: string): Promise<CdpTab> {
+    const tab = this.registry.get(threadId, tabId);
+    const wc = this.getCdpTab(threadId, tabId).webContents;
+    const client = wc.debugger;
+    const attached = client.isAttached();
+    if (!attached) client.attach('1.3');
+    try {
+      // Playwright uses the page target ID to locate its main frame session.
+      // Keep Chromium's real identity while enforcing ownership in the registry.
+      const { targetInfo } = await client.sendCommand('Target.getTargetInfo');
+      tab.targetId = targetInfo.targetId;
+      return this.getCdpTab(threadId, tabId);
+    } finally {
+      if (!attached && !wc.isDestroyed() && client.isAttached())
+        client.detach();
+    }
+  }
+
   ensureAutomationTab(threadId: string, tabId?: string) {
     const thread = this.assertThread(threadId);
     if (!tabId && !thread.automationTabId && !thread.tabs.size)

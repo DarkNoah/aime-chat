@@ -13,6 +13,7 @@ export interface CdpTab {
 
 export interface CdpHost extends EventEmitter {
   getCdpTab(threadId: string, tabId: string): CdpTab;
+  prepareCdpTab(threadId: string, tabId: string): Promise<CdpTab>;
   createCdpTab(threadId: string, url: string): CdpTab;
   closeTab(threadId: string, tabId: string): void;
   configureDownload(threadId: string, tabId: string, params: any): void;
@@ -127,7 +128,7 @@ export class ElectronCdpBridge {
   }
 
   async endpoint(threadId: string, tabId: string) {
-    this.host.getCdpTab(threadId, tabId);
+    await this.host.prepareCdpTab(threadId, tabId);
     await this.start();
     let grant = [...this.grants.values()].find(
       (item) => item.threadId === threadId && item.tabId === tabId,
@@ -172,6 +173,9 @@ export class ElectronCdpBridge {
     };
     const info = (tab: CdpTab) => ({
       targetId: tab.targetId,
+      // Playwright requires a context ID even for the default shared session.
+      // Ownership is still enforced by this connection's target allowlist.
+      browserContextId: 'aime-shared-electron',
       type: 'page',
       title: tab.webContents.getTitle(),
       url: tab.webContents.getURL() || 'about:blank',
@@ -347,10 +351,11 @@ export class ElectronCdpBridge {
       if (method === 'Target.attachToTarget')
         return { sessionId: attach(target(params.targetId)) };
       if (method === 'Target.createTarget') {
-        const tab = this.host.createCdpTab(
+        const created = this.host.createCdpTab(
           grant.threadId,
           params.url || 'about:blank',
         );
+        const tab = await this.host.prepareCdpTab(grant.threadId, created.id);
         targets.set(tab.targetId, tab);
         this.host.emit('controller-created-tab', {
           threadId: grant.threadId,

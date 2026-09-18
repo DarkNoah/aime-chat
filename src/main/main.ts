@@ -433,6 +433,11 @@ if (!gotSingleInstanceLock) {
   let isDisconnectingMcpClients = false;
   let areMcpClientsDisconnected = false;
 
+  app.commandLine.appendSwitch(
+    'js-flags',
+    '--max-old-space-size=8192'
+  )
+
   app.on('before-quit', (event) => {
     if (areMcpClientsDisconnected) {
       return;
