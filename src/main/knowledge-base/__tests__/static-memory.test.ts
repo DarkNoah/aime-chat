@@ -107,12 +107,14 @@ afterEach(async () => dataSource?.destroy());
 
 describe('scoped memory persistence', () => {
   it('creates one project KB with provenance columns even without embeddings', async () => {
-    const [a, b] = await Promise.all([
+    const [a, b, c] = await Promise.all([
+      getOrCreateMemoryKB({ type: 'project' }),
       getOrCreateMemoryKB(scope('p1')),
       getOrCreateMemoryKB(scope('p2')),
     ]);
     expect(a.id).toBe(PROJECT_MEMORY_KB_ID);
     expect(b.id).toBe(a.id);
+    expect(c.id).toBe(a.id);
     expect(knowledgeBaseManager.createKnowledgeBase).toHaveBeenCalledTimes(1);
     expect(a.vectorStoreConfig.extendColumns).toEqual([
       { name: 'projectId', columnType: 'text' },

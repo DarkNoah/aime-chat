@@ -16,6 +16,9 @@ export type MemoryScope =
   | { type: 'global' }
   | { type: 'project'; projectId: string; threadId?: string };
 
+/** KB-level ensure/lookup. Item reads/writes still require a projectId. */
+export type MemoryKBScope = MemoryScope | { type: 'project' };
+
 const GLOBAL_SCOPE: MemoryScope = { type: 'global' };
 const pendingKnowledgeBases = new Map<
   string,
@@ -23,14 +26,14 @@ const pendingKnowledgeBases = new Map<
 >();
 const pendingWrites = new Map<string, Promise<KnowledgeBaseItem | undefined>>();
 
-function memoryKBId(scope: MemoryScope): string {
-  if (scope.type === 'project' && !scope.projectId) {
-    throw new Error('Project memory requires a project chat thread.');
-  }
+function memoryKBId(scope: MemoryKBScope): string {
   return scope.type === 'project' ? PROJECT_MEMORY_KB_ID : STATIC_MEMORY_KB_ID;
 }
 
 function memoryItems(scope: MemoryScope) {
+  if (scope.type === 'project' && !scope.projectId) {
+    throw new Error('Project memory requires a project chat thread.');
+  }
   const query = dbManager.dataSource
     .getRepository(KnowledgeBaseItem)
     .createQueryBuilder('item')
@@ -92,7 +95,7 @@ async function pickDefaultEmbedding(
 }
 
 export async function getMemoryKB(
-  scope: MemoryScope = GLOBAL_SCOPE,
+  scope: MemoryKBScope = GLOBAL_SCOPE,
 ): Promise<KnowledgeBase | undefined> {
   const repo = dbManager.dataSource.getRepository(KnowledgeBase);
   return (
@@ -170,7 +173,7 @@ async function ensureSystemPage(
 }
 
 export async function getOrCreateMemoryKB(
-  scope: MemoryScope = GLOBAL_SCOPE,
+  scope: MemoryKBScope = GLOBAL_SCOPE,
 ): Promise<KnowledgeBase | undefined> {
   const id = memoryKBId(scope);
   const existing = await getMemoryKB(scope);
@@ -288,6 +291,9 @@ export async function upsertMemoryItem(opts: {
   metadata?: Record<string, unknown>;
 }): Promise<KnowledgeBaseItem | undefined> {
   const { name, content, role, mode = 'replace', scope = GLOBAL_SCOPE } = opts;
+  if (scope.type === 'project' && !scope.projectId) {
+    throw new Error('Project memory requires a project chat thread.');
+  }
   const kbId = memoryKBId(scope);
   const key = JSON.stringify([
     kbId,
