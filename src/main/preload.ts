@@ -1,3 +1,4 @@
+import type { WorkspaceEntryOperation } from '../types/workspace-entry';
 import { ThreadBrowserChannel } from '@/types/thread-browser';
 import type {
   ThreadBrowserState,
@@ -319,6 +320,10 @@ const electronHandler = {
         content,
         workspace,
       ),
+    mutateWorkspaceEntry: (
+      operation: WorkspaceEntryOperation,
+    ): Promise<{ path: string }> =>
+      ipcRenderer.invoke(AppChannel.MutateWorkspaceEntry, operation),
     refreshPreventSleep: (): Promise<void> =>
       ipcRenderer.invoke(AppChannel.RefreshPreventSleep),
     screenCapture: (

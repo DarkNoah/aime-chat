@@ -1,0 +1,47 @@
+.chat-browser-toggle-enter {
+  position: relative;
+  transform-origin: center;
+  animation: chat-browser-enter 360ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.chat-browser-toggle-enter::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border: 2px solid var(--primary);
+  border-radius: inherit;
+  background: color-mix(in oklab, var(--primary) 12%, transparent);
+  pointer-events: none;
+  opacity: 0;
+  animation: chat-browser-attention 400ms ease-out 160ms 2;
+}
+
+@keyframes chat-browser-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.78);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes chat-browser-attention {
+  from {
+    opacity: 0.85;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.4);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-browser-toggle-enter,
+  .chat-browser-toggle-enter::after {
+    animation: none;
+    transition: none;
+  }
+}

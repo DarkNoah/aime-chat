@@ -2,6 +2,7 @@ import React, {
   ForwardedRef,
   useCallback,
   useEffect,
+  useId,
   useRef,
   useState,
 } from 'react';
@@ -11,6 +12,8 @@ import {
   IconChevronRight,
   IconEye,
   IconFile,
+  IconFilePlus,
+  IconFolderPlus,
   IconFolder,
   IconFolderOpen,
   IconFolderShare,
@@ -52,7 +55,22 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from '../../ui/resizable';
-import { FileWorkspace } from './file-workspace';
+import { FileTabs, FileTabPanel, type OpenFile } from './file-tabs';
+import {
+  EntryActions,
+  entryActionKeys,
+  type EntryTarget,
+  type EntryActionHandler,
+} from './entry-actions';
+import type { WorkspaceEntryAction } from '@/types/workspace-entry';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '../../ui/dialog';
 import { isFileWithinDirectory } from './file-preview-path';
 
 export type ChatFilesystemProps = {
@@ -73,6 +91,7 @@ type TreeNodeProps = {
   refreshVersion: number;
   selectedFilePath?: string | null;
   onPreviewFile: (path: string) => void;
+  onEntryAction: EntryActionHandler;
 };
 
 const TreeNode: React.FC<TreeNodeProps> = ({
@@ -83,6 +102,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({
   refreshVersion,
   selectedFilePath,
   onPreviewFile,
+  onEntryAction,
 }) => {
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(defaultOpen);
@@ -90,9 +110,8 @@ const TreeNode: React.FC<TreeNodeProps> = ({
     node.children,
   );
   const [isLoading, setIsLoading] = useState(false);
-  const [isLoaded, setIsLoaded] = useState(
-    (node.children && node.children.length > 0) || node.children === undefined,
-  );
+  const isOpenRef = useRef(defaultOpen);
+  const childrenRequestIdRef = useRef(0);
   const handledRefreshVersionRef = useRef(refreshVersion);
   const fileNodeRef = useRef<HTMLDivElement>(null);
   const hasChildren = node.children !== undefined;
@@ -116,25 +135,42 @@ const TreeNode: React.FC<TreeNodeProps> = ({
     });
   };
 
+  const refreshChildren = useCallback(async () => {
+    childrenRequestIdRef.current += 1;
+    const requestId = childrenRequestIdRef.current;
+    setIsLoading(true);
+    try {
+      const loadedChildren = await window.electron.app.getDirectoryChildren(
+        node.path,
+      );
+      if (childrenRequestIdRef.current === requestId)
+        setChildren(loadedChildren);
+    } catch {
+      if (childrenRequestIdRef.current === requestId) setChildren([]);
+    } finally {
+      if (childrenRequestIdRef.current === requestId) setIsLoading(false);
+    }
+  }, [node.path]);
+
+  useEffect(
+    () => () => {
+      childrenRequestIdRef.current += 1;
+    },
+    [node.path],
+  );
+
   const handleToggle = useCallback(
     async (open: boolean) => {
+      isOpenRef.current = open;
       setIsOpen(open);
-      if (!open || isLoaded || !hasChildren) return;
-
-      setIsLoading(true);
-      try {
-        const loadedChildren = await window.electron.app.getDirectoryChildren(
-          node.path,
-        );
-        setChildren(loadedChildren);
-        setIsLoaded(true);
-      } catch {
-        setChildren([]);
-      } finally {
+      if (!open) {
+        childrenRequestIdRef.current += 1;
         setIsLoading(false);
+        return;
       }
+      if (hasChildren) await refreshChildren();
     },
-    [hasChildren, isLoaded, node.path],
+    [hasChildren, refreshChildren],
   );
 
   useEffect(() => {
@@ -143,7 +179,8 @@ const TreeNode: React.FC<TreeNodeProps> = ({
       node.isDirectory &&
       isFileWithinDirectory(selectedFilePath, node.path)
     ) {
-      handleToggle(true).catch(() => undefined);
+      // Revealing a selected file should not reload an already expanded folder.
+      if (!isOpenRef.current) handleToggle(true).catch(() => undefined);
     } else if (selectedFilePath === node.path) {
       fileNodeRef.current?.scrollIntoView?.({ block: 'nearest' });
     }
@@ -152,25 +189,9 @@ const TreeNode: React.FC<TreeNodeProps> = ({
   useEffect(() => {
     if (handledRefreshVersionRef.current === refreshVersion) return;
     handledRefreshVersionRef.current = refreshVersion;
-    if (!isOpen || !hasChildren || refreshVersion === 0) return;
-
-    const refreshChildren = async () => {
-      setIsLoading(true);
-      try {
-        const loadedChildren = await window.electron.app.getDirectoryChildren(
-          node.path,
-        );
-        setChildren(loadedChildren);
-        setIsLoaded(true);
-      } catch {
-        setChildren([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
+    if (!hasChildren || !isOpen || refreshVersion === 0) return;
     refreshChildren().catch(() => undefined);
-  }, [hasChildren, isOpen, node.path, refreshVersion]);
+  }, [hasChildren, isOpen, refreshChildren, refreshVersion]);
 
   const paddingLeft = level * 16;
 
@@ -180,8 +201,9 @@ const TreeNode: React.FC<TreeNodeProps> = ({
         <ContextMenuTrigger asChild>
           <Collapsible open={isOpen} onOpenChange={handleToggle}>
             <CollapsibleTrigger asChild>
-              <div
-                className="flex cursor-pointer select-none items-center gap-1 rounded-sm px-2 py-1 hover:bg-muted/50"
+              <button
+                type="button"
+                className="flex w-full cursor-pointer select-none items-center gap-1 rounded-sm px-2 py-1 text-left hover:bg-muted/50"
                 style={{ paddingLeft }}
                 draggable
                 onDragStart={handleDragStart}
@@ -202,7 +224,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({
                 {isLoading && (
                   <IconRefresh className="ml-1 size-3 animate-spin text-muted-foreground" />
                 )}
-              </div>
+              </button>
             </CollapsibleTrigger>
             <CollapsibleContent>
               {children?.map((child) => (
@@ -214,6 +236,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({
                   refreshVersion={refreshVersion}
                   selectedFilePath={selectedFilePath}
                   onPreviewFile={onPreviewFile}
+                  onEntryAction={onEntryAction}
                 />
               ))}
             </CollapsibleContent>
@@ -226,6 +249,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({
             <IconFolderShare className="mr-2 size-4" />
             {t('chat.open_in_explorer')}
           </ContextMenuItem>
+          <EntryActions target={node} onAction={onEntryAction} />
         </ContextMenuContent>
       </ContextMenu>
     );
@@ -248,7 +272,10 @@ const TreeNode: React.FC<TreeNodeProps> = ({
           style={{ paddingLeft: paddingLeft + 20 }}
           onClick={handleFileClick}
           onKeyDown={(event) => {
-            if (event.key === 'Enter' || event.key === ' ') handleFileClick();
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              handleFileClick();
+            }
           }}
           draggable
           onDragStart={handleDragStart}
@@ -268,6 +295,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({
           <IconFolderShare className="mr-2 size-4" />
           {t('chat.open_in_explorer')}
         </ContextMenuItem>
+        <EntryActions target={node} onAction={onEntryAction} />
       </ContextMenuContent>
     </ContextMenu>
   );
@@ -279,6 +307,7 @@ type SearchResultItemProps = {
   searchQuery: string;
   selectedFilePath?: string | null;
   onPreviewFile: (path: string) => void;
+  onEntryAction: EntryActionHandler;
 };
 
 const highlightMatch = (text: string, query: string) => {
@@ -310,6 +339,7 @@ const SearchResultItem: React.FC<SearchResultItemProps> = ({
   searchQuery,
   selectedFilePath,
   onPreviewFile,
+  onEntryAction,
 }) => {
   const { t } = useTranslation();
   const relativePath = result.file.replace(workspace, '').replace(/^[/\\]/, '');
@@ -362,7 +392,10 @@ const SearchResultItem: React.FC<SearchResultItemProps> = ({
           className={resultClassName}
           onClick={handleClick}
           onKeyDown={(event) => {
-            if (event.key === 'Enter' || event.key === ' ') handleClick();
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              handleClick();
+            }
           }}
           draggable
           onDragStart={handleDragStart}
@@ -403,6 +436,10 @@ const SearchResultItem: React.FC<SearchResultItemProps> = ({
           <IconFolderShare className="mr-2 size-4" />
           {t('chat.open_in_explorer')}
         </ContextMenuItem>
+        <EntryActions
+          target={{ path: result.file, name: fileName, isDirectory: isFolder }}
+          onAction={onEntryAction}
+        />
       </ContextMenuContent>
     </ContextMenu>
   );
@@ -420,6 +457,9 @@ export const ChatFilesystem = React.forwardRef<
     onAddToChat,
     filePreviewRequest,
   } = props;
+  const tabIdPrefix = useId();
+  const workspaceRef = useRef(workspace);
+  workspaceRef.current = workspace;
   const [tree, setTree] = useState<DirectoryTreeNode | null>(null);
   const [refreshVersion, setRefreshVersion] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -431,24 +471,63 @@ export const ChatFilesystem = React.forwardRef<
   const [searchTruncated, setSearchTruncated] = useState(false);
   const [isSearchMode, setIsSearchMode] = useState(false);
   const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null);
-  const [editorDirty, setEditorDirty] = useState(false);
+  const [openFiles, setOpenFiles] = useState<OpenFile[]>([]);
+  const openFilesRef = useRef(openFiles);
+  openFilesRef.current = openFiles;
+  const [entryOperation, setEntryOperation] = useState<{
+    action: WorkspaceEntryAction;
+    target: EntryTarget;
+  } | null>(null);
+  const [entryName, setEntryName] = useState('');
+  const [entryError, setEntryError] = useState<string | null>(null);
+  const [entryBusy, setEntryBusy] = useState(false);
   const loadRequestIdRef = useRef(0);
   const handledPreviewRequestRef = useRef<ChatFilePreviewRequest | undefined>(
     undefined,
   );
 
-  const handlePreviewFile = useCallback(
-    (filePath: string) => {
-      if (filePath === selectedFilePath) return true;
+  const handlePreviewFile = useCallback((filePath: string) => {
+    setOpenFiles((files) =>
+      files.some((file) => file.path === filePath)
+        ? files
+        : [...files, { path: filePath, dirty: false }],
+    );
+    setSelectedFilePath(filePath);
+    return true;
+  }, []);
+
+  const handleDirtyChange = useCallback((filePath: string, dirty: boolean) => {
+    setOpenFiles((files) =>
+      files.map((file) =>
+        file.path === filePath && file.dirty !== dirty
+          ? { ...file, dirty }
+          : file,
+      ),
+    );
+  }, []);
+
+  const closeFile = (filePath: string, confirmed = false) => {
+    if (
+      !confirmed &&
+      openFiles.some((file) => file.path === filePath && file.dirty) &&
       // eslint-disable-next-line no-alert
-      if (editorDirty && !window.confirm(t('chat.file_discard_changes')))
-        return false;
-      setEditorDirty(false);
-      setSelectedFilePath(filePath);
-      return true;
-    },
-    [editorDirty, selectedFilePath, t],
-  );
+      !window.confirm(t('chat.file_discard_changes'))
+    )
+      return;
+    const index = openFiles.findIndex((file) => file.path === filePath);
+    const remaining = openFiles.filter((file) => file.path !== filePath);
+    setOpenFiles(remaining);
+    if (selectedFilePath === filePath)
+      setSelectedFilePath(
+        remaining[Math.min(index, remaining.length - 1)]?.path ?? null,
+      );
+  };
+
+  const handleEntryAction: EntryActionHandler = (action, target) => {
+    setEntryName(action === 'rename' ? target.name : '');
+    setEntryError(null);
+    setEntryOperation({ action, target });
+  };
 
   const loadTree = useCallback(async () => {
     const requestId = loadRequestIdRef.current + 1;
@@ -511,6 +590,62 @@ export const ChatFilesystem = React.forwardRef<
     setIsSearchMode(false);
   }, []);
 
+  const submitEntryOperation = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!entryOperation || !workspace || entryBusy) return;
+    const { action, target } = entryOperation;
+    const affected = (filePath: string) =>
+      filePath === target.path || isFileWithinDirectory(filePath, target.path);
+    if (
+      action === 'rename' &&
+      openFiles.some((file) => affected(file.path) && file.dirty)
+    ) {
+      setEntryError(t('chat.file_save_before_rename'));
+      return;
+    }
+    setEntryBusy(true);
+    setEntryError(null);
+    try {
+      const result = await window.electron.app.mutateWorkspaceEntry({
+        workspace,
+        path: target.path,
+        action,
+        name: entryName,
+      });
+      if (workspaceRef.current !== workspace) return;
+      if (action === 'rename') {
+        const renamed = (filePath: string) =>
+          affected(filePath)
+            ? result.path + filePath.slice(target.path.length)
+            : filePath;
+        setOpenFiles((files) =>
+          files.map((file) => ({ ...file, path: renamed(file.path) })),
+        );
+        setSelectedFilePath((current) => (current ? renamed(current) : null));
+      } else if (action === 'delete') {
+        const remaining = openFilesRef.current.filter(
+          (file) => !affected(file.path),
+        );
+        setOpenFiles((files) => files.filter((file) => !affected(file.path)));
+        setSelectedFilePath((current) =>
+          current && affected(current) ? (remaining[0]?.path ?? null) : current,
+        );
+      } else if (action === 'create-file') handlePreviewFile(result.path);
+      setEntryOperation(null);
+      handleClearSearch();
+      await loadTree();
+    } catch (operationError) {
+      if (workspaceRef.current !== workspace) return;
+      setEntryError(
+        operationError instanceof Error
+          ? operationError.message
+          : t('chat.file_operation_error'),
+      );
+    } finally {
+      setEntryBusy(false);
+    }
+  };
+
   const openWith = useCallback(
     (action: string) => {
       if (workspace) window.electron.projects.openWith(workspace, action);
@@ -525,7 +660,8 @@ export const ChatFilesystem = React.forwardRef<
     setLoading(false);
     setError(null);
     setSelectedFilePath(null);
-    setEditorDirty(false);
+    setOpenFiles([]);
+    setEntryOperation(null);
     handleClearSearch();
   }, [workspace, handleClearSearch]);
 
@@ -578,7 +714,7 @@ export const ChatFilesystem = React.forwardRef<
     );
   }
 
-  if (error) {
+  if (error && !tree) {
     return (
       <div
         className={cn(
@@ -622,7 +758,25 @@ export const ChatFilesystem = React.forwardRef<
             {workspace}
           </Button>
         </div>
-        <div className="flex flex-row gap-2">
+        <div className="flex flex-row gap-1">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            title={t('chat.file_new')}
+            aria-label={t('chat.file_new')}
+            onClick={() => handleEntryAction('create-file', tree)}
+          >
+            <IconFilePlus className="size-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            title={t('chat.folder_new')}
+            aria-label={t('chat.folder_new')}
+            onClick={() => handleEntryAction('create-directory', tree)}
+          >
+            <IconFolderPlus className="size-4" />
+          </Button>
           <ButtonGroup>
             <Button
               variant="outline"
@@ -693,6 +847,11 @@ export const ChatFilesystem = React.forwardRef<
         </div>
       </div>
 
+      {error && (
+        <p role="alert" className="px-2 py-1 text-xs text-destructive">
+          {error}
+        </p>
+      )}
       <ScrollArea className="min-h-0 flex-1">
         {searching && (
           <div className="flex items-center justify-center py-8">
@@ -722,6 +881,7 @@ export const ChatFilesystem = React.forwardRef<
                     searchQuery={searchQuery}
                     selectedFilePath={selectedFilePath}
                     onPreviewFile={handlePreviewFile}
+                    onEntryAction={handleEntryAction}
                   />
                 ))}
               </>
@@ -743,6 +903,7 @@ export const ChatFilesystem = React.forwardRef<
                 refreshVersion={refreshVersion}
                 selectedFilePath={selectedFilePath}
                 onPreviewFile={handlePreviewFile}
+                onEntryAction={handleEntryAction}
               />
             ))}
           </div>
@@ -773,22 +934,115 @@ export const ChatFilesystem = React.forwardRef<
               minSize={35}
               className="h-full min-w-0"
             >
-              <FileWorkspace
-                key={selectedFilePath}
-                filePath={selectedFilePath}
-                workspace={workspace}
-                active={active}
-                onAddToChat={onAddToChat}
-                onDirtyChange={setEditorDirty}
-                onClose={() => {
-                  setSelectedFilePath(null);
-                  setEditorDirty(false);
-                }}
-              />
+              <div className="flex h-full min-w-0 flex-col">
+                <FileTabs
+                  idPrefix={tabIdPrefix}
+                  files={openFiles}
+                  selected={selectedFilePath}
+                  onSelect={setSelectedFilePath}
+                  onClose={closeFile}
+                />
+                {openFiles.map((file, index) => (
+                  <div
+                    key={file.path}
+                    role="tabpanel"
+                    id={`${tabIdPrefix}-panel-${index}`}
+                    aria-labelledby={`${tabIdPrefix}-tab-${index}`}
+                    hidden={selectedFilePath !== file.path}
+                    className="min-h-0 flex-1 overflow-hidden"
+                  >
+                    <FileTabPanel
+                      filePath={file.path}
+                      workspace={workspace}
+                      active={active && selectedFilePath === file.path}
+                      onAddToChat={onAddToChat}
+                      onDirtyChange={handleDirtyChange}
+                      onClose={() => closeFile(file.path, true)}
+                    />
+                  </div>
+                ))}
+              </div>
             </ResizablePanel>
           </>
         )}
       </ResizablePanelGroup>
+      <Dialog
+        open={!!entryOperation}
+        onOpenChange={(open) => {
+          if (!open && !entryBusy) setEntryOperation(null);
+        }}
+      >
+        <DialogContent>
+          <form onSubmit={submitEntryOperation} className="space-y-4">
+            <DialogHeader>
+              <DialogTitle>
+                {entryOperation && t(entryActionKeys[entryOperation.action])}
+              </DialogTitle>
+              <DialogDescription className="break-all">
+                {entryOperation?.action === 'delete'
+                  ? t('chat.file_delete_confirm', {
+                      name: entryOperation.target.name,
+                    })
+                  : entryOperation?.target.path}
+              </DialogDescription>
+            </DialogHeader>
+            {entryOperation?.action !== 'delete' && (
+              <Input
+                autoFocus
+                aria-label={t('chat.file_name')}
+                value={entryName}
+                onChange={(event) => setEntryName(event.target.value)}
+                disabled={entryBusy}
+              />
+            )}
+            {entryOperation?.action === 'delete' &&
+              openFiles.some(
+                (file) =>
+                  file.dirty &&
+                  (file.path === entryOperation.target.path ||
+                    isFileWithinDirectory(
+                      file.path,
+                      entryOperation.target.path,
+                    )),
+              ) && (
+                <p className="text-sm text-destructive">
+                  {t('chat.file_delete_unsaved')}
+                </p>
+              )}
+            {entryError && (
+              <p role="alert" className="text-sm text-destructive">
+                {entryError}
+              </p>
+            )}
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={entryBusy}
+                onClick={() => setEntryOperation(null)}
+              >
+                {t('common.cancel')}
+              </Button>
+              <Button
+                type="submit"
+                variant={
+                  entryOperation?.action === 'delete'
+                    ? 'destructive'
+                    : 'default'
+                }
+                disabled={
+                  entryBusy ||
+                  (entryOperation?.action !== 'delete' && !entryName.trim())
+                }
+              >
+                {entryBusy
+                  ? t('common.loading')
+                  : entryOperation && t(entryActionKeys[entryOperation.action])}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 });

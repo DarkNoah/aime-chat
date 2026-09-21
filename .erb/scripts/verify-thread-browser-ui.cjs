@@ -38,6 +38,7 @@ import i18n from 'i18next';
 import {initReactI18next} from 'react-i18next';
 import zh from '${root}/src/i18n/locales/zh-cn.json';
 import {ThreadBrowserPreview} from '${root}/src/renderer/components/chat-ui/chat-preview/thread-browser-preview';
+import {ChatBrowserToggle} from '${root}/src/renderer/components/chat-ui/chat-browser-toggle';
 import {SidebarProvider, SidebarMenuButton} from '${root}/src/renderer/components/ui/sidebar';
 import Instances from '${root}/src/renderer/pages/Settings/instances';
 i18n.use(initReactI18next).init({lng:'zh-CN',resources:{'zh-CN':{translation:zh}},interpolation:{escapeValue:false}});
@@ -49,7 +50,11 @@ function Fixture(){
    <button id="thread-A" onClick={()=>setThread('A')}>线程 A</button><button id="thread-B" onClick={()=>setThread('B')}>线程 B</button>
    <button id="toggle-preview" onClick={()=>setVisible(!visible)}>显示 / 隐藏预览</button><button id="toggle-modal" onClick={()=>setModal(!modal)}>打开对话框</button>
    <button id="show-settings" onClick={()=>setSettings(!settings)}>实例管理</button>
-  </header><div style={{flex:1,minHeight:0}}>{settings ? <Instances/> : <ThreadBrowserPreview key={thread} threadId={thread} active={visible}/>}</div>
+  </header><div style={{flex:1,minHeight:0}}>{settings ? <Instances/> : visible ? <ThreadBrowserPreview key={thread} threadId={thread} active/> : null}</div>
+  <footer style={{display:'flex',flexDirection:'column',gap:8}}>
+   <div style={{display:'flex',justifyContent:'flex-end'}}><ChatBrowserToggle key={thread} threadId={thread} open={visible} onToggle={()=>setVisible(!visible)}/></div>
+   <textarea id="chat-input-fixture" aria-label="聊天输入" placeholder="发送消息" style={{height:60,border:'1px solid #ddd',borderRadius:8,padding:8}}/>
+  </footer>
   {modal && <div role="dialog" style={{position:'fixed',inset:100,background:'white',border:'1px solid',padding:24,zIndex:10}}><p>原生网页应在对话框打开时隐藏。</p><button id="close-modal" onClick={()=>setModal(false)}>关闭对话框</button></div>}
  </main></SidebarProvider>;
 }
@@ -72,6 +77,13 @@ createRoot(document.getElementById('root')!).render(<Fixture/>);
         },
         module: {
           rules: [
+            {
+              test: /\.css$/,
+              use: [
+                path.join(root, 'node_modules/style-loader'),
+                path.join(root, 'node_modules/css-loader'),
+              ],
+            },
             {
               test: /\.tsx?$/,
               use: {
@@ -192,6 +204,8 @@ app.whenReady().then(async () => {
       ),
     );
     assert.equal(pageA.webContents.getTitle(), '搜索页');
+    // Selecting a tab reattaches its native view on the next renderer frame.
+    await wait(() => win.contentView.children.includes(pageA));
     assert(win.contentView.children.includes(pageA));
     const bounds = manager.presentation.bounds;
     assert.deepEqual(
@@ -214,12 +228,54 @@ app.whenReady().then(async () => {
       path.join(directory, 'page-a.png'),
       (await pageA.webContents.capturePage()).toPNG(),
     );
+    const browserToggle =
+      'document.querySelector("[data-slot=chat-browser-toggle]")';
+    await wait(() => win.webContents.executeJavaScript(`!!${browserToggle}`));
+    assert.equal(
+      await win.webContents.executeJavaScript(
+        `${browserToggle}.textContent.trim()`,
+      ),
+      '2',
+    );
+    assert(
+      await win.webContents.executeJavaScript(
+        `${browserToggle}.getBoundingClientRect().bottom <= document.querySelector('#chat-input-fixture').getBoundingClientRect().top`,
+      ),
+    );
+    await click(browserToggle);
+    await wait(() => !manager.presentation);
+    assert(!win.contentView.children.includes(pageA));
+    assert.equal(manager.state('A').tabs.length, 2);
+    assert.equal(
+      await win.webContents.executeJavaScript(
+        `${browserToggle}.getAttribute('aria-expanded')`,
+      ),
+      'false',
+    );
+    const extraTab = manager.createCdpTab('A', 'about:blank');
+    await wait(() =>
+      win.webContents.executeJavaScript(
+        `${browserToggle}.textContent.trim() === '3'`,
+      ),
+    );
+    assert(
+      !manager.presentation,
+      'New tab status must update while the preview is unmounted',
+    );
+    manager.closeTab('A', extraTab.id);
+    await click(browserToggle);
+    await wait(() => manager.presentation?.threadId === 'A');
+    await click('document.querySelector("[role=tab]")');
+    await wait(() => win.contentView.children.includes(pageA));
     const flushFrames = () =>
       win.webContents.executeJavaScript(
         'new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))',
       );
     for (const collapsed of [false, true]) {
       if (collapsed) await click('document.querySelector("#toggle-nav")');
+      // Finish the prior tab selection/layout before measuring hover effects.
+      await flushFrames();
+      await wait(() => win.contentView.children.includes(pageA));
       const point = await win.webContents.executeJavaScript(`(() => {
         const rect = document.querySelector('#nav-tooltip').getBoundingClientRect();
         return {x: Math.round(rect.x + rect.width / 2), y: Math.round(rect.y + rect.height / 2)};
@@ -241,7 +297,7 @@ app.whenReady().then(async () => {
       assert(win.contentView.children.includes(pageA));
       assert(
         !presentations.includes(false),
-        'Sidebar hover must not hide the native webpage',
+        `Sidebar hover must not hide the native webpage (collapsed=${collapsed}, presentations=${JSON.stringify(presentations)})`,
       );
       win.webContents.sendInputEvent({ type: 'mouseMove', x: 980, y: 10 });
       await flushFrames();
@@ -262,6 +318,11 @@ app.whenReady().then(async () => {
     await wait(() => manager.presentation?.threadId === 'A');
     await click('document.querySelector("#thread-B")');
     await wait(() => manager.presentation?.threadId === 'B');
+    await wait(() =>
+      win.webContents.executeJavaScript(
+        `${browserToggle}.textContent.trim() === '1'`,
+      ),
+    );
     assert(
       win.contentView.children.includes(
         manager.registry.get('B', 't1').value.view,
@@ -333,14 +394,86 @@ app.whenReady().then(async () => {
       'Array.from(document.querySelectorAll("button")).find(button=>button.textContent.includes("关闭所有浏览器标签页"))',
     );
     await wait(() => manager.overview().tabCount === 0);
+    await wait(() => win.webContents.executeJavaScript(`!${browserToggle}`));
     await wait(() =>
       win.webContents.executeJavaScript(
         'document.body.innerText.includes("0 个标签页")',
       ),
     );
+    // Measure real CSS animation behavior, including reduced-motion preferences.
+    win.webContents.debugger.attach('1.3');
+    const motionPreference = (value) =>
+      win.webContents.debugger.sendCommand('Emulation.setEmulatedMedia', {
+        features: [{ name: 'prefers-reduced-motion', value }],
+      });
+    await motionPreference('no-preference');
+    await win.webContents.executeJavaScript(`
+      window.browserAnimationStarts = [];
+      document.addEventListener('animationstart', event => {
+        if (event.target.matches('[data-slot=chat-browser-toggle]')) {
+          window.browserAnimationStarts.push(event.animationName);
+        }
+      });
+    `);
+    manager.createCdpTab('B', 'about:blank');
+    await wait(() =>
+      win.webContents.executeJavaScript(
+        'window.browserAnimationStarts.length === 2',
+      ),
+    );
+    assert.deepEqual(
+      await win.webContents.executeJavaScript('window.browserAnimationStarts'),
+      ['chat-browser-enter', 'chat-browser-attention'],
+    );
+    assert.equal(
+      await win.webContents.executeJavaScript(
+        `getComputedStyle(${browserToggle}, '::after').animationIterationCount`,
+      ),
+      '2',
+    );
+    await win.webContents.executeJavaScript(
+      `Promise.all(${browserToggle}.getAnimations({subtree:true}).map(animation => animation.finished.catch(() => undefined)))`,
+    );
+    assert.equal(
+      await win.webContents.executeJavaScript(
+        `getComputedStyle(${browserToggle}, '::after').opacity`,
+      ),
+      '0',
+    );
+    manager.createCdpTab('B', 'about:blank');
+    await wait(() =>
+      win.webContents.executeJavaScript(
+        `${browserToggle}.textContent.trim() === '2'`,
+      ),
+    );
+    await click(browserToggle);
+    await flushFrames();
+    assert.equal(
+      await win.webContents.executeJavaScript(
+        'window.browserAnimationStarts.length',
+      ),
+      2,
+      'Changing tab counts or sidebar visibility must not restart the entrance',
+    );
+    await motionPreference('reduce');
+    await manager.closeAllTabs();
+    await wait(() => win.webContents.executeJavaScript(`!${browserToggle}`));
+    manager.createCdpTab('B', 'about:blank');
+    await wait(() => win.webContents.executeJavaScript(`!!${browserToggle}`));
+    await flushFrames();
+    assert.deepEqual(
+      await win.webContents.executeJavaScript(`[
+        getComputedStyle(${browserToggle}).animationName,
+        getComputedStyle(${browserToggle}, '::after').animationName,
+        getComputedStyle(${browserToggle}).transform
+      ]`),
+      ['none', 'none', 'none'],
+    );
+    win.webContents.debugger.detach();
+    await manager.closeAllTabs();
     assert.equal(errors.length, 0);
     console.log(
-      'PASS: real React tab controls, thread switching, native view bounds, expanded/collapsed sidebar hover, modal occlusion, hide without closing.',
+      'PASS: real React tab controls, thread switching, browser running indicator, toggle without closing tabs, background tab count, entrance animation and reduced motion, native view bounds, expanded/collapsed sidebar hover, modal occlusion, hide without closing.',
     );
     console.log('UI_ARTIFACTS', directory);
     if (process.env.AIME_BROWSER_UI_REVIEW) {
