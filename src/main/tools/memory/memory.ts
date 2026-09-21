@@ -106,7 +106,7 @@ export class MemoryRead extends BaseTool {
     const { items: pages } = await listMemoryPage(scope, { limit });
     if (pages.length > 0) {
       const pageBlocks = pages.map(
-        (p) => `### ${p.name}\n\n${p.content ?? ''}`,
+        (p) => p.content ? `\`\`\`md\n${p.content}\n\`\`\`` : ``,
       );
       sections.push(`## Recent pages\n\n${pageBlocks.join('\n\n')}`);
     }

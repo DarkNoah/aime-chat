@@ -79,6 +79,8 @@ import { CreatePlan } from './common/create-plan';
 import { readSkillPackageMetadata } from '../utils/skill-metadata';
 import { InteractiveHtml } from './common/interactive-html';
 import { hasHiddenPathSegment } from './skill-path';
+import { getSkills } from '../utils/skills';
+import { projectManager } from '../project';
 import {
   combineAbortSignals,
   getPtcExecutionAbortSignal,
@@ -1007,11 +1009,20 @@ class ToolsManager extends BaseManager {
       {
         filter: req.query.filter as string,
         isActive: req.query.isActive as boolean,
+        threadId: req.query.threadId as string,
       },
     ],
   })
   @channel(ToolChannel.GetAvailableTools)
-  public async getAvailableTools({ filter, isActive = true }: { filter?: string, isActive?: boolean }): Promise<Record<ToolType, Tool[]>> {
+  public async getAvailableTools({
+    filter,
+    isActive = true,
+    threadId,
+  }: {
+    filter?: string;
+    isActive?: boolean;
+    threadId?: string;
+  } = {}): Promise<Record<ToolType, Tool[]>> {
     const tools = await this.toolsRepository.find({
       where: { isActive: isActive, toolkitId: IsNull() },
     });
@@ -1022,6 +1033,66 @@ class ToolsManager extends BaseManager {
     const builtInTools = this.builtInTools.filter(x => !x.isHidden);
     const skills = await skillManager.getSkills();
     const skillsById = new Map(skills.map((skill) => [skill.id, skill]));
+    const availableSkills = new Map<string, Tool>(
+      tools
+        .filter((tool) => tool.type === ToolType.SKILL)
+        .map((tool) => {
+          const skill = skillsById.get(tool.id as `${ToolType.SKILL}:${string}`);
+          return [
+            tool.id,
+            {
+              ...skill,
+              id: tool.id,
+              name: skill?.name || tool.name,
+              description: skill?.description || tool.description,
+              isActive: true,
+              autoLoad: tool.autoLoad ?? false,
+              isToolkit: false,
+              type: ToolType.SKILL,
+            },
+          ];
+        }),
+    );
+
+    if (threadId && isActive) {
+      const memoryStore = await mastraManager.mastra
+        .getStorage()
+        .getStore('memory');
+      const thread = await memoryStore.getThreadById({ threadId });
+      if (thread) {
+        let workspace = thread.metadata?.workspace as string | undefined;
+        if (thread.resourceId?.startsWith('project:')) {
+          const project = await projectManager.projectsRepository.findOne({
+            where: { id: thread.resourceId.slice('project:'.length) },
+          });
+          workspace = project?.path;
+        } else if (!workspace) {
+          const appInfo = await appManager.getInfo();
+          workspace = path.join(appInfo.userData, 'threads', threadId);
+        }
+        if (workspace) {
+          for (const skillsPath of [
+            path.join(workspace, '.aime-chat', 'skills'),
+            path.join(workspace, 'skills'),
+            path.join(workspace, '.agents', 'skills'),
+          ]) {
+            if (
+              !fs.existsSync(skillsPath) ||
+              !fs.statSync(skillsPath).isDirectory()
+            ) continue;
+            for (const skill of await getSkills(skillsPath)) {
+              availableSkills.set(skill.id, {
+                ...skill,
+                isActive: true,
+                autoLoad: skill.autoLoad ?? false,
+                isToolkit: false,
+                type: ToolType.SKILL,
+              });
+            }
+          }
+        }
+      }
+    }
 
     return {
       [ToolType.MCP]: tools
@@ -1069,23 +1140,7 @@ class ToolsManager extends BaseManager {
               description: subtool.description ?? builtInTools.find(x => x.id === subtool.toolkitId)?.tools.find(x => x.id === subtool.name)?.description,
             })),
         })),
-      [ToolType.SKILL]: tools
-        .filter((tool) => tool.type === ToolType.SKILL)
-        .map((tool) => {
-          const skill = skillsById.get(
-            tool.id as `${ToolType.SKILL}:${string}`,
-          );
-          return {
-            ...skill,
-            id: tool.id,
-            name: skill?.name || tool.name,
-            description: skill?.description || tool.description,
-            isActive: true,
-            autoLoad: tool.autoLoad ?? false,
-            isToolkit: false,
-            type: ToolType.SKILL,
-          };
-        }),
+      [ToolType.SKILL]: Array.from(availableSkills.values()),
     };
   }
 

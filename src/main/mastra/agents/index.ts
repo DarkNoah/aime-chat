@@ -246,7 +246,7 @@ ${assistantSoul}
             enabled: false,
           },
           lastMessages: false,
-          observationalMemory: params?.observationalMemory,
+          observationalMemory: params?.observationalMemory ?? false,
         },
         vector: getVectorStore(),
       }),

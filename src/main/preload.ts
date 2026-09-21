@@ -580,11 +580,19 @@ const electronHandler = {
       ipcRenderer.invoke(ToolChannel.InstallMCPBundle, input),
     getMcp: (id: string) => ipcRenderer.invoke(ToolChannel.GetMcp, id),
     getAvailableTools: (
-      { filter, isActive }: { filter?: string; isActive?: boolean } = {
+      { filter, isActive, threadId }: {
+        filter?: string;
+        isActive?: boolean;
+        threadId?: string;
+      } = {
         isActive: true,
       },
     ): Promise<Record<ToolType, Tool[]>> =>
-      ipcRenderer.invoke(ToolChannel.GetAvailableTools, { filter, isActive }),
+      ipcRenderer.invoke(ToolChannel.GetAvailableTools, {
+        filter,
+        isActive,
+        threadId,
+      }),
     getList: (filter?: { type: ToolType }) =>
       ipcRenderer.invoke(ToolChannel.GetList, filter),
     getTool: (id: string) => ipcRenderer.invoke(ToolChannel.GetTool, id),
