@@ -3,7 +3,6 @@ import { getChatPreviewEventUpdate } from '@/renderer/lib/chat-preview-event';
 import {
   ChatPanel,
   ChatPanelRef,
-  ChatPanelSubmitOptions,
 } from '@/renderer/components/chat-ui/chat-panel';
 import { Button } from '@/renderer/components/ui/button';
 import {
@@ -32,7 +31,6 @@ import {
   IconArrowBarRight,
   IconClockHour3,
   IconDownload,
-  IconFolder,
   IconFolderOpen,
   IconImageInPicture,
   IconMessage,
@@ -48,11 +46,16 @@ import { ButtonGroup } from '@/renderer/components/ui/button-group';
 import { PromptInputMessage } from '@/renderer/components/ai-elements/prompt-input';
 import { useChat } from '@/renderer/hooks/use-chat';
 import { ChatPreview } from '@/renderer/components/chat-ui/chat-preview';
-import { ChatPreviewVisibility } from '@/renderer/components/chat-ui/chat-preview-visibility';
+import { ChatBrowserToggle } from '@/renderer/components/chat-ui/chat-browser-toggle';
+import {
+  ChatPreviewVisibility,
+  useIsCompactWindow,
+} from '@/renderer/components/chat-ui/chat-preview-visibility';
 import { ToolUIPart } from 'ai';
 import {
   ChatPreviewData,
   ChatPreviewType,
+  ChatSubmitOptions,
   ChatTask,
   ChatTodo,
   DEFAULT_TITLE,
@@ -74,6 +77,8 @@ function ProjectsPage() {
   const { id } = useParams();
   const { setTitle, setTitleAction } = useHeader();
   const { t } = useTranslation();
+  const isCompactWindow = useIsCompactWindow();
+  const [showPreview, setShowPreview] = useState(true);
   const [project, setProject] = useState<Project | undefined>();
   const [threadId, setThreadId] = useState<any | undefined>();
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
@@ -174,7 +179,7 @@ function ProjectsPage() {
     if (threadId) {
       try {
         thread = await window.electron.mastra.getThread(threadId);
-      } catch { }
+      } catch {}
     }
     _options.tools ??= thread?.metadata?.tools;
     _options.subAgents ??= thread?.metadata?.subAgents;
@@ -207,7 +212,7 @@ function ProjectsPage() {
 
   const handleSubmit = async (
     message: PromptInputMessage,
-    options?: ChatPanelSubmitOptions,
+    options?: ChatSubmitOptions,
   ) => {
     if (!options?.threadId) {
       const thread = await handleCreateThread(options);
@@ -231,6 +236,7 @@ function ProjectsPage() {
     if (threadId) {
       let browserCancelled = false;
       const showBrowser = () => {
+        setShowPreview(true);
         setPreviewData((data) => ({
           ...data,
           previewPanel: ChatPreviewType.WEB_PREVIEW,
@@ -254,6 +260,7 @@ function ProjectsPage() {
         const update = getChatPreviewEventUpdate(event, threadId);
         if (!update) return;
 
+        setShowPreview(true);
         setPreviewData((data) => ({ ...data, ...update }));
       });
       return () => {
@@ -262,7 +269,7 @@ function ProjectsPage() {
         eventBus.off(`chat:onEvent:${threadId}`);
       };
     }
-    return () => { };
+    return () => {};
   }, [threadId]);
 
   useEffect(() => {
@@ -340,9 +347,7 @@ function ProjectsPage() {
               </DropdownMenuGroup>
               <DropdownMenuSeparator></DropdownMenuSeparator>
               <DropdownMenuGroup>
-                <DropdownMenuItem
-                  onSelect={() => setExportDialogOpen(true)}
-                >
+                <DropdownMenuItem onSelect={() => setExportDialogOpen(true)}>
                   <IconDownload />
                   {t('project.export_messages')}
                 </DropdownMenuItem>
@@ -362,6 +367,20 @@ function ProjectsPage() {
             </DropdownMenuContent>
           </DropdownMenu>
         )}
+        {!isCompactWindow && (
+          <Button
+            variant="outline"
+            size="icon-sm"
+            aria-label={t(
+              showPreview
+                ? 'chat.hide_preview_sidebar'
+                : 'chat.show_preview_sidebar',
+            )}
+            onClick={() => setShowPreview((visible) => !visible)}
+          >
+            {showPreview ? <IconArrowBarRight /> : <IconArrowBarLeft />}
+          </Button>
+        )}
       </div>,
     );
   }, [
@@ -370,6 +389,9 @@ function ProjectsPage() {
     appInfo.shouldUseDarkColors,
     threadState?.title,
     threadState?.metadata?.workspace,
+    isCompactWindow,
+    showPreview,
+    t,
   ]);
 
   return (
@@ -394,21 +416,23 @@ function ProjectsPage() {
         <div className="absolute top-12 left-0 p-2 z-10 flex flex-row gap-1 ">
           <Button
             variant="ghost"
-            size="icon-sm"
-            className="cursor-pointer size-6 bg-muted-foreground/20 backdrop-blur"
+            size="sm"
+            className="cursor-pointer h-6 gap-1 px-2 text-xs bg-muted-foreground/20 backdrop-blur"
             onClick={() => handleCreateThread({})}
           >
             <IconPlus></IconPlus>
+            {t('project.new_chat')}
           </Button>
           <DropdownMenu open={threadsOpen} onOpenChange={setThreadsOpen}>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
-                size="icon-sm"
-                className="cursor-pointer size-6 bg-muted-foreground/20 backdrop-blur"
+                size="sm"
+                className="cursor-pointer h-6 gap-1 px-2 text-xs bg-muted-foreground/20 backdrop-blur"
                 disabled={!projectResourceId}
               >
                 <IconClockHour3 size={10} />
+                {t('project.chat_history')}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent
@@ -484,19 +508,6 @@ function ProjectsPage() {
               </Command>
             </DropdownMenuContent>
           </DropdownMenu>
-          {project?.path && (
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Open Project Folder"
-              className="cursor-pointer size-6 bg-muted-foreground/20 backdrop-blur"
-              onClick={() => {
-                window.electron.app.openPath(project?.path);
-              }}
-            >
-              <IconFolder></IconFolder>
-            </Button>
-          )}
         </div>
         <ChatPanel
           ref={chatPanelRef}
@@ -504,8 +515,24 @@ function ProjectsPage() {
           projectId={id}
           threadId={threadId}
           className="h-full w-full"
+          inputActions={
+            !isCompactWindow && (
+              <ChatBrowserToggle
+                key={threadId}
+                threadId={threadId}
+                open={showPreview}
+                onToggle={() => {
+                  setPreviewData((data) => ({
+                    ...data,
+                    previewPanel: ChatPreviewType.WEB_PREVIEW,
+                  }));
+                  setShowPreview((visible) => !visible);
+                }}
+              />
+            )
+          }
           onToolMessageClick={(_part) => {
-            // setShowPreview(true);
+            setShowPreview(true);
             setPreviewToolPart(_part);
             setPreviewData((data) => {
               return {
@@ -517,7 +544,7 @@ function ProjectsPage() {
           onThreadChanged={handleThreadChanged}
         ></ChatPanel>
       </ResizablePanel>
-      <ChatPreviewVisibility>
+      <ChatPreviewVisibility visible={showPreview}>
         <>
           <ResizableHandle withHandle />
           <ResizablePanel

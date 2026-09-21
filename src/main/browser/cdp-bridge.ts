@@ -13,6 +13,7 @@ export interface CdpTab {
 
 export interface CdpHost extends EventEmitter {
   getCdpTab(threadId: string, tabId: string): CdpTab;
+  prepareCdpTab(threadId: string, tabId: string): Promise<CdpTab>;
   createCdpTab(threadId: string, url: string): CdpTab;
   closeTab(threadId: string, tabId: string): void;
   configureDownload(threadId: string, tabId: string, params: any): void;
@@ -29,6 +30,14 @@ interface AttachedTarget {
   tab: CdpTab;
   nativeSessionId?: string;
 }
+
+const sharedBrowserContextId = 'aime-shared-electron';
+
+const cookieMethods = {
+  'Storage.getCookies': 'Network.getAllCookies',
+  'Storage.setCookies': 'Network.setCookies',
+  'Storage.clearCookies': 'Network.clearBrowserCookies',
+} as const;
 
 const pageDomains = new Set([
   'Accessibility',
@@ -127,7 +136,7 @@ export class ElectronCdpBridge {
   }
 
   async endpoint(threadId: string, tabId: string) {
-    this.host.getCdpTab(threadId, tabId);
+    await this.host.prepareCdpTab(threadId, tabId);
     await this.start();
     let grant = [...this.grants.values()].find(
       (item) => item.threadId === threadId && item.tabId === tabId,
@@ -172,6 +181,9 @@ export class ElectronCdpBridge {
     };
     const info = (tab: CdpTab) => ({
       targetId: tab.targetId,
+      // Playwright requires a context ID even for the default shared session.
+      // Ownership is still enforced by this connection's target allowlist.
+      browserContextId: sharedBrowserContextId,
       type: 'page',
       title: tab.webContents.getTitle(),
       url: tab.webContents.getURL() || 'about:blank',
@@ -347,10 +359,11 @@ export class ElectronCdpBridge {
       if (method === 'Target.attachToTarget')
         return { sessionId: attach(target(params.targetId)) };
       if (method === 'Target.createTarget') {
-        const tab = this.host.createCdpTab(
+        const created = this.host.createCdpTab(
           grant.threadId,
           params.url || 'about:blank',
         );
+        const tab = await this.host.prepareCdpTab(grant.threadId, created.id);
         targets.set(tab.targetId, tab);
         this.host.emit('controller-created-tab', {
           threadId: grant.threadId,
@@ -382,6 +395,21 @@ export class ElectronCdpBridge {
       }
       const tab = attached?.tab ?? primary;
       const wc = target(tab.targetId).webContents;
+      if (Object.hasOwn(cookieMethods, method)) {
+        if (
+          params.browserContextId !== undefined &&
+          params.browserContextId !== sharedBrowserContextId
+        )
+          throw new Error('Unknown or foreign browser context.');
+        if (!attached) attach(tab);
+        // Storage commands target Electron's default session, whose context
+        // registry cannot resolve our session.fromPath profile. The page's
+        // Network commands use its actual storage partition instead.
+        return wc.debugger.sendCommand(
+          cookieMethods[method as keyof typeof cookieMethods],
+          method === 'Storage.setCookies' ? { cookies: params.cookies } : {},
+        );
+      }
       if (method === 'Browser.getVersion')
         return {
           protocolVersion: '1.3',

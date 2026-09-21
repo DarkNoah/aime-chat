@@ -1112,9 +1112,7 @@ class MastraManager extends BaseManager {
     }
     const appInfo = await appManager.getInfo();
     const modelId =
-      appInfo?.defaultModel?.fastModel ||
-      (thread.metadata?.model as string | undefined) ||
-      data.model;
+      data.model || appInfo?.defaultModel?.fastModel;
     if (!modelId) return undefined;
 
     const history = await memoryStore.listMessages({
@@ -1459,6 +1457,7 @@ class MastraManager extends BaseManager {
           thinking: {
             type: think ? 'enabled' : 'disabled',
           },
+          reasoningEffort: think ? appInfo.defaultThink : undefined,
         } as DeepSeekChatOptions,
         google: {
           thinkingConfig: {
@@ -1837,7 +1836,7 @@ class MastraManager extends BaseManager {
                 systemReminder.push(reminder);
               }
             }
-            if (systemReminder.length > 0) {
+            if (systemReminder.length > 0 && input[input.length - 1].parts[input[input.length - 1].parts.length - 1].type == 'text') {
               input[input.length - 1].parts.push({
                 type: 'text',
                 text: `<system-reminder>\n${systemReminder.join('\n')}\n</system-reminder>`,
@@ -2466,17 +2465,20 @@ ${skill.content}
       fs.existsSync(workspace) &&
       fs.statSync(workspace).isDirectory()
     ) {
-      const skillsPath = path.join(workspace, '.aime-chat', 'skills');
-      if (fs.existsSync(skillsPath) && fs.statSync(skillsPath).isDirectory()) {
-        // const skills = await fs.promises.readdir(skillsPath);
-        const skills = await getSkills(skillsPath);
-        for (const skill of skills) {
-          if (_skills.map((x) => x.id).includes(skill.id)) {
-            _skills = _skills.filter((x) => x.id !== skill.id);
+      const skillsPaths = [path.join(workspace, '.aime-chat', 'skills'), path.join(workspace, 'skills'), path.join(workspace, '.agents', 'skills')];
+      for (const skillsPath of skillsPaths) {
+        if (fs.existsSync(skillsPath) && fs.statSync(skillsPath).isDirectory()) {
+          const skills = await getSkills(skillsPath);
+          for (const skill of skills) {
+            if (_skills.map((x) => x.id).includes(skill.id)) {
+              _skills = _skills.filter((x) => x.id !== skill.id);
+            }
+            _skills.push(skill);
           }
-          _skills.push(skill);
         }
+
       }
+
     }
 
     if (_skills.length > 0) {

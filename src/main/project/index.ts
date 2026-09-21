@@ -57,9 +57,20 @@ class ProjectManager extends BaseManager {
       return null;
     }
     project.skills = [];
-    const skillsPath = path.join(project?.path, '.aime-chat', 'skills');
-    if (fs.existsSync(skillsPath) && fs.statSync(skillsPath).isDirectory()) {
-      project.skills = await getSkills(skillsPath);
+    const skillsPaths = [
+      path.join(project?.path, '.agents', 'skills'),
+      path.join(project?.path, 'skills'),
+      path.join(project?.path, '.aime-chat', 'skills')
+    ];
+
+    for (const skillsPath of skillsPaths) {
+      if (fs.existsSync(skillsPath) && fs.statSync(skillsPath).isDirectory()) {
+        const skills = await getSkills(skillsPath);
+        for (const skill of skills) {
+          project.skills = project.skills.filter((x) => x.id != skill.id);
+          project.skills.push(skill);
+        }
+      }
     }
     const agentsMdPath = path.join(project?.path, `AGENTS.md`);
     if (fs.existsSync(agentsMdPath) && fs.statSync(agentsMdPath).isFile()) {

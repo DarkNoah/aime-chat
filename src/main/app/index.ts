@@ -1,3 +1,5 @@
+import type { WorkspaceEntryOperation } from '../../types/workspace-entry';
+import { mutateWorkspaceEntry } from '../utils/workspace-entry';
 import { threadBrowserManager } from '../browser/manager';
 import { Repository } from 'typeorm';
 import { BaseManager } from '../BaseManager';
@@ -604,6 +606,13 @@ class AppManager extends BaseManager {
     workspace: string,
   ): Promise<{ size: number; modifiedAt: number }> {
     return writeWorkspaceTextFile(workspace, filePath, content);
+  }
+
+  @channel(AppChannel.MutateWorkspaceEntry)
+  public async mutateWorkspaceEntry(
+    operation: WorkspaceEntryOperation,
+  ): Promise<{ path: string }> {
+    return mutateWorkspaceEntry(operation, (target) => shell.trashItem(target));
   }
 
   @channel(AppChannel.GetDirectoryTree)

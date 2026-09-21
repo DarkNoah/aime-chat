@@ -2,6 +2,7 @@ export enum InstancesChannel {
   GetInstances = 'instances:getInstances',
   GetInstance = 'instances:getInstance',
   StopInstance = 'instances:stopInstance',
+  SetInsecureTls = 'instances:setInsecureTls',
 }
 
 export enum ProviderChannel {
@@ -63,6 +64,7 @@ export enum AppChannel {
   SearchInDirectory = 'app:searchInDirectory',
   ReadFileContent = 'app:readFileContent',
   WriteFileContent = 'app:writeFileContent',
+  MutateWorkspaceEntry = 'app:mutateWorkspaceEntry',
   RefreshPreventSleep = 'app:refreshPreventSleep',
   // 屏幕截图
   ScreenCapture = 'app:screenCapture',

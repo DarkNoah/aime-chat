@@ -13,7 +13,7 @@ import { ChatPreviewType, ChatPreviewData } from '@/types/chat';
 import {
   IconCheckbox,
   IconListCheck,
-  IconWorldWww,
+  IconWorld,
   IconChartBar,
   IconTool,
   IconFile,
@@ -138,8 +138,8 @@ export const ChatPreview = React.forwardRef<ChatPreviewRef, ChatPreviewProps>(
             size="sm"
             className="data-[state=off]:bg-transparent bg-secondary "
           >
-            <IconWorldWww />
-            {t('chat.web_preview', 'Web Preview')}
+            <IconWorld />
+            {t('browser.title')}
           </ToggleGroupItem>
           {/* <ToggleGroupItem
             value={ChatPreviewType.CANVAS}
@@ -152,7 +152,7 @@ export const ChatPreview = React.forwardRef<ChatPreviewRef, ChatPreviewProps>(
             className="data-[state=off]:bg-transparent bg-secondary "
           >
             <IconTool></IconTool>
-            Tool Result
+            {t('chat.tool_result')}
           </ToggleGroupItem>
 
           {!appInfo.isPackaged && (
@@ -168,7 +168,7 @@ export const ChatPreview = React.forwardRef<ChatPreviewRef, ChatPreviewProps>(
             className="data-[state=off]:bg-transparent bg-secondary "
           >
             <IconChartBar />
-            Usage
+            {t('chat.usage')}
           </ToggleGroupItem>
         </ToggleGroup>
         <div

@@ -135,6 +135,90 @@ describe('ChatFilesystem', () => {
     expect(getDirectoryChildren).toHaveBeenCalledTimes(2);
   });
 
+  it('reads fresh children on every expansion, including previously empty folders', async () => {
+    getDirectoryTree.mockResolvedValue({
+      name: 'workspace',
+      path: '/workspace',
+      isDirectory: true,
+      children: [
+        {
+          name: 'src',
+          path: '/workspace/src',
+          isDirectory: true,
+          children: [],
+        },
+      ],
+    });
+    getDirectoryChildren
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        { name: 'new.ts', path: '/workspace/src/new.ts', isDirectory: false },
+      ])
+      .mockResolvedValueOnce([]);
+    render(<ChatFilesystem workspace="/workspace" />);
+    const folder = await screen.findByRole('button', { name: 'src' });
+    fireEvent.click(folder);
+    await waitFor(() => expect(getDirectoryChildren).toHaveBeenCalledTimes(1));
+    fireEvent.click(folder);
+    expect(getDirectoryChildren).toHaveBeenCalledTimes(1);
+    fireEvent.click(folder);
+    expect(await screen.findByText('new.ts')).toBeInTheDocument();
+    fireEvent.click(folder);
+    fireEvent.click(folder);
+    await waitFor(() =>
+      expect(screen.queryByText('new.ts')).not.toBeInTheDocument(),
+    );
+    expect(getDirectoryChildren).toHaveBeenCalledTimes(3);
+  });
+
+  it('ignores a stale response after a folder is collapsed and reopened', async () => {
+    getDirectoryTree.mockResolvedValue({
+      name: 'workspace',
+      path: '/workspace',
+      isDirectory: true,
+      children: [
+        {
+          name: 'src',
+          path: '/workspace/src',
+          isDirectory: true,
+          children: [],
+        },
+      ],
+    });
+    let resolveOld: (children: unknown[]) => void;
+    getDirectoryChildren
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveOld = resolve;
+          }),
+      )
+      .mockResolvedValueOnce([
+        {
+          name: 'latest.ts',
+          path: '/workspace/src/latest.ts',
+          isDirectory: false,
+        },
+      ]);
+    render(<ChatFilesystem workspace="/workspace" />);
+    const folder = await screen.findByRole('button', { name: 'src' });
+    fireEvent.click(folder);
+    fireEvent.click(folder);
+    fireEvent.click(folder);
+    expect(await screen.findByText('latest.ts')).toBeInTheDocument();
+    await act(async () => {
+      resolveOld([
+        {
+          name: 'stale.ts',
+          path: '/workspace/src/stale.ts',
+          isDirectory: false,
+        },
+      ]);
+    });
+    expect(screen.getByText('latest.ts')).toBeInTheDocument();
+    expect(screen.queryByText('stale.ts')).not.toBeInTheDocument();
+  });
+
   it('opens a requested file and expands its parent directory', async () => {
     getDirectoryTree.mockResolvedValue({
       name: 'workspace',
@@ -206,7 +290,7 @@ describe('ChatFilesystem', () => {
     );
   });
 
-  it('preserves unsaved edits when a requested file switch is cancelled', async () => {
+  it('keeps dirty tabs mounted, deduplicates opens, and confirms only when closing', async () => {
     const { rerender } = render(
       <ChatFilesystem
         workspace="/workspace"
@@ -216,40 +300,93 @@ describe('ChatFilesystem', () => {
     await screen.findByTestId('opened-file');
     fireEvent.click(screen.getByText('Edit file'));
     const confirm = jest.spyOn(window, 'confirm').mockReturnValue(false);
-    const nextRequest = request('/workspace/report.pdf');
-    await act(async () => {
-      rerender(
-        <ChatFilesystem
-          workspace="/workspace"
-          filePreviewRequest={nextRequest}
-        />,
-      );
-    });
-    expect(confirm).toHaveBeenCalledTimes(1);
-    expect(screen.getByTestId('opened-file')).toHaveTextContent(
-      '/workspace/a.txt',
+    rerender(
+      <ChatFilesystem
+        workspace="/workspace"
+        filePreviewRequest={request('/workspace/b.txt')}
+      />,
     );
-    await act(async () => {
-      rerender(
-        <ChatFilesystem
-          workspace="/workspace"
-          filePreviewRequest={nextRequest}
-        />,
-      );
-    });
+    await waitFor(() =>
+      expect(screen.getAllByTestId('opened-file')).toHaveLength(2),
+    );
+    expect(confirm).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole('tab', { name: 'a.txt chat.file_unsaved' }),
+    ).toHaveAttribute('aria-selected', 'false');
+    fireEvent.click(
+      screen.getByRole('tab', { name: 'a.txt chat.file_unsaved' }),
+    );
+    expect(
+      screen.getByRole('tab', { name: 'a.txt chat.file_unsaved' }),
+    ).toHaveAttribute('aria-selected', 'true');
+    rerender(
+      <ChatFilesystem
+        workspace="/workspace"
+        filePreviewRequest={request('/workspace/a.txt')}
+      />,
+    );
+    expect(screen.getAllByRole('tab')).toHaveLength(2);
+    fireEvent.click(
+      screen.getAllByRole('button', { name: 'chat.file_close_tab' })[0],
+    );
     expect(confirm).toHaveBeenCalledTimes(1);
+    expect(screen.getAllByRole('tab')).toHaveLength(2);
     confirm.mockReturnValue(true);
-    await act(async () => {
-      rerender(
-        <ChatFilesystem
-          workspace="/workspace"
-          filePreviewRequest={request('/workspace/report.pdf')}
-        />,
-      );
-    });
-    expect(await screen.findByTestId('opened-file')).toHaveTextContent(
-      '/workspace/report.pdf',
+    fireEvent.click(
+      screen.getAllByRole('button', { name: 'chat.file_close_tab' })[0],
     );
+    expect(screen.getByRole('tab', { name: 'b.txt' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+  });
+
+  it('creates a file from the toolbar and opens it in a tab', async () => {
+    const mutateWorkspaceEntry = jest
+      .fn()
+      .mockResolvedValue({ path: '/workspace/new.txt' });
+    window.electron.app.mutateWorkspaceEntry = mutateWorkspaceEntry;
+    render(<ChatFilesystem workspace="/workspace" />);
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'chat.file_new' }),
+    );
+    fireEvent.change(screen.getByRole('textbox', { name: 'chat.file_name' }), {
+      target: { value: 'new.txt' },
+    });
+    fireEvent.submit(
+      screen.getByRole('textbox', { name: 'chat.file_name' }).closest('form')!,
+    );
+    await waitFor(() =>
+      expect(mutateWorkspaceEntry).toHaveBeenCalledWith({
+        workspace: '/workspace',
+        path: '/workspace',
+        name: 'new.txt',
+        action: 'create-file',
+      }),
+    );
+    expect(await screen.findByTestId('opened-file')).toHaveTextContent(
+      '/workspace/new.txt',
+    );
+  });
+
+  it('keeps the operation dialog and shows errors when creation fails', async () => {
+    window.electron.app.mutateWorkspaceEntry = jest
+      .fn()
+      .mockRejectedValue(new Error('Already exists'));
+    render(<ChatFilesystem workspace="/workspace" />);
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'chat.folder_new' }),
+    );
+    fireEvent.change(screen.getByRole('textbox', { name: 'chat.file_name' }), {
+      target: { value: 'src' },
+    });
+    fireEvent.submit(
+      screen.getByRole('textbox', { name: 'chat.file_name' }).closest('form')!,
+    );
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Already exists',
+    );
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
 
   it('ignores files outside the current workspace', async () => {

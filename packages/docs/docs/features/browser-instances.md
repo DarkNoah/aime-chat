@@ -58,3 +58,15 @@ AgentBrowser(command="tab close t1")
 ```
 
 通过 AgentBrowser 工具执行命令，不要指定 `--session`、`--cdp`、`--config` 或 `--profile`。需要手动登录时，打开聊天预览中的对应 Tab 即可。
+
+## Playwright 接入测试
+
+内置 `PlaywrightTest` 工具在执行代码中直接调用 Playwright，通过受限 CDP 连接到当前 Electron 浏览器。它会新建本地测试页，填写文字、点击确认按钮，再读取并校验结果。
+
+```text
+PlaywrightTest(text="你好，Playwright！")
+```
+
+在聊天中调用时，结果页面保留在该聊天的浏览器预览中；也可以在工具详情的测试面板执行，测试结束后会关闭临时页面。测试复用共享数据目录，不会启动独立 Chromium，也不覆盖已有网页。
+
+这是基础动作接入验证，不代表完整 Playwright API 均已兼容。普通脚本中的 `chromium.launch()` 仍会启动独立浏览器。

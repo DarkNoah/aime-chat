@@ -5,6 +5,8 @@ import toast from 'react-hot-toast';
 import { Badge } from '@/renderer/components/ui/badge';
 import { Button } from '@/renderer/components/ui/button';
 import { Spinner } from '@/renderer/components/ui/spinner';
+import { Switch } from '@/renderer/components/ui/switch';
+import { Label } from '@/renderer/components/ui/label';
 import { useHeader } from '@/renderer/hooks/use-title';
 import type { InstanceInfo } from '@/types/instance';
 import { ThreadBrowserChannel } from '@/types/thread-browser';
@@ -15,6 +17,7 @@ function Instances() {
   const [instance, setInstance] = useState<InstanceInfo>();
   const [error, setError] = useState('');
   const [pending, setPending] = useState(false);
+  const [savingTls, setSavingTls] = useState(false);
   const [revision, setRevision] = useState(0);
 
   useEffect(() => {
@@ -64,6 +67,24 @@ function Instances() {
       setError(String(reason));
     } finally {
       setPending(false);
+    }
+  };
+  const changeInsecureTls = async (enabled: boolean) => {
+    if (!instance || savingTls) return;
+    setSavingTls(true);
+    setError('');
+    try {
+      const updated = await window.electron.instances.setInsecureTls(
+        instance.id,
+        enabled,
+      );
+      setInstance(updated);
+      setRevision((value) => value + 1);
+      toast.success(t('settings.browser_tls_saved'));
+    } catch (reason) {
+      setError(String(reason));
+    } finally {
+      setSavingTls(false);
     }
   };
   const openDirectory = async () => {
@@ -140,6 +161,32 @@ function Instances() {
               </dd>
             </div>
           </dl>
+          <div className="flex items-start justify-between gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="browser-insecure-tls">
+                {t('settings.browser_insecure_tls')}
+              </Label>
+              <p
+                id="browser-insecure-tls-description"
+                className="text-sm leading-relaxed text-muted-foreground"
+              >
+                {t('settings.browser_insecure_tls_desc')}
+              </p>
+            </div>
+            <Switch
+              id="browser-insecure-tls"
+              aria-describedby="browser-insecure-tls-description"
+              aria-busy={savingTls}
+              checked={instance.config.insecureTls}
+              disabled={savingTls || pending}
+              onCheckedChange={changeInsecureTls}
+            />
+          </div>
+          {instance.insecureTlsRestartRequired && (
+            <p role="status" className="text-sm font-medium">
+              {t('settings.browser_tls_restart_required')}
+            </p>
+          )}
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" onClick={openDirectory}>
               <IconFolder className="size-4" />
@@ -148,7 +195,7 @@ function Instances() {
             <Button
               variant="outline"
               size="sm"
-              disabled={!instance.tabCount || pending}
+              disabled={!instance.tabCount || pending || savingTls}
               onClick={closeTabs}
             >
               {pending ? <Spinner /> : <IconX className="size-4" />}

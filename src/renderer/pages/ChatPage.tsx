@@ -110,6 +110,7 @@ import {
   ChatTodo,
 } from '@/types/chat';
 import { ChatPreview } from '../components/chat-ui/chat-preview';
+import { ChatBrowserToggle } from '../components/chat-ui/chat-browser-toggle';
 import { Label } from '../components/ui/label';
 import {
   IconArrowBarLeft,
@@ -391,7 +392,12 @@ function ChatPage() {
           <Button
             variant="outline"
             size="icon-sm"
-            onClick={() => setShowPreview(!showPreview)}
+            aria-label={t(
+              showPreview
+                ? 'chat.hide_preview_sidebar'
+                : 'chat.show_preview_sidebar',
+            )}
+            onClick={() => setShowPreview((visible) => !visible)}
           >
             {!showPreview ? <IconArrowBarLeft /> : <IconArrowBarRight />}
           </Button>
@@ -406,6 +412,7 @@ function ChatPage() {
     threadState?.title,
     threadState?.metadata?.workspace,
     isCompactWindow,
+    t,
   ]);
 
   useEffect(() => {
@@ -433,6 +440,22 @@ function ChatPage() {
           ref={chatPanelRef}
           onSubmit={handleSubmit}
           threadId={threadId}
+          inputActions={
+            !isCompactWindow && (
+              <ChatBrowserToggle
+                key={threadId}
+                threadId={threadId}
+                open={showPreview}
+                onToggle={() => {
+                  setPreviewData((data) => ({
+                    ...data,
+                    previewPanel: ChatPreviewType.WEB_PREVIEW,
+                  }));
+                  setShowPreview((visible) => !visible);
+                }}
+              />
+            )
+          }
           onToolMessageClick={(_part) => {
             if (!isCompactWindow) {
               setShowPreview(true);
@@ -452,11 +475,7 @@ function ChatPage() {
       <ChatPreviewVisibility visible={showPreview}>
         <>
           <ResizableHandle withHandle />
-          <ResizablePanel
-            id="chat-preview"
-            order={2}
-            className="h-full flex-1"
-          >
+          <ResizablePanel id="chat-preview" order={2} className="h-full flex-1">
             <div className="p-2 w-full h-full">
               <ChatPreview
                 threadId={threadId}

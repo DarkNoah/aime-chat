@@ -39,7 +39,7 @@ import { GenerateVideo } from '@/main/tools/video/generate-video';
 import { Generate3D } from '@/main/tools/3d/generate-3d';
 import { GenerateImage } from '@/main/tools/image/generate-image';
 import { EditImage } from '@/main/tools/image/edit-image';
-import { MemoryRead, MemorySearch } from '@/main/tools/memory/memory';
+import { MemoryRead, MemorySearch, MemoryList } from '@/main/tools/memory/memory';
 import { CreateGoal } from '@/main/tools/common/goal';
 import {
   KnowledgeBaseGetItem,
@@ -82,6 +82,7 @@ export class CodeAgent extends BaseAgent {
     `${ToolType.BUILD_IN}:${TaskUpdate.toolName}`,
     `${ToolType.BUILD_IN}:${MemorySearch.toolName}`,
     `${ToolType.BUILD_IN}:${MemoryRead.toolName}`,
+    `${ToolType.BUILD_IN}:${MemoryList.toolName}`,
     // `${ToolType.BUILD_IN}:${LibSQLListTable.toolName}`,
     // `${ToolType.BUILD_IN}:${LibSQLDescribeTable.toolName}`,
     // `${ToolType.BUILD_IN}:${LibSQLDatabaseInfo.toolName}`,

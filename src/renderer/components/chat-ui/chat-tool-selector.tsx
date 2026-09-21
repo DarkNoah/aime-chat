@@ -1,6 +1,7 @@
 import { cn } from '@/renderer/lib/utils';
 import React, {
   useEffect,
+  useCallback,
   useMemo,
   useState,
   type ComponentProps,
@@ -126,6 +127,7 @@ export type ChatToolSelectorProps = ComponentProps<typeof Dialog> & {
   className?: string;
   value?: string[];
   showGoal?: boolean;
+  threadId?: string;
   onChange?: (value: string[]) => void;
 };
 
@@ -133,7 +135,7 @@ export const ChatToolSelector = ({
   children,
   ...props
 }: ChatToolSelectorProps) => {
-  const { value = [], onChange, showGoal = false } = props;
+  const { value = [], onChange, showGoal = false, threadId } = props;
   const [loading, setLoading] = useState(false);
   const { t } = useTranslation();
   const [data, setData] = useState<{
@@ -145,19 +147,19 @@ export const ChatToolSelector = ({
     [ToolType.SKILL]: [],
     [ToolType.BUILD_IN]: [],
   });
-  const getAvailableTools = async () => {
+  const getAvailableTools = useCallback(async () => {
     try {
       setLoading(true);
-      const tools = await window.electron.tools.getAvailableTools();
+      const tools = await window.electron.tools.getAvailableTools({ threadId });
       setData(tools);
       setLoading(false);
     } catch (error) {
       setLoading(false);
     }
-  };
+  }, [threadId]);
   useEffect(() => {
     getAvailableTools();
-  }, []);
+  }, [getAvailableTools]);
 
   function intersection<T>(a: T[], b: T[]): T[] {
     const setB = new Set(b);

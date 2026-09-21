@@ -653,6 +653,7 @@ export type ChatPanelProps = {
   projectId?: string;
   threadId?: string;
   className?: string;
+  inputActions?: ReactNode;
   onToolMessageClick?: (toolMessage: ToolUIPart) => void;
   onSubmit?: (message: PromptInputMessage, options?: ChatSubmitOptions) => void;
   onThreadChanged?: (thread: ThreadState) => void;
@@ -673,6 +674,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
       projectId,
       threadId,
       className,
+      inputActions,
       onToolMessageClick,
       onSubmit,
       onThreadChanged,
@@ -1540,7 +1542,11 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
               onSelectedAgent={handleAgentChange}
             ></ChatAgentSelector>
 
-            <div className="flex items-center gap-1">
+            <div
+              className="flex items-center gap-1"
+              data-slot="chat-input-toolbar"
+            >
+              {inputActions}
               {usage?.usage?.totalTokens > 0 ? (
                 <ChatUsage
                   value={{

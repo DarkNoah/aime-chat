@@ -131,11 +131,16 @@ export class KnowledgeBaseManager extends BaseManager {
       },
     });
 
-    // Try to ensure the global static memory KB exists. Done lazily so we
+    // Ensure the shared global and project memory KBs exist. Done lazily so we
     // don't block app boot if no embedding provider is configured yet.
     setTimeout(() => {
       import('./static-memory')
-        .then((m) => m.getOrCreateMemoryKB())
+        .then((m) =>
+          Promise.all([
+            m.getOrCreateMemoryKB(),
+            m.getOrCreateMemoryKB({ type: 'project' }),
+          ]),
+        )
         .catch((err) => console.error('[knowledge-base] init static memory failed', err));
     }, 0);
   }

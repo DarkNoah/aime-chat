@@ -2,27 +2,50 @@ import path from 'path';
 import fs from 'fs';
 import { SkillInfo } from '@/types/skill';
 import { readSkillPackageMetadata } from './skill-metadata';
+import { glob } from 'fast-glob';
 
 export async function getSkills(workspace: string): Promise<SkillInfo[]> {
   // const skillJson = await fs.promises.readFile(path.join(workspace, 'skills.json'));
-  const skillJson = await fs.promises.readFile(path.join(workspace, 'skills.json'), 'utf-8').catch(() => '[]');
-  const skillJsonData = JSON.parse(skillJson.toString());
+
   const skillList = [];
-  for (const skill of skillJsonData) {
-    if (fs.existsSync(path.join(workspace, skill.name ?? skill.id, 'SKILL.md'))) {
-      const skillMdPath = path.join(workspace, skill.name ?? skill.id, 'SKILL.md');
-      const skillPath = path.dirname(skillMdPath);
-      const metadata = await readSkillPackageMetadata(skillPath);
+
+  if (fs.existsSync(path.join(workspace, 'skills.json'))) {
+    const skillJson = await fs.promises.readFile(path.join(workspace, 'skills.json'), 'utf-8').catch(() => '[]');
+    const skillJsonData = JSON.parse(skillJson.toString());
+
+    for (const skill of skillJsonData) {
+      if (fs.existsSync(path.join(workspace, skill.name ?? skill.id, 'SKILL.md'))) {
+        const skillMdPath = path.join(workspace, skill.name ?? skill.id, 'SKILL.md');
+        const skillPath = path.dirname(skillMdPath);
+        const metadata = await readSkillPackageMetadata(skillPath);
+        skillList.push({
+          ...metadata,
+          id: skill.id,
+          name: metadata.name || skill.name || skill.id,
+          description: metadata.description || '',
+          path: skillPath,
+          skillmd: metadata.content,
+          source: skill.source,
+        });
+      }
+    }
+  } else {
+    const skillMdPaths = await glob.async('**/SKILL.md', {
+      cwd: workspace,
+      absolute: true,
+    });
+    for (const skillMdPath of skillMdPaths) {
+      const metadata = await readSkillPackageMetadata(path.dirname(skillMdPath));
       skillList.push({
         ...metadata,
-        id: skill.id,
-        name: metadata.name || skill.name || skill.id,
+        id: `skill:local:${path.basename(path.dirname(skillMdPath))}`,
+        name: metadata.name || path.basename(path.dirname(skillMdPath)),
         description: metadata.description || '',
-        path: skillPath,
+        path: path.dirname(skillMdPath),
         skillmd: metadata.content,
-        source: skill.source,
       });
     }
   }
+
   return skillList;
 }

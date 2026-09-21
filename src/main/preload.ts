@@ -1,3 +1,4 @@
+import type { WorkspaceEntryOperation } from '../types/workspace-entry';
 import { ThreadBrowserChannel } from '@/types/thread-browser';
 import type {
   ThreadBrowserState,
@@ -319,6 +320,10 @@ const electronHandler = {
         content,
         workspace,
       ),
+    mutateWorkspaceEntry: (
+      operation: WorkspaceEntryOperation,
+    ): Promise<{ path: string }> =>
+      ipcRenderer.invoke(AppChannel.MutateWorkspaceEntry, operation),
     refreshPreventSleep: (): Promise<void> =>
       ipcRenderer.invoke(AppChannel.RefreshPreventSleep),
     screenCapture: (
@@ -580,11 +585,19 @@ const electronHandler = {
       ipcRenderer.invoke(ToolChannel.InstallMCPBundle, input),
     getMcp: (id: string) => ipcRenderer.invoke(ToolChannel.GetMcp, id),
     getAvailableTools: (
-      { filter, isActive }: { filter?: string; isActive?: boolean } = {
+      { filter, isActive, threadId }: {
+        filter?: string;
+        isActive?: boolean;
+        threadId?: string;
+      } = {
         isActive: true,
       },
     ): Promise<Record<ToolType, Tool[]>> =>
-      ipcRenderer.invoke(ToolChannel.GetAvailableTools, { filter, isActive }),
+      ipcRenderer.invoke(ToolChannel.GetAvailableTools, {
+        filter,
+        isActive,
+        threadId,
+      }),
     getList: (filter?: { type: ToolType }) =>
       ipcRenderer.invoke(ToolChannel.GetList, filter),
     getTool: (id: string) => ipcRenderer.invoke(ToolChannel.GetTool, id),
@@ -725,6 +738,8 @@ const electronHandler = {
       ipcRenderer.invoke(ThreadBrowserChannel.Present, input),
   },
   instances: {
+    setInsecureTls: (id: string, enabled: boolean): Promise<InstanceInfo> =>
+      ipcRenderer.invoke(InstancesChannel.SetInsecureTls, id, enabled),
     getInstances: (): Promise<InstanceInfo[]> =>
       ipcRenderer.invoke(InstancesChannel.GetInstances),
     stopInstance: (id: string) =>

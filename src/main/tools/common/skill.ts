@@ -134,16 +134,15 @@ ${_skills
       fs.existsSync(workspace) &&
       fs.statSync(workspace).isDirectory()
     ) {
-      const skillsPath = path.join(workspace, '.aime-chat', 'skills');
-      if (fs.existsSync(skillsPath) && fs.statSync(skillsPath).isDirectory()) {
-        const skills = await getSkills(skillsPath);
-        const skill = skills.find(
-          (x) =>
-            x.id === lookupSkillId ||
-            x.id === `${ToolType.SKILL}:local:${skill_id}`,
-        );
-        if (skill) {
-          skillInfo = skill;
+      const skillsPaths = [path.join(workspace, '.aime-chat', 'skills'), path.join(workspace, 'skills'), path.join(workspace, '.agents', 'skills')];
+      for (const skillsPath of skillsPaths) {
+        if (fs.existsSync(skillsPath) && fs.statSync(skillsPath).isDirectory()) {
+          const skills = await getSkills(skillsPath);
+          for (const skill of skills) {
+            if (skill.id === lookupSkillId || skill.id === `${ToolType.SKILL}:local:${skill_id}`) {
+              skillInfo = skill;
+            }
+          }
         }
       }
     }

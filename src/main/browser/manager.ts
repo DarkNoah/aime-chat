@@ -54,6 +54,10 @@ export class ThreadBrowserManager extends EventEmitter {
 
   private browserSession?: Session;
 
+  private insecureTls = false;
+
+  private activeInsecureTls = false;
+
   private backgroundWindow?: BaseWindow;
 
   private presentation?: BrowserPresentation;
@@ -139,6 +143,10 @@ export class ThreadBrowserManager extends EventEmitter {
     if (!this.browserSession) {
       // One persistent session for ALL browser tabs, regardless of chat/project.
       this.browserSession = session.fromPath(this.prepareProfile());
+      this.browserSession.setCertificateVerifyProc(
+        this.insecureTls ? (_request, callback) => callback(0) : null,
+      );
+      this.activeInsecureTls = this.insecureTls;
       if (this.proxy)
         this.proxyReady = this.browserSession.setProxy(this.proxy);
       this.browserSession.on('will-download', (event, item, wc) =>
@@ -157,10 +165,19 @@ export class ThreadBrowserManager extends EventEmitter {
     return browserProfilePath(root);
   }
 
+  setInsecureTls(enabled: boolean): void {
+    // Chromium caches certificate decisions. Apply changes to an existing
+    // session only after restart, rather than report an ineffective revocation.
+    this.insecureTls = enabled;
+  }
+
   overview() {
     const threads = [...this.registry.threads.values()];
     return {
       userDataPath: this.prepareProfile(),
+      insecureTls: this.insecureTls,
+      insecureTlsRestartRequired:
+        !!this.browserSession && this.activeInsecureTls !== this.insecureTls,
       tabCount: threads.reduce(
         (sum, thread) =>
           sum +
@@ -181,6 +198,17 @@ export class ThreadBrowserManager extends EventEmitter {
       this.closeThread(threadId);
       thread.automationTabId = undefined;
     }
+  }
+
+  /** Returns all live, non-transient tabs owned by the thread. */
+  getCdpTabs(threadId: string): CdpTab[] {
+    const thread = this.assertThread(threadId);
+    return [...thread.tabs.values()]
+      .filter(
+        (tab) =>
+          !tab.value.transient && !tab.value.view.webContents.isDestroyed(),
+      )
+      .map((tab) => this.getCdpTab(threadId, tab.id));
   }
 
   state(threadId: string): ThreadBrowserState {
@@ -306,11 +334,11 @@ export class ThreadBrowserManager extends EventEmitter {
       options?.transient
         ? { action: 'deny' }
         : {
-            action: 'allow',
-            outlivesOpener: true,
-            createWindow: (windowOptions) =>
-              this.makeTab(threadId, windowOptions).value.view.webContents,
-          },
+          action: 'allow',
+          outlivesOpener: true,
+          createWindow: (windowOptions) =>
+            this.makeTab(threadId, windowOptions).value.view.webContents,
+        },
     );
     this.changed(threadId);
     return tab;
@@ -343,6 +371,24 @@ export class ThreadBrowserManager extends EventEmitter {
       targetId: tab.targetId,
       webContents: tab.value.view.webContents,
     };
+  }
+
+  async prepareCdpTab(threadId: string, tabId: string): Promise<CdpTab> {
+    const tab = this.registry.get(threadId, tabId);
+    const wc = this.getCdpTab(threadId, tabId).webContents;
+    const client = wc.debugger;
+    const attached = client.isAttached();
+    if (!attached) client.attach('1.3');
+    try {
+      // Playwright uses the page target ID to locate its main frame session.
+      // Keep Chromium's real identity while enforcing ownership in the registry.
+      const { targetInfo } = await client.sendCommand('Target.getTargetInfo');
+      tab.targetId = targetInfo.targetId;
+      return this.getCdpTab(threadId, tabId);
+    } finally {
+      if (!attached && !wc.isDestroyed() && client.isAttached())
+        client.detach();
+    }
   }
 
   ensureAutomationTab(threadId: string, tabId?: string) {

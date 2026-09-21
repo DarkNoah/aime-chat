@@ -306,7 +306,9 @@ function ChatInputInner(props: ChatInputInnerProps) {
 
   const getSlashCommands = useCallback(async () => {
     const commands: SlashCommandDefinition[] = [...ChatSlashCommandConfig];
-    const availableTools = await window.electron.tools.getAvailableTools();
+    const availableTools = await window.electron.tools.getAvailableTools({
+      threadId,
+    });
     setAutoLoadSkillIds(
       (availableTools[ToolType.SKILL] ?? [])
         .filter((skill) => skill.autoLoad)
@@ -323,7 +325,7 @@ function ChatInputInner(props: ChatInputInnerProps) {
     }));
     commands.push(...skills);
     setSlashCommands(commands);
-  }, []);
+  }, [threadId]);
 
   useEffect(() => {
     getSlashCommands().catch(() => undefined);
@@ -487,6 +489,7 @@ function ChatInputInner(props: ChatInputInnerProps) {
               )}
               {showToolSelector && (
                 <ChatToolSelector
+                  threadId={threadId}
                   value={effectiveTools}
                   onChange={handleToolsChange}
                 >
