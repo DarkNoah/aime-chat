@@ -733,6 +733,8 @@ const electronHandler = {
       ipcRenderer.invoke(ThreadBrowserChannel.Present, input),
   },
   instances: {
+    setInsecureTls: (id: string, enabled: boolean): Promise<InstanceInfo> =>
+      ipcRenderer.invoke(InstancesChannel.SetInsecureTls, id, enabled),
     getInstances: (): Promise<InstanceInfo[]> =>
       ipcRenderer.invoke(InstancesChannel.GetInstances),
     stopInstance: (id: string) =>

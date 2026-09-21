@@ -101,7 +101,7 @@ createRoot(document.getElementById('root')!).render(<Fixture/>);
   });
   fs.writeFileSync(
     path.join(directory, 'preload.cjs'),
-    `const {contextBridge,ipcRenderer}=require('electron');contextBridge.exposeInMainWorld('electron',{instances:{getInstances:()=>ipcRenderer.invoke('instances:getInstances'),stopInstance:id=>ipcRenderer.invoke('instances:stopInstance',id)},app:{openPath:path=>ipcRenderer.invoke('test:openPath',path)},browser:{state:id=>ipcRenderer.invoke('thread-browser:state',id),action:input=>ipcRenderer.invoke('thread-browser:action',input),present:input=>ipcRenderer.invoke('thread-browser:present',input)},ipcRenderer:{on:(name,fn)=>{const handler=(_e,value)=>fn(value);ipcRenderer.on(name,handler);return ()=>ipcRenderer.removeListener(name,handler)}}});`,
+    `const {contextBridge,ipcRenderer}=require('electron');contextBridge.exposeInMainWorld('electron',{instances:{getInstances:()=>ipcRenderer.invoke('instances:getInstances'),setInsecureTls:(id,enabled)=>ipcRenderer.invoke('instances:setInsecureTls',id,enabled),stopInstance:id=>ipcRenderer.invoke('instances:stopInstance',id)},app:{openPath:path=>ipcRenderer.invoke('test:openPath',path)},browser:{state:id=>ipcRenderer.invoke('thread-browser:state',id),action:input=>ipcRenderer.invoke('thread-browser:action',input),present:input=>ipcRenderer.invoke('thread-browser:present',input)},ipcRenderer:{on:(name,fn)=>{const handler=(_e,value)=>fn(value);ipcRenderer.on(name,handler);return ()=>ipcRenderer.removeListener(name,handler)}}});`,
   );
   fs.writeFileSync(
     path.join(directory, 'index.html'),
@@ -128,7 +128,7 @@ app.whenReady().then(async () => {
     ipcMain.handle('test:openPath', (_event, value) => {
       openedPath = value;
     });
-    ipcMain.handle('instances:getInstances', () => {
+    const getInstances = () => {
       const overview = manager.overview();
       return [
         {
@@ -139,11 +139,17 @@ app.whenReady().then(async () => {
           config: {
             engine: 'electron-chromium',
             userDataPath: overview.userDataPath,
+            insecureTls: overview.insecureTls,
           },
           status: overview.tabCount ? 'running' : 'stop',
           ...overview,
         },
       ];
+    };
+    ipcMain.handle('instances:getInstances', getInstances);
+    ipcMain.handle('instances:setInsecureTls', (_event, _id, enabled) => {
+      manager.setInsecureTls(enabled);
+      return getInstances()[0];
     });
     ipcMain.handle('instances:stopInstance', () => manager.closeAllTabs());
     manager.createCdpTab(
@@ -297,6 +303,28 @@ app.whenReady().then(async () => {
       'Array.from(document.querySelectorAll("button")).find(button=>button.textContent.includes("打开数据目录"))',
     );
     await wait(() => openedPath === manager.overview().userDataPath);
+    await click('document.querySelector("#browser-insecure-tls")');
+    await wait(() =>
+      win.webContents.executeJavaScript(
+        'document.querySelector("#browser-insecure-tls").getAttribute("aria-checked") === "true" && document.body.innerText.includes("重启应用后生效")',
+      ),
+    );
+    assert.equal(manager.overview().insecureTls, true);
+    await flushFrames();
+    await win.webContents.executeJavaScript(
+      'Promise.all(document.querySelector("#browser-insecure-tls").getAnimations({subtree:true}).map(animation => animation.finished.catch(() => undefined)))',
+    );
+    fs.writeFileSync(
+      path.join(directory, 'instances-tls.png'),
+      (await win.capturePage()).toPNG(),
+    );
+    await click('document.querySelector("#browser-insecure-tls")');
+    await wait(() =>
+      win.webContents.executeJavaScript(
+        'document.querySelector("#browser-insecure-tls").getAttribute("aria-checked") === "false" && !document.body.innerText.includes("重启应用后生效")',
+      ),
+    );
+    assert.equal(manager.overview().insecureTls, false);
     fs.writeFileSync(
       path.join(directory, 'instances.png'),
       (await win.capturePage()).toPNG(),
