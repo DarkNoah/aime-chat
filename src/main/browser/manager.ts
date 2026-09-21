@@ -22,6 +22,7 @@ import path from 'node:path';
 import { ThreadBrowserChannel } from '../../types/thread-browser';
 import type {
   BrowserPresentation,
+  BrowserTabState,
   ThreadBrowserAction,
   ThreadBrowserState,
 } from '../../types/thread-browser';
@@ -181,6 +182,11 @@ export class ThreadBrowserManager extends EventEmitter {
       this.closeThread(threadId);
       thread.automationTabId = undefined;
     }
+  }
+
+  /** Returns all live, non-transient tabs owned by the thread. */
+  getTabs(threadId: string): BrowserTabState[] {
+    return this.state(threadId).tabs;
   }
 
   state(threadId: string): ThreadBrowserState {
