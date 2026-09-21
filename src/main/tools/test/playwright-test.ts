@@ -16,6 +16,8 @@ const testPage = `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
 <p>点击结果：<output id="result" aria-live="polite"></output></p>
 </body></html>`;
 
+const testCookieUrl = 'https://playwright-test.invalid/';
+
 /** A bounded demonstration, not an arbitrary script execution tool. */
 export class PlaywrightTest extends BaseTool {
   static readonly toolName = 'PlaywrightTest';
@@ -23,7 +25,7 @@ export class PlaywrightTest extends BaseTool {
   id = 'PlaywrightTest';
 
   description =
-    'Test Playwright against the existing Electron browser. Creates a new local test tab, fills text, clicks a button, and reads the result. Chat calls leave the result visible in the browser preview. Calls from the tool test panel clean up their temporary tab. Does not launch a separate browser or navigate external sites.';
+    'Test Playwright against the existing Electron browser. Creates a new local test tab, writes and reads a temporary test cookie, fills text, clicks a button, and reads the result. The test cookie is removed afterward. Chat calls leave the result visible in the browser preview. Calls from the tool test panel clean up their temporary tab. Does not launch a separate browser or navigate external sites.';
 
   inputSchema = z
     .object({
@@ -51,6 +53,9 @@ export class PlaywrightTest extends BaseTool {
         owner,
         async () => {
           const tab = manager.createCdpTab(owner, 'about:blank');
+          const cookieStore = tab.webContents.session.cookies;
+          const cookieName = `aime_playwright_test_${randomUUID()}`;
+          const cookieValue = randomUUID();
           const signal = AbortSignal.any([
             manager.registry.get(owner, tab.id).value.abort.signal,
             ...(options?.abortSignal ? [options.abortSignal] : []),
@@ -68,8 +73,34 @@ export class PlaywrightTest extends BaseTool {
               timeout: 10000,
             });
             signal.throwIfAborted();
-            const page = browser.contexts()[0]?.pages()[0];
+            const context = browser.contexts()[0];
+            const page = context?.pages()[0];
             if (!page) throw new Error('Electron test tab was not discovered.');
+            await context.addCookies([
+              {
+                name: cookieName,
+                value: cookieValue,
+                url: testCookieUrl,
+                httpOnly: true,
+                secure: true,
+                sameSite: 'Lax',
+              },
+            ]);
+            const cookies = await context.cookies(testCookieUrl);
+            const storedCookies = await cookieStore.get({
+              url: testCookieUrl,
+              name: cookieName,
+            });
+            if (
+              !cookies.some(
+                (cookie) =>
+                  cookie.name === cookieName && cookie.value === cookieValue,
+              ) ||
+              storedCookies[0]?.value !== cookieValue
+            )
+              throw new Error(
+                'Playwright cookie verification failed in the Electron session.',
+              );
             page.setDefaultTimeout(10000);
             await page.setContent(testPage);
             await page.getByRole('textbox', { name: '测试文字' }).fill(text);
@@ -84,7 +115,8 @@ export class PlaywrightTest extends BaseTool {
               success: true,
               engine: 'Electron Chromium',
               tabId: tab.id,
-              actions: ['fill', 'click', 'readText'],
+              actions: ['addCookies', 'cookies', 'fill', 'click', 'readText'],
+              cookiesVerified: true,
               result,
               previewAvailable: !!chatId,
             };
@@ -94,6 +126,8 @@ export class PlaywrightTest extends BaseTool {
             // page remains owned by the chat and is available for inspection.
             await browser?.close().catch(() => undefined);
             manager.bridge.disconnect(owner, tab.id);
+            // Remove only this run's cookie from the shared browser profile.
+            await cookieStore.remove(testCookieUrl, cookieName);
           }
         },
         options?.abortSignal,

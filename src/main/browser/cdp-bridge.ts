@@ -31,6 +31,14 @@ interface AttachedTarget {
   nativeSessionId?: string;
 }
 
+const sharedBrowserContextId = 'aime-shared-electron';
+
+const cookieMethods = {
+  'Storage.getCookies': 'Network.getAllCookies',
+  'Storage.setCookies': 'Network.setCookies',
+  'Storage.clearCookies': 'Network.clearBrowserCookies',
+} as const;
+
 const pageDomains = new Set([
   'Accessibility',
   'Animation',
@@ -175,7 +183,7 @@ export class ElectronCdpBridge {
       targetId: tab.targetId,
       // Playwright requires a context ID even for the default shared session.
       // Ownership is still enforced by this connection's target allowlist.
-      browserContextId: 'aime-shared-electron',
+      browserContextId: sharedBrowserContextId,
       type: 'page',
       title: tab.webContents.getTitle(),
       url: tab.webContents.getURL() || 'about:blank',
@@ -387,6 +395,21 @@ export class ElectronCdpBridge {
       }
       const tab = attached?.tab ?? primary;
       const wc = target(tab.targetId).webContents;
+      if (Object.hasOwn(cookieMethods, method)) {
+        if (
+          params.browserContextId !== undefined &&
+          params.browserContextId !== sharedBrowserContextId
+        )
+          throw new Error('Unknown or foreign browser context.');
+        if (!attached) attach(tab);
+        // Storage commands target Electron's default session, whose context
+        // registry cannot resolve our session.fromPath profile. The page's
+        // Network commands use its actual storage partition instead.
+        return wc.debugger.sendCommand(
+          cookieMethods[method as keyof typeof cookieMethods],
+          method === 'Storage.setCookies' ? { cookies: params.cookies } : {},
+        );
+      }
       if (method === 'Browser.getVersion')
         return {
           protocolVersion: '1.3',
