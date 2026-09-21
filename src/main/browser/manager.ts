@@ -22,7 +22,6 @@ import path from 'node:path';
 import { ThreadBrowserChannel } from '../../types/thread-browser';
 import type {
   BrowserPresentation,
-  BrowserTabState,
   ThreadBrowserAction,
   ThreadBrowserState,
 } from '../../types/thread-browser';
@@ -202,8 +201,14 @@ export class ThreadBrowserManager extends EventEmitter {
   }
 
   /** Returns all live, non-transient tabs owned by the thread. */
-  getTabs(threadId: string): BrowserTabState[] {
-    return this.state(threadId).tabs;
+  getCdpTabs(threadId: string): CdpTab[] {
+    const thread = this.assertThread(threadId);
+    return [...thread.tabs.values()]
+      .filter(
+        (tab) =>
+          !tab.value.transient && !tab.value.view.webContents.isDestroyed(),
+      )
+      .map((tab) => this.getCdpTab(threadId, tab.id));
   }
 
   state(threadId: string): ThreadBrowserState {
@@ -329,11 +334,11 @@ export class ThreadBrowserManager extends EventEmitter {
       options?.transient
         ? { action: 'deny' }
         : {
-            action: 'allow',
-            outlivesOpener: true,
-            createWindow: (windowOptions) =>
-              this.makeTab(threadId, windowOptions).value.view.webContents,
-          },
+          action: 'allow',
+          outlivesOpener: true,
+          createWindow: (windowOptions) =>
+            this.makeTab(threadId, windowOptions).value.view.webContents,
+        },
     );
     this.changed(threadId);
     return tab;
