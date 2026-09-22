@@ -14,35 +14,22 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/renderer/components/ui/dropdown-menu';
-import { Skeleton } from '@/renderer/components/ui/skeleton';
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from '@/renderer/components/ui/command';
 import { useGlobal } from '@/renderer/hooks/use-global';
 import { useHeader } from '@/renderer/hooks/use-title';
 import { Project, ProjectEvent } from '@/types/project';
 import {
   IconArrowBarLeft,
   IconArrowBarRight,
-  IconClockHour3,
   IconDownload,
   IconFolderOpen,
   IconImageInPicture,
-  IconMessage,
   IconPlus,
   IconSvg,
   IconTimeline,
-  IconTrash,
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ButtonGroup } from '@/renderer/components/ui/button-group';
 import { PromptInputMessage } from '@/renderer/components/ai-elements/prompt-input';
 import { useChat } from '@/renderer/hooks/use-chat';
 import { ChatPreview } from '@/renderer/components/chat-ui/chat-preview';
@@ -58,7 +45,6 @@ import {
   ChatSubmitOptions,
   ChatTask,
   ChatTodo,
-  DEFAULT_TITLE,
   ThreadState,
 } from '@/types/chat';
 import { eventBus } from '@/renderer/lib/event-bus';
@@ -71,6 +57,7 @@ import domtoimage from 'dom-to-image';
 import toast from 'react-hot-toast';
 import { MoreHorizontalIcon } from 'lucide-react';
 import { ProjectChatExportDialog } from '@/renderer/components/chat-project/chat-export-dialog';
+import { ProjectChatHistory } from '@/renderer/components/chat-project/project-chat-history';
 import type { ChatFileSelectionReference } from '@/renderer/lib/chat-file-selection';
 
 function ProjectsPage() {
@@ -134,12 +121,6 @@ function ProjectsPage() {
     [id],
   );
   const { appInfo } = useGlobal();
-  const [threadsOpen, setThreadsOpen] = useState(false);
-  const [threadsLoading, setThreadsLoading] = useState(false);
-  const [threadsError, setThreadsError] = useState<string | null>(null);
-  const [threads, setThreads] = useState<Array<{ id: string; title: string }>>(
-    [],
-  );
   const [threadState, setThreadState] = useState<ThreadState | undefined>();
   const [previewToolPart, setPreviewToolPart] = useState<
     ToolUIPart | undefined
@@ -147,31 +128,6 @@ function ProjectsPage() {
   const [previewData, setPreviewData] = useState<ChatPreviewData>({
     previewPanel: ChatPreviewType.FILE_SYSTEM,
   });
-
-  const getProjectThreads = useCallback(async () => {
-    if (!projectResourceId) return;
-    setThreadsLoading(true);
-    setThreadsError(null);
-
-    try {
-      const res = await window.electron.mastra.getThreads({
-        page: 0,
-        size: 20,
-        resourceId: projectResourceId,
-      });
-      setThreads(
-        (res.items ?? []).map((item) => ({
-          id: item.id,
-          title: item.title ?? DEFAULT_TITLE,
-        })),
-      );
-    } catch (e) {
-      setThreadsError(e instanceof Error ? e.message : String(e));
-      setThreads([]);
-    } finally {
-      setThreadsLoading(false);
-    }
-  }, [projectResourceId]);
 
   const handleCreateThread = async (options = {}) => {
     let thread;
@@ -192,23 +148,15 @@ function ProjectsPage() {
     });
     console.log(thread);
     setThreadId(thread.id);
-    await getProjectThreads();
     return thread;
   };
 
   const handleDeleteThread = async (_threadId: string) => {
     await window.electron.mastra.deleteThread(_threadId);
-    // await getProjectThreads();
     if (_threadId === threadId) {
       setThreadId(undefined);
     }
-    setThreads((prev) => prev.filter((p) => p.id !== _threadId));
   };
-
-  useEffect(() => {
-    if (!threadsOpen) return;
-    getProjectThreads();
-  }, [getProjectThreads, threadsOpen]);
 
   const handleSubmit = async (
     message: PromptInputMessage,
@@ -423,91 +371,12 @@ function ProjectsPage() {
             <IconPlus></IconPlus>
             {t('project.new_chat')}
           </Button>
-          <DropdownMenu open={threadsOpen} onOpenChange={setThreadsOpen}>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="cursor-pointer h-6 gap-1 px-2 text-xs bg-muted-foreground/20 backdrop-blur"
-                disabled={!projectResourceId}
-              >
-                <IconClockHour3 size={10} />
-                {t('project.chat_history')}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              side="bottom"
-              align="start"
-              sideOffset={8}
-              className="w-72"
-            >
-              <Command className="rounded-none">
-                <CommandInput placeholder={t('common.search')} />
-                {threadsLoading && (
-                  <div className="px-3 py-3 space-y-2">
-                    <Skeleton className="h-4 w-[80%]" />
-                    <Skeleton className="h-4 w-[60%]" />
-                    <Skeleton className="h-4 w-[70%]" />
-                  </div>
-                )}
-                {!threadsLoading && threadsError && (
-                  <div className="px-3 py-3 text-xs text-destructive">
-                    {threadsError}
-                  </div>
-                )}
-                {!threadsLoading && !threadsError && (
-                  <CommandList className="max-h-72">
-                    <CommandEmpty className="py-6 text-center text-xs text-muted-foreground">
-                      {t('common.no_data')}
-                    </CommandEmpty>
-                    <CommandGroup>
-                      {threads.map((thread) => (
-                        <CommandItem
-                          key={thread.id}
-                          value={`${thread.id}`}
-                          keywords={[thread.title]}
-                          onSelect={() => {
-                            setThreadsOpen(false);
-                            setThreadId(thread.id);
-                          }}
-                        >
-                          <div className="min-w-0 w-full flex flex-row items-center justify-between">
-                            <div className="flex flex-1 min-w-0 flex-row items-center gap-2">
-                              <IconMessage></IconMessage>
-                              <div className="truncate text-sm">
-                                {thread.title}{' '}
-                                {thread.id === threadId && (
-                                  <span className="text-xs text-muted-foreground">
-                                    current
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                            <div>
-                              <ButtonGroup>
-                                <Button
-                                  variant="ghost"
-                                  size="icon-sm"
-                                  className="size-6 cursor-pointer"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    handleDeleteThread(thread.id);
-                                  }}
-                                >
-                                  <IconTrash size={8}></IconTrash>
-                                </Button>
-                              </ButtonGroup>
-                            </div>
-                          </div>
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </CommandList>
-                )}
-              </Command>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <ProjectChatHistory
+            resourceId={projectResourceId}
+            threadId={threadId}
+            onSelect={setThreadId}
+            onDelete={handleDeleteThread}
+          />
         </div>
         <ChatPanel
           ref={chatPanelRef}

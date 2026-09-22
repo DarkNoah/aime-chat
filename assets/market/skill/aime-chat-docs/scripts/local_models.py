@@ -37,6 +37,8 @@ def main(argv=None):
         if action == "download":
             command.add_argument("--source", default="modelscope", choices=("modelscope", "huggingface"),
                                  help="Download source (default: modelscope)")
+            command.add_argument("--set-as-default", action="store_true",
+                                 help="Set the matching model default after a successful download")
     args = parser.parse_args(argv)
     base = os.environ.get("AIME_CHAT_API_BASE_URL", "").strip()
     if not base:
@@ -51,6 +53,8 @@ def main(argv=None):
         payload = {"type": args.type, "modelId": args.model_id}
         if args.command == "download":
             payload["source"] = args.source
+            if args.set_as_default:
+                payload["setAsDefault"] = True
     request = urllib.request.Request(
         url, data=json.dumps(payload).encode("utf-8") if payload is not None else None,
         method="POST" if payload is not None else "GET",

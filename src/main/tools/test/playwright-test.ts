@@ -6,6 +6,7 @@ import type { ToolExecutionContext } from '@mastra/core/tools' with {
 };
 import BaseTool from '../base-tool';
 import { threadBrowserManager } from '../../browser/manager';
+import { CdpTab } from '@/main/browser/cdp-bridge';
 
 const testPage = `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
 <title>Playwright 接入测试</title></head><body>
@@ -51,86 +52,83 @@ export class PlaywrightTest extends BaseTool {
     try {
       return await manager.run(
         owner,
-        async () => {
-          const tab = manager.createCdpTab(owner, 'about:blank');
-          const cookieStore = tab.webContents.session.cookies;
+        async (data, signal?: AbortSignal) => {
+          // const tab = manager.createCdpTab(owner, 'about:blank');
+          const cookieStore = data?.tab?.webContents.session.cookies;
           const cookieName = `aime_playwright_test_${randomUUID()}`;
           const cookieValue = randomUUID();
-          const signal = AbortSignal.any([
-            manager.registry.get(owner, tab.id).value.abort.signal,
-            ...(options?.abortSignal ? [options.abortSignal] : []),
-          ]);
+
           let browser: Browser | undefined;
-          const cancel = () => manager.bridge.disconnect(owner, tab.id);
-          signal.addEventListener('abort', cancel, { once: true });
-          try {
-            manager.setRunningTab(owner, tab.id);
-            if (chatId) manager.requestPreview(owner);
-            const endpoint = await manager.bridge.endpoint(owner, tab.id);
-            signal.throwIfAborted();
-            // Connect to the owned native page; never call chromium.launch().
-            browser = await chromium.connectOverCDP(endpoint, {
-              timeout: 10000,
-            });
-            signal.throwIfAborted();
-            const context = browser.contexts()[0];
-            const page = context?.pages()[0];
-            if (!page) throw new Error('Electron test tab was not discovered.');
-            await context.addCookies([
-              {
-                name: cookieName,
-                value: cookieValue,
-                url: testCookieUrl,
-                httpOnly: true,
-                secure: true,
-                sameSite: 'Lax',
-              },
-            ]);
-            const cookies = await context.cookies(testCookieUrl);
-            const storedCookies = await cookieStore.get({
-              url: testCookieUrl,
+          // const cancel = () => manager.bridge.disconnect(owner, tab.id);
+          // manager.setRunningTab(owner, tabId);
+          //if (chatId) manager.requestPreview(owner);
+          // const endpoint = await manager.bridge.endpoint(owner, data.tab.id);
+          // signal?.throwIfAborted();
+          // // Connect to the owned native page; never call chromium.launch().
+          // browser = await chromium.connectOverCDP(endpoint, {
+          //   timeout: 10000,
+          // });
+          signal?.throwIfAborted();
+          // const context = browser.contexts()[0];
+          // const page = context?.pages()[0];
+          let page = data?.page;
+          if (!page) throw new Error('Electron test tab was not discovered.');
+
+          const context = data.page.context();
+          await context.addCookies([
+            {
               name: cookieName,
-            });
-            if (
-              !cookies.some(
-                (cookie) =>
-                  cookie.name === cookieName && cookie.value === cookieValue,
-              ) ||
-              storedCookies[0]?.value !== cookieValue
-            )
-              throw new Error(
-                'Playwright cookie verification failed in the Electron session.',
-              );
-            page.setDefaultTimeout(10000);
-            await page.setContent(testPage);
-            await page.getByRole('textbox', { name: '测试文字' }).fill(text);
-            await page
-              .getByRole('button', { name: '确认', exact: true })
-              .click();
-            const result = await page.locator('#result').innerText();
-            signal.throwIfAborted();
-            if (result !== text)
-              throw new Error('Playwright click verification failed.');
-            return {
-              success: true,
-              engine: 'Electron Chromium',
-              tabId: tab.id,
-              actions: ['addCookies', 'cookies', 'fill', 'click', 'readText'],
-              cookiesVerified: true,
-              result,
-              previewAvailable: !!chatId,
-            };
-          } finally {
-            signal.removeEventListener('abort', cancel);
-            // For a CDP connection close() disconnects Playwright; the native
-            // page remains owned by the chat and is available for inspection.
-            await browser?.close().catch(() => undefined);
-            manager.bridge.disconnect(owner, tab.id);
-            // Remove only this run's cookie from the shared browser profile.
-            await cookieStore.remove(testCookieUrl, cookieName);
-          }
+              value: cookieValue,
+              url: testCookieUrl,
+              httpOnly: true,
+              secure: true,
+              sameSite: 'Lax',
+            },
+          ]);
+          const cookies = await context.cookies(testCookieUrl);
+          const storedCookies = await cookieStore.get({
+            url: testCookieUrl,
+            name: cookieName,
+          });
+          if (
+            !cookies.some(
+              (cookie) =>
+                cookie.name === cookieName && cookie.value === cookieValue,
+            ) ||
+            storedCookies[0]?.value !== cookieValue
+          )
+            throw new Error(
+              'Playwright cookie verification failed in the Electron session.',
+            );
+          page.setDefaultTimeout(10000);
+          await page.waitForTimeout(10000);
+
+          await page.setContent(testPage);
+          await page.getByRole('textbox', { name: '测试文字' }).fill(text);
+          await page
+            .getByRole('button', { name: '确认', exact: true })
+            .click();
+          const result = await page.locator('#result').innerText();
+          signal?.throwIfAborted();
+          if (result !== text)
+            throw new Error('Playwright click verification failed.');
+          await cookieStore.remove(testCookieUrl, cookieName);
+          return {
+            success: true,
+            engine: 'Electron Chromium',
+            tabId: data?.tab?.id,
+            actions: ['addCookies', 'cookies', 'fill', 'click', 'readText'],
+            cookiesVerified: true,
+            result,
+            previewAvailable: !!chatId,
+          };
         },
-        options?.abortSignal,
+        {
+          signal: options?.abortSignal,
+          requestPreview: !!chatId,
+          newTab: true,
+          autoHandleConnect: true
+        }
       );
     } finally {
       if (!chatId) {
