@@ -33,6 +33,26 @@ describe('file workspace utilities', () => {
     );
   });
 
+  it.each([
+    '/workspace/script.ts',
+    '/workspace/types.d.ts',
+    'C:\\workspace\\SCRIPT.TS',
+  ])(
+    'previews text TypeScript file %s as source despite its video MIME type',
+    (filePath) => {
+      expect(getFilePreviewKind('video/mp2t', false, filePath)).toBe('text');
+    },
+  );
+
+  it('keeps binary TS transport streams as video and text SVGs as images', () => {
+    expect(getFilePreviewKind('video/mp2t', true, '/media/clip.ts')).toBe(
+      'video',
+    );
+    expect(getFilePreviewKind('image/svg+xml', false, '/images/icon.svg')).toBe(
+      'image',
+    );
+  });
+
   it.each(['glb', 'gltf', 'fbx', 'obj', 'stl'])(
     'recognizes %s models even with generic MIME types or text contents',
     (ext) => {

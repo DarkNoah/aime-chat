@@ -136,6 +136,40 @@ describe('FileWorkspace', () => {
     },
   );
 
+  it('opens TypeScript source with a video MIME type in the editor and saves it', async () => {
+    const content = 'export const answer: number = 42;';
+    readFileContent.mockResolvedValue({
+      content,
+      truncated: false,
+      size: content.length,
+      mimeType: 'video/mp2t',
+      isBinary: false,
+    });
+    const { container } = render(
+      <FileWorkspace
+        filePath="/workspace/script.ts"
+        workspace="/workspace"
+        onClose={jest.fn()}
+        onDirtyChange={jest.fn()}
+      />,
+    );
+    const editor = await screen.findByRole('textbox', {
+      name: 'chat.file_source_editor',
+    });
+    expect(editor).toHaveValue(content);
+    expect(container.querySelector('video')).toBeNull();
+    const updated = 'export const answer: number = 43;';
+    fireEvent.change(editor, { target: { value: updated } });
+    fireEvent.click(screen.getByTitle('common.save (Ctrl+S)'));
+    await waitFor(() => {
+      expect(writeFileContent).toHaveBeenCalledWith(
+        '/workspace/script.ts',
+        updated,
+        '/workspace',
+      );
+    });
+  });
+
   it('edits and manually saves a text file', async () => {
     const onDirtyChange = jest.fn();
     render(
