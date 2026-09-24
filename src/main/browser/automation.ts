@@ -113,7 +113,7 @@ export async function executeBrowserCommands(
     },
     {
       signal: input.signal,
-      requestPreview: true,
+      requestPreview: false,
     }
   );
 }
