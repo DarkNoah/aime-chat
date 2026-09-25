@@ -100,6 +100,25 @@ POST /api/local-models/delete
 
 下载请求体：`{"type":"embedding","modelId":"bge-m3","source":"modelscope"}`。
 
+可选布尔参数 `setAsDefault`（默认 `false`）表示下载和完整性校验成功后，设为对应类型的默认模型：
+
+```json
+{"type":"embedding","modelId":"bge-m3","source":"modelscope","setAsDefault":true}
+```
+
+CLI 对应选项为 `download --set-as-default`。仅在用户要求设置默认模型时使用此选项。
+
+| 下载类型 | 默认模型字段 |
+| --- | --- |
+| `embedding`、`clip` | `embeddingModel` |
+| `reranker` | `rerankerModel` |
+| `tts` | `speechModel` |
+| `stt` | `transcriptionModel` |
+
+保存的值使用返回的 `providerModelId`（包含 `local/` 前缀；Qwen TTS 使用可选择的语音模型族 ID）。只更新对应字段，保留其他默认值及已有知识库配置。BGE 和 CLIP 共用嵌入默认值，批量请求时只对其中一个启用此选项。依赖模型不会继承该选项；OCR 下载目录中的模型、`other` 类型和不可选择的对齐模型不支持设为默认，传 `true` 会返回 400。
+
+下载失败或文件校验不通过时不修改默认值。文件已下载但默认设置保存失败时返回 500，并保留已下载文件；可重试同一请求完成设置，不会重复下载已校验的文件。
+
 删除请求体：`{"type":"embedding","modelId":"bge-m3"}`。
 
 `modelId` 不含额外的 `local/` provider 前缀，例如 Qwen 模型应传 `Qwen/Qwen3-Embedding-0.6B`。不支持的类型、模型或来源返回 HTTP 400；缺少 UV 或操作冲突返回 409；下载、文件验证或删除失败返回 500。错误体沿用 `{ "success": false, "message": "..." }`，脚本以非零状态退出。

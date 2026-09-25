@@ -10,6 +10,7 @@ import ProviderStep from './ProviderStep';
 import ModelStep from './ModelStep';
 import PersonalityStep from './PersonalityStep';
 import RuntimeStep from './RuntimeStep';
+import ModelDownloadStep from './ModelDownloadStep';
 import CompleteStep from './CompleteStep';
 import { useTranslation } from 'react-i18next';
 import { Toaster } from 'react-hot-toast';
@@ -27,6 +28,7 @@ const setupSteps = [
   { id: 'model', component: ModelStep },
   { id: 'personality', component: PersonalityStep },
   { id: 'runtime', component: RuntimeStep },
+  { id: 'download-models', component: ModelDownloadStep },
   { id: 'complete', component: CompleteStep },
 ];
 
@@ -71,15 +73,15 @@ function SetupPage() {
     <div className="min-h-screen w-full flex flex-col bg-gradient-to-br from-background via-background to-muted/30">
       <Toaster />
       {/* Header with step indicator */}
-      <div className="w-full px-8 pt-8">
+      <div className="w-full px-4 pt-8 sm:px-8">
         <div className="max-w-3xl mx-auto">
           {/* Step Progress */}
-          <div className="flex items-center justify-center gap-2">
+          <div className="flex items-center justify-center gap-1 sm:gap-2">
             {steps.map((step, index) => (
               <React.Fragment key={step.id}>
                 <div
                   className={cn(
-                    'flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium transition-all duration-300',
+                    'flex shrink-0 items-center justify-center w-8 h-8 rounded-full text-sm font-medium transition-all duration-300',
                     index < currentStep
                       ? 'bg-primary text-primary-foreground'
                       : index === currentStep
@@ -96,7 +98,7 @@ function SetupPage() {
                 {index < steps.length - 1 && (
                   <div
                     className={cn(
-                      'w-12 h-1 rounded-full transition-all duration-300',
+                      'max-w-12 flex-1 h-1 rounded-full transition-all duration-300',
                       index < currentStep ? 'bg-primary' : 'bg-muted',
                     )}
                   />
@@ -108,7 +110,7 @@ function SetupPage() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex items-center justify-center px-8 py-12">
+      <div className="flex-1 flex items-center justify-center px-4 py-8 sm:px-8 sm:py-12">
         <div className="w-full max-w-2xl">
           <AnimatePresence mode="wait">
             <motion.div

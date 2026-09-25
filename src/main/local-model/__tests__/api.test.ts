@@ -9,6 +9,8 @@ import { appManager } from '../../app';
 import { getUVRuntime } from '../../app/runtime';
 import { runCommand } from '../../utils/shell';
 import { localModelManager } from '..';
+import { DefaultModelSettings } from '../../app/default-models';
+import type { AppInfo } from '@/types/app';
 import type { LocalModelItem } from '@/types/local-model';
 import { getAudioModelCatalog, resolveSpeechModelId } from '../audio-models';
 import {
@@ -19,7 +21,9 @@ import {
 } from '../model-files';
 
 jest.mock('electron', () => ({}));
-jest.mock('../../app', () => ({ appManager: { getInfo: jest.fn() } }));
+jest.mock('../../app', () => ({
+  appManager: { getInfo: jest.fn(), setDefaultModels: jest.fn() },
+}));
 jest.mock('../../app/runtime', () => ({ getUVRuntime: jest.fn() }));
 jest.mock('../../utils/shell', () => ({ runCommand: jest.fn() }));
 jest.mock('@huggingface/transformers', () => ({}));
@@ -42,6 +46,7 @@ async function invoke(method: string, route: string, input: object = {}) {
   return { data: res.json.mock.calls[0]?.[0], error: next.mock.calls[0]?.[0] };
 }
 
+let savedDefaults: Partial<AppInfo['defaultModel']>;
 let root: string;
 let modelPath: string;
 const download = {
@@ -248,6 +253,16 @@ it.each(['darwin', 'win32', 'linux'])(
 beforeAll(() => BaseManager.registerApiRoutes(app));
 beforeEach(() => {
   jest.clearAllMocks();
+  savedDefaults = { model: 'remote/chat', speechModel: 'remote/speech' };
+  const defaults = new DefaultModelSettings({
+    read: async () => savedDefaults,
+    write: async (value) => {
+      savedDefaults = value;
+    },
+  });
+  jest
+    .mocked(appManager.setDefaultModels)
+    .mockImplementation((patch) => defaults.set(patch));
   root = fs.mkdtempSync(path.join(os.tmpdir(), 'aime-local-models-'));
   modelPath = path.join(root, 'embedding', 'bge-m3');
   const uvDir = path.join(root, 'uv');
@@ -466,4 +481,134 @@ it('quotes download paths literally on both supported shells', () => {
   );
   expect(windows).toContain("'/models/user''s folder/$(touch nope)`cmd`;test'");
   expect(windows).toMatch(/; exit \$LASTEXITCODE$/);
+});
+
+it.each([undefined, false])(
+  'preserves defaults when setAsDefault is %p',
+  async (setAsDefault) => {
+    await localModelManager.downloadModel({ ...download, setAsDefault });
+    expect(appManager.setDefaultModels).not.toHaveBeenCalled();
+  },
+);
+
+it.each([null, 'false', 'true', 1, {}])(
+  'rejects non-boolean setAsDefault %p before downloading',
+  async (setAsDefault) => {
+    const res = await invoke('post', 'download', {
+      body: { ...download, setAsDefault },
+    });
+    expect(res.error).toMatchObject({ status: 400 });
+    expect(runCommand).not.toHaveBeenCalled();
+    expect(appManager.setDefaultModels).not.toHaveBeenCalled();
+  },
+);
+
+it.each([
+  ['embedding', 'bge-m3', 'embeddingModel'],
+  ['reranker', 'bge-reranker-base', 'rerankerModel'],
+  ['clip', 'clip-vit-base-patch16', 'embeddingModel'],
+  ['tts', getAudioModelCatalog('tts')[0].id, 'speechModel'],
+  ['stt', getAudioModelCatalog('stt')[0].id, 'transcriptionModel'],
+])(
+  'sets the %s default to a usable provider ID only after verification',
+  async (type, modelId, field) => {
+    const list = await localModelManager.getList(type as any);
+    const model = list[type].find((item) => item.id === modelId);
+    jest.mocked(runCommand).mockImplementation(async (command) => {
+      expect(appManager.setDefaultModels).not.toHaveBeenCalled();
+      const item = list[type].find((candidate) =>
+        String(command).includes(candidate.repo),
+      );
+      const directory = getLocalModelPath(root, type as any, item.id);
+      if (type === 'tts' || type === 'stt') createAudioModel(directory, item);
+      else createModel(directory);
+      return result();
+    });
+    const response = await invoke('post', 'download', {
+      body: { type, modelId, source: 'modelscope', setAsDefault: true },
+    });
+    expect(response.error).toBeUndefined();
+    expect(response.data.isDownloaded).toBe(true);
+    expect(appManager.setDefaultModels).toHaveBeenCalledTimes(1);
+    expect(appManager.setDefaultModels).toHaveBeenCalledWith({
+      [field]: model.providerModelId,
+    });
+    expect(savedDefaults.model).toBe('remote/chat');
+    expect(savedDefaults[field]).toBe(
+      `local/${model.speechModelId || model.id}`,
+    );
+  },
+);
+
+it.each([
+  ['other', 'rmbg-1.4'],
+  ['ocr', 'ppocrv5-onnx'],
+  [
+    'stt',
+    getAudioModelCatalog('stt').find((model) => model.selectable === false).id,
+  ],
+])(
+  'rejects making non-selectable %s models default without downloading',
+  async (type, modelId) => {
+    const response = await invoke('post', 'download', {
+      body: { type, modelId, source: 'modelscope', setAsDefault: true },
+    });
+    expect(response.error).toMatchObject({ status: 400 });
+    expect(runCommand).not.toHaveBeenCalled();
+  },
+);
+
+it.each(['download', 'verification'])(
+  'does not change defaults after a %s failure',
+  async (failure) => {
+    jest
+      .mocked(runCommand)
+      .mockResolvedValueOnce(result(failure === 'download' ? 1 : 0));
+    const response = await invoke('post', 'download', {
+      body: { ...download, setAsDefault: true },
+    });
+    expect(response.error).toMatchObject({ status: 500 });
+    expect(appManager.setDefaultModels).not.toHaveBeenCalled();
+  },
+);
+
+it('keeps verified files after a default save failure and retries without downloading again', async () => {
+  jest
+    .mocked(appManager.setDefaultModels)
+    .mockRejectedValueOnce(new Error('disk full'));
+  const body = { ...download, setAsDefault: true };
+  const failed = await invoke('post', 'download', { body });
+  expect(failed.error).toMatchObject({ status: 500 });
+  expect(failed.error.message).toContain('Model downloaded');
+  expect(
+    (await localModelManager.getList('embedding')).embedding[0].isDownloaded,
+  ).toBe(true);
+  const retried = await invoke('post', 'download', { body });
+  expect(retried.error).toBeUndefined();
+  expect(runCommand).toHaveBeenCalledTimes(1);
+  expect(savedDefaults.embeddingModel).toBe('local/bge-m3');
+});
+
+it('preserves both type defaults when selected models finish together', async () => {
+  jest.mocked(runCommand).mockImplementation(async (command) => {
+    if (String(command).includes('bge-reranker-base'))
+      createModel(getLocalModelPath(root, 'reranker', 'bge-reranker-base'));
+    else createModel(modelPath);
+    return result();
+  });
+  await Promise.all([
+    localModelManager.downloadModel({ ...download, setAsDefault: true }),
+    localModelManager.downloadModel({
+      ...download,
+      type: 'reranker',
+      modelId: 'bge-reranker-base',
+      setAsDefault: true,
+    }),
+  ]);
+  expect(savedDefaults).toMatchObject({
+    model: 'remote/chat',
+    embeddingModel: 'local/bge-m3',
+    rerankerModel: 'local/bge-reranker-base',
+    speechModel: 'remote/speech',
+  });
 });

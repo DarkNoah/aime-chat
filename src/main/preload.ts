@@ -53,7 +53,11 @@ import {
   SearchKnowledgeBaseResult,
   UpdateKnowledgeBase,
 } from '@/types/knowledge-base';
-import { LocalModelItem, LocalModelType } from '@/types/local-model';
+import {
+  LocalModelItem,
+  LocalModelType,
+  type DownloadLocalModelInput,
+} from '@/types/local-model';
 import {
   CreateProvider,
   ModelType,
@@ -649,7 +653,7 @@ const electronHandler = {
   localModel: {
     getList: (): Promise<Record<LocalModelType, LocalModelItem[]>> =>
       ipcRenderer.invoke(LocalModelChannel.GetList),
-    downloadModel: (data: { modelId: string; type: string; source: string }) =>
+    downloadModel: (data: DownloadLocalModelInput): Promise<LocalModelItem> =>
       ipcRenderer.invoke(LocalModelChannel.DownloadModel, data),
     deleteModel: (modelId: string, type: string) =>
       ipcRenderer.invoke(LocalModelChannel.DeleteModel, modelId, type),

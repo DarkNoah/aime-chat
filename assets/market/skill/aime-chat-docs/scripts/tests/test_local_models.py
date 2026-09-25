@@ -47,6 +47,14 @@ class LocalModelsCliTests(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIsNone(http.call_args.kwargs["timeout"])
 
+    def test_opt_in_default_is_forwarded_to_download(self):
+        with patch.object(local_models.urllib.request, "urlopen", return_value=io.BytesIO(b'{}')) as http:
+            code, _, _ = self.run_cli(["download", "--type", "embedding", "--model-id", "bge-m3", "--set-as-default"])
+        self.assertEqual(code, 0)
+        self.assertEqual(json.loads(http.call_args.args[0].data), {
+            "type": "embedding", "modelId": "bge-m3", "source": "modelscope", "setAsDefault": True,
+        })
+
     def test_download_and_delete_preserve_catalog_id_with_slash(self):
         for action in ("download", "delete"):
             args = [action, "--type", "embedding", "--model-id", "Qwen/Qwen3-Embedding-0.6B", "--timeout", "7200"]

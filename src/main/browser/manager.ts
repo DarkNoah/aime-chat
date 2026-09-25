@@ -31,6 +31,8 @@ import { normalizeBrowserUrl } from './command';
 import { runBrowserCli } from './cli';
 import { readBrowserPage } from './read-page';
 import { browserProfilePath, migrateBrowserProfile } from './profile';
+import { isString } from '@/utils/is';
+import { Browser, chromium, Page } from 'playwright';
 
 interface TabRuntime {
   view: WebContentsView;
@@ -470,8 +472,13 @@ export class ThreadBrowserManager extends EventEmitter {
 
   async run<R>(
     threadId: string,
-    action: () => Promise<R>,
-    signal?: AbortSignal,
+    action: (data: { tab?: CdpTab, browser?: Browser, page?: Page }, signal?: AbortSignal) => Promise<R>,
+    options?: {
+      signal?: AbortSignal,
+      requestPreview?: boolean,
+      newTab?: boolean | string,
+      autoHandleConnect?: boolean,
+    }
   ): Promise<R> {
     const { generation } = this;
     return this.registry.run(
@@ -482,15 +489,43 @@ export class ThreadBrowserManager extends EventEmitter {
           throw new Error('Browser action cancelled by closing all tabs.');
         this.busyThreads.add(threadId);
         this.changed(threadId);
+        let tab: CdpTab | undefined;
+        let browser: Browser | undefined;
+        let page: Page | undefined;
         try {
-          return await action();
+          if (options?.newTab) {
+            if (isString(options.newTab)) {
+              tab = this.createCdpTab(threadId, options.newTab);
+            } else if (options?.newTab === true) {
+              tab = this.createCdpTab(threadId, 'about:blank');
+            }
+            if (tab) this.setRunningTab(threadId, tab.id);
+          }
+
+          if (options?.requestPreview === true && threadId) this.requestPreview(threadId);
+          if (options?.autoHandleConnect === true && tab) {
+            const endpoint = await this.bridge.endpoint(threadId, tab.id);
+            browser = await chromium.connectOverCDP(endpoint, {
+              timeout: 10000,
+            });
+            const context = browser.contexts()[0];
+            page = context?.pages()[0];
+          }
+          return await action({ tab, browser, page }, options?.signal);
+        } catch (err) {
+          console.error(err);
+          throw err;
         } finally {
+          if (options?.autoHandleConnect === true && tab) {
+            await browser?.close().catch(() => undefined);
+            this.bridge.disconnect(threadId, tab.id);
+          }
           this.busyThreads.delete(threadId);
           this.runningTabs.delete(threadId);
           this.changed(threadId);
         }
       },
-      signal,
+      options?.signal
     );
   }
 

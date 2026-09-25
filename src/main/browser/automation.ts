@@ -2,6 +2,7 @@
 import { threadBrowserManager, ThreadBrowserManager } from './manager';
 import { parseBrowserCommands, normalizeBrowserUrl } from './command';
 import { runBrowserCli } from './cli';
+import { CdpTab } from './cdp-bridge';
 
 export { runBrowserCli } from './cli';
 
@@ -19,10 +20,9 @@ export async function executeBrowserCommands(
   const commands = parseBrowserCommands(input.command);
   return manager.run(
     input.threadId,
-    async () => {
+    async (data, _signal?: AbortSignal) => {
       const outputs: string[] = [];
       let targetId = input.tabId;
-      manager.requestPreview(input.threadId);
       for (const originalArgs of commands) {
         if (input.signal?.aborted) throw new Error('Browser action cancelled.');
         const args = originalArgs.filter((arg) => arg !== '--json');
@@ -111,6 +111,9 @@ export async function executeBrowserCommands(
       }
       return outputs.join('\n').slice(-64000);
     },
-    input.signal,
+    {
+      signal: input.signal,
+      requestPreview: false,
+    }
   );
 }

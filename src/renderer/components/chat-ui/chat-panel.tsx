@@ -15,6 +15,7 @@ import React, {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChatInput, ChatInputRef } from './chat-input';
+import { shouldShowManualRetry } from './chat-retry';
 import { LanguageModelUsage, ToolUIPart, UIMessage } from 'ai';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -194,20 +195,6 @@ const getPendingMessageSummary = (text?: string) => {
     .join(', ');
 };
 
-const getLastResponsePart = (message: UIMessage) => {
-  for (let index = message.parts.length - 1; index >= 0; index -= 1) {
-    const part = message.parts[index];
-    if (
-      part.type === 'text' ||
-      part.type === 'reasoning' ||
-      part.type.startsWith('tool-')
-    ) {
-      return part;
-    }
-  }
-  return undefined;
-};
-
 const getUserMessageCreatedAtMs = (message: UIMessage) => {
   const createdAt = (message.metadata as any)?.createdAt;
   if (!createdAt) return undefined;
@@ -249,61 +236,6 @@ const formatResponseDuration = (durationMs: number) => {
   const minutes = Math.floor(durationMs / 60_000);
   const seconds = Math.floor((durationMs % 60_000) / 1000);
   return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
-};
-
-const hasPendingToolInteraction = (message: UIMessage, part: any) => {
-  if (!part?.type?.startsWith('tool-') || !part.toolCallId) {
-    return false;
-  }
-
-  const matchesToolCall = (value: any) => value?.toolCallId === part.toolCallId;
-  const metadata = message.metadata as any;
-
-  return (
-    message.parts.some(
-      (messagePart: any) =>
-        (messagePart.type === 'data-tool-call-approval' ||
-          messagePart.type === 'data-tool-call-suspended') &&
-        matchesToolCall(messagePart.data),
-    ) ||
-    Object.values(metadata?.pendingToolApprovals ?? {}).some(matchesToolCall) ||
-    Object.values(metadata?.suspendedTools ?? {}).some(matchesToolCall)
-  );
-};
-
-const shouldShowManualRetry = (
-  messages: UIMessage[] | undefined,
-  status: ThreadState['status'] | undefined,
-) => {
-  if (status !== 'ready' && status !== 'error') {
-    return false;
-  }
-
-  const visibleMessages =
-    messages?.filter(
-      (message) => (message.metadata as any)?.systemReminder !== true,
-    ) ?? [];
-  const lastMessage = visibleMessages[visibleMessages.length - 1];
-  if (!lastMessage) {
-    return false;
-  }
-  if (lastMessage.role === 'user') {
-    return true;
-  }
-  if (lastMessage.role !== 'assistant') {
-    return false;
-  }
-
-  const lastPart = getLastResponsePart(lastMessage);
-  if (
-    lastPart?.type === 'text' &&
-    typeof lastPart.text === 'string' &&
-    lastPart.text.trim()
-  ) {
-    return false;
-  }
-
-  return !hasPendingToolInteraction(lastMessage, lastPart);
 };
 
 const ChatMessageItem = React.memo(

@@ -2,6 +2,8 @@ import {
   LocalModelItem,
   LocalModelType,
   LocalModelTypes,
+  LOCAL_MODEL_DEFAULT_FIELDS,
+  type DownloadLocalModelInput,
 } from '@/types/local-model';
 import { api } from '../api/ApiController';
 import {
@@ -96,9 +98,12 @@ class LocalModelManager extends BaseManager {
     model: LocalModelItem,
     type: LocalModelType,
     root: string,
+    ignoreOwnOperation = false,
   ): LocalModelItem {
     const modelPath = getLocalModelPath(root, type, model.id);
-    const operation = this.operations.get(`${type}:${model.id}`);
+    const operation = ignoreOwnOperation
+      ? undefined
+      : this.operations.get(`${type}:${model.id}`);
     const isDownloaded =
       !operation &&
       isModelFullyDownloaded(modelPath, model) &&
@@ -153,13 +158,18 @@ class LocalModelManager extends BaseManager {
 
   @api({ method: 'post', path: '/api/local-models/download' })
   @channel(LocalModelChannel.DownloadModel)
-  public async downloadModel(data: {
-    modelId: string;
-    type: string;
-    source: string;
-  }): Promise<LocalModelItem> {
+  public async downloadModel(
+    data: DownloadLocalModelInput,
+  ): Promise<LocalModelItem> {
     const model = getCatalogModel(data?.type, data?.modelId);
-    const { type, source } = data;
+    const { type, source, setAsDefault } = data;
+    if (setAsDefault !== undefined && typeof setAsDefault !== 'boolean') {
+      throw localModelError('setAsDefault must be a boolean');
+    }
+    const defaultField = LOCAL_MODEL_DEFAULT_FIELDS[type as LocalModelType];
+    if (setAsDefault && (!defaultField || model.selectable === false)) {
+      throw localModelError(`This ${type} model cannot be set as a default`);
+    }
     if (
       !['huggingface', 'modelscope'].includes(source) ||
       !model.download?.some((item) => item.source === source) ||
@@ -234,8 +244,32 @@ class LocalModelManager extends BaseManager {
           );
         }
       }
-      this.operations.delete(key);
-      return this.modelStatus(model, type as LocalModelType, appInfo.modelPath);
+      const downloaded = this.modelStatus(
+        model,
+        type as LocalModelType,
+        appInfo.modelPath,
+        true,
+      );
+      if (setAsDefault) {
+        if (!downloaded.isDownloaded || !downloaded.providerModelId) {
+          throw localModelError(
+            'Model is not ready to be set as a default',
+            409,
+          );
+        }
+        try {
+          // Partial, serialized updates preserve defaults set by other downloads.
+          await appManager.setDefaultModels({
+            [defaultField]: downloaded.providerModelId,
+          });
+        } catch {
+          throw localModelError(
+            'Model downloaded, but saving the default model failed. Retry with setAsDefault or update Settings > Default Models.',
+            500,
+          );
+        }
+      }
+      return downloaded;
     } finally {
       this.operations.delete(key);
     }

@@ -30,7 +30,10 @@ export function getFilePreviewKind(
   isBinary: boolean,
   filePath = '',
 ): FilePreviewKind {
-  if (isSupportedModelFile(getFileExtension(filePath))) return 'model';
+  const extension = getFileExtension(filePath);
+  if (isSupportedModelFile(extension)) return 'model';
+  // .ts shares its video/mp2t MIME type with MPEG transport streams.
+  if (extension === 'ts' && !isBinary) return 'text';
   if (mimeType.startsWith('image/')) return 'image';
   if (mimeType.startsWith('audio/')) return 'audio';
   if (mimeType.startsWith('video/')) return 'video';
