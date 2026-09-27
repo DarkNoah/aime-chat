@@ -21,6 +21,7 @@ import mastraManager from '@/main/mastra';
 import { agentManager } from '@/main/mastra/agents';
 import { DEFAULT_RESOURCE_ID, ThreadState } from '@/types/chat';
 import { SpeechToText } from '@/main/tools/audio';
+import { getTranscriptionText } from '@/main/utils/transcription-text';
 import { toolsManager } from '@/main/tools';
 import { ToolType } from '@/types/tool';
 import { projectManager } from '@/main/project';
@@ -475,13 +476,14 @@ export class TelegramChannelRuntime {
             source: filePath,
             output_type: 'text',
           });
-          if (result.text) {
-            console.log("speech to text result:", result.text);
+          const transcription = getTranscriptionText(result);
+          if (transcription) {
+            console.log("speech to text result:", transcription);
             const thread = await this.resolveCurrentThread();
             await this.enqueueThreadMessage({
               ctx,
               chatId,
-              text: result.text,
+              text: transcription,
               threadId: thread.id,
               model: thread.metadata?.model as string,
             });

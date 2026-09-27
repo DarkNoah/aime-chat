@@ -8,6 +8,7 @@ export const LocalModelTypes = [
   'clip',
   'tts',
   'stt',
+  'diarization',
 ] as const;
 export type LocalModelType = (typeof LocalModelTypes)[number];
 export type DownloadLocalModelInput = {
@@ -27,7 +28,12 @@ export const LOCAL_MODEL_DEFAULT_FIELDS: Partial<
   tts: 'speechModel',
   stt: 'transcriptionModel',
 };
-export type LocalModelLibrary = 'transformers' | 'openvino' | 'mlx' | 'pytorch';
+export type LocalModelLibrary =
+  | 'transformers'
+  | 'openvino'
+  | 'mlx'
+  | 'pytorch'
+  | 'pyannote';
 export type LocalModelItem = {
   id: string;
   name?: string;

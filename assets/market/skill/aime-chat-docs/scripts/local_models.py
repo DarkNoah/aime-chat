@@ -11,7 +11,7 @@ import urllib.parse
 import urllib.request
 
 
-MODEL_TYPES = ("embedding", "reranker", "clip", "ocr", "other", "tts", "stt")
+MODEL_TYPES = ("embedding", "reranker", "clip", "ocr", "other", "tts", "stt", "diarization")
 
 
 def positive_number(value):

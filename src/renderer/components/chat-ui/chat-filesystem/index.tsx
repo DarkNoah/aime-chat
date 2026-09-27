@@ -1,3 +1,4 @@
+import type { InlineChatImage } from '@/renderer/lib/inline-chat-image';
 import React, {
   ForwardedRef,
   useCallback,
@@ -13,6 +14,7 @@ import {
   IconEye,
   IconFile,
   IconFilePlus,
+  IconPalette,
   IconFolderPlus,
   IconFolder,
   IconFolderOpen,
@@ -60,9 +62,9 @@ import {
   EntryActions,
   entryActionKeys,
   type EntryTarget,
+  type EntryAction,
   type EntryActionHandler,
 } from './entry-actions';
-import type { WorkspaceEntryAction } from '@/types/workspace-entry';
 import {
   Dialog,
   DialogContent,
@@ -79,6 +81,7 @@ export type ChatFilesystemProps = {
   filePreviewRequest?: ChatFilePreviewRequest;
   className?: string;
   onAddToChat?: (reference: ChatFileSelectionReference) => void;
+  onAddImageToChat?: (image: InlineChatImage) => void;
 };
 
 export interface ChatFilesystemRef {}
@@ -455,6 +458,7 @@ export const ChatFilesystem = React.forwardRef<
     className,
     active = true,
     onAddToChat,
+    onAddImageToChat,
     filePreviewRequest,
   } = props;
   const tabIdPrefix = useId();
@@ -475,7 +479,7 @@ export const ChatFilesystem = React.forwardRef<
   const openFilesRef = useRef(openFiles);
   openFilesRef.current = openFiles;
   const [entryOperation, setEntryOperation] = useState<{
-    action: WorkspaceEntryAction;
+    action: EntryAction;
     target: EntryTarget;
   } | null>(null);
   const [entryName, setEntryName] = useState('');
@@ -524,7 +528,10 @@ export const ChatFilesystem = React.forwardRef<
   };
 
   const handleEntryAction: EntryActionHandler = (action, target) => {
-    setEntryName(action === 'rename' ? target.name : '');
+    let defaultName = '';
+    if (action === 'rename') defaultName = target.name;
+    if (action === 'create-canvas') defaultName = 'Untitled.tldr';
+    setEntryName(defaultName);
     setEntryError(null);
     setEntryOperation({ action, target });
   };
@@ -606,11 +613,19 @@ export const ChatFilesystem = React.forwardRef<
     setEntryBusy(true);
     setEntryError(null);
     try {
+      const canvas = action === 'create-canvas';
+      const content = canvas
+        ? (await import('./tldraw-document.ts')).createEmptyCanvasDocument()
+        : undefined;
       const result = await window.electron.app.mutateWorkspaceEntry({
         workspace,
         path: target.path,
-        action,
-        name: entryName,
+        action: canvas ? 'create-file' : action,
+        name:
+          canvas && !/\.tldr$/i.test(entryName)
+            ? `${entryName}.tldr`
+            : entryName,
+        ...(canvas ? { content } : {}),
       });
       if (workspaceRef.current !== workspace) return;
       if (action === 'rename') {
@@ -630,7 +645,8 @@ export const ChatFilesystem = React.forwardRef<
         setSelectedFilePath((current) =>
           current && affected(current) ? (remaining[0]?.path ?? null) : current,
         );
-      } else if (action === 'create-file') handlePreviewFile(result.path);
+      } else if (action === 'create-file' || canvas)
+        handlePreviewFile(result.path);
       setEntryOperation(null);
       handleClearSearch();
       await loadTree();
@@ -767,6 +783,15 @@ export const ChatFilesystem = React.forwardRef<
             onClick={() => handleEntryAction('create-file', tree)}
           >
             <IconFilePlus className="size-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            title={t('chat.canvas_new')}
+            aria-label={t('chat.canvas_new')}
+            onClick={() => handleEntryAction('create-canvas', tree)}
+          >
+            <IconPalette className="size-4" />
           </Button>
           <Button
             variant="ghost"
@@ -956,6 +981,7 @@ export const ChatFilesystem = React.forwardRef<
                       workspace={workspace}
                       active={active && selectedFilePath === file.path}
                       onAddToChat={onAddToChat}
+                      onAddImageToChat={onAddImageToChat}
                       onDirtyChange={handleDirtyChange}
                       onClose={() => closeFile(file.path, true)}
                     />

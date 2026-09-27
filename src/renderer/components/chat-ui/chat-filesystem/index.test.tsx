@@ -34,6 +34,10 @@ jest.mock('../../ui/scroll-area', () => ({
 const getDirectoryTree = jest.fn();
 const getDirectoryChildren = jest.fn();
 
+jest.mock('./tldraw-document.ts', () => ({
+  createEmptyCanvasDocument: () => '{"tldrawFileFormatVersion":1,"records":[]}',
+}));
+
 jest.mock('./file-workspace', () => ({
   FileWorkspace: ({ filePath, onDirtyChange, onClose }: any) => (
     <div>
@@ -366,6 +370,32 @@ describe('ChatFilesystem', () => {
     );
     expect(await screen.findByTestId('opened-file')).toHaveTextContent(
       '/workspace/new.txt',
+    );
+  });
+
+  it('creates a canvas with initial content and opens it in a file tab', async () => {
+    const mutateWorkspaceEntry = jest
+      .fn()
+      .mockResolvedValue({ path: '/workspace/Drawing.tldr' });
+    window.electron.app.mutateWorkspaceEntry = mutateWorkspaceEntry;
+    render(<ChatFilesystem workspace="/workspace" />);
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'chat.canvas_new' }),
+    );
+    const input = screen.getByRole('textbox', { name: 'chat.file_name' });
+    fireEvent.change(input, { target: { value: 'Drawing' } });
+    fireEvent.submit(input.closest('form')!);
+    await waitFor(() =>
+      expect(mutateWorkspaceEntry).toHaveBeenCalledWith({
+        workspace: '/workspace',
+        path: '/workspace',
+        action: 'create-file',
+        name: 'Drawing.tldr',
+        content: '{"tldrawFileFormatVersion":1,"records":[]}',
+      }),
+    );
+    expect(await screen.findByTestId('opened-file')).toHaveTextContent(
+      '/workspace/Drawing.tldr',
     );
   });
 

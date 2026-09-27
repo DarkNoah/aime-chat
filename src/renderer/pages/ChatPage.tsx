@@ -1,3 +1,4 @@
+import type { InlineChatImage } from '@/renderer/lib/inline-chat-image';
 import { ThreadBrowserChannel } from '@/types/thread-browser';
 /* eslint-disable camelcase */
 /* eslint-disable no-underscore-dangle */
@@ -160,6 +161,9 @@ function ChatPage() {
   const isCompactWindow = useIsCompactWindow();
   const isCompactWindowRef = useRef(isCompactWindow);
   const chatPanelRef = useRef<ChatPanelRef>(null);
+  const handleAddImageToChat = useCallback((image: InlineChatImage) => {
+    chatPanelRef.current?.addImages([image]);
+  }, []);
   const handleAddSelectionToChat = useCallback(
     (reference: ChatFileSelectionReference) => {
       chatPanelRef.current?.insertFileSelections([reference]);
@@ -482,6 +486,7 @@ function ChatPage() {
                 workspace={threadState?.metadata?.workspace as string}
                 part={previewToolPart}
                 onAddToChat={handleAddSelectionToChat}
+                onAddImageToChat={handleAddImageToChat}
                 previewData={previewData}
                 onPreviewDataChange={(value) => {
                   setPreviewData(value);

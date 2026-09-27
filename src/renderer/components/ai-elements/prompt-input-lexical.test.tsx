@@ -626,3 +626,56 @@ describe('PromptInputTextarea mentions', () => {
     expect(screen.getByRole('textbox').textContent).toBe('reference.pdf');
   });
 });
+
+function AddCanvasImage() {
+  const controller = usePromptInputController();
+  return (
+    <button
+      type="button"
+      onClick={() =>
+        controller.attachments.addImages([
+          {
+            type: 'file',
+            mediaType: 'image/png',
+            filename: 'canvas.png',
+            url: 'data:image/png;base64,cG5n',
+            // Runtime callers must not be able to turn an in-memory image into a local reference.
+            path: '/should-not-be-used.png',
+          } as any,
+        ])
+      }
+    >
+      Add canvas image
+    </button>
+  );
+}
+
+it('submits canvas images as base64 message parts and strips local path metadata', async () => {
+  const submit = jest.fn();
+  render(
+    <PromptInputProvider>
+      <PromptInput onSubmit={submit}>
+        <AddCanvasImage />
+        <button type="submit">Send canvas</button>
+      </PromptInput>
+    </PromptInputProvider>,
+  );
+  fireEvent.click(screen.getByText('Add canvas image'));
+  fireEvent.click(screen.getByText('Send canvas'));
+  await waitFor(() =>
+    expect(submit).toHaveBeenCalledWith(
+      {
+        text: '',
+        files: [
+          {
+            type: 'file',
+            mediaType: 'image/png',
+            filename: 'canvas.png',
+            url: 'data:image/png;base64,cG5n',
+          },
+        ],
+      },
+      expect.anything(),
+    ),
+  );
+});

@@ -19,6 +19,7 @@ import { appManager } from '@/main/app';
 import { projectManager } from '@/main/project';
 import { toolsManager } from '@/main/tools';
 import { SpeechToText } from '@/main/tools/audio';
+import { getTranscriptionText } from '@/main/utils/transcription-text';
 import { nanoid } from '@/utils/nanoid';
 import { ToolType } from '@/types/tool';
 import { DEFAULT_RESOURCE_ID, type ThreadState } from '@/types/chat';
@@ -1664,10 +1665,7 @@ export class WeixinChannelRuntime {
         source: filePath,
         output_type: 'text',
       });
-      if (typeof result === 'string') {
-        return result.trim() || undefined;
-      }
-      return result?.text?.trim() || undefined;
+      return getTranscriptionText(result);
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
       this.callbacks.onActivity(

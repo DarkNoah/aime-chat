@@ -48,7 +48,16 @@ export async function mutateWorkspaceEntry(
   assertWithin(root, await fs.realpath(parent), true);
   const destination = path.join(parent, name);
   if (action === 'create-file') {
-    await fs.writeFile(destination, '', { flag: 'wx' });
+    if (
+      operation.content !== undefined &&
+      typeof operation.content !== 'string'
+    ) {
+      throw new Error('Initial file content must be text');
+    }
+    await fs.writeFile(destination, operation.content ?? '', {
+      flag: 'wx',
+      encoding: 'utf8',
+    });
   } else if (action === 'create-directory') {
     await fs.mkdir(destination);
   } else {

@@ -108,6 +108,7 @@ type SubtitleSegment = {
   startSecond: number;
   endSecond: number;
   text: string;
+  speaker?: string;
 };
 
 function toFiniteNumber(value: unknown): number | undefined {
@@ -157,18 +158,19 @@ function normalizeTimedSegments(rawSegments: unknown): SubtitleSegment[] {
  *   split at every strong punct (.!?。！？) and every weak punct (,;:、，；：…).
  *   This produces fine-grained "clause" segments that respect natural language
  *   boundaries. Display text is extracted from the raw ASR string so commas,
- *   question marks, etc. are preserved; trailing periods/。 are stripped.
+ *   question marks, etc. are preserved while deciding boundaries. Trailing
+ *   punctuation/symbols are stripped only from the final subtitle segments.
  *
- * Pass 2 — "merge small / split large":
- *   Walk the clause segments and merge consecutive ones that are too short
- *   (< MIN_UNITS or < MIN_DURATION) into the next clause. Then split any
- *   segment that is still too long (> MAX_UNITS or > MAX_DURATION) at the
- *   best interior punctuation point, or at a word boundary near the midpoint.
+ * Pass 2 — "join continuations / split large":
+ *   Treat weak punctuation and brief within-sentence pauses as soft boundaries.
+ *   Join consecutive clauses within the width/duration budget, but never cross
+ *   a sentence ending, speaker change or long pause. Split oversized clauses
+ *   repeatedly at punctuation or a word boundary near the midpoint.
  *
- * This ensures every subtitle line is a complete phrase/clause, never cuts
- * in the middle of a word, and stays within comfortable reading length.
+ * Prefer complete phrases without cutting alignment tokens or rewriting ASR.
+ * A single oversized token cannot be split without inventing timestamps.
  */
-function buildSentenceSegments(
+export function buildSentenceSegments(
   asrText: string,
   alignmentSegments: SubtitleSegment[],
 ): SubtitleSegment[] {
@@ -178,14 +180,21 @@ function buildSentenceSegments(
   const STRONG_END = new Set('.!?\u3002\uff01\uff1f');
   const WEAK_BREAK = new Set(',;:\u3001\uff0c\uff1b\uff1a\u2026');
   const ALL_PUNCT = new Set([...STRONG_END, ...WEAK_BREAK]);
-  const TRAILING_PERIOD = new Set('.\u3002');
+  const cleanSegments = (segments: SubtitleSegment[]): SubtitleSegment[] =>
+    segments
+      .map((segment) => ({
+        ...segment,
+        // Unicode punctuation/symbols cover both Chinese and English. Include
+        // emoji presentation selectors/joiners so symbol sequences strip fully.
+        text: segment.text.replace(/[\p{P}\p{S}\s\uFE0E\uFE0F\u200D]+$/u, ''),
+      }))
+      .filter((segment) => segment.text.length > 0);
 
   // -- Sizing constants --
-  const MIN_UNITS = 6;
   const MAX_UNITS = 30;
-  const MIN_DURATION = 0.8;
   const MAX_DURATION = 8.0;
   const GAP_BREAK_SEC = 0.5;
+  const MAX_CONTINUATION_GAP_SEC = 0.8;
 
   const normChar = (ch: string): string =>
     ch >= 'A' && ch <= 'Z' ? ch.toLowerCase() : ch;
@@ -315,13 +324,7 @@ function buildSentenceSegments(
       else break;
     }
 
-    let text = asrChars.slice(rawStart, rawEnd + 1).join('').trim();
-
-    // Strip trailing periods / 。 (keep ! ? etc.)
-    while (text.length > 0 && TRAILING_PERIOD.has(text[text.length - 1])) {
-      text = text.slice(0, -1).trimEnd();
-    }
-    return text;
+    return asrChars.slice(rawStart, rawEnd + 1).join('').trim();
   };
 
   // =====================================================================
@@ -346,6 +349,7 @@ function buildSentenceSegments(
 
     const shouldSplit =
       isLast ||
+      alignmentSegments[i].speaker !== alignmentSegments[i + 1]?.speaker ||
       boundary === 'strong' ||
       boundary === 'weak' ||
       gapToNext >= GAP_BREAK_SEC;
@@ -362,11 +366,13 @@ function buildSentenceSegments(
   }
 
   if (clauses.length === 0) {
-    return alignmentSegments.map((seg) => ({ ...seg, text: seg.text.trim() }));
+    return cleanSegments(
+      alignmentSegments.map((seg) => ({ ...seg, text: seg.text.trim() })),
+    );
   }
 
   // =====================================================================
-  // Pass 2a: Merge small clauses forward
+  // Pass 2a: Join same-speaker continuations within the reading budget
   // =====================================================================
   const merged: ClauseSegment[] = [];
   let acc: ClauseSegment | undefined;
@@ -377,13 +383,18 @@ function buildSentenceSegments(
       continue;
     }
 
-    // Compute accumulated units & duration
-    const accText = extractText(acc.startTok, acc.endTok);
-    const accUnits = estimateUnits(accText);
-    const accDuration = acc.endSecond - acc.startSecond;
+    const combinedText = extractText(acc.startTok, clause.endTok);
+    const gap = clause.startSecond - acc.endSecond;
 
-    if (accUnits < MIN_UNITS && accDuration < MIN_DURATION) {
-      // Too small — merge with next clause
+    if (
+      tokenBoundary[acc.endTok] !== 'strong' &&
+      gap <= MAX_CONTINUATION_GAP_SEC &&
+      estimateUnits(combinedText) <= MAX_UNITS &&
+      clause.endSecond - acc.startSecond <= MAX_DURATION &&
+      alignmentSegments[acc.startTok].speaker ===
+        alignmentSegments[clause.startTok].speaker
+    ) {
+      // A comma/short pause alone does not make a complete subtitle.
       acc.endTok = clause.endTok;
       acc.endSecond = clause.endSecond;
     } else {
@@ -397,8 +408,10 @@ function buildSentenceSegments(
   // Pass 2b: Split oversized segments at best interior boundary
   // =====================================================================
   const finalSegments: SubtitleSegment[] = [];
+  const pending = [...merged].reverse();
 
-  for (const seg of merged) {
+  while (pending.length > 0) {
+    const seg = pending.pop()!;
     const text = extractText(seg.startTok, seg.endTok);
     const units = estimateUnits(text);
     const duration = seg.endSecond - seg.startSecond;
@@ -408,6 +421,7 @@ function buildSentenceSegments(
         finalSegments.push({
           startSecond: seg.startSecond,
           endSecond: seg.endSecond,
+          speaker: alignmentSegments[seg.startTok].speaker,
           text,
         });
       }
@@ -442,35 +456,37 @@ function buildSentenceSegments(
     const splitAt = bestPunctSplit >= 0 ? bestPunctSplit : bestAnySplit;
 
     if (splitAt >= 0 && splitAt < seg.endTok) {
-      const text1 = extractText(seg.startTok, splitAt);
-      const text2 = extractText(splitAt + 1, seg.endTok);
-      if (text1) {
-        finalSegments.push({
-          startSecond: seg.startSecond,
-          endSecond: alignmentSegments[splitAt].endSecond,
-          text: text1,
-        });
-      }
-      if (text2) {
-        finalSegments.push({
+      // Push right first so the stack emits subtitles in chronological order.
+      pending.push(
+        {
+          startTok: splitAt + 1,
+          endTok: seg.endTok,
           startSecond: alignmentSegments[splitAt + 1].startSecond,
           endSecond: seg.endSecond,
-          text: text2,
-        });
-      }
+        },
+        {
+          startTok: seg.startTok,
+          endTok: splitAt,
+          startSecond: seg.startSecond,
+          endSecond: alignmentSegments[splitAt].endSecond,
+        },
+      );
     } else {
       // Can't split further, emit as-is
       if (text) {
         finalSegments.push({
           startSecond: seg.startSecond,
           endSecond: seg.endSecond,
+          speaker: alignmentSegments[seg.startTok].speaker,
           text,
         });
       }
     }
   }
 
-  return finalSegments.length > 0 ? finalSegments : alignmentSegments;
+  return cleanSegments(
+    finalSegments.length > 0 ? finalSegments : alignmentSegments,
+  );
 }
 
 /**
@@ -670,7 +686,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text`
     const start = formatAssTime(seg.startSecond);
     const end = formatAssTime(seg.endSecond);
     const text = seg.text.replace(/\n/g, '\\N');
-    return `Dialogue: 0,${start},${end},${styleName},,0,0,0,,${text}`;
+    return `Dialogue: 0,${start},${end},${styleName},${seg.speaker || ''},0,0,0,,${text}`;
   });
 
   return header + '\n' + dialogueLines.join('\n') + '\n';
@@ -680,6 +696,26 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text`
 // SpeechToText Tool
 // ---------------------------------------------------------------------------
 
+function formatTranscriptionOutput(
+  text: string,
+  duration?: number,
+  savePath?: string,
+) {
+  const reminders: string[] = [];
+  if (typeof duration === 'number' && Number.isFinite(duration)) {
+    reminders.push(`This audio file duration is ${duration.toFixed(2)}s.`);
+  }
+  if (savePath) reminders.push(`File saved to: <file>${savePath}</file>`);
+  const reminder = reminders.length
+    ? `<system-reminder>\n${reminders.join('\n')}\n</system-reminder>\n`
+    : '';
+  return truncateText(
+    `${reminder}<transcription-text>\n${text}\n</transcription-text>`,
+    MAX_TRANSCRIPTION_OUTPUT_LINES,
+    'lines',
+  );
+}
+
 export interface SpeechToTextParams extends BaseToolParams {
   modelId?: string;
 }
@@ -687,18 +723,68 @@ export interface SpeechToTextParams extends BaseToolParams {
 export class SpeechToText extends BaseTool {
   static readonly toolName = 'SpeechToText';
   id: string = 'SpeechToText';
-  description = `Transcribe speech from audio or video files to text, SRT subtitles, or ASS subtitles.
-Local speech models must first be downloaded in Settings > Local Models > STT; inference does not download weights.
+  description = `Transcribe audio/video to readable text, structured JSON, SRT, or ASS.
+Supports local paths and HTTP/HTTPS URLs; video audio is extracted automatically.
+Audio: wav, mp3, flac, aac, ogg, oga, m4a, wma, opus. Video: mp4, mkv, avi, mov, flv, wmv, webm.
 
-Supports:
-- Audio files: wav, mp3, flac, aac, ogg, oga, m4a, wma, opus
-- Video files: mp4, mkv, avi, mov, flv, wmv, webm (audio will be extracted automatically)
-- URL input: HTTP/HTTPS URLs pointing to audio or video files
+Missing local models:
+Read skill:local:aime-chat-docs (references/local-models.md) and use its scripts/local_models.py to download missing models before retrying. Do not silently fall back to diarize=false.
+For Pyannote: python "\${AIME_CHAT_SKILL_PATH}/aime-chat-docs/scripts/local_models.py" download --type diarization --model-id pyannote/speaker-diarization-community-1
+Verify completion with: python "\${AIME_CHAT_SKILL_PATH}/aime-chat-docs/scripts/local_models.py" list --type diarization
+For a missing local STT model, use the same script with --type stt and the exact model ID from the error/catalog (without the local/ provider prefix).
+The script defaults to ModelScope; omit --timeout. Wait for isDownloaded=true, then retry SpeechToText. This uses the Local Models module to download actual weights; inference itself never downloads them. The script requires the Aime Chat local API server and AIME_CHAT_API_BASE_URL as documented in the skill.
 
-Output types:
-- "text": Returns the transcribed text directly
-- "srt": Generates an SRT subtitle file from the transcription and returns the file path
-- "ass": Generates an ASS subtitle file from the transcription and returns the file path`;
+diarize defaults to false. Set diarize=true to label speakers with local Pyannote Community-1. It requires ASR timestamps; local Qwen3 ASR uses word alignment. Speaker labels such as SPEAKER_00 are anonymous, not identities; unmatched segments use UNKNOWN. Other providers are assigned at their returned timestamp granularity.
+
+Output formats and examples:
+save_path supports every format. With a nonempty path, save the complete native file (.txt/.srt/.ass/.json) before returning the preview. Relative paths use the workspace. For text/JSON, omitted/null/empty save_path means no file and no save-path field/message. SRT/ASS keep an auto-generated filename when save_path is empty. Text/subtitle previews are limited to 1000 lines; saved files and JSON objects are complete.
+
+1. output_type="text", diarize=true, save_path="/path_to_file.txt". Returns a string directly:
+<system-reminder>
+This audio file duration is 71.98s.
+File saved to: <file>/path_to_file.txt</file>
+</system-reminder>
+<transcription-text>
+[SPEAKER_00] 你好，请问今天想喝点什么呢
+[SPEAKER_01] 一杯咖啡，谢谢
+</transcription-text>
+The saved .txt contains only the transcript, including speaker labels. With diarize=false, transcript lines are plain text, e.g. "你好，请问今天想喝点什么呢" without speaker labels. Without save_path, omit the File saved to line. Duration is shown to two decimals when available.
+
+2. output_type="srt", diarize=true, save_path="/path_to_file.srt":
+<system-reminder>
+This audio file duration is 71.98s.
+File saved to: <file>/path_to_file.srt</file>
+</system-reminder>
+<transcription-text>
+1
+00:00:00,560 --> 00:00:01,920
+[SPEAKER_00] 你好，请问今天想喝点什么呢
+
+2
+00:00:02,000 --> 00:00:03,000
+[SPEAKER_01] 一杯咖啡，谢谢
+</transcription-text>
+With diarize=false, a cue is:
+1
+00:00:00,560 --> 00:00:01,920
+你好，请问今天想喝点什么呢
+
+3. output_type="ass", diarize=true, save_path="/path_to_file.ass". The same reminder/transcription-text layout is used; complete ASS header and styles are saved and previewed. Dialogue excerpt:
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:00.56,0:00:01.92,Default,SPEAKER_00,0,0,0,,你好，请问今天想喝点什么呢
+Dialogue: 0,0:00:02.00,0:00:03.00,Default,SPEAKER_01,0,0,0,,一杯咖啡，谢谢
+Speaker IDs go in Name; Text never contains injected [SPEAKER_00] labels. With diarize=false, Name is empty:
+Dialogue: 0,0:00:00.56,0:00:01.92,Default,,0,0,0,,你好，请问今天想喝点什么呢
+ass_style optionally customizes ASS styles.
+
+4. output_type="json", diarize=true, save_path="/path_to_file.json" returns this object and saves the same JSON:
+{"savePath":"/path_to_file.json","diarize":true,"duration":71.981,"segments":[{"start":0.56,"end":1.92,"text":"你好，请问今天想喝点什么呢","speaker":"SPEAKER_00"},{"start":2,"end":3,"text":"一杯咖啡，谢谢","speaker":"SPEAKER_01"}]}
+With diarize=false and no save_path:
+{"diarize":false,"duration":71.981,"segments":[{"start":0.56,"end":1.92,"text":"你好，请问今天想喝点什么呢"},{"start":2,"end":3,"text":"一杯咖啡，谢谢"}]}
+All four formats use the same subtitle-level segments and split on speaker changes. Strip all trailing punctuation and symbols from each final segment (Chinese/English included), preserving punctuation inside the segment. JSON uses seconds, preserves duration precision, and omits speaker when diarize=false. savePath is omitted when no file is requested. Unknown duration is null; missing timestamps give segments=[] when diarize=false. JSON has no transcript tags or extra format/text/language fields.
+
+Example call with speaker separation: {"source":"meeting.wav","output_type":"json","diarize":true}.
+If diarize=true and ASR provides no timestamps, the tool fails with a clear message. With diarize=false, SRT/ASS without timestamps return a text explanation instead of fabricating a subtitle file.`;
 
 
 
@@ -710,17 +796,24 @@ Output types:
       .describe(
         'Path to a local audio/video file or a URL pointing to an audio/video resource',
       ),
+    diarize: z
+      .boolean()
+      .optional()
+      .default(false)
+      .describe(
+        'Separate speakers with local Pyannote. Text/SRT use [SPEAKER_00] labels; ASS uses the Name field without labels in Text; JSON segments include speaker. Requires ASR timestamps. If the model is missing, use skill:local:aime-chat-docs scripts/local_models.py to download it, verify isDownloaded=true, then retry.',
+      ),
     output_type: z
-      .enum(['text', 'srt', 'ass'])
+      .enum(['text', 'json', 'srt', 'ass'])
       .default('text')
       .describe(
-        'Output format: "text" for plain text, "srt" for SRT subtitle file, "ass" for ASS subtitle file',
+        'Output format: "text" for readable text, "json" for duration and timed segments (speaker fields when diarize=true), "srt" for an SRT file, "ass" for an ASS file. All formats support save_path. See tool description for examples.',
       ),
     save_path: z
       .string()
-      .optional()
+      .nullish()
       .describe(
-        'Custom save path for output file (only used when output_type is "srt" or "ass")',
+        'Save the complete output to this path for any format (.txt, .json, .srt, .ass). Relative paths use the workspace. Omitted, null or empty: text/JSON do not save a file; SRT/ASS use an auto-generated filename.',
       ),
     ass_style: z
       .record(z.any())
@@ -737,11 +830,16 @@ Output types:
   }
 
   execute = async (
-    inputData: z.infer<typeof this.inputSchema>,
+    inputData: z.input<typeof this.inputSchema>,
     context?: ToolExecutionContext,
   ) => {
-    const { source, output_type, save_path, ass_style } =
-      this.inputSchema.parse(inputData);
+    const {
+      source,
+      output_type: outputType,
+      save_path,
+      ass_style,
+      diarize,
+    } = this.inputSchema.parse(inputData);
     context?.abortSignal?.throwIfAborted();
     const workspace =
       (context?.requestContext?.get('workspace' as never) as string) ||
@@ -753,8 +851,22 @@ Output types:
       throw new Error('Model is not set');
     }
     const tempFiles: string[] = [];
+    let diarization:
+      | Awaited<
+          ReturnType<
+            (typeof import('@/main/utils/speaker-diarization'))['acquireSpeakerDiarization']
+          >
+        >
+      | undefined;
+    let audioPath: string | undefined;
 
     try {
+      if (diarize) {
+        const { acquireSpeakerDiarization } =
+          await import('@/main/utils/speaker-diarization');
+        diarization = await acquireSpeakerDiarization();
+        context?.abortSignal?.throwIfAborted();
+      }
       const provider = await providersManager.getProvider(modelId.split('/')[0]);
       if (!provider) throw new Error('Provider not found');
       const transcriptionModel = provider.transcriptionModel?.(
@@ -764,6 +876,7 @@ Output types:
         throw new Error('The selected provider does not support transcription');
       let result: Awaited<ReturnType<TranscriptionModelV2['doGenerate']>>;
       if (
+        !diarize &&
         isUrl(source) &&
         transcriptionModel.doGenerateFromUrl &&
         (transcriptionModel.canGenerateFromUrl?.(source) ?? true)
@@ -794,12 +907,11 @@ Output types:
         // 2. Convert video / non-WAV to WAV if needed
         // -----------------------------------------------------------------
         const ext = path.extname(localPath).toLowerCase();
-        let audioPath: string;
 
         if (VIDEO_EXTENSIONS.has(ext)) {
           audioPath = await convertToWav(localPath);
           tempFiles.push(audioPath);
-        } else if (AUDIO_EXTENSIONS.has(ext) && ext !== '.wav') {
+        } else if ((diarize || AUDIO_EXTENSIONS.has(ext)) && ext !== '.wav') {
           // Non-WAV audio �?convert for best ASR compatibility
           audioPath = await convertToWav(localPath);
           tempFiles.push(audioPath);
@@ -818,99 +930,109 @@ Output types:
           audio: buffer,
           mediaType: mime.lookup(audioPath) || 'audio/wav',
           abortSignal: context?.abortSignal,
-          providerOptions: { openai: { timestampGranularities: ['word'] } },
+          providerOptions: {
+            openai: { timestampGranularities: ['word'] },
+            ...(diarize ? { local: { wordTimestamps: true } } : {}),
+          },
         });
       }
       context?.abortSignal?.throwIfAborted();
 
       //const result = asrResult.result;
-      const text: string = result.text || '';
+      let text: string = result.text || '';
       const timedSegments = normalizeTimedSegments(
         (result as { segments?: unknown }).segments,
       );
+      if (diarization) {
+        if (text.trim() && timedSegments.length === 0) {
+          throw new Error(
+            'Speaker diarization requires transcription timestamps. Select a timestamp-capable STT model (for example local Qwen3 ASR), or set diarize=false.',
+          );
+        }
+        if (timedSegments.length) {
+          const turns = await diarization.run(audioPath!, context?.abortSignal);
+          const { speakerForSegment } =
+            await import('@/main/utils/speaker-diarization');
+          for (const segment of timedSegments) {
+            segment.speaker = speakerForSegment(
+              segment.startSecond,
+              segment.endSecond,
+              turns,
+            );
+          }
+        }
+      }
+      const requestedSavePath = save_path?.trim()
+        ? path.resolve(workspace || app.getPath('temp'), save_path)
+        : undefined;
+      // All formats share the same subtitle boundaries, including speaker changes.
       const subtitleSegments = buildSentenceSegments(text, timedSegments);
-      // const sentenceSegments: Array<{
-      //   start: number;
-      //   end: number;
-      //   text: string;
-      // }> = result. || result.segments || [];
-
-      // -----------------------------------------------------------------
-      // 4. Format output based on output_type
-      // -----------------------------------------------------------------
-      let system_reminder = '';
-      if (result.durationInSeconds) {
-        system_reminder = `<system-reminder>This audio file duration is ${result.durationInSeconds?.toFixed(2)}s.</system-reminder>`;
-      }
-      if (output_type === 'text') {
-        return {
-          durationInSeconds: result.durationInSeconds,
-          text: truncateText(text, MAX_TRANSCRIPTION_OUTPUT_LINES, 'lines'),
+      if (outputType === 'json') {
+        const output = {
+          ...(requestedSavePath ? { savePath: requestedSavePath } : {}),
+          diarize,
+          duration: result.durationInSeconds ?? null,
+          segments: subtitleSegments.map((segment) => ({
+            start: segment.startSecond,
+            end: segment.endSecond,
+            text: segment.text,
+            ...(diarize ? { speaker: segment.speaker || 'UNKNOWN' } : {}),
+          })),
         };
-      }
-
-      if (output_type === 'srt') {
-        if (subtitleSegments.length === 0) {
-          return truncateText(
-            'No timed segments available for SRT generation. Transcribed text: ' +
-              text,
-            MAX_TRANSCRIPTION_OUTPUT_LINES,
-            'lines',
+        if (requestedSavePath) {
+          await saveFile(
+            Buffer.from(JSON.stringify(output, null, 2), 'utf-8'),
+            requestedSavePath,
+            workspace,
           );
         }
-        const srtContent = generateSrtContent(subtitleSegments);
-        const fileName = save_path || `${nanoid()}.srt`;
-        const filePath = await saveFile(
-          Buffer.from(srtContent, 'utf-8'),
-          fileName,
-          workspace,
-        );
-        const fileContent = await fs.promises.readFile(filePath, 'utf-8');
+        return output;
+      }
+      const labeledSegments = subtitleSegments.map((segment) => ({
+        ...segment,
+        text: diarize
+          ? `[${segment.speaker || 'UNKNOWN'}] ${segment.text}`
+          : segment.text,
+      }));
+      if (outputType === 'text') {
+        text = timedSegments.length
+          ? labeledSegments.map((segment) => segment.text).join('\n')
+          : text;
+        const savedPath = requestedSavePath
+          ? await saveFile(
+              Buffer.from(text, 'utf-8'),
+              requestedSavePath,
+              workspace,
+            )
+          : undefined;
+        return formatTranscriptionOutput(text, result.durationInSeconds, savedPath);
+      }
+      if (subtitleSegments.length === 0) {
         return truncateText(
-          `${system_reminder}
-File saved to: <file>${filePath}</file>
-<transcription-text>
-${fileContent}
-</transcription-text>`,
+          `No timed segments available for ${outputType.toUpperCase()} generation. Transcribed text: ${text}`,
           MAX_TRANSCRIPTION_OUTPUT_LINES,
           'lines',
         );
       }
-
-      if (output_type === 'ass') {
-        if (subtitleSegments.length === 0) {
-          return truncateText(
-            'No timed segments available for ASS generation. Transcribed text: ' +
-              text,
-            MAX_TRANSCRIPTION_OUTPUT_LINES,
-            'lines',
-          );
-        }
-        const assStyleOptions = normalizeAssStyleInput(ass_style);
-        const assContent = generateAssContent(
-          subtitleSegments,
-          assStyleOptions,
-        );
-        const fileName = save_path || `${nanoid()}.ass`;
-        const filePath = await saveFile(
-          Buffer.from(assContent, 'utf-8'),
-          fileName,
-          workspace,
-        );
-        const fileContent = await fs.promises.readFile(filePath, 'utf-8');
-        return truncateText(
-          `${system_reminder}
-File saved to: <file>${filePath}</file>
-<transcription-text>
-${fileContent}
-</transcription-text>`,
-          MAX_TRANSCRIPTION_OUTPUT_LINES,
-          'lines',
-        );
-      }
-
-      return truncateText(text, MAX_TRANSCRIPTION_OUTPUT_LINES, 'lines');
+      const fileContent =
+        outputType === 'srt'
+          ? generateSrtContent(labeledSegments)
+          : generateAssContent(
+              subtitleSegments,
+              normalizeAssStyleInput(ass_style),
+            );
+      const savedPath = await saveFile(
+        Buffer.from(fileContent, 'utf-8'),
+        requestedSavePath || `${nanoid()}.${outputType}`,
+        workspace,
+      );
+      return formatTranscriptionOutput(
+        fileContent,
+        result.durationInSeconds,
+        savedPath,
+      );
     } finally {
+      diarization?.release();
       // -----------------------------------------------------------------
       // 5. Cleanup temporary files
       // -----------------------------------------------------------------
@@ -927,23 +1049,18 @@ ${fileContent}
   };
 
   toModelOutput = (output: any) => {
+    if (isObject(output) && 'segments' in output && 'diarize' in output) {
+      return { type: 'json', value: output };
+    }
     if (isString(output))
       return truncateText(output, MAX_TRANSCRIPTION_OUTPUT_LINES, 'lines');
-    else if (isObject(output) && 'text' in output) {
-      let system_reminder = '';
-      if (output.durationInSeconds) {
-        system_reminder = `<system-reminder>This audio file duration is ${output.durationInSeconds?.toFixed(2)}s.</system-reminder>`;
-      }
-
+    if (isObject(output) && 'text' in output) {
       return {
         type: 'text',
-        value: truncateText(
-          `${system_reminder}
-<transcription-text>
-${output.text}
-</transcription-text>`,
-          MAX_TRANSCRIPTION_OUTPUT_LINES,
-          'lines',
+        value: formatTranscriptionOutput(
+          output.text,
+          output.durationInSeconds,
+          output.savePath,
         ),
       };
     }

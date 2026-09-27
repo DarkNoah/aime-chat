@@ -13,6 +13,7 @@ import { DefaultModelSettings } from '../../app/default-models';
 import type { AppInfo } from '@/types/app';
 import type { LocalModelItem } from '@/types/local-model';
 import { getAudioModelCatalog, resolveSpeechModelId } from '../audio-models';
+import { diarizationModels } from '../diarization-models';
 import {
   buildModelDownloadCommand,
   DOWNLOAD_MARKER,
@@ -90,6 +91,76 @@ it('keeps undownloaded audio out of selectors and never downloads during acquisi
   ).rejects.toThrow('Settings > Local Models');
   expect(runCommand).not.toHaveBeenCalled();
 });
+
+it.each(['stt', 'diarization'] as const)(
+  'points missing %s models to the docs download script and readiness check',
+  async (type) => {
+    const model =
+      type === 'stt' ? getAudioModelCatalog('stt')[0] : diarizationModels[0];
+    const error = await localModelManager
+      .acquireAudioModel(type, model.id)
+      .catch((err: Error) => err);
+    expect(error).toBeInstanceOf(Error);
+    const { message } = error as Error;
+    expect(message).toContain(
+      'skill:local:aime-chat-docs (references/local-models.md)',
+    );
+    expect(message).toContain(
+      `python "\${AIME_CHAT_SKILL_PATH}/aime-chat-docs/scripts/local_models.py" download --type ${type} --model-id ${model.id}`,
+    );
+    expect(message).toContain(`list --type ${type}`);
+    expect(message).toContain('isDownloaded=true');
+    expect(runCommand).not.toHaveBeenCalled();
+  },
+);
+
+it.each(['modelscope', 'huggingface'])(
+  'manages all Pyannote model files through %s',
+  async (source) => {
+    const model = diarizationModels[0];
+    const directory = getLocalModelPath(root, 'diarization', model.id);
+    await expect(
+      localModelManager.acquireAudioModel('diarization', model.id),
+    ).rejects.toThrow('Settings > Local Models');
+    expect(runCommand).not.toHaveBeenCalled();
+    jest.mocked(runCommand).mockImplementationOnce(async () => {
+      for (const file of model.requiredFiles) {
+        const target = path.join(directory, file);
+        fs.mkdirSync(path.dirname(target), { recursive: true });
+        fs.writeFileSync(target, 'model fixture');
+      }
+      return result();
+    });
+    const downloaded = await localModelManager.downloadModel({
+      type: 'diarization',
+      modelId: model.id,
+      source,
+    });
+    expect(downloaded.isDownloaded).toBe(true);
+    expect(downloaded.providerModelId).toBeUndefined();
+    const lease = await localModelManager.acquireAudioModel(
+      'diarization',
+      model.id,
+    );
+    expect(lease.modelPaths[model.id]).toBe(directory);
+    await expect(
+      localModelManager.deleteModel(model.id, 'diarization'),
+    ).rejects.toMatchObject({ status: 409 });
+    lease.release();
+    const weight = path.join(directory, 'embedding/pytorch_model.bin');
+    fs.writeFileSync(
+      weight,
+      'version https://git-lfs.github.com/spec/v1\noid sha256:test',
+    );
+    expect(isModelFullyDownloaded(directory, model)).toBe(false);
+    fs.rmSync(weight);
+    await expect(
+      localModelManager.acquireAudioModel('diarization', model.id),
+    ).rejects.toThrow('incomplete');
+    await localModelManager.deleteModel(model.id, 'diarization');
+    expect(fs.existsSync(directory)).toBe(false);
+  },
+);
 
 it.each(['huggingface', 'modelscope'])(
   'downloads ASR and its aligner from %s and tracks dependency deletion',

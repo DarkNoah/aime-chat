@@ -41,6 +41,10 @@ import {
   getFileReferenceName,
   type ChatFileReference,
 } from '@/renderer/lib/chat-file-reference';
+import {
+  createInlineChatImage,
+  type InlineChatImage,
+} from '@/renderer/lib/inline-chat-image';
 import type { ChatFileSelectionReference } from '@/renderer/lib/chat-file-selection';
 import type { ChatStatus, FileUIPart } from 'ai';
 import {
@@ -88,6 +92,7 @@ export type { PromptInputSlashItem } from './prompt-input-slash-items';
 export type AttachmentsContext = {
   files: (FileUIPart & { id: string })[];
   add: (files: File[] | FileList) => void;
+  addImages: (images: InlineChatImage[]) => void;
   addInline?: (files: File[] | FileList) => void;
   remove: (id: string) => void;
   clear: () => void;
@@ -300,10 +305,18 @@ export function PromptInputProvider({
     );
   }, []);
 
+  const addImages = useCallback((images: InlineChatImage[]) => {
+    const incoming = images.map((image) => ({
+      ...createInlineChatImage(image.url, image.filename),
+      id: nanoid(),
+    }));
+    setAttachements((previous) => [...previous, ...incoming]);
+  }, []);
+
   const remove = useCallback((id: string) => {
     setAttachements((prev) => {
       const found = prev.find((f) => f.id === id);
-      if (found?.url) {
+      if (found?.url?.startsWith('blob:')) {
         URL.revokeObjectURL(found.url);
       }
       return prev.filter((f) => f.id !== id);
@@ -313,7 +326,7 @@ export function PromptInputProvider({
   const clear = useCallback(() => {
     setAttachements((prev) => {
       for (const f of prev) {
-        if (f.url) {
+        if (f.url?.startsWith('blob:')) {
           URL.revokeObjectURL(f.url);
         }
       }
@@ -353,6 +366,7 @@ export function PromptInputProvider({
     () => ({
       files: attachements,
       add,
+      addImages,
       addInline,
       remove,
       clear,
@@ -363,6 +377,7 @@ export function PromptInputProvider({
     [
       attachements,
       add,
+      addImages,
       addInline,
       remove,
       clear,
@@ -723,7 +738,7 @@ export const PromptInput = ({
     : (id: string) =>
         setItems((prev) => {
           const found = prev.find((file) => file.id === id);
-          if (found?.url) {
+          if (found?.url?.startsWith('blob:')) {
             URL.revokeObjectURL(found.url);
           }
           return prev.filter((file) => file.id !== id);
@@ -734,7 +749,7 @@ export const PromptInput = ({
     : () =>
         setItems((prev) => {
           for (const file of prev) {
-            if (file.url) {
+            if (file.url?.startsWith('blob:')) {
               URL.revokeObjectURL(file.url);
             }
           }
@@ -805,7 +820,7 @@ export const PromptInput = ({
     () => () => {
       if (!usingProvider) {
         for (const f of files) {
-          if (f.url) URL.revokeObjectURL(f.url);
+          if (f.url?.startsWith('blob:')) URL.revokeObjectURL(f.url);
         }
       }
     },
@@ -859,13 +874,33 @@ export const PromptInput = ({
     () => ({
       files: files.map((item) => ({ ...item, id: item.id })),
       add,
+      addImages: (images) => {
+        if (usingProvider) {
+          controller.attachments.addImages(images);
+          return;
+        }
+        const incoming = images.map((image) => ({
+          ...createInlineChatImage(image.url, image.filename),
+          id: nanoid(),
+        }));
+        setItems((previous) => [...previous, ...incoming]);
+      },
       remove,
       clear,
       openFileDialog,
       screenCapture,
       fileInputRef: inputRef,
     }),
-    [files, add, remove, clear, openFileDialog, screenCapture],
+    [
+      files,
+      add,
+      remove,
+      clear,
+      openFileDialog,
+      screenCapture,
+      usingProvider,
+      controller,
+    ],
   );
 
   const handleSubmit: FormEventHandler<HTMLFormElement> = (event) => {

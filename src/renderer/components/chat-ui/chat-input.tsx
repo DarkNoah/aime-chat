@@ -1,4 +1,5 @@
 /* eslint-disable react/require-default-props */
+import type { InlineChatImage } from '@/renderer/lib/inline-chat-image';
 import {
   BotIcon,
   BrainIcon,
@@ -169,6 +170,7 @@ export interface ChatInputRef {
   setThink: (think: boolean) => void;
   setGoal: (goal: GoalConfig) => void;
   insertFileSelections: (references: ChatFileSelectionReference[]) => void;
+  addImages: (images: InlineChatImage[]) => void;
   getTools: () => string[];
   getDisabledAutoSkills: () => string[];
 }
@@ -266,6 +268,7 @@ function ChatInputInner(props: ChatInputInnerProps) {
     setInput: (input: string) => {
       controller.textInput.setInput(input);
     },
+    addImages: (images) => controller.attachments.addImages(images),
     insertFileSelections: (references: ChatFileSelectionReference[]) => {
       controller.textInput.insertFileSelections(references);
     },
