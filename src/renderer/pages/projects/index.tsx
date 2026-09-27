@@ -1,3 +1,4 @@
+import type { InlineChatImage } from '@/renderer/lib/inline-chat-image';
 import { ThreadBrowserChannel } from '@/types/thread-browser';
 import { getChatPreviewEventUpdate } from '@/renderer/lib/chat-preview-event';
 import {
@@ -70,6 +71,9 @@ function ProjectsPage() {
   const [threadId, setThreadId] = useState<any | undefined>();
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const chatPanelRef = useRef<ChatPanelRef>(null);
+  const handleAddImageToChat = useCallback((image: InlineChatImage) => {
+    chatPanelRef.current?.addImages([image]);
+  }, []);
   const handleAddSelectionToChat = useCallback(
     (reference: ChatFileSelectionReference) => {
       chatPanelRef.current?.insertFileSelections([reference]);
@@ -428,6 +432,7 @@ function ProjectsPage() {
                 workspace={project?.path}
                 part={previewToolPart}
                 onAddToChat={handleAddSelectionToChat}
+                onAddImageToChat={handleAddImageToChat}
                 onThreadSelect={(selectedThreadId) => {
                   setThreadId(selectedThreadId);
                 }}

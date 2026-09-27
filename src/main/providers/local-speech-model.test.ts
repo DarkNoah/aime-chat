@@ -2,9 +2,16 @@
 import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
-import { getQwenAsrPythonService } from '../utils/loaders/audio-loader';
+import {
+  AudioLoader,
+  getQwenAsrPythonService,
+} from '../utils/loaders/audio-loader';
 import { localModelManager } from '../local-model';
-import { LocalProvider, LocalSpeechModel } from './local-provider';
+import {
+  LocalProvider,
+  LocalSpeechModel,
+  LocalTranscriptionModel,
+} from './local-provider';
 
 jest.mock('./base-provider', () => ({ BaseProvider: class {} }));
 jest.mock('../app', () => ({ appManager: {} }));
@@ -13,6 +20,12 @@ jest.mock('../local-model', () => ({
 }));
 jest.mock('@huggingface/transformers', () => ({}));
 jest.mock('../utils/loaders/audio-loader', () => ({
+  AudioLoader: jest.fn().mockImplementation(() => ({
+    load: jest.fn().mockResolvedValue({
+      text: 'Hi',
+      items: [{ text: 'Hi', start: 0, end: 1 }],
+    }),
+  })),
   getQwenAsrPythonService: jest.fn(),
 }));
 jest.mock('../utils/loaders/ocr-loader', () => ({}));
@@ -45,6 +58,23 @@ describe('local Breeze speech models', () => {
       'stt',
     );
   });
+
+  it.each([true, false])(
+    'forwards word timestamps only when requested (%s)',
+    async (wordTimestamps) => {
+      await new LocalTranscriptionModel('Qwen/Qwen3-ASR-0.6B').doGenerate({
+        audio: new Uint8Array([1]),
+        mediaType: 'audio/wav',
+        providerOptions: wordTimestamps
+          ? { local: { wordTimestamps: true } }
+          : undefined,
+      });
+      expect(AudioLoader).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ wordTimestamps }),
+      );
+    },
+  );
 
   it('passes voice direction to the local service and returns its WAV metadata', async () => {
     const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'breeze-provider-'));

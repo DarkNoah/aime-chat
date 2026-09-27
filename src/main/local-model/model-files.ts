@@ -10,6 +10,7 @@ export function isModelFullyDownloaded(
   model?: LocalModelItem,
 ): boolean {
   const audio = model?.library === 'mlx' || model?.library === 'pytorch';
+  const diarization = model?.library === 'pyannote';
   let hasWeights = false;
   let incomplete = false;
   const walk = (directory: string) => {
@@ -55,14 +56,25 @@ export function isModelFullyDownloaded(
     }
   };
   try {
-    const config = fs.statSync(path.join(modelPath, 'config.json'));
+    const config = fs.statSync(
+      path.join(modelPath, diarization ? 'config.yaml' : 'config.json'),
+    );
     if (!config.isFile() || config.size === 0) return false;
     for (const file of model?.requiredFiles || []) {
       const info = fs.statSync(path.join(modelPath, file));
       if (!info.isFile() || info.size === 0) return false;
+      // A Git LFS pointer is metadata, not downloaded model weights.
+      if (diarization && info.size < 1024 && /\.(bin|npz)$/.test(file)) {
+        if (
+          fs
+            .readFileSync(path.join(modelPath, file), 'utf8')
+            .startsWith('version https://git-lfs.github.com/spec/')
+        )
+          return false;
+      }
     }
     walk(modelPath);
-    return hasWeights && !incomplete;
+    return (diarization || hasWeights) && !incomplete;
   } catch {
     return false;
   }
@@ -72,7 +84,9 @@ export function getLocalModelPath(root: string, type: string, modelId: string) {
   return path.join(
     root,
     type,
-    ['tts', 'stt'].includes(type) ? modelId : modelId.split('/').pop(),
+    ['tts', 'stt', 'diarization'].includes(type)
+      ? modelId
+      : modelId.split('/').pop(),
   );
 }
 

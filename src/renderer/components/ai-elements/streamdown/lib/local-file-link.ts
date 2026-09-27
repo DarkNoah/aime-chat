@@ -2,7 +2,39 @@ import type { Root } from 'hast';
 import { visit } from 'unist-util-visit';
 import { getFilePathsFromUriList } from '@/utils/clipboard-file-paths';
 
-export const getMarkdownFilePath = (href?: string): string | undefined => {
+const getRelativeFilePath = (href?: string): string | undefined => {
+  if (!href || /^[\\/#?]/.test(href) || /[\0\r\n]/.test(href)) {
+    return undefined;
+  }
+  try {
+    const path = decodeURIComponent(href);
+    // Check after decoding too, so encoded protocols cannot become file links.
+    if (/^[\\/#?]/.test(path) || /[:\0\r\n]/.test(path)) return undefined;
+    return path;
+  } catch {
+    return undefined;
+  }
+};
+
+const resolveRelativeFilePath = (path: string, workspace: string) => {
+  // Workspace is a native path, not a URL: preserve literal percent characters.
+  const base = workspace.replace(/\\/g, '/');
+  const root = base.match(/^(?:[A-Za-z]:\/|\/\/[^/]+\/[^/]+\/?|\/)/)?.[0];
+  if (!root || /[\0\r\n]/.test(base)) return undefined;
+  const segments: string[] = [];
+  `${base.slice(root.length)}/${path.replace(/\\/g, '/')}`
+    .split('/')
+    .forEach((segment) => {
+      if (segment === '..') segments.pop();
+      else if (segment && segment !== '.') segments.push(segment);
+    });
+  return `${root.replace(/\/$/, '')}/${segments.join('/')}`;
+};
+
+export const getMarkdownFilePath = (
+  href?: string,
+  workspace?: string,
+): string | undefined => {
   if (!href || /[\0\r\n]/.test(href)) return undefined;
 
   try {
@@ -17,6 +49,11 @@ export const getMarkdownFilePath = (href?: string): string | undefined => {
       /^\\\\[^\\]+\\[^\\]+/.test(localHref)
     ) {
       filePath = decodeURIComponent(localHref);
+    } else if (workspace) {
+      const relativePath = getRelativeFilePath(href);
+      if (relativePath) {
+        filePath = resolveRelativeFilePath(relativePath, workspace);
+      }
     }
 
     return filePath && !/[\0\r\n]/.test(filePath) ? filePath : undefined;
@@ -32,7 +69,8 @@ export const rehypeLocalFileLinks = () => (tree: Root) => {
     if (
       node.tagName === 'a' &&
       typeof node.properties.href === 'string' &&
-      getMarkdownFilePath(node.properties.href)
+      (getMarkdownFilePath(node.properties.href) ||
+        getRelativeFilePath(node.properties.href))
     ) {
       node.tagName = 'aime-file-link';
     }

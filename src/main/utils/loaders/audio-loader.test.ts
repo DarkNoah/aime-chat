@@ -139,11 +139,15 @@ describe('managed audio runtime requests', () => {
   it('passes the ASR and aligner directories and removes temporary audio', async () => {
     const service = await getQwenAsrPythonService();
     expect(
-      await service.transcribe(Buffer.from('audio'), { model: asr }),
+      await service.transcribe(Buffer.from('audio'), {
+        model: asr,
+        wordTimestamps: true,
+      }),
     ).toMatchObject({ text: '识别结果' });
     expect(requests[0]).toMatchObject({
       method: 'predict',
       params: {
+        word_timestamps: true,
         model: asr,
         aligner_model: aligner,
         model_paths: {

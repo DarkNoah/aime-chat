@@ -1,3 +1,4 @@
+import type { InlineChatImage } from '@/renderer/lib/inline-chat-image';
 import { ThreadBrowserPreview } from './thread-browser-preview';
 /* eslint-disable no-nested-ternary */
 import React, { ForwardedRef, use, useEffect, useState } from 'react';
@@ -40,6 +41,7 @@ export type ChatPreviewProps = {
   onPreviewDataChange?: (previewData: ChatPreviewData) => void;
   onProjectChanged?: () => void;
   onAddToChat?: (reference: ChatFileSelectionReference) => void;
+  onAddImageToChat?: (image: InlineChatImage) => void;
   onThreadSelect?: (threadId: string) => void;
 };
 
@@ -59,6 +61,7 @@ export const ChatPreview = React.forwardRef<ChatPreviewRef, ChatPreviewProps>(
       project,
       onProjectChanged,
       onAddToChat,
+      onAddImageToChat,
       onThreadSelect,
     } = props;
     const [messages, setMessages] = useState<UIMessage[]>([]);
@@ -187,7 +190,9 @@ export const ChatPreview = React.forwardRef<ChatPreviewRef, ChatPreviewProps>(
               <ThreadBrowserPreview
                 key={threadId}
                 threadId={threadId}
-                active={previewData.previewPanel === ChatPreviewType.WEB_PREVIEW}
+                active={
+                  previewData.previewPanel === ChatPreviewType.WEB_PREVIEW
+                }
                 request={previewData.webPreviewRequest}
               />
             ) : null}
@@ -211,9 +216,8 @@ export const ChatPreview = React.forwardRef<ChatPreviewRef, ChatPreviewProps>(
                   : undefined
               }
               onAddToChat={onAddToChat}
-              active={
-                previewData.previewPanel === ChatPreviewType.FILE_SYSTEM
-              }
+              onAddImageToChat={onAddImageToChat}
+              active={previewData.previewPanel === ChatPreviewType.FILE_SYSTEM}
               className="rounded-xl border"
             />
           </div>

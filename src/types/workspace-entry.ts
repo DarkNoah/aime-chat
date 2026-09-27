@@ -9,4 +9,6 @@ export type WorkspaceEntryOperation = {
   path: string;
   action: WorkspaceEntryAction;
   name?: string;
+  /** Initial UTF-8 content, only used by create-file. */
+  content?: string;
 };

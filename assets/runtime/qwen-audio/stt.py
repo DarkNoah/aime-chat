@@ -664,7 +664,7 @@ def _predict_mlx(params: Dict[str, Any], backend: str) -> Dict[str, Any]:
     alignment = mlx_result.get("alignment") or []
 
     if return_time_stamps:
-        items = sentence_segments or alignment
+        items = alignment if params.get("word_timestamps") else sentence_segments or alignment
     else:
         items = [{"text": seg.get("text", "")} for seg in sentence_segments]
         if not items and asr_text:

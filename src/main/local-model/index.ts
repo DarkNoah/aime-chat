@@ -13,6 +13,7 @@ import {
   getLocalModelPath,
 } from './model-files';
 import { getAudioModelCatalog } from './audio-models';
+import { diarizationModels } from './diarization-models';
 import { BaseManager } from '../BaseManager';
 import { channel } from '../ipc/IpcController';
 import { LocalModelChannel } from '@/types/ipc-channel';
@@ -64,6 +65,7 @@ function validateModelType(type: unknown): asserts type is LocalModelType {
 }
 
 function getCatalog(type: LocalModelType): LocalModelItem[] {
+  if (type === 'diarization') return diarizationModels;
   return type === 'tts' || type === 'stt'
     ? getAudioModelCatalog(type)
     : (models[type] as LocalModelItem[]);
@@ -289,7 +291,8 @@ class LocalModelManager extends BaseManager {
     const key = `${type}:${model.id}`;
     if (
       this.operations.has(key) ||
-      (['tts', 'stt'].includes(type) && this.audioUses.size > 0) ||
+      (['tts', 'stt', 'diarization'].includes(type) &&
+        this.audioUses.size > 0) ||
       this.models[modelId] ||
       this.modelLoadPromises[modelId]
     ) {
@@ -330,12 +333,15 @@ class LocalModelManager extends BaseManager {
     return [...available.values()];
   }
 
-  public async acquireAudioModel(type: 'tts' | 'stt', modelId: string) {
+  public async acquireAudioModel(
+    type: 'tts' | 'stt' | 'diarization',
+    modelId: string,
+  ) {
     const model = getCatalogModel(type, modelId);
     const { modelPath: root } = await appManager.getInfo();
     if (
       [...this.operations].some(
-        ([key, op]) => op === 'deleting' && /^(tts|stt):/.test(key),
+        ([key, op]) => op === 'deleting' && /^(tts|stt|diarization):/.test(key),
       )
     ) {
       throw localModelError(
@@ -349,7 +355,7 @@ class LocalModelManager extends BaseManager {
       const item = this.modelStatus(getCatalogModel(type, id), type, root);
       if (!item.isDownloaded) {
         throw localModelError(
-          `Audio model ${id} is not downloaded or incomplete. Download it in Settings > Local Models (${type.toUpperCase()}) first.`,
+          `Audio model ${id} is not downloaded or incomplete. Read skill:local:aime-chat-docs (references/local-models.md) and download it with: python "\${AIME_CHAT_SKILL_PATH}/aime-chat-docs/scripts/local_models.py" download --type ${type} --model-id ${id}\nThen run the same script with list --type ${type}, wait for isDownloaded=true, and retry. The script defaults to ModelScope; omit --timeout. Models can also be downloaded in Settings > Local Models (${type.toUpperCase()}).`,
           409,
         );
       }

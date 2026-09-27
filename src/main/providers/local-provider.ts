@@ -398,12 +398,16 @@ export class LocalTranscriptionModel implements TranscriptionModelV2 {
     } else {
       audio = options.audio
     }
-    const audioLoader = new AudioLoader(new Blob([new Uint8Array(audio)], { type: "application/octet-stream" }), {
-      model: this.modelId,
-      backend: process.platform !== "darwin" ? 'transformers' : 'mlx-audio',
-      returnTimeStamps: true,
-      outputType: 'txt',
-    });
+    const audioLoader = new AudioLoader(
+      new Blob([new Uint8Array(audio)], { type: 'application/octet-stream' }),
+      {
+        model: this.modelId,
+        backend: process.platform !== 'darwin' ? 'transformers' : 'mlx-audio',
+        returnTimeStamps: true,
+        wordTimestamps: options.providerOptions?.local?.wordTimestamps === true,
+        outputType: 'txt',
+      },
+    );
     const result = await audioLoader.load();
     return {
       text: result.text,

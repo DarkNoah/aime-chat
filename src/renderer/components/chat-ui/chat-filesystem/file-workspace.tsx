@@ -1,3 +1,4 @@
+import type { InlineChatImage } from '@/renderer/lib/inline-chat-image';
 import React, {
   CSSProperties,
   lazy,
@@ -267,9 +268,18 @@ export type FileWorkspaceProps = {
   onClose: () => void;
   onDirtyChange: (dirty: boolean) => void;
   onAddToChat?: (reference: ChatFileSelectionReference) => void;
+  onAddImageToChat?: (image: InlineChatImage) => void;
 };
 
-export const FileWorkspace: React.FC<FileWorkspaceProps> = ({
+const CanvasWorkspace = lazy(() =>
+  import('./canvas-workspace.tsx').then((module) => ({
+    default: module.CanvasWorkspace,
+  })),
+);
+
+const TextFileWorkspace: React.FC<
+  Omit<FileWorkspaceProps, 'onAddImageToChat'>
+> = ({
   filePath,
   workspace,
   active = true,
@@ -720,4 +730,28 @@ export const FileWorkspace: React.FC<FileWorkspaceProps> = ({
       <div className="min-h-0 flex-1">{renderContent()}</div>
     </div>
   );
+};
+
+export const FileWorkspace: React.FC<FileWorkspaceProps> = ({
+  filePath,
+  onAddImageToChat,
+  ...props
+}) => {
+  if (/\.tldr$/i.test(filePath)) {
+    return (
+      <Suspense
+        fallback={
+          <div role="status" className="h-full animate-pulse bg-muted/20" />
+        }
+      >
+        <CanvasWorkspace
+          key={filePath}
+          filePath={filePath}
+          onAddImageToChat={onAddImageToChat}
+          {...props}
+        />
+      </Suspense>
+    );
+  }
+  return <TextFileWorkspace filePath={filePath} {...props} />;
 };

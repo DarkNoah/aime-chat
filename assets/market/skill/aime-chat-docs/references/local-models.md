@@ -11,7 +11,7 @@ python "${AIME_CHAT_SKILL_PATH}/aime-chat-docs/scripts/local_models.py" list --t
 python "${AIME_CHAT_SKILL_PATH}/aime-chat-docs/scripts/local_models.py" list --type reranker
 ```
 
-省略 `--type` 返回所有受支持类型：`embedding`、`reranker`、`clip`、`ocr`、`other`、`tts`、`stt`。语音模型目录按当前平台提供 MLX 或 PyTorch 版本。结果按类型分组，模型包含：
+省略 `--type` 返回所有受支持类型：`embedding`、`reranker`、`clip`、`ocr`、`other`、`tts`、`stt`、`diarization`。语音模型目录按当前平台提供 MLX 或 PyTorch 版本。结果按类型分组，模型包含：
 
 - `id`：目录中的模型 ID，下载、删除使用此值。
 - `repo`、`download[]`：模型仓库和可选来源，`source` 为 `modelscope` 或 `huggingface`。
@@ -56,6 +56,25 @@ python "${AIME_CHAT_SKILL_PATH}/aime-chat-docs/scripts/local_models.py" delete \
 ## 本地语音模型
 
 设置页的「本地模型」也提供 TTS / STT 下载和删除。语音推理只从配置的模型目录加载，不再自动下载权重；旧 Hugging Face / ModelScope 缓存不会自动迁移或删除。使用前先准备 QwenAudio 运行环境，再下载所需模型。
+
+`SpeechToText` 工具支持可选参数 `diarize`（默认 `false`）。设为 `true` 时需要 `pyannote/speaker-diarization-community-1`。缺少模型时，参照本说明运行下载脚本，通过本地模型模块下载模型实体，然后查询并确认 `isDownloaded=true` 后重试转录；不要静默关闭 `diarize`：
+
+```bash
+python "${AIME_CHAT_SKILL_PATH}/aime-chat-docs/scripts/local_models.py" download --type diarization --model-id pyannote/speaker-diarization-community-1
+python "${AIME_CHAT_SKILL_PATH}/aime-chat-docs/scripts/local_models.py" list --type diarization
+```
+
+脚本默认 ModelScope，省略 `--timeout`。本地 STT 模型缺失时也使用此脚本，将类型设为 `stt`，模型 ID 使用错误提示或目录中的实际 ID（去掉 `local/` 供应商前缀）。也可在「设置 → 本地模型」中下载。
+
+`output_type` 支持 `text`、`json`、`srt`、`ass`，四种格式均支持 `save_path`，共用同一套字幕级分段（含说话人切换边界），JSON 不再直接返回词级对齐片段。text 直接返回字符串，不返回内部 JSON 对象。文本与字幕的输出把时长、文件路径放在 `<system-reminder>` 内，内容放在 `<transcription-text>` 内。启用 `diarize` 时，text/SRT 的内容带 `[SPEAKER_00]` 标签；ASS 将说话人写入事件的 `Name` 字段，`Text` 不拼接标签。保存的文件只包含各格式原生内容，不含外层提醒标签。
+
+JSON 返回并保存同一个完整对象：可选 `savePath`、`diarize`、`duration` 和 `segments`；每段为 `start`、`end`、`text`，仅启用分离时带 `speaker`。时间单位为秒，`duration` 保留原始精度（未知为 `null`），未启用分离且无时间戳时 `segments=[]`。不返回额外的顶层 `format`、`text` 或 `language`。`save_path` 未提供、为 `null` 或空字符串时，text/JSON 不保存文件，也不返回文件路径；SRT/ASS 保留自动命名保存行为。返回的文本/字幕预览限制为 1000 行，保存的文件及 JSON 对象不截断。工具描述中提供各格式与 `diarize` 样例。
+
+该模型包含分段、说话人嵌入和 PLDA 实体文件，支持 ModelScope / Hugging Face 下载；Hugging Face 源需要先在模型页面接受使用条件，并配置有访问权限的本地 Hugging Face 登录凭据。下载缺失、不完整或只有 Git LFS 指针时，工具会提示先下载，不会在转录时补下载权重。分离模型不是默认 STT 模型，不能设为默认模型。
+
+字幕分段综合标点、停顿、说话人、显示长度和时长：同一说话人的逗号、顿号等弱标点后优先续接，间隔不超过 0.8 秒且合并后不超过约 30 个汉字宽度、8 秒时合并；句号、问号、感叹号、换人和长停顿保留分界。超长片段优先在内部标点处拆分，其次按对齐词边界拆分；只有整句时间戳的单个 token 无法可靠细分。先依据原始标点完成分段，再统一移除每段末尾的所有标点和符号（含中英文问号、感叹号、逗号、引号等），保留段内标点；四种格式及保存文件保持一致。
+
+说话人分离需要 UV；首次运行由 UV 准备独立的 pyannote Python 依赖环境，不修改 QwenAudio 环境。模型推理使用本地文件并禁用 Hub 下载。text/SRT 使用 `[SPEAKER_00]` 等匿名标签，ASS 使用 `Name` 字段，JSON 使用 `speaker` 字段；无重叠语音依据的片段使用 `UNKNOWN`。需选择提供时间戳的转录模型（如本地 Qwen3 ASR）；本地 MLX 使用词级对齐先确定说话人，再统一合成字幕级片段。其他模型按其提供的时间戳分配标签后同样进行字幕分段。仅返回纯文本的模型会明确提示不支持说话人分离，不能据此推测说话人身份。
 
 当前语音模型（包括 macOS 的 MLX 版本）均提供 `huggingface` 和 `modelscope` 来源，两者对应同一模型格式和量化版本。Windows/Linux 使用原版 PyTorch 仓库，macOS 使用 `mlx-community` 仓库；ModelScope 来源同样遵循该平台区分。
 

@@ -2,6 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   IconCopy,
+  IconPalette,
   IconFilePlus,
   IconFolderPlus,
   IconPencil,
@@ -11,12 +12,14 @@ import type { WorkspaceEntryAction } from '@/types/workspace-entry';
 import { ContextMenuItem, ContextMenuSeparator } from '../../ui/context-menu';
 
 export type EntryTarget = { path: string; name: string; isDirectory: boolean };
+export type EntryAction = WorkspaceEntryAction | 'create-canvas';
 export type EntryActionHandler = (
-  action: WorkspaceEntryAction,
+  action: EntryAction,
   target: EntryTarget,
 ) => void;
 export const entryActionKeys = {
   'create-file': 'chat.file_new',
+  'create-canvas': 'chat.canvas_new',
   'create-directory': 'chat.folder_new',
   rename: 'chat.file_rename',
   delete: 'chat.file_delete',
@@ -38,6 +41,10 @@ export function EntryActions({
           <ContextMenuItem onSelect={() => onAction('create-file', target)}>
             <IconFilePlus className="mr-2 size-4" />
             {t(entryActionKeys['create-file'])}
+          </ContextMenuItem>
+          <ContextMenuItem onSelect={() => onAction('create-canvas', target)}>
+            <IconPalette className="mr-2 size-4" />
+            {t('chat.canvas_new')}
           </ContextMenuItem>
           <ContextMenuItem
             onSelect={() => onAction('create-directory', target)}

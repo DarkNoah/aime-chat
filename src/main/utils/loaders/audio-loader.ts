@@ -21,6 +21,7 @@ export type AudioLoaderOptions = {
   dtype?: string;
   language?: string | null;
   returnTimeStamps?: boolean;
+  wordTimestamps?: boolean;
   outputType?: 'asr' | 'txt';
 };
 
@@ -403,6 +404,7 @@ export async function getQwenAsrPythonService(): Promise<QwenAudioService> {
             dtype: options.dtype,
             language: options.language ?? null,
             return_time_stamps: true,
+            ...(options.wordTimestamps ? { word_timestamps: true } : {}),
             output_type: options.outputType ?? 'txt',
           });
 

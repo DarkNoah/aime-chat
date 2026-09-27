@@ -1,6 +1,8 @@
 /* eslint-disable no-await-in-loop */
 /* eslint-disable no-underscore-dangle */
+import type { InlineChatImage } from '@/renderer/lib/inline-chat-image';
 import { useGlobal } from '@/renderer/hooks/use-global';
+import { MarkdownLinkContext } from '../ai-elements/streamdown/lib/link';
 import { useTheme } from 'next-themes';
 import React, {
   ForwardedRef,
@@ -596,6 +598,7 @@ export interface ChatPanelRef {
     options?: ChatSubmitOptions,
   ) => void;
   insertFileSelections: (references: ChatFileSelectionReference[]) => void;
+  addImages: (images: InlineChatImage[]) => void;
   setAgentId: (agentId: string) => void;
 }
 
@@ -615,6 +618,13 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
       useShallow((s) => s.threadStates[threadId]),
     );
     const updateThreadState = useThreadStore((s) => s.updateThreadState);
+    const markdownLinkContext = useMemo(
+      () => ({
+        threadId,
+        workspace: threadState?.metadata?.workspace as string | undefined,
+      }),
+      [threadId, threadState?.metadata?.workspace],
+    );
     const [compressing, setCompressing] = useState(false);
     const [retrying, setRetrying] = useState<ChatRetryState | undefined>();
 
@@ -722,6 +732,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
         sendMessage(threadId, inputMessage, body);
         chatInputRef.current?.attachmentsClear();
       },
+      addImages: (images) => chatInputRef.current?.addImages(images),
       insertFileSelections: (references: ChatFileSelectionReference[]) => {
         chatInputRef.current?.insertFileSelections(references);
       },
@@ -1315,7 +1326,7 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
 
     };
 
-    return (
+    const content = (
       <div
         data-theme-background="chat"
         className={cn('flex flex-col h-full', className)}
@@ -1622,6 +1633,12 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
           ></ChatInput>
         </div>
       </div>
+    );
+
+    return (
+      <MarkdownLinkContext.Provider value={markdownLinkContext}>
+        {content}
+      </MarkdownLinkContext.Provider>
     );
   },
 );

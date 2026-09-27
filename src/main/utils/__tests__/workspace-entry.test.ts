@@ -113,3 +113,39 @@ describe('workspace entry operations', () => {
     expect(trash).not.toHaveBeenCalled();
   });
 });
+
+describe('initial file content', () => {
+  it('creates a complete canvas without overwriting existing data', async () => {
+    const workspace = await fs.mkdtemp(path.join(os.tmpdir(), 'aime-canvas-'));
+    const operation = {
+      workspace,
+      path: workspace,
+      action: 'create-file' as const,
+      name: 'drawing.tldr',
+      content: '{"records":[]}',
+    };
+    try {
+      const result = await mutateWorkspaceEntry(operation, jest.fn());
+      expect(await fs.readFile(result.path, 'utf8')).toBe(operation.content);
+      await expect(
+        mutateWorkspaceEntry({ ...operation, content: 'replace' }, jest.fn()),
+      ).rejects.toThrow();
+      expect(await fs.readFile(result.path, 'utf8')).toBe(operation.content);
+      await expect(
+        mutateWorkspaceEntry(
+          { ...operation, name: '../escape.tldr' },
+          jest.fn(),
+        ),
+      ).rejects.toThrow('Invalid file name');
+      await expect(
+        mutateWorkspaceEntry(
+          { ...operation, name: 'bad.tldr', content: 123 as any },
+          jest.fn(),
+        ),
+      ).rejects.toThrow('must be text');
+      await expect(fs.stat(path.join(workspace, 'bad.tldr'))).rejects.toThrow();
+    } finally {
+      await fs.rm(workspace, { recursive: true, force: true });
+    }
+  });
+});
