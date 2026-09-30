@@ -10,6 +10,7 @@ import { Label } from '@/renderer/components/ui/label';
 import { useHeader } from '@/renderer/hooks/use-title';
 import type { InstanceInfo } from '@/types/instance';
 import { ThreadBrowserChannel } from '@/types/thread-browser';
+import { ScrollArea } from '@/renderer/components/ui/scroll-area';
 
 function Instances() {
   const { setTitle } = useHeader();
@@ -97,117 +98,119 @@ function Instances() {
   };
 
   return (
-    <div className="flex max-w-3xl flex-col gap-5 p-4">
-      {error && (
-        <div
-          role="alert"
-          className="flex items-center justify-between gap-3 rounded-md border border-destructive p-3 text-sm text-destructive"
-        >
-          <span className="break-words">{error}</span>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setRevision((value) => value + 1)}
+    <ScrollArea className="h-full">
+      <div className="flex max-w-3xl flex-col gap-5 p-4">
+        {error && (
+          <div
+            role="alert"
+            className="flex items-center justify-between gap-3 rounded-md border border-destructive p-3 text-sm text-destructive"
           >
-            {t('common.retry')}
-          </Button>
-        </div>
-      )}
-      {!instance && !error && (
-        <div role="status" aria-label={t('common.loading')}>
-          <Spinner />
-        </div>
-      )}
-      {instance && (
-        <>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="flex items-center gap-2 font-medium">
-              <IconBrowser className="size-5" />
-              Electron Chromium
-            </h2>
-            <Badge variant="secondary">
-              {instance.tabCount
-                ? t('settings.instances_running')
-                : t('settings.browser_on_demand')}
-            </Badge>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            {t('settings.browser_shared_description')}
-          </p>
-          <dl className="grid min-w-0 gap-4 border-y py-4 text-sm">
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <dt className="text-muted-foreground">
-                {t('settings.browser_engine_version')}
-              </dt>
-              <dd>{instance.chromiumVersion}</dd>
-            </div>
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <dt className="text-muted-foreground">
-                {t('settings.browser_open_pages')}
-              </dt>
-              <dd>
-                {t('settings.browser_page_count', {
-                  tabs: instance.tabCount,
-                  threads: instance.threadCount,
-                })}
-              </dd>
-            </div>
-            <div className="flex min-w-0 flex-col gap-2">
-              <dt className="text-muted-foreground">
-                {t('settings.instances_user_data')}
-              </dt>
-              <dd className="break-all font-mono text-xs leading-relaxed">
-                {instance.config.userDataPath}
-              </dd>
-            </div>
-          </dl>
-          <div className="flex items-start justify-between gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="browser-insecure-tls">
-                {t('settings.browser_insecure_tls')}
-              </Label>
-              <p
-                id="browser-insecure-tls-description"
-                className="text-sm leading-relaxed text-muted-foreground"
-              >
-                {t('settings.browser_insecure_tls_desc')}
-              </p>
-            </div>
-            <Switch
-              id="browser-insecure-tls"
-              aria-describedby="browser-insecure-tls-description"
-              aria-busy={savingTls}
-              checked={instance.config.insecureTls}
-              disabled={savingTls || pending}
-              onCheckedChange={changeInsecureTls}
-            />
-          </div>
-          {instance.insecureTlsRestartRequired && (
-            <p role="status" className="text-sm font-medium">
-              {t('settings.browser_tls_restart_required')}
-            </p>
-          )}
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" onClick={openDirectory}>
-              <IconFolder className="size-4" />
-              {t('settings.browser_open_directory')}
-            </Button>
+            <span className="break-words">{error}</span>
             <Button
               variant="outline"
               size="sm"
-              disabled={!instance.tabCount || pending || savingTls}
-              onClick={closeTabs}
+              onClick={() => setRevision((value) => value + 1)}
             >
-              {pending ? <Spinner /> : <IconX className="size-4" />}
-              {t('settings.browser_close_tabs')}
+              {t('common.retry')}
             </Button>
           </div>
-          <p className="text-xs leading-relaxed text-muted-foreground">
-            {t('settings.browser_close_tabs_hint')}
-          </p>
-        </>
-      )}
-    </div>
+        )}
+        {!instance && !error && (
+          <div role="status" aria-label={t('common.loading')}>
+            <Spinner />
+          </div>
+        )}
+        {instance && (
+          <>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="flex items-center gap-2 font-medium">
+                <IconBrowser className="size-5" />
+                Electron Chromium
+              </h2>
+              <Badge variant="secondary">
+                {instance.tabCount
+                  ? t('settings.instances_running')
+                  : t('settings.browser_on_demand')}
+              </Badge>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {t('settings.browser_shared_description')}
+            </p>
+            <dl className="grid min-w-0 gap-4 border-y py-4 text-sm">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <dt className="text-muted-foreground">
+                  {t('settings.browser_engine_version')}
+                </dt>
+                <dd>{instance.chromiumVersion}</dd>
+              </div>
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <dt className="text-muted-foreground">
+                  {t('settings.browser_open_pages')}
+                </dt>
+                <dd>
+                  {t('settings.browser_page_count', {
+                    tabs: instance.tabCount,
+                    threads: instance.threadCount,
+                  })}
+                </dd>
+              </div>
+              <div className="flex min-w-0 flex-col gap-2">
+                <dt className="text-muted-foreground">
+                  {t('settings.instances_user_data')}
+                </dt>
+                <dd className="break-all font-mono text-xs leading-relaxed">
+                  {instance.config.userDataPath}
+                </dd>
+              </div>
+            </dl>
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="browser-insecure-tls">
+                  {t('settings.browser_insecure_tls')}
+                </Label>
+                <p
+                  id="browser-insecure-tls-description"
+                  className="text-sm leading-relaxed text-muted-foreground"
+                >
+                  {t('settings.browser_insecure_tls_desc')}
+                </p>
+              </div>
+              <Switch
+                id="browser-insecure-tls"
+                aria-describedby="browser-insecure-tls-description"
+                aria-busy={savingTls}
+                checked={instance.config.insecureTls}
+                disabled={savingTls || pending}
+                onCheckedChange={changeInsecureTls}
+              />
+            </div>
+            {instance.insecureTlsRestartRequired && (
+              <p role="status" className="text-sm font-medium">
+                {t('settings.browser_tls_restart_required')}
+              </p>
+            )}
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" onClick={openDirectory}>
+                <IconFolder className="size-4" />
+                {t('settings.browser_open_directory')}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!instance.tabCount || pending || savingTls}
+                onClick={closeTabs}
+              >
+                {pending ? <Spinner /> : <IconX className="size-4" />}
+                {t('settings.browser_close_tabs')}
+              </Button>
+            </div>
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              {t('settings.browser_close_tabs_hint')}
+            </p>
+          </>
+        )}
+      </div>
+    </ScrollArea>
   );
 }
 

@@ -14,6 +14,7 @@ import {
   defaultAssistantSoul,
   normalizeAssistantSoulDraft,
 } from '@/types/assistant-soul';
+import { ScrollArea } from '@/renderer/components/ui/scroll-area';
 
 export default function Personality() {
   const { t } = useTranslation();
@@ -41,20 +42,20 @@ export default function Personality() {
       normalizeAssistantSoulDraft(
         library.enabled && activeAssistant
           ? {
-              enabled: true,
-              presetId: activeAssistant.id,
-              name: activeAssistant.name,
-              title: activeAssistant.title,
-              titleKey: activeAssistant.titleKey,
-              description: activeAssistant.description,
-              descriptionKey: activeAssistant.descriptionKey,
-              avatarPath: activeAssistant.avatarPath,
-              avatarFilePath: activeAssistant.avatarFilePath,
-              soulPath: activeAssistant.soulPath,
-              soulFilePath: activeAssistant.soulFilePath,
-              voiceStyle: activeAssistant.voiceStyle,
-              content: activeAssistant.content,
-            }
+            enabled: true,
+            presetId: activeAssistant.id,
+            name: activeAssistant.name,
+            title: activeAssistant.title,
+            titleKey: activeAssistant.titleKey,
+            description: activeAssistant.description,
+            descriptionKey: activeAssistant.descriptionKey,
+            avatarPath: activeAssistant.avatarPath,
+            avatarFilePath: activeAssistant.avatarFilePath,
+            soulPath: activeAssistant.soulPath,
+            soulFilePath: activeAssistant.soulFilePath,
+            voiceStyle: activeAssistant.voiceStyle,
+            content: activeAssistant.content,
+          }
           : defaultAssistantSoul,
       ),
     );
@@ -147,37 +148,40 @@ export default function Personality() {
   };
 
   return (
-    <FieldGroup className="p-4 overflow-y-auto">
-      <div className="max-w-4xl space-y-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h2 className="text-lg font-semibold">
-              {t('settings.personality_title')}
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              {t('settings.personality_description')}
-            </p>
+    <ScrollArea className="h-full">
+      <FieldGroup className="p-4">
+        <div className="max-w-4xl space-y-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold">
+                {t('settings.personality_title')}
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                {t('settings.personality_description')}
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={resetCurrent}
+              disabled={syncing || !soul.enabled || !soul.presetId}
+            >
+              <RotateCcw className="mr-2 h-4 w-4" />
+              {t('settings.personality_reset')}
+            </Button>
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={resetCurrent}
-            disabled={syncing || !soul.enabled || !soul.presetId}
-          >
-            <RotateCcw className="mr-2 h-4 w-4" />
-            {t('settings.personality_reset')}
-          </Button>
-        </div>
 
-        <AssistantSoulForm
-          value={soul}
-          presets={presets}
-          onChange={setSoul}
-          onSelectPreset={selectPreset}
-          onDisable={disablePersonality}
-          onContentChange={saveContent}
-        />
-      </div>
-    </FieldGroup>
+          <AssistantSoulForm
+            value={soul}
+            presets={presets}
+            onChange={setSoul}
+            onSelectPreset={selectPreset}
+            onDisable={disablePersonality}
+            onContentChange={saveContent}
+          />
+        </div>
+      </FieldGroup>
+    </ScrollArea>
+
   );
 }

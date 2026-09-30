@@ -33,6 +33,7 @@ import {
 import { isArray } from '@/utils/is';
 import toast from 'react-hot-toast';
 import { useLocalModelStore } from '@/renderer/store/use-local-model-store';
+import { ScrollArea } from '@/renderer/components/ui/scroll-area';
 
 export default function LocalModel() {
   const { t } = useTranslation();
@@ -87,7 +88,7 @@ export default function LocalModel() {
   useEffect(() => {
     if (!isBusy) return undefined;
     const timer = setInterval(() => {
-      getData().catch(() => {});
+      getData().catch(() => { });
     }, 1500);
     return () => clearInterval(timer);
   }, [getData, isBusy]);
@@ -128,7 +129,7 @@ export default function LocalModel() {
   };
 
   return (
-    <div className="flex flex-col h-full overflow-y-auto">
+    <ScrollArea className="h-full">
       <FieldGroup className="p-4">
         <Field>
           <FieldLabel>{t('settings.model_location')}</FieldLabel>
@@ -248,6 +249,6 @@ export default function LocalModel() {
           </Field>
         </FieldGroup>
       ))}
-    </div>
+    </ScrollArea>
   );
 }

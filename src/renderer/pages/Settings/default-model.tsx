@@ -43,6 +43,7 @@ import { ChatModelSelect } from '@/renderer/components/chat-ui/chat-model-select
 import { AppInfo } from '@/types/app';
 import { ModelType } from '@/types/provider';
 import { toast } from 'react-hot-toast';
+import { ScrollArea } from '@/renderer/components/ui/scroll-area';
 
 export default function DefaultModel() {
   const { t } = useTranslation();
@@ -69,210 +70,215 @@ export default function DefaultModel() {
   };
 
   return (
-    <div className="flex flex-col gap-2 p-4">
-      <Item variant="outline">
-        <ItemContent>
-          <ItemTitle>
-            <Zap className="w-5 h-5" />
-            {t('settings.default_fast_model')}
-          </ItemTitle>
-          <ItemDescription></ItemDescription>
-        </ItemContent>
-        <ItemActions>
-          <ChatModelSelect
-            clearable
-            className="w-[200px] border"
-            value={appInfo?.defaultModel?.fastModel}
-            onChange={(model) => {
-              onChangeDefaultModel(model, 'fastModel');
-            }}
-          />
-        </ItemActions>
-      </Item>
-      <Item variant="outline">
-        <ItemContent>
-          <ItemTitle>
-            <Brain className="w-5 h-5" />
-            {t('settings.default_model')}
-          </ItemTitle>
-          <ItemDescription></ItemDescription>
-        </ItemContent>
-        <ItemActions>
-          <ChatModelSelect
-            clearable
-            className="w-[200px] border"
-            value={appInfo?.defaultModel?.model}
-            onChange={(model) => {
-              onChangeDefaultModel(model, 'model');
-            }}
-          />
-        </ItemActions>
-      </Item>
-      <Item variant="outline">
-        <ItemContent>
-          <ItemTitle>
-            <Eye className="w-5 h-5" />
-            {t('settings.vision_model')}
-          </ItemTitle>
-          <ItemDescription></ItemDescription>
-        </ItemContent>
-        <ItemActions>
-          <ChatModelSelect
-            clearable
-            className="w-[200px] border"
-            value={appInfo?.defaultModel?.visionModel}
-            onChange={(model) => {
-              onChangeDefaultModel(model, 'visionModel');
-            }}
-          />
-        </ItemActions>
-      </Item>
-      <Item variant="outline">
-        <ItemContent>
-          <ItemTitle>
-            <Database className="w-5 h-5" />
-            {t('settings.default_embedding')}
-          </ItemTitle>
-          <ItemDescription></ItemDescription>
-        </ItemContent>
-        <ItemActions>
-          <ChatModelSelect
-            clearable
-            type={ModelType.EMBEDDING}
-            className="w-[200px] border"
-            value={appInfo?.defaultModel?.embeddingModel}
-            onChange={(model) => {
-              onChangeDefaultModel(model, 'embeddingModel');
-            }}
-          />
-        </ItemActions>
-      </Item>
-      <Item variant="outline">
-        <ItemContent>
-          <ItemTitle>
-            <ListOrdered className="w-5 h-5" />
-            {t('settings.default_reranker')}
-          </ItemTitle>
-          <ItemDescription></ItemDescription>
-        </ItemContent>
-        <ItemActions>
-          <ChatModelSelect
-            clearable
-            type={ModelType.RERANKER}
-            className="w-[200px] border"
-            value={appInfo?.defaultModel?.rerankerModel}
-            onChange={(model) => {
-              onChangeDefaultModel(model, 'rerankerModel');
-            }}
-          />
-        </ItemActions>
-      </Item>
-      <Item variant="outline">
-        <ItemContent>
-          <ItemTitle>
-            <ScanText className="w-5 h-5" />
-            {t('settings.default_ocr')}
-          </ItemTitle>
-          <ItemDescription></ItemDescription>
-        </ItemContent>
-        <ItemActions>
-          <ChatModelSelect
-            clearable
-            type={ModelType.OCR}
-            className="w-[200px] border"
-            value={appInfo?.defaultModel?.ocrModel}
-            onChange={(model) => {
-              onChangeDefaultModel(model, 'ocrModel');
-            }}
-          />
-        </ItemActions>
-      </Item>
-      <Item variant="outline">
-        <ItemContent>
-          <ItemTitle>
-            <AudioLines className="w-5 h-5" />
-            {t('settings.default_transcription', 'Default Transcription Model')}
-          </ItemTitle>
-          <ItemDescription></ItemDescription>
-        </ItemContent>
-        <ItemActions>
-          <ChatModelSelect
-            clearable
-            type={ModelType.TRANSCRIPTION}
-            className="w-[200px] border"
-            value={appInfo?.defaultModel?.transcriptionModel}
-            onChange={(model) => {
-              onChangeDefaultModel(model, 'transcriptionModel');
-            }}
-          />
-        </ItemActions>
-      </Item>
-      <Item variant="outline">
-        <ItemContent>
-          <ItemTitle>
-            <Speech className="w-5 h-5" />
-            {t('settings.default_speech', 'Default Speech Model')}
-          </ItemTitle>
-          <ItemDescription></ItemDescription>
-        </ItemContent>
-        <ItemActions>
-          <ChatModelSelect
-            clearable
-            type={ModelType.SPEECH}
-            className="w-[200px] border"
-            value={appInfo?.defaultModel?.speechModel}
-            onChange={(model) => {
-              onChangeDefaultModel(model, 'speechModel');
-            }}
-          />
-        </ItemActions>
-      </Item>
-      <Item variant="outline">
-        <ItemContent>
-          <ItemTitle>
-            <ImagePlus className="w-5 h-5" />
-            {t(
-              'settings.default_generate_image',
-              'Default Generate Image Model',
-            )}
-          </ItemTitle>
-          <ItemDescription></ItemDescription>
-        </ItemContent>
-        <ItemActions>
-          <ChatModelSelect
-            clearable
-            type={ModelType.IMAGE_GENERATION}
-            className="w-[200px] border"
-            value={appInfo?.defaultModel?.generateImageModel}
-            onChange={(model) => {
-              onChangeDefaultModel(model, 'generateImageModel');
-            }}
-          />
-        </ItemActions>
-      </Item>
-      <Item variant="outline">
-        <ItemContent>
-          <ItemTitle>
-            <Video className="w-5 h-5" />
-            {t(
-              'settings.default_generate_video',
-              'Default Video Generation Model',
-            )}
-          </ItemTitle>
-          <ItemDescription></ItemDescription>
-        </ItemContent>
-        <ItemActions>
-          <ChatModelSelect
-            clearable
-            type={ModelType.VIDEO_GENERATION}
-            className="w-[200px] border"
-            value={appInfo?.defaultModel?.generateVideoModel}
-            onChange={(model) => {
-              onChangeDefaultModel(model, 'generateVideoModel');
-            }}
-          />
-        </ItemActions>
-      </Item>
-    </div>
+    <ScrollArea className="h-full">
+      <div className="flex flex-col gap-2 p-4">
+        <Item variant="outline">
+          <ItemContent>
+            <ItemTitle>
+              <Zap className="w-5 h-5" />
+              {t('settings.default_fast_model')}
+            </ItemTitle>
+            <ItemDescription></ItemDescription>
+          </ItemContent>
+          <ItemActions>
+            <ChatModelSelect
+              clearable
+              className="w-[200px] border"
+              value={appInfo?.defaultModel?.fastModel}
+              onChange={(model) => {
+                onChangeDefaultModel(model, 'fastModel');
+              }}
+            />
+          </ItemActions>
+        </Item>
+        <Item variant="outline">
+          <ItemContent>
+            <ItemTitle>
+              <Brain className="w-5 h-5" />
+              {t('settings.default_model')}
+            </ItemTitle>
+            <ItemDescription></ItemDescription>
+          </ItemContent>
+          <ItemActions>
+            <ChatModelSelect
+              clearable
+              className="w-[200px] border"
+              value={appInfo?.defaultModel?.model}
+              onChange={(model) => {
+                onChangeDefaultModel(model, 'model');
+              }}
+            />
+          </ItemActions>
+        </Item>
+        <Item variant="outline">
+          <ItemContent>
+            <ItemTitle>
+              <Eye className="w-5 h-5" />
+              {t('settings.vision_model')}
+            </ItemTitle>
+            <ItemDescription></ItemDescription>
+          </ItemContent>
+          <ItemActions>
+            <ChatModelSelect
+              clearable
+              className="w-[200px] border"
+              value={appInfo?.defaultModel?.visionModel}
+              onChange={(model) => {
+                onChangeDefaultModel(model, 'visionModel');
+              }}
+            />
+          </ItemActions>
+        </Item>
+        <Item variant="outline">
+          <ItemContent>
+            <ItemTitle>
+              <Database className="w-5 h-5" />
+              {t('settings.default_embedding')}
+            </ItemTitle>
+            <ItemDescription></ItemDescription>
+          </ItemContent>
+          <ItemActions>
+            <ChatModelSelect
+              clearable
+              type={ModelType.EMBEDDING}
+              className="w-[200px] border"
+              value={appInfo?.defaultModel?.embeddingModel}
+              onChange={(model) => {
+                onChangeDefaultModel(model, 'embeddingModel');
+              }}
+            />
+          </ItemActions>
+        </Item>
+        <Item variant="outline">
+          <ItemContent>
+            <ItemTitle>
+              <ListOrdered className="w-5 h-5" />
+              {t('settings.default_reranker')}
+            </ItemTitle>
+            <ItemDescription></ItemDescription>
+          </ItemContent>
+          <ItemActions>
+            <ChatModelSelect
+              clearable
+              type={ModelType.RERANKER}
+              className="w-[200px] border"
+              value={appInfo?.defaultModel?.rerankerModel}
+              onChange={(model) => {
+                onChangeDefaultModel(model, 'rerankerModel');
+              }}
+            />
+          </ItemActions>
+        </Item>
+        <Item variant="outline">
+          <ItemContent>
+            <ItemTitle>
+              <ScanText className="w-5 h-5" />
+              {t('settings.default_ocr')}
+            </ItemTitle>
+            <ItemDescription></ItemDescription>
+          </ItemContent>
+          <ItemActions>
+            <ChatModelSelect
+              clearable
+              type={ModelType.OCR}
+              className="w-[200px] border"
+              value={appInfo?.defaultModel?.ocrModel}
+              onChange={(model) => {
+                onChangeDefaultModel(model, 'ocrModel');
+              }}
+            />
+          </ItemActions>
+        </Item>
+        <Item variant="outline">
+          <ItemContent>
+            <ItemTitle>
+              <AudioLines className="w-5 h-5" />
+              {t(
+                'settings.default_transcription',
+                'Default Transcription Model',
+              )}
+            </ItemTitle>
+            <ItemDescription></ItemDescription>
+          </ItemContent>
+          <ItemActions>
+            <ChatModelSelect
+              clearable
+              type={ModelType.TRANSCRIPTION}
+              className="w-[200px] border"
+              value={appInfo?.defaultModel?.transcriptionModel}
+              onChange={(model) => {
+                onChangeDefaultModel(model, 'transcriptionModel');
+              }}
+            />
+          </ItemActions>
+        </Item>
+        <Item variant="outline">
+          <ItemContent>
+            <ItemTitle>
+              <Speech className="w-5 h-5" />
+              {t('settings.default_speech', 'Default Speech Model')}
+            </ItemTitle>
+            <ItemDescription></ItemDescription>
+          </ItemContent>
+          <ItemActions>
+            <ChatModelSelect
+              clearable
+              type={ModelType.SPEECH}
+              className="w-[200px] border"
+              value={appInfo?.defaultModel?.speechModel}
+              onChange={(model) => {
+                onChangeDefaultModel(model, 'speechModel');
+              }}
+            />
+          </ItemActions>
+        </Item>
+        <Item variant="outline">
+          <ItemContent>
+            <ItemTitle>
+              <ImagePlus className="w-5 h-5" />
+              {t(
+                'settings.default_generate_image',
+                'Default Generate Image Model',
+              )}
+            </ItemTitle>
+            <ItemDescription></ItemDescription>
+          </ItemContent>
+          <ItemActions>
+            <ChatModelSelect
+              clearable
+              type={ModelType.IMAGE_GENERATION}
+              className="w-[200px] border"
+              value={appInfo?.defaultModel?.generateImageModel}
+              onChange={(model) => {
+                onChangeDefaultModel(model, 'generateImageModel');
+              }}
+            />
+          </ItemActions>
+        </Item>
+        <Item variant="outline">
+          <ItemContent>
+            <ItemTitle>
+              <Video className="w-5 h-5" />
+              {t(
+                'settings.default_generate_video',
+                'Default Video Generation Model',
+              )}
+            </ItemTitle>
+            <ItemDescription></ItemDescription>
+          </ItemContent>
+          <ItemActions>
+            <ChatModelSelect
+              clearable
+              type={ModelType.VIDEO_GENERATION}
+              className="w-[200px] border"
+              value={appInfo?.defaultModel?.generateVideoModel}
+              onChange={(model) => {
+                onChangeDefaultModel(model, 'generateVideoModel');
+              }}
+            />
+          </ItemActions>
+        </Item>
+      </div>
+    </ScrollArea>
   );
 }
