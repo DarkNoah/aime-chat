@@ -28,7 +28,7 @@ export class InstancesManager extends BaseManager {
       });
       const instance = new Instances(
         DEFAULT_BROWSER_INSTANCE_ID,
-        'Electron Chromium',
+        'Chromium',
         InstanceType.BROWSER,
         {
           engine: 'electron-chromium',
@@ -46,7 +46,7 @@ export class InstancesManager extends BaseManager {
     return [
       {
         id: DEFAULT_BROWSER_INSTANCE_ID,
-        name: 'Electron Chromium',
+        name: 'Chromium',
         type: InstanceType.BROWSER,
         static: true,
         config: {

@@ -124,7 +124,7 @@
     "instances": "Instances",
     "instances_user_data": "Browser User Data Directory",
     "browser_on_demand": "On demand",
-    "browser_shared_description": "Chat browsing and web fetching use Electron Chromium. All chats share sign-in data while owning their tabs and actions. No separate browser needs to be started.",
+    "browser_shared_description": "Chat browsing and web fetching use Chromium. All chats share sign-in data while owning their tabs and actions. No separate browser needs to be started.",
     "browser_engine_version": "Chromium version",
     "browser_open_pages": "Open pages",
     "browser_page_count": "{{tabs}} tabs · {{threads}} chats",

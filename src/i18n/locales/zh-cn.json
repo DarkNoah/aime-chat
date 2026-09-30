@@ -120,7 +120,7 @@
     "instances": "实例管理",
     "instances_user_data": "浏览器用户数据目录",
     "browser_on_demand": "按需使用",
-    "browser_shared_description": "聊天浏览器与网页抓取统一使用 Electron Chromium。所有聊天共享登录状态，各自管理标签页与操作，无需单独启动浏览器。",
+    "browser_shared_description": "聊天浏览器与网页抓取统一使用 Chromium。所有聊天共享登录状态，各自管理标签页与操作，无需单独启动浏览器。",
     "browser_engine_version": "Chromium 版本",
     "browser_open_pages": "打开的页面",
     "browser_page_count": "{{tabs}} 个标签页 · {{threads}} 个聊天",
