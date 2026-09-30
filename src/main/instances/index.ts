@@ -26,7 +26,11 @@ export class InstancesManager extends BaseManager {
         const existing = await repository.findOneBy({
           id: DEFAULT_BROWSER_INSTANCE_ID,
         });
-        const enabled = existing?.config?.insecureTls === true;
+        const stored = existing?.config?.insecureTls;
+        const enabled =
+          typeof stored === 'boolean'
+            ? stored
+            : process.env.TLS_REJECT_UNAUTHORIZED === 'false';
         await repository.delete({
           type: InstanceType.BROWSER,
           id: Not(DEFAULT_BROWSER_INSTANCE_ID),
