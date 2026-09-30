@@ -2,7 +2,6 @@ export enum InstancesChannel {
   GetInstances = 'instances:getInstances',
   GetInstance = 'instances:getInstance',
   StopInstance = 'instances:stopInstance',
-  SetInsecureTls = 'instances:setInsecureTls',
 }
 
 export enum ProviderChannel {

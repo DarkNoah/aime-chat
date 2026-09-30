@@ -20,37 +20,24 @@ export class InstancesManager extends BaseManager {
     const userDataPath = threadBrowserManager.prepareProfile();
     // Replace obsolete executable/CDP/profile settings only after disk migration
     // succeeds. Custom system-browser directories are never removed.
-    const insecureTls = await this.repository.manager.transaction(
-      async (manager) => {
-        const repository = manager.getRepository(Instances);
-        const existing = await repository.findOneBy({
-          id: DEFAULT_BROWSER_INSTANCE_ID,
-        });
-        const stored = existing?.config?.insecureTls;
-        const enabled =
-          typeof stored === 'boolean'
-            ? stored
-            : process.env.TLS_REJECT_UNAUTHORIZED === 'false';
-        await repository.delete({
-          type: InstanceType.BROWSER,
-          id: Not(DEFAULT_BROWSER_INSTANCE_ID),
-        });
-        const instance = new Instances(
-          DEFAULT_BROWSER_INSTANCE_ID,
-          'Electron Chromium',
-          InstanceType.BROWSER,
-          {
-            engine: 'electron-chromium',
-            userDataPath,
-            insecureTls: enabled,
-          },
-        );
-        instance.static = true;
-        await repository.save(instance);
-        return enabled;
-      },
-    );
-    this.browser.setInsecureTls(insecureTls);
+    await this.repository.manager.transaction(async (manager) => {
+      const repository = manager.getRepository(Instances);
+      await repository.delete({
+        type: InstanceType.BROWSER,
+        id: Not(DEFAULT_BROWSER_INSTANCE_ID),
+      });
+      const instance = new Instances(
+        DEFAULT_BROWSER_INSTANCE_ID,
+        'Electron Chromium',
+        InstanceType.BROWSER,
+        {
+          engine: 'electron-chromium',
+          userDataPath,
+        },
+      );
+      instance.static = true;
+      await repository.save(instance);
+    });
   }
 
   @channel(InstancesChannel.GetInstances)
@@ -65,13 +52,11 @@ export class InstancesManager extends BaseManager {
         config: {
           engine: 'electron-chromium',
           userDataPath: overview.userDataPath,
-          insecureTls: overview.insecureTls,
         },
         status: overview.tabCount ? 'running' : 'stop',
         tabCount: overview.tabCount,
         threadCount: overview.threadCount,
         chromiumVersion: overview.chromiumVersion,
-        insecureTlsRestartRequired: overview.insecureTlsRestartRequired,
       },
     ];
   }
@@ -89,19 +74,6 @@ export class InstancesManager extends BaseManager {
       throw new Error('Unknown browser instance.');
     this.browser.closeAllTabs();
     return { status: 'stop' };
-  }
-
-  @channel(InstancesChannel.SetInsecureTls)
-  async setInsecureTls(id: string, enabled: boolean): Promise<InstanceInfo> {
-    if (id !== DEFAULT_BROWSER_INSTANCE_ID)
-      throw new Error('Unknown browser instance.');
-    if (typeof enabled !== 'boolean')
-      throw new Error('The certificate setting must be a boolean.');
-    const instance = await this.repository.findOneByOrFail({ id });
-    instance.config = { ...instance.config, insecureTls: enabled };
-    await this.repository.save(instance);
-    this.browser.setInsecureTls(enabled);
-    return (await this.getInstances())[0];
   }
 }
 

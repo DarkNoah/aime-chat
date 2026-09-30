@@ -182,8 +182,11 @@ class AppManager extends BaseManager {
     );
     nativeTheme.themeSource =
       settings.find((x) => x.id === 'theme')?.value ?? 'system';
+    const insecureTlsSetting = settings.find((x) => x.id === 'insecureTls');
     setInsecureTlsEnabled(
-      Boolean(settings.find((x) => x.id === 'insecureTls')?.value?.enabled),
+      insecureTlsSetting
+        ? Boolean(insecureTlsSetting.value?.enabled)
+        : process.env.TLS_REJECT_UNAUTHORIZED === 'false',
     );
     const proxySetting = await this.settingsRepository.findOne({
       where: { id: 'proxy' },

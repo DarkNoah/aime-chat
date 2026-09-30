@@ -31,6 +31,7 @@ import { normalizeBrowserUrl } from './command';
 import { runBrowserCli } from './cli';
 import { readBrowserPage } from './read-page';
 import { browserProfilePath, migrateBrowserProfile } from './profile';
+import { isInsecureTlsEnabled } from '../app/insecure-tls';
 import { isString } from '@/utils/is';
 import { Browser, chromium, Page } from 'playwright';
 
@@ -55,10 +56,6 @@ export class ThreadBrowserManager extends EventEmitter {
   private registered = false;
 
   private browserSession?: Session;
-
-  private insecureTls = false;
-
-  private activeInsecureTls = false;
 
   private backgroundWindow?: BaseWindow;
 
@@ -145,10 +142,9 @@ export class ThreadBrowserManager extends EventEmitter {
     if (!this.browserSession) {
       // One persistent session for ALL browser tabs, regardless of chat/project.
       this.browserSession = session.fromPath(this.prepareProfile());
-      this.browserSession.setCertificateVerifyProc(
-        this.insecureTls ? (_request, callback) => callback(0) : null,
+      this.browserSession.setCertificateVerifyProc((_request, callback) =>
+        callback(isInsecureTlsEnabled() ? 0 : -3),
       );
-      this.activeInsecureTls = this.insecureTls;
       if (this.proxy)
         this.proxyReady = this.browserSession.setProxy(this.proxy);
       this.browserSession.on('will-download', (event, item, wc) =>
@@ -167,19 +163,10 @@ export class ThreadBrowserManager extends EventEmitter {
     return browserProfilePath(root);
   }
 
-  setInsecureTls(enabled: boolean): void {
-    // Chromium caches certificate decisions. Apply changes to an existing
-    // session only after restart, rather than report an ineffective revocation.
-    this.insecureTls = enabled;
-  }
-
   overview() {
     const threads = [...this.registry.threads.values()];
     return {
       userDataPath: this.prepareProfile(),
-      insecureTls: this.insecureTls,
-      insecureTlsRestartRequired:
-        !!this.browserSession && this.activeInsecureTls !== this.insecureTls,
       tabCount: threads.reduce(
         (sum, thread) =>
           sum +
