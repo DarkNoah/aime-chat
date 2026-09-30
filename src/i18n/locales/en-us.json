@@ -688,6 +688,8 @@
     "creating_project": "Creating...",
     "edit_project": "Edit Project",
     "add_skills": "Add Skills",
+    "open_skill_source": "Open {{name}} source",
+    "update_skill": "Update {{name}}",
     "default_agent": "Default Agent",
     "default_model": "Default Model",
     "export_messages": "Export messages",

@@ -73,8 +73,8 @@ export function FileTabs({
               else if (event.key === 'End') next = files.length - 1;
               else return;
               event.preventDefault();
-              onSelect(files[next].path);
               document.getElementById(`${idPrefix}-tab-${next}`)?.focus();
+              onSelect(files[next].path);
             }}
           >
             <span className="truncate">{file.path.split(/[/\\]/).pop()}</span>

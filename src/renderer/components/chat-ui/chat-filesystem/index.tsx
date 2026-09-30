@@ -490,15 +490,24 @@ export const ChatFilesystem = React.forwardRef<
     undefined,
   );
 
-  const handlePreviewFile = useCallback((filePath: string) => {
-    setOpenFiles((files) =>
-      files.some((file) => file.path === filePath)
-        ? files
-        : [...files, { path: filePath, dirty: false }],
-    );
-    setSelectedFilePath(filePath);
-    return true;
-  }, []);
+  const handlePreviewFile = useCallback(
+    (filePath: string) => {
+      setOpenFiles((files) => {
+        const remaining = files.filter(
+          (file) =>
+            file.path !== selectedFilePath ||
+            file.path === filePath ||
+            file.dirty,
+        );
+        return remaining.some((file) => file.path === filePath)
+          ? remaining
+          : [...remaining, { path: filePath, dirty: false }];
+      });
+      setSelectedFilePath(filePath);
+      return true;
+    },
+    [selectedFilePath],
+  );
 
   const handleDirtyChange = useCallback((filePath: string, dirty: boolean) => {
     setOpenFiles((files) =>
@@ -964,7 +973,7 @@ export const ChatFilesystem = React.forwardRef<
                   idPrefix={tabIdPrefix}
                   files={openFiles}
                   selected={selectedFilePath}
-                  onSelect={setSelectedFilePath}
+                  onSelect={handlePreviewFile}
                   onClose={closeFile}
                 />
                 {openFiles.map((file, index) => (

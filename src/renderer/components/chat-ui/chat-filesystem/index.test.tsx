@@ -323,26 +323,92 @@ describe('ChatFilesystem', () => {
     expect(
       screen.getByRole('tab', { name: 'a.txt chat.file_unsaved' }),
     ).toHaveAttribute('aria-selected', 'true');
-    rerender(
+    await act(async () => {
+      rerender(
+        <ChatFilesystem
+          workspace="/workspace"
+          filePreviewRequest={request('/workspace/a.txt')}
+        />,
+      );
+    });
+    expect(screen.getAllByRole('tab')).toHaveLength(1);
+    expect(
+      screen.queryByRole('tab', { name: 'b.txt' }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(
+      screen.getAllByRole('button', { name: 'chat.file_close_tab' })[0],
+    );
+    expect(confirm).toHaveBeenCalledTimes(1);
+    expect(screen.getAllByRole('tab')).toHaveLength(1);
+    confirm.mockReturnValue(true);
+    fireEvent.click(
+      screen.getAllByRole('button', { name: 'chat.file_close_tab' })[0],
+    );
+    expect(screen.queryByRole('tab')).not.toBeInTheDocument();
+  });
+
+  it('replaces a clean preview when another file is selected, while keeping dirty tabs', async () => {
+    getDirectoryTree.mockResolvedValue({
+      name: 'workspace',
+      path: '/workspace',
+      isDirectory: true,
+      children: ['a.txt', 'b.txt', 'c.txt'].map((name) => ({
+        name,
+        path: `/workspace/${name}`,
+        isDirectory: false,
+      })),
+    });
+    render(<ChatFilesystem workspace="/workspace" />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'a.txt' }));
+    fireEvent.click(screen.getByRole('button', { name: 'b.txt' }));
+    expect(
+      screen.queryByRole('tab', { name: 'a.txt' }),
+    ).not.toBeInTheDocument();
+    expect(screen.getAllByRole('tab')).toHaveLength(1);
+
+    fireEvent.click(screen.getByText('Edit file'));
+    const confirm = jest.spyOn(window, 'confirm').mockReturnValue(false);
+    fireEvent.click(screen.getByRole('button', { name: 'c.txt' }));
+    expect(screen.getAllByRole('tab')).toHaveLength(2);
+    expect(
+      screen.getByRole('tab', { name: 'b.txt chat.file_unsaved' }),
+    ).toBeInTheDocument();
+
+    fireEvent.keyDown(screen.getByRole('tab', { name: 'c.txt' }), {
+      key: 'ArrowLeft',
+    });
+    expect(
+      screen.queryByRole('tab', { name: 'c.txt' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('tab', { name: 'b.txt chat.file_unsaved' }),
+    ).toHaveFocus();
+    expect(confirm).not.toHaveBeenCalled();
+  });
+
+  it('replaces a clean tab opened by an external preview request', async () => {
+    const { rerender } = render(
       <ChatFilesystem
         workspace="/workspace"
         filePreviewRequest={request('/workspace/a.txt')}
       />,
     );
-    expect(screen.getAllByRole('tab')).toHaveLength(2);
-    fireEvent.click(
-      screen.getAllByRole('button', { name: 'chat.file_close_tab' })[0],
-    );
-    expect(confirm).toHaveBeenCalledTimes(1);
-    expect(screen.getAllByRole('tab')).toHaveLength(2);
-    confirm.mockReturnValue(true);
-    fireEvent.click(
-      screen.getAllByRole('button', { name: 'chat.file_close_tab' })[0],
-    );
-    expect(screen.getByRole('tab', { name: 'b.txt' })).toHaveAttribute(
-      'aria-selected',
-      'true',
-    );
+    await screen.findByRole('tab', { name: 'a.txt' });
+    await act(async () => {
+      rerender(
+        <ChatFilesystem
+          workspace="/workspace"
+          filePreviewRequest={request('/workspace/b.txt')}
+        />,
+      );
+    });
+    expect(
+      await screen.findByRole('tab', { name: 'b.txt' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('tab', { name: 'a.txt' }),
+    ).not.toBeInTheDocument();
   });
 
   it('creates a file from the toolbar and opens it in a tab', async () => {

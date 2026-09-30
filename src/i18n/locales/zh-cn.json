@@ -732,6 +732,8 @@
     "creating_project": "正在创建...",
     "edit_project": "修改项目",
     "add_skills": "添加技能",
+    "open_skill_source": "打开 {{name}} 来源",
+    "update_skill": "更新 {{name}}",
     "default_agent": "默认助手",
     "default_model": "默认模型",
     "installed_skills": "已安装技能",

@@ -1,6 +1,6 @@
 import { cn } from '@/renderer/lib/utils';
 import { Project } from '@/types/project';
-import React, { ForwardedRef, useState } from 'react';
+import React, { ForwardedRef, useMemo, useState } from 'react';
 import {
   Item,
   ItemActions,
@@ -10,7 +10,13 @@ import {
 } from '../ui/item';
 import { Button } from '../ui/button';
 import { useTranslation } from 'react-i18next';
-import { IconExternalLink, IconReload, IconTrash } from '@tabler/icons-react';
+import {
+  IconChevronRight,
+  IconExternalLink,
+  IconFolder,
+  IconReload,
+  IconTrash,
+} from '@tabler/icons-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,6 +33,12 @@ import { SkillInfo } from '@/types/skill';
 import { Spinner } from '../ui/spinner';
 import { SkillManagerDialog } from '../skills-ui/skill-manager-dialog';
 import { getSkillDisplayName } from '../skills-ui/skill-metadata';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '../ui/collapsible';
+import { groupProjectSkills } from './project-skill-groups';
 
 export type ProjectViewProps = {
   project?: Project;
@@ -44,6 +56,10 @@ export const ProjectView = React.forwardRef<ProjectViewRef, ProjectViewProps>(
     const [openSkillDetail, setOpenSkillDetail] = useState(false);
     const [loadings, setLoadings] = useState<Record<string, boolean>>({});
     const { t } = useTranslation();
+    const skillItems = useMemo(
+      () => groupProjectSkills(project?.skills || [], project?.path),
+      [project?.skills, project?.path],
+    );
     const handleDeleteSkill = async (skillId: string) => {
       await window.electron.projects.deleteSkill(project?.id, skillId);
       onProjectChanged?.();
@@ -59,6 +75,90 @@ export const ProjectView = React.forwardRef<ProjectViewRef, ProjectViewProps>(
       setLoadings((prev) => ({ ...prev, [skill.id]: false }));
       onProjectChanged?.();
     };
+    const renderSkillItem = (skill: SkillInfo) => (
+      <Item
+        key={skill.id}
+        variant="outline"
+        className="w-full hover:bg-accent/50 transition-colors"
+      >
+        <ItemContent>
+          <ItemTitle className="text-lg">
+            {skill.source && (
+              <Button
+                variant="outline"
+                size="icon-sm"
+                className="p-0 mr-2 cursor-pointer"
+                onClick={() => window.open(skill.source, '_blank')}
+                aria-label={t('project.open_skill_source', {
+                  name: getSkillDisplayName(skill),
+                })}
+              >
+                <IconExternalLink />
+              </Button>
+            )}
+            <button
+              type="button"
+              className="cursor-pointer text-left hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+              onClick={() => {
+                setSelectedSkill(skill);
+                setOpenSkillDetail(true);
+              }}
+            >
+              {getSkillDisplayName(skill)}
+            </button>
+          </ItemTitle>
+          <ItemDescription className="line-clamp-2 text-xs text-muted-foreground">
+            {skill.description}
+          </ItemDescription>
+        </ItemContent>
+        <ItemActions>
+          {skill.source && (
+            <Button
+              variant="outline"
+              size="icon-sm"
+              className="cursor-pointer"
+              disabled={loadings[skill.id]}
+              onClick={() => handleUpdateSkill(skill)}
+              aria-label={t('project.update_skill', {
+                name: getSkillDisplayName(skill),
+              })}
+            >
+              {loadings[skill.id] ? (
+                <Spinner className="w-4 h-4" />
+              ) : (
+                <IconReload className="w-4 h-4" />
+              )}
+            </Button>
+          )}
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="destructive"
+                size="icon-sm"
+                className="cursor-pointer"
+                disabled={loadings[skill.id]}
+                aria-label={t('common.delete')}
+              >
+                <IconTrash />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>
+                  {t('common.ask_to_delete_skill')}
+                </AlertDialogTitle>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+                <AlertDialogAction onClick={() => handleDeleteSkill(skill.id)}>
+                  {t('common.delete')}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </ItemActions>
+      </Item>
+    );
     return (
       <div className={cn('flex flex-col gap-2', className)}>
         <Item variant="outline">
@@ -93,94 +193,40 @@ export const ProjectView = React.forwardRef<ProjectViewRef, ProjectViewProps>(
           {project?.skills && project?.skills.length > 0 && (
             <div className="max-h-[400px] overflow-y-auto w-full">
               <div className="w-full flex flex-col gap-2 pr-2">
-                {project?.skills.map((skill) => {
-                  return (
-                    <Item
-                      key={skill.id}
-                      variant="outline"
-                      className="w-full hover:bg-accent/50 transition-colors"
-                    >
-                      <ItemContent>
-                        <ItemTitle
-                          onClick={() => {
-                            setSelectedSkill(skill);
-                            setOpenSkillDetail(true);
-                          }}
-                          className="cursor-pointer text-lg"
+                {skillItems.map((item) =>
+                  item.kind === 'group' ? (
+                    <Collapsible key={item.key} className="w-full space-y-2">
+                      <CollapsibleTrigger asChild>
+                        <button
+                          type="button"
+                          className="group w-full rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         >
-                          {skill.source && (
-                            <Button
-                              variant="outline"
-                              size="icon-sm"
-                              className="p-0 mr-2 cursor-pointer"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                window.open(skill.source, '_blank');
-                              }}
-                            >
-                              <IconExternalLink />
-                            </Button>
-                          )}
-                          {getSkillDisplayName(skill)}
-                        </ItemTitle>
-
-                        <ItemDescription className="line-clamp-2 text-xs text-muted-foreground">
-                          {skill.description}
-                        </ItemDescription>
-                      </ItemContent>
-                      <ItemActions>
-                        {skill.source && (
-                          <Button
+                          <Item
                             variant="outline"
-                            size="icon-sm"
-                            className="cursor-pointer"
-                            disabled={loadings[skill.id]}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleUpdateSkill(skill);
-                            }}
+                            className="w-full hover:bg-accent/50"
                           >
-                            {loadings[skill.id] ? (
-                              <Spinner className="w-4 h-4" />
-                            ) : (
-                              <IconReload className="w-4 h-4" />
-                            )}
-                          </Button>
-                        )}
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button
-                              variant="destructive"
-                              size="icon-sm"
-                              className="cursor-pointer"
-                              disabled={loadings[skill.id]}
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <IconTrash></IconTrash>
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>
-                                {t('common.ask_to_delete_skill')}
-                              </AlertDialogTitle>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>
-                                {t('common.cancel')}
-                              </AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => handleDeleteSkill(skill.id)}
-                              >
-                                {t('common.delete')}
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </ItemActions>
-                    </Item>
-                  );
-                })}
+                            <IconFolder className="size-5 shrink-0" />
+                            <ItemContent className="min-w-0">
+                              <ItemTitle className="truncate text-lg">
+                                {item.name}
+                              </ItemTitle>
+                              <ItemDescription>
+                                {item.skills.length}{' '}
+                                {t('common.skills', 'skills')}
+                              </ItemDescription>
+                            </ItemContent>
+                            <IconChevronRight className="size-4 shrink-0 transition-transform group-data-[state=open]:rotate-90 motion-reduce:transition-none" />
+                          </Item>
+                        </button>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="space-y-2 pl-4">
+                        {item.skills.map(renderSkillItem)}
+                      </CollapsibleContent>
+                    </Collapsible>
+                  ) : (
+                    renderSkillItem(item.skill)
+                  ),
+                )}
               </div>
             </div>
           )}
