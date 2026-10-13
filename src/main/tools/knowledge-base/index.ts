@@ -13,6 +13,7 @@ import {
 } from "@/types/knowledge-base";
 import { searchKnowledgeBaseGraph } from './graph-search';
 import { providersManager } from "@/main/providers";
+import { formatLocalEmbeddingQuery } from "@/main/local-model/embedding-prompts";
 import { appManager } from "@/main/app";
 import { localModelManager } from '@/main/local-model';
 import {
@@ -279,7 +280,7 @@ For direct fact lookup without relationship traversal, use KnowledgeBaseSearch i
       knowledgeBase.vectorLength,
     );
     const result = await searchKnowledgeBaseGraph({
-      queryText: query,
+      queryText: formatLocalEmbeddingQuery(knowledgeBase.embedding, query),
       topK: top_k,
       abortSignal: options?.abortSignal,
       vectorStore: createKnowledgeBaseGraphVectorStore({

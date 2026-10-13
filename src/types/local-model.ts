@@ -54,6 +54,8 @@ export type LocalModelItem = {
   dependencies?: string[];
   selectable?: boolean;
   requiredFiles?: string[];
+  /** Glob patterns passed to `--include`; omit to download the whole repo. */
+  include?: string[];
   download?: {
     url: string;
     source: string;

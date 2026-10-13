@@ -44,6 +44,22 @@
           "url": "https://huggingface.co/onnx-community/Qwen3-Embedding-0.6B-ONNX"
         }
       ]
+    },
+    {
+      "id": "embeddinggemma-2",
+      "library": "transformers",
+      "repo": "onnx-community/embeddinggemma-2-ONNX",
+      "include": ["*.json", "onnx/model_quantized.onnx*"],
+      "download": [
+        {
+          "source": "huggingface",
+          "url": "https://huggingface.co/onnx-community/embeddinggemma-2-ONNX"
+        },
+        {
+          "source": "modelscope",
+          "url": "https://www.modelscope.cn/models/onnx-community/embeddinggemma-2-ONNX"
+        }
+      ]
     }
   ],
   "reranker": [
