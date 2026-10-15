@@ -95,6 +95,7 @@ export function buildModelDownloadCommand(
   repo: string,
   modelPath: string,
   isWindows: boolean,
+  include: string[] = [],
 ) {
   const args =
     source === 'modelscope'
@@ -109,6 +110,7 @@ export function buildModelDownloadCommand(
           modelPath,
         ]
       : ['hf', 'download', repo, '--local-dir', modelPath];
+  for (const pattern of include) args.push('--include', pattern);
   if (isWindows) {
     const escape = (value: string) => `'${value.replace(/'/g, "''")}'`;
     return `& ${['./uvx.exe', ...args].map(escape).join(' ')}; exit $LASTEXITCODE`;

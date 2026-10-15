@@ -465,6 +465,7 @@ export class ThreadBrowserManager extends EventEmitter {
       requestPreview?: boolean,
       newTab?: boolean | string,
       autoHandleConnect?: boolean,
+      timeout?: number,
     }
   ): Promise<R> {
     const { generation } = this;
@@ -476,10 +477,17 @@ export class ThreadBrowserManager extends EventEmitter {
           throw new Error('Browser action cancelled by closing all tabs.');
         this.busyThreads.add(threadId);
         this.changed(threadId);
+        const timeout = options?.timeout;
+        const timeoutController = new AbortController();
+        const signal = AbortSignal.any([
+          timeoutController.signal,
+          ...(options?.signal ? [options.signal] : []),
+        ]);
+        let timer: ReturnType<typeof setTimeout> | undefined;
         let tab: CdpTab | undefined;
         let browser: Browser | undefined;
         let page: Page | undefined;
-        try {
+        const execute = async () => {
           if (options?.newTab) {
             if (isString(options.newTab)) {
               tab = this.createCdpTab(threadId, options.newTab);
@@ -492,17 +500,34 @@ export class ThreadBrowserManager extends EventEmitter {
           if (options?.requestPreview === true && threadId) this.requestPreview(threadId);
           if (options?.autoHandleConnect === true && tab) {
             const endpoint = await this.bridge.endpoint(threadId, tab.id);
+            timeoutController.signal.throwIfAborted();
             browser = await chromium.connectOverCDP(endpoint, {
               timeout: 10000,
             });
             const context = browser.contexts()[0];
             page = context?.pages()[0];
           }
-          return await action({ tab, browser, page }, options?.signal);
+          timeoutController.signal.throwIfAborted();
+          return action({ tab, browser, page }, signal);
+        };
+        try {
+          if (!timeout || timeout <= 0) return await execute();
+          // The action may ignore the signal, so the timeout must also settle run().
+          const timedOut = new Promise<never>((_, reject) => {
+            timer = setTimeout(() => {
+              const error = new Error(
+                `Browser action timed out after ${timeout}ms.`,
+              );
+              timeoutController.abort(error);
+              reject(error);
+            }, timeout);
+          });
+          return await Promise.race([execute(), timedOut]);
         } catch (err) {
           console.error(err);
           throw err;
         } finally {
+          clearTimeout(timer);
           if (options?.autoHandleConnect === true && tab) {
             await browser?.close().catch(() => undefined);
             this.bridge.disconnect(threadId, tab.id);
@@ -546,7 +571,7 @@ export class ThreadBrowserManager extends EventEmitter {
               this.closeTab(owner, tab.id);
           }
         },
-        signal,
+        { signal },
       );
     } finally {
       if (!threadId) this.registry.threads.delete(owner);

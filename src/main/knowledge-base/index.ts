@@ -21,6 +21,7 @@ import { MDocument } from '@mastra/rag';
 import type { EmbeddingModelV2 } from '@ai-sdk/provider';
 import { nanoid } from '@/utils/nanoid';
 import { providersManager } from '../providers';
+import { formatLocalEmbeddingQuery } from '../local-model/embedding-prompts';
 import { isUrl } from '@/utils/is';
 import fs from 'fs';
 import { taskQueueManager, TaskContext } from '../task-queue';
@@ -1044,7 +1045,7 @@ export class KnowledgeBaseManager extends BaseManager {
     const vectorRows: any[] = [];
     if (kb.embedding && fileTpye === 'text' && kb.vectorLength) {
       try {
-        let embeddingQuery = originalQuery;
+        let embeddingQuery = formatLocalEmbeddingQuery(kb.embedding, originalQuery);
         if (kb.embedding.split('/').at(-1) === 'jina-clip-v2') {
           embeddingQuery = `Represent the query for retrieving evidence documents: ${originalQuery}`;
         }

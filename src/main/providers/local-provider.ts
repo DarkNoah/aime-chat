@@ -23,6 +23,10 @@ import fs from 'fs';
 import path from 'path';
 import { appManager } from '../app';
 import { localModelManager } from '../local-model';
+import {
+  EMBEDDING_GEMMA_2,
+  formatEmbeddingGemmaDocument,
+} from '../local-model/embedding-prompts';
 import { LocalModelTypes } from '@/types/local-model';
 import {
   AutoProcessor,
@@ -164,7 +168,11 @@ export class LocalEmbeddingModel implements EmbeddingModelV2<string> {
       //   this.modelId
       // ] as FeatureExtractionPipeline;
 
-      const inputs = tokenizer(values, {
+      const texts =
+        this.modelId === EMBEDDING_GEMMA_2
+          ? values.map(formatEmbeddingGemmaDocument)
+          : values;
+      const inputs = tokenizer(texts, {
         padding: true,
         truncation: true
       });
@@ -184,7 +192,9 @@ export class LocalEmbeddingModel implements EmbeddingModelV2<string> {
         });
       }
 
-      const embeddings2 = clsNormalize(outputs);
+      const embeddings2 = outputs.sentence_embedding
+        ? outputs.sentence_embedding.tolist()
+        : clsNormalize(outputs);
 
 
       // const output = await featureExtractionPipeline(values, {
