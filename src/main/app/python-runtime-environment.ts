@@ -31,7 +31,7 @@ export interface ManagedPythonRuntimeInfo {
 
 interface ManagedPythonRuntimeOptions {
   uvDir: string;
-  userDataDir: string;
+  runtimeDir: string;
   packageCacheDir: string;
   packageIndex: string;
   commandEnv: Record<string, string>;
@@ -40,8 +40,8 @@ interface ManagedPythonRuntimeOptions {
   runCommand: RuntimeCommandRunner;
 }
 
-function getPaths(userDataDir: string, isWindows: boolean) {
-  const dir = path.join(userDataDir, '.runtime', 'python-runtime');
+function getPaths(runtimeDir: string, isWindows: boolean) {
+  const dir = path.join(runtimeDir, 'python-runtime');
   const venvDir = path.join(dir, '.venv');
   return {
     dir,
@@ -56,11 +56,11 @@ function getPaths(userDataDir: string, isWindows: boolean) {
 }
 
 export async function inspectManagedPythonRuntime(
-  userDataDir: string,
+  runtimeDir: string,
   isWindows: boolean,
   runCommand: RuntimeCommandRunner,
 ): Promise<ManagedPythonRuntimeInfo> {
-  const paths = getPaths(userDataDir, isWindows);
+  const paths = getPaths(runtimeDir, isWindows);
   const info: ManagedPythonRuntimeInfo = { installed: false };
 
   if (!fs.existsSync(paths.pythonPath)) return info;
@@ -102,7 +102,7 @@ export async function inspectManagedPythonRuntime(
 export async function setupManagedPythonRuntime(
   options: ManagedPythonRuntimeOptions,
 ) {
-  const paths = getPaths(options.userDataDir, options.isWindows);
+  const paths = getPaths(options.runtimeDir, options.isWindows);
   const uvPath = path.join(
     options.uvDir,
     options.isWindows ? 'uv.exe' : './uv',
@@ -136,7 +136,7 @@ export async function setupManagedPythonRuntime(
 
   if (fs.existsSync(paths.pythonPath)) {
     const existingRuntime = await inspectManagedPythonRuntime(
-      options.userDataDir,
+      options.runtimeDir,
       options.isWindows,
       options.runCommand,
     );
@@ -175,7 +175,7 @@ export async function setupManagedPythonRuntime(
 
   await installPip();
   const runtimeInfo = await inspectManagedPythonRuntime(
-    options.userDataDir,
+    options.runtimeDir,
     options.isWindows,
     options.runCommand,
   );

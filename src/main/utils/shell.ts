@@ -13,6 +13,7 @@ import { promisify } from 'node:util';
 import chardet from 'chardet';
 import Stream from 'stream';
 import crossSpawn from 'cross-spawn';
+import { acquireRuntimeUse } from '../app/runtime-maintenance';
 
 export const decodeBuffer = (data: Buffer) => {
   return data.toString('utf8');
@@ -133,7 +134,7 @@ async function getConsoleCodePage() {
 
 
 
-export const runCommand = async (
+const runCommandImpl = async (
   command: string | string[],
   options?: {
     file?: string;
@@ -144,6 +145,7 @@ export const runCommand = async (
     onStdOut?: (str: string) => void;
     onStdErr?: (str: string) => void;
     usePowerShell?: boolean;
+    allowDuringRuntimeMigration?: boolean;
   },
 ) => {
   const {
@@ -162,6 +164,7 @@ export const runCommand = async (
     options?.env,
     options?.usePowerShell,
     options?.file,
+    options?.allowDuringRuntimeMigration,
   );
   let exited = false;
   let stdout = '';
@@ -295,7 +298,11 @@ export const runCommand = async (
   };
 };
 
-export const createShell = async (
+export const runCommand = async (...args: Parameters<typeof runCommandImpl>) => {
+  return runCommandImpl(...args);
+};
+
+const createShellImpl = async (
   input_command: string | string[],
   cwd?: string,
   timeout?: number,
@@ -456,5 +463,33 @@ export const createShell = async (
       },
     );
     return { shell, tempFilePath, command: _command };
+  }
+};
+
+export const createShell = async (
+  input: string | string[],
+  cwd?: string,
+  timeout?: number,
+  env?: Record<string, string>,
+  usePowerShell = false,
+  file: string = null,
+  allowDuringRuntimeMigration = false,
+) => {
+  const release = allowDuringRuntimeMigration ? undefined : acquireRuntimeUse();
+  try {
+    const result = await createShellImpl(
+      input,
+      cwd,
+      timeout,
+      env,
+      usePowerShell,
+      file,
+    );
+    result.shell.once('exit', () => release?.());
+    result.shell.once('error', () => release?.());
+    return result;
+  } catch (error) {
+    release?.();
+    throw error;
   }
 };

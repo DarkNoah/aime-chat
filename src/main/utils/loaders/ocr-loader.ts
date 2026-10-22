@@ -2,7 +2,7 @@ import { BaseLoader } from './base-loader';
 import fs from 'fs';
 import { appManager } from '@/main/app';
 import path from 'path';
-import { app } from 'electron';
+import { getRuntimeDirectory } from '@/main/app/runtime-directory';
 import { getAssetPath } from '..';
 import { getPaddleOcrRuntime, getUVRuntime } from '@/main/app/runtime';
 import { spawn, ChildProcess } from 'child_process';
@@ -11,6 +11,7 @@ import readline from 'readline';
 import fg from 'fast-glob';
 import { RuntimeInfo } from '@/types/app';
 import { providersManager } from '@/main/providers';
+import { acquireRuntimeUse, assertRuntimeAvailable } from '@/main/app/runtime-maintenance';
 
 export type OcrLoaderOptions = {
   modelId?: string;
@@ -82,29 +83,45 @@ function createPythonClient({ command, args, cwd, env }: PythonClientOptions) {
     });
   }
 
-  function call(
+  async function call(
     method: string,
     params: Record<string, any>,
     { timeoutMs = 600_000 } = {},
   ): Promise<any> {
-    start();
-    const id = randomUUID();
-    const payload = { id, method, params };
+    const release = acquireRuntimeUse();
+    try {
+      start();
+      const id = randomUUID();
+      const payload = { id, method, params };
 
-    return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => {
-        pending.delete(id);
-        reject(new Error(`timeout: ${method}`));
-      }, timeoutMs);
+      return await new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+          pending.delete(id);
+          reject(new Error(`timeout: ${method}`));
+        }, timeoutMs);
 
-      pending.set(id, { resolve, reject, timer });
-      proc!.stdin!.write(JSON.stringify(payload) + '\n');
-    });
+        pending.set(id, { resolve, reject, timer });
+        proc!.stdin!.write(JSON.stringify(payload) + '\n');
+      });
+    } finally {
+      release();
+    }
   }
 
-  function stop() {
+  async function stop() {
     if (!proc) return;
-    proc.kill();
+    const child = proc;
+    await new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        child.kill('SIGKILL');
+        reject(new Error('RUNTIME_MIGRATION_BUSY'));
+      }, 5000);
+      child.once('exit', () => {
+        clearTimeout(timer);
+        resolve();
+      });
+      child.kill();
+    });
   }
 
   return { call, start, stop };
@@ -156,19 +173,18 @@ async function getPaddleOcrService(): Promise<any> {
 
 export async function destroyPaddleOcrService(): Promise<void> {
   if (paddleOcrService) {
-    await paddleOcrService.destroy();
+    if (typeof paddleOcrService.destroy === 'function') await paddleOcrService.destroy();
     paddleOcrService = null;
   }
   if (pythonClient) {
-    pythonClient.stop();
+    await pythonClient.stop();
     pythonClient = null;
   }
 }
 
 async function ensureRuntimeFile(): Promise<string> {
   const runtimeFile = path.join(
-    app.getPath('userData'),
-    '.runtime',
+    getRuntimeDirectory(),
     'paddleocr-runtime',
     'main.py',
   );
@@ -193,7 +209,7 @@ async function ensureRuntimeFile(): Promise<string> {
   return runtimeFile;
 }
 
-export async function getPaddleOcrPythonService(): Promise<{
+async function initializePaddleOcrPythonService(): Promise<{
   recognize: (
     buffer: ArrayBufferLike,
     options?: {
@@ -203,6 +219,7 @@ export async function getPaddleOcrPythonService(): Promise<{
     },
   ) => Promise<{ text: string; result: any }>;
 }> {
+  assertRuntimeAvailable();
   if (paddleOcrService) {
     return paddleOcrService;
   }
@@ -229,7 +246,7 @@ export async function getPaddleOcrPythonService(): Promise<{
 
   const isWindows = process.platform === 'win32';
   const uvBin = path.join(uvRuntime.dir, isWindows ? 'uv.exe' : 'uv');
-  const env = {}
+  const env = {};
 
   if (appManager.appProxy?.host && appManager.appProxy?.port) {
     env['HTTP_PROXY'] =
@@ -242,7 +259,7 @@ export async function getPaddleOcrPythonService(): Promise<{
     command: uvBin,
     args: ['run', '--project', runtimeDir, 'python', 'main.py'],
     cwd: runtimeDir,
-    env: env
+    env: env,
   });
 
   paddleOcrService = {
@@ -253,99 +270,123 @@ export async function getPaddleOcrPythonService(): Promise<{
         ext?: string;
         modelId: string;
       } = {
-          noCache: false,
-          ext: '',
-          modelId: 'paddleocr-vl',
-        },
+        noCache: false,
+        ext: '',
+        modelId: 'paddleocr-vl',
+      },
     ): Promise<{ text: string; result: any }> => {
-      // 计算 buffer 的 MD5 作为文件名
-      const bufferData = Buffer.from(buffer);
-      const md5Hash = createHash('md5').update(bufferData).digest('hex');
-
-      const imagePath = path.join(cachePath, `${md5Hash}${options.ext}`);
-      fs.mkdirSync(path.dirname(imagePath), { recursive: true });
-      const imageOutDir = path.join(outPath, md5Hash);
-
-      // 检查是否已有缓存的结果
-      if (!options.noCache && fs.existsSync(imageOutDir)) {
-        // 尝试读取已缓存的 markdown 结果
-        try {
-          const resultDirs = await fs.promises.readdir(imageOutDir);
-          let text = '';
-          for (const dir of resultDirs.sort()) {
-            const mdFiles = await fg(
-              path.join(imageOutDir, dir, md5Hash + '*.md').replace(/\\/g, '/'),
-              {
-                onlyFiles: true,
-                caseSensitiveMatch: false,
-              },
-            );
-            const mdPath = mdFiles.length > 0 ? mdFiles[0] : null;
-            if (fs.existsSync(mdPath)) {
-              let mdContent = await fs.promises.readFile(mdPath, 'utf-8');
-              mdContent = mdContent.replaceAll('<img src="imgs/', '<img src="file://' + path.join(imageOutDir, dir).replaceAll('\\', '/') + '/imgs/')
-              text += mdContent + '\n';
-            }
-          }
-          if (text) {
-            return {
-              text: text.trim(),
-              result: { cached: true, out_dir: imageOutDir },
-            };
-          }
-        } catch {
-          // 缓存读取失败，继续执行预测
-        }
-      }
-      // 如果不使用缓存或文件不存在，则写入文件
-      if (options.noCache || !fs.existsSync(imagePath)) {
-        await fs.promises.writeFile(imagePath, bufferData);
-      }
-      // 调用 Python 服务
-      const response = await pythonClient!.call('predict', {
-        image_path: imagePath,
-        out_dir: imageOutDir,
-        save_json: true,
-        save_markdown: true,
-        device: 'cpu',
-        model_id: options?.modelId || 'paddleocr-vl',
-      });
-
-      // 读取生成的 markdown 文件
-      let text = '';
-      if (response.result?.items) {
-        for (const item of response.result.items) {
-          if (item.markdown_dir) {
-            const mdFiles = await fg(
-              path
-                .join(item.markdown_dir, md5Hash + '*.md')
-                .replace(/\\/g, '/'),
-              {
-                onlyFiles: true,
-                caseSensitiveMatch: false,
-              },
-            );
-            const mdPath = mdFiles.length > 0 ? mdFiles[0] : null;
-            if (fs.existsSync(mdPath)) {
-              let mdContent = await fs.promises.readFile(mdPath, 'utf-8');
-              mdContent = mdContent.replaceAll('<img src="imgs/', '<img src="file://' + path.dirname(mdPath).replaceAll('\\', '/') + '/imgs/')
-              text += mdContent + '\n';
-            }
-          }
-        }
-      }
+      const release = acquireRuntimeUse();
       try {
-        if (fs.existsSync(imagePath)) {
-          await fs.promises.rm(imagePath, { force: true });
-        }
-      } catch {
+        // 计算 buffer 的 MD5 作为文件名
+        const bufferData = Buffer.from(buffer);
+        const md5Hash = createHash('md5').update(bufferData).digest('hex');
 
+        const imagePath = path.join(cachePath, `${md5Hash}${options.ext}`);
+        fs.mkdirSync(path.dirname(imagePath), { recursive: true });
+        const imageOutDir = path.join(outPath, md5Hash);
+
+        // 检查是否已有缓存的结果
+        if (!options.noCache && fs.existsSync(imageOutDir)) {
+          // 尝试读取已缓存的 markdown 结果
+          try {
+            const resultDirs = await fs.promises.readdir(imageOutDir);
+            let text = '';
+            for (const dir of resultDirs.sort()) {
+              const mdFiles = await fg(
+                path
+                  .join(imageOutDir, dir, md5Hash + '*.md')
+                  .replace(/\\/g, '/'),
+                {
+                  onlyFiles: true,
+                  caseSensitiveMatch: false,
+                },
+              );
+              const mdPath = mdFiles.length > 0 ? mdFiles[0] : null;
+              if (fs.existsSync(mdPath)) {
+                let mdContent = await fs.promises.readFile(mdPath, 'utf-8');
+                mdContent = mdContent.replaceAll(
+                  '<img src="imgs/',
+                  '<img src="file://' +
+                    path.join(imageOutDir, dir).replaceAll('\\', '/') +
+                    '/imgs/',
+                );
+                text += mdContent + '\n';
+              }
+            }
+            if (text) {
+              return {
+                text: text.trim(),
+                result: { cached: true, out_dir: imageOutDir },
+              };
+            }
+          } catch {
+            // 缓存读取失败，继续执行预测
+          }
+        }
+        // 如果不使用缓存或文件不存在，则写入文件
+        if (options.noCache || !fs.existsSync(imagePath)) {
+          await fs.promises.writeFile(imagePath, bufferData);
+        }
+        // 调用 Python 服务
+        const response = await pythonClient!.call('predict', {
+          image_path: imagePath,
+          out_dir: imageOutDir,
+          save_json: true,
+          save_markdown: true,
+          device: 'cpu',
+          model_id: options?.modelId || 'paddleocr-vl',
+        });
+
+        // 读取生成的 markdown 文件
+        let text = '';
+        if (response.result?.items) {
+          for (const item of response.result.items) {
+            if (item.markdown_dir) {
+              const mdFiles = await fg(
+                path
+                  .join(item.markdown_dir, md5Hash + '*.md')
+                  .replace(/\\/g, '/'),
+                {
+                  onlyFiles: true,
+                  caseSensitiveMatch: false,
+                },
+              );
+              const mdPath = mdFiles.length > 0 ? mdFiles[0] : null;
+              if (fs.existsSync(mdPath)) {
+                let mdContent = await fs.promises.readFile(mdPath, 'utf-8');
+                mdContent = mdContent.replaceAll(
+                  '<img src="imgs/',
+                  '<img src="file://' +
+                    path.dirname(mdPath).replaceAll('\\', '/') +
+                    '/imgs/',
+                );
+                text += mdContent + '\n';
+              }
+            }
+          }
+        }
+        try {
+          if (fs.existsSync(imagePath)) {
+            await fs.promises.rm(imagePath, { force: true });
+          }
+        } catch {}
+        return { text: text.trim(), result: response.result };
+      } finally {
+        release();
       }
-      return { text: text.trim(), result: response.result };
     },
   };
 
   return paddleOcrService;
+}
+
+export async function getPaddleOcrPythonService() {
+  const release = acquireRuntimeUse();
+  try {
+    return await initializePaddleOcrPythonService();
+  } finally {
+    release();
+  }
 }
 
 // export class OcrLoader extends BaseLoader {

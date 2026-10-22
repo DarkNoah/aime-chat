@@ -27,6 +27,7 @@ import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { RuntimeInfo } from '@/types/app';
 import { ScrollArea } from '@/renderer/components/ui/scroll-area';
+import RuntimeMigration from './runtime-migration';
 
 type RuntimeKey = keyof RuntimeInfo;
 
@@ -98,6 +99,7 @@ function Runtime() {
 
   const [runtimeInfo, setRuntimeInfo] = useState<RuntimeInfo | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [migrating, setMigrating] = useState(false);
   const [pending, setPending] = useState<
     Partial<Record<RuntimeKey, 'install' | 'uninstall'>>
   >({});
@@ -216,6 +218,7 @@ function Runtime() {
               size="sm"
               className="text-destructive hover:text-destructive"
               onClick={() => handleUninstallRuntime(def.key)}
+              disabled={migrating}
             >
               <IconTrash className="size-4" />
               {t('settings.runtime_page.uninstall')}
@@ -226,7 +229,11 @@ function Runtime() {
     }
 
     return (
-      <Button size="sm" onClick={() => handleInstallRuntime(def.key)}>
+      <Button
+        size="sm"
+        onClick={() => handleInstallRuntime(def.key)}
+        disabled={migrating}
+      >
         <IconDownload className="size-4" />
         {t('settings.runtime_page.install')}
       </Button>
@@ -249,7 +256,7 @@ function Runtime() {
             variant="outline"
             size="sm"
             onClick={handleRefresh}
-            disabled={refreshing}
+            disabled={refreshing || migrating}
           >
             {refreshing ? (
               <Spinner className="size-4" />
@@ -259,6 +266,17 @@ function Runtime() {
             {t('settings.runtime_page.refresh')}
           </Button>
         </div>
+
+        <RuntimeMigration
+          busy={
+            refreshing ||
+            Object.values(pending).some(Boolean) ||
+            Object.values(runtimeInfo || {}).some(
+              (info) => info?.status === 'installing',
+            )
+          }
+          onBusyChange={setMigrating}
+        />
 
         <div className="flex flex-col gap-2">
           {RUNTIME_DEFS.map((def) => {

@@ -6,6 +6,8 @@ import {
   getUVRuntime,
 } from '../app/runtime';
 import { runCommand } from '@/main/utils/shell';
+import { getRuntimeEnvironment } from '../app/runtime-directory';
+import { assertRuntimeAvailable } from '../app/runtime-maintenance';
 import {
   CODE_EXECUTION_PACKAGE_INDEX,
   withCodeExecutionPackageCache,
@@ -73,9 +75,10 @@ export const getRuntimePython = async (
   env: Record<string, string> = {},
   mode: PythonRuntimeMode = 'auto',
 ): Promise<Record<string, string>> => {
+  assertRuntimeAvailable();
   let uv = await getUVRuntime();
   const bun = await getBunRuntime();
-  let runtimeEnv = { ...env };
+  let runtimeEnv = { ...env, ...getRuntimeEnvironment() };
 
   if (uv?.installed || bun?.installed) {
     prependPath(runtimeEnv, uv?.dir || bun?.dir);
