@@ -119,6 +119,8 @@ import { writeWorkspaceTextFile } from '../utils/workspace-file';
 import { getFeatureFlags, isPersonalityDisabled } from './feature-flags';
 import { normalizeThemeConfig, saveThemeConfig } from './theme-background';
 import { DefaultModelSettings, resolveDefaultModels } from './default-models';
+import { initializeRuntimeDirectory } from './runtime-directory';
+import { destroyPaddleOcrService } from '../utils/loaders/ocr-loader';
 import {
   applyBrandingThemeBackgrounds,
   getBrandingLogoUrl,
@@ -173,6 +175,16 @@ class AppManager extends BaseManager {
       dbManager.dataSource.getRepository(Translations);
     this.settingsRepository = dbManager.dataSource.getRepository(Settings);
     const settings = await this.settingsRepository.find();
+    const runtimePath = settings.find(
+      (setting) => setting.id === 'runtimePath',
+    )?.value;
+    const resolvedRuntimePath = initializeRuntimeDirectory(runtimePath);
+    runtimeManager.restoreMigration(settings.find((setting) => setting.id === 'runtimeMigration')?.value);
+    if (!runtimePath) {
+      await this.settingsRepository.upsert(
+        new Settings('runtimePath', resolvedRuntimePath), ['id'],
+      );
+    }
     persistModelPathForUninstaller(
       settings.find((x) => x.id === 'modelPath')?.value ??
       getDefaultModelPath(),
@@ -182,8 +194,11 @@ class AppManager extends BaseManager {
     );
     nativeTheme.themeSource =
       settings.find((x) => x.id === 'theme')?.value ?? 'system';
+    const insecureTlsSetting = settings.find((x) => x.id === 'insecureTls');
     setInsecureTlsEnabled(
-      Boolean(settings.find((x) => x.id === 'insecureTls')?.value?.enabled),
+      insecureTlsSetting
+        ? Boolean(insecureTlsSetting.value?.enabled)
+        : process.env.TLS_REJECT_UNAUTHORIZED === 'false',
     );
     const proxySetting = await this.settingsRepository.findOne({
       where: { id: 'proxy' },
@@ -1084,6 +1099,10 @@ class AppManager extends BaseManager {
 
   @channel(AppChannel.SaveSettings)
   public async saveSettings(settings: SaveSettingsInput): Promise<void> {
+    if (settings.id === 'runtimePath') {
+      await this.setRuntimeDirectory(settings.value);
+      return;
+    }
     if (settings.id === 'themeConfig') {
       const save = this.themeConfigSaveQueue.then(() =>
         this.saveThemeConfigSetting(settings),
@@ -1177,6 +1196,46 @@ class AppManager extends BaseManager {
   @channel(AppChannel.GetRuntimeInfo)
   public async getRuntimeInfo(refresh = false): Promise<RuntimeInfo> {
     return runtimeManager.getRuntimeInfo(refresh);
+  }
+
+  @channel(AppChannel.GetRuntimeDirectory)
+  public async getRuntimeDirectory() {
+    return runtimeManager.getRuntimeDirectoryInfo();
+  }
+
+  @channel(AppChannel.SetRuntimeDirectory)
+  public async setRuntimeDirectory(directory: string) {
+    return runtimeManager.saveRuntimeDirectory(directory, async (value) => {
+      await this.settingsRepository.upsert(
+        new Settings('runtimePath', value), ['id'],
+      );
+    });
+  }
+
+  @channel(AppChannel.MigrateRuntimeDirectory)
+  public async migrateRuntimeDirectory(directory: string) {
+    await runtimeManager.migrateRuntimeDirectory(directory, {
+      prepare: async () => {
+        await destroyPaddleOcrService();
+        await toolsManager.disconnectMcpClients();
+      },
+      commit: async (receipt) => {
+        // Keep the new active path and cleanup receipt atomic across crashes.
+        await this.settingsRepository.manager.transaction(async (manager) => {
+          await manager.upsert(Settings, [
+            new Settings('runtimePath', receipt.destination),
+            new Settings('runtimeMigration', receipt),
+          ], ['id']);
+        });
+      },
+      finish: async () => {
+        await this.settingsRepository.delete({ id: 'runtimeMigration' });
+      },
+      restart: () => {
+        app.relaunch();
+        setTimeout(() => app.quit(), 500);
+      },
+    });
   }
 
   @channel(AppChannel.SetApiServerPort)

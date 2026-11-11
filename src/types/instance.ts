@@ -9,10 +9,8 @@ export interface InstanceInfo extends Instances {
   config: {
     engine: 'electron-chromium';
     userDataPath: string;
-    insecureTls: boolean;
   };
   tabCount: number;
   threadCount: number;
   chromiumVersion: string;
-  insecureTlsRestartRequired: boolean;
 }

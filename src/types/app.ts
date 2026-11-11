@@ -188,6 +188,17 @@ export interface ScreenSource {
   thumbnail: string; // base64
 }
 
+export interface RuntimeDirectoryInfo {
+  path: string;
+  defaultPath: string;
+  canChange: boolean;
+  migration?: {
+    destination: string;
+    phase: 'downloading' | 'verifying' | 'cleaning' | 'restarting';
+    cleanupPending?: boolean;
+  };
+}
+
 export type RuntimeId = keyof RuntimeInfo;
 export type RuntimeAction = 'install' | 'reinstall' | 'uninstall';
 export type RuntimeDetails = RuntimeInfo[RuntimeId] & {

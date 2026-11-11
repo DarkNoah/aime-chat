@@ -27,6 +27,7 @@ import {
   IconBug,
 } from '@tabler/icons-react';
 import { useUpdateState } from '@/renderer/hooks/use-update-state';
+import { ScrollArea } from '@/renderer/components/ui/scroll-area';
 
 type PathItem = {
   label: string;
@@ -198,69 +199,71 @@ export default function About() {
   ];
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 p-4">
-      <Card className="overflow-hidden rounded-lg py-0">
-        <CardContent className="flex flex-col gap-5 p-5 md:flex-row md:items-center md:justify-between">
-          <div className="flex min-w-0 items-center gap-4">
-            <div className="flex size-16 shrink-0 items-center justify-center rounded-lg border bg-background">
-              <AppLogo className="size-12" />
-            </div>
-            <div className="min-w-0 space-y-2">
-              <div className="flex min-w-0 flex-wrap items-center gap-2">
-                <h2 className="truncate text-xl font-semibold leading-tight">
-                  {appInfo.name}
-                </h2>
-                <Badge variant="secondary">v{appInfo.version}</Badge>
-                {appInfo?.isPackaged === false && (
-                  <Badge variant="outline" className="text-muted-foreground">
-                    Dev
-                  </Badge>
-                )}
+    <ScrollArea className="h-full">
+      <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 p-4">
+        <Card className="overflow-hidden rounded-lg py-0">
+          <CardContent className="flex flex-col gap-5 p-5 md:flex-row md:items-center md:justify-between">
+            <div className="flex min-w-0 items-center gap-4">
+              <div className="flex size-16 shrink-0 items-center justify-center rounded-lg border bg-background">
+                <AppLogo className="size-12" />
               </div>
-              <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                <span>{appInfo.platform}</span>
-                <span>{appInfo.systemVersion}</span>
+              <div className="min-w-0 space-y-2">
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
+                  <h2 className="truncate text-xl font-semibold leading-tight">
+                    {appInfo.name}
+                  </h2>
+                  <Badge variant="secondary">v{appInfo.version}</Badge>
+                  {appInfo?.isPackaged === false && (
+                    <Badge variant="outline" className="text-muted-foreground">
+                      Dev
+                    </Badge>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                  <span>{appInfo.platform}</span>
+                  <span>{appInfo.systemVersion}</span>
+                </div>
               </div>
             </div>
-          </div>
-          <div className="flex shrink-0 justify-start md:justify-end">
-            {renderUpdateButton()}
-          </div>
-        </CardContent>
-      </Card>
+            <div className="flex shrink-0 justify-start md:justify-end">
+              {renderUpdateButton()}
+            </div>
+          </CardContent>
+        </Card>
 
-      <Card className="rounded-lg">
-        <CardHeader className="gap-1">
-          <CardTitle>{t('supportFiles')}</CardTitle>
-          <CardDescription>{t('supportFilesDescription')}</CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-2">
-          {pathItems.map((item) => {
-            const Icon = item.icon;
-            return (
-              <button
-                type="button"
-                key={item.label}
-                className="group grid min-h-14 grid-cols-[auto_1fr_auto] items-center gap-3 rounded-md border bg-background px-3 py-2 text-left transition-colors hover:bg-accent/50"
-                onClick={item.onOpen}
-              >
-                <span className="flex size-9 items-center justify-center rounded-md border bg-muted text-muted-foreground">
-                  <Icon className="size-4" />
-                </span>
-                <span className="min-w-0">
-                  <span className="block text-sm font-medium leading-5">
-                    {item.label}
+        <Card className="rounded-lg">
+          <CardHeader className="gap-1">
+            <CardTitle>{t('supportFiles')}</CardTitle>
+            <CardDescription>{t('supportFilesDescription')}</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-2">
+            {pathItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <button
+                  type="button"
+                  key={item.label}
+                  className="group grid min-h-14 grid-cols-[auto_1fr_auto] items-center gap-3 rounded-md border bg-background px-3 py-2 text-left transition-colors hover:bg-accent/50"
+                  onClick={item.onOpen}
+                >
+                  <span className="flex size-9 items-center justify-center rounded-md border bg-muted text-muted-foreground">
+                    <Icon className="size-4" />
                   </span>
-                  <span className="block truncate text-xs leading-5 text-muted-foreground">
-                    {item.value}
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium leading-5">
+                      {item.label}
+                    </span>
+                    <span className="block truncate text-xs leading-5 text-muted-foreground">
+                      {item.value}
+                    </span>
                   </span>
-                </span>
-                <IconFolderOpen className="size-4 text-muted-foreground transition-colors group-hover:text-foreground" />
-              </button>
-            );
-          })}
-        </CardContent>
-      </Card>
-    </div>
+                  <IconFolderOpen className="size-4 text-muted-foreground transition-colors group-hover:text-foreground" />
+                </button>
+              );
+            })}
+          </CardContent>
+        </Card>
+      </div>
+    </ScrollArea>
   );
 }

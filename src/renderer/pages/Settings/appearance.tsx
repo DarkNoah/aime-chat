@@ -36,6 +36,7 @@ import { Slider } from '@/renderer/components/ui/slider';
 import { useGlobal } from '@/renderer/hooks/use-global';
 import { useHeader } from '@/renderer/hooks/use-title';
 import { cn } from '@/renderer/lib/utils';
+import { ScrollArea } from '@/renderer/components/ui/scroll-area';
 
 const ACCENT_PRESETS = [
   { color: '#0F766E', labelKey: 'settings.accent_color_teal' },
@@ -236,11 +237,11 @@ export default function Appearance() {
   const configRef = useRef(config);
   const pendingConfigSaveRef = useRef<
     | {
-        config: ThemeConfig;
-        showSuccess: boolean;
-        sourcePaths?: ThemeBackgroundSourcePaths;
-        failureMessage?: string;
-      }
+      config: ThemeConfig;
+      showSuccess: boolean;
+      sourcePaths?: ThemeBackgroundSourcePaths;
+      failureMessage?: string;
+    }
     | undefined
   >(undefined);
   const saveLoopRef = useRef<Promise<boolean> | null>(null);
@@ -450,7 +451,7 @@ export default function Appearance() {
   };
 
   return (
-    <div className="h-full overflow-y-auto">
+    <ScrollArea className="h-full">
       <FieldGroup className="mx-auto max-w-4xl p-4 pb-10 sm:p-6">
         <FieldDescription className="max-w-[65ch]">
           {t('settings.appearance_description')}
@@ -589,6 +590,6 @@ export default function Appearance() {
           </Button>
         </div>
       </FieldGroup>
-    </div>
+    </ScrollArea>
   );
 }

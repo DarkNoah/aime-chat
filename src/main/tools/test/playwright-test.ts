@@ -11,7 +11,7 @@ import { CdpTab } from '@/main/browser/cdp-bridge';
 const testPage = `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
 <title>Playwright 接入测试</title></head><body>
 <h1>Playwright 接入测试</h1>
-<p>此页面运行在 AIME Chat 的 Electron Chromium 中。</p>
+<p>此页面运行在 AIME Chat 的 Chromium 中。</p>
 <label>测试文字 <input id="message" aria-label="测试文字"></label>
 <button onclick="document.querySelector('#result').textContent = document.querySelector('#message').value">确认</button>
 <p>点击结果：<output id="result" aria-live="polite"></output></p>
@@ -115,7 +115,7 @@ export class PlaywrightTest extends BaseTool {
           await cookieStore.remove(testCookieUrl, cookieName);
           return {
             success: true,
-            engine: 'Electron Chromium',
+            engine: 'Chromium',
             tabId: data?.tab?.id,
             actions: ['addCookies', 'cookies', 'fill', 'click', 'readText'],
             cookiesVerified: true,

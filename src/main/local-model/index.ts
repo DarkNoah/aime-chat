@@ -24,6 +24,7 @@ import fs from 'fs';
 import { runCommand } from '../utils/shell';
 import { getUVRuntime } from '../app/runtime';
 import {
+  AutoConfig,
   AutoModel,
   AutoModelForSequenceClassification,
   AutoProcessor,
@@ -218,6 +219,7 @@ class LocalModelManager extends BaseManager {
               model.repo,
             modelPath,
             isWindows,
+            model.include,
           ),
           {
             cwd: uv.dir,
@@ -485,8 +487,16 @@ class LocalModelManager extends BaseManager {
           tokenizer,
         };
       } else if (task == 'feature-extraction') {
+        const config = await AutoConfig.from_pretrained(modelPath, {
+          local_files_only: true,
+        });
+        if (config.model_type === 'embedding_gemma2') {
+          // Only the text model is downloaded; the media encoders load only when their configs exist.
+          Object.assign(config, { vision_config: null, audio_config: null });
+        }
         const [model, tokenizer] = await Promise.all([
           AutoModel.from_pretrained(modelPath, {
+            config,
             local_files_only: true,
             dtype: options?.dtype,
           }),

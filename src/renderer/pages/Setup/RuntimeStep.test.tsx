@@ -37,6 +37,9 @@ jest.mock('react-i18next', () => ({
 
 const getRuntimeInfo = jest.fn<Promise<RuntimeInfo>, []>();
 const installRuntime = jest.fn();
+const getRuntimeDirectory = jest.fn();
+const setRuntimeDirectory = jest.fn();
+const showOpenDialog = jest.fn();
 const mockedToast = toast as jest.Mocked<typeof toast>;
 
 function createRuntimeInfo(overrides: Partial<RuntimeInfo> = {}): RuntimeInfo {
@@ -79,6 +82,17 @@ describe('RuntimeStep', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     getRuntimeInfo.mockResolvedValue(createRuntimeInfo());
+    getRuntimeDirectory.mockResolvedValue({
+      path: '/test/user-data/.runtime',
+      defaultPath: '/test/user-data/.runtime',
+      canChange: true,
+    });
+    setRuntimeDirectory.mockImplementation(async (directory: string) => ({
+      path: directory,
+      defaultPath: '/test/user-data/.runtime',
+      canChange: true,
+    }));
+    showOpenDialog.mockResolvedValue({ canceled: true, filePaths: [] });
     installRuntime.mockImplementation(async (pkg: string) => ({
       status: 'installed',
       installed: true,
@@ -91,6 +105,9 @@ describe('RuntimeStep', () => {
         app: {
           getRuntimeInfo,
           installRuntime,
+          getRuntimeDirectory,
+          setRuntimeDirectory,
+          showOpenDialog,
         },
       },
     });
@@ -129,7 +146,7 @@ describe('RuntimeStep', () => {
     expect(paddleOcr).toBeChecked();
   });
 
-  it('continues immediately and installs selected runtimes in dependency order', async () => {
+  it('saves the directory before continuing and installs in dependency order', async () => {
     const onNext = jest.fn();
     render(<RuntimeStep onNext={onNext} />);
 
@@ -138,11 +155,17 @@ describe('RuntimeStep', () => {
     });
     fireEvent.click(continueButton);
 
-    expect(onNext).toHaveBeenCalledTimes(1);
     await waitFor(() => {
+      expect(onNext).toHaveBeenCalledTimes(1);
       expect(installRuntime).toHaveBeenCalledTimes(2);
       expect(mockedToast.success).toHaveBeenCalled();
     });
+    expect(setRuntimeDirectory).toHaveBeenCalledWith(
+      '/test/user-data/.runtime',
+    );
+    expect(setRuntimeDirectory.mock.invocationCallOrder[0]).toBeLessThan(
+      installRuntime.mock.invocationCallOrder[0],
+    );
 
     expect(installRuntime).toHaveBeenNthCalledWith(1, 'uv');
     expect(installRuntime).toHaveBeenNthCalledWith(2, 'paddleOcr');
@@ -158,5 +181,96 @@ describe('RuntimeStep', () => {
       'installing PaddleOCR 2/2',
       { id: 'setup-runtime-install' },
     );
+  });
+
+  it('prefills the installation directory and supports selection and cancellation', async () => {
+    render(<RuntimeStep onNext={jest.fn()} />);
+    const input = await screen.findByLabelText(
+      'setup.runtime.install_directory',
+    );
+    expect(input).toHaveValue('/test/user-data/.runtime');
+    showOpenDialog.mockResolvedValueOnce({
+      canceled: false,
+      filePaths: ['/Volumes/Data/运行 环境'],
+    });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'setup.runtime.choose_directory' }),
+    );
+    await waitFor(() => expect(input).toHaveValue('/Volumes/Data/运行 环境'));
+    expect(showOpenDialog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        defaultPath: '/test/user-data/.runtime',
+        properties: ['openDirectory', 'createDirectory'],
+      }),
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: 'setup.runtime.choose_directory' }),
+    );
+    await waitFor(() => expect(showOpenDialog).toHaveBeenCalledTimes(2));
+    expect(input).toHaveValue('/Volumes/Data/运行 环境');
+    fireEvent.click(
+      screen.getByRole('button', { name: /install 2 and continue/i }),
+    );
+    await waitFor(() => expect(mockedToast.success).toHaveBeenCalled());
+    expect(setRuntimeDirectory).toHaveBeenCalledWith('/Volumes/Data/运行 环境');
+  });
+
+  it('keeps the wizard on this step when the directory is not writable', async () => {
+    const onNext = jest.fn();
+    setRuntimeDirectory.mockRejectedValueOnce(
+      new Error('RUNTIME_DIRECTORY_NOT_WRITABLE'),
+    );
+    render(<RuntimeStep onNext={onNext} />);
+    fireEvent.change(
+      await screen.findByLabelText('setup.runtime.install_directory'),
+      {
+        target: { value: '/protected/path' },
+      },
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: /install 2 and continue/i }),
+    );
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'setup.runtime.directory_save_error',
+    );
+    expect(installRuntime).not.toHaveBeenCalled();
+    expect(onNext).not.toHaveBeenCalled();
+    expect(
+      screen.getByLabelText('setup.runtime.install_directory'),
+    ).toHaveValue('/protected/path');
+  });
+
+  it('does not reinstall dependencies found in the selected directory', async () => {
+    const onNext = jest.fn();
+    getRuntimeInfo
+      .mockResolvedValueOnce(createRuntimeInfo())
+      .mockResolvedValueOnce(
+        createRuntimeInfo({
+          uv: { status: 'installed', installed: true },
+          paddleOcr: { status: 'installed', installed: true, mode: 'default' },
+        }),
+      );
+    render(<RuntimeStep onNext={onNext} />);
+    fireEvent.click(
+      await screen.findByRole('button', { name: /install 2 and continue/i }),
+    );
+    await waitFor(() => expect(onNext).toHaveBeenCalledTimes(1));
+    expect(getRuntimeInfo).toHaveBeenLastCalledWith(true);
+    expect(installRuntime).not.toHaveBeenCalled();
+  });
+
+  it('disables directory changes while dependencies already use it', async () => {
+    getRuntimeDirectory.mockResolvedValueOnce({
+      path: '/existing/runtime',
+      defaultPath: '/default',
+      canChange: false,
+    });
+    render(<RuntimeStep onNext={jest.fn()} />);
+    expect(
+      await screen.findByLabelText('setup.runtime.install_directory'),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole('button', { name: 'setup.runtime.choose_directory' }),
+    ).toBeDisabled();
   });
 });

@@ -1,10 +1,21 @@
 import fs from 'fs';
+import {
+  getDefaultRuntimeDirectory,
+  getRuntimeDirectory,
+  getRuntimeEnvironment,
+  hasManagedRuntime,
+  normalizeRuntimeDirectory,
+  setRuntimeDirectory,
+  validateRuntimeDirectory,
+} from './runtime-directory';
 import { runCommand as runShellCommand } from '../utils/shell';
 import { app, net } from 'electron';
 import path from 'path';
 import { appManager } from '.';
 import { getAssetPath } from '../utils';
-import { RuntimeAction, RuntimeDetails, RuntimeId, RuntimeInfo } from '@/types/app';
+import {
+  RuntimeAction, RuntimeDetails, RuntimeDirectoryInfo, RuntimeId, RuntimeInfo,
+} from '@/types/app';
 import { BaseManager } from '../BaseManager';
 import { api } from '../api/ApiController';
 import TOML from '@iarna/toml';
@@ -18,7 +29,12 @@ import {
   getCodeExecutionPackageCachePaths,
   scheduleCodeExecutionPackageCacheWarmup as schedulePackageCacheWarmup,
   withCodeExecutionPackageCache,
+  pausePackageCacheWarmup,
 } from '../tools/code/python-package-cache';
+import { getAgentBrowserVersionCommand, getManagedAgentBrowserEntry } from './agent-browser-runtime';
+import { beginRuntimeMigration } from './runtime-maintenance';
+import { cleanupRuntimeSource, migrateRuntimeFiles, RuntimeMigrationReceipt, validateMigrationDestination } from './runtime-migration';
+import { prepareRuntimeVerification, verifyMigratedRuntime } from './runtime-migration-health';
 import {
   ensureManagedPythonRuntime,
   inspectManagedPythonRuntime,
@@ -84,7 +100,10 @@ const runCommand = async (
   command: Parameters<typeof runShellCommand>[0],
   options?: Parameters<typeof runShellCommand>[1],
 ) => {
-  const result = await runShellCommand(command, options);
+  const result = await runShellCommand(command, {
+    ...options,
+    env: { ...getRuntimeEnvironment(), ...options?.env },
+  });
   appLog.write(result.code === 0 ? 'info' : 'error', '[runtime] command', {
     command: typeof command === 'string' ? command : command.join(' '),
     code: result.code,
@@ -246,7 +265,7 @@ async function findNvmCommand() {
 async function getUVPythonRuntimeInfo() {
   const isWindows = process.platform === 'win32';
   return inspectManagedPythonRuntime(
-    app.getPath('userData'),
+    getRuntimeDirectory(),
     isWindows,
     runCommand,
   );
@@ -257,7 +276,7 @@ export function ensurePythonRuntimeEnvironment(uvDir: string) {
   const packageCache = getCodeExecutionPackageCachePaths();
   return ensureManagedPythonRuntime({
     uvDir,
-    userDataDir: app.getPath('userData'),
+    runtimeDir: getRuntimeDirectory(),
     packageCacheDir: packageCache.uvCache,
     packageIndex: CODE_EXECUTION_PACKAGE_INDEX,
     commandEnv: withCodeExecutionPackageCache(),
@@ -270,8 +289,7 @@ export function ensurePythonRuntimeEnvironment(uvDir: string) {
 export async function installUVRuntime() {
   const isWindows = process.platform === 'win32';
   const uvPath = path.join(
-    app.getPath('userData'),
-    '.runtime',
+    getRuntimeDirectory(),
     'bin',
     isWindows ? 'uv.exe' : 'uv',
   );
@@ -348,26 +366,22 @@ export async function installUVRuntime() {
 export async function unInstallUVRuntime() {
   const isWindows = process.platform === 'win32';
   const uvPath = path.join(
-    app.getPath('userData'),
-    '.runtime',
+    getRuntimeDirectory(),
     'bin',
     isWindows ? 'uv.exe' : 'uv',
   );
   const uvxPath = path.join(
-    app.getPath('userData'),
-    '.runtime',
+    getRuntimeDirectory(),
     'bin',
     isWindows ? 'uvx.exe' : 'uvx',
   );
   const uvwPath = path.join(
-    app.getPath('userData'),
-    '.runtime',
+    getRuntimeDirectory(),
     'bin',
     isWindows ? 'uvw.exe' : 'uvw',
   );
   const uv_venv_dir = path.join(
-    app.getPath('userData'),
-    '.runtime',
+    getRuntimeDirectory(),
     'python-runtime'
   );
   if (fs.existsSync(uvPath)) {
@@ -390,8 +404,7 @@ export async function getUVRuntime(refresh = false) {
   }
   const isWindows = process.platform === 'win32';
   const uvPath = path.join(
-    app.getPath('userData'),
-    '.runtime',
+    getRuntimeDirectory(),
     'bin',
     isWindows ? 'uv.exe' : 'uv',
   );
@@ -594,7 +607,7 @@ export async function installNodeRuntime() {
 
 export async function uninstallNodeRuntime() {
   if (process.platform !== 'win32') {
-    const nvmDir = path.join(app.getPath('userData'), '.runtime', 'nvm');
+    const nvmDir = path.join(getRuntimeDirectory(), 'nvm');
     if (fs.existsSync(nvmDir)) {
       await fs.promises.rm(nvmDir, { recursive: true, force: true });
     }
@@ -619,8 +632,7 @@ export async function getPaddleOcrRuntime(refresh = false) {
     // console.log(paddleOcr);
 
     const paddleOcrDir = path.join(
-      app.getPath('userData'),
-      '.runtime',
+      getRuntimeDirectory(),
       'paddleocr-runtime',
     );
     if (!fs.existsSync(paddleOcrDir)) {
@@ -675,7 +687,7 @@ export async function installPaddleOcrRuntime() {
   }
   const isWindows = process.platform === 'win32';
   const uvPreCommand = path.join(uvRuntime?.dir, isWindows ? 'uv.exe' : './uv');
-  const paddleOcrDir = path.join(app.getPath('userData'), ".runtime", 'paddleocr-runtime');
+  const paddleOcrDir = path.join(getRuntimeDirectory(), 'paddleocr-runtime');
   paddleOcr.status = 'installing';
   if (fs.existsSync(paddleOcrDir)) {
     await fs.promises.rm(paddleOcrDir, { recursive: true });
@@ -820,7 +832,7 @@ export async function installPaddleOcrRuntime() {
   }
 }
 export async function uninstallPaddleOcrRuntime() {
-  const paddleOcrDir = path.join(app.getPath('userData'), '.runtime', 'paddleocr-runtime');
+  const paddleOcrDir = path.join(getRuntimeDirectory(), 'paddleocr-runtime');
   if (fs.existsSync(paddleOcrDir)) {
     await fs.promises.rm(paddleOcrDir, { recursive: true });
   }
@@ -838,8 +850,7 @@ export async function getBunRuntime(refresh = false) {
   }
   const isWindows = process.platform === 'win32';
   const bunPath = path.join(
-    app.getPath('userData'),
-    '.runtime',
+    getRuntimeDirectory(),
     'bin',
     isWindows ? 'bun.exe' : 'bun',
   );
@@ -873,7 +884,7 @@ export async function getBunRuntime(refresh = false) {
 }
 
 export async function installBunRuntime() {
-  const bunPath = path.join(app.getPath('userData'), '.runtime');
+  const bunPath = getRuntimeDirectory();
   if (fs.existsSync(path.join(bunPath, 'bin', 'bun'))) return;
   if (bun.status === 'installing') {
     return;
@@ -923,8 +934,7 @@ export async function installBunRuntime() {
 export async function uninstallBunRuntime() {
   const isWindows = process.platform === 'win32';
   const bunPath = path.join(
-    app.getPath('userData'),
-    '.runtime',
+    getRuntimeDirectory(),
     'bin',
     isWindows ? 'bun.exe' : 'bun',
   );
@@ -932,8 +942,7 @@ export async function uninstallBunRuntime() {
     await fs.promises.rm(bunPath, { recursive: true });
   }
   const bunxPath = path.join(
-    app.getPath('userData'),
-    '.runtime',
+    getRuntimeDirectory(),
     'bin',
     isWindows ? 'bunx.exe' : 'bunx',
   );
@@ -960,8 +969,7 @@ export async function getQwenAudioRuntime(refresh = false) {
     }
 
     const sttDir = path.join(
-      app.getPath('userData'),
-      '.runtime',
+      getRuntimeDirectory(),
       'qwen-audio-runtime',
     );
     if (!fs.existsSync(sttDir)) {
@@ -1009,8 +1017,7 @@ export async function installQwenAudioRuntime() {
   const isWindows = process.platform === 'win32';
   const uvPreCommand = path.join(uvRuntime?.dir, isWindows ? 'uv.exe' : './uv');
   const qwenasrDir = path.join(
-    app.getPath('userData'),
-    '.runtime',
+    getRuntimeDirectory(),
     'qwen-audio-runtime',
   );
   qwenAudio.status = 'installing';
@@ -1147,8 +1154,7 @@ export async function installQwenAudioRuntime() {
 
 export async function uninstallQwenAudioRuntime() {
   const qwenAsrDir = path.join(
-    app.getPath('userData'),
-    '.runtime',
+    getRuntimeDirectory(),
     'qwen-audio-runtime',
   );
   if (fs.existsSync(qwenAsrDir)) {
@@ -1173,9 +1179,11 @@ export async function installAgentBrowserRuntime() {
   agentBrowser.status = 'installing';
   //let success = false;
   try {
-    const result = await runCommand(`npm install -g agent-browser`)
+    const directory = path.join(getRuntimeDirectory(), 'agent-browser');
+    await fs.promises.mkdir(directory, { recursive: true });
+    const result = await runCommand(`npm install --prefix "${directory}" agent-browser`)
     if (result.code === 0) {
-      const resultVersion = await runCommand(`agent-browser -V`);
+      const resultVersion = await runCommand(getAgentBrowserVersionCommand());
       // Browser pages use Electron's Chromium; no separate browser download.
       if (resultVersion.code !== 0) {
         throw new Error('Failed to initialize Agent Browser Runtime');
@@ -1197,9 +1205,13 @@ export async function installAgentBrowserRuntime() {
 }
 
 export async function uninstallAgentBrowserRuntime() {
-  const result = await runCommand(`npm uninstall -g agent-browser`);
-  if (result.code !== 0) {
-    throw new Error(result.stderr || result.stdout || 'Failed to uninstall Agent Browser Runtime');
+  if (fs.existsSync(getManagedAgentBrowserEntry())) {
+    await fs.promises.rm(path.join(getRuntimeDirectory(), 'agent-browser'), { recursive: true, force: true });
+  } else {
+    const result = await runCommand(`npm uninstall -g agent-browser`);
+    if (result.code !== 0) {
+      throw new Error(result.stderr || result.stdout || 'Failed to uninstall Agent Browser Runtime');
+    }
   }
   agentBrowser.status = 'not_installed';
   agentBrowser.installed = false;
@@ -1212,7 +1224,7 @@ export async function getAgentBrowserRuntime(refresh = false) {
     return agentBrowser;
   }
 
-  const result = await runCommand(`agent-browser -V`, {
+  const result = await runCommand(getAgentBrowserVersionCommand(), {
     timeout: 1000 * 5,
   });
   if (result.code === 0) {
@@ -1291,16 +1303,91 @@ function parseRuntimeRefresh(value: unknown) {
   throw runtimeError('refresh must be true, false, 1 or 0', 400);
 }
 
-class RuntimeManager extends BaseManager {
+export class RuntimeManager extends BaseManager {
   private operation?: { pkg: RuntimeId; action: RuntimeAction };
   private refreshing?: Promise<RuntimeInfo>;
+  private changingDirectory = false;
+  private migration?: RuntimeDirectoryInfo['migration'];
+  private migrationReceipt?: RuntimeMigrationReceipt;
 
   async init() {}
+
+  restoreMigration(receipt?: RuntimeMigrationReceipt) {
+    this.migrationReceipt = receipt || undefined;
+    if (receipt)
+      this.migration = {
+        destination: receipt.destination,
+        phase: 'cleaning',
+        cleanupPending: true,
+      };
+  }
+
+  getRuntimeDirectoryInfo(): RuntimeDirectoryInfo {
+    return {
+      path: getRuntimeDirectory(),
+      defaultPath: getDefaultRuntimeDirectory(),
+      migration: this.migration,
+      canChange:
+        !this.operation &&
+        !this.changingDirectory &&
+        !this.migrationReceipt &&
+        ![uv, bun, node, paddleOcr, qwenAudio, agentBrowser].some(
+          (runtime) => runtime.status === 'installing',
+        ) &&
+        !hasManagedRuntime(),
+    };
+  }
+
+  async saveRuntimeDirectory(
+    directory: string,
+    persist: (value: string) => Promise<void>,
+  ) {
+    const normalized = normalizeRuntimeDirectory(directory);
+    if (this.changingDirectory || this.migrationReceipt) {
+      throw runtimeError('RUNTIME_DIRECTORY_BUSY', 409);
+    }
+    if (
+      this.operation ||
+      [uv, bun, node, paddleOcr, qwenAudio, agentBrowser].some(
+        (runtime) => runtime.status === 'installing',
+      )
+    ) {
+      if (normalized === getRuntimeDirectory()) {
+        return this.getRuntimeDirectoryInfo();
+      }
+      throw runtimeError('RUNTIME_DIRECTORY_BUSY', 409);
+    }
+    this.changingDirectory = true;
+    try {
+      await this.refreshing;
+      if (normalized !== getRuntimeDirectory() && hasManagedRuntime()) {
+        throw runtimeError('RUNTIME_DIRECTORY_IN_USE', 409);
+      }
+      await validateRuntimeDirectory(normalized);
+      await persist(normalized);
+      if (normalized !== getRuntimeDirectory()) {
+        for (const runtime of [uv, bun, paddleOcr, qwenAudio]) {
+          Object.assign(runtime, {
+            status: 'not_installed',
+            installed: false,
+            path: undefined,
+            dir: undefined,
+            version: undefined,
+          });
+        }
+        uv.pythonRuntime = { installed: false };
+      }
+      setRuntimeDirectory(normalized);
+    } finally {
+      this.changingDirectory = false;
+    }
+    return this.getRuntimeDirectoryInfo();
+  }
 
   async getRuntimeInfo(refresh = false): Promise<RuntimeInfo> {
     // A status read must not probe half-removed environments or reset an
     // installer's state. Mutations verify their target before releasing this lock.
-    if (!refresh || this.operation)
+    if (!refresh || this.operation || this.changingDirectory)
       return { uv, bun, node, paddleOcr, qwenAudio, agentBrowser };
     if (!this.refreshing) {
       this.refreshing = this.refreshRuntimeInfo().finally(() => {
@@ -1308,6 +1395,177 @@ class RuntimeManager extends BaseManager {
       });
     }
     return this.refreshing;
+  }
+
+  async migrateRuntimeDirectory(
+    directory: string,
+    callbacks: {
+      prepare: () => Promise<void>;
+      commit: (receipt: RuntimeMigrationReceipt) => Promise<void>;
+      finish: () => Promise<void>;
+      restart: () => void;
+    },
+  ) {
+    if (
+      this.operation ||
+      this.changingDirectory ||
+      [uv, bun, node, paddleOcr, qwenAudio, agentBrowser].some(
+        (runtime) => runtime.status === 'installing',
+      )
+    ) {
+      throw runtimeError('RUNTIME_MIGRATION_BUSY', 409);
+    }
+    const destination = normalizeRuntimeDirectory(directory);
+    if (
+      this.migrationReceipt &&
+      destination !== this.migrationReceipt.destination
+    )
+      throw new Error('RUNTIME_MIGRATION_CLEANUP_PENDING');
+    this.changingDirectory = true;
+    let resumeCache: (() => void) | undefined;
+    let endMaintenance: (() => void) | undefined;
+    let restarting = false;
+    const run = async (
+      command: string,
+      options?: {
+        env?: Record<string, string>;
+        timeout?: number;
+        cwd?: string;
+        usePowerShell?: boolean;
+      },
+    ) => {
+      const result = await runShellCommand(command, {
+        timeout: 60_000,
+        ...options,
+        allowDuringRuntimeMigration: true,
+      });
+      if (result.code !== 0 || result.timedOut)
+        throw new Error(
+          `RUNTIME_MIGRATION_VERIFY_FAILED: ${result.stderr || result.stdout}`,
+        );
+      return result.stdout;
+    };
+    try {
+      await this.refreshing;
+      if (!this.migrationReceipt)
+        await validateMigrationDestination(getRuntimeDirectory(), destination);
+      resumeCache = pausePackageCacheWarmup();
+      endMaintenance = beginRuntimeMigration();
+      await callbacks.prepare();
+      if (this.migrationReceipt) {
+        const receipt = this.migrationReceipt;
+        if (
+          receipt.destination !== getRuntimeDirectory() ||
+          !receipt.verificationData
+        )
+          throw new Error('RUNTIME_MIGRATION_INVALID_RECEIPT');
+        this.migration = { destination, phase: 'verifying' };
+        await verifyMigratedRuntime(
+          destination,
+          receipt.source,
+          receipt.verificationData,
+          run,
+        );
+      }
+      if (!this.migrationReceipt) {
+        const source = getRuntimeDirectory();
+        this.migration = { destination, phase: 'downloading' };
+        let globalAgentBrowser: string | undefined;
+        if (!fs.existsSync(getManagedAgentBrowserEntry())) {
+          const probe = await runShellCommand('agent-browser -V', {
+            timeout: 10_000,
+            allowDuringRuntimeMigration: true,
+          });
+          if (probe.code === 0) {
+            const globalRoot = (await run('npm root -g'))
+              .trim()
+              .split('\n')
+              .pop()!;
+            globalAgentBrowser = path.join(globalRoot, 'agent-browser');
+            if (
+              !fs.existsSync(
+                path.join(globalAgentBrowser, 'bin', 'agent-browser.js'),
+              )
+            )
+              throw new Error('RUNTIME_MIGRATION_VERIFY_FAILED');
+          }
+        }
+        const verification = await prepareRuntimeVerification(
+          source, destination, run, globalAgentBrowser,
+        );
+        await migrateRuntimeFiles({
+          source,
+          destination,
+          globalAgentBrowser,
+          ...verification,
+          progress: (phase) => {
+            this.migration = { destination, phase };
+          },
+          commit: async (receipt) => {
+            await callbacks.commit(receipt);
+            this.migrationReceipt = receipt;
+            setRuntimeDirectory(destination);
+            for (const runtime of [uv, bun, paddleOcr, qwenAudio]) {
+              for (const key of ['path', 'dir'] as const) {
+                if (runtime[key]?.startsWith(`${source}${path.sep}`))
+                  runtime[key] = path.join(
+                    destination,
+                    path.relative(source, runtime[key]!),
+                  );
+              }
+            }
+            if (uv.pythonRuntime) {
+              for (const key of ['dir', 'pythonPath', 'pipPath'] as const) {
+                const previous = uv.pythonRuntime[key];
+                if (previous?.startsWith(`${source}${path.sep}`))
+                  uv.pythonRuntime[key] = path.join(
+                    destination,
+                    path.relative(source, previous),
+                  );
+              }
+            }
+          },
+        });
+      }
+      this.migration = { destination, phase: 'cleaning' };
+      const receipt = this.migrationReceipt!;
+      if (receipt.globalAgentBrowser) {
+        const globalRoot = (await run('npm root -g')).trim().split('\n').pop()!;
+        if (
+          path.join(globalRoot, 'agent-browser') !== receipt.globalAgentBrowser
+        )
+          throw new Error('RUNTIME_MIGRATION_SOURCE_CHANGED');
+        await run('npm uninstall -g --ignore-scripts agent-browser');
+      }
+      await cleanupRuntimeSource(receipt);
+      await fs.promises.rm(path.join(destination, '.aime-runtime-migration'), {
+        force: true,
+      });
+      await callbacks.finish();
+      this.migrationReceipt = undefined;
+      this.migration = { destination, phase: 'restarting' };
+      callbacks.restart();
+      restarting = true;
+    } catch (error) {
+      this.migration = this.migrationReceipt
+        ? { destination, phase: 'cleaning', cleanupPending: true }
+        : undefined;
+      appLog.write('error', '[runtime] migration failed', {
+        message: String(error),
+        destination,
+        committed: !!this.migrationReceipt,
+      });
+      if (this.migrationReceipt)
+        throw new Error('RUNTIME_MIGRATION_CLEANUP_PENDING');
+      throw error;
+    } finally {
+      // Keep commands blocked between successful cleanup and application exit.
+      if (!restarting) {
+        endMaintenance?.();
+        resumeCache?.();
+        this.changingDirectory = false;
+      }
+    }
   }
 
   private async refreshRuntimeInfo(): Promise<RuntimeInfo> {
@@ -1385,6 +1643,8 @@ class RuntimeManager extends BaseManager {
     }
     if (
       this.operation ||
+      this.changingDirectory ||
+      this.migrationReceipt ||
       [uv, bun, node, paddleOcr, qwenAudio, agentBrowser].some(
         (runtime) => runtime.status === 'installing',
       )
@@ -1400,6 +1660,9 @@ class RuntimeManager extends BaseManager {
     try {
       // Let an already-running status probe finish before touching its files.
       await this.refreshing;
+      if (action !== 'uninstall' && id !== 'node') {
+        await validateRuntimeDirectory(getRuntimeDirectory());
+      }
       // Check prerequisites before a reinstall removes the existing environment.
       if (action !== 'uninstall') {
         for (const dependency of definition.dependencies) {

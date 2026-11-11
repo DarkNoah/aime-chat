@@ -2,7 +2,6 @@ export enum InstancesChannel {
   GetInstances = 'instances:getInstances',
   GetInstance = 'instances:getInstance',
   StopInstance = 'instances:stopInstance',
-  SetInsecureTls = 'instances:setInsecureTls',
 }
 
 export enum ProviderChannel {
@@ -38,6 +37,9 @@ export enum AppChannel {
   InstasllRumtime = 'app:installRumtime',
   UninstallRumtime = 'app:uninstallRumtime',
   GetRuntimeInfo = 'app:getRuntimeInfo',
+  GetRuntimeDirectory = 'app:getRuntimeDirectory',
+  SetRuntimeDirectory = 'app:setRuntimeDirectory',
+  MigrateRuntimeDirectory = 'app:migrateRuntimeDirectory',
   SetApiServerPort = 'app:setApiServerPort',
   ToggleApiServerEnable = 'app:toggleApiServerEnable',
   SetACPPort = 'app:setACPPort',

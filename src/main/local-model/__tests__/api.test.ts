@@ -554,6 +554,38 @@ it('quotes download paths literally on both supported shells', () => {
   expect(windows).toMatch(/; exit \$LASTEXITCODE$/);
 });
 
+it.each([
+  ['huggingface', ['hf', 'download', 'onnx-community/embeddinggemma-2-ONNX', '--local-dir']],
+  [
+    'modelscope',
+    ['--with', 'setuptools<81', 'modelscope', 'download', '--model', 'onnx-community/embeddinggemma-2-ONNX', '--local_dir'],
+  ],
+])('downloads only the catalog include patterns from %s', async (source, args) => {
+  const gemmaPath = path.join(root, 'embedding', 'embeddinggemma-2');
+  jest.mocked(runCommand).mockImplementationOnce(async () => {
+    createModel(gemmaPath);
+    return result();
+  });
+  const downloaded = await invoke('post', 'download', {
+    body: { type: 'embedding', modelId: 'embeddinggemma-2', source },
+  });
+  expect(downloaded.data).toMatchObject({
+    providerModelId: 'local/embeddinggemma-2',
+    isDownloaded: true,
+  });
+  if (process.platform !== 'win32') {
+    expect(parse(jest.mocked(runCommand).mock.calls[0][0] as string)).toEqual([
+      './uvx',
+      ...args,
+      gemmaPath,
+      '--include',
+      '*.json',
+      '--include',
+      'onnx/model_quantized.onnx*',
+    ]);
+  }
+});
+
 it.each([undefined, false])(
   'preserves defaults when setAsDefault is %p',
   async (setAsDefault) => {

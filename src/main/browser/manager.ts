@@ -31,6 +31,7 @@ import { normalizeBrowserUrl } from './command';
 import { runBrowserCli } from './cli';
 import { readBrowserPage } from './read-page';
 import { browserProfilePath, migrateBrowserProfile } from './profile';
+import { isInsecureTlsEnabled } from '../app/insecure-tls';
 import { isString } from '@/utils/is';
 import { Browser, chromium, Page } from 'playwright';
 
@@ -55,10 +56,6 @@ export class ThreadBrowserManager extends EventEmitter {
   private registered = false;
 
   private browserSession?: Session;
-
-  private insecureTls = false;
-
-  private activeInsecureTls = false;
 
   private backgroundWindow?: BaseWindow;
 
@@ -145,10 +142,9 @@ export class ThreadBrowserManager extends EventEmitter {
     if (!this.browserSession) {
       // One persistent session for ALL browser tabs, regardless of chat/project.
       this.browserSession = session.fromPath(this.prepareProfile());
-      this.browserSession.setCertificateVerifyProc(
-        this.insecureTls ? (_request, callback) => callback(0) : null,
+      this.browserSession.setCertificateVerifyProc((_request, callback) =>
+        callback(isInsecureTlsEnabled() ? 0 : -3),
       );
-      this.activeInsecureTls = this.insecureTls;
       if (this.proxy)
         this.proxyReady = this.browserSession.setProxy(this.proxy);
       this.browserSession.on('will-download', (event, item, wc) =>
@@ -167,19 +163,10 @@ export class ThreadBrowserManager extends EventEmitter {
     return browserProfilePath(root);
   }
 
-  setInsecureTls(enabled: boolean): void {
-    // Chromium caches certificate decisions. Apply changes to an existing
-    // session only after restart, rather than report an ineffective revocation.
-    this.insecureTls = enabled;
-  }
-
   overview() {
     const threads = [...this.registry.threads.values()];
     return {
       userDataPath: this.prepareProfile(),
-      insecureTls: this.insecureTls,
-      insecureTlsRestartRequired:
-        !!this.browserSession && this.activeInsecureTls !== this.insecureTls,
       tabCount: threads.reduce(
         (sum, thread) =>
           sum +
@@ -478,6 +465,7 @@ export class ThreadBrowserManager extends EventEmitter {
       requestPreview?: boolean,
       newTab?: boolean | string,
       autoHandleConnect?: boolean,
+      timeout?: number,
     }
   ): Promise<R> {
     const { generation } = this;
@@ -489,10 +477,17 @@ export class ThreadBrowserManager extends EventEmitter {
           throw new Error('Browser action cancelled by closing all tabs.');
         this.busyThreads.add(threadId);
         this.changed(threadId);
+        const timeout = options?.timeout;
+        const timeoutController = new AbortController();
+        const signal = AbortSignal.any([
+          timeoutController.signal,
+          ...(options?.signal ? [options.signal] : []),
+        ]);
+        let timer: ReturnType<typeof setTimeout> | undefined;
         let tab: CdpTab | undefined;
         let browser: Browser | undefined;
         let page: Page | undefined;
-        try {
+        const execute = async () => {
           if (options?.newTab) {
             if (isString(options.newTab)) {
               tab = this.createCdpTab(threadId, options.newTab);
@@ -505,17 +500,34 @@ export class ThreadBrowserManager extends EventEmitter {
           if (options?.requestPreview === true && threadId) this.requestPreview(threadId);
           if (options?.autoHandleConnect === true && tab) {
             const endpoint = await this.bridge.endpoint(threadId, tab.id);
+            timeoutController.signal.throwIfAborted();
             browser = await chromium.connectOverCDP(endpoint, {
               timeout: 10000,
             });
             const context = browser.contexts()[0];
             page = context?.pages()[0];
           }
-          return await action({ tab, browser, page }, options?.signal);
+          timeoutController.signal.throwIfAborted();
+          return action({ tab, browser, page }, signal);
+        };
+        try {
+          if (!timeout || timeout <= 0) return await execute();
+          // The action may ignore the signal, so the timeout must also settle run().
+          const timedOut = new Promise<never>((_, reject) => {
+            timer = setTimeout(() => {
+              const error = new Error(
+                `Browser action timed out after ${timeout}ms.`,
+              );
+              timeoutController.abort(error);
+              reject(error);
+            }, timeout);
+          });
+          return await Promise.race([execute(), timedOut]);
         } catch (err) {
           console.error(err);
           throw err;
         } finally {
+          clearTimeout(timer);
           if (options?.autoHandleConnect === true && tab) {
             await browser?.close().catch(() => undefined);
             this.bridge.disconnect(threadId, tab.id);
@@ -559,7 +571,7 @@ export class ThreadBrowserManager extends EventEmitter {
               this.closeTab(owner, tab.id);
           }
         },
-        signal,
+        { signal },
       );
     } finally {
       if (!threadId) this.registry.threads.delete(owner);

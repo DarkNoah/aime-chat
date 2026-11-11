@@ -15,8 +15,6 @@ import { threadBrowserManager } from '@/main/browser/manager';
 import { JinaAIProvider } from '@/main/providers/jinaai-provider';
 import { Agent } from '@mastra/core/agent';
 import { saveFile } from '@/main/utils/file';
-import { Readability } from '@mozilla/readability';
-import TurndownService from 'turndown';
 export interface WebFetchParams extends BaseToolParams {
   providerId?: string;
 }
@@ -190,7 +188,12 @@ ${result.text}`;
 
     let html: string;
     const { parseHTML } = await import('linkedom');
-    let article: ReturnType<Readability['parse']>;
+    const { Defuddle } = await import('defuddle/node');
+    const parse = (html: string, pageUrl: string) =>
+      Defuddle(parseHTML(html).document as unknown as Document, pageUrl, {
+        markdown: true,
+      });
+    let article: Awaited<ReturnType<typeof Defuddle>>;
     try {
       const res = await fetch(url, {
         headers: {
@@ -212,11 +215,9 @@ ${result.text}`;
       }
 
       html = await res.text();
-      const { document } = parseHTML(html);
-      const reader = new Readability(document as any);
-      article = reader.parse();
-      if (!article?.content) {
-        throw new Error('Readability failed to extract content');
+      article = await parse(html, res.url || url);
+      if (!article?.content?.trim()) {
+        throw new Error('Defuddle failed to extract content');
       }
     } catch {
       if (abortSignal?.aborted) return 'Task was aborted by the user.';
@@ -225,20 +226,17 @@ ${result.text}`;
         url,
         abortSignal,
       );
-      const { document } = parseHTML(html);
-      const reader = new Readability(document as any);
-      article = reader.parse();
+      article = await parse(html, url);
     }
     if (abortSignal?.aborted) {
       return 'Task was aborted by the user.';
     }
 
-    if (!article?.content) {
-      throw new Error('Readability failed to extract content');
+    if (!article?.content?.trim()) {
+      throw new Error('Defuddle failed to extract content');
     }
 
-    const turndown = new TurndownService({ headingStyle: 'atx' });
-    let content = turndown.turndown(article.content);
+    let content = article.content;
 
     if (article.title) {
       content = `# ${article.title}\n\n${content}`;

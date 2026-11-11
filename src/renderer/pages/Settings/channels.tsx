@@ -238,7 +238,7 @@ export default function Channels() {
   };
 
   useEffect(() => {
-    loadChannels().catch(() => {});
+    loadChannels().catch(() => { });
 
     const unsubscribePaired = window.electron.ipcRenderer.on(
       ChannelEvent.Paired,
@@ -256,24 +256,24 @@ export default function Channels() {
         toast.success(
           event.title
             ? t('channels.paired_toast_with_title', {
-                channel: event.channelName,
-                title: event.title,
-                chatId: event.chatId,
-              })
+              channel: event.channelName,
+              title: event.title,
+              chatId: event.chatId,
+            })
             : t('channels.paired_toast', {
-                channel: event.channelName,
-                chatId: event.chatId,
-              }),
+              channel: event.channelName,
+              chatId: event.chatId,
+            }),
         );
         setPairingGuide((prev) =>
           prev.channelId === event.channelId
             ? {
-                open: false,
-                channelId: '',
-                channelName: '',
-                code: '',
-                expiresAt: '',
-              }
+              open: false,
+              channelId: '',
+              channelName: '',
+              code: '',
+              expiresAt: '',
+            }
             : prev,
         );
       },
@@ -301,12 +301,12 @@ export default function Channels() {
         setPairingGuide((prev) =>
           prev.channelId === event.channelId
             ? {
-                open: false,
-                channelId: '',
-                channelName: '',
-                code: '',
-                expiresAt: '',
-              }
+              open: false,
+              channelId: '',
+              channelName: '',
+              code: '',
+              expiresAt: '',
+            }
             : prev,
         );
       },
@@ -319,7 +319,7 @@ export default function Channels() {
   }, [form.id, t]);
 
   useEffect(() => {
-    loadProjects().catch(() => {});
+    loadProjects().catch(() => { });
   }, []);
 
   const runningCount = useMemo(
@@ -443,10 +443,10 @@ export default function Channels() {
       setForm((prev) =>
         prev.id === channelId
           ? {
-              ...prev,
-              pairingCode: response.code,
-              pairingCodeExpiresAt: response.expiresAt,
-            }
+            ...prev,
+            pairingCode: response.code,
+            pairingCodeExpiresAt: response.expiresAt,
+          }
           : prev,
       );
       await loadChannels();
@@ -493,10 +493,10 @@ export default function Channels() {
       setForm((prev) =>
         prev.id === channelId
           ? {
-              ...prev,
-              pairingCode: '',
-              pairingCodeExpiresAt: '',
-            }
+            ...prev,
+            pairingCode: '',
+            pairingCodeExpiresAt: '',
+          }
           : prev,
       );
     } catch (error) {
@@ -554,7 +554,7 @@ export default function Channels() {
   const closeWeixinQr = () => {
     const { channelId } = weixinQr;
     if (channelId) {
-      window.electron.channels.weixinCancelLogin(channelId).catch(() => {});
+      window.electron.channels.weixinCancelLogin(channelId).catch(() => { });
     }
     setWeixinQr(createEmptyWeixinQr());
   };
@@ -596,7 +596,7 @@ export default function Channels() {
         }
       };
 
-      poll().catch(() => {});
+      poll().catch(() => { });
     }, 2000);
 
     return () => {
@@ -605,528 +605,530 @@ export default function Channels() {
   }, [weixinQr.open, weixinQr.channelId, weixinQr.sessionKey, weixinQr.status]);
 
   return (
-    <div className="flex h-full flex-col gap-4 p-4">
-      <Item variant="outline">
-        <ItemContent>
-          <ItemTitle>{t('settings.channels')}</ItemTitle>
-          <ItemDescription>
-            {t('channels.summary', {
-              count: channels.length,
-              running: runningCount,
-            })}
-          </ItemDescription>
-        </ItemContent>
-        <ItemActions>
-          <Button onClick={openCreateTelegram}>
-            <IconPlus className="mr-1 size-4" />
-            Telegram
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => {
-              handleAddWeixin().catch(() => {});
-            }}
-            disabled={weixinQr.loading}
-          >
-            <IconQrcode className="mr-1 size-4" />
-            微信
-          </Button>
-        </ItemActions>
-      </Item>
+    <ScrollArea className="h-full">
+      <div className="flex h-full flex-col gap-4 p-4">
+        <Item variant="outline">
+          <ItemContent>
+            <ItemTitle>{t('settings.channels')}</ItemTitle>
+            <ItemDescription>
+              {t('channels.summary', {
+                count: channels.length,
+                running: runningCount,
+              })}
+            </ItemDescription>
+          </ItemContent>
+          <ItemActions>
+            <Button onClick={openCreateTelegram}>
+              <IconPlus className="mr-1 size-4" />
+              Telegram
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                handleAddWeixin().catch(() => { });
+              }}
+              disabled={weixinQr.loading}
+            >
+              <IconQrcode className="mr-1 size-4" />
+              微信
+            </Button>
+          </ItemActions>
+        </Item>
 
-      <ScrollArea className="flex-1 pr-2">
-        <ItemGroup className="gap-3">
-          {channels.map((channel) => (
-            <Item key={channel.id} variant="outline" className="items-start">
-              <ItemContent className="min-w-0 gap-3">
-                <ItemHeader>
-                  <div className="flex items-center gap-2">
-                    <ItemTitle>{channel.name}</ItemTitle>
-                    <Badge variant={getStatusVariant(channel.status)}>
-                      {channel.status}
-                    </Badge>
-                    {!channel.enabled && (
-                      <Badge variant="outline">disabled</Badge>
-                    )}
-                  </div>
-                  <ItemActions>
-                    {channel.type === 'telegram' && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openEditTelegram(channel.id)}
-                      >
-                        {t('common.edit')}
-                      </Button>
-                    )}
-                    {channel.type === 'weixin' && (
-                      <>
+        <ScrollArea className="flex-1 pr-2">
+          <ItemGroup className="gap-3">
+            {channels.map((channel) => (
+              <Item key={channel.id} variant="outline" className="items-start">
+                <ItemContent className="min-w-0 gap-3">
+                  <ItemHeader>
+                    <div className="flex items-center gap-2">
+                      <ItemTitle>{channel.name}</ItemTitle>
+                      <Badge variant={getStatusVariant(channel.status)}>
+                        {channel.status}
+                      </Badge>
+                      {!channel.enabled && (
+                        <Badge variant="outline">disabled</Badge>
+                      )}
+                    </div>
+                    <ItemActions>
+                      {channel.type === 'telegram' && (
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => openEditWeixin(channel.id)}
+                          onClick={() => openEditTelegram(channel.id)}
                         >
                           {t('common.edit')}
                         </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            handleWeixinReconnect(channel.id).catch(() => {});
-                          }}
-                          disabled={weixinQr.loading}
-                        >
-                          <IconQrcode className="mr-1 size-4" />
-                          扫码连接
-                        </Button>
-                      </>
-                    )}
+                      )}
+                      {channel.type === 'weixin' && (
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openEditWeixin(channel.id)}
+                          >
+                            {t('common.edit')}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              handleWeixinReconnect(channel.id).catch(() => { });
+                            }}
+                            disabled={weixinQr.loading}
+                          >
+                            <IconQrcode className="mr-1 size-4" />
+                            扫码连接
+                          </Button>
+                        </>
+                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          handleDelete(channel.id).catch(() => { });
+                        }}
+                        disabled={actionLoading[channel.id]}
+                      >
+                        <IconTrash className="size-4" />
+                      </Button>
+                    </ItemActions>
+                  </ItemHeader>
+                  <ItemDescription>
+                    <div className="mt-2 flex flex-col gap-1 text-xs">
+                      <span>
+                        {t('channels.type')}:{' '}
+                        {channel.type === 'weixin' ? '微信' : 'Telegram'}
+                      </span>
+                      {channel.type === 'telegram' ? (
+                        <>
+                          <span>
+                            {t('channels.default_chat_id')}:{' '}
+                            {channel.config.defaultChatId || '-'}
+                          </span>
+                          <span>
+                            {t('channels.allowed_chat_ids')}:{' '}
+                            {(channel.config.allowedChatIds || []).join(', ') ||
+                              '-'}
+                          </span>
+                          <span>
+                            {t('channels.bot_identity')}:{' '}
+                            {channel.metadata?.username
+                              ? `@${channel.metadata.username}`
+                              : '-'}
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <span>
+                            Account:{' '}
+                            {channel.metadata?.accountId ||
+                              channel.config.accountId ||
+                              '-'}
+                          </span>
+                          <span>
+                            User:{' '}
+                            {channel.metadata?.userId ||
+                              channel.config.loginUserId ||
+                              '-'}
+                          </span>
+                          <span>
+                            项目:{' '}
+                            {projectNameMap.get(
+                              channel.config.currentProjectId || '',
+                            ) ||
+                              channel.config.currentProjectId ||
+                              '-'}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  </ItemDescription>
+                  <ItemSeparator />
+                  <div className="flex flex-wrap gap-2">
                     <Button
-                      variant="outline"
                       size="sm"
+                      variant="outline"
+                      disabled={
+                        actionLoading[channel.id] || channel.status === 'running'
+                      }
                       onClick={() => {
-                        handleDelete(channel.id).catch(() => {});
+                        withAction(channel.id, async () => {
+                          const response = await window.electron.channels.start(
+                            channel.id,
+                          );
+                          toast.success(response.status);
+                        });
                       }}
-                      disabled={actionLoading[channel.id]}
                     >
-                      <IconTrash className="size-4" />
+                      <IconPlayerPlay className="mr-1 size-4" />
+                      {t('channels.connect')}
                     </Button>
-                  </ItemActions>
-                </ItemHeader>
-                <ItemDescription>
-                  <div className="mt-2 flex flex-col gap-1 text-xs">
-                    <span>
-                      {t('channels.type')}:{' '}
-                      {channel.type === 'weixin' ? '微信' : 'Telegram'}
-                    </span>
-                    {channel.type === 'telegram' ? (
-                      <>
-                        <span>
-                          {t('channels.default_chat_id')}:{' '}
-                          {channel.config.defaultChatId || '-'}
-                        </span>
-                        <span>
-                          {t('channels.allowed_chat_ids')}:{' '}
-                          {(channel.config.allowedChatIds || []).join(', ') ||
-                            '-'}
-                        </span>
-                        <span>
-                          {t('channels.bot_identity')}:{' '}
-                          {channel.metadata?.username
-                            ? `@${channel.metadata.username}`
-                            : '-'}
-                        </span>
-                      </>
-                    ) : (
-                      <>
-                        <span>
-                          Account:{' '}
-                          {channel.metadata?.accountId ||
-                            channel.config.accountId ||
-                            '-'}
-                        </span>
-                        <span>
-                          User:{' '}
-                          {channel.metadata?.userId ||
-                            channel.config.loginUserId ||
-                            '-'}
-                        </span>
-                        <span>
-                          项目:{' '}
-                          {projectNameMap.get(
-                            channel.config.currentProjectId || '',
-                          ) ||
-                            channel.config.currentProjectId ||
-                            '-'}
-                        </span>
-                      </>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={
+                        actionLoading[channel.id] || channel.status === 'stopped'
+                      }
+                      onClick={() => {
+                        withAction(channel.id, async () => {
+                          const response = await window.electron.channels.stop(
+                            channel.id,
+                          );
+                          toast.success(response.status);
+                        });
+                      }}
+                    >
+                      <IconPlayerPause className="mr-1 size-4" />
+                      {t('channels.disconnect')}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={actionLoading[channel.id]}
+                      onClick={() => {
+                        withAction(channel.id, async () => {
+                          const response = await window.electron.channels.restart(
+                            channel.id,
+                          );
+                          toast.success(response.status);
+                        });
+                      }}
+                    >
+                      <IconRefresh className="mr-1 size-4" />
+                      {t('channels.restart')}
+                    </Button>
+                    {channel.type === 'telegram' && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={pairingLoading[channel.id]}
+                        onClick={() => {
+                          handleGeneratePairingCode(channel.id).catch(() => { });
+                        }}
+                      >
+                        <IconPlugConnected className="mr-1 size-4" />
+                        {t('channels.generate_pairing_code')}
+                      </Button>
                     )}
                   </div>
-                </ItemDescription>
-                <ItemSeparator />
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={
-                      actionLoading[channel.id] || channel.status === 'running'
-                    }
-                    onClick={() => {
-                      withAction(channel.id, async () => {
-                        const response = await window.electron.channels.start(
-                          channel.id,
-                        );
-                        toast.success(response.status);
-                      });
-                    }}
-                  >
-                    <IconPlayerPlay className="mr-1 size-4" />
-                    {t('channels.connect')}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={
-                      actionLoading[channel.id] || channel.status === 'stopped'
-                    }
-                    onClick={() => {
-                      withAction(channel.id, async () => {
-                        const response = await window.electron.channels.stop(
-                          channel.id,
-                        );
-                        toast.success(response.status);
-                      });
-                    }}
-                  >
-                    <IconPlayerPause className="mr-1 size-4" />
-                    {t('channels.disconnect')}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={actionLoading[channel.id]}
-                    onClick={() => {
-                      withAction(channel.id, async () => {
-                        const response = await window.electron.channels.restart(
-                          channel.id,
-                        );
-                        toast.success(response.status);
-                      });
-                    }}
-                  >
-                    <IconRefresh className="mr-1 size-4" />
-                    {t('channels.restart')}
-                  </Button>
-                  {channel.type === 'telegram' && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={pairingLoading[channel.id]}
-                      onClick={() => {
-                        handleGeneratePairingCode(channel.id).catch(() => {});
-                      }}
-                    >
-                      <IconPlugConnected className="mr-1 size-4" />
-                      {t('channels.generate_pairing_code')}
-                    </Button>
-                  )}
-                </div>
-              </ItemContent>
-            </Item>
-          ))}
-        </ItemGroup>
-      </ScrollArea>
+                </ItemContent>
+              </Item>
+            ))}
+          </ItemGroup>
+        </ScrollArea>
 
-      {/* Telegram edit dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>
-              {form.id ? t('channels.edit_channel') : t('channels.add_channel')}
-            </DialogTitle>
-          </DialogHeader>
-          <ScrollArea className="max-h-[70vh] pr-4">
-            <div className="grid gap-4 py-2">
-              <div className="grid gap-2">
-                <Label>{t('common.name')}</Label>
-                <Input
-                  value={form.name}
-                  onChange={(event) =>
-                    setForm((prev) => ({ ...prev, name: event.target.value }))
-                  }
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label>{t('channels.bot_token')}</Label>
-                <InputPassword
-                  value={form.token}
-                  placeholder={
-                    form.id ? t('channels.keep_token_placeholder') : ''
-                  }
-                  onChange={(event) =>
-                    setForm((prev) => ({ ...prev, token: event.target.value }))
-                  }
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label>{t('channels.default_chat_id')}</Label>
-                <Input
-                  value={form.defaultChatId}
-                  onChange={(event) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      defaultChatId: event.target.value,
-                    }))
-                  }
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label>{t('channels.allowed_chat_ids')}</Label>
-                <Textarea
-                  value={form.allowedChatIdsText}
-                  onChange={(event) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      allowedChatIdsText: event.target.value,
-                    }))
-                  }
-                  placeholder={t('channels.allowed_chat_ids_placeholder')}
-                />
-              </div>
-              <div className="grid gap-3 pt-2">
-                <div className="flex items-center gap-2">
-                  <Switch
-                    checked={form.enabled}
-                    onCheckedChange={(value) =>
-                      setForm((prev) => ({ ...prev, enabled: value }))
+        {/* Telegram edit dialog */}
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>
+                {form.id ? t('channels.edit_channel') : t('channels.add_channel')}
+              </DialogTitle>
+            </DialogHeader>
+            <ScrollArea className="max-h-[70vh] pr-4">
+              <div className="grid gap-4 py-2">
+                <div className="grid gap-2">
+                  <Label>{t('common.name')}</Label>
+                  <Input
+                    value={form.name}
+                    onChange={(event) =>
+                      setForm((prev) => ({ ...prev, name: event.target.value }))
                     }
                   />
-                  <Label>{t('common.active')}</Label>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Switch
-                    checked={form.autoStart}
-                    onCheckedChange={(value) =>
-                      setForm((prev) => ({ ...prev, autoStart: value }))
+                <div className="grid gap-2">
+                  <Label>{t('channels.bot_token')}</Label>
+                  <InputPassword
+                    value={form.token}
+                    placeholder={
+                      form.id ? t('channels.keep_token_placeholder') : ''
+                    }
+                    onChange={(event) =>
+                      setForm((prev) => ({ ...prev, token: event.target.value }))
                     }
                   />
-                  <Label>{t('channels.auto_start')}</Label>
                 </div>
-              </div>
-            </div>
-          </ScrollArea>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
-              {t('common.cancel')}
-            </Button>
-            <Button
-              onClick={() => {
-                handleSaveTelegram().catch(() => {});
-              }}
-              disabled={saving}
-            >
-              {saving ? t('common.saving') : t('common.save')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={weixinDialogOpen} onOpenChange={setWeixinDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>编辑微信频道</DialogTitle>
-          </DialogHeader>
-          <ScrollArea className="max-h-[70vh] pr-4">
-            <div className="grid gap-4 py-2">
-              <div className="grid gap-2">
-                <Label>{t('common.name')}</Label>
-                <Input
-                  value={weixinForm.name}
-                  onChange={(event) =>
-                    setWeixinForm((prev) => ({
-                      ...prev,
-                      name: event.target.value,
-                    }))
-                  }
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label>Project</Label>
-                <Select
-                  value={weixinForm.currentProjectId || EMPTY_PROJECT_VALUE}
-                  onValueChange={(value) =>
-                    setWeixinForm((prev) => ({
-                      ...prev,
-                      currentProjectId:
-                        value === EMPTY_PROJECT_VALUE ? '' : value,
-                    }))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="选择一个项目" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={EMPTY_PROJECT_VALUE}>
-                      不绑定项目
-                    </SelectItem>
-                    {projects.map((project) => (
-                      <SelectItem key={project.id} value={project.id || ''}>
-                        {project.title || project.id}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid gap-3 pt-2">
-                <div className="flex items-center gap-2">
-                  <Switch
-                    checked={weixinForm.enabled}
-                    onCheckedChange={(value) =>
-                      setWeixinForm((prev) => ({ ...prev, enabled: value }))
-                    }
-                  />
-                  <Label>{t('common.active')}</Label>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Switch
-                    checked={weixinForm.autoStart}
-                    onCheckedChange={(value) =>
-                      setWeixinForm((prev) => ({
+                <div className="grid gap-2">
+                  <Label>{t('channels.default_chat_id')}</Label>
+                  <Input
+                    value={form.defaultChatId}
+                    onChange={(event) =>
+                      setForm((prev) => ({
                         ...prev,
-                        autoStart: value,
+                        defaultChatId: event.target.value,
                       }))
                     }
                   />
-                  <Label>{t('channels.auto_start')}</Label>
                 </div>
-              </div>
-            </div>
-          </ScrollArea>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setWeixinDialogOpen(false)}
-            >
-              {t('common.cancel')}
-            </Button>
-            <Button
-              onClick={() => {
-                handleSaveWeixin().catch(() => {});
-              }}
-              disabled={saving}
-            >
-              {saving ? t('common.saving') : t('common.save')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Weixin QR code login dialog */}
-      <Dialog
-        open={weixinQr.open}
-        onOpenChange={(open) => {
-          if (!open) closeWeixinQr();
-        }}
-      >
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>微信扫码连接</DialogTitle>
-          </DialogHeader>
-          <div className="flex flex-col items-center gap-4 py-2">
-            <Badge variant={weixinQr.connected ? 'default' : 'outline'}>
-              {weixinQr.status === 'wait' && '等待扫码'}
-              {weixinQr.status === 'scaned' && '已扫码，请在手机上确认'}
-              {weixinQr.status === 'confirmed' && '连接成功'}
-              {weixinQr.status === 'expired' && '二维码已过期'}
-              {weixinQr.status === 'cancelled' && '已取消'}
-              {weixinQr.status === 'idle' && '准备中'}
-            </Badge>
-
-            {weixinQr.qrcodeBase64 &&
-              !weixinQr.connected &&
-              weixinQr.status !== 'expired' && (
-                <div className="rounded-lg border bg-white p-3">
-                  <img
-                    src={weixinQr.qrcodeBase64}
-                    alt="WeChat QR"
-                    className="h-52 w-52"
+                <div className="grid gap-2">
+                  <Label>{t('channels.allowed_chat_ids')}</Label>
+                  <Textarea
+                    value={form.allowedChatIdsText}
+                    onChange={(event) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        allowedChatIdsText: event.target.value,
+                      }))
+                    }
+                    placeholder={t('channels.allowed_chat_ids_placeholder')}
                   />
                 </div>
+                <div className="grid gap-3 pt-2">
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      checked={form.enabled}
+                      onCheckedChange={(value) =>
+                        setForm((prev) => ({ ...prev, enabled: value }))
+                      }
+                    />
+                    <Label>{t('common.active')}</Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      checked={form.autoStart}
+                      onCheckedChange={(value) =>
+                        setForm((prev) => ({ ...prev, autoStart: value }))
+                      }
+                    />
+                    <Label>{t('channels.auto_start')}</Label>
+                  </div>
+                </div>
+              </div>
+            </ScrollArea>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDialogOpen(false)}>
+                {t('common.cancel')}
+              </Button>
+              <Button
+                onClick={() => {
+                  handleSaveTelegram().catch(() => { });
+                }}
+                disabled={saving}
+              >
+                {saving ? t('common.saving') : t('common.save')}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={weixinDialogOpen} onOpenChange={setWeixinDialogOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>编辑微信频道</DialogTitle>
+            </DialogHeader>
+            <ScrollArea className="max-h-[70vh] pr-4">
+              <div className="grid gap-4 py-2">
+                <div className="grid gap-2">
+                  <Label>{t('common.name')}</Label>
+                  <Input
+                    value={weixinForm.name}
+                    onChange={(event) =>
+                      setWeixinForm((prev) => ({
+                        ...prev,
+                        name: event.target.value,
+                      }))
+                    }
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label>Project</Label>
+                  <Select
+                    value={weixinForm.currentProjectId || EMPTY_PROJECT_VALUE}
+                    onValueChange={(value) =>
+                      setWeixinForm((prev) => ({
+                        ...prev,
+                        currentProjectId:
+                          value === EMPTY_PROJECT_VALUE ? '' : value,
+                      }))
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="选择一个项目" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={EMPTY_PROJECT_VALUE}>
+                        不绑定项目
+                      </SelectItem>
+                      {projects.map((project) => (
+                        <SelectItem key={project.id} value={project.id || ''}>
+                          {project.title || project.id}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-3 pt-2">
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      checked={weixinForm.enabled}
+                      onCheckedChange={(value) =>
+                        setWeixinForm((prev) => ({ ...prev, enabled: value }))
+                      }
+                    />
+                    <Label>{t('common.active')}</Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      checked={weixinForm.autoStart}
+                      onCheckedChange={(value) =>
+                        setWeixinForm((prev) => ({
+                          ...prev,
+                          autoStart: value,
+                        }))
+                      }
+                    />
+                    <Label>{t('channels.auto_start')}</Label>
+                  </div>
+                </div>
+              </div>
+            </ScrollArea>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setWeixinDialogOpen(false)}
+              >
+                {t('common.cancel')}
+              </Button>
+              <Button
+                onClick={() => {
+                  handleSaveWeixin().catch(() => { });
+                }}
+                disabled={saving}
+              >
+                {saving ? t('common.saving') : t('common.save')}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Weixin QR code login dialog */}
+        <Dialog
+          open={weixinQr.open}
+          onOpenChange={(open) => {
+            if (!open) closeWeixinQr();
+          }}
+        >
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>微信扫码连接</DialogTitle>
+            </DialogHeader>
+            <div className="flex flex-col items-center gap-4 py-2">
+              <Badge variant={weixinQr.connected ? 'default' : 'outline'}>
+                {weixinQr.status === 'wait' && '等待扫码'}
+                {weixinQr.status === 'scaned' && '已扫码，请在手机上确认'}
+                {weixinQr.status === 'confirmed' && '连接成功'}
+                {weixinQr.status === 'expired' && '二维码已过期'}
+                {weixinQr.status === 'cancelled' && '已取消'}
+                {weixinQr.status === 'idle' && '准备中'}
+              </Badge>
+
+              {weixinQr.qrcodeBase64 &&
+                !weixinQr.connected &&
+                weixinQr.status !== 'expired' && (
+                  <div className="rounded-lg border bg-white p-3">
+                    <img
+                      src={weixinQr.qrcodeBase64}
+                      alt="WeChat QR"
+                      className="h-52 w-52"
+                    />
+                  </div>
+                )}
+
+              {weixinQr.connected && (
+                <div className="text-center text-sm text-green-600">
+                  微信已连接成功，可以关闭此窗口。
+                </div>
               )}
 
-            {weixinQr.connected && (
-              <div className="text-center text-sm text-green-600">
-                微信已连接成功，可以关闭此窗口。
-              </div>
-            )}
-
-            {weixinQr.status === 'expired' && (
-              <div className="flex flex-col items-center gap-2">
-                <div className="text-sm text-muted-foreground">
-                  {weixinQr.message}
-                </div>
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    startWeixinQrLogin(weixinQr.channelId).catch(() => {});
-                  }}
-                  disabled={weixinQr.loading}
-                >
-                  <IconRefresh className="mr-1 size-4" />
-                  重新获取二维码
-                </Button>
-              </div>
-            )}
-
-            {weixinQr.message &&
-              !weixinQr.connected &&
-              weixinQr.status !== 'expired' && (
-                <div className="text-xs text-muted-foreground">
-                  {weixinQr.message}
+              {weixinQr.status === 'expired' && (
+                <div className="flex flex-col items-center gap-2">
+                  <div className="text-sm text-muted-foreground">
+                    {weixinQr.message}
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      startWeixinQrLogin(weixinQr.channelId).catch(() => { });
+                    }}
+                    disabled={weixinQr.loading}
+                  >
+                    <IconRefresh className="mr-1 size-4" />
+                    重新获取二维码
+                  </Button>
                 </div>
               )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={closeWeixinQr}>
-              {weixinQr.connected ? '关闭' : '取消'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
-      {/* Telegram pairing guide */}
-      <AlertDialog
-        open={pairingGuide.open}
-        onOpenChange={(open) => {
-          if (open) {
-            setPairingGuide((prev) => ({ ...prev, open: true }));
-            return;
-          }
-          closePairingGuide().catch(() => {});
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {t('channels.pairing_dialog_title')}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {t('channels.pairing_dialog_description', {
-                channel: pairingGuide.channelName,
-              })}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="grid gap-2 text-sm">
-            <div>{t('channels.pairing_dialog_waiting')}</div>
-            <div>{t('channels.pairing_dialog_close_hint')}</div>
-            <div>
-              <strong>{t('channels.pairing_code')}:</strong>{' '}
-              {pairingGuide.code || '-'}
+              {weixinQr.message &&
+                !weixinQr.connected &&
+                weixinQr.status !== 'expired' && (
+                  <div className="text-xs text-muted-foreground">
+                    {weixinQr.message}
+                  </div>
+                )}
             </div>
-            <div>
-              <strong>{t('channels.pairing_expires_at')}:</strong>{' '}
-              {formatPairingExpiresAt(pairingGuide.expiresAt)}
-            </div>
-            <div>{t('channels.pairing_step_1')}</div>
-            <div>
-              {t('channels.pairing_step_2', {
-                command: pairCommand,
-                code: pairingGuide.code,
-              })}
-            </div>
-            <div>{t('channels.pairing_step_3')}</div>
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogAction>{t('common.confirm')}</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+            <DialogFooter>
+              <Button variant="outline" onClick={closeWeixinQr}>
+                {weixinQr.connected ? '关闭' : '取消'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
-      {loading && (
-        <div className="text-sm text-muted-foreground">
-          {t('common.loading')}
-        </div>
-      )}
-    </div>
+        {/* Telegram pairing guide */}
+        <AlertDialog
+          open={pairingGuide.open}
+          onOpenChange={(open) => {
+            if (open) {
+              setPairingGuide((prev) => ({ ...prev, open: true }));
+              return;
+            }
+            closePairingGuide().catch(() => { });
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                {t('channels.pairing_dialog_title')}
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                {t('channels.pairing_dialog_description', {
+                  channel: pairingGuide.channelName,
+                })}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="grid gap-2 text-sm">
+              <div>{t('channels.pairing_dialog_waiting')}</div>
+              <div>{t('channels.pairing_dialog_close_hint')}</div>
+              <div>
+                <strong>{t('channels.pairing_code')}:</strong>{' '}
+                {pairingGuide.code || '-'}
+              </div>
+              <div>
+                <strong>{t('channels.pairing_expires_at')}:</strong>{' '}
+                {formatPairingExpiresAt(pairingGuide.expiresAt)}
+              </div>
+              <div>{t('channels.pairing_step_1')}</div>
+              <div>
+                {t('channels.pairing_step_2', {
+                  command: pairCommand,
+                  code: pairingGuide.code,
+                })}
+              </div>
+              <div>{t('channels.pairing_step_3')}</div>
+            </div>
+            <AlertDialogFooter>
+              <AlertDialogAction>{t('common.confirm')}</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {loading && (
+          <div className="text-sm text-muted-foreground">
+            {t('common.loading')}
+          </div>
+        )}
+      </div>
+    </ScrollArea>
   );
 }

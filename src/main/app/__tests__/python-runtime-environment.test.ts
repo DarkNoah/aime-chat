@@ -7,7 +7,7 @@ import {
 
 const baseOptions = {
   uvDir: '/runtime/bin',
-  userDataDir: '/runtime/user-data',
+  runtimeDir: '/runtime/custom location',
   packageCacheDir: '/runtime/cache',
   packageIndex: 'https://example.test/simple/',
   commandEnv: { UV_CACHE_DIR: '/runtime/cache' },
@@ -43,7 +43,7 @@ describe('managed Python runtime setup', () => {
       .mockResolvedValueOnce({ code: 0, stdout: 'pip 25.0\n' });
 
     await expect(
-      inspectManagedPythonRuntime(baseOptions.userDataDir, false, runCommand),
+      inspectManagedPythonRuntime(baseOptions.runtimeDir, false, runCommand),
     ).resolves.toEqual(
       expect.objectContaining({ installed: false, pythonVersion: '3.10.18' }),
     );
@@ -96,7 +96,7 @@ describe('managed Python runtime setup', () => {
     ).resolves.toBe(true);
 
     expect(rmSpy).toHaveBeenCalledWith(
-      '/runtime/user-data/.runtime/python-runtime/.venv',
+      '/runtime/custom location/python-runtime/.venv',
       { recursive: true, force: true },
     );
     const createCommand = runCommand.mock.calls

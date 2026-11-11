@@ -11,6 +11,7 @@ import { Agent } from '@/types/agent';
 import {
   AppProxy,
   RuntimeInfo,
+  RuntimeDirectoryInfo,
   SaveSettingsInput,
   ScreenCaptureOptions,
   ScreenCaptureResult,
@@ -259,8 +260,14 @@ const electronHandler = {
       ipcRenderer.invoke(AppChannel.InstasllRumtime, pkg),
     uninstallRuntime: (pkg: string) =>
       ipcRenderer.invoke(AppChannel.UninstallRumtime, pkg),
-    getRuntimeInfo: (): Promise<RuntimeInfo> =>
-      ipcRenderer.invoke(AppChannel.GetRuntimeInfo),
+    getRuntimeInfo: (refresh = false): Promise<RuntimeInfo> =>
+      ipcRenderer.invoke(AppChannel.GetRuntimeInfo, refresh),
+    getRuntimeDirectory: (): Promise<RuntimeDirectoryInfo> =>
+      ipcRenderer.invoke(AppChannel.GetRuntimeDirectory),
+    setRuntimeDirectory: (directory: string): Promise<RuntimeDirectoryInfo> =>
+      ipcRenderer.invoke(AppChannel.SetRuntimeDirectory, directory),
+    migrateRuntimeDirectory: (directory: string): Promise<void> =>
+      ipcRenderer.invoke(AppChannel.MigrateRuntimeDirectory, directory),
     setApiServerPort: (port: number) =>
       ipcRenderer.invoke(AppChannel.SetApiServerPort, port),
     toggleApiServerEnable: (enabled: boolean) =>
@@ -742,8 +749,6 @@ const electronHandler = {
       ipcRenderer.invoke(ThreadBrowserChannel.Present, input),
   },
   instances: {
-    setInsecureTls: (id: string, enabled: boolean): Promise<InstanceInfo> =>
-      ipcRenderer.invoke(InstancesChannel.SetInsecureTls, id, enabled),
     getInstances: (): Promise<InstanceInfo[]> =>
       ipcRenderer.invoke(InstancesChannel.GetInstances),
     stopInstance: (id: string) =>

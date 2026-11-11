@@ -1,4 +1,4 @@
-import React, { type ReactNode, useEffect, useState } from 'react';
+import React, { type ReactNode, useEffect, useRef, useState } from 'react';
 import { Button } from '@/renderer/components/ui/button';
 import {
   Card,
@@ -10,6 +10,8 @@ import {
 } from '@/renderer/components/ui/card';
 import { Badge } from '@/renderer/components/ui/badge';
 import { Checkbox } from '@/renderer/components/ui/checkbox';
+import { Input } from '@/renderer/components/ui/input';
+import { Label } from '@/renderer/components/ui/label';
 import { useTranslation } from 'react-i18next';
 import {
   ArrowLeft,
@@ -19,6 +21,7 @@ import {
   Terminal,
   Package,
   ScanText,
+  FolderOpen,
 } from 'lucide-react';
 import { Spinner } from '@/renderer/components/ui/spinner';
 import {
@@ -28,7 +31,7 @@ import {
   ItemTitle,
   ItemDescription,
 } from '@/renderer/components/ui/item';
-import { RuntimeInfo } from '@/types/app';
+import { RuntimeDirectoryInfo, RuntimeInfo } from '@/types/app';
 import toast from 'react-hot-toast';
 import type { TFunction } from 'i18next';
 
@@ -144,6 +147,12 @@ function RuntimeStep({ onNext, onBack, onSkip }: SetupStepProps) {
   const runtimeLoadErrorText = t('setup.runtime.load_error');
   const [runtimeInfo, setRuntimeInfo] = useState<RuntimeInfo | null>(null);
   const [loading, setLoading] = useState(true);
+  const [directoryInfo, setDirectoryInfo] =
+    useState<RuntimeDirectoryInfo | null>(null);
+  const [directory, setDirectory] = useState('');
+  const [directoryError, setDirectoryError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const submitting = useRef(false);
   const [selected, setSelected] = useState<Record<RuntimeKey, boolean>>({
     uv: false,
     node: false,
@@ -156,9 +165,14 @@ function RuntimeStep({ onNext, onBack, onSkip }: SetupStepProps) {
     const getRuntimeInfo = async () => {
       setLoading(true);
       try {
-        const data = await window.electron.app.getRuntimeInfo();
+        const [data, location] = await Promise.all([
+          window.electron.app.getRuntimeInfo(),
+          window.electron.app.getRuntimeDirectory(),
+        ]);
         if (!active) return;
 
+        setDirectoryInfo(location);
+        setDirectory(location.path);
         setRuntimeInfo(data);
         setSelected({
           uv:
@@ -214,11 +228,55 @@ function RuntimeStep({ onNext, onBack, onSkip }: SetupStepProps) {
     (key) => selected[key] && !isInstalled(key) && !isInstalling(key),
   );
 
-  const handleNext = () => {
-    if (selectedPackages.length > 0) {
-      startRuntimeInstall(selectedPackages, t).catch(() => undefined);
+  const handleChooseDirectory = async () => {
+    try {
+      const result = await window.electron.app.showOpenDialog({
+        title: t('setup.runtime.install_directory'),
+        defaultPath: directory || directoryInfo?.defaultPath,
+        properties: ['openDirectory', 'createDirectory'],
+      });
+      if (!result.canceled && result.filePaths[0]) {
+        setDirectory(result.filePaths[0]);
+        setDirectoryError(null);
+      }
+    } catch {
+      setDirectoryError('setup.runtime.directory_select_error');
     }
-    onNext();
+  };
+
+  const handleNext = async () => {
+    if (submitting.current) return;
+    submitting.current = true;
+    setSaving(true);
+    setDirectoryError(null);
+    try {
+      const location = await window.electron.app.setRuntimeDirectory(directory);
+      setDirectoryInfo(location);
+      setDirectory(location.path);
+      // The chosen directory may already contain dependencies. Refresh before
+      // queuing installs so we do not reinstall an existing environment.
+      const info = await window.electron.app.getRuntimeInfo(true);
+      const packages = selectedPackages.filter(
+        (key) =>
+          info[key]?.status !== 'installed' &&
+          info[key]?.status !== 'installing',
+      );
+      if (packages.length > 0) {
+        startRuntimeInstall(packages, t).catch(() => undefined);
+      }
+      onNext();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setDirectoryError(
+        message.includes('RUNTIME_DIRECTORY_IN_USE') ||
+          message.includes('RUNTIME_DIRECTORY_BUSY')
+          ? 'setup.runtime.directory_locked'
+          : 'setup.runtime.directory_save_error',
+      );
+    } finally {
+      submitting.current = false;
+      setSaving(false);
+    }
   };
 
   const renderVersionBadges = (key: RuntimeKey): ReactNode => {
@@ -265,6 +323,7 @@ function RuntimeStep({ onNext, onBack, onSkip }: SetupStepProps) {
       <Checkbox
         id={`setup-runtime-${key}`}
         checked={selected[key]}
+        disabled={saving}
         onCheckedChange={(checked) =>
           handleSelectionChange(key, checked === true)
         }
@@ -342,6 +401,52 @@ function RuntimeStep({ onNext, onBack, onSkip }: SetupStepProps) {
           </div>
         ) : (
           <>
+            <div className="space-y-2">
+              <Label htmlFor="runtime-install-directory">
+                {t('setup.runtime.install_directory')}
+              </Label>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Input
+                  id="runtime-install-directory"
+                  value={directory}
+                  onChange={(event) => {
+                    setDirectory(event.target.value);
+                    setDirectoryError(null);
+                  }}
+                  disabled={saving || !directoryInfo?.canChange}
+                  aria-invalid={Boolean(directoryError)}
+                  aria-describedby="runtime-directory-help runtime-directory-error"
+                  className="min-w-0 flex-1"
+                />
+                <Button
+                  variant="outline"
+                  onClick={handleChooseDirectory}
+                  disabled={saving || !directoryInfo?.canChange}
+                >
+                  <FolderOpen className="size-4 mr-2" />
+                  {t('setup.runtime.choose_directory')}
+                </Button>
+              </div>
+              <p
+                id="runtime-directory-help"
+                className="text-xs text-muted-foreground"
+              >
+                {t(
+                  directoryInfo?.canChange
+                    ? 'setup.runtime.directory_hint'
+                    : 'setup.runtime.directory_locked',
+                )}
+              </p>
+              {directoryError && (
+                <p
+                  id="runtime-directory-error"
+                  role="alert"
+                  className="text-sm text-destructive"
+                >
+                  {t(directoryError)}
+                </p>
+              )}
+            </div>
             <div className="space-y-3">
               {RUNTIME_DEFINITIONS.map(renderRuntimeItem)}
             </div>
@@ -363,18 +468,22 @@ function RuntimeStep({ onNext, onBack, onSkip }: SetupStepProps) {
       </CardContent>
 
       <CardFooter className="flex justify-between pt-6 border-t">
-        <Button variant="ghost" onClick={onBack} disabled={!onBack}>
+        <Button variant="ghost" onClick={onBack} disabled={!onBack || saving}>
           <ArrowLeft className="w-4 h-4 mr-2" />
           {t('common.back')}
         </Button>
         <div className="flex gap-2">
           {onSkip && (
-            <Button variant="ghost" onClick={onSkip}>
+            <Button variant="ghost" onClick={onSkip} disabled={saving}>
               {t('common.skip')}
               <SkipForward className="w-4 h-4 ml-2" />
             </Button>
           )}
-          <Button onClick={handleNext} disabled={loading}>
+          <Button
+            onClick={handleNext}
+            disabled={loading || saving || !directoryInfo || !directory.trim()}
+          >
+            {saving && <Spinner className="size-4 mr-2" />}
             {selectedPackages.length > 0
               ? t('setup.runtime.install_and_continue', {
                   count: selectedPackages.length,

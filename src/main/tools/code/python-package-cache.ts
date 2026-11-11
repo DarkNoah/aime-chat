@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
-import { app, net } from 'electron';
+import { net } from 'electron';
+import { getRuntimeDirectory, getRuntimeEnvironment } from '@/main/app/runtime-directory';
 import { RuntimeInfo } from '@/types/app';
 import { PYTHON_RUNTIME_VERSION } from '@/main/utils/pythonRuntimeVersion';
 
@@ -108,7 +109,7 @@ let retryTimer: ReturnType<typeof setTimeout> | undefined;
 let cacheWarmed = false;
 
 export function getCodeExecutionPackageCachePaths() {
-  const root = path.join(app.getPath('userData'), '.runtime', 'code-execution');
+  const root = path.join(getRuntimeDirectory(), 'code-execution');
   const warmupVenv = path.join(root, 'warmup-venv');
   const warmupPython =
     process.platform === 'win32'
@@ -128,6 +129,7 @@ export function withCodeExecutionPackageCache(
 ) {
   return {
     ...env,
+    ...getRuntimeEnvironment(),
     UV_CACHE_DIR: getCodeExecutionPackageCachePaths().uvCache,
   };
 }
@@ -232,8 +234,22 @@ export async function warmCodeExecutionPackageCache(
   return true;
 }
 
+let migrationPaused = false;
+
+export function pausePackageCacheWarmup() {
+  if (warmupPromise) throw new Error('RUNTIME_MIGRATION_BUSY');
+  migrationPaused = true;
+  if (retryTimer) clearTimeout(retryTimer);
+  retryTimer = undefined;
+  return () => {
+    migrationPaused = false;
+    queueWarmup(CACHE_RETRY_DELAY_MS);
+  };
+}
+
 function queueWarmup(delay: number) {
   if (
+    migrationPaused ||
     retryTimer ||
     warmupPromise ||
     cacheWarmed ||

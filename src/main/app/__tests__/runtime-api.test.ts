@@ -4,6 +4,8 @@ import path from 'path';
 import type { Application, RequestHandler } from 'express';
 import { BaseManager } from '../../BaseManager';
 import { runCommand } from '../../utils/shell';
+import { getRuntimeDirectory, setRuntimeDirectory } from '../runtime-directory';
+import { inspectManagedPythonRuntime } from '../python-runtime-environment';
 import {
   agentBrowser,
   bun,
@@ -18,11 +20,19 @@ import {
   runtimeManager,
 } from '../runtime';
 
-jest.mock('electron', () => ({ app: { getPath: () => '/test/user-data' } }));
+jest.mock('electron', () => ({
+  app: { getPath: () => '/test/user-data', getAppPath: () => '/test/app' },
+}));
 jest.mock('fs', () => ({
   existsSync: jest.fn(),
   mkdirSync: jest.fn(),
-  promises: { rm: jest.fn(), writeFile: jest.fn() },
+  promises: {
+    rm: jest.fn(),
+    writeFile: jest.fn(),
+    mkdir: jest.fn(),
+    mkdtemp: jest.fn(async () => '/test/probe'),
+    rmdir: jest.fn(),
+  },
 }));
 jest.mock('..', () => ({ appManager: { toast: jest.fn() } }));
 jest.mock('../../utils/shell', () => ({ runCommand: jest.fn() }));
@@ -35,6 +45,7 @@ jest.mock('../python-runtime-environment', () => ({
 jest.mock('../../tools/code/python-package-cache', () => ({
   scheduleCodeExecutionPackageCacheWarmup: jest.fn(),
   getCodeExecutionPackageCachePaths: () => ({ uvCache: '/test/cache' }),
+  pausePackageCacheWarmup: jest.fn(() => jest.fn()),
 }));
 
 const routes = new Map<string, RequestHandler>();
@@ -78,6 +89,7 @@ beforeAll(() => BaseManager.registerApiRoutes(apiApp));
 beforeEach(() => {
   jest.clearAllMocks();
   files.clear();
+  setRuntimeDirectory(root);
   for (const state of [uv, bun, node, paddleOcr, qwenAudio, agentBrowser]) {
     Object.assign(state, {
       status: 'not_installed',
@@ -111,6 +123,85 @@ beforeEach(() => {
     }
     return commandResult(1);
   });
+});
+
+it('persists the selected directory and uses it for UV and Python discovery', async () => {
+  const persist = jest.fn(async () => undefined);
+  const directory = '/custom/运行 环境';
+  await runtimeManager.saveRuntimeDirectory(directory, persist);
+  expect(persist).toHaveBeenCalledWith(directory);
+  expect(getRuntimeDirectory()).toBe(directory);
+  const uvPath = path.join(
+    directory,
+    'bin',
+    process.platform === 'win32' ? 'uv.exe' : 'uv',
+  );
+  files.add(uvPath);
+  jest.mocked(runCommand).mockResolvedValueOnce(commandResult(0, 'uv 0.9.0\n'));
+  expect(await getUVRuntime(true)).toMatchObject({
+    installed: true,
+    path: uvPath,
+  });
+  expect(inspectManagedPythonRuntime).toHaveBeenCalledWith(
+    directory,
+    process.platform === 'win32',
+    expect.any(Function),
+  );
+  expect(runCommand).toHaveBeenCalledWith(
+    expect.any(String),
+    expect.objectContaining({
+      cwd: path.join(directory, 'bin'),
+      env: expect.objectContaining({
+        UV_PYTHON_INSTALL_DIR: path.join(directory, 'python'),
+      }),
+    }),
+  );
+});
+
+it('preserves the active directory if persistence fails', async () => {
+  await expect(
+    runtimeManager.saveRuntimeDirectory('/new/runtime', async () => {
+      throw new Error('database unavailable');
+    }),
+  ).rejects.toThrow('database unavailable');
+  expect(getRuntimeDirectory()).toBe(root);
+});
+
+it('prevents moving existing managed dependencies through the setup picker', async () => {
+  files.add(bunPath);
+  const persist = jest.fn();
+  expect(runtimeManager.getRuntimeDirectoryInfo().canChange).toBe(false);
+  await expect(
+    runtimeManager.saveRuntimeDirectory('/new/runtime', persist),
+  ).rejects.toThrow('RUNTIME_DIRECTORY_IN_USE');
+  expect(persist).not.toHaveBeenCalled();
+  expect(getRuntimeDirectory()).toBe(root);
+});
+
+it('blocks installations while a new directory is being persisted', async () => {
+  let finish: () => void;
+  let markStarted: () => void;
+  const started = new Promise<void>((resolve) => {
+    markStarted = resolve;
+  });
+  const pending = runtimeManager.saveRuntimeDirectory(
+    '/new/runtime',
+    () =>
+      new Promise<void>((resolve) => {
+        finish = resolve;
+        markStarted();
+      }),
+  );
+  await expect(runtimeManager.installRuntime('bun')).rejects.toThrow(
+    'already in progress',
+  );
+  await started;
+  await expect(
+    runtimeManager.saveRuntimeDirectory(root, jest.fn()),
+  ).rejects.toThrow('RUNTIME_DIRECTORY_BUSY');
+  finish!();
+  await pending;
+  expect(runCommand).not.toHaveBeenCalled();
 });
 
 it('registers the four routes and lists refreshed status, dependencies and capabilities', async () => {
@@ -272,8 +363,11 @@ it('installs the Agent Browser CLI without downloading a separate Chromium', asy
   jest.mocked(runCommand).mockImplementation(async (command) => {
     if (command === 'node --version') return commandResult(0, 'v22.0.0');
     if (command === 'npm --version') return commandResult(0, '10.0.0');
-    if (command === 'npm install -g agent-browser') return commandResult();
-    if (command === 'agent-browser -V')
+    if (command === `npm install --prefix "${path.join(root, 'agent-browser')}" agent-browser`) {
+      files.add(path.join(root, 'agent-browser/node_modules/agent-browser/bin/agent-browser.js'));
+      return commandResult();
+    }
+    if (String(command).includes('agent-browser.js') && String(command).endsWith(' -V'))
       return commandResult(0, 'agent-browser 1.0.0');
     return commandResult(1);
   });
@@ -282,6 +376,10 @@ it('installs the Agent Browser CLI without downloading a separate Chromium', asy
   });
   expect(error).toBeUndefined();
   expect(agentBrowser.installed).toBe(true);
+  expect(runCommand).toHaveBeenCalledWith(
+    `npm install --prefix "${path.join(root, 'agent-browser')}" agent-browser`,
+    expect.any(Object),
+  );
   expect(runCommand).not.toHaveBeenCalledWith('agent-browser install');
 });
 
@@ -341,9 +439,12 @@ it('clears stale installed status when UV, Bun or QwenAudio health checks fail',
 it('waits for an existing health probe before deleting runtime files', async () => {
   files.add(bunPath);
   let finishProbe: () => void;
-  jest.mocked(runCommand).mockImplementationOnce(() => new Promise((resolve) => {
-    finishProbe = () => resolve(commandResult(0, '1.3.0'));
-  }));
+  jest.mocked(runCommand).mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finishProbe = () => resolve(commandResult(0, '1.3.0'));
+      }),
+  );
   const listing = runtimeManager.listRuntimes(true);
   // UV inspection finishes before the Bun probe starts.
   await Promise.resolve();
@@ -357,14 +458,20 @@ it('waits for an existing health probe before deleting runtime files', async () 
 });
 
 it('uninstalls UV and managed Python without deleting dependent environments or models', async () => {
-  const uvPath = path.join(root, 'bin', process.platform === 'win32' ? 'uv.exe' : 'uv');
+  const uvPath = path.join(
+    root,
+    'bin',
+    process.platform === 'win32' ? 'uv.exe' : 'uv',
+  );
   const pythonDir = path.join(root, 'python-runtime');
   const qwenDir = path.join(root, 'qwen-audio-runtime');
   const modelDir = '/test/user-data/models';
   for (const file of [uvPath, pythonDir, qwenDir, modelDir]) files.add(file);
   uv.status = qwenAudio.status = 'installed';
   uv.installed = qwenAudio.installed = true;
-  const { data, error } = await invoke('post', 'uninstall', { body: { pkg: 'uv' } });
+  const { data, error } = await invoke('post', 'uninstall', {
+    body: { pkg: 'uv' },
+  });
   expect(error).toBeUndefined();
   expect(data.installed).toBe(false);
   expect(files.has(uvPath)).toBe(false);
@@ -380,7 +487,12 @@ it('aborts reinstallation when npm fails to remove Agent Browser', async () => {
     if (command === 'npm --version') return commandResult(0, '10.0.0');
     return commandResult(1);
   });
-  const { error } = await invoke('post', 'reinstall', { body: { pkg: 'agentBrowser' } });
+  const { error } = await invoke('post', 'reinstall', {
+    body: { pkg: 'agentBrowser' },
+  });
   expect(error.message).toContain('Failed to uninstall');
-  expect(runCommand).not.toHaveBeenCalledWith('npm install -g agent-browser', undefined);
+  expect(runCommand).not.toHaveBeenCalledWith(
+    'npm install -g agent-browser',
+    undefined,
+  );
 });
