@@ -78,7 +78,11 @@ import { providersManager } from '../providers';
 import { CreatePlan } from './common/create-plan';
 import { readSkillPackageMetadata } from '../utils/skill-metadata';
 import { InteractiveHtml } from './common/interactive-html';
-import { hasHiddenPathSegment } from './skill-path';
+import {
+  getSkillGroupDirName,
+  hasHiddenPathSegment,
+  isSamePathOrInside,
+} from './skill-path';
 import { getSkills } from '../utils/skills';
 import { projectManager } from '../project';
 import {
@@ -1742,6 +1746,45 @@ class ToolsManager extends BaseManager {
     return normalizedRepoUrl.split('/').filter(Boolean).pop() || 'skill';
   }
 
+  private getGlobalSkillSavePath(skillName: string, groupDir?: string) {
+    return path.join(
+      app.getPath('userData'),
+      'skills',
+      ...(groupDir ? [groupDir] : []),
+      skillName,
+    );
+  }
+
+  // Skill ids only use the last directory name, so moving a skill between
+  // groups must remove the copy left at its previous location.
+  private async removeMovedGlobalSkillDir(
+    toolId: string,
+    savePath: string,
+    sourcePath?: string,
+  ) {
+    const existingTool = await this.toolsRepository.findOne({
+      where: { id: toolId, type: ToolType.SKILL },
+    });
+    const oldPath = existingTool?.value?.path;
+    if (!oldPath) return;
+
+    const skillsRoot = path.resolve(app.getPath('userData'), 'skills');
+    const resolvedOldPath = path.resolve(oldPath);
+    const resolvedSavePath = path.resolve(savePath);
+    if (
+      resolvedOldPath === skillsRoot ||
+      !isSamePathOrInside(skillsRoot, resolvedOldPath) ||
+      isSamePathOrInside(resolvedOldPath, resolvedSavePath) ||
+      isSamePathOrInside(resolvedSavePath, resolvedOldPath) ||
+      (sourcePath &&
+        isSamePathOrInside(resolvedOldPath, path.resolve(sourcePath)))
+    ) {
+      return;
+    }
+
+    await fs.promises.rm(resolvedOldPath, { recursive: true, force: true });
+  }
+
   private getImportedSkillId(skillPath: string, tmpDir: string, repoUrl: string): string {
     const relativePath = path.relative(tmpDir, skillPath);
     if (!relativePath) {
@@ -1798,6 +1841,7 @@ class ToolsManager extends BaseManager {
     let repoUrl: string;
     let gitPath: string = '';
     const { repo_or_url, files, dirs, sourceSkillIds } = data;
+    const groupDir = data.path ? undefined : getSkillGroupDirName(data.group);
     const replacedSkillAutoLoadById = new Map<string, boolean>();
     const resolveAutoLoad = async (toolId: string) => {
       if (data.autoLoad !== undefined) {
@@ -1875,7 +1919,15 @@ class ToolsManager extends BaseManager {
         )
           .toLowerCase()
           .replaceAll(' ', '-');
-        const skillDir = path.join(skillsPath, skillName);
+        const skillDir = data.path
+          ? path.join(skillsPath, skillName)
+          : this.getGlobalSkillSavePath(skillName, groupDir);
+        if (!data.path) {
+          await this.removeMovedGlobalSkillDir(
+            `${ToolType.SKILL}:local:${skillName}`,
+            skillDir,
+          );
+        }
         await fs.promises.mkdir(skillDir, { recursive: true });
         await fs.promises.writeFile(
           path.join(skillDir, 'SKILL.md'),
@@ -2125,11 +2177,7 @@ class ToolsManager extends BaseManager {
             ToolType.SKILL,
           );
           // tool.description = skill.description;
-          const savePath = path.join(
-            app.getPath('userData'),
-            'skills',
-            skillName,
-          );
+          const savePath = this.getGlobalSkillSavePath(skillName, groupDir);
           tool.value = {
             path: savePath,
             repo: data.group || undefined,
@@ -2138,6 +2186,7 @@ class ToolsManager extends BaseManager {
           tool.autoLoad = await resolveAutoLoad(tool.id);
           // await this.toolsRepository.save(localSkill);
           skills.push({ tool, importPath: file, savePath });
+          await this.removeMovedGlobalSkillDir(tool.id, savePath, file);
           const skill = await skillManager.parseSkill(file, savePath);
 
 
@@ -2180,10 +2229,11 @@ class ToolsManager extends BaseManager {
             const skillMd = await fs.promises.readFile(skillMdPath, 'utf-8').catch(() => '');
             const skillMdData = matter(skillMd);
             const skillName = path.basename(skill);
-            const savePath = path.join(
-              app.getPath('userData'),
-              'skills',
-              skillName,
+            const savePath = this.getGlobalSkillSavePath(skillName, groupDir);
+            await this.removeMovedGlobalSkillDir(
+              `${ToolType.SKILL}:local:${skillName}`,
+              savePath,
+              skill,
             );
             await fs.promises.cp(skillDir, savePath, { recursive: true });
             const tool = new Tools(
