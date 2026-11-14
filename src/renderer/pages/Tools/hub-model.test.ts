@@ -2,18 +2,20 @@ import { Agent, AgentType } from '@/types/agent';
 import { Tool, ToolType } from '@/types/tool';
 import {
   ALL_CHIP,
-  AUTO_LOAD_CHIP,
   agentDetailPath,
   avatarInitial,
   filterAgents,
   filterSkillGroups,
   filterSkills,
+  filterSkillsInGroups,
   filterTools,
   getAgentTags,
   getRepoDisplayName,
+  getStandaloneSkills,
   groupSkillsByRepo,
   hubTabForToolId,
   isHubTab,
+  isSkillView,
   seedHue,
   skillGroupPath,
 } from './hub-model';
@@ -51,6 +53,13 @@ describe('hub-model', () => {
     expect(isHubTab(null)).toBe(false);
   });
 
+  it('validates skill views', () => {
+    expect(isSkillView('grouped')).toBe(true);
+    expect(isSkillView('flat')).toBe(true);
+    expect(isSkillView('list')).toBe(false);
+    expect(isSkillView(null)).toBe(false);
+  });
+
   it('encodes ids in detail paths', () => {
     expect(agentDetailPath('my agent')).toBe('/tools/agents/my%20agent');
     expect(skillGroupPath('https://github.com/a/b')).toBe(
@@ -74,6 +83,14 @@ describe('hub-model', () => {
     expect(groups).toHaveLength(1);
     expect(groups[0].name).toBe('o/r');
     expect(groups[0].skills.map((s) => s.id)).toEqual(['skill:a', 'skill:b']);
+  });
+
+  it('collects skills without a repository as standalone', () => {
+    const standalone = getStandaloneSkills([
+      tool({ id: 'skill:a', repo: 'https://github.com/o/r' }),
+      tool({ id: 'skill:c' }),
+    ]);
+    expect(standalone.map((s) => s.id)).toEqual(['skill:c']);
   });
 
   it('filters agents by scope, tag, status and query', () => {
@@ -107,16 +124,13 @@ describe('hub-model', () => {
     ).toEqual(['a', 'b', 'c']);
   });
 
-  it('filters skills by auto-load and category chips', () => {
+  it('filters skills by category chips', () => {
     const skills = [
       tool({ id: 'skill:a', category: 'docs', autoLoad: true }),
       tool({ id: 'skill:b', category: 'code' }),
     ];
     const base = { chip: ALL_CHIP, status: 'all' as const, query: '' };
     expect(filterSkills(skills, base)).toHaveLength(2);
-    expect(filterSkills(skills, { ...base, chip: AUTO_LOAD_CHIP }).map((s) => s.id)).toEqual([
-      'skill:a',
-    ]);
     expect(filterSkills(skills, { ...base, chip: 'code' }).map((s) => s.id)).toEqual([
       'skill:b',
     ]);
@@ -142,11 +156,53 @@ describe('hub-model', () => {
     const base = { chip: ALL_CHIP, status: 'all' as const, query: '' };
     expect(filterSkillGroups(groups, base)).toHaveLength(2);
     expect(
-      filterSkillGroups(groups, { ...base, chip: AUTO_LOAD_CHIP }).map((g) => g.id),
-    ).toEqual(['o/docs']);
-    expect(
       filterSkillGroups(groups, { ...base, chip: 'code' }).map((g) => g.id),
     ).toEqual(['o/code']);
+  });
+
+  it('filters skills inside each group and drops empty groups', () => {
+    const groups = groupSkillsByRepo([
+      tool({ id: 'skill:pdf', name: 'pdf', repo: 'o/docs' }),
+      tool({ id: 'skill:xlsx', name: 'xlsx', repo: 'o/docs', isActive: false }),
+      tool({ id: 'skill:lint', name: 'lint', repo: 'o/code', isActive: false }),
+    ]);
+    const base = { chip: ALL_CHIP, status: 'all' as const, query: '' };
+    const ids = (entries: ReturnType<typeof filterSkillsInGroups>) =>
+      entries.map((entry) => [entry.group.id, entry.skills.map((s) => s.id)]);
+
+    expect(ids(filterSkillsInGroups(groups, base))).toEqual([
+      ['o/docs', ['skill:pdf', 'skill:xlsx']],
+      ['o/code', ['skill:lint']],
+    ]);
+    expect(
+      ids(filterSkillsInGroups(groups, { ...base, status: 'enabled' })),
+    ).toEqual([['o/docs', ['skill:pdf']]]);
+    expect(
+      ids(filterSkillsInGroups(groups, { ...base, query: 'xlsx' })),
+    ).toEqual([['o/docs', ['skill:xlsx']]]);
+  });
+
+  it('keeps every skill of a group whose name matches the query', () => {
+    const groups = groupSkillsByRepo([
+      tool({ id: 'skill:pdf', name: 'pdf', repo: 'o/docs' }),
+      tool({ id: 'skill:xlsx', name: 'xlsx', repo: 'o/docs', isActive: false }),
+    ]);
+    const base = { chip: ALL_CHIP, status: 'all' as const, query: '' };
+    expect(
+      filterSkillsInGroups(groups, {
+        ...base,
+        query: '文档',
+        getGroupLabel: () => '文档技能',
+      })[0].skills,
+    ).toHaveLength(2);
+    expect(
+      filterSkillsInGroups(groups, {
+        ...base,
+        query: '文档',
+        status: 'disabled',
+        getGroupLabel: () => '文档技能',
+      })[0].skills.map((s) => s.id),
+    ).toEqual(['skill:xlsx']);
   });
 
   it('filters tools using the translated label', () => {

@@ -7,6 +7,20 @@ export const HUB_TABS: HubTab[] = ['agents', 'builtin', 'skills', 'connectors'];
 
 export const HUB_TAB_STORAGE_KEY = 'tools-hub:last-tab';
 
+export type SkillView = 'grouped' | 'flat';
+
+export const SKILL_VIEWS: SkillView[] = ['grouped', 'flat'];
+
+export const DEFAULT_SKILL_VIEW: SkillView = 'grouped';
+
+export const SKILL_VIEW_STORAGE_KEY = 'tools-hub:skill-view';
+
+export const COLLAPSED_SECTIONS_STORAGE_KEY = 'tools-hub:collapsed-sections';
+
+export function isSkillView(value: unknown): value is SkillView {
+  return SKILL_VIEWS.includes(value as SkillView);
+}
+
 export type StatusFilter = 'all' | 'enabled' | 'disabled';
 
 export const ALL_CHIP = 'all';
@@ -82,6 +96,10 @@ export function groupSkillsByRepo(skills: Tool[]): SkillGroup[] {
   return Array.from(groups.values());
 }
 
+export function getStandaloneSkills(skills: Tool[]) {
+  return skills.filter((skill) => !skill.repo);
+}
+
 export function matchesQuery(
   fields: Array<string | undefined | null>,
   query: string,
@@ -152,27 +170,20 @@ export function filterAgents(
   });
 }
 
-export const AUTO_LOAD_CHIP = 'auto_load';
-
 function matchesSkillChip(skill: Tool, chip: string) {
-  if (chip === ALL_CHIP) return true;
-  if (chip === AUTO_LOAD_CHIP) return Boolean(skill.autoLoad);
-  return skill.category === chip;
+  return chip === ALL_CHIP || skill.category === chip;
 }
+
+type SkillFilterOptions = {
+  chip: string;
+  status: StatusFilter;
+  query: string;
+  getLabel?: (skill: Tool) => string;
+};
 
 export function filterSkills(
   skills: Tool[],
-  {
-    chip,
-    status,
-    query,
-    getLabel,
-  }: {
-    chip: string;
-    status: StatusFilter;
-    query: string;
-    getLabel?: (skill: Tool) => string;
-  },
+  { chip, status, query, getLabel }: SkillFilterOptions,
 ) {
   return skills.filter((skill) => {
     if (!matchesSkillChip(skill, chip)) return false;
@@ -201,13 +212,7 @@ export function filterSkillGroups(
     query,
     getLabel,
     getGroupLabel,
-  }: {
-    chip: string;
-    status: StatusFilter;
-    query: string;
-    getLabel?: (skill: Tool) => string;
-    getGroupLabel?: (group: SkillGroup) => string;
-  },
+  }: SkillFilterOptions & { getGroupLabel?: (group: SkillGroup) => string },
 ) {
   return groups.filter((group) => {
     if (!group.skills.some((skill) => matchesSkillChip(skill, chip)))
@@ -230,6 +235,30 @@ export function filterSkillGroups(
       )
     );
   });
+}
+
+export function filterSkillsInGroups(
+  groups: SkillGroup[],
+  {
+    getGroupLabel,
+    ...options
+  }: SkillFilterOptions & { getGroupLabel?: (group: SkillGroup) => string },
+) {
+  return groups
+    .map((group) => {
+      const groupMatches = matchesQuery(
+        [getGroupLabel?.(group), group.name, group.id],
+        options.query,
+      );
+      return {
+        group,
+        skills: filterSkills(group.skills, {
+          ...options,
+          query: groupMatches ? '' : options.query,
+        }),
+      };
+    })
+    .filter((entry) => entry.skills.length > 0);
 }
 
 export type ToolScope = 'all' | 'toolkits' | 'tools';

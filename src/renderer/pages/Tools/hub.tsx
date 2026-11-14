@@ -1,12 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import {
+  IconArrowRight,
+  IconBrandGithub,
   IconChevronDown,
+  IconChevronRight,
   IconDownload,
   IconFileImport,
+  IconFolders,
+  IconLayoutGrid,
   IconPlus,
   IconSearch,
   IconWorldSearch,
@@ -19,6 +24,11 @@ import {
   ButtonGroup,
   ButtonGroupSeparator,
 } from '@/renderer/components/ui/button-group';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/renderer/components/ui/collapsible';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -57,23 +67,30 @@ import { SkillImportDialog } from './skill-import-dialog';
 import {
   AgentScope,
   ALL_CHIP,
-  AUTO_LOAD_CHIP,
+  COLLAPSED_SECTIONS_STORAGE_KEY,
+  DEFAULT_SKILL_VIEW,
   filterAgents,
   filterSkillGroups,
   filterSkills,
+  filterSkillsInGroups,
   filterTools,
   getAgentTags,
   getSkillCategories,
+  getStandaloneSkills,
   groupSkillsByRepo,
   HUB_TAB_STORAGE_KEY,
   HUB_TABS,
   HubTab,
   hubTabPath,
   isCustomAgent,
+  isSkillView,
+  SKILL_VIEW_STORAGE_KEY,
+  SkillView,
+  skillGroupPath,
   StatusFilter,
   ToolScope,
 } from './hub-model';
-import { TAB_META } from './hub-visuals';
+import { HubAvatar, TAB_META, TypeAvatar } from './hub-visuals';
 import {
   AgentCard,
   BuiltinToolCard,
@@ -81,6 +98,7 @@ import {
   HubCardSkeleton,
   SkillCard,
   SkillGroupCard,
+  SkillGroupSummary,
 } from './hub-cards';
 import { useHubData } from './use-hub-data';
 
@@ -92,9 +110,38 @@ type HubDialog =
   | 'skill-search'
   | null;
 
-type HubSection = { id: string; label?: string; items: ReactNode[] };
+type HubSection = {
+  id: string;
+  label?: string;
+  items: ReactNode[];
+  collapsible?: { media: ReactNode; meta?: ReactNode; action?: ReactNode };
+};
 
 const STATUS_FILTERS: StatusFilter[] = ['all', 'enabled', 'disabled'];
+
+const STANDALONE_SKILLS_SECTION = 'skills:standalone';
+
+function skillGroupSectionId(repo: string) {
+  return `skills:group:${repo}`;
+}
+
+function readSkillView(): SkillView {
+  const stored = window.localStorage.getItem(SKILL_VIEW_STORAGE_KEY);
+  return isSkillView(stored) ? stored : DEFAULT_SKILL_VIEW;
+}
+
+function readCollapsedSections(): string[] {
+  try {
+    const parsed = JSON.parse(
+      window.localStorage.getItem(COLLAPSED_SECTIONS_STORAGE_KEY) || '[]',
+    );
+    return Array.isArray(parsed)
+      ? parsed.filter((id): id is string => typeof id === 'string')
+      : [];
+  } catch {
+    return [];
+  }
+}
 
 function useAgentLabel() {
   const { t } = useTranslation();
@@ -340,7 +387,7 @@ function SegmentedFilter<T extends string>({
   onChange,
 }: {
   label: string;
-  options: { value: T; label: string }[];
+  options: { value: T; label: string; icon?: ReactNode }[];
   value: T;
   onChange: (value: T) => void;
 }) {
@@ -362,8 +409,10 @@ function SegmentedFilter<T extends string>({
             'h-7 rounded-md px-3 text-xs font-medium text-muted-foreground',
             'data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-sm',
             'dark:data-[state=on]:bg-input/50',
+            option.icon && 'gap-1.5 px-2.5 [&_svg]:size-3.5',
           )}
         >
+          {option.icon}
           {option.label}
         </ToggleGroupItem>
       ))}
@@ -412,6 +461,65 @@ function CardGrid({ children }: { children: ReactNode }) {
     <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(15.5rem,1fr))]">
       {children}
     </div>
+  );
+}
+
+function CollapsibleSection({
+  label,
+  count,
+  media,
+  meta,
+  action,
+  open,
+  onOpenChange,
+  children,
+}: {
+  label: string;
+  count: number;
+  media: ReactNode;
+  meta?: ReactNode;
+  action?: ReactNode;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  children: ReactNode;
+}) {
+  return (
+    <Collapsible asChild open={open} onOpenChange={onOpenChange}>
+      <section className="flex flex-col gap-3">
+        <div className="flex min-h-8 min-w-0 flex-wrap items-center gap-x-4 gap-y-1">
+          <h2 className="min-w-0">
+            <CollapsibleTrigger
+              className={cn(
+                'group/trigger -mx-1.5 flex min-w-0 items-center gap-2 rounded-md px-1.5 py-1 text-left outline-none',
+                'transition-colors duration-150 hover:bg-accent/50',
+                'focus-visible:ring-[3px] focus-visible:ring-ring/50',
+              )}
+            >
+              <IconChevronRight
+                aria-hidden="true"
+                className="size-4 shrink-0 text-muted-foreground transition-transform duration-150 group-data-[state=open]/trigger:rotate-90 motion-reduce:transition-none"
+              />
+              {media}
+              <span className="truncate text-sm font-semibold">{label}</span>
+              <span className="text-xs tabular-nums text-muted-foreground">
+                {count}
+              </span>
+            </CollapsibleTrigger>
+          </h2>
+          {meta ? (
+            <div className="flex min-w-0 items-center gap-3 text-xs text-muted-foreground">
+              {meta}
+            </div>
+          ) : null}
+          {action ? (
+            <div className="ml-auto shrink-0">{action}</div>
+          ) : null}
+        </div>
+        <CollapsibleContent className="data-[state=open]:animate-in data-[state=open]:fade-in-0 motion-reduce:animate-none">
+          {children}
+        </CollapsibleContent>
+      </section>
+    </Collapsible>
   );
 }
 
@@ -464,9 +572,32 @@ export default function CapabilityHub({ tab }: { tab: HubTab }) {
   const [agentScope, setAgentScope] = useState<AgentScope>('all');
   const [toolScope, setToolScope] = useState<ToolScope>('all');
   const [chip, setChip] = useState(ALL_CHIP);
+  const [skillView, setSkillView] = useState<SkillView>(readSkillView);
+  const [collapsedSections, setCollapsedSections] = useState<string[]>(
+    readCollapsedSections,
+  );
   const [dialog, setDialog] = useState<HubDialog>(null);
   const [pendingIds, setPendingIds] = useState<string[]>([]);
   const [searchResetKey, setSearchResetKey] = useState(0);
+
+  useEffect(() => {
+    window.localStorage.setItem(SKILL_VIEW_STORAGE_KEY, skillView);
+  }, [skillView]);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      COLLAPSED_SECTIONS_STORAGE_KEY,
+      JSON.stringify(collapsedSections),
+    );
+  }, [collapsedSections]);
+
+  const setSectionOpen = useCallback((id: string, open: boolean) => {
+    setCollapsedSections((prev) =>
+      open
+        ? prev.filter((x) => x !== id)
+        : [...prev.filter((x) => x !== id), id],
+    );
+  }, []);
 
   const selectTab = useCallback(
     (next: HubTab) => navigate(hubTabPath(next)),
@@ -551,6 +682,10 @@ export default function CapabilityHub({ tab }: { tab: HubTab }) {
     () => groupSkillsByRepo(data.skills),
     [data.skills],
   );
+  const standaloneSkills = useMemo(
+    () => getStandaloneSkills(data.skills),
+    [data.skills],
+  );
 
   const statusOptions = STATUS_FILTERS.map((value) => ({
     value,
@@ -568,6 +703,7 @@ export default function CapabilityHub({ tab }: { tab: HubTab }) {
   };
 
   let scope: ReactNode = null;
+  let viewSwitch: ReactNode = null;
   let chips: { value: string; label: string }[] = [];
   let sections: HubSection[] = [];
   let totalInScope = 0;
@@ -697,51 +833,107 @@ export default function CapabilityHub({ tab }: { tab: HubTab }) {
     };
   } else if (tab === 'skills') {
     scope = (
-      <ChipFilter
-        label={t('tools_hub.chip_label')}
-        chips={[
-          { value: ALL_CHIP, label: t('tools_hub.chip_all') },
-          { value: AUTO_LOAD_CHIP, label: t('tools_hub.chip_auto_load') },
-          ...skillCategories.map((category) => ({
-            value: category,
-            label: category,
-          })),
-        ]}
-        value={chip}
-        onChange={setChip}
+      <ScopeLabel
+        label={t('tools_hub.tabs.skills')}
+        count={data.skills.length}
       />
     );
+    viewSwitch = (
+      <SegmentedFilter<SkillView>
+        label={t('tools_hub.skill_view_label')}
+        value={skillView}
+        onChange={setSkillView}
+        options={[
+          {
+            value: 'grouped',
+            label: t('tools_hub.skill_view.grouped'),
+            icon: <IconFolders aria-hidden="true" />,
+          },
+          {
+            value: 'flat',
+            label: t('tools_hub.skill_view.flat'),
+            icon: <IconLayoutGrid aria-hidden="true" />,
+          },
+        ]}
+      />
+    );
+    chips = skillCategories.map((category) => ({
+      value: category,
+      label: category,
+    }));
     totalInScope = data.skills.length;
-    sections = [
-      {
-        id: 'groups',
-        label: t('tools_hub.scope.groups'),
-        items: filterSkillGroups(skillGroups, {
-          chip,
-          status,
-          query,
-          getLabel: skillName,
+    const skillFilter = { chip, status, query, getLabel: skillName };
+    const renderSkillCard = (skill: Tool, showGroup = true) => (
+      <SkillCard
+        key={skill.id}
+        skill={skill}
+        showGroup={showGroup}
+        pending={pendingIds.includes(skill.id)}
+        onToggle={(checked) => toggleTool(skill, checked)}
+      />
+    );
+    if (skillView === 'grouped') {
+      sections = [
+        ...filterSkillsInGroups(skillGroups, {
+          ...skillFilter,
           getGroupLabel: (group) => skillGroupName(group.name),
-        }).map((group) => <SkillGroupCard key={group.id} group={group} />),
-      },
-      {
-        id: 'skills',
-        label: t('tools_hub.scope.skills'),
-        items: filterSkills(data.skills, {
-          chip,
-          status,
-          query,
-          getLabel: skillName,
-        }).map((skill) => (
-          <SkillCard
-            key={skill.id}
-            skill={skill}
-            pending={pendingIds.includes(skill.id)}
-            onToggle={(checked) => toggleTool(skill, checked)}
-          />
-        )),
-      },
-    ];
+        }).map(({ group, skills }) => ({
+          id: skillGroupSectionId(group.id),
+          label: skillGroupName(group.name),
+          items: skills.map((skill) => renderSkillCard(skill, false)),
+          collapsible: {
+            media: (
+              <HubAvatar hue={TAB_META.skills.hue} size="sm">
+                <IconBrandGithub />
+              </HubAvatar>
+            ),
+            meta: <SkillGroupSummary skills={group.skills} />,
+            action: (
+              <Button
+                asChild
+                variant="ghost"
+                size="sm"
+                className="h-7 text-muted-foreground"
+              >
+                <Link to={skillGroupPath(group.id)}>
+                  {t('tools_hub.manage_group')}
+                  <IconArrowRight aria-hidden="true" />
+                </Link>
+              </Button>
+            ),
+          },
+        })),
+        {
+          id: STANDALONE_SKILLS_SECTION,
+          label: t('tools_hub.scope.standalone_skills'),
+          items: filterSkills(standaloneSkills, skillFilter).map((skill) =>
+            renderSkillCard(skill, false),
+          ),
+          collapsible: {
+            media: <TypeAvatar tab="skills" size="sm" />,
+            meta: <SkillGroupSummary skills={standaloneSkills} />,
+          },
+        },
+      ];
+    } else {
+      sections = [
+        {
+          id: 'groups',
+          label: t('tools_hub.scope.groups'),
+          items: filterSkillGroups(skillGroups, {
+            ...skillFilter,
+            getGroupLabel: (group) => skillGroupName(group.name),
+          }).map((group) => <SkillGroupCard key={group.id} group={group} />),
+        },
+        {
+          id: 'skills',
+          label: t('tools_hub.scope.skills'),
+          items: filterSkills(data.skills, skillFilter).map((skill) =>
+            renderSkillCard(skill),
+          ),
+        },
+      ];
+    }
     emptyState = {
       title: t('tools_hub.empty.skills_title'),
       description: t('tools_hub.empty.skills_description'),
@@ -830,16 +1022,30 @@ export default function CapabilityHub({ tab }: { tab: HubTab }) {
     }
     return (
       <div className="flex flex-col gap-6">
-        {visibleSections.map((section) =>
-          section.label ? (
+        {visibleSections.map((section) => {
+          if (section.collapsible) {
+            return (
+              <CollapsibleSection
+                key={section.id}
+                label={section.label ?? ''}
+                count={section.items.length}
+                {...section.collapsible}
+                open={!collapsedSections.includes(section.id)}
+                onOpenChange={(open) => setSectionOpen(section.id, open)}
+              >
+                <CardGrid>{section.items}</CardGrid>
+              </CollapsibleSection>
+            );
+          }
+          return section.label ? (
             <section key={section.id} className="flex flex-col gap-3">
               <ScopeLabel label={section.label} count={section.items.length} />
               <CardGrid>{section.items}</CardGrid>
             </section>
           ) : (
             <CardGrid key={section.id}>{section.items}</CardGrid>
-          ),
-        )}
+          );
+        })}
       </div>
     );
   };
@@ -853,14 +1059,17 @@ export default function CapabilityHub({ tab }: { tab: HubTab }) {
         >
           <div className="flex flex-wrap items-center justify-between gap-3">
             {scope}
-            <SegmentedFilter<StatusFilter>
-              label={t('tools_hub.status_label')}
-              options={statusOptions}
-              value={status}
-              onChange={setStatus}
-            />
+            <div className="flex flex-wrap items-center gap-2">
+              {viewSwitch}
+              <SegmentedFilter<StatusFilter>
+                label={t('tools_hub.status_label')}
+                options={statusOptions}
+                value={status}
+                onChange={setStatus}
+              />
+            </div>
           </div>
-          {chips.length > 1 ? (
+          {chips.length > 0 ? (
             <ChipFilter
               label={t('tools_hub.chip_label')}
               chips={chips}

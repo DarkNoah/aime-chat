@@ -274,10 +274,12 @@ export function BuiltinToolCard({
 export function SkillCard({
   skill,
   pending,
+  showGroup = true,
   onToggle,
 }: {
   skill: Tool;
   pending?: boolean;
+  showGroup?: boolean;
   onToggle: (checked: boolean) => void;
 }) {
   const { t } = useTranslation();
@@ -313,7 +315,7 @@ export function SkillCard({
               }
             />
           )}
-          {skill.repo ? (
+          {showGroup && skill.repo ? (
             <span className="inline-flex min-w-0 items-center gap-1">
               <IconBrandGithub className="size-3.5 shrink-0" aria-hidden="true" />
               <span className="truncate">
@@ -335,12 +337,39 @@ export function SkillCard({
   );
 }
 
+export function SkillGroupSummary({ skills }: { skills: Tool[] }) {
+  const { t } = useTranslation();
+  const activeCount = skills.filter((skill) => skill.isActive).length;
+  const autoLoadCount = skills.filter((skill) => skill.autoLoad).length;
+
+  return (
+    <>
+      <StatusIndicator
+        tone={activeCount > 0 ? 'positive' : 'neutral'}
+        label={t('tools_hub.group_active', {
+          active: activeCount,
+          count: skills.length,
+        })}
+      />
+      {autoLoadCount > 0 ? (
+        <span>
+          {autoLoadCount === skills.length
+            ? t('tools.auto_load_all')
+            : t('tools.auto_load_partial', {
+              count: autoLoadCount,
+              total: skills.length,
+            })}
+        </span>
+      ) : null}
+    </>
+  );
+}
+
 export function SkillGroupCard({ group }: { group: SkillGroup }) {
   const { t } = useTranslation();
   const skillName = useSkillDisplayName();
   const skillGroupName = useSkillGroupName();
   const activeCount = group.skills.filter((skill) => skill.isActive).length;
-  const autoLoadCount = group.skills.filter((skill) => skill.autoLoad).length;
   const preview = group.skills.slice(0, 4).map((skill) => skillName(skill));
 
   return (
@@ -360,23 +389,7 @@ export function SkillGroupCard({ group }: { group: SkillGroup }) {
       meta={
         <>
           <span>{t('tools_hub.skill_count', { count: group.skills.length })}</span>
-          <StatusIndicator
-            tone={activeCount > 0 ? 'positive' : 'neutral'}
-            label={t('tools_hub.group_active', {
-              active: activeCount,
-              count: group.skills.length,
-            })}
-          />
-          {autoLoadCount > 0 ? (
-            <span>
-              {autoLoadCount === group.skills.length
-                ? t('tools.auto_load_all')
-                : t('tools.auto_load_partial', {
-                  count: autoLoadCount,
-                  total: group.skills.length,
-                })}
-            </span>
-          ) : null}
+          <SkillGroupSummary skills={group.skills} />
         </>
       }
     />

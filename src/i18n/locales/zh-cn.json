@@ -1245,16 +1245,22 @@
     "status_label": "按状态筛选",
     "chip_label": "按分类筛选",
     "chip_all": "全部",
-    "chip_auto_load": "自动载入",
+    "skill_view_label": "显示方式",
+    "skill_view": {
+      "grouped": "分组",
+      "flat": "平铺"
+    },
     "scope": {
       "all": "全部",
       "built_in": "内置",
       "custom": "自定义",
       "skills": "技能",
       "groups": "技能组",
+      "standalone_skills": "独立技能",
       "toolkits": "工具集",
       "tools": "独立工具"
     },
+    "manage_group": "管理",
     "built_in_badge": "内置",
     "toolkit_badge": "工具集",
     "tool_count": "{{count}} 个工具",

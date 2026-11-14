@@ -1188,16 +1188,22 @@
     "status_label": "Filter by status",
     "chip_label": "Filter by category",
     "chip_all": "All",
-    "chip_auto_load": "Auto-load",
+    "skill_view_label": "View",
+    "skill_view": {
+      "grouped": "Grouped",
+      "flat": "Flat"
+    },
     "scope": {
       "all": "All",
       "built_in": "Built-in",
       "custom": "Custom",
       "skills": "Skills",
       "groups": "Groups",
+      "standalone_skills": "Standalone skills",
       "toolkits": "Toolkits",
       "tools": "Standalone"
     },
+    "manage_group": "Manage",
     "built_in_badge": "Built-in",
     "toolkit_badge": "Toolkit",
     "tool_count_one": "{{count}} tool",
