@@ -1183,9 +1183,12 @@
       "built_in": "Built-in",
       "custom": "Custom",
       "skills": "Skills",
-      "groups": "Groups"
+      "groups": "Groups",
+      "toolkits": "Toolkits",
+      "tools": "Standalone"
     },
     "built_in_badge": "Built-in",
+    "toolkit_badge": "Toolkit",
     "tool_count_one": "{{count}} tool",
     "tool_count_other": "{{count}} tools",
     "sub_agent_count_one": "{{count}} sub-agent",
@@ -1276,6 +1279,7 @@
     "tool": {
       "type_agents": "Agent",
       "type_builtin": "Built-in tool",
+      "type_toolkit": "Built-in toolkit",
       "type_skills": "Skill",
       "type_connectors": "MCP connector",
       "included_tools": "Included tools",

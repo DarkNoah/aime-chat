@@ -140,6 +140,33 @@ describe('hub-model', () => {
     ).toHaveLength(1);
   });
 
+  it('separates toolkits from standalone tools and searches sub-tools', () => {
+    const tools = [
+      tool({ id: 'build-in:WebFetch', name: 'WebFetch', isToolkit: false }),
+      tool({
+        id: 'build-in:FileSystem',
+        name: 'FileSystem',
+        isToolkit: true,
+        tools: [{ id: 'Read', name: 'Read', description: 'Read a file' }],
+      }),
+    ];
+    const base = { status: 'all' as const, query: '' };
+    expect(filterTools(tools, { ...base, scope: 'toolkits' }).map((x) => x.id)).toEqual([
+      'build-in:FileSystem',
+    ]);
+    expect(filterTools(tools, { ...base, scope: 'tools' }).map((x) => x.id)).toEqual([
+      'build-in:WebFetch',
+    ]);
+    expect(filterTools(tools, base)).toHaveLength(2);
+    expect(
+      filterTools(tools, {
+        ...base,
+        query: '文件读取',
+        getLabel: ({ name }) => (name === 'Read' ? '文件读取' : name),
+      }).map((x) => x.id),
+    ).toEqual(['build-in:FileSystem']);
+  });
+
   it('derives stable avatar values', () => {
     expect(seedHue('writer')).toBe(seedHue('writer'));
     expect(seedHue('writer')).toBeGreaterThanOrEqual(0);

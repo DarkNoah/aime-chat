@@ -4,6 +4,7 @@ import {
   IconRobot,
   IconSparkles,
   IconTool,
+  IconTools,
   type Icon,
 } from '@tabler/icons-react';
 import { cn } from '@/renderer/lib/utils';
@@ -82,16 +83,21 @@ export function AgentAvatar({
   );
 }
 
+export const TOOLKIT_ICON: Icon = IconTools;
+
 export function TypeAvatar({
   tab,
+  icon,
   size,
   className,
 }: {
   tab: HubTab;
+  icon?: Icon;
   size?: keyof typeof AVATAR_SIZE;
   className?: string;
 }) {
-  const { icon: TypeIcon, hue } = TAB_META[tab];
+  const { hue } = TAB_META[tab];
+  const TypeIcon = icon ?? TAB_META[tab].icon;
   return (
     <HubAvatar hue={hue} size={size} className={className}>
       <TypeIcon />

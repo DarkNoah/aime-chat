@@ -53,6 +53,7 @@ import {
   mcpStatusTone,
   StatusIndicator,
   TagChip,
+  TOOLKIT_ICON,
   TypeAvatar,
 } from './hub-visuals';
 import {
@@ -77,9 +78,15 @@ function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
 }
 
-function TypeLabel({ tab }: { tab: HubTab }) {
+function TypeLabel({ tab, isToolkit }: { tab: HubTab; isToolkit?: boolean }) {
   const { t } = useTranslation();
-  return <TagChip>{t(`tools_hub.tool.type_${tab}`)}</TagChip>;
+  return (
+    <TagChip>
+      {tab === 'builtin' && isToolkit
+        ? t('tools_hub.tool.type_toolkit')
+        : t(`tools_hub.tool.type_${tab}`)}
+    </TagChip>
+  );
 }
 
 function SubToolList({
@@ -305,7 +312,13 @@ function ToolkitDetail({
   const main = (
     <DetailPage>
       <DetailHeader
-        media={<TypeAvatar tab={tab} size="lg" />}
+        media={
+          <TypeAvatar
+            tab={tab}
+            icon={!isConnector && tool.isToolkit ? TOOLKIT_ICON : undefined}
+            size="lg"
+          />
+        }
         title={
           <span className="inline-flex flex-wrap items-baseline gap-2">
             {label}
@@ -318,7 +331,7 @@ function ToolkitDetail({
         }
         meta={
           <>
-            <TypeLabel tab={tab} />
+            <TypeLabel tab={tab} isToolkit={tool.isToolkit} />
             {isConnector ? (
               <StatusIndicator
                 tone={mcpStatusTone(tool.status, tool.isActive)}

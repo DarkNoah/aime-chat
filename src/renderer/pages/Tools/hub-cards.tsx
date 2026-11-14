@@ -36,6 +36,7 @@ import {
   StatusIndicator,
   TAB_META,
   TagChip,
+  TOOLKIT_ICON,
   TypeAvatar,
 } from './hub-visuals';
 
@@ -130,26 +131,27 @@ function ActiveSwitch({
 
 export function AgentCard({
   agent,
+  label,
   pending,
   onToggle,
   onChat,
 }: {
   agent: Agent;
+  label: string;
   pending?: boolean;
   onToggle: (checked: boolean) => void;
   onChat: () => void;
 }) {
   const { t } = useTranslation();
-  const name = agent.name || agent.id || '';
   const toolCount = agent.tools?.length ?? 0;
   const subAgentCount = agent.subAgents?.length ?? 0;
 
   return (
     <HubCard
       to={agentDetailPath(agent.id!)}
-      title={name}
+      title={label}
       muted={!agent.isActive}
-      media={<AgentAvatar id={agent.id} name={name} />}
+      media={<AgentAvatar id={agent.id} name={label} />}
       titleAddon={
         isCustomAgent(agent) ? null : (
           <TagChip className="shrink-0">{t('tools_hub.built_in_badge')}</TagChip>
@@ -183,7 +185,7 @@ export function AgentCard({
                 variant="ghost"
                 size="icon-sm"
                 className="size-7 text-muted-foreground"
-                aria-label={t('tools_hub.start_chat_with', { name })}
+                aria-label={t('tools_hub.start_chat_with', { name: label })}
                 disabled={!agent.isActive}
                 onClick={onChat}
               >
@@ -195,7 +197,7 @@ export function AgentCard({
           <ActiveSwitch
             checked={Boolean(agent.isActive)}
             disabled={pending}
-            label={t('tools_hub.toggle_active', { name })}
+            label={t('tools_hub.toggle_active', { name: label })}
             onCheckedChange={onToggle}
           />
         </>
@@ -207,27 +209,54 @@ export function AgentCard({
 export function BuiltinToolCard({
   tool,
   label,
+  subToolLabels = [],
   pending,
   onToggle,
 }: {
   tool: Tool;
   label: string;
+  subToolLabels?: string[];
   pending?: boolean;
   onToggle: (checked: boolean) => void;
 }) {
   const { t } = useTranslation();
+  const isToolkit = Boolean(tool.isToolkit);
   return (
     <HubCard
       to={toolDetailPath(tool.id)}
       title={label}
       muted={!tool.isActive}
-      media={<TypeAvatar tab="builtin" />}
+      media={
+        <TypeAvatar tab="builtin" icon={isToolkit ? TOOLKIT_ICON : undefined} />
+      }
+      titleAddon={
+        isToolkit ? (
+          <TagChip className="shrink-0">{t('tools_hub.toolkit_badge')}</TagChip>
+        ) : null
+      }
       description={tool.description}
+      tags={
+        subToolLabels.length
+          ? subToolLabels
+              .slice(0, 4)
+              .map((name) => <TagChip key={name}>{name}</TagChip>)
+          : null
+      }
       meta={
-        <StatusIndicator
-          tone={tool.isActive ? 'positive' : 'neutral'}
-          label={tool.isActive ? t('tools_hub.enabled') : t('tools_hub.disabled')}
-        />
+        <>
+          {isToolkit ? (
+            <span className="inline-flex items-center gap-1">
+              <IconTool className="size-3.5" aria-hidden="true" />
+              {t('tools_hub.tool_count', { count: subToolLabels.length })}
+            </span>
+          ) : null}
+          <StatusIndicator
+            tone={tool.isActive ? 'positive' : 'neutral'}
+            label={
+              tool.isActive ? t('tools_hub.enabled') : t('tools_hub.disabled')
+            }
+          />
+        </>
       }
       actions={
         <ActiveSwitch
@@ -336,9 +365,9 @@ export function SkillGroupCard({ group }: { group: SkillGroup }) {
               {autoLoadCount === group.skills.length
                 ? t('tools.auto_load_all')
                 : t('tools.auto_load_partial', {
-                    count: autoLoadCount,
-                    total: group.skills.length,
-                  })}
+                  count: autoLoadCount,
+                  total: group.skills.length,
+                })}
             </span>
           ) : null}
         </>

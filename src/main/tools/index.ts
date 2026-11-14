@@ -1177,6 +1177,14 @@ class ToolsManager extends BaseManager {
         name: tool.id.substring(ToolType.BUILD_IN.length + 1),
         description: tool.description,
         isActive: tools.find((x) => x.id === tool.id)?.isActive,
+        isToolkit: Boolean(tool.isToolkit),
+        tools: tool.isToolkit
+          ? tool.tools.map((subTool) => ({
+            id: subTool.id,
+            name: subTool.id,
+            description: subTool.description,
+          }))
+          : undefined,
       })),
     };
   }

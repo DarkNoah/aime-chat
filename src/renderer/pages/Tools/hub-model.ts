@@ -127,7 +127,14 @@ export function filterAgents(
     tag,
     status,
     query,
-  }: { scope: AgentScope; tag: string; status: StatusFilter; query: string },
+    getLabel,
+  }: {
+    scope: AgentScope;
+    tag: string;
+    status: StatusFilter;
+    query: string;
+    getLabel?: (agent: Agent) => string;
+  },
 ) {
   return agents.filter((agent) => {
     if (scope === 'custom' && !isCustomAgent(agent)) return false;
@@ -135,7 +142,13 @@ export function filterAgents(
     if (tag !== ALL_CHIP && !(agent.tags ?? []).includes(tag)) return false;
     if (!matchesStatus(agent.isActive, status)) return false;
     return matchesQuery(
-      [agent.name, agent.id, agent.description, ...(agent.tags ?? [])],
+      [
+        agent.name,
+        getLabel?.(agent),
+        agent.id,
+        agent.description,
+        ...(agent.tags ?? []),
+      ],
       query,
     );
   });
@@ -190,18 +203,35 @@ export function filterSkillGroups(
   });
 }
 
+export type ToolScope = 'all' | 'toolkits' | 'tools';
+
 export function filterTools(
   tools: Tool[],
   {
+    scope = 'all',
     status,
     query,
     getLabel,
-  }: { status: StatusFilter; query: string; getLabel?: (tool: Tool) => string },
+  }: {
+    scope?: ToolScope;
+    status: StatusFilter;
+    query: string;
+    getLabel?: (tool: Pick<Tool, 'name'>) => string;
+  },
 ) {
   return tools.filter((tool) => {
+    if (scope === 'toolkits' && !tool.isToolkit) return false;
+    if (scope === 'tools' && tool.isToolkit) return false;
     if (!matchesStatus(tool.isActive, status)) return false;
+    const subTools = tool.isToolkit ? (tool.tools ?? []) : [];
     return matchesQuery(
-      [tool.name, getLabel?.(tool), tool.description, tool.id],
+      [
+        tool.name,
+        getLabel?.(tool),
+        tool.description,
+        tool.id,
+        ...subTools.flatMap((subTool) => [subTool.name, getLabel?.(subTool)]),
+      ],
       query,
     );
   });

@@ -68,6 +68,7 @@ import {
   isCustomAgent,
   SkillScope,
   StatusFilter,
+  ToolScope,
 } from './hub-model';
 import { TAB_META } from './hub-visuals';
 import {
@@ -90,10 +91,19 @@ type HubDialog =
 
 const STATUS_FILTERS: StatusFilter[] = ['all', 'enabled', 'disabled'];
 
+function useAgentLabel() {
+  const { t } = useTranslation();
+  return useCallback(
+    (agent: Agent) => t(`agent_name.${agent.id}`, agent.name || agent.id || ''),
+    [t],
+  );
+}
+
 function useToolLabel() {
   const { t } = useTranslation();
   return useCallback(
-    (tool: Tool) => t(`tool_name.${tool.name.toLowerCase()}`, tool.name),
+    (tool: Pick<Tool, 'name'>) =>
+      t(`tool_name.${tool.name.toLowerCase()}`, tool.name),
     [t],
   );
 }
@@ -430,6 +440,7 @@ export default function CapabilityHub({ tab }: { tab: HubTab }) {
     () => HUB_TABS.filter((x) => !(agentsDisabled && x === 'agents')),
     [agentsDisabled],
   );
+  const agentLabel = useAgentLabel();
   const toolLabel = useToolLabel();
   const { data, loading, refresh, patchAgent, patchTool } = useHubData();
 
@@ -437,6 +448,7 @@ export default function CapabilityHub({ tab }: { tab: HubTab }) {
   const [status, setStatus] = useState<StatusFilter>('all');
   const [agentScope, setAgentScope] = useState<AgentScope>('all');
   const [skillScope, setSkillScope] = useState<SkillScope>('skills');
+  const [toolScope, setToolScope] = useState<ToolScope>('all');
   const [chip, setChip] = useState(ALL_CHIP);
   const [dialog, setDialog] = useState<HubDialog>(null);
   const [pendingIds, setPendingIds] = useState<string[]>([]);
@@ -570,9 +582,9 @@ export default function CapabilityHub({ tab }: { tab: HubTab }) {
     );
     chips = agentTags.length
       ? [
-          { value: ALL_CHIP, label: t('tools_hub.chip_all') },
-          ...agentTags.map((tag) => ({ value: tag, label: tag })),
-        ]
+        { value: ALL_CHIP, label: t('tools_hub.chip_all') },
+        ...agentTags.map((tag) => ({ value: tag, label: tag })),
+      ]
       : [];
     const scoped = filterAgents(data.agents, {
       scope: agentScope,
@@ -586,10 +598,12 @@ export default function CapabilityHub({ tab }: { tab: HubTab }) {
       tag: chip,
       status,
       query,
+      getLabel: agentLabel,
     }).map((agent) => (
       <AgentCard
         key={agent.id}
         agent={agent}
+        label={agentLabel(agent)}
         pending={pendingIds.includes(agent.id!)}
         onToggle={(checked) => toggleAgent(agent, checked)}
         onChat={() => startChat(agent)}
@@ -606,24 +620,53 @@ export default function CapabilityHub({ tab }: { tab: HubTab }) {
       ),
     };
   } else if (tab === 'builtin') {
+    const toolkitCount = data.builtin.filter((tool) => tool.isToolkit).length;
     scope = (
-      <ScopeLabel
+      <ScopeTabs<ToolScope>
         label={t('tools_hub.tabs.builtin')}
-        count={data.builtin.length}
+        value={toolScope}
+        onChange={setToolScope}
+        options={[
+          {
+            value: 'all',
+            label: t('tools_hub.scope.all'),
+            count: data.builtin.length,
+          },
+          {
+            value: 'toolkits',
+            label: t('tools_hub.scope.toolkits'),
+            count: toolkitCount,
+          },
+          {
+            value: 'tools',
+            label: t('tools_hub.scope.tools'),
+            count: data.builtin.length - toolkitCount,
+          },
+        ]}
       />
     );
-    totalInScope = data.builtin.length;
-    items = filterTools(data.builtin, { status, query, getLabel: toolLabel }).map(
-      (tool) => (
-        <BuiltinToolCard
-          key={tool.id}
-          tool={tool}
-          label={toolLabel(tool)}
-          pending={pendingIds.includes(tool.id)}
-          onToggle={(checked) => toggleTool(tool, checked)}
-        />
-      ),
-    );
+    totalInScope = filterTools(data.builtin, {
+      scope: toolScope,
+      status: 'all',
+      query: '',
+    }).length;
+    items = filterTools(data.builtin, {
+      scope: toolScope,
+      status,
+      query,
+      getLabel: toolLabel,
+    }).map((tool) => (
+      <BuiltinToolCard
+        key={tool.id}
+        tool={tool}
+        label={toolLabel(tool)}
+        subToolLabels={
+          tool.isToolkit ? (tool.tools ?? []).map((x) => toolLabel(x)) : []
+        }
+        pending={pendingIds.includes(tool.id)}
+        onToggle={(checked) => toggleTool(tool, checked)}
+      />
+    ));
     emptyState = {
       title: t('tools_hub.empty.builtin_title'),
       description: t('tools_hub.empty.builtin_description'),
