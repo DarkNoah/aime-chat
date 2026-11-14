@@ -529,6 +529,26 @@ class AppManager extends BaseManager {
     return svg;
   }
 
+  @channel(AppChannel.GetEntityIcon)
+  public async getEntityIcon(
+    kind: 'agents' | 'skills',
+    name: string,
+  ): Promise<string | null> {
+    if (kind !== 'agents' && kind !== 'skills') return null;
+    // name 来自 agent/skill id，禁止路径分隔符防止路径穿越
+    if (!name || /[\\/\0]/.test(name) || name === '.' || name === '..') {
+      return null;
+    }
+    try {
+      const data = await fs.promises.readFile(
+        getAssetPath('icons', kind, `${name}.jpg`),
+      );
+      return `data:image/jpeg;base64,${data.toString('base64')}`;
+    } catch {
+      return null;
+    }
+  }
+
   @channel(AppChannel.GetFileInfo)
   public async getFileInfo(_path: string): Promise<FileInfo> {
     const isExist = fs.existsSync(_path);

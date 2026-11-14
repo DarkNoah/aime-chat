@@ -108,8 +108,8 @@ describe('AppSidebar', () => {
       'sidebar.tools',
       'sidebar.market',
       'sidebar.crons',
+      'sidebar.evals',
       'sidebar.knowledge_base',
-      'sidebar.agents',
     ]);
     expect(screen.getByTestId('projects-list')).toBeInTheDocument();
   });
@@ -118,8 +118,8 @@ describe('AppSidebar', () => {
     mockFeatureFlags = {
       marketDisabled: true,
       cronsDisabled: true,
+      evalsDisabled: true,
       knowledgeBaseDisabled: true,
-      agentsDisabled: true,
     };
 
     render(<AppSidebar />);

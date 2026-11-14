@@ -20,7 +20,6 @@ import {
   IconEdit,
   IconTools,
   IconBook,
-  IconRobot,
   IconFolderPlus,
   IconBrandGithub,
   IconShoppingCart,
@@ -157,13 +156,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         icon: IconBook,
         isActive: location.pathname.startsWith('/knowledge-base'),
         hidden: featureFlags?.knowledgeBaseDisabled,
-      },
-      {
-        title: t('sidebar.agents'),
-        url: '/agents',
-        icon: IconRobot,
-        isActive: location.pathname.startsWith('/agents'),
-        hidden: featureFlags?.agentsDisabled,
       },
     ];
   return (

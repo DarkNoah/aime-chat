@@ -1,68 +1,53 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import {
   IconBrandGithub,
   IconExternalLink,
-  IconLoader,
   IconRefresh,
-  IconTrash,
 } from '@tabler/icons-react';
 import { Tool, ToolEvent, ToolType } from '@/types/tool';
-import { useHeader } from '@/renderer/hooks/use-title';
 import { Button } from '@/renderer/components/ui/button';
-import { Badge } from '@/renderer/components/ui/badge';
+import { Spinner } from '@/renderer/components/ui/spinner';
 import { Switch } from '@/renderer/components/ui/switch';
-import {
-  Item,
-  ItemActions,
-  ItemContent,
-  ItemDescription,
-  ItemMedia,
-  ItemTitle,
-} from '@/renderer/components/ui/item';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/renderer/components/ui/alert-dialog';
 import {
   getSkillDisplayName,
   SkillIcon,
 } from '@/renderer/components/skills-ui/skill-metadata';
-
-function getRepoDisplayName(repo: string) {
-  const parts = repo.replace(/\/+$/, '').split('/').filter(Boolean);
-  return parts.length > 1
-    ? `${parts[parts.length - 2]}/${parts[parts.length - 1]}`
-    : repo;
-}
+import {
+  getRepoDisplayName,
+  hubTabPath,
+  skillGroupPath,
+  toolDetailPath,
+} from './hub-model';
+import { HubAvatar, StatusIndicator, TAB_META, TagChip } from './hub-visuals';
+import {
+  ConfirmDeleteButton,
+  DetailHeader,
+  DetailLoading,
+  DetailNotFound,
+  DetailPage,
+  DetailSection,
+  LabeledSwitch,
+  useDetailBreadcrumb,
+} from './detail-layout';
 
 export default function SkillGroupDetail() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const repo = searchParams.get('repo') || '';
-  const { setTitle } = useHeader();
   const [skills, setSkills] = useState<Tool[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
-  const [deleting, setDeleting] = useState(false);
   const [autoLoadUpdating, setAutoLoadUpdating] = useState(false);
 
   const groupName = useMemo(() => getRepoDisplayName(repo), [repo]);
-  const autoLoadCount = useMemo(
-    () => skills.filter((skill) => skill.autoLoad).length,
-    [skills],
-  );
+  const autoLoadCount = skills.filter((skill) => skill.autoLoad).length;
+  const activeCount = skills.filter((skill) => skill.isActive).length;
   const allAutoLoad = skills.length > 0 && autoLoadCount === skills.length;
+
   let autoLoadStatus = t('tools.auto_load_off');
   if (allAutoLoad) {
     autoLoadStatus = t('tools.auto_load_all');
@@ -73,14 +58,19 @@ export default function SkillGroupDetail() {
     });
   }
 
+  useDetailBreadcrumb(
+    'skills',
+    repo ? groupName : undefined,
+    skillGroupPath(repo),
+  );
+
   const loadSkills = useCallback(
     async (showLoading = true) => {
       if (!repo) {
         setSkills([]);
-        if (showLoading) setLoading(false);
+        setLoading(false);
         return;
       }
-
       if (showLoading) setLoading(true);
       try {
         const data = await window.electron.tools.getList({
@@ -101,27 +91,14 @@ export default function SkillGroupDetail() {
   );
 
   useEffect(() => {
-    setTitle(groupName);
-  }, [groupName, setTitle]);
-
-  useEffect(() => {
     loadSkills();
-    const handleToolListUpdated = () => loadSkills(false);
-    window.electron.ipcRenderer.on(
-      ToolEvent.ToolListUpdated,
-      handleToolListUpdated,
+    return window.electron.ipcRenderer.on(ToolEvent.ToolListUpdated, () =>
+      loadSkills(false),
     );
-    return () => {
-      window.electron.ipcRenderer.removeListener(
-        ToolEvent.ToolListUpdated,
-        handleToolListUpdated,
-      );
-    };
   }, [loadSkills]);
 
   const handleUpdate = async () => {
     if (!repo || skills.length === 0 || updating) return;
-
     setUpdating(true);
     try {
       const result = await window.electron.tools.importSkills({
@@ -133,7 +110,6 @@ export default function SkillGroupDetail() {
       if (result && !result.success) {
         throw new Error(result.error);
       }
-
       await loadSkills(false);
       toast.success(t('tools.skill_group_update_success'));
     } catch (error) {
@@ -145,9 +121,6 @@ export default function SkillGroupDetail() {
   };
 
   const handleDelete = async () => {
-    if (skills.length === 0 || deleting) return;
-
-    setDeleting(true);
     try {
       await Promise.all(
         skills.map((skill) => window.electron.tools.deleteTool(skill.id)),
@@ -155,12 +128,10 @@ export default function SkillGroupDetail() {
       toast.success(
         t('tools.skill_group_delete_success', { count: skills.length }),
       );
-      navigate('/tools');
+      navigate(hubTabPath('skills'));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : String(error));
       await loadSkills();
-    } finally {
-      setDeleting(false);
     }
   };
 
@@ -177,52 +148,50 @@ export default function SkillGroupDetail() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <IconLoader className="size-5 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
+  if (loading) return <DetailLoading />;
   if (!repo || skills.length === 0) {
     return (
-      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-        {t('tools.skill_group_not_found')}
-      </div>
+      <DetailNotFound tab="skills" message={t('tools.skill_group_not_found')} />
     );
   }
 
   return (
-    <div className="h-full overflow-y-auto p-4">
-      <Item variant="outline">
-        <ItemMedia>
-          <IconBrandGithub className="size-6" />
-        </ItemMedia>
-        <ItemContent>
-          <ItemTitle>{groupName}</ItemTitle>
-          <ItemDescription className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline">GitHub</Badge>
-            <span>
-              {t('tools.skill_group_count', { count: skills.length })}
-            </span>
+    <DetailPage>
+      <DetailHeader
+        media={
+          <HubAvatar hue={TAB_META.skills.hue} size="lg">
+            <IconBrandGithub />
+          </HubAvatar>
+        }
+        title={groupName}
+        meta={
+          <>
+            <TagChip>{t('tools_hub.scope.groups')}</TagChip>
+            <span>{t('tools.skill_group_count', { count: skills.length })}</span>
+            <StatusIndicator
+              tone={activeCount > 0 ? 'positive' : 'neutral'}
+              label={t('tools_hub.group_active', {
+                active: activeCount,
+                count: skills.length,
+              })}
+            />
             <a
               href={repo}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-1 hover:text-foreground"
+              className="inline-flex items-center gap-1 outline-none hover:text-foreground focus-visible:underline"
             >
-              {repo}
-              <IconExternalLink className="size-3.5" />
+              <span className="break-all">{repo}</span>
+              <IconExternalLink className="size-3.5 shrink-0" aria-hidden="true" />
             </a>
-          </ItemDescription>
-        </ItemContent>
-        <ItemActions className="gap-2">
-          <div className="flex items-center gap-2 text-sm">
-            <Switch
-              aria-label={t('tools.auto_load')}
+          </>
+        }
+        actions={
+          <>
+            <LabeledSwitch
+              label={autoLoadStatus}
               checked={allAutoLoad}
-              disabled={autoLoadUpdating || updating || deleting}
+              disabled={autoLoadUpdating || updating}
               onCheckedChange={() =>
                 handleSetAutoLoad(
                   skills.map((skill) => skill.id),
@@ -230,103 +199,86 @@ export default function SkillGroupDetail() {
                 )
               }
             />
-            <span>{autoLoadStatus}</span>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={updating || deleting}
-            onClick={handleUpdate}
-          >
-            {updating ? (
-              <IconLoader className="size-4 animate-spin" />
-            ) : (
-              <IconRefresh className="size-4" />
-            )}
-            {t('tools.update_skill_group')}
-          </Button>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                variant="destructive"
-                size="sm"
-                disabled={updating || deleting}
-              >
-                {deleting ? (
-                  <IconLoader className="size-4 animate-spin" />
-                ) : (
-                  <IconTrash className="size-4" />
-                )}
-                {t('tools.delete_skill_group')}
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>
-                  {t('tools.delete_skill_group_title')}
-                </AlertDialogTitle>
-                <AlertDialogDescription>
-                  {t('tools.delete_skill_group_description', {
-                    name: groupName,
-                    count: skills.length,
-                  })}
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel disabled={deleting}>
-                  {t('common.cancel')}
-                </AlertDialogCancel>
-                <AlertDialogAction
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  disabled={deleting}
-                  onClick={handleDelete}
-                >
-                  {t('common.delete')}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </ItemActions>
-      </Item>
-
-      <section className="mt-4 space-y-2">
-        <h2 className="text-sm font-medium">
-          {t('tools.skill_group_installed_skills')}
-        </h2>
-        {skills.map((skill) => (
-          <Item
-            key={skill.id}
-            variant="muted"
-            className="cursor-pointer"
-            onClick={() => navigate(`/tools/${skill.id}`)}
-          >
-            <ItemMedia>
-              <SkillIcon skill={skill} className="size-6" />
-            </ItemMedia>
-            <ItemContent>
-              <ItemTitle>{getSkillDisplayName(skill)}</ItemTitle>
-              <ItemDescription>{skill.description}</ItemDescription>
-            </ItemContent>
-            <ItemActions
-              onClick={(event) => {
-                event.stopPropagation();
-              }}
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={updating}
+              onClick={handleUpdate}
             >
-              <div className="flex items-center gap-2 text-sm">
-                <span>{t('tools.auto_load')}</span>
-                <Switch
-                  aria-label={t('tools.auto_load')}
-                  checked={skill.autoLoad ?? false}
-                  disabled={autoLoadUpdating}
-                  onCheckedChange={(autoLoad) =>
-                    handleSetAutoLoad([skill.id], autoLoad)
+              {updating ? <Spinner className="size-4" /> : <IconRefresh />}
+              {t('tools.update_skill_group')}
+            </Button>
+            <ConfirmDeleteButton
+              iconOnly
+              disabled={updating}
+              label={t('tools.delete_skill_group')}
+              title={t('tools.delete_skill_group_title')}
+              description={t('tools.delete_skill_group_description', {
+                name: groupName,
+                count: skills.length,
+              })}
+              onConfirm={handleDelete}
+            />
+          </>
+        }
+      >
+        <p className="text-xs text-muted-foreground">{t('tools.auto_load_hint')}</p>
+      </DetailHeader>
+
+      <DetailSection
+        title={t('tools.skill_group_installed_skills')}
+        count={skills.length}
+        bodyClassName="p-1.5"
+      >
+        <ul className="flex flex-col">
+          {skills.map((skill) => {
+            const name = getSkillDisplayName(skill);
+            return (
+              <li
+                key={skill.id}
+                className="relative flex items-center gap-3 rounded-lg px-2.5 py-2.5 transition-colors duration-150 hover:bg-accent/50"
+              >
+                <SkillIcon
+                  skill={skill}
+                  className={skill.isActive ? 'size-9' : 'size-9 opacity-60'}
+                />
+                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <Link
+                    to={toolDetailPath(skill.id)}
+                    className="truncate text-sm font-medium outline-none after:absolute after:inset-0 after:rounded-lg after:content-[''] focus-visible:underline"
+                  >
+                    {name}
+                  </Link>
+                  {skill.description ? (
+                    <p className="line-clamp-1 text-xs text-muted-foreground">
+                      {skill.description}
+                    </p>
+                  ) : null}
+                </div>
+                <StatusIndicator
+                  className="hidden sm:inline-flex"
+                  tone={skill.isActive ? 'positive' : 'neutral'}
+                  label={
+                    skill.isActive
+                      ? t('tools_hub.enabled')
+                      : t('tools_hub.disabled')
                   }
                 />
-              </div>
-            </ItemActions>
-          </Item>
-        ))}
-      </section>
-    </div>
+                <label className="relative z-10 flex items-center gap-2 text-xs text-muted-foreground">
+                  {t('tools.auto_load')}
+                  <Switch
+                    checked={skill.autoLoad ?? false}
+                    disabled={autoLoadUpdating}
+                    onCheckedChange={(autoLoad) =>
+                      handleSetAutoLoad([skill.id], autoLoad)
+                    }
+                  />
+                </label>
+              </li>
+            );
+          })}
+        </ul>
+      </DetailSection>
+    </DetailPage>
   );
 }

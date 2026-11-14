@@ -48,9 +48,7 @@ import Settings from './pages/Settings';
 import Tools from './pages/Tools';
 import ChatPage from './pages/ChatPage';
 import KnowledgeBasePage from './pages/KnowledgeBase';
-import AgentPage from './pages/agents';
 import { Toaster } from 'react-hot-toast';
-import AgentDetail from './pages/agents/detail';
 import { isArray, isString } from '@/utils/is';
 import {
   Breadcrumb,
@@ -270,8 +268,6 @@ function AppRoutes() {
         <Route path="/settings/*" element={<Settings />} />
         <Route path="/tools/*" element={<Tools />} />
         <Route path="/knowledge-base/*" element={<KnowledgeBasePage />} />
-        <Route path="/agents" element={<AgentPage />} />
-        <Route path="/agents/:id" element={<AgentDetail />} />
         <Route path="/projects/:id" element={<ProjectsPage />} />
         <Route path="/market" element={<MarketPage />} />
         <Route path="/crons" element={<CronsPage />} />

@@ -225,6 +225,11 @@ const electronHandler = {
       ipcRenderer.invoke(AppChannel.GetFileInfo, path),
     getProviderLogo: (provider: string): Promise<string | null> =>
       ipcRenderer.invoke(AppChannel.GetProviderLogo, provider),
+    getEntityIcon: (
+      kind: 'agents' | 'skills',
+      name: string,
+    ): Promise<string | null> =>
+      ipcRenderer.invoke(AppChannel.GetEntityIcon, kind, name),
     getInfo: () => ipcRenderer.invoke(AppChannel.GetInfo),
     toast: (
       title: string,

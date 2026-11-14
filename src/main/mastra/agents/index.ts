@@ -315,10 +315,17 @@ ${assistantSoul}
         description: agentEntity.description,
         tags: agentEntity.tags,
         isActive: agentEntity.isActive,
+        type: agentEntity.type,
         tools: [
           ...new Set([
             ...(builtInAgent?.tools ?? []),
             ...(agentEntity.tools ?? []),
+          ]),
+        ],
+        subAgents: [
+          ...new Set([
+            ...(builtInAgent?.subAgents ?? []),
+            ...(agentEntity.subAgents ?? []),
           ]),
         ],
         isHidden: agentEntity.isHidden,
@@ -343,20 +350,24 @@ ${assistantSoul}
     } else {
       agentEntity = new Agents(agent.id, AgentType.CUSTOM);
     }
-    const tools = [];
-    for (const tool of agent?.tools ?? []) {
-      if (tool.startsWith(`${ToolType.BUILD_IN}:`)) {
-        const toolBuilded = await toolsManager.buildTool(tool);
-        if (isArray(toolBuilded) && toolBuilded.length > 0) {
-          tools.push(tool);
-        } else if (!isArray(toolBuilded)) {
+    const patch: Agent = { ...agent };
+    if (agent.tools !== undefined) {
+      const tools = [];
+      for (const tool of agent.tools ?? []) {
+        if (tool.startsWith(`${ToolType.BUILD_IN}:`)) {
+          const toolBuilded = await toolsManager.buildTool(tool);
+          if (isArray(toolBuilded) && toolBuilded.length > 0) {
+            tools.push(tool);
+          } else if (!isArray(toolBuilded)) {
+            tools.push(tool);
+          }
+        } else {
           tools.push(tool);
         }
-      } else {
-        tools.push(tool);
       }
+      patch.tools = tools;
     }
-    return await this.agentsRepository.save({ ...agentEntity, ...agent, tools });
+    return await this.agentsRepository.save({ ...agentEntity, ...patch });
   }
 
   @api({
@@ -468,7 +479,7 @@ ${assistantSoul}
     }
 
     const tools = [];
-    for (const tool of data.tools as any[]) {
+    for (const tool of (data.tools as any[]) ?? []) {
       const { id, source } = tool as { id: string, source?: string };
       if (id.startsWith(`${ToolType.SKILL}:`)) {
         const skill = await toolsManager.importSkills({

@@ -2,6 +2,10 @@ import type { SkillMetadata } from '@/types/skill-metadata';
 import { IconSparkles } from '@tabler/icons-react';
 import { Badge } from '../ui/badge';
 import { cn } from '@/renderer/lib/utils';
+import {
+  getSkillIconName,
+  useEntityIcon,
+} from '@/renderer/hooks/use-entity-icon';
 
 export type SkillDisplayData = SkillMetadata & {
   name: string;
@@ -27,9 +31,11 @@ export function SkillIcon({
   skill,
   className,
 }: {
-  skill: SkillDisplayData;
+  skill: SkillDisplayData & { id?: string };
   className?: string;
 }) {
+  const localIcon = useEntityIcon('skills', getSkillIconName(skill.id));
+  const src = localIcon ?? skill.icon;
   return (
     <div
       className={cn(
@@ -39,9 +45,10 @@ export function SkillIcon({
       aria-hidden="true"
     >
       <IconSparkles className="size-4" />
-      {skill.icon ? (
+      {src ? (
         <img
-          src={skill.icon}
+          key={src}
+          src={src}
           alt=""
           className="absolute inset-0 size-full object-cover"
           onError={(event) => {
