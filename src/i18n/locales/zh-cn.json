@@ -732,6 +732,15 @@
     "cronstoolkit": "自动化",
     "listvoices": "列出音色"
   },
+  "agent_name": {
+    "DefaultAgent": "默认专家",
+    "CodeAgent": "编程专家",
+    "Explore": "探索专家",
+    "Plan": "规划专家",
+    "Cultivation": "记忆培育专家",
+    "Translation": "翻译专家",
+    "SkillCreator": "技能创建专家"
+  },
   "agents": {
     "instructions": "系统提示词",
     "tools": "工具",

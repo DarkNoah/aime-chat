@@ -688,6 +688,15 @@
     "interactive_html_error": "Interaction error: {{error}}",
     "interactive_html_invalid_resume_data": "resumeData must be a JSON-serializable object"
   },
+  "agent_name": {
+    "DefaultAgent": "Default Agent",
+    "CodeAgent": "Code Agent",
+    "Explore": "Explore",
+    "Plan": "Plan",
+    "Cultivation": "Cultivation",
+    "Translation": "Translation",
+    "SkillCreator": "Skill Creator"
+  },
   "agents": {
     "instructions": "System Prompt",
     "tools": "Tools",
