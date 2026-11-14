@@ -32,7 +32,7 @@ import { SkillDetailDialog } from '../skills-ui/skill-detail';
 import { SkillInfo } from '@/types/skill';
 import { Spinner } from '../ui/spinner';
 import { SkillManagerDialog } from '../skills-ui/skill-manager-dialog';
-import { getSkillDisplayName } from '../skills-ui/skill-metadata';
+import { useSkillDisplayName } from '../skills-ui/skill-metadata';
 import {
   Collapsible,
   CollapsibleContent,
@@ -56,6 +56,7 @@ export const ProjectView = React.forwardRef<ProjectViewRef, ProjectViewProps>(
     const [openSkillDetail, setOpenSkillDetail] = useState(false);
     const [loadings, setLoadings] = useState<Record<string, boolean>>({});
     const { t } = useTranslation();
+    const skillName = useSkillDisplayName();
     const skillItems = useMemo(
       () => groupProjectSkills(project?.skills || [], project?.path),
       [project?.skills, project?.path],
@@ -90,7 +91,7 @@ export const ProjectView = React.forwardRef<ProjectViewRef, ProjectViewProps>(
                 className="p-0 mr-2 cursor-pointer"
                 onClick={() => window.open(skill.source, '_blank')}
                 aria-label={t('project.open_skill_source', {
-                  name: getSkillDisplayName(skill),
+                  name: skillName(skill),
                 })}
               >
                 <IconExternalLink />
@@ -104,7 +105,7 @@ export const ProjectView = React.forwardRef<ProjectViewRef, ProjectViewProps>(
                 setOpenSkillDetail(true);
               }}
             >
-              {getSkillDisplayName(skill)}
+              {skillName(skill)}
             </button>
           </ItemTitle>
           <ItemDescription className="line-clamp-2 text-xs text-muted-foreground">
@@ -120,7 +121,7 @@ export const ProjectView = React.forwardRef<ProjectViewRef, ProjectViewProps>(
               disabled={loadings[skill.id]}
               onClick={() => handleUpdateSkill(skill)}
               aria-label={t('project.update_skill', {
-                name: getSkillDisplayName(skill),
+                name: skillName(skill),
               })}
             >
               {loadings[skill.id] ? (

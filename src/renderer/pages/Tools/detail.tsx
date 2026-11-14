@@ -33,8 +33,8 @@ import {
 import { ChatToolResultPreview } from '@/renderer/components/chat-ui/chat-preview/chat-tool-result-preview';
 import { Transl } from '@/renderer/components/translations/transl';
 import {
-  getSkillDisplayName,
   SkillIcon,
+  useSkillDisplayName,
 } from '@/renderer/components/skills-ui/skill-metadata';
 import { nanoid } from '@/utils/nanoid';
 import { McpEvent } from '@/types/mcp';
@@ -501,7 +501,8 @@ function SkillDetail({
 }) {
   const { t } = useTranslation();
   const [busy, setBusy] = useState<'toggle' | 'auto' | 'update' | null>(null);
-  const displayName = getSkillDisplayName(skill);
+  const skillName = useSkillDisplayName();
+  const displayName = skillName(skill);
   const tags = [
     ...(skill.category ? [skill.category] : []),
     ...(skill.tags ?? []).filter((tag) => tag !== skill.category),
@@ -719,6 +720,7 @@ function SkillDetail({
 
 export default function ToolDetail() {
   const { t } = useTranslation();
+  const skillName = useSkillDisplayName();
   const navigate = useNavigate();
   const { id = '' } = useParams();
   const tab = hubTabForToolId(id);
@@ -767,7 +769,7 @@ export default function ToolDetail() {
 
   let label: string | undefined;
   if (tool) {
-    if (tab === 'skills') label = getSkillDisplayName(tool);
+    if (tab === 'skills') label = skillName(tool);
     else if (tab === 'connectors') label = tool.name;
     else label = t(`tool_name.${tool.name.toLowerCase()}`, tool.name);
   }

@@ -45,6 +45,7 @@ import {
 import { AgentDialog } from '@/renderer/components/agents/agent-dialog';
 import { AgentImportDialog } from '@/renderer/components/agents/agent-import-dialog';
 import { SkillSearch } from '@/renderer/components/skills-ui/skill-search';
+import { useSkillDisplayName } from '@/renderer/components/skills-ui/skill-metadata';
 import { Agent } from '@/types/agent';
 import { ChatSubmitOptions } from '@/types/chat';
 import { Tool, ToolType } from '@/types/tool';
@@ -66,7 +67,6 @@ import {
   HubTab,
   hubTabPath,
   isCustomAgent,
-  SkillScope,
   StatusFilter,
   ToolScope,
 } from './hub-model';
@@ -88,6 +88,8 @@ type HubDialog =
   | 'skill-import'
   | 'skill-search'
   | null;
+
+type HubSection = { id: string; label?: string; items: ReactNode[] };
 
 const STATUS_FILTERS: StatusFilter[] = ['all', 'enabled', 'disabled'];
 
@@ -402,6 +404,14 @@ function ChipFilter({
   );
 }
 
+function CardGrid({ children }: { children: ReactNode }) {
+  return (
+    <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(15.5rem,1fr))]">
+      {children}
+    </div>
+  );
+}
+
 function HubEmpty({
   tab,
   title,
@@ -442,12 +452,12 @@ export default function CapabilityHub({ tab }: { tab: HubTab }) {
   );
   const agentLabel = useAgentLabel();
   const toolLabel = useToolLabel();
+  const skillName = useSkillDisplayName();
   const { data, loading, refresh, patchAgent, patchTool } = useHubData();
 
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState<StatusFilter>('all');
   const [agentScope, setAgentScope] = useState<AgentScope>('all');
-  const [skillScope, setSkillScope] = useState<SkillScope>('skills');
   const [toolScope, setToolScope] = useState<ToolScope>('all');
   const [chip, setChip] = useState(ALL_CHIP);
   const [dialog, setDialog] = useState<HubDialog>(null);
@@ -467,7 +477,7 @@ export default function CapabilityHub({ tab }: { tab: HubTab }) {
 
   useEffect(() => {
     setChip(ALL_CHIP);
-  }, [agentScope, skillScope]);
+  }, [agentScope]);
 
   useEffect(() => {
     setTitle(<HubTabs tabs={tabs} active={tab} onSelect={selectTab} />);
@@ -555,7 +565,7 @@ export default function CapabilityHub({ tab }: { tab: HubTab }) {
 
   let scope: ReactNode = null;
   let chips: { value: string; label: string }[] = [];
-  let items: ReactNode[] = [];
+  let sections: HubSection[] = [];
   let totalInScope = 0;
   let emptyState: { title: string; description: string; action?: ReactNode } = {
     title: '',
@@ -593,22 +603,27 @@ export default function CapabilityHub({ tab }: { tab: HubTab }) {
       query: '',
     });
     totalInScope = scoped.length;
-    items = filterAgents(data.agents, {
-      scope: agentScope,
-      tag: chip,
-      status,
-      query,
-      getLabel: agentLabel,
-    }).map((agent) => (
-      <AgentCard
-        key={agent.id}
-        agent={agent}
-        label={agentLabel(agent)}
-        pending={pendingIds.includes(agent.id!)}
-        onToggle={(checked) => toggleAgent(agent, checked)}
-        onChat={() => startChat(agent)}
-      />
-    ));
+    sections = [
+      {
+        id: 'agents',
+        items: filterAgents(data.agents, {
+          scope: agentScope,
+          tag: chip,
+          status,
+          query,
+          getLabel: agentLabel,
+        }).map((agent) => (
+          <AgentCard
+            key={agent.id}
+            agent={agent}
+            label={agentLabel(agent)}
+            pending={pendingIds.includes(agent.id!)}
+            onToggle={(checked) => toggleAgent(agent, checked)}
+            onChat={() => startChat(agent)}
+          />
+        )),
+      },
+    ];
     emptyState = {
       title: t('tools_hub.empty.agents_title'),
       description: t('tools_hub.empty.agents_description'),
@@ -650,101 +665,98 @@ export default function CapabilityHub({ tab }: { tab: HubTab }) {
       status: 'all',
       query: '',
     }).length;
-    items = filterTools(data.builtin, {
-      scope: toolScope,
-      status,
-      query,
-      getLabel: toolLabel,
-    }).map((tool) => (
-      <BuiltinToolCard
-        key={tool.id}
-        tool={tool}
-        label={toolLabel(tool)}
-        subToolLabels={
-          tool.isToolkit ? (tool.tools ?? []).map((x) => toolLabel(x)) : []
-        }
-        pending={pendingIds.includes(tool.id)}
-        onToggle={(checked) => toggleTool(tool, checked)}
-      />
-    ));
+    sections = [
+      {
+        id: 'builtin',
+        items: filterTools(data.builtin, {
+          scope: toolScope,
+          status,
+          query,
+          getLabel: toolLabel,
+        }).map((tool) => (
+          <BuiltinToolCard
+            key={tool.id}
+            tool={tool}
+            label={toolLabel(tool)}
+            subToolLabels={
+              tool.isToolkit ? (tool.tools ?? []).map((x) => toolLabel(x)) : []
+            }
+            pending={pendingIds.includes(tool.id)}
+            onToggle={(checked) => toggleTool(tool, checked)}
+          />
+        )),
+      },
+    ];
     emptyState = {
       title: t('tools_hub.empty.builtin_title'),
       description: t('tools_hub.empty.builtin_description'),
     };
   } else if (tab === 'skills') {
     scope = (
-      <ScopeTabs<SkillScope>
-        label={t('tools_hub.tabs.skills')}
-        value={skillScope}
-        onChange={setSkillScope}
-        options={[
-          {
-            value: 'skills',
-            label: t('tools_hub.scope.skills'),
-            count: data.skills.length,
-          },
-          {
-            value: 'groups',
-            label: t('tools_hub.scope.groups'),
-            count: skillGroups.length,
-          },
+      <ChipFilter
+        label={t('tools_hub.chip_label')}
+        chips={[
+          { value: ALL_CHIP, label: t('tools_hub.chip_all') },
+          { value: AUTO_LOAD_CHIP, label: t('tools_hub.chip_auto_load') },
+          ...skillCategories.map((category) => ({
+            value: category,
+            label: category,
+          })),
         ]}
+        value={chip}
+        onChange={setChip}
       />
     );
-    if (skillScope === 'skills') {
-      chips = [
-        { value: ALL_CHIP, label: t('tools_hub.chip_all') },
-        { value: AUTO_LOAD_CHIP, label: t('tools_hub.chip_auto_load') },
-        ...skillCategories.map((category) => ({
-          value: category,
-          label: category,
-        })),
-      ];
-      totalInScope = data.skills.length;
-      items = filterSkills(data.skills, { chip, status, query }).map((skill) => (
-        <SkillCard
-          key={skill.id}
-          skill={skill}
-          pending={pendingIds.includes(skill.id)}
-          onToggle={(checked) => toggleTool(skill, checked)}
-        />
-      ));
-      emptyState = {
-        title: t('tools_hub.empty.skills_title'),
-        description: t('tools_hub.empty.skills_description'),
-        action: (
-          <>
-            <Button size="sm" onClick={() => setDialog('skill-import')}>
-              <IconDownload />
-              {t('tools_hub.import_skill')}
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setDialog('skill-search')}
-            >
-              <IconWorldSearch />
-              {t('tools_hub.search_skills')}
-            </Button>
-          </>
-        ),
-      };
-    } else {
-      totalInScope = skillGroups.length;
-      items = filterSkillGroups(skillGroups, { status, query }).map((group) => (
-        <SkillGroupCard key={group.id} group={group} />
-      ));
-      emptyState = {
-        title: t('tools_hub.empty.groups_title'),
-        description: t('tools_hub.empty.groups_description'),
-        action: (
+    totalInScope = data.skills.length;
+    sections = [
+      {
+        id: 'groups',
+        label: t('tools_hub.scope.groups'),
+        items: filterSkillGroups(skillGroups, {
+          chip,
+          status,
+          query,
+          getLabel: skillName,
+        }).map((group) => <SkillGroupCard key={group.id} group={group} />),
+      },
+      {
+        id: 'skills',
+        label: t('tools_hub.scope.skills'),
+        items: filterSkills(data.skills, {
+          chip,
+          status,
+          query,
+          getLabel: skillName,
+        }).map((skill) => (
+          <SkillCard
+            key={skill.id}
+            skill={skill}
+            pending={pendingIds.includes(skill.id)}
+            onToggle={(checked) => toggleTool(skill, checked)}
+          />
+        )),
+      },
+    ];
+    emptyState = {
+      title: t('tools_hub.empty.skills_title'),
+      description: t('tools_hub.empty.skills_description'),
+      action: (
+        <>
           <Button size="sm" onClick={() => setDialog('skill-import')}>
             <IconDownload />
             {t('tools_hub.import_skill')}
           </Button>
-        ),
-      };
-    }
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setDialog('skill-search')}
+          >
+            <IconWorldSearch />
+            {t('tools_hub.search_skills')}
+          </Button>
+        </>
+      ),
+    };
   } else {
     scope = (
       <ScopeLabel
@@ -753,14 +765,19 @@ export default function CapabilityHub({ tab }: { tab: HubTab }) {
       />
     );
     totalInScope = data.connectors.length;
-    items = filterTools(data.connectors, { status, query }).map((tool) => (
-      <ConnectorCard
-        key={tool.id}
-        tool={tool}
-        pending={pendingIds.includes(tool.id)}
-        onToggle={(checked) => toggleTool(tool, checked)}
-      />
-    ));
+    sections = [
+      {
+        id: 'connectors',
+        items: filterTools(data.connectors, { status, query }).map((tool) => (
+          <ConnectorCard
+            key={tool.id}
+            tool={tool}
+            pending={pendingIds.includes(tool.id)}
+            onToggle={(checked) => toggleTool(tool, checked)}
+          />
+        )),
+      },
+    ];
     emptyState = {
       title: t('tools_hub.empty.connectors_title'),
       description: t('tools_hub.empty.connectors_description'),
@@ -776,18 +793,21 @@ export default function CapabilityHub({ tab }: { tab: HubTab }) {
   const renderBody = () => {
     if (loading) {
       return (
-        <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(15.5rem,1fr))]">
+        <CardGrid>
           {Array.from({ length: 8 }).map((_, index) => (
             // eslint-disable-next-line react/no-array-index-key
             <HubCardSkeleton key={index} />
           ))}
-        </div>
+        </CardGrid>
       );
     }
     if (totalInScope === 0) {
       return <HubEmpty tab={tab} {...emptyState} />;
     }
-    if (items.length === 0) {
+    const visibleSections = sections.filter(
+      (section) => section.items.length > 0,
+    );
+    if (visibleSections.length === 0) {
       return (
         <HubEmpty
           tab={tab}
@@ -804,8 +824,17 @@ export default function CapabilityHub({ tab }: { tab: HubTab }) {
       );
     }
     return (
-      <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(15.5rem,1fr))]">
-        {items}
+      <div className="flex flex-col gap-6">
+        {visibleSections.map((section) =>
+          section.label ? (
+            <section key={section.id} className="flex flex-col gap-3">
+              <ScopeLabel label={section.label} count={section.items.length} />
+              <CardGrid>{section.items}</CardGrid>
+            </section>
+          ) : (
+            <CardGrid key={section.id}>{section.items}</CardGrid>
+          ),
+        )}
       </div>
     );
   };

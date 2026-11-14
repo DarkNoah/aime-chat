@@ -741,6 +741,7 @@
     "Translation": "翻译专家",
     "SkillCreator": "技能创建专家"
   },
+  "skill_name": {},
   "agents": {
     "instructions": "系统提示词",
     "tools": "工具",
@@ -1285,8 +1286,6 @@
       "builtin_description": "内置工具随应用提供，更新应用后会出现在这里。",
       "skills_title": "还没有技能",
       "skills_description": "从 Git 仓库、链接或本地文件导入技能，专家即可按需调用。",
-      "groups_title": "还没有技能组",
-      "groups_description": "从同一个仓库导入的多个技能会归为一个技能组。",
       "connectors_title": "还没有连接器",
       "connectors_description": "添加 MCP 服务器，把外部服务的工具接入专家。",
       "no_match_title": "没有匹配的结果",

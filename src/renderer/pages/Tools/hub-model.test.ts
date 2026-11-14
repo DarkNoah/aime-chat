@@ -127,10 +127,26 @@ describe('hub-model', () => {
       tool({ id: 'skill:pdf', name: 'pdf', repo: 'o/docs', isActive: false }),
       tool({ id: 'skill:xlsx', name: 'xlsx', repo: 'o/docs', isActive: false }),
     ]);
-    expect(filterSkillGroups(groups, { status: 'all', query: 'docs' })).toHaveLength(1);
-    expect(filterSkillGroups(groups, { status: 'all', query: 'xlsx' })).toHaveLength(1);
-    expect(filterSkillGroups(groups, { status: 'all', query: 'zip' })).toHaveLength(0);
-    expect(filterSkillGroups(groups, { status: 'enabled', query: '' })).toHaveLength(0);
+    const base = { chip: ALL_CHIP, status: 'all' as const, query: '' };
+    expect(filterSkillGroups(groups, { ...base, query: 'docs' })).toHaveLength(1);
+    expect(filterSkillGroups(groups, { ...base, query: 'xlsx' })).toHaveLength(1);
+    expect(filterSkillGroups(groups, { ...base, query: 'zip' })).toHaveLength(0);
+    expect(filterSkillGroups(groups, { ...base, status: 'enabled' })).toHaveLength(0);
+  });
+
+  it('keeps skill groups that contain a skill matching the chip', () => {
+    const groups = groupSkillsByRepo([
+      tool({ id: 'skill:pdf', repo: 'o/docs', category: 'docs', autoLoad: true }),
+      tool({ id: 'skill:lint', repo: 'o/code', category: 'code' }),
+    ]);
+    const base = { chip: ALL_CHIP, status: 'all' as const, query: '' };
+    expect(filterSkillGroups(groups, base)).toHaveLength(2);
+    expect(
+      filterSkillGroups(groups, { ...base, chip: AUTO_LOAD_CHIP }).map((g) => g.id),
+    ).toEqual(['o/docs']);
+    expect(
+      filterSkillGroups(groups, { ...base, chip: 'code' }).map((g) => g.id),
+    ).toEqual(['o/code']);
   });
 
   it('filters tools using the translated label', () => {

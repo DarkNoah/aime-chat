@@ -26,9 +26,9 @@ import {
 } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
 import {
-  getSkillDisplayName,
   getSkillSearchKeywords,
   SkillSummary,
+  useSkillDisplayName,
 } from '../skills-ui/skill-metadata';
 import { Badge } from '../ui/badge';
 
@@ -138,6 +138,7 @@ export const ChatToolSelector = ({
   const { value = [], onChange, showGoal = false, threadId } = props;
   const [loading, setLoading] = useState(false);
   const { t } = useTranslation();
+  const skillName = useSkillDisplayName();
   const [data, setData] = useState<{
     [ToolType.MCP]: Tool[];
     [ToolType.SKILL]: Tool[];
@@ -412,7 +413,9 @@ export const ChatToolSelector = ({
                     >
                       <CommandItem
                         value={`${tool.id} ${tool.name} ${tool.skills
-                          .flatMap(getSkillSearchKeywords)
+                          .flatMap((skill) =>
+                            getSkillSearchKeywords(skill, skillName(skill)),
+                          )
                           .join(' ')}`}
                         onSelect={() =>
                           onChange?.(toggleSkillGroupSelection(value, tool))
@@ -452,9 +455,9 @@ export const ChatToolSelector = ({
                             <ToggleGroupItem
                               key={skill.id}
                               value={skill.id}
-                              aria-label={getSkillDisplayName(skill)}
+                              aria-label={skillName(skill)}
                             >
-                              {getSkillDisplayName(skill)}
+                              {skillName(skill)}
                             </ToggleGroupItem>
                           ))}
                         </ToggleGroup>
@@ -464,7 +467,7 @@ export const ChatToolSelector = ({
                     <CommandItem
                       key={tool.id}
                       value={tool.id}
-                      keywords={getSkillSearchKeywords(tool)}
+                      keywords={getSkillSearchKeywords(tool, skillName(tool))}
                       onSelect={() => handleSelect(tool)}
                       className="items-start py-2"
                     >

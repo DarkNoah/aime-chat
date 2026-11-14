@@ -16,8 +16,8 @@ import { Button } from '@/renderer/components/ui/button';
 import { Streamdown } from '../ai-elements/streamdown';
 import { Transl } from '../translations/transl';
 import {
-  getSkillDisplayName,
   SkillIcon,
+  useSkillDisplayName,
   SkillMetadataBadges,
 } from './skill-metadata';
 
@@ -37,6 +37,7 @@ export function SkillDetailDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const { t } = useTranslation();
+  const skillName = useSkillDisplayName();
   const [detail, setDetail] = useState<SkillDetail | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -76,7 +77,7 @@ export function SkillDetailDialog({
           <DialogTitle className="flex items-center gap-3">
             {displayedSkill ? <SkillIcon skill={displayedSkill} /> : null}
             <span className="truncate">
-              {displayedSkill ? getSkillDisplayName(displayedSkill) : ''}
+              {displayedSkill ? skillName(displayedSkill) : ''}
             </span>
           </DialogTitle>
           {displayedSkill ? (

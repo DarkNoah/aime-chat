@@ -38,7 +38,7 @@ import {
 import { ChatModelSelect } from '@/renderer/components/chat-ui/chat-model-select';
 import { ChatToolSelector } from '@/renderer/components/chat-ui/chat-tool-selector';
 import { ChatAgentSelector } from '@/renderer/components/chat-ui/chat-agent-selector';
-import { getSkillDisplayName } from '@/renderer/components/skills-ui/skill-metadata';
+import { useSkillDisplayName } from '@/renderer/components/skills-ui/skill-metadata';
 import { cn } from '@/renderer/lib/utils';
 import { Agent, AgentTags } from '@/types/agent';
 import { ChatSubmitOptions } from '@/types/chat';
@@ -237,6 +237,7 @@ function ExportConfigDialog({
 
 export default function AgentEditor() {
   const { t } = useTranslation();
+  const skillName = useSkillDisplayName();
   const navigate = useNavigate();
   const { id = '' } = useParams();
   const [agent, setAgent] = useState<Agent | null>(null);
@@ -380,7 +381,7 @@ export default function AgentEditor() {
     if (toolId.startsWith(`${ToolType.SKILL}:`)) {
       const skill = toolCatalog[ToolType.SKILL]?.find((x) => x.id === toolId);
       return {
-        label: skill ? getSkillDisplayName(skill) : rawLabel,
+        label: skill ? skillName(skill) : rawLabel,
         to: toolDetailPath(toolId),
       };
     }

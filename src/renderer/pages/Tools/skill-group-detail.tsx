@@ -12,8 +12,8 @@ import { Button } from '@/renderer/components/ui/button';
 import { Spinner } from '@/renderer/components/ui/spinner';
 import { Switch } from '@/renderer/components/ui/switch';
 import {
-  getSkillDisplayName,
   SkillIcon,
+  useSkillDisplayName,
 } from '@/renderer/components/skills-ui/skill-metadata';
 import {
   getRepoDisplayName,
@@ -35,6 +35,7 @@ import {
 
 export default function SkillGroupDetail() {
   const { t } = useTranslation();
+  const skillName = useSkillDisplayName();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const repo = searchParams.get('repo') || '';
@@ -232,7 +233,7 @@ export default function SkillGroupDetail() {
       >
         <ul className="flex flex-col">
           {skills.map((skill) => {
-            const name = getSkillDisplayName(skill);
+            const name = skillName(skill);
             return (
               <li
                 key={skill.id}

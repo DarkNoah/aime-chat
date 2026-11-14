@@ -16,8 +16,8 @@ import {
   TooltipTrigger,
 } from '@/renderer/components/ui/tooltip';
 import {
-  getSkillDisplayName,
   SkillIcon,
+  useSkillDisplayName,
 } from '@/renderer/components/skills-ui/skill-metadata';
 import { Agent } from '@/types/agent';
 import { Tool } from '@/types/tool';
@@ -280,7 +280,8 @@ export function SkillCard({
   onToggle: (checked: boolean) => void;
 }) {
   const { t } = useTranslation();
-  const name = getSkillDisplayName(skill);
+  const skillName = useSkillDisplayName();
+  const name = skillName(skill);
   const tags = [
     ...(skill.category ? [skill.category] : []),
     ...(skill.tags ?? []).filter((tag) => tag !== skill.category).slice(0, 2),
@@ -332,9 +333,10 @@ export function SkillCard({
 
 export function SkillGroupCard({ group }: { group: SkillGroup }) {
   const { t } = useTranslation();
+  const skillName = useSkillDisplayName();
   const activeCount = group.skills.filter((skill) => skill.isActive).length;
   const autoLoadCount = group.skills.filter((skill) => skill.autoLoad).length;
-  const preview = group.skills.slice(0, 4).map(getSkillDisplayName);
+  const preview = group.skills.slice(0, 4).map((skill) => skillName(skill));
 
   return (
     <HubCard

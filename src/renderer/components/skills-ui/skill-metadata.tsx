@@ -1,3 +1,5 @@
+import { useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { SkillMetadata } from '@/types/skill-metadata';
 import { IconSparkles } from '@tabler/icons-react';
 import { Badge } from '../ui/badge';
@@ -13,12 +15,25 @@ export type SkillDisplayData = SkillMetadata & {
   path?: string;
 };
 
-export function getSkillDisplayName(skill: SkillDisplayData) {
+function getSkillDisplayName(skill: SkillDisplayData) {
   return skill.displayName || skill.title || skill.name;
 }
 
-export function getSkillSearchKeywords(skill: SkillDisplayData) {
+export function useSkillDisplayName() {
+  const { t } = useTranslation();
+  return useCallback(
+    (skill: SkillDisplayData) =>
+      t(`skill_name.${skill.name}`, getSkillDisplayName(skill)),
+    [t],
+  );
+}
+
+export function getSkillSearchKeywords(
+  skill: SkillDisplayData,
+  label?: string,
+) {
   return [
+    label,
     skill.name,
     skill.title,
     skill.displayName,
@@ -108,7 +123,8 @@ export function SkillSummary({
   maxTags?: number;
   className?: string;
 }) {
-  const displayName = getSkillDisplayName(skill);
+  const skillName = useSkillDisplayName();
+  const displayName = skillName(skill);
 
   return (
     <div className={cn('flex min-w-0 flex-1 items-start gap-3', className)}>

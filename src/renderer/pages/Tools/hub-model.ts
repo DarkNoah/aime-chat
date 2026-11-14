@@ -9,8 +9,6 @@ export const HUB_TAB_STORAGE_KEY = 'tools-hub:last-tab';
 
 export type StatusFilter = 'all' | 'enabled' | 'disabled';
 
-export type SkillScope = 'skills' | 'groups';
-
 export const ALL_CHIP = 'all';
 
 export type SkillGroup = {
@@ -156,21 +154,32 @@ export function filterAgents(
 
 export const AUTO_LOAD_CHIP = 'auto_load';
 
+function matchesSkillChip(skill: Tool, chip: string) {
+  if (chip === ALL_CHIP) return true;
+  if (chip === AUTO_LOAD_CHIP) return Boolean(skill.autoLoad);
+  return skill.category === chip;
+}
+
 export function filterSkills(
   skills: Tool[],
   {
     chip,
     status,
     query,
-  }: { chip: string; status: StatusFilter; query: string },
+    getLabel,
+  }: {
+    chip: string;
+    status: StatusFilter;
+    query: string;
+    getLabel?: (skill: Tool) => string;
+  },
 ) {
   return skills.filter((skill) => {
-    if (chip === AUTO_LOAD_CHIP && !skill.autoLoad) return false;
-    if (chip !== ALL_CHIP && chip !== AUTO_LOAD_CHIP && skill.category !== chip)
-      return false;
+    if (!matchesSkillChip(skill, chip)) return false;
     if (!matchesStatus(skill.isActive, status)) return false;
     return matchesQuery(
       [
+        getLabel?.(skill),
         skill.name,
         skill.title,
         skill.displayName,
@@ -186,16 +195,34 @@ export function filterSkills(
 
 export function filterSkillGroups(
   groups: SkillGroup[],
-  { status, query }: { status: StatusFilter; query: string },
+  {
+    chip,
+    status,
+    query,
+    getLabel,
+  }: {
+    chip: string;
+    status: StatusFilter;
+    query: string;
+    getLabel?: (skill: Tool) => string;
+  },
 ) {
   return groups.filter((group) => {
+    if (!group.skills.some((skill) => matchesSkillChip(skill, chip)))
+      return false;
     const anyActive = group.skills.some((skill) => skill.isActive);
     if (!matchesStatus(anyActive, status)) return false;
     return (
       matchesQuery([group.name, group.id], query) ||
       group.skills.some((skill) =>
         matchesQuery(
-          [skill.name, skill.title, skill.displayName, skill.description],
+          [
+            getLabel?.(skill),
+            skill.name,
+            skill.title,
+            skill.displayName,
+            skill.description,
+          ],
           query,
         ),
       )

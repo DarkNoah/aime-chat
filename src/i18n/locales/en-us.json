@@ -697,6 +697,7 @@
     "Translation": "Translation",
     "SkillCreator": "Skill Creator"
   },
+  "skill_name": {},
   "agents": {
     "instructions": "System Prompt",
     "tools": "Tools",
@@ -1231,8 +1232,6 @@
       "builtin_description": "Built-in tools ship with the app and appear here after updates.",
       "skills_title": "No skills yet",
       "skills_description": "Import skills from a Git repository, URL or local file so agents can use them on demand.",
-      "groups_title": "No skill groups yet",
-      "groups_description": "Skills imported from the same repository are grouped together.",
       "connectors_title": "No connectors yet",
       "connectors_description": "Add an MCP server to bring tools from external services to your agents.",
       "no_match_title": "No matching results",
