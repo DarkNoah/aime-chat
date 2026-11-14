@@ -282,6 +282,7 @@ ${assistantSoul}
     const builtInAgent = this.builtInAgents.find((x) => x.id == agentEntity.id);
     return {
       ...agentEntity,
+      isVisible: builtInAgent?.isVisible ?? true,
       instructions: await convertToInstructionContent(
         builtInAgent?.instructions ?? agentEntity.instructions,
       ),
@@ -329,6 +330,7 @@ ${assistantSoul}
           ]),
         ],
         isHidden: agentEntity.isHidden,
+        isVisible: builtInAgent?.isVisible ?? true,
       };
     });
   }

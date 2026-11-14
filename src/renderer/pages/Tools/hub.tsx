@@ -965,7 +965,11 @@ export default function CapabilityHub({ tab }: { tab: HubTab }) {
     sections = [
       {
         id: 'connectors',
-        items: filterTools(data.connectors, { status, query }).map((tool) => (
+        items: filterTools(data.connectors, {
+          status,
+          query,
+          getLabel: toolLabel,
+        }).map((tool) => (
           <ConnectorCard
             key={tool.id}
             tool={tool}

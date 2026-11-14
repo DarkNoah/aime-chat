@@ -407,24 +407,36 @@ export function ConnectorCard({
 }) {
   const { t } = useTranslation();
   const status = tool.status ?? (tool.isActive ? 'running' : 'stopped');
+  const activeTone = tool.isActive ? 'positive' : 'neutral';
+  const label = tool.fakeMcp
+    ? t(`tool_name.${tool.name.toLowerCase()}`, tool.name)
+    : tool.name;
   return (
     <HubCard
       to={toolDetailPath(tool.id)}
-      title={tool.name}
+      title={label}
       muted={!tool.isActive}
       media={<TypeAvatar tab="connectors" />}
       description={tool.description}
       meta={
         <StatusIndicator
-          tone={mcpStatusTone(tool.status, tool.isActive)}
-          label={t(`tools_hub.mcp_status.${status}`)}
+          tone={
+            tool.fakeMcp
+              ? activeTone
+              : mcpStatusTone(tool.status, tool.isActive)
+          }
+          label={
+            tool.fakeMcp
+              ? t(tool.isActive ? 'tools_hub.enabled' : 'tools_hub.disabled')
+              : t(`tools_hub.mcp_status.${status}`)
+          }
         />
       }
       actions={
         <ActiveSwitch
           checked={Boolean(tool.isActive)}
           disabled={pending || tool.status === 'starting'}
-          label={t('tools_hub.toggle_active', { name: tool.name })}
+          label={t('tools_hub.toggle_active', { name: label })}
           onCheckedChange={onToggle}
         />
       }

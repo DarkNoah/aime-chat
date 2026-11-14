@@ -23,6 +23,9 @@ export abstract class BaseAgent {
   subAgents?: string[];
   isHidden: boolean = false;
 
+  /** Whether to show this agent on the experts page. */
+  isVisible: boolean = true;
+
   tags: string[] = [];
   constructor(params: BaseAgentParams) {
     //this.tools = params.tools;

@@ -1176,20 +1176,23 @@ class ToolsManager extends BaseManager {
             : 'stopped',
         isActive: tools.find((x) => x.id === tool.id)?.isActive,
       })),
-      [ToolType.BUILD_IN]: this.builtInTools.filter(x => !x.isHidden).map((tool) => ({
-        id: tool.id,
-        name: tool.id.substring(ToolType.BUILD_IN.length + 1),
-        description: tool.description,
-        isActive: tools.find((x) => x.id === tool.id)?.isActive,
-        isToolkit: Boolean(tool.isToolkit),
-        tools: tool.isToolkit
-          ? tool.tools.map((subTool) => ({
-            id: subTool.id,
-            name: subTool.id,
-            description: subTool.description,
-          }))
-          : undefined,
-      })),
+      [ToolType.BUILD_IN]: this.builtInTools
+        .filter((x) => !x.isHidden)
+        .map((tool) => ({
+          id: tool.id,
+          name: tool.id.substring(ToolType.BUILD_IN.length + 1),
+          description: tool.description,
+          isActive: tools.find((x) => x.id === tool.id)?.isActive,
+          isToolkit: Boolean(tool.isToolkit),
+          fakeMcp: Boolean(tool.fakeMcp),
+          tools: tool.isToolkit
+            ? tool.tools.map((subTool) => ({
+                id: subTool.id,
+                name: subTool.id,
+                description: subTool.description,
+              }))
+            : undefined,
+        })),
     };
   }
 
@@ -1292,6 +1295,7 @@ class ToolsManager extends BaseManager {
           name: __tool.id.substring(ToolType.BUILD_IN.length + 1),
           description: __tool?.description,
           isToolkit: true,
+          fakeMcp: __tool.fakeMcp,
           tools: __tool.tools.map((t) => {
             return {
               id: t.id,

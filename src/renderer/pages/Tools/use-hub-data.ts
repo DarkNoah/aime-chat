@@ -19,11 +19,15 @@ export function useHubData() {
         window.electron.tools.getList() as Promise<Record<ToolType, Tool[]>>,
       ]);
       if (!mountedRef.current) return;
+      const builtin = tools?.[ToolType.BUILD_IN] ?? [];
       setData({
-        agents: agents ?? [],
-        builtin: tools?.[ToolType.BUILD_IN] ?? [],
+        agents: (agents ?? []).filter((agent) => agent.isVisible !== false),
+        builtin: builtin.filter((tool) => !tool.fakeMcp),
         skills: tools?.[ToolType.SKILL] ?? [],
-        connectors: tools?.[ToolType.MCP] ?? [],
+        connectors: [
+          ...(tools?.[ToolType.MCP] ?? []),
+          ...builtin.filter((tool) => tool.fakeMcp),
+        ],
       });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : String(error));

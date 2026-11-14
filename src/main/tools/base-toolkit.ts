@@ -9,6 +9,10 @@ abstract class BaseToolkit {
   description: string;
   tools: BaseTool[];
   isToolkit: boolean = true;
+
+  /** Display in the connectors tab while keeping built-in tool behavior. */
+  fakeMcp: boolean = false;
+
   tags?: string[];
   doc?: string;
   configSchema?: ZodSchema;

@@ -226,7 +226,7 @@ function ToolkitDetail({
   onDeleted: () => void;
 }) {
   const { t } = useTranslation();
-  const isConnector = tab === 'connectors';
+  const isConnector = tool.type === ToolType.MCP;
   const label = isConnector
     ? tool.name
     : t(`tool_name.${tool.name.toLowerCase()}`, tool.name);
@@ -725,8 +725,8 @@ export default function ToolDetail() {
   const skillName = useSkillDisplayName();
   const navigate = useNavigate();
   const { id = '' } = useParams();
-  const tab = hubTabForToolId(id);
   const [tool, setTool] = useState<ToolDetailData | null>(null);
+  const tab = hubTabForToolId(id, tool?.id === id && tool.fakeMcp);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
@@ -772,7 +772,7 @@ export default function ToolDetail() {
   let label: string | undefined;
   if (tool) {
     if (tab === 'skills') label = skillName(tool);
-    else if (tab === 'connectors') label = tool.name;
+    else if (tool.type === ToolType.MCP) label = tool.name;
     else label = t(`tool_name.${tool.name.toLowerCase()}`, tool.name);
   }
   useDetailBreadcrumb(tab, label, toolDetailPath(id));

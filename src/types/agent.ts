@@ -26,6 +26,8 @@ export type Agent = {
   isActive?: boolean;
   tags?: string[];
   isHidden?: boolean;
+  /** Experts page visibility only; defaults to true. */
+  isVisible?: boolean;
   type?: string;
   defaultModelId?: string;
   greeting?: string;

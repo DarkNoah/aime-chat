@@ -53,9 +53,10 @@ export function hubTabPath(tab: HubTab) {
   return `/tools/${tab}`;
 }
 
-export function hubTabForToolId(id: string): HubTab {
+export function hubTabForToolId(id: string, fakeMcp = false): HubTab {
   if (id.startsWith(`${ToolType.MCP}:`)) return 'connectors';
   if (id.startsWith(`${ToolType.SKILL}:`)) return 'skills';
+  if (fakeMcp && id.startsWith(`${ToolType.BUILD_IN}:`)) return 'connectors';
   return 'builtin';
 }
 

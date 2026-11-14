@@ -16,6 +16,8 @@ export type Tool = SkillMetadata & {
   isActive: boolean;
   autoLoad?: boolean;
   isToolkit: boolean;
+  /** Display a built-in toolkit in the connectors tab only. */
+  fakeMcp?: boolean;
   type: ToolType;
   version?: string;
   tools?: {
