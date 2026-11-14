@@ -19,13 +19,36 @@ function getSkillDisplayName(skill: SkillDisplayData) {
   return skill.displayName || skill.title || skill.name;
 }
 
+// Read the raw resource instead of t(): skill and repo names may contain "."
+// or ":", which t() treats as key/namespace separators even with returnObjects.
+function useNameTranslation(section: 'skill_name' | 'skill_group_name') {
+  const { i18n } = useTranslation();
+  const language = i18n.resolvedLanguage ?? i18n.language;
+  return useCallback(
+    (key: string, fallback: string) => {
+      const names: unknown = i18n.getResource(language, 'translation', section);
+      const value =
+        names && typeof names === 'object'
+          ? (names as Record<string, unknown>)[key]
+          : undefined;
+      return typeof value === 'string' && value ? value : fallback;
+    },
+    [i18n, language, section],
+  );
+}
+
 export function useSkillDisplayName() {
-  const { t } = useTranslation();
+  const translate = useNameTranslation('skill_name');
   return useCallback(
     (skill: SkillDisplayData) =>
-      t(`skill_name.${skill.name}`, getSkillDisplayName(skill)),
-    [t],
+      translate(skill.name, getSkillDisplayName(skill)),
+    [translate],
   );
+}
+
+export function useSkillGroupName() {
+  const translate = useNameTranslation('skill_group_name');
+  return useCallback((name: string) => translate(name, name), [translate]);
 }
 
 export function getSkillSearchKeywords(

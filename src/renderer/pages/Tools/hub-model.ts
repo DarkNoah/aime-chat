@@ -200,11 +200,13 @@ export function filterSkillGroups(
     status,
     query,
     getLabel,
+    getGroupLabel,
   }: {
     chip: string;
     status: StatusFilter;
     query: string;
     getLabel?: (skill: Tool) => string;
+    getGroupLabel?: (group: SkillGroup) => string;
   },
 ) {
   return groups.filter((group) => {
@@ -213,7 +215,7 @@ export function filterSkillGroups(
     const anyActive = group.skills.some((skill) => skill.isActive);
     if (!matchesStatus(anyActive, status)) return false;
     return (
-      matchesQuery([group.name, group.id], query) ||
+      matchesQuery([getGroupLabel?.(group), group.name, group.id], query) ||
       group.skills.some((skill) =>
         matchesQuery(
           [

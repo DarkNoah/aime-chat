@@ -742,6 +742,7 @@
     "SkillCreator": "技能创建专家"
   },
   "skill_name": {},
+  "skill_group_name": {},
   "agents": {
     "instructions": "系统提示词",
     "tools": "工具",

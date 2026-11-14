@@ -45,7 +45,10 @@ import {
 import { AgentDialog } from '@/renderer/components/agents/agent-dialog';
 import { AgentImportDialog } from '@/renderer/components/agents/agent-import-dialog';
 import { SkillSearch } from '@/renderer/components/skills-ui/skill-search';
-import { useSkillDisplayName } from '@/renderer/components/skills-ui/skill-metadata';
+import {
+  useSkillDisplayName,
+  useSkillGroupName,
+} from '@/renderer/components/skills-ui/skill-metadata';
 import { Agent } from '@/types/agent';
 import { ChatSubmitOptions } from '@/types/chat';
 import { Tool, ToolType } from '@/types/tool';
@@ -453,6 +456,7 @@ export default function CapabilityHub({ tab }: { tab: HubTab }) {
   const agentLabel = useAgentLabel();
   const toolLabel = useToolLabel();
   const skillName = useSkillDisplayName();
+  const skillGroupName = useSkillGroupName();
   const { data, loading, refresh, patchAgent, patchTool } = useHubData();
 
   const [query, setQuery] = useState('');
@@ -717,6 +721,7 @@ export default function CapabilityHub({ tab }: { tab: HubTab }) {
           status,
           query,
           getLabel: skillName,
+          getGroupLabel: (group) => skillGroupName(group.name),
         }).map((group) => <SkillGroupCard key={group.id} group={group} />),
       },
       {

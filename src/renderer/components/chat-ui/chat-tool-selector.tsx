@@ -29,6 +29,7 @@ import {
   getSkillSearchKeywords,
   SkillSummary,
   useSkillDisplayName,
+  useSkillGroupName,
 } from '../skills-ui/skill-metadata';
 import { Badge } from '../ui/badge';
 
@@ -139,6 +140,7 @@ export const ChatToolSelector = ({
   const [loading, setLoading] = useState(false);
   const { t } = useTranslation();
   const skillName = useSkillDisplayName();
+  const skillGroupName = useSkillGroupName();
   const [data, setData] = useState<{
     [ToolType.MCP]: Tool[];
     [ToolType.SKILL]: Tool[];
@@ -412,7 +414,9 @@ export const ChatToolSelector = ({
                       className="[&_[cmdk-group]]:px-0"
                     >
                       <CommandItem
-                        value={`${tool.id} ${tool.name} ${tool.skills
+                        value={`${tool.id} ${tool.name} ${skillGroupName(
+                          tool.name,
+                        )} ${tool.skills
                           .flatMap((skill) =>
                             getSkillSearchKeywords(skill, skillName(skill)),
                           )
@@ -421,7 +425,7 @@ export const ChatToolSelector = ({
                           onChange?.(toggleSkillGroupSelection(value, tool))
                         }
                       >
-                        {tool.name}
+                        {skillGroupName(tool.name)}
                         {renderAutoLoadBadge(tool)}
                         {renderSkillGroupCheckIcon(tool)}
                       </CommandItem>

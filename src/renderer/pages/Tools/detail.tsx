@@ -35,6 +35,7 @@ import { Transl } from '@/renderer/components/translations/transl';
 import {
   SkillIcon,
   useSkillDisplayName,
+  useSkillGroupName,
 } from '@/renderer/components/skills-ui/skill-metadata';
 import { nanoid } from '@/utils/nanoid';
 import { McpEvent } from '@/types/mcp';
@@ -502,6 +503,7 @@ function SkillDetail({
   const { t } = useTranslation();
   const [busy, setBusy] = useState<'toggle' | 'auto' | 'update' | null>(null);
   const skillName = useSkillDisplayName();
+  const skillGroupName = useSkillGroupName();
   const displayName = skillName(skill);
   const tags = [
     ...(skill.category ? [skill.category] : []),
@@ -576,7 +578,7 @@ function SkillDetail({
           className="inline-flex items-center gap-1.5 text-xs outline-none hover:underline focus-visible:underline"
         >
           <IconBrandGithub className="size-3.5" aria-hidden="true" />
-          {getRepoDisplayName(skill.repo)}
+          {skillGroupName(getRepoDisplayName(skill.repo))}
         </Link>
       ),
     });

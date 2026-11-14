@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
@@ -14,6 +14,7 @@ import { Switch } from '@/renderer/components/ui/switch';
 import {
   SkillIcon,
   useSkillDisplayName,
+  useSkillGroupName,
 } from '@/renderer/components/skills-ui/skill-metadata';
 import {
   getRepoDisplayName,
@@ -36,6 +37,7 @@ import {
 export default function SkillGroupDetail() {
   const { t } = useTranslation();
   const skillName = useSkillDisplayName();
+  const skillGroupName = useSkillGroupName();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const repo = searchParams.get('repo') || '';
@@ -44,7 +46,7 @@ export default function SkillGroupDetail() {
   const [updating, setUpdating] = useState(false);
   const [autoLoadUpdating, setAutoLoadUpdating] = useState(false);
 
-  const groupName = useMemo(() => getRepoDisplayName(repo), [repo]);
+  const groupName = skillGroupName(getRepoDisplayName(repo));
   const autoLoadCount = skills.filter((skill) => skill.autoLoad).length;
   const activeCount = skills.filter((skill) => skill.isActive).length;
   const allAutoLoad = skills.length > 0 && autoLoadCount === skills.length;

@@ -18,6 +18,7 @@ import {
 import {
   SkillIcon,
   useSkillDisplayName,
+  useSkillGroupName,
 } from '@/renderer/components/skills-ui/skill-metadata';
 import { Agent } from '@/types/agent';
 import { Tool } from '@/types/tool';
@@ -281,6 +282,7 @@ export function SkillCard({
 }) {
   const { t } = useTranslation();
   const skillName = useSkillDisplayName();
+  const skillGroupName = useSkillGroupName();
   const name = skillName(skill);
   const tags = [
     ...(skill.category ? [skill.category] : []),
@@ -314,7 +316,9 @@ export function SkillCard({
           {skill.repo ? (
             <span className="inline-flex min-w-0 items-center gap-1">
               <IconBrandGithub className="size-3.5 shrink-0" aria-hidden="true" />
-              <span className="truncate">{getRepoDisplayName(skill.repo)}</span>
+              <span className="truncate">
+                {skillGroupName(getRepoDisplayName(skill.repo))}
+              </span>
             </span>
           ) : null}
         </>
@@ -334,6 +338,7 @@ export function SkillCard({
 export function SkillGroupCard({ group }: { group: SkillGroup }) {
   const { t } = useTranslation();
   const skillName = useSkillDisplayName();
+  const skillGroupName = useSkillGroupName();
   const activeCount = group.skills.filter((skill) => skill.isActive).length;
   const autoLoadCount = group.skills.filter((skill) => skill.autoLoad).length;
   const preview = group.skills.slice(0, 4).map((skill) => skillName(skill));
@@ -341,7 +346,7 @@ export function SkillGroupCard({ group }: { group: SkillGroup }) {
   return (
     <HubCard
       to={skillGroupPath(group.id)}
-      title={group.name}
+      title={skillGroupName(group.name)}
       muted={activeCount === 0}
       media={
         <HubAvatar hue={TAB_META.skills.hue}>

@@ -698,6 +698,7 @@
     "SkillCreator": "Skill Creator"
   },
   "skill_name": {},
+  "skill_group_name": {},
   "agents": {
     "instructions": "System Prompt",
     "tools": "Tools",

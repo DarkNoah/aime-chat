@@ -56,7 +56,7 @@ import {
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { FileInfo } from '@/types/common';
-import { SkillSummary } from './skill-metadata';
+import { SkillSummary, useSkillGroupName } from './skill-metadata';
 
 const SEARCH_HISTORY_KEY = 'skill-import-search-history';
 const MAX_HISTORY = 5;
@@ -699,6 +699,7 @@ function InstalledSkillTab({
   onImportSuccess?: () => void;
 }) {
   const { t } = useTranslation();
+  const skillGroupName = useSkillGroupName();
   const [skills, setSkills] = useState<SkillInfo[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedSkillIds, setSelectedSkillIds] = useState<string[]>([]);
@@ -886,7 +887,9 @@ function InstalledSkillTab({
                 onClick={() => toggleSkillGroupSelection(skill)}
               >
                 <ItemContent>
-                  <ItemTitle className="truncate">{skill.name}</ItemTitle>
+                  <ItemTitle className="truncate">
+                    {skillGroupName(skill.name)}
+                  </ItemTitle>
                   <ItemDescription>
                     {skill.skills.length} {t('common.skills', 'skills')}
                   </ItemDescription>
