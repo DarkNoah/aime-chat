@@ -89,6 +89,8 @@ import {
   combineAbortSignals,
   getPtcExecutionAbortSignal,
 } from './code/ptc-execution-abort';
+import { loadMcpTools, type McpClientState } from './mcp/client-tools';
+import { appLog } from '../app/logger';
 interface BuiltInToolContext {
   tool: BaseTool;
   abortController: AbortController;
@@ -100,12 +102,7 @@ type BuiltInTool = Omit<BaseTool & BaseToolkit, 'id'> & {
 };
 
 class ToolsManager extends BaseManager {
-  mcpClients: {
-    mcp: MCPClient;
-    status: McpClientStatus;
-    error?: Error;
-    id: string;
-  }[];
+  mcpClients: McpClientState[];
 
   builtInTools: BuiltInTool[] = [];
 
@@ -126,6 +123,12 @@ class ToolsManager extends BaseManager {
     status: McpClientStatus,
     error?: Error,
   ) {
+    if (status === 'error' && error) {
+      appLog.write('error', '[mcp] client failed', {
+        id,
+        message: error.message,
+      });
+    }
     await appManager.sendEvent(McpEvent.McpClientUpdated, {
       id,
       status,
@@ -683,7 +686,7 @@ class ToolsManager extends BaseManager {
       this.mcpClients.forEach(async (mcpClient) => {
         if (mcpClient.status === 'starting') {
           try {
-            mcpClient.mcp.tools = await mcpClient.mcp.listTools();
+            await loadMcpTools(mcpClient);
             mcpClient.status = 'running';
           } catch (error: any) {
             mcpClient.status = 'error';
@@ -709,6 +712,7 @@ class ToolsManager extends BaseManager {
     await Promise.allSettled(
       clients.map(async (client) => {
         await client.mcp.disconnect();
+        client.tools = undefined;
         client.status = 'stopped';
         client.error = undefined;
       }),
@@ -822,7 +826,7 @@ class ToolsManager extends BaseManager {
       await oldMcpClient.mcp.disconnect();
     }
     this.mcpClients = this.mcpClients.filter((x) => x.id !== _id);
-    const mcpClient = {
+    const mcpClient: McpClientState = {
       id: _id,
       mcp,
       status: (shouldBeActive ? 'starting' : 'stopped') as McpClientStatus,
@@ -861,7 +865,7 @@ class ToolsManager extends BaseManager {
     if (shouldBeActive) {
       void (async () => {
         try {
-          mcpClient.mcp.tools = await mcpClient.mcp.listTools();
+          await loadMcpTools(mcpClient);
           mcpClient.status = 'running';
           mcpClient.error = undefined;
         } catch (error: any) {
@@ -1107,7 +1111,7 @@ class ToolsManager extends BaseManager {
         )
         .map((tool) => {
           const mcpClient = this.mcpClients.find((x) => x.id === tool.id);
-          const mcpTools = mcpClient?.mcp?.tools ?? {};
+          const mcpTools = mcpClient?.tools ?? {};
           return {
             id: tool.id,
             name: tool.name,
@@ -1221,10 +1225,10 @@ class ToolsManager extends BaseManager {
       let prompts;
       if (tool.isActive) {
         try {
-          if (!mcp.mcp.tools) {
-            mcp.mcp.tools = await mcp.mcp.listTools();
+          if (!mcp.tools) {
+            await loadMcpTools(mcp);
           }
-          tools = mcp.mcp.tools;
+          tools = mcp.tools;
 
           version = mcp.mcp.mcpClientsById.get(tool.name)?.client
             ?._serverVersion?.version;
@@ -1334,21 +1338,22 @@ class ToolsManager extends BaseManager {
         if (mcp) {
           if (tool.isActive) {
             await mcp.mcp.disconnect();
+            mcp.tools = undefined;
             mcp.status = 'stopped';
             mcp.error = undefined;
           } else {
+            mcp.status = 'starting';
             await this.sendMcpClientUpdatedEvent(id, 'starting', undefined);
             try {
-              const tools = await mcp.mcp.listTools();
-              mcp.mcp.tools = tools;
+              await loadMcpTools(mcp);
               mcp.status = 'running';
               mcp.error = undefined;
               await this.sendMcpClientUpdatedEvent(id, 'running', undefined);
             } catch (err) {
               mcp.status = 'error';
-              mcp.error = err.message;
+              mcp.error = err instanceof Error ? err : new Error(String(err));
               await this.sendMcpClientUpdatedEvent(id, mcp.status, mcp.error);
-              throw new Error('MCP client start failed');
+              throw mcp.error;
             }
           }
         } else {
@@ -1418,8 +1423,7 @@ class ToolsManager extends BaseManager {
         mcp.status = 'starting';
         await this.sendMcpClientUpdatedEvent(id, 'starting', undefined);
         try {
-          const tools = await mcp.mcp.listTools();
-          mcp.mcp.tools = tools;
+          await loadMcpTools(mcp);
           mcp.status = 'running';
           mcp.error = undefined;
           await this.sendMcpClientUpdatedEvent(id, mcp.status, undefined);
@@ -1460,7 +1464,7 @@ class ToolsManager extends BaseManager {
     if (toolEntity.type === ToolType.MCP) {
       const mcp = this.mcpClients.find((x) => x.id === `${toolEntity.id}`);
       if (mcp) {
-        const tools = await mcp.mcp.listTools();
+        const tools = await loadMcpTools(mcp);
         const mcpToolKey = Object.keys(toolEntity.mcpConfig)[0];
         const tool = tools[`${mcpToolKey}_${toolName}`];
         if (tool) {
@@ -2390,7 +2394,7 @@ class ToolsManager extends BaseManager {
       } else if (toolName.startsWith(`${ToolType.MCP}:`)) {
         const mcpClients = this.mcpClients.filter((x) => x.status == 'running');
         for (const mcpClient of mcpClients) {
-          const mcpTools = await mcpClient.mcp.listTools();
+          const mcpTools = await loadMcpTools(mcpClient);
           const keys = Object.keys(mcpTools).filter(
             (x) => `${ToolType.MCP}:${x}` == toolName,
           );
