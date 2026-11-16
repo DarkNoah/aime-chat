@@ -1,6 +1,9 @@
 import { hookModelRequestBody } from '../model-request-content';
 import { toReadModelOutput } from '@/main/tools/file-system/read-model-output';
 
+const png =
+  'iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAAE0lEQVQImWP4z8DwnwGM/zMwAAAf7gP9qS/A4gAAAABJRU5ErkJggg==';
+
 describe('hookModelRequestBody', () => {
   it('maps a Responses API tool image into input_image content', () => {
     const body = {
@@ -41,7 +44,7 @@ describe('hookModelRequestBody', () => {
     });
   });
 
-  it('supports Aime and AI SDK image tool-result shapes', () => {
+  it('supports Aime and AI SDK image tool-result shapes', async () => {
     const body = {
       input: [
         {
@@ -72,12 +75,12 @@ describe('hookModelRequestBody', () => {
           type: 'function_call_output',
           call_id: 'call_model_output',
           output: JSON.stringify(
-            toReadModelOutput({
+            await toReadModelOutput({
               content: [
                 {
                   type: 'image',
-                  data: 'dGhpcmQ=',
-                  mimeType: 'image/jpeg',
+                  data: png,
+                  mimeType: 'image/png',
                 },
               ],
             }),
@@ -115,7 +118,7 @@ describe('hookModelRequestBody', () => {
         output: [
           {
             type: 'input_image',
-            image_url: 'data:image/jpeg;base64,dGhpcmQ=',
+            image_url: `data:image/png;base64,${png}`,
           },
         ],
       },

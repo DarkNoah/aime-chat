@@ -1,3 +1,5 @@
+import { resizeReadImageData } from './read-image';
+
 type UnknownRecord = Record<string, unknown>;
 
 type ReadModelContentPart =
@@ -257,10 +259,13 @@ function unwrapToolOutput(output: unknown) {
 }
 
 /**
- * Shapes Read's raw execution result for the next model turn without changing
- * the value returned to UI, manual tool calls, Extract, or knowledge-base code.
+ * Shapes Read's raw execution result and limits image pixels for the next model
+ * turn without changing the value returned to UI, manual tool calls, Extract,
+ * or knowledge-base code.
  */
-export function toReadModelOutput(output: unknown): ReadModelOutput {
+export async function toReadModelOutput(
+  output: unknown,
+): Promise<ReadModelOutput> {
   const rawOutput = unwrapToolOutput(output);
 
   if (typeof rawOutput === 'string') {
@@ -272,9 +277,27 @@ export function toReadModelOutput(output: unknown): ReadModelOutput {
 
   const content = getContentParts(rawOutput);
   if (content && content.length > 0) {
+    const parts: ReadModelContentPart[] = [];
+    for (const part of content) {
+      const modelPart = toModelContentPart(part);
+      if (modelPart.type === 'image-data') {
+        // Avoid decoding multiple large images in memory at the same time.
+        // eslint-disable-next-line no-await-in-loop
+        const imageData = await resizeReadImageData(
+          modelPart.data,
+          modelPart.mediaType,
+        );
+        parts.push({
+          ...modelPart,
+          ...imageData,
+        });
+      } else {
+        parts.push(modelPart);
+      }
+    }
     return {
       type: 'content',
-      value: content.map(toModelContentPart),
+      value: parts,
     };
   }
 
